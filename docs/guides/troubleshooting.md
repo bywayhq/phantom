@@ -119,7 +119,9 @@ Add the recipe to the profile.
 
 `UnsupportedScheme` means a scheme other than `http` or `https`, or an
 `http://` URI with exact H2 or H3. Send plaintext requests with
-`HttpProtocol::Http1` or `get_negotiated`, which uses H1 for them. An
+`HttpProtocol::Http1` or `get_negotiated`, which uses H1 for them. Through an
+HTTP proxy with `with_http2_transport`, use `HttpProtocol::Http2` or
+`get_negotiated`; exact H1 there fails with `UnsupportedRoute`. An
 `http://` request through CONNECT-UDP fails with `UnsupportedRoute`;
 plaintext goes direct, through an HTTP proxy, or through SOCKS5. `Redirect`
 means a target that is not `http://` or `https://`, more than one

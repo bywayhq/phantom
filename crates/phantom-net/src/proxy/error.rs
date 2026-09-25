@@ -43,6 +43,8 @@ pub enum HttpConnectError {
     MissingHttp2Settings,
     /// Absolute-form forwarding requires HTTP/1.1 transport to the proxy.
     ForwardingRequiresHttp1,
+    /// HTTP/2 forwarding requires HTTP/2 transport to the proxy.
+    ForwardingRequiresHttp2,
     /// The HTTP Basic username is invalid.
     InvalidBasicUsername,
     /// The HTTP Basic password is invalid.
@@ -154,7 +156,8 @@ impl HttpConnectError {
             Self::MissingHttp1Alpn
             | Self::MissingH2Alpn
             | Self::MissingHttp2Settings
-            | Self::ForwardingRequiresHttp1 => HttpConnectErrorKind::InvalidConfiguration,
+            | Self::ForwardingRequiresHttp1
+            | Self::ForwardingRequiresHttp2 => HttpConnectErrorKind::InvalidConfiguration,
             Self::InvalidBasicUsername
             | Self::InvalidBasicPassword
             | Self::BasicCredentialsTooLarge
@@ -215,6 +218,9 @@ impl fmt::Display for HttpConnectError {
             }
             Self::ForwardingRequiresHttp1 => formatter
                 .write_str("plaintext HTTP forwarding requires HTTP/1.1 transport to the proxy"),
+            Self::ForwardingRequiresHttp2 => {
+                formatter.write_str("HTTP/2 forwarding requires HTTP/2 transport to the proxy")
+            }
             Self::InvalidBasicUsername => {
                 formatter.write_str("HTTP Basic proxy username is invalid")
             }

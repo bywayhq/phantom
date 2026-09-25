@@ -98,16 +98,12 @@ have shown where the real architectural boundaries are.
 - Bring the plaintext proxy routes in line with the
   [proxy route captures](explanation/validation.md#proxy-route-browser-evidence)
   of Chrome 154, Edge 153, and Firefox 156:
-  1. `http://` through an HTTP/2 proxy. Every captured browser that
-     negotiates `h2` with a TLS proxy forwards the request as an HTTP/2
-     request with `:scheme` `http`, in the family's own pseudo-field order.
-     Phantom rejects the route before I/O. Forward it over HTTP/2.
-  2. `Accept-Encoding` on plaintext. No captured browser offers `br` or
+  1. `Accept-Encoding` on plaintext. No captured browser offers `br` or
      `zstd` to a named `http://` origin, direct or proxied; all three send
      `gzip, deflate`. They offer `gzip, deflate, br, zstd` only to
      `127.0.0.1`. A request template for a plaintext named origin must not
      carry the HTTPS value.
-  3. Chromium forwards absolute-form requests with `Proxy-Connection:
+  2. Chromium forwards absolute-form requests with `Proxy-Connection:
      keep-alive` where a direct request has `Connection: keep-alive`.
      Firefox sends its direct fields unchanged. Check what Phantom's
      forwarding path emits against both before claiming parity.

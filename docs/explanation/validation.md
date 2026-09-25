@@ -1134,8 +1134,11 @@ suppression of cookies from the challenge response, while cookies from the
 final origin response are kept.
 
 The HTTP/2 proxy transport has separate CONNECT regressions for H1 and H2
-origins in `crates/phantom/tests/proxy_h2.rs`, including rejection of
-plaintext forwarding before I/O. H3 over SOCKS5 has its own
+origins in `crates/phantom/tests/proxy_h2.rs`. The same file forwards an
+exact H2 and a negotiated `http://` request over one HTTP/2 proxy
+connection, and asserts `:scheme` `http`, the origin in `:authority`, the
+fields, and an H2 `ResponseInfo::protocol`; it rejects exact H1 and
+configured Basic credentials before I/O. H3 over SOCKS5 has its own
 [evidence](#h3-socks5-udp-evidence).
 
 Negotiated requests through plaintext, TLS, and HTTP/2 proxy transports have
@@ -1186,9 +1189,9 @@ Limits:
 - No browser-capture fidelity. [Proxy route browser
   evidence](#proxy-route-browser-evidence) records what browsers send on
   these routes, and where Phantom differs.
-- Not covered: redirects, negotiated H1/H2 forwarding, H2 proxy transport,
-  other authentication schemes, forwarding an HTTPS origin, and H3 through an
-  HTTP forward proxy.
+- Not covered: redirects, Basic authentication and request bodies on H2
+  forwarding, other authentication schemes, forwarding an HTTPS origin, and
+  H3 through an HTTP forward proxy.
 
 ### Proxy route browser evidence
 
@@ -1266,8 +1269,15 @@ Against the route matrix:
   field order with the `http-proxy-loopback` captures. Phantom's CONNECT
   carries only `Host` unless the route sets more fields; the test sets the
   captured ones with `HttpProxy::connect_headers`.
-- `http://` exact H1 through an H2 proxy: Phantom rejects it before I/O.
-  Every captured browser forwards it over H2 to the proxy.
+- `http://` through an H2 proxy: Phantom forwards exact H2 and negotiated
+  requests over H2 with `:scheme` `http`, as every captured browser does.
+  `chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order` and
+  its Firefox counterpart in `crates/phantom/tests/proxy_h2.rs` decode the
+  first HEADERS block and compare its pseudo-field order with the
+  `https-proxy` captures. Exact H1 stays rejected before I/O. Phantom does
+  not reproduce the per-request HEADERS priority, `te: trailers`, or the
+  other fields of a browser page load unless a request template supplies
+  them.
 - `ws://` H1 through an H2 proxy: Phantom opens a CONNECT stream and sends
   the Upgrade inside it, as every captured browser does. The stream is on a
   new proxy connection, as Firefox opens one; Chromium reuses the page's
@@ -1287,7 +1297,8 @@ Limits:
   settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
 - Chromium was launched with `--disable-field-trial-config`; field trials in
   a normal profile may change these results.
-- Only the `ws://` opening inside the tunnel is compared with a fixture.
+- Only the `ws://` opening inside the tunnel and the pseudo-field order of
+  H2 forwarding are compared with a fixture.
   The comparison uses the loopback captures, because the WebSocket recipes
   rest on `127.0.0.1` captures.
 

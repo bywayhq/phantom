@@ -9,6 +9,9 @@ use std::{
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, SocketAddr},
+    pin::Pin,
+    sync::{Arc, Mutex},
+    task::{Context, Poll},
     time::Duration,
 };
 
@@ -17,18 +20,20 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
-    HttpProtocol, HttpProxy, ProxyConfigErrorKind, RequestErrorKind, RequestHeader, Route,
+    Client, HttpProtocol, HttpProxy, ProxyConfigErrorKind, RequestErrorKind, RequestHeader,
+    ResponseInfo, Route,
+    profile::{ClientProfile, Http2Settings, chromium, firefox},
 };
 use phantom_net::proxy::HttpConnectError;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
 
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
-    is_peer_gone, read_head,
+    is_peer_gone, read_head, tls_settings,
 };
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -372,7 +377,7 @@ async fn h2_proxy_transport_rejects_http1_selection_without_fallback() -> TestRe
 }
 
 #[tokio::test]
-async fn h2_proxy_transport_rejects_plaintext_forwarding_before_io() -> TestResult<()> {
+async fn exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io() -> TestResult<()> {
     let origin_identity = TestIdentity::generate()?;
     let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     proxy.set_nonblocking(true)?;
@@ -384,24 +389,350 @@ async fn h2_proxy_transport_rejects_plaintext_forwarding_before_io() -> TestResu
         .route(route)
         .build()?;
 
+    // The proxy speaks HTTP/2, so an exact HTTP/1.1 request cannot reach it
+    // as HTTP/1.1; it is refused rather than sent as HTTP/2.
     let error = match client
         .get(HttpProtocol::Http1, "http://origin.invalid/")?
         .send()
         .await
     {
-        Ok(_) => return Err("plaintext request was forwarded over HTTP/2 transport".into()),
+        Ok(_) => return Err("exact HTTP/1.1 request was sent over HTTP/2 transport".into()),
         Err(error) => error,
     };
-    assert_eq!(error.kind(), RequestErrorKind::Proxy);
-    assert!(matches!(
-        connect_error(&error),
-        Some(HttpConnectError::ForwardingRequiresHttp1)
-    ));
+    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+    assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
     assert!(matches!(
         proxy.accept(),
         Err(error) if error.kind() == io::ErrorKind::WouldBlock
     ));
     Ok(())
+}
+
+#[tokio::test]
+async fn h2_forwarding_with_configured_basic_credentials_is_rejected_before_io() -> TestResult<()> {
+    let origin_identity = TestIdentity::generate()?;
+    let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    proxy.set_nonblocking(true)?;
+    let proxy_address = proxy.local_addr()?;
+    let route = Route::http_proxy(
+        HttpProxy::new(&format!("https://{proxy_address}"))?
+            .with_basic_auth("alice", "secret")?
+            .with_http2_transport()?,
+    );
+    let client = client_builder(&origin_identity, true)
+        .route(route)
+        .build()?;
+
+    let error = match client
+        .get(HttpProtocol::Http2, "http://origin.invalid/")?
+        .send()
+        .await
+    {
+        Ok(_) => return Err("credentialed HTTP/2 forwarding reached the proxy".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+    assert!(matches!(
+        proxy.accept(),
+        Err(error) if error.kind() == io::ErrorKind::WouldBlock
+    ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -> TestResult<()> {
+    // fixtures/proxy/{chrome,edge}/*/https-proxy-*.txt: every forwarded
+    // request's pseudo-fields.
+    assert_h2_forwarding(
+        chromium::v154_http2(),
+        &[":method", ":authority", ":scheme", ":path"],
+    )
+    .await
+}
+
+#[tokio::test]
+async fn firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -> TestResult<()> {
+    // fixtures/proxy/firefox/156.0/*/https-proxy-*.txt.
+    assert_h2_forwarding(
+        firefox::v156_http2(),
+        &[":method", ":path", ":authority", ":scheme"],
+    )
+    .await
+}
+
+/// Sends an exact H2 and a negotiated `http://` request through an HTTP/2
+/// proxy and checks what the proxy received.
+///
+/// Both requests share one proxy connection, carry `:scheme` `http` and the
+/// origin in `:authority`, and report HTTP/2. The first HEADERS block's
+/// pseudo-fields follow `pseudo_order`.
+async fn assert_h2_forwarding(http2: Http2Settings, pseudo_order: &[&str]) -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let proxy = H2Proxy::bind().await?;
+        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+        let proxy_task = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let record = serve_forwarded(tcp, &acceptor, 2).await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((record, second.is_err()))
+        });
+        let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
+        let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+            .add_root_certificate_der(origin_identity.root_der.clone())
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(route)
+            .build()?;
+
+        let exact = client
+            .get(HttpProtocol::Http2, "http://origin.test:8080/page?run=1")?
+            .header(RequestHeader::new("user-agent", "phantom-test"))
+            .send()
+            .await?;
+        assert_eq!(
+            exact
+                .extensions()
+                .get::<ResponseInfo>()
+                .map(ResponseInfo::protocol),
+            Some(HttpProtocol::Http2)
+        );
+        assert_eq!(exact.into_body().collect().await?.to_bytes(), "forwarded");
+        let negotiated = client
+            .get_negotiated("http://origin.test:8080/done")?
+            .send()
+            .await?;
+        assert_eq!(
+            negotiated
+                .extensions()
+                .get::<ResponseInfo>()
+                .map(ResponseInfo::protocol),
+            Some(HttpProtocol::Http2)
+        );
+        assert_eq!(
+            negotiated.into_body().collect().await?.to_bytes(),
+            "forwarded"
+        );
+
+        let (record, had_one_proxy_connection) = proxy_task.await??;
+        assert!(had_one_proxy_connection);
+        assert_eq!(record.alpn.as_deref(), Some(b"h2".as_slice()));
+        assert_eq!(
+            record.requests,
+            [
+                ForwardedRequest {
+                    method: "GET".to_owned(),
+                    scheme: Some("http".to_owned()),
+                    authority: Some("origin.test:8080".to_owned()),
+                    path: "/page?run=1".to_owned(),
+                    fields: vec![("user-agent".to_owned(), b"phantom-test".to_vec())],
+                },
+                ForwardedRequest {
+                    method: "GET".to_owned(),
+                    scheme: Some("http".to_owned()),
+                    authority: Some("origin.test:8080".to_owned()),
+                    path: "/done".to_owned(),
+                    fields: Vec::new(),
+                },
+            ]
+        );
+        assert_eq!(first_pseudo_order(&record.client_wire)?, pseudo_order);
+        Ok(())
+    })
+    .await
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct ForwardedRequest {
+    method: String,
+    scheme: Option<String>,
+    authority: Option<String>,
+    path: String,
+    fields: Vec<(String, Vec<u8>)>,
+}
+
+struct ForwardRecord {
+    alpn: Option<Vec<u8>>,
+    requests: Vec<ForwardedRequest>,
+    client_wire: Vec<u8>,
+}
+
+/// Serves `count` forwarded requests on one HTTP/2 proxy connection, answering
+/// each as the origin with `200` and `forwarded`, and keeps every byte the
+/// client sent.
+async fn serve_forwarded(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    count: usize,
+) -> TestResult<ForwardRecord> {
+    let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
+    let alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
+    let client_wire = Arc::new(Mutex::new(Vec::new()));
+    let recording = Recording {
+        inner: stream,
+        wire: Arc::clone(&client_wire),
+    };
+    let mut connection = ::http2::server::handshake(recording).await?;
+    let mut requests = Vec::with_capacity(count);
+    for _ in 0..count {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("proxy connection closed before a forwarded request")??;
+        requests.push(ForwardedRequest {
+            method: request.method().to_string(),
+            scheme: request.uri().scheme_str().map(ToOwned::to_owned),
+            authority: request.uri().authority().map(ToString::to_string),
+            path: request
+                .uri()
+                .path_and_query()
+                .map_or_else(String::new, ToString::to_string),
+            fields: request
+                .extensions()
+                .get::<::http2::ext::OrderedHeaders>()
+                .ok_or("missing ordered request fields")?
+                .as_slice()
+                .iter()
+                .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+                .collect(),
+        });
+        let mut send = respond.send_response(Response::new(()), false)?;
+        send.send_data(Bytes::from_static(b"forwarded"), true)?;
+    }
+    tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
+    let client_wire = client_wire
+        .lock()
+        .map_err(|_| "client wire lock was poisoned")?
+        .clone();
+    Ok(ForwardRecord {
+        alpn,
+        requests,
+        client_wire,
+    })
+}
+
+/// Returns the pseudo-field names of the first client HEADERS block.
+///
+/// The block is the connection's first, so its HPACK dynamic table is empty
+/// and every pseudo-field name comes from a static index.
+fn first_pseudo_order(wire: &[u8]) -> TestResult<Vec<&'static str>> {
+    const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+    let mut offset = PREFACE.len();
+    if !wire.starts_with(PREFACE) {
+        return Err("client omitted the HTTP/2 preface".into());
+    }
+    while let Some(head) = wire.get(offset..offset + 9) {
+        let length =
+            (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
+        let payload = wire
+            .get(offset + 9..offset + 9 + length)
+            .ok_or("truncated HTTP/2 frame")?;
+        offset += 9 + length;
+        let (kind, flags) = (head[3], head[4]);
+        if kind != 1 {
+            continue;
+        }
+        if flags & 0x08 != 0 || flags & 0x04 == 0 {
+            return Err("test decoder supports only unpadded single-frame HEADERS".into());
+        }
+        let block = if flags & 0x20 != 0 {
+            &payload[5..]
+        } else {
+            payload
+        };
+        return pseudo_names(block);
+    }
+    Err("client sent no HEADERS".into())
+}
+
+fn pseudo_names(block: &[u8]) -> TestResult<Vec<&'static str>> {
+    let mut cursor = 0;
+    let mut names = Vec::new();
+    while let Some(&first) = block.get(cursor) {
+        if first & 0xe0 == 0x20 {
+            hpack_integer(block, &mut cursor, 5)?;
+            continue;
+        }
+        let (indexed, prefix) = if first & 0x80 != 0 {
+            (true, 7)
+        } else if first & 0xc0 == 0x40 {
+            (false, 6)
+        } else {
+            (false, 4)
+        };
+        let index = hpack_integer(block, &mut cursor, prefix)?;
+        let name = match index {
+            1 => ":authority",
+            2 | 3 => ":method",
+            4 | 5 => ":path",
+            6 | 7 => ":scheme",
+            _ => return Ok(names),
+        };
+        if !indexed {
+            let length = hpack_integer(block, &mut cursor, 7)?;
+            cursor += length;
+        }
+        names.push(name);
+    }
+    Ok(names)
+}
+
+fn hpack_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult<usize> {
+    let mask = (1_u8 << prefix_bits) - 1;
+    let first = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
+    *cursor += 1;
+    let mut value = usize::from(first & mask);
+    if value < usize::from(mask) {
+        return Ok(value);
+    }
+    let mut shift = 0;
+    loop {
+        let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
+        *cursor += 1;
+        value += usize::from(byte & 0x7f) << shift;
+        if byte & 0x80 == 0 {
+            return Ok(value);
+        }
+        shift += 7;
+    }
+}
+
+/// A byte stream that keeps a copy of everything read from it.
+struct Recording<S> {
+    inner: S,
+    wire: Arc<Mutex<Vec<u8>>>,
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for Recording<S> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let before = buffer.filled().len();
+        let result = Pin::new(&mut self.inner).poll_read(context, buffer);
+        if let Ok(mut wire) = self.wire.lock() {
+            wire.extend_from_slice(&buffer.filled()[before..]);
+        }
+        result
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for Recording<S> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        bytes: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(context, bytes)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
 }
 
 struct H2Proxy {

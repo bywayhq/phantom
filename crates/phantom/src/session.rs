@@ -13,7 +13,7 @@ pub(crate) mod client_hints;
 mod cookies;
 pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
-mod http2_pool;
+pub(crate) mod http2_pool;
 pub(crate) mod http3_pool;
 
 pub use alt_svc::{

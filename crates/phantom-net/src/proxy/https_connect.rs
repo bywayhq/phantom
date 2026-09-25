@@ -41,9 +41,9 @@ pub enum HttpsProxyProtocol {
     #[default]
     Http1,
     /// RFC 9113 section 8.5 CONNECT on a dedicated HTTP/2 connection per
-    /// tunnel.
+    /// tunnel, and HTTP/2 forwarding of plaintext `http://` requests.
     ///
-    /// The proxy must select `h2`. Plaintext absolute-form forwarding is not
+    /// The proxy must select `h2`. HTTP/1.1 absolute-form forwarding is not
     /// available in this mode.
     Http2,
 }
@@ -51,7 +51,8 @@ pub enum HttpsProxyProtocol {
 /// Reusable TLS configuration for forwarding or CONNECT through an HTTPS proxy.
 ///
 /// The default [`HttpsProxyProtocol::Http1`] mode supports HTTP/1.1 forwarding
-/// and CONNECT. [`HttpsProxyProtocol::Http2`] supports CONNECT only.
+/// and CONNECT. [`HttpsProxyProtocol::Http2`] supports CONNECT and HTTP/2
+/// forwarding through [`Self::connect_forward_http2`].
 #[derive(Clone, Debug)]
 pub struct HttpsProxyConnector {
     tls: TlsConnector,
@@ -186,6 +187,35 @@ impl HttpsProxyConnector {
             .await
     }
 
+    /// Opens one HTTP/2 connection to the proxy for forwarding plaintext
+    /// `http://` requests.
+    ///
+    /// The connection uses this connector's TLS offer and HTTP/2 settings, so
+    /// its SETTINGS, priority, pseudo-header order, and HPACK choices are the
+    /// profile's. Send requests on it with
+    /// [`Http2Connection::send_forward_request_body_with_trailers`]. The proxy
+    /// must select `h2`; any other ALPN result is an error, never a switch to
+    /// HTTP/1.1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HttpConnectError::ForwardingRequiresHttp2`] in
+    /// [`HttpsProxyProtocol::Http1`] mode and a configuration error for a
+    /// missing `h2` offer or HTTP/2 settings, all before proxy I/O; otherwise
+    /// a connect, TLS, ALPN, or HTTP/2 setup error.
+    pub async fn connect_forward_http2(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<Http2Connection, HttpConnectError> {
+        if self.protocol != HttpsProxyProtocol::Http2 {
+            return Err(HttpConnectError::ForwardingRequiresHttp2);
+        }
+        self.connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
+            .await
+    }
+
     pub(crate) async fn connect_tunnel(
         &self,
         proxy_host: &str,
@@ -312,8 +342,9 @@ impl HttpsProxyConnector {
 
     /// Opens one dedicated HTTP/2 connection to the proxy.
     ///
-    /// The connection is never shared between tunnels, so its lifetime is
-    /// bounded by the one tunnel stream that holds it.
+    /// A tunnel never shares its connection with another tunnel, so its
+    /// lifetime is bounded by the one tunnel stream that holds it. A
+    /// forwarding connection belongs to its caller's pool.
     async fn connect_http2_proxy(
         &self,
         proxy_host: &str,

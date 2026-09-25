@@ -56,6 +56,16 @@ pub(super) async fn send_on(
     }
 }
 
+/// How an HTTP/2 pool connection reaches its origin.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Http2ConnectionMode {
+    /// TLS to the origin, directly or through a tunnel.
+    TlsOrigin,
+    /// A connection to an HTTP/2 proxy that forwards `http://` requests
+    /// with `:scheme` `http`.
+    Forward,
+}
+
 pub(crate) struct Http2Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
@@ -96,6 +106,7 @@ impl Http2Pool {
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
+        mode: Http2ConnectionMode,
         method: Method,
         authority: &str,
         target: OriginForm,
@@ -124,7 +135,18 @@ impl Http2Pool {
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http2));
         }
-        let key = PoolKey::new(endpoint, route);
+        if mode == Http2ConnectionMode::Forward {
+            let Some(proxy) = route
+                .as_http_proxy()
+                .filter(|_| route.forwards_plaintext_over_http2())
+            else {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+            };
+            if proxy.basic_credentials().is_some() {
+                return Err(RequestError::unsupported_http2_forward_authentication());
+            }
+        }
+        let key = PoolKey::new(endpoint, route, mode);
         let entry = self.entry(key).await;
         let permit = timeout_budget
             .run(
@@ -140,7 +162,9 @@ impl Http2Pool {
         loop {
             let lease =
                 acquire_with_retries(HttpProtocol::Http2, timeout_budget, retries, || async {
-                    entry.acquire(connector, https_proxy, endpoint, route).await
+                    entry
+                        .acquire(connector, https_proxy, endpoint, route, mode)
+                        .await
                 })
                 .await?;
             let response_timeout =
@@ -154,19 +178,35 @@ impl Http2Pool {
             };
             let result = response_timeout
                 .run(async {
-                    Ok::<_, RequestError>(
-                        send_on(
-                            &lease.connection,
-                            method.clone(),
-                            authority,
-                            target.clone(),
-                            sent_headers.clone(),
-                            body.take(),
-                            trailers.clone(),
-                            priority,
-                        )
-                        .await,
-                    )
+                    Ok::<_, RequestError>(match mode {
+                        Http2ConnectionMode::TlsOrigin => {
+                            send_on(
+                                &lease.connection,
+                                method.clone(),
+                                authority,
+                                target.clone(),
+                                sent_headers.clone(),
+                                body.take(),
+                                trailers.clone(),
+                                priority,
+                            )
+                            .await
+                        }
+                        Http2ConnectionMode::Forward => {
+                            lease
+                                .connection
+                                .send_forward_request_body_with_trailers(
+                                    method.clone(),
+                                    authority,
+                                    target.clone(),
+                                    sent_headers.clone(),
+                                    body.take(),
+                                    trailers.clone(),
+                                    priority,
+                                )
+                                .await
+                        }
+                    })
                 })
                 .await;
             match result {
@@ -224,7 +264,7 @@ impl Http2Pool {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<Option<(Http2Connection, AdmissionPermit)>, RequestError> {
-        let key = PoolKey::new(endpoint, route);
+        let key = PoolKey::new(endpoint, route, Http2ConnectionMode::TlsOrigin);
         let entry = {
             let state = self.state.lock().await;
             state
@@ -299,14 +339,16 @@ struct PoolKey {
     host: Box<str>,
     port: u16,
     route: Route,
+    mode: Http2ConnectionMode,
 }
 
 impl PoolKey {
-    fn new(endpoint: &Endpoint, route: &Route) -> Self {
+    fn new(endpoint: &Endpoint, route: &Route, mode: Http2ConnectionMode) -> Self {
         Self {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
             route: route.clone(),
+            mode,
         }
     }
 }
@@ -347,6 +389,7 @@ impl PoolEntry {
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
+        mode: Http2ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
         let mut current = self.current.lock().await;
         if let Some(slot) = current.as_ref()
@@ -364,6 +407,25 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
+            // One proxy connection per origin carries its forwarded requests;
+            // the pool key keeps it apart from CONNECT tunnels.
+            Route::HttpProxy(proxy) if mode == Http2ConnectionMode::Forward => {
+                let base = https_proxy
+                    .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+                let proxy_connector = self
+                    .https_proxy
+                    .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                proxy_connector
+                    .connect_forward_http2(proxy.host(), proxy.port(), proxy.host())
+                    .await
+                    .map_err(|error| {
+                        RequestError::http2_connection_setup(Http2TlsError::from(error))
+                    })?
+            }
+            // Checked before admission; forwarding needs an HTTP proxy.
+            _ if mode == Http2ConnectionMode::Forward => {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+            }
             // Rejected before admission; never reinterpreted as TCP.
             Route::ConnectUdp(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http2));
@@ -519,11 +581,13 @@ mod tests {
         let first = Endpoint::new("first.test:443".parse()?, 443)?;
         let second = Endpoint::new("second.test:443".parse()?, 443)?;
 
-        let first_entry = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+        let mode = super::Http2ConnectionMode::TlsOrigin;
+        let first_entry = pool.entry(PoolKey::new(&first, &Route::Direct, mode)).await;
         let permit = first_entry.admit().await?;
-        pool.entry(PoolKey::new(&second, &Route::Direct)).await;
+        pool.entry(PoolKey::new(&second, &Route::Direct, mode))
+            .await;
         drop(first_entry);
-        let replacement = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+        let replacement = pool.entry(PoolKey::new(&first, &Route::Direct, mode)).await;
 
         assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));
         assert_eq!(replacement.admission.available_active(), 0);

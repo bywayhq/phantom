@@ -817,8 +817,20 @@ fn ensure_request_supported(
 ) -> Result<(), RequestError> {
     match request.uri.scheme_str() {
         // Cleartext has no ALPN, so a negotiated request uses HTTP/1.1, as a
-        // browser does; see `send_once`.
+        // browser does, except through an HTTP/2 proxy, which forwards it as
+        // HTTP/2; see `send_once`. Exact HTTP/1.1 through that proxy is
+        // refused rather than changed.
         Some("http") => match (selection, route) {
+            (ProtocolSelection::Exact(HttpProtocol::Http2) | ProtocolSelection::Http1Or2, _)
+                if route.forwards_plaintext_over_http2() =>
+            {
+                Ok(())
+            }
+            (ProtocolSelection::Exact(HttpProtocol::Http1), _)
+                if route.forwards_plaintext_over_http2() =>
+            {
+                Err(RequestError::unsupported_route(HttpProtocol::Http1))
+            }
             (
                 ProtocolSelection::Exact(HttpProtocol::Http1) | ProtocolSelection::Http1Or2,
                 Route::Direct | Route::HttpProxy(_) | Route::Socks5(_),

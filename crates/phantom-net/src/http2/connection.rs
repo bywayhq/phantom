@@ -232,6 +232,46 @@ impl Http2Connection {
         self.send_prepared_request(request, body, trailers).await
     }
 
+    /// Forwards one request for a plaintext `http://` origin on a connection
+    /// to an HTTP/2 proxy.
+    ///
+    /// The request carries `:scheme` `http` and the origin's `authority` in
+    /// `:authority`, in the connection's pseudo-header order, as a browser
+    /// sends it to an HTTP/2 proxy. Nothing else differs from
+    /// [`Self::send_request_body_with_trailers`]: validation finishes before
+    /// the connection is touched, and `priority`, when set, replaces the
+    /// connection's HEADERS priority for this stream only.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2Error`] for an invalid priority or any failure of
+    /// [`Self::send_request_body_with_trailers`].
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_forward_request_body_with_trailers(
+        &self,
+        method: Method,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<RequestBody>,
+        trailers: Vec<RequestHeader>,
+        priority: Option<Http2Priority>,
+    ) -> Result<Response<Http2Body>, Http2Error> {
+        let overrides = priority.map(priority_overrides).transpose()?;
+        PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+        let metadata = body.as_ref().map(RequestBody::metadata);
+        let mut request = prepare_request(method, authority, target, headers, metadata)?;
+        let mut parts = request.uri().clone().into_parts();
+        parts.scheme = Some(http::uri::Scheme::HTTP);
+        *request.uri_mut() = http::Uri::from_parts(parts)
+            .map_err(|error| Http2Error::InvalidRequestUri(error.into()))?;
+        if let Some(overrides) = overrides {
+            request.extensions_mut().insert(overrides);
+        }
+        let trailers = PreparedRequestTrailers::new(trailers)?;
+        self.send_prepared_request(request, body, trailers).await
+    }
+
     /// Opens a WebSocket extended CONNECT stream without protocol fallback.
     ///
     /// The request is validated before the connection is touched. This waits

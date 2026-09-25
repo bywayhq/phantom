@@ -576,6 +576,17 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn unsupported_http2_forward_authentication() -> Self {
+        Self {
+            kind: RequestErrorKind::UnsupportedRoute,
+            protocol: Some(HttpProtocol::Http2),
+            timeout_phase: None,
+            retryability: RequestRetryability::Never,
+            message: "forwarding http:// over an HTTP/2 proxy does not support configured Basic credentials",
+            source: None,
+        }
+    }
+
     pub(crate) fn unsupported_negotiated_route() -> Self {
         Self::without_source(
             RequestErrorKind::UnsupportedRoute,

@@ -21,7 +21,8 @@ use super::{
 };
 use crate::session::{
     client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
-    http1_pool::Http1ConnectionMode, http3_pool::Http3TransportTarget,
+    http1_pool::Http1ConnectionMode, http2_pool::Http2ConnectionMode,
+    http3_pool::Http3TransportTarget,
 };
 
 pub(super) struct AttemptRequest<'a> {
@@ -51,22 +52,20 @@ pub(super) async fn send_once(
         ProtocolSelection::Exact(protocol) => {
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
-        // Cleartext has no ALPN and browsers do not use h2c, so HTTP/1.1 is
-        // the one protocol of the negotiated set an `http://` origin can use.
-        // It is chosen before any I/O, and nothing is learned from Alt-Svc.
+        // Cleartext has no ALPN and browsers do not use h2c, so an `http://`
+        // origin uses HTTP/1.1, except through an HTTP/2 proxy, where
+        // browsers forward it as an HTTP/2 request. The choice follows the
+        // route before any I/O, and nothing is learned from Alt-Svc.
         ProtocolSelection::Http1Or2 if request.uri.scheme_str() == Some("http") => {
+            let protocol = if route.forwards_plaintext_over_http2() {
+                HttpProtocol::Http2
+            } else {
+                HttpProtocol::Http1
+            };
             lifecycle
                 .request_span
-                .record("selected_protocol", HttpProtocol::Http1.trace_name());
-            send_once_exact(
-                client,
-                request,
-                HttpProtocol::Http1,
-                attempt,
-                route,
-                lifecycle,
-            )
-            .await
+                .record("selected_protocol", protocol.trace_name());
+            send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(client, request, attempt, route, lifecycle).await
@@ -721,6 +720,11 @@ async fn dispatch_attempt(
                     client.inner.https_proxy.as_ref(),
                     endpoint,
                     route,
+                    if request.uri.scheme_str() == Some("http") {
+                        Http2ConnectionMode::Forward
+                    } else {
+                        Http2ConnectionMode::TlsOrigin
+                    },
                     method,
                     endpoint.authority().as_str(),
                     target,

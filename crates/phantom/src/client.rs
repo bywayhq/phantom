@@ -28,7 +28,8 @@ pub enum HttpProtocol {
     /// HTTP/1.1 over TLS, plaintext TCP (direct or in a SOCKS5 tunnel), or
     /// plaintext forwarding to an HTTP proxy.
     Http1,
-    /// HTTP/2 over TLS.
+    /// HTTP/2 over TLS, or forwarding of `http://` requests to an HTTP proxy
+    /// that speaks HTTP/2.
     Http2,
     /// HTTP/3 over QUIC.
     Http3,

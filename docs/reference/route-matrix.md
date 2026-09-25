@@ -24,8 +24,9 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
 | --- | --- | --- | --- | --- | --- |
 | `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Plaintext H1 in a TCP tunnel | Rejected |
-| `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | Rejected | Plaintext H1 in a TCP tunnel | Rejected |
-| `http://`, exact H2 or H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | H2 forwarding | Plaintext H1 in a TCP tunnel | Rejected |
+| `http://`, exact H2 | Rejected | Rejected | H2 forwarding | Rejected | Rejected |
+| `http://`, exact H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
 | `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
@@ -48,8 +49,12 @@ Notes:
   H1 or H2. See
   [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 - A negotiated `http://` request has no TLS stream for ALPN, so it is sent as
-  H1, as a browser sends it, and follows the exact H1 row. It reports H1 as
-  its protocol and learns no Alt-Svc alternative.
+  H1, as a browser sends it, and follows the exact H1 row. Through an H2
+  proxy it follows the exact H2 row instead, as browsers forward it over H2.
+  It reports the protocol it used and learns no Alt-Svc alternative.
+- H2 forwarding sends the request to the proxy with `:scheme` `http` and the
+  origin in `:authority`, in the profile's pseudo-header order. The response
+  reports H2. Exact H1 through an H2 proxy is rejected, not sent as H2.
 - WebSocket and SSE requests need the matching Cargo feature.
 - A `ws://` or `wss://` request over H3 fails when the builder is created.
 - SSE event sources follow the ordinary rows for their scheme and protocol.
@@ -75,6 +80,12 @@ Notes:
   fails before I/O.
 - In HTTP/2 mode, closing the origin connection resets its stream and ends
   its proxy connection.
+- In HTTP/2 mode, `http://` requests to one origin share one pooled proxy
+  connection with the profile's HTTP/2 settings, separate from tunnels.
+- H2 forwarding has no Basic retry: a proxy with `with_basic_auth` fails with
+  `RequestErrorKind::UnsupportedRoute` before I/O. Without configured
+  credentials, a caller's own `proxy-authorization` field is sent to the
+  proxy.
 
 ## SOCKS5 rules
 

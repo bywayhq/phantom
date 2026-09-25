@@ -75,7 +75,7 @@ impl Route {
     /// Returns an HTTP proxy route; an older name for [`Self::http_proxy`].
     ///
     /// Both constructors return the same route, which uses CONNECT for HTTPS
-    /// origins and absolute-form forwarding for plaintext HTTP/1.1. Prefer
+    /// and WebSocket origins and forwarding for plaintext requests. Prefer
     /// [`Self::http_proxy`].
     #[must_use]
     pub fn http_connect(proxy: HttpProxy) -> Self {
@@ -84,8 +84,11 @@ impl Route {
 
     /// Returns an HTTP proxy route.
     ///
-    /// Plaintext HTTP/1.1 uses absolute-form forwarding. Exact HTTP/1.1,
-    /// exact HTTP/2, and negotiated HTTPS requests use CONNECT tunneling.
+    /// Plaintext `http://` requests are forwarded: as HTTP/1.1 absolute-form
+    /// requests in the proxy's default mode, and as HTTP/2 requests with
+    /// `:scheme` `http` with [`HttpProxy::with_http2_transport`]. Exact
+    /// HTTP/1.1, exact HTTP/2, and negotiated HTTPS requests, and `ws://` and
+    /// `wss://` WebSockets, use CONNECT tunneling.
     /// Exact HTTP/3 rejects this route before I/O, because a CONNECT tunnel
     /// carries only TCP; for the same reason, negotiated requests on this
     /// route never learn an Alt-Svc HTTP/3 alternative.
@@ -128,6 +131,7 @@ impl Route {
 
     pub(crate) fn request_trace_name(&self, scheme: Option<&str>) -> &'static str {
         match (scheme, self) {
+            (Some("http"), Self::HttpProxy(proxy)) if proxy.uses_http2() => "https_h2_forward",
             (Some("http"), Self::HttpProxy(proxy)) if proxy.uses_tls() => "https_forward",
             (Some("http"), Self::HttpProxy(_)) => "http_forward",
             _ => self.trace_name(),
@@ -173,6 +177,16 @@ impl Route {
             Self::Direct | Self::Socks5(_) => true,
             Self::HttpProxy(_) | Self::ConnectUdp(_) => false,
         }
+    }
+
+    /// Returns whether an `http://` request on this route is forwarded as an
+    /// HTTP/2 request, because the route is an HTTP proxy in HTTP/2 mode.
+    ///
+    /// Browsers that negotiate `h2` with a TLS proxy send a plaintext origin's
+    /// request on that session with `:scheme` `http`, so HTTP/1.1
+    /// absolute-form forwarding is not available on such a route.
+    pub(crate) const fn forwards_plaintext_over_http2(&self) -> bool {
+        matches!(self, Self::HttpProxy(proxy) if proxy.uses_http2())
     }
 
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
@@ -297,9 +311,15 @@ impl HttpProxy {
     /// with names in HTTP/2 lowercase form; the authority placeholder becomes
     /// `:authority`, and connection-specific fields are rejected before I/O.
     ///
-    /// Plaintext `http://` origins cannot be forwarded in this mode and fail
-    /// before proxy I/O. HTTPS origins may use HTTP/1.1 or HTTP/2 inside the
-    /// tunnel.
+    /// An `http://` request with exact HTTP/2 or negotiated protocol
+    /// selection is forwarded as an HTTP/2 request with `:scheme` `http` and
+    /// the origin in `:authority`, on one proxy connection per origin that
+    /// later requests reuse. Exact HTTP/1.1 `http://` requests fail before
+    /// proxy I/O with [`RequestErrorKind::UnsupportedRoute`], and so does
+    /// forwarding with [`Self::with_basic_auth`] credentials. HTTPS origins
+    /// may use HTTP/1.1 or HTTP/2 inside the tunnel.
+    ///
+    /// [`RequestErrorKind::UnsupportedRoute`]: crate::RequestErrorKind::UnsupportedRoute
     ///
     /// # Errors
     ///
@@ -365,6 +385,10 @@ impl HttpProxy {
 
     pub(crate) const fn uses_tls(&self) -> bool {
         matches!(self.transport, HttpProxyTransport::Tls)
+    }
+
+    pub(crate) const fn uses_http2(&self) -> bool {
+        matches!(self.protocol, HttpsProxyProtocol::Http2)
     }
 
     const fn trace_name(&self) -> &'static str {

@@ -603,6 +603,11 @@ Supported HTTP proxies:
   (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
   profile's ALPN is offered unchanged, and a selection mismatch is a typed
   error with no fallback.
+- `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
+  `http`, in the profile's pseudo-header order, as Chrome 154, Edge 153, and
+  Firefox 156 send them. Requests to one origin share one proxy connection.
+  Exact H2 and negotiated requests use it; exact H1 and configured Basic
+  credentials fail before I/O.
 - Negotiated HTTPS through either CONNECT transport, with the same CONNECT
   request and Basic retry as exact requests. One origin TLS handshake runs in
   the tunnel and ALPN selects H1 or H2; a failed handshake is not retried with
@@ -661,7 +666,7 @@ Planned:
 
 - Other proxy authentication schemes, and learned challenge state.
 - A shared or multiplexed H2 proxy session.
-- Plaintext forwarding over H2.
+- Basic challenge retry for `http://` requests forwarded over H2.
 - Custom SOCKS5 resolvers.
 - CONNECT-UDP proxy authentication schemes other than Basic.
 

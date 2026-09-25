@@ -140,6 +140,24 @@ async fn h2_proxy_configuration_errors_precede_proxy_io() -> TestResult<()> {
         .ok_or("HTTP/2 proxy transport accepted absolute-form forwarding")?;
     assert!(matches!(error, HttpConnectError::ForwardingRequiresHttp1));
     assert_eq!(error.kind(), HttpConnectErrorKind::InvalidConfiguration);
+    for connector in [&missing_h2, &missing_settings] {
+        let error = connector
+            .connect_forward_http2("127.0.0.1", address.port(), TEST_SERVER_NAME)
+            .await
+            .err()
+            .ok_or("invalid HTTP/2 forwarding configuration was accepted")?;
+        assert_eq!(error.kind(), HttpConnectErrorKind::InvalidConfiguration);
+    }
+    let http1_connector =
+        HttpsProxyConnector::new_with_additional_roots(&tls_settings(), [identity.root_der()])?
+            .with_http2_settings(&v154_http2());
+    let error = http1_connector
+        .connect_forward_http2("127.0.0.1", address.port(), TEST_SERVER_NAME)
+        .await
+        .err()
+        .ok_or("HTTP/1.1 proxy transport accepted HTTP/2 forwarding")?;
+    assert!(matches!(error, HttpConnectError::ForwardingRequiresHttp2));
+    assert_eq!(error.kind(), HttpConnectErrorKind::InvalidConfiguration);
     assert!(
         timeout(Duration::from_millis(100), listener.accept())
             .await

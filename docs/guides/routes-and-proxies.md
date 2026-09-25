@@ -40,7 +40,7 @@ async fn routes() -> Result<(), Box<dyn std::error::Error>> {
 | Route | Constructor | Carries |
 | --- | --- | --- |
 | Direct | `Route::direct()`, the default | Every scheme and protocol |
-| HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS origins through CONNECT, exact or negotiated H1/H2; `http://` origins through HTTP/1.1 forwarding |
+| HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTPS and WebSocket origins through CONNECT, exact or negotiated H1/H2; `http://` origins through H1 forwarding, or H2 forwarding on an HTTP/2 proxy |
 | SOCKS5 | `Route::socks5(Socks5Proxy)` | Exact and negotiated H1/H2 and plaintext H1 over a TCP tunnel; exact and Alt-Svc H3 over UDP ASSOCIATE |
 | CONNECT-UDP | `Route::connect_udp(ConnectUdpProxy)` | Exact H3 only |
 
@@ -93,7 +93,8 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 
 ## Speak HTTP/2 to the proxy
 
-Open the CONNECT tunnel over HTTP/2 for a proxy that accepts only HTTP/2.
+Open CONNECT tunnels and forward `http://` requests over HTTP/2, for a proxy
+that accepts only HTTP/2.
 
 ```rust
 use phantom::{HttpProxy, Route};
@@ -105,8 +106,11 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
 ```
 
 - An `http://` proxy rejects the option with a `ProxyConfigError`, because
-  Phantom does not speak h2c. The route carries HTTPS origins only, and
-  plaintext forwarding fails before I/O.
+  Phantom does not speak h2c.
+- `http://` requests go to the proxy as H2 requests with `:scheme` `http`,
+  as browsers send them. Use `HttpProtocol::Http2` or `get_negotiated`; exact
+  `HttpProtocol::Http1` fails before I/O, and so does `with_basic_auth`,
+  which has no H2 forwarding retry.
 - A proxy that selects any ALPN protocol but `h2` fails with a typed proxy
   error. The default mode accepts `http/1.1` or no ALPN.
 - A profile that does not offer `h2` or carry HTTP/2 settings fails before
