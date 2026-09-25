@@ -400,7 +400,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Proxy-Connection`, or first on HTTP/2, for Chrome and Edge; before
   `Connection` with remembered credentials, and last or before `te` on the
   replay after a `407`, for Firefox. It used to follow every other field,
-  which is still the position without a template.
+  which is still the position without a template. On a route without
+  configured credentials, a caller's own `Proxy-Authorization` on a forwarded
+  request takes the template's position for remembered credentials.
 - Wire and performance change for HTTP proxies with Basic credentials. A
   tunnel or forwarded request to a proxy that already accepted the
   credentials now carries `Proxy-Authorization` on its first attempt, as

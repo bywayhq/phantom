@@ -465,3 +465,46 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
         Some(RequestErrorKind::RequestTemplate)
     );
 }
+
+#[test]
+fn a_forwarded_caller_proxy_authorization_takes_the_preemptive_slot() {
+    use super::{Forwarding, expand_on_route};
+
+    let caller = [
+        RequestHeader::new("x-trace", "1"),
+        RequestHeader::new("proxy-authorization", "Basic caller").sensitive(),
+    ];
+    let forwarded = Forwarding {
+        forwarded: true,
+        credentials: None,
+    };
+    for (template, before) in [
+        (
+            chromium::v154_windows_navigation_template(),
+            "Upgrade-Insecure-Requests",
+        ),
+        (firefox::v156_windows_navigation_template(), "Connection"),
+    ] {
+        let (expanded, placed) =
+            expand_on_route(&template.http1_fields, &caller, None, false, forwarded);
+        assert!(!placed);
+        let fields = names(&expanded);
+        let position = fields
+            .iter()
+            .position(|name| *name == "Proxy-Authorization")
+            .unwrap_or_else(|| panic!("caller field was not placed: {fields:?}"));
+        assert_eq!(fields[position + 1], before);
+        assert_eq!(fields.last(), Some(&"x-trace"));
+        assert!(expanded[position].is_sensitive());
+    }
+
+    // A request that no proxy forwards keeps the caller's order.
+    let (expanded, _) = expand_on_route(
+        &chromium::v154_windows_navigation_template().http1_fields,
+        &caller,
+        None,
+        false,
+        Forwarding::default(),
+    );
+    assert_eq!(names(&expanded).last(), Some(&"proxy-authorization"));
+}

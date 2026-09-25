@@ -159,6 +159,8 @@ pub(crate) fn expand(
 /// [`RequestField::ProxyAuthorization`] slot whose attempts cover theirs,
 /// with the slot's spelling and the field's sensitivity. The returned flag
 /// tells whether a slot placed them; the caller appends them otherwise.
+/// Without generated credentials, a forwarded request's caller field of that
+/// name takes the first slot that covers a preemptive attempt.
 pub(crate) fn expand_on_route(
     fields: &[RequestField],
     caller: &[RequestHeader],
@@ -217,6 +219,13 @@ pub(crate) fn expand_on_route(
                     credentials.take_if(|generated| attempt.covers(generated.attempt))
                 {
                     expanded.push(respelled(name, generated.field));
+                } else if route.forwarded
+                    && route.credentials.is_none()
+                    && attempt.covers(ProxyAuthorizationAttempt::Preemptive)
+                {
+                    // A caller's own field on a route without configured
+                    // credentials goes where a first attempt carries them.
+                    place(name, &mut expanded);
                 }
             }
             RequestField::Caller { name, .. } | RequestField::ClientHint { name } => {

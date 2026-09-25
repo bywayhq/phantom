@@ -475,7 +475,8 @@ Chromium nor Firefox sends `Proxy-Authorization` on a CONNECT-UDP request.
 
 A proxy without configured credentials forwards a caller's own
 `Proxy-Authorization` field unchanged, so a caller can authenticate the first
-request; with configured credentials that field is refused before I/O,
+request. A request template places it where the browser sends remembered
+credentials, and without a template it keeps the caller's order; with configured credentials that field is refused before I/O,
 because it would conflict with the generated one.
 
 The generated `Proxy-Authorization` field is marked sensitive. On a CONNECT
