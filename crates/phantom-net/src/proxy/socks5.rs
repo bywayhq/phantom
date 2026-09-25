@@ -7,8 +7,8 @@ use tokio_socks::{IntoTargetAddr, TargetAddr, tcp::Socks5Stream};
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
-    address_cache::resolve,
     direct::{Dialer, DirectConnectError, connect_tcp, poll_tokio_io},
+    host_resolver::resolve,
 };
 
 /// Stable category of SOCKS5 tunnel failure.
@@ -322,7 +322,7 @@ pub async fn connect_socks5_tunnel_local_with_auth(
 }
 
 /// Opens a SOCKS5 CONNECT tunnel with local target DNS on sockets from
-/// `dialer`, resolving the target through the dialer's address cache.
+/// `dialer`, resolving the target through the dialer's host resolver.
 pub(crate) async fn socks5_tunnel_local_dns(
     dialer: Dialer<'_>,
     proxy_host: &str,
@@ -338,7 +338,7 @@ pub(crate) async fn socks5_tunnel_local_dns(
         }
         tokio::runtime::Handle::try_current()
             .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
-        let targets = poll_tokio_io(|| resolve(dialer.addresses, target_host, target_port))
+        let targets = poll_tokio_io(|| resolve(dialer.resolver, target_host, target_port))
             .await
             .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?
             .map_err(Socks5Error::resolve)?;

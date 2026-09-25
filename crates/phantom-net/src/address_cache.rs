@@ -14,37 +14,53 @@ use std::{
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
+use crate::host_resolver::AddressResolver;
+
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
-type Lookup = Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>;
+
+/// How the cache looks up a name it holds no fresh answer for.
+#[derive(Clone)]
+enum Lookup {
+    /// Runs on the blocking pool, as the operating system resolver must.
+    Blocking(Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>),
+    /// A caller's async resolver, run as a task on the runtime.
+    Task(AddressResolver),
+}
 
 /// Addresses a client resolved for its own connections, reused until they
 /// expire.
 ///
-/// Each connector that holds the cache resolves an origin host, a proxy host,
-/// or a local-DNS SOCKS5 target through it. A target a proxy resolves is never
-/// looked up locally, so it never reaches the cache. Names are compared
-/// without regard to ASCII case, and an IP literal is used as written without
-/// a lookup.
+/// Each connector that holds the cache, through its
+/// [`HostResolver`](crate::host_resolver::HostResolver), resolves an origin
+/// host, a proxy host, or a local-DNS SOCKS5 target through it. A target a
+/// proxy resolves is never looked up locally, so it never reaches the cache,
+/// and neither does a name with an override. Names are compared without
+/// regard to ASCII case, and an IP literal is used as written without a
+/// lookup.
 ///
-/// A lookup's answer keeps the operating system resolver's address order, on
-/// which address racing depends. It is kept for [`DnsCacheSettings::ttl`]; a
+/// A lookup's answer keeps the resolver's address order, on which address
+/// racing depends. It is kept for [`DnsCacheSettings::ttl`]; a
 /// failure or an empty answer is kept for [`DnsCacheSettings::negative_ttl`],
 /// or not at all. A lifetime too long for the clock never expires.
 /// Addresses keep everything the resolver returned except the port, which
 /// each lookup supplies, so an IPv6 scope ID and flow label survive.
 ///
-/// Concurrent lookups of one name share one resolution. It runs with
-/// `spawn_blocking` on the blocking pool of the runtime that started it, as
-/// Tokio's own `lookup_host` does, so resolutions in flight are bounded by
-/// that pool: 512 threads unless the runtime was built with another
-/// `max_blocking_threads`; further names wait in the pool's queue. A blocking
-/// thread runs whether or not its runtime is being driven, and the answer is
-/// published through a channel that any runtime can wait on, so a lookup from
-/// one runtime never depends on another runtime being driven. The resolution
-/// completes and fills the cache even when every connection that asked for it
-/// has been dropped. If the runtime drops the resolution before it runs, as
-/// a runtime that is shutting down does, its waiters get an error and the
-/// next lookup of the name starts again.
+/// Concurrent lookups of one name share one resolution. An operating system
+/// resolution runs with `spawn_blocking` on the blocking pool of the runtime
+/// that started it, as Tokio's own `lookup_host` does, so resolutions in
+/// flight are bounded by that pool: 512 threads unless the runtime was built
+/// with another `max_blocking_threads`; further names wait in the pool's
+/// queue. A blocking thread runs whether or not its runtime is being driven,
+/// and the answer is published through a channel that any runtime can wait
+/// on, so a lookup from one runtime never depends on another runtime being
+/// driven. A caller's [`AddressResolver`] instead runs as a task on the
+/// runtime that started the resolution, so a lookup of the same name from
+/// another runtime waits on that runtime; the caller bounds its own
+/// resolutions in flight. Either way, the resolution completes and fills the
+/// cache even when every connection that asked for it has been dropped. If
+/// the runtime drops the resolution before it finishes, as a runtime that is
+/// shutting down does, or the resolution panics, its waiters get an error and
+/// the next lookup of the name starts again.
 /// The lock is never held across an `.await`.
 ///
 /// Clones share one cache. It holds at most
@@ -156,13 +172,28 @@ impl AddressCache {
     where
         F: Fn(Box<str>) -> LookupFuture + Send + Sync + 'static,
     {
+        Self::with(settings, Lookup::Blocking(Arc::new(lookup)))
+    }
+
+    /// Creates an empty cache that resolves names with `resolver`.
+    pub(crate) fn with_resolver(settings: DnsCacheSettings, resolver: AddressResolver) -> Self {
+        Self::with(settings, Lookup::Task(resolver))
+    }
+
+    fn with(settings: DnsCacheSettings, lookup: Lookup) -> Self {
         Self {
             inner: Arc::new(Inner {
                 settings,
-                lookup: Arc::new(lookup),
+                lookup,
                 state: Mutex::new(State::default()),
             }),
         }
+    }
+
+    /// Returns an empty cache with the same settings and resolver that
+    /// shares nothing with this one.
+    pub(crate) fn emptied(&self) -> Self {
+        Self::with(self.inner.settings, self.inner.lookup.clone())
     }
 
     /// Returns the settings the cache was created with.
@@ -195,7 +226,16 @@ impl AddressCache {
         state.generation += 1;
     }
 
-    /// Returns `host`'s addresses with `port`, in resolver order.
+    /// Returns what [`Self::lookup_noting_cache`] returns, without the flag.
+    #[cfg(test)]
+    pub(crate) async fn lookup(&self, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
+        self.lookup_noting_cache(host, port)
+            .await
+            .map(|(addresses, _)| addresses)
+    }
+
+    /// Returns `host`'s addresses with `port`, in resolver order, and whether
+    /// a stored answer supplied them without a resolution.
     ///
     /// A fresh stored answer or failure is returned at once. Otherwise the
     /// lookup joins the resolution in flight for the name, or starts one.
@@ -206,14 +246,6 @@ impl AddressCache {
     /// does not resolve; an error when there is no Tokio runtime to run the
     /// resolution on, or when it ends without an answer, as when that runtime
     /// drops it while shutting down. An empty answer is returned as `Ok`.
-    pub(crate) async fn lookup(&self, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
-        self.lookup_noting_cache(host, port)
-            .await
-            .map(|(addresses, _)| addresses)
-    }
-
-    /// Returns what [`Self::lookup`] returns, and whether a stored answer
-    /// supplied it without a resolution.
     pub(crate) async fn lookup_noting_cache(
         &self,
         host: &str,
@@ -266,22 +298,36 @@ impl AddressCache {
         state.pending.insert(host.clone(), receiver.clone());
         drop(state);
 
-        let resolution = (self.inner.lookup)(host.clone());
-        let mut publisher = Publisher {
+        let publisher = Publisher {
             cache: self.clone(),
+            host,
+            generation,
             sender: Some(sender),
         };
-        drop(runtime.spawn_blocking(move || {
-            let result = tokio::runtime::Builder::new_current_thread()
-                .build()
-                .map_err(io::Error::other)
-                .and_then(|runtime| runtime.block_on(resolution));
-            let outcome = Outcome::from_result(result);
-            publisher.cache.complete(host, generation, &outcome);
-            if let Some(sender) = publisher.sender.take() {
-                let _ = sender.send(Some(outcome));
+        match &self.inner.lookup {
+            Lookup::Blocking(lookup) => {
+                let resolution = lookup(publisher.host.clone());
+                drop(runtime.spawn_blocking(move || {
+                    let result = tokio::runtime::Builder::new_current_thread()
+                        .build()
+                        .map_err(io::Error::other)
+                        .and_then(|runtime| runtime.block_on(resolution));
+                    publisher.publish(result);
+                }));
             }
-        }));
+            Lookup::Task(resolver) => {
+                let resolution = resolver.lookup(&publisher.host);
+                drop(runtime.spawn(async move {
+                    let result = resolution.await.map(|addresses| {
+                        addresses
+                            .into_iter()
+                            .map(|address| SocketAddr::new(address, 0))
+                            .collect()
+                    });
+                    publisher.publish(result);
+                }));
+            }
+        }
         Ok(receiver)
     }
 
@@ -348,11 +394,25 @@ impl AddressCache {
 /// The sending side of one resolution.
 ///
 /// Dropped without sending, as when the runtime shuts down before the
-/// blocking task starts, it releases the pending entry so that waiters see an
+/// resolution finishes, it releases the pending entry so that waiters see an
 /// error and the next lookup of the name starts a new resolution.
 struct Publisher {
     cache: AddressCache,
+    host: Box<str>,
+    generation: u64,
     sender: Option<watch::Sender<Option<Outcome>>>,
+}
+
+impl Publisher {
+    /// Stores the resolution's result and answers its waiters.
+    fn publish(mut self, result: io::Result<Vec<SocketAddr>>) {
+        let outcome = Outcome::from_result(result);
+        self.cache
+            .complete(self.host.clone(), self.generation, &outcome);
+        if let Some(sender) = self.sender.take() {
+            let _ = sender.send(Some(outcome));
+        }
+    }
 }
 
 impl Drop for Publisher {
@@ -373,36 +433,6 @@ impl fmt::Debug for AddressCache {
             .field("settings", &self.inner.settings)
             .field("entries", &self.len())
             .finish_non_exhaustive()
-    }
-}
-
-/// Resolves `host` as [`resolve`] does, and reports whether a stored answer
-/// supplied the addresses without a resolution.
-#[cfg(feature = "https-records")]
-pub(crate) async fn resolve_noting_cache(
-    cache: Option<&AddressCache>,
-    host: &str,
-    port: u16,
-) -> io::Result<(Vec<SocketAddr>, bool)> {
-    match cache {
-        Some(cache) => cache.lookup_noting_cache(host, port).await,
-        None => Ok((
-            tokio::net::lookup_host((host, port)).await?.collect(),
-            false,
-        )),
-    }
-}
-
-/// Resolves `host` through `cache`, or through the operating system on every
-/// call when there is none.
-pub(crate) async fn resolve(
-    cache: Option<&AddressCache>,
-    host: &str,
-    port: u16,
-) -> io::Result<Vec<SocketAddr>> {
-    match cache {
-        Some(cache) => cache.lookup(host, port).await,
-        None => Ok(tokio::net::lookup_host((host, port)).await?.collect()),
     }
 }
 

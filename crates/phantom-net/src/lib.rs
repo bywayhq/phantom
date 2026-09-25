@@ -19,6 +19,7 @@ pub mod address_cache;
 mod direct;
 #[cfg(feature = "https-records")]
 pub mod dns;
+pub mod host_resolver;
 pub mod http1;
 /// One-handshake HTTP/1.1 or HTTP/2 selection over TLS ALPN.
 pub mod http1_or_2;

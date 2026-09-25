@@ -14,8 +14,8 @@ use super::{
     translate_settings, validate_extended_connect,
 };
 use crate::{
-    address_cache::AddressCache,
     direct::{Dialer, DirectConnectError, connect_tcp},
+    host_resolver::HostResolver,
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
         ProxyCredentialCache, Socks5Auth, Socks5Error, http_connect_tunnel,
@@ -32,7 +32,7 @@ pub struct Http2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
     tcp: Option<TcpSettings>,
-    address_cache: Option<AddressCache>,
+    host_resolver: Option<HostResolver>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -46,7 +46,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
-                address_cache: None,
+                host_resolver: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -68,7 +68,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
-                address_cache: None,
+                host_resolver: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -90,7 +90,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
-                address_cache: None,
+                host_resolver: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -109,7 +109,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
-                address_cache: None,
+                host_resolver: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -125,7 +125,7 @@ impl Http2TlsConnector {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
             tcp: self.tcp,
-            address_cache: self.address_cache.clone(),
+            host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -169,29 +169,30 @@ impl Http2TlsConnector {
         self.tcp.as_ref()
     }
 
-    /// Resolves host names through `cache` instead of asking the operating
+    /// Resolves host names through `resolver` instead of asking the operating
     /// system for every connection.
     ///
-    /// The cache covers direct origin hosts and HTTP and SOCKS5 proxy hosts, and the target of a
-    /// local-DNS SOCKS5 route. An HTTPS proxy host is resolved through the
-    /// [`HttpsProxyConnector`] passed with it. A target that a proxy resolves is never looked
-    /// up locally. Clones of this connector share `cache`.
+    /// The resolver covers direct origin hosts, HTTP and SOCKS5 proxy hosts,
+    /// and the target of a local-DNS SOCKS5 route. An HTTPS proxy host is
+    /// resolved through the [`HttpsProxyConnector`] passed with it. A target
+    /// that a proxy resolves is never looked up locally. Clones of this
+    /// connector share `resolver`.
     #[must_use]
-    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
-        self.address_cache = Some(cache);
+    pub fn with_host_resolver(mut self, resolver: HostResolver) -> Self {
+        self.host_resolver = Some(resolver);
         self
     }
 
-    /// Returns the address cache new connections resolve through, if any.
+    /// Returns the host resolver new connections resolve through, if any.
     #[must_use]
-    pub fn address_cache(&self) -> Option<&AddressCache> {
-        self.address_cache.as_ref()
+    pub fn host_resolver(&self) -> Option<&HostResolver> {
+        self.host_resolver.as_ref()
     }
 
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
-            addresses: self.address_cache.as_ref(),
+            resolver: self.host_resolver.as_ref(),
         }
     }
 

@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_net::address_cache::AddressCache;
+use phantom_net::{address_cache::AddressCache, host_resolver::HostResolver};
 use phantom_profile::{ClientProfile, DnsCacheSettings, Http3ClientSettings, chromium, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -98,7 +98,7 @@ fn with_counting_cache(client: &Client, gate: watch::Receiver<bool>) -> (Client,
         }
     });
     let mut inner = ClientInner::clone(&client.inner);
-    inner.bind_address_cache(cache);
+    inner.bind_host_resolver(HostResolver::new().with_address_cache(cache));
     let client = Client {
         inner: Arc::new(inner),
         state: Arc::clone(&client.state),
@@ -164,8 +164,9 @@ async fn clones_share_the_cache_and_sessions_start_empty() -> TestResult {
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let session_cache = session
         .inner
-        .address_cache
+        .host_resolver
         .as_ref()
+        .and_then(HostResolver::cache)
         .ok_or("the session has no address cache")?;
     assert!(session_cache.is_empty());
     assert_eq!(session_cache.settings(), &settings());
@@ -204,27 +205,31 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
     let client = Client::builder(profile).route(route).build()?;
     let inner = &client.inner;
     let expected = Some(chromium::v154_dns_cache());
-    let settings = |cache: Option<&AddressCache>| cache.map(|cache| *cache.settings());
+    let settings = |resolver: Option<&HostResolver>| {
+        resolver
+            .and_then(HostResolver::cache)
+            .map(|cache| *cache.settings())
+    };
 
-    assert_eq!(settings(inner.address_cache.as_ref()), expected);
+    assert_eq!(settings(inner.host_resolver.as_ref()), expected);
     assert_eq!(
-        settings(inner.http1.as_ref().and_then(|c| c.address_cache())),
+        settings(inner.http1.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     assert_eq!(
-        settings(inner.http2.as_ref().and_then(|c| c.address_cache())),
+        settings(inner.http2.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     assert_eq!(
-        settings(inner.http1_or_2.as_ref().and_then(|c| c.address_cache())),
+        settings(inner.http1_or_2.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     assert_eq!(
-        settings(inner.http3.as_ref().and_then(|c| c.address_cache())),
+        settings(inner.http3.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     assert_eq!(
-        settings(inner.https_proxy.as_ref().and_then(|c| c.address_cache())),
+        settings(inner.https_proxy.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     let connect_udp = inner
@@ -232,11 +237,11 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
         .as_ref()
         .ok_or("no CONNECT-UDP connectors")?;
     assert_eq!(
-        settings(connect_udp.http3.as_ref().and_then(|c| c.address_cache())),
+        settings(connect_udp.http3.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     assert_eq!(
-        settings(connect_udp.tcp.as_ref().and_then(|c| c.address_cache())),
+        settings(connect_udp.tcp.as_ref().and_then(|c| c.host_resolver())),
         expected
     );
     #[cfg(feature = "websocket")]
@@ -245,7 +250,7 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
             inner
                 .websocket_http1
                 .as_ref()
-                .and_then(|c| c.address_cache())
+                .and_then(|c| c.host_resolver())
         ),
         expected
     );
@@ -265,20 +270,53 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
     assert_eq!(
         replaced
             .inner
-            .address_cache
+            .host_resolver
             .as_ref()
+            .and_then(HostResolver::cache)
             .map(|cache| *cache.settings()),
         Some(firefox::v156_dns_cache())
     );
-    assert!(disabled.inner.address_cache.is_none());
+    assert!(disabled.inner.host_resolver.is_none());
     assert!(
         disabled
             .inner
             .http1
             .as_ref()
-            .is_some_and(|c| c.address_cache().is_none())
+            .is_some_and(|c| c.host_resolver().is_none())
     );
-    assert!(without.inner.address_cache.is_none());
-    assert!(without.session().inner.address_cache.is_none());
+    assert!(without.inner.host_resolver.is_none());
+    assert!(without.session().inner.host_resolver.is_none());
+    Ok(())
+}
+
+#[test]
+fn overrides_without_a_cache_reach_the_connectors_and_sessions() -> TestResult {
+    let pinned = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 9));
+    let client = Client::builder(profile().with_http2(chromium::v154_http2()))
+        .no_dns_cache()
+        .resolve("Pinned.Phantom.Test", [pinned])
+        .build()?;
+    let session = client.session();
+    let pinned_in = |resolver: Option<&HostResolver>| {
+        resolver.and_then(|resolver| {
+            resolver
+                .override_for("pinned.phantom.test")
+                .map(<[_]>::to_vec)
+        })
+    };
+
+    for inner in [&client.inner, &session.inner] {
+        let resolver = inner.host_resolver.as_ref();
+        assert!(resolver.is_some_and(|resolver| resolver.cache().is_none()));
+        assert_eq!(pinned_in(resolver), Some(vec![pinned]));
+        assert_eq!(
+            pinned_in(inner.http1.as_ref().and_then(|c| c.host_resolver())),
+            Some(vec![pinned])
+        );
+        assert_eq!(
+            pinned_in(inner.http2.as_ref().and_then(|c| c.host_resolver())),
+            Some(vec![pinned])
+        );
+    }
     Ok(())
 }

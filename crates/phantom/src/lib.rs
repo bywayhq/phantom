@@ -212,6 +212,8 @@ pub use websocket::{
 
 /// Policy for authenticating a TLS server certificate.
 pub use phantom_net::ServerAuthentication;
+/// Caller-supplied host name resolution for [`ClientBuilder::dns_resolver`].
+pub use phantom_net::host_resolver::AddressResolver;
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::HttpConnectHeader;
 
