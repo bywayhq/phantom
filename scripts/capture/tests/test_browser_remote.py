@@ -25,6 +25,7 @@ from scripts.capture.browser_remote import (
     chromium_endpoint,
     encode_frame,
     firefox_endpoint,
+    navigate_page,
     read_frame,
 )
 
@@ -340,6 +341,47 @@ class DriverTests(unittest.TestCase):
             {"handleAuthRequests": True, "patterns": [{"urlPattern": "*"}]},
         )
         self.assertEqual(len(notes), 1)
+
+    def test_navigate_page_attaches_to_the_first_page_then_navigates(self) -> None:
+        async def exercise() -> list[dict]:
+            remote = FakeRemote(
+                {
+                    "Target.getTargets": {
+                        "targetInfos": [
+                            {"type": "browser", "targetId": "b"},
+                            {"type": "page", "targetId": "p1"},
+                        ]
+                    },
+                    "Target.attachToTarget": {"sessionId": "s1"},
+                    "Page.navigate": {"frameId": "f"},
+                },
+                {"method": "Page.frameNavigated", "params": {}},
+            )
+            port = await remote.start()
+            with tempfile.TemporaryDirectory() as directory:
+                profile = Path(directory)
+                (profile / CHROMIUM_PORT_FILE).write_text(
+                    f"{port}\n/devtools/browser/x\n"
+                )
+                await asyncio.wait_for(
+                    navigate_page(profile, "https://server.phantom.test:9/", 0.0),
+                    TIMEOUT,
+                )
+            await remote.close()
+            return remote.commands
+
+        commands = asyncio.run(exercise())
+        self.assertEqual(
+            [(item["method"], item.get("sessionId")) for item in commands],
+            [
+                ("Target.getTargets", None),
+                ("Target.attachToTarget", None),
+                ("Page.navigate", "s1"),
+            ],
+        )
+        self.assertEqual(
+            commands[2]["params"], {"url": "https://server.phantom.test:9/"}
+        )
 
     def test_firefox_driver_intercepts_before_navigating(self) -> None:
         async def exercise() -> list[dict]:
