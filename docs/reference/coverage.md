@@ -325,12 +325,12 @@ Supported requests and routes:
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
   and `ech` kept as raw bytes), and a malformed record is a typed error.
-  With the Chrome 154 recipe, a direct HTTP/1.1 or HTTP/2 connection,
-  negotiated or exact, and a `wss://` opening encrypt the ClientHello with
-  the record's `ech`, waiting up to 50 ms after address resolution for the
-  lookup, not at all when the address comes from the client's address cache,
-  and retrying once after a rejection whose server authenticates as the
-  public name, as Chrome 154 does
+  With the Chrome 154 or Edge 153 recipe, a direct HTTP/1.1 or HTTP/2
+  connection, negotiated or exact, and a `wss://` opening encrypt the
+  ClientHello with the record's `ech`, waiting up to 50 ms after address
+  resolution for the lookup, not at all when the address comes from the
+  client's address cache, and retrying once after a rejection whose server
+  authenticates as the public name, as Chrome 154 and Edge 153 do
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
   Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
@@ -392,7 +392,7 @@ Planned:
 - Datagram APIs for specific extensions.
 - Alt-Svc racing across multiple alternatives, and a racing delay derived
   from RTT.
-- Encrypted Client Hello from a record's `ech` value on H3, and for Edge.
+- Encrypted Client Hello from a record's `ech` value on H3.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does; Phantom's address lookups go through the operating system.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
