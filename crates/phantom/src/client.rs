@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
+use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
@@ -157,7 +157,7 @@ impl ClientInner {
     }
 
     /// Gives every connector that resolves host names the same resolver.
-    pub(crate) fn bind_host_resolver(&mut self, resolver: HostResolver) {
+    fn bind_host_resolver(&mut self, resolver: HostResolver) {
         let bind = |connector: Http1TlsConnector| connector.with_host_resolver(resolver.clone());
         self.http1 = self.http1.take().map(bind);
         self.http1_or_2 = self
@@ -238,7 +238,7 @@ impl Client {
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
             dns_cache: None,
-            host_overrides: HashMap::new(),
+            host_overrides: Vec::new(),
             address_resolver: None,
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
@@ -534,8 +534,9 @@ pub struct ClientBuilder {
     /// The caller's address cache choice: `None` keeps the profile's, and
     /// `Some(None)` turns caching off.
     dns_cache: Option<Option<DnsCacheSettings>>,
-    /// Host names, in ASCII lowercase, answered with fixed addresses.
-    host_overrides: HashMap<Box<str>, Vec<IpAddr>>,
+    /// Host names as the caller wrote them, answered with fixed addresses;
+    /// a later entry for the same name wins.
+    host_overrides: Vec<(Box<str>, Vec<IpAddr>)>,
     address_resolver: Option<AddressResolver>,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
@@ -840,18 +841,23 @@ impl ClientBuilder {
     /// request or proxy URL. The TLS server name, certificate check, `Host`
     /// or `:authority`, cookies, and pool keys all keep using `host`.
     ///
-    /// Names are compared without regard to ASCII case, so `Example.com` and
-    /// `example.com` are one name, but `example.com.` with a trailing dot is
-    /// another. Connections try `addresses` in the given order, raced as the
-    /// profile's TCP settings describe; an empty list makes `host` fail to
-    /// resolve. Calling this again for the same name replaces its addresses.
-    /// HTTPS DNS record lookups, with the `https-records` feature, still
-    /// query the record for `host`.
+    /// `host` is normalized as a URL host is, so it matches the host of a
+    /// request URL however either is written: ASCII case is folded and a
+    /// Unicode name becomes its IDNA A-label form (`bücher.example` and
+    /// `xn--bcher-kva.example` are one name). A trailing dot is kept, so
+    /// `example.com.` is another name. Connections try `addresses` in the
+    /// given order, raced as the profile's TCP settings describe; an empty
+    /// list makes `host` fail to resolve. Calling this again for the same
+    /// name replaces its addresses. HTTPS DNS record lookups, with the
+    /// `https-records` feature, still query the record for `host`, and an
+    /// overridden name counts as resolved at once, so a profile that uses
+    /// ECH from HTTPS records waits only the 5 ms minimum for the record.
     ///
     /// [`build`](Self::build) fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
-    /// when `host` is empty or an IP literal, which the client always uses
-    /// as written.
+    /// when `host` is not a valid domain name. That includes every form of
+    /// IP address a URL accepts, such as `127.1`, `[::1]`, or full-width
+    /// digits, because the client always uses an IP address as written.
     ///
     /// # Examples
     ///
@@ -873,10 +879,8 @@ impl ClientBuilder {
     /// ```
     #[must_use]
     pub fn resolve(mut self, host: &str, addresses: impl IntoIterator<Item = IpAddr>) -> Self {
-        self.host_overrides.insert(
-            host.to_ascii_lowercase().into_boxed_str(),
-            addresses.into_iter().collect(),
-        );
+        self.host_overrides
+            .push((host.into(), addresses.into_iter().collect()));
         self
     }
 
@@ -897,8 +901,11 @@ impl ClientBuilder {
     /// [`Resolve`](crate::RequestErrorKind::Resolve) for an HTTP/3 origin, a
     /// local-DNS SOCKS5 target, or a CONNECT-UDP proxy host;
     /// [`Proxy`](crate::RequestErrorKind::Proxy) for another proxy host; and
-    /// [`Connect`](crate::RequestErrorKind::Connect) for a TCP origin. The
-    /// resolver's `io::Error` stays in the error's source chain.
+    /// [`Connect`](crate::RequestErrorKind::Connect) for a TCP origin.
+    /// Without an address cache, the resolver's `io::Error` is in the
+    /// error's source chain. With one, the chain holds a new `io::Error` with
+    /// the same kind and message, because one stored failure can answer
+    /// several requests.
     ///
     /// # Examples
     ///
@@ -945,12 +952,14 @@ impl ClientBuilder {
             resolver = resolver.with_cache(settings);
         }
         for (host, addresses) in &self.host_overrides {
-            if host.is_empty() || host.parse::<IpAddr>().is_ok() {
+            // The same parser canonicalizes request and proxy hosts, so the
+            // key matches the name a connector resolves.
+            let Ok(url::Host::Domain(host)) = url::Host::parse(host) else {
                 return Err(BuildError::invalid_policy(
-                    "a host override must name a host, not an IP address",
+                    "a host override must name a valid domain, not an IP address",
                 ));
-            }
-            resolver = resolver.with_override(host, addresses.iter().copied());
+            };
+            resolver = resolver.with_override(&host, addresses.iter().copied());
         }
         Ok(Some(resolver))
     }
