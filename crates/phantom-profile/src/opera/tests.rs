@@ -56,7 +56,7 @@ fn opera_135_recipes_keep_the_backend_ech_grease_aead_policy() {
 }
 
 #[test]
-fn opera_135_tls_recipes_differ_from_chromium_only_where_captured()
+fn opera_135_tls_recipes_drop_trust_anchor_ids_and_tcp_signature_algorithm_grease()
 -> Result<(), Box<dyn std::error::Error>> {
     let opera = v135_tls();
     opera.validate()?;
