@@ -125,17 +125,46 @@ impl Http3Connection {
         Some(early_data.outcome().await == EarlyDataOutcome::Accepted)
     }
 
-    /// Fails a request that must not be replayed until early data on this
-    /// connection is settled, and when it was rejected or the completed
-    /// handshake was invalid.
-    async fn await_early_data_answer(&self) -> Result<(), Http3Error> {
+    /// Returns whether this connection sent early data that the server has
+    /// not answered yet, because its handshake is still running.
+    #[must_use]
+    pub fn early_data_pending(&self) -> bool {
+        self.inner
+            .early_data
+            .as_ref()
+            .is_some_and(|early_data| early_data.settled().is_none())
+    }
+
+    /// Waits until the server has answered this connection's early data.
+    ///
+    /// Returns `Ok` at once for a connection that sent none, and after the
+    /// handshake when the server accepted it and the handshake metadata
+    /// passed the checks a normal connection applies. Otherwise the error
+    /// says why the connection cannot carry a request:
+    ///
+    /// - the server rejected the early data: an error whose
+    ///   [`Http3Error::unprocessed`] is
+    ///   [`Http3Unprocessed::EarlyDataRejected`](super::Http3Unprocessed), so
+    ///   the request can be sent on another connection;
+    /// - the handshake metadata was invalid: the error a full handshake
+    ///   reports for it;
+    /// - the connection closed before its handshake completed: the connection
+    ///   error.
+    pub async fn early_data_settled(&self) -> Result<(), Http3Error> {
         let Some(early_data) = &self.inner.early_data else {
             return Ok(());
         };
         match early_data.outcome().await {
+            EarlyDataOutcome::Accepted => Ok(()),
             EarlyDataOutcome::Rejected => Err(Http3Error::early_data_rejected()),
             EarlyDataOutcome::Invalid(invalid) => Err(invalid.error()),
-            EarlyDataOutcome::Accepted | EarlyDataOutcome::Failed => Ok(()),
+            EarlyDataOutcome::Failed => Err(match self.inner.quinn.close_reason() {
+                Some(reason) => super::connection_error(reason),
+                None => Http3Error::without_source(
+                    Http3ErrorKind::Connection,
+                    "HTTP/3 connection closed before its early data was answered",
+                ),
+            }),
         }
     }
 
@@ -167,14 +196,15 @@ impl Http3Connection {
         prepared: PreparedRequest,
     ) -> Result<Response<Http3Body>, Http3Error> {
         let early_data = match &self.inner.early_data {
-            None => "none",
+            None => Some("none"),
             Some(_) if !prepared.is_replay_safe() => {
                 // Early data is replayable; anything else waits for the handshake.
-                self.await_early_data_answer().await?;
-                "after_handshake"
+                self.early_data_settled().await?;
+                Some("after_handshake")
             }
-            Some(early_data) if early_data.settled().is_none() => "sent",
-            Some(_) => "after_handshake",
+            // Known once the request stream opens: a QPACK policy that waits
+            // for the peer's SETTINGS can hold it until the handshake ends.
+            Some(_) => None,
         };
         let result = self.send_prepared_request_now(prepared, early_data).await;
         let Some(early_data) = &self.inner.early_data else {
@@ -197,11 +227,13 @@ impl Http3Connection {
 
     /// Sends one request; `early_data` names how it relates to the
     /// connection's early data for the trace: `none` on a connection that
-    /// sent none, `sent` before the handshake completed, or `after_handshake`.
+    /// sent none, `sent` when its stream opened before the handshake
+    /// completed, or `after_handshake`. `None` records `sent` or
+    /// `after_handshake` once the stream opens.
     async fn send_prepared_request_now(
         &self,
         prepared: PreparedRequest,
-        early_data: &'static str,
+        early_data: Option<&'static str>,
     ) -> Result<Response<Http3Body>, Http3Error> {
         let method = prepared.method().clone();
         let body_bytes = prepared.body_len();
@@ -213,7 +245,7 @@ impl Http3Connection {
             body_bytes = body_bytes.unwrap_or(0),
             body_length_known = body_bytes.is_some(),
             has_body,
-            early_data,
+            early_data = early_data,
             status = field::Empty,
             outcome = field::Empty,
         );
@@ -226,6 +258,10 @@ impl Http3Connection {
                     .send_request(request)
                     .await
                     .map_err(Http3Error::request_open)?;
+                if early_data.is_none() {
+                    let sent = self.early_data_pending();
+                    span.record("early_data", if sent { "sent" } else { "after_handshake" });
+                }
                 // Registering under the send lock keeps datagram monitors in
                 // stream-ID order, which the router relies on to drop
                 // datagrams for closed streams.
@@ -318,7 +354,7 @@ impl Http3Connection {
             outcome = field::Empty,
         );
         let result = async {
-            self.await_early_data_answer().await?;
+            self.early_data_settled().await?;
             let mut peer_settings = {
                 let sender = self.inner.sender.lock().await;
                 sender
@@ -461,7 +497,7 @@ impl Http3Connection {
         &self,
         request: Request<()>,
     ) -> Result<ConnectUdpExchange, Http3Error> {
-        self.await_early_data_answer().await?;
+        self.early_data_settled().await?;
         let router = self.inner.datagrams.as_ref().ok_or_else(|| {
             Http3Error::without_source(
                 Http3ErrorKind::Configuration,

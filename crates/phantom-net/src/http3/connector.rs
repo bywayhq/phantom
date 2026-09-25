@@ -222,6 +222,32 @@ impl Http3Connector {
         self.crypto.sends_early_data()
     }
 
+    /// Waits until the server has answered `connection`'s early data.
+    ///
+    /// The result follows [`Http3Connection::early_data_settled`]: `Ok` for a
+    /// connection that sent none or whose early data was accepted, and
+    /// otherwise the error that stops the connection from carrying a request.
+    pub async fn early_data_settled_on(
+        &self,
+        connection: &Http3Connection,
+    ) -> Result<(), Http3ConnectorError> {
+        connection
+            .early_data_settled()
+            .await
+            .map_err(Http3ConnectorError::transaction)
+    }
+
+    /// Returns whether a request waits for the peer's HTTP/3 SETTINGS before
+    /// its HEADERS are encoded, as under dynamic QPACK encoding.
+    ///
+    /// On a connection that sent early data, the SETTINGS arrive with the
+    /// server's first flight, which also completes the handshake, so such a
+    /// request never leaves in 0-RTT packets.
+    #[must_use]
+    pub fn requests_wait_for_peer_settings(&self) -> bool {
+        self.settings.qpack_encoding == phantom_profile::Http3QpackEncoding::Dynamic
+    }
+
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
         Self {
             crypto: Arc::new(crypto),

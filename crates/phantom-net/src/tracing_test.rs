@@ -189,6 +189,25 @@ impl Subscriber for OutcomeSubscriber {
     }
 
     fn record(&self, span: &Id, values: &Record<'_>) {
+        // `early_data` on `http3.response_head` is recorded once the request
+        // stream opens, so it is kept with the fields set at creation.
+        let mut fields = SpanFieldVisitor::default();
+        values.record(&mut fields);
+        let early_data: Vec<_> = fields
+            .fields
+            .into_iter()
+            .filter(|(field, _)| *field == "early_data")
+            .collect();
+        if !early_data.is_empty() {
+            let mut state = self.state();
+            if let Some(name) = state.span_names.get(&span.into_u64()).copied() {
+                state.span_fields.extend(
+                    early_data
+                        .into_iter()
+                        .map(|(field, value)| (name, field, value)),
+                );
+            }
+        }
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
         if visitor.outcome.is_none()

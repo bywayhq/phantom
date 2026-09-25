@@ -27,10 +27,25 @@ const RELAY_DELAY: Duration = Duration::from_millis(150);
 pub(super) type Served = Arc<Mutex<Vec<String>>>;
 
 fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
+    trusting_connector_with(identity, &chromium::v154_http3())
+}
+
+/// The Chrome 154 recipes with stateless QPACK request encoding, whose
+/// requests do not wait for the peer's SETTINGS and so can leave in 0-RTT.
+fn stateless_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
+    let mut http3 = chromium::v154_http3();
+    http3.qpack_encoding = phantom_profile::Http3QpackEncoding::Stateless;
+    trusting_connector_with(identity, &http3)
+}
+
+fn trusting_connector_with(
+    identity: &TestIdentity,
+    http3: &phantom_profile::Http3Settings,
+) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
         &chromium::v154_http3_tls(),
         &chromium::v154_quic(),
-        &chromium::v154_http3(),
+        http3,
         &chromium::v154_http3_request(),
         [identity.root_der()],
     )?)
@@ -192,7 +207,8 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
     let served = Served::default();
     // The Chrome 154 recipe offers early data; the plain clone shares its
     // ticket cache but does not.
-    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let early = stateless_connector(&identity)?.with_isolated_session_cache();
+    assert!(!early.requests_wait_for_peer_settings());
     let isolated = early.without_early_data();
     assert!(early.sends_early_data());
     assert!(!isolated.sends_early_data());
@@ -227,6 +243,40 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
     drop((plain, connection, response));
     plain_relay.abort();
     early_relay.abort();
+    server.abort();
+    Ok(())
+}
+
+/// Under the recipe's dynamic QPACK policy a request waits for the peer's
+/// SETTINGS, which arrive with the completed handshake, so its stream opens
+/// after the handshake although the connection sent early data.
+#[tokio::test(flavor = "current_thread")]
+async fn dynamic_qpack_holds_a_replay_safe_request_until_the_handshake() -> TestResult<()> {
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
+    let identity = TestIdentity::generate()?;
+    let served = Served::default();
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    assert!(early.requests_wait_for_peer_settings());
+    let (address, _endpoint, server) = learn_ticket(&identity, &early, &served).await?;
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let subscriber = OutcomeSubscriber::default();
+    let (connection, response) = async {
+        let connection = connect(&early, relay).await?;
+        let response = send(&early, &connection, Method::GET, "/held", None).await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((connection, response))
+    }
+    .with_subscriber(subscriber.dispatch())
+    .await?;
+    assert!(connection.sent_early_data());
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        subscriber.field_values_for("http3.response_head", "early_data"),
+        ["after_handshake"]
+    );
+
+    drop((connection, response));
+    relay_task.abort();
     server.abort();
     Ok(())
 }
@@ -298,6 +348,12 @@ async fn rejected_early_data_fails_the_request_as_unprocessed() -> TestResult<()
         .and_then(Http3Error::unprocessed);
     assert_eq!(unprocessed, Some(Http3Unprocessed::EarlyDataRejected));
     assert_eq!(connection.early_data_accepted().await, Some(false));
+    assert!(!connection.early_data_pending());
+    let settled = connection.early_data_settled().await;
+    assert_eq!(
+        settled.err().and_then(|error| error.unprocessed()),
+        Some(Http3Unprocessed::EarlyDataRejected)
+    );
     assert!(!early.can_reuse(&connection).await);
     let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
     assert!(!served.contains(&"/rejected".to_owned()));
