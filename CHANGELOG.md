@@ -209,10 +209,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   not kept) and `firefox::v156_dns_cache` (1,600 names, answers and failures
   for 60 seconds) from browser source, `ClientBuilder::dns_cache`,
   `ClientBuilder::no_dns_cache`, and `Client::clear_dns_cache`. Concurrent
-  connections to one host share one lookup on a thread of its own, so no
-  runtime waits on another, and the resolver's addresses are kept in order
-  with their IPv6 scope. An empty answer is cached for `negative_ttl`, and
-  each connection path still reports it as before. Clones share the cache;
+  connections to one host share one lookup, run on the starting runtime's
+  blocking pool (512 threads by default) as `tokio::net::lookup_host` is, so
+  no runtime waits on another and resolutions in flight stay bounded by that
+  pool. The resolver's addresses are kept in order with their IPv6 scope.
+  An empty answer is cached for `negative_ttl`, and each connection path
+  still reports it as before. Clones share the cache;
   each session starts with an empty one. Targets that `socks5h://`, an HTTP
   proxy, or CONNECT-UDP resolves never reach it. A client with a cache sends
   fewer DNS queries: one lookup per host per cache `ttl` instead of one per

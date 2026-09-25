@@ -252,6 +252,86 @@ fn a_lookup_does_not_depend_on_another_runtime_being_driven() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn a_resolution_a_shut_down_runtime_drops_is_released_and_restarted() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), answer(&[V4]));
+    let first = tokio::runtime::Builder::new_current_thread().build()?;
+    let dead = first.handle().clone();
+    first.shutdown_background();
+    let second = tokio::runtime::Builder::new_current_thread().build()?;
+
+    // The resolution is spawned on the shut-down runtime, which drops it.
+    let dropped = second.block_on(async {
+        let lookup = cache.lookup("origin.phantom.test", 443);
+        let _entered = dead.enter();
+        lookup.await
+    });
+    assert!(dropped.is_err(), "a dropped resolution answered");
+    let addresses = second.block_on(cache.lookup("origin.phantom.test", 443))?;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert_eq!(
+        recorder.calls(),
+        2,
+        "the next lookup started a new resolution"
+    );
+    Ok(())
+}
+
+#[test]
+fn resolutions_in_flight_are_bounded_by_the_blocking_pool() -> TestResult {
+    const POOL: usize = 2;
+    let running = Arc::new(AtomicUsize::new(0));
+    let most = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_lookup(long_lived(), {
+        let running = Arc::clone(&running);
+        let most = Arc::clone(&most);
+        move |_| {
+            let running = Arc::clone(&running);
+            let most = Arc::clone(&most);
+            Box::pin(async move {
+                let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+                most.fetch_max(now, Ordering::SeqCst);
+                std::thread::sleep(Duration::from_millis(20));
+                running.fetch_sub(1, Ordering::SeqCst);
+                Ok(vec![SocketAddr::new(V4, 0)])
+            })
+        }
+    });
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .max_blocking_threads(POOL)
+        .build()?;
+
+    let answers = runtime.block_on(async {
+        let lookups = (0..12)
+            .map(|index| {
+                let cache = cache.clone();
+                tokio::spawn(async move {
+                    cache
+                        .lookup(&format!("host{index}.phantom.test"), 443)
+                        .await
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut answers = 0;
+        for lookup in lookups {
+            if lookup.await.is_ok_and(|result| result.is_ok()) {
+                answers += 1;
+            }
+        }
+        answers
+    });
+
+    assert_eq!(answers, 12);
+    assert_eq!(cache.len(), 12);
+    assert!(
+        most.load(Ordering::SeqCst) <= POOL,
+        "more resolutions ran than the pool allows"
+    );
+    Ok(())
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn a_scoped_ipv6_address_keeps_its_scope_and_flow_label() -> TestResult {
     let link_local = SocketAddr::V6(SocketAddrV6::new(

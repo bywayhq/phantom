@@ -679,9 +679,10 @@ browsers do for an answer without a record TTL at the profiled release tags.
 With a cache, the client makes one lookup per name it resolves itself per
 cache `ttl`, shares one lookup between concurrent connections, keeps every
 resolved address as returned except its port, and never resolves a
-proxy-resolved target. The shared lookup runs on its own thread, so a
-connection on one Tokio runtime never waits on another runtime that has
-stopped being driven.
+proxy-resolved target. The shared lookup runs on the starting runtime's
+blocking pool, which bounds the resolutions in flight, and a connection on
+one Tokio runtime never waits on another runtime that has stopped being
+driven.
 
 Evidence: a capture of one page load cannot show how long a browser reuses
 an answer, so the recipes rest on browser source at Chromium tag
@@ -740,6 +741,8 @@ Unit tests in `crates/phantom-net/src/address_cache/tests.rs`:
 | `concurrent_lookups_share_one_resolution` | Eight concurrent lookups make one resolution and get the same answer |
 | `a_resolution_fills_the_cache_after_its_lookups_are_dropped` | A resolution whose lookup was cancelled still stores its answer |
 | `a_lookup_does_not_depend_on_another_runtime_being_driven` | A lookup on one runtime joins a resolution another runtime started and completes while that runtime is never driven again |
+| `a_resolution_a_shut_down_runtime_drops_is_released_and_restarted` | A resolution spawned on a runtime that has shut down is dropped; its waiter gets an error, and the next lookup of the name resolves it again |
+| `resolutions_in_flight_are_bounded_by_the_blocking_pool` | Twelve distinct names on a runtime with two blocking threads never run more than two resolutions at once, and all twelve are answered |
 | `a_scoped_ipv6_address_keeps_its_scope_and_flow_label` | A cached link-local IPv6 address keeps its scope ID and flow label; only the port changes |
 | `a_ttl_beyond_the_clock_range_never_expires` | `Duration::MAX` keeps the answer instead of expiring it at once |
 | `the_cache_keeps_at_most_max_entries_names` | The bound holds, and the name that expires soonest is evicted |

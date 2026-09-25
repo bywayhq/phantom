@@ -8,7 +8,6 @@ use std::{
     net::{IpAddr, SocketAddr, ToSocketAddrs},
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
-    thread,
     time::Instant,
 };
 
@@ -34,14 +33,19 @@ type Lookup = Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>;
 /// Addresses keep everything the resolver returned except the port, which
 /// each lookup supplies, so an IPv6 scope ID and flow label survive.
 ///
-/// Concurrent lookups of one name share one resolution. It runs on its own
-/// thread, outside every Tokio runtime, and publishes its answer through a
-/// channel that any runtime can wait on: a lookup from one runtime never
-/// depends on another runtime being driven, and the resolution completes and
-/// fills the cache even when every connection that asked for it has been
-/// dropped. That thread blocks in the operating system resolver, as Tokio's
-/// own `lookup_host` does on its blocking pool. The lock is never held
-/// across an `.await`.
+/// Concurrent lookups of one name share one resolution. It runs with
+/// `spawn_blocking` on the blocking pool of the runtime that started it, as
+/// Tokio's own `lookup_host` does, so resolutions in flight are bounded by
+/// that pool: 512 threads unless the runtime was built with another
+/// `max_blocking_threads`; further names wait in the pool's queue. A blocking
+/// thread runs whether or not its runtime is being driven, and the answer is
+/// published through a channel that any runtime can wait on, so a lookup from
+/// one runtime never depends on another runtime being driven. The resolution
+/// completes and fills the cache even when every connection that asked for it
+/// has been dropped. If the runtime drops the resolution before it runs, as
+/// a runtime that is shutting down does, its waiters get an error and the
+/// next lookup of the name starts again.
+/// The lock is never held across an `.await`.
 ///
 /// Clones share one cache. It holds at most
 /// [`DnsCacheSettings::max_entries`] names; when it is full, a new answer
@@ -135,7 +139,7 @@ impl AddressCache {
     /// system.
     #[must_use]
     pub fn new(settings: DnsCacheSettings) -> Self {
-        // Runs on the resolution's own thread, so blocking here is intended.
+        // Runs on a blocking-pool thread, so blocking here is intended.
         Self::with_lookup(settings, |host| {
             Box::pin(async move { Ok((&*host, 0).to_socket_addrs()?.collect()) })
         })
@@ -145,8 +149,8 @@ impl AddressCache {
     ///
     /// Test plumbing for the `phantom` facade, which counts lookups through
     /// its connectors. `lookup` receives the lowercased name. Its future runs
-    /// on the resolution's own thread under a Tokio current-thread runtime
-    /// without I/O or timer drivers.
+    /// on a blocking-pool thread under a Tokio current-thread runtime without
+    /// I/O or timer drivers.
     #[doc(hidden)]
     pub fn with_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
     where
@@ -199,8 +203,9 @@ impl AddressCache {
     /// # Errors
     ///
     /// Returns the resolver's error, or a stored copy of it, when the name
-    /// does not resolve, and an error when the resolution thread cannot start
-    /// or ends without an answer. An empty answer is returned as `Ok`.
+    /// does not resolve; an error when there is no Tokio runtime to run the
+    /// resolution on, or when it ends without an answer, as when that runtime
+    /// drops it while shutting down. An empty answer is returned as `Ok`.
     pub(crate) async fn lookup(&self, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok(vec![SocketAddr::new(address, port)]);
@@ -232,38 +237,38 @@ impl AddressCache {
             }
             None => {}
         }
-        // A resolution that ended without an answer, as when its thread
-        // panicked, has dropped its sender; such entries are pruned here and
-        // the name is resolved again.
+        // A resolution that ended without an answer, as when its runtime shut
+        // down or its task panicked, has dropped its sender; such entries are
+        // pruned here and the name is resolved again.
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
         if let Some(receiver) = state.pending.get(&host) {
             return Ok(receiver.clone());
         }
+        let runtime = tokio::runtime::Handle::try_current()
+            .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
         let (sender, receiver) = watch::channel(None);
         let generation = state.generation;
         state.pending.insert(host.clone(), receiver.clone());
         drop(state);
 
-        let cache = self.clone();
         let resolution = (self.inner.lookup)(host.clone());
-        let pending_host = host.clone();
-        let started = thread::Builder::new()
-            .name("phantom-dns".into())
-            .spawn(move || {
-                let result = tokio::runtime::Builder::new_current_thread()
-                    .build()
-                    .map_err(io::Error::other)
-                    .and_then(|runtime| runtime.block_on(resolution));
-                let outcome = Outcome::from_result(result);
-                cache.complete(host, generation, &outcome);
+        let mut publisher = Publisher {
+            cache: self.clone(),
+            sender: Some(sender),
+        };
+        drop(runtime.spawn_blocking(move || {
+            let result = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .map_err(io::Error::other)
+                .and_then(|runtime| runtime.block_on(resolution));
+            let outcome = Outcome::from_result(result);
+            publisher.cache.complete(host, generation, &outcome);
+            if let Some(sender) = publisher.sender.take() {
                 let _ = sender.send(Some(outcome));
-            });
-        if let Err(error) = started {
-            self.lock().pending.remove(&pending_host);
-            return Err(error);
-        }
+            }
+        }));
         Ok(receiver)
     }
 
@@ -324,6 +329,27 @@ impl AddressCache {
             .state
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// The sending side of one resolution.
+///
+/// Dropped without sending, as when the runtime shuts down before the
+/// blocking task starts, it releases the pending entry so that waiters see an
+/// error and the next lookup of the name starts a new resolution.
+struct Publisher {
+    cache: AddressCache,
+    sender: Option<watch::Sender<Option<Outcome>>>,
+}
+
+impl Drop for Publisher {
+    fn drop(&mut self) {
+        if self.sender.take().is_some() {
+            self.cache
+                .lock()
+                .pending
+                .retain(|_, receiver| receiver.has_changed().is_ok());
+        }
     }
 }
 
