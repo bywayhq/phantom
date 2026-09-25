@@ -473,6 +473,24 @@ server message, and reports to `/done`.
 | `http-proxy-hostname` | plaintext HTTP proxy | `origin.phantom.test` |
 | `https-proxy-loopback` | TLS proxy offering `h2` | `127.0.0.1` |
 | `https-proxy-hostname` | TLS proxy offering `h2` | `origin.phantom.test` |
+| `http-proxy-auth-loopback` | plaintext HTTP proxy, Basic auth | `127.0.0.1` |
+| `http-proxy-auth-hostname` | plaintext HTTP proxy, Basic auth | `origin.phantom.test` |
+| `https-proxy-auth-loopback` | TLS proxy offering `h2`, Basic auth | `127.0.0.1` |
+| `https-proxy-auth-hostname` | TLS proxy offering `h2`, Basic auth | `origin.phantom.test` |
+
+The four `-auth-` scenarios show when a browser sends `Proxy-Authorization`
+after its first 407. Both proxy listeners require the throwaway credential
+`phantom-user` / `phantom-pass`. A test-origin request that lacks the exact
+`Proxy-Authorization: Basic <base64>` value gets
+`407 Proxy Authentication Required` with
+`Proxy-Authenticate: Basic realm="phantom-capture"` and `Content-Length: 0`.
+That covers an HTTP/1.1 CONNECT, an absolute-form request, an HTTP/2 CONNECT
+stream, and a forwarded HTTP/2 stream. The connection stays open, and on
+HTTP/2 the 407 HEADERS frame ends the stream. Requests inside an established
+tunnel and background traffic are not challenged. The page opens two `ws://`
+connections one after the other and then reports both outcomes to `/done`, so
+each run has a page request, two CONNECT tunnels, and a `/done` request after
+the first challenge.
 
 Browsers send `Accept-Encoding`, client hints, and fetch metadata to a
 loopback origin that they omit for a named plaintext origin, so every route
@@ -494,6 +512,31 @@ Each browser gets these proxy settings, recorded with the launch:
   `network.proxy.allow_hijacking_localhost=true` and an empty
   `network.proxy.no_proxies_on`.
 
+An auth scenario starts the browser on `about:blank` with a remote debugging
+port and supplies the credential over the browser's remote protocol before it
+loads the page. The client for both protocols is in `browser_remote.py`.
+
+- Chromium receives `--remote-debugging-port=0`, and the tool reads the port
+  from `DevToolsActivePort` in the profile. Over the DevTools protocol it
+  attaches to the page target, enables `Fetch` with `handleAuthRequests` and
+  the pattern `*`, and continues every paused request unchanged. It answers
+  `Fetch.authRequired` with `ProvideCredentials` when the challenge source is
+  `Proxy` and cancels any other challenge. It then calls `Page.navigate`.
+  `Fetch` does not see WebSocket handshakes, so a 407 on a `ws://` CONNECT
+  would reach no handler; the page would report the outcome.
+- Firefox receives `--remote-debugging-port 0` and
+  `remote.prefs.recommended=false`, which stops the remote agent from
+  applying its automation preferences. The tool reads the port from
+  `WebDriverBiDiServer.json` in the profile. Over WebDriver BiDi it opens a
+  session, subscribes to `network.authRequired`, adds an intercept for the
+  `authRequired` phase, and answers a blocked 407 challenge with
+  `network.continueWithAuth` and `provideCredentials`. It then calls
+  `browsingContext.navigate`.
+
+The fixture records the method as `credential_supply` and each challenge the
+remote protocol reported as `run_<n>_remote_event_<i>`, with its source or
+status, scheme, realm, and URL path.
+
 For each run the fixture keeps:
 
 - every connection with its listener, ALPN offer, SNI, and negotiated
@@ -506,8 +549,17 @@ For each run the fixture keeps:
 Browser background traffic also reaches the proxy. A request whose authority
 is neither test origin is recorded as `kind:background` with its method and
 authority only; its tunnel bytes are discarded, and its HPACK block is marked
-`background=true` without fields. The tool refuses to write `cookie`,
-`authorization`, or `proxy-authorization`.
+`background=true` without fields. The tool refuses to write `cookie` or
+`authorization`.
+
+The tool never writes a `Proxy-Authorization` value. It keeps the field's
+name and position and replaces the value with `redacted:capture-credential`
+when it matched the test credential, or `redacted:other` when it did not. An
+HTTP/1.1 header line becomes the hex of `Proxy-Authorization: <marker>`. An
+HPACK field keeps its representation and index, gives the marker as
+`value_hex`, and adds `redacted:true`. In an auth scenario each request
+record also carries `proxy_authorization:none`, `capture-credential`, or
+`other`; its `status` is 407 when the proxy challenged it.
 
 ## Next
 

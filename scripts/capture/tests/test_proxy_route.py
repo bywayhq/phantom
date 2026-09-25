@@ -11,9 +11,13 @@ from h2.connection import H2Connection
 from h2.events import DataReceived, ResponseReceived
 
 from scripts.capture.proxy_route import (
+    CHROMIUM_REMOTE_FLAG,
     DIRECT_FLAG,
+    FIREFOX_REMOTE_ARGUMENTS,
     FORMAT,
+    PROXY_CREDENTIAL,
     PROXY_HOST,
+    REMOTE_START_URL,
     SCENARIOS,
     WEBSOCKET_MESSAGE,
     CaptureMetadata,
@@ -26,6 +30,7 @@ from scripts.capture.proxy_route import (
     launch_arguments,
     launch_plan,
     main,
+    recorded_arguments,
 )
 
 METADATA = CaptureMetadata(
@@ -42,6 +47,33 @@ CERTIFICATE = generate_certificate(PROXY_HOST)
 TIMEOUT = 20.0
 KEY = b"dGhlIHNhbXBsZSBub25jZQ=="
 BACKGROUND_TARGET = b"http://background.example/time?secret=per-install-token"
+WRONG_CREDENTIAL = b"Basic d3Jvbmc6d3Jvbmc="
+CHALLENGE = (
+    b"HTTP/1.1 407 Proxy Authentication Required\r\n"
+    b'Proxy-Authenticate: Basic realm="phantom-capture"\r\n'
+    b"Content-Length: 0\r\n\r\n"
+)
+
+
+def auth_run() -> CaptureRun:
+    return CaptureRun(
+        "0123456789abcdef",
+        "http-proxy-auth-hostname",
+        proxy_credential=PROXY_CREDENTIAL,
+    )
+
+
+def proxy_field(credential: bytes | None) -> bytes:
+    if credential is None:
+        return b""
+    return b"Proxy-Authorization: " + credential + b"\r\n"
+
+
+def leaks(text: str) -> bool:
+    """Whether fixture text holds the credential in any retained encoding."""
+    secrets = [PROXY_CREDENTIAL, PROXY_CREDENTIAL.split(b" ")[1], b"phantom-pass"]
+    secrets.append(WRONG_CREDENTIAL.split(b" ")[1])
+    return any(item.decode() in text or item.hex() in text for item in secrets)
 
 
 def upgrade_request(authority: bytes, token: str) -> bytes:
@@ -129,6 +161,76 @@ async def capture_http_proxy(name: str) -> tuple[CaptureServer, list[CaptureRun]
     finally:
         await server.close()
     return server, runs
+
+
+async def h2_auth_run() -> tuple[CaptureRun, dict[int, bytes], dict[int, dict]]:
+    """Drive the TLS proxy over h2 with missing, wrong, and right credentials."""
+    server = CaptureServer(CERTIFICATE)
+    await server.start("127.0.0.1")
+    run = CaptureRun(
+        "feedfacefeedface",
+        "https-proxy-auth-hostname",
+        0.05,
+        proxy_credential=PROXY_CREDENTIAL,
+    )
+    server.run = run
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    context.set_alpn_protocols(["h2"])
+    authority = b"origin.phantom.test:9"
+    page = [
+        (b":method", b"GET"),
+        (b":authority", authority),
+        (b":scheme", b"http"),
+        (b":path", b"/page?run=" + run.token.encode()),
+    ]
+    connect = [(b":method", b"CONNECT"), (b":authority", authority)]
+    right = [(b"proxy-authorization", PROXY_CREDENTIAL)]
+    wrong = [(b"proxy-authorization", WRONG_CREDENTIAL)]
+    try:
+        reader, writer = await asyncio.open_connection(
+            "127.0.0.1",
+            server.addresses["https-proxy"][1],
+            ssl=context,
+            server_hostname=PROXY_HOST,
+        )
+        h2 = H2Connection(H2Configuration(client_side=True, header_encoding=None))
+        h2.initiate_connection()
+        h2.send_headers(1, page, end_stream=True)
+        h2.send_headers(3, page + wrong, end_stream=True)
+        h2.send_headers(5, page + right, end_stream=True)
+        h2.send_headers(7, connect)
+        h2.send_headers(9, connect + right)
+        h2.send_data(9, upgrade_request(authority, run.token))
+        h2.send_headers(
+            11, [(b":method", b"CONNECT"), (b":authority", b"background.example:443")]
+        )
+        writer.write(h2.data_to_send())
+        statuses: dict[int, bytes] = {}
+        responses: dict[int, dict] = {}
+        tunnel = b""
+        while not (len(statuses) == 6 and len(tunnel) >= len(WEBSOCKET_MESSAGE)):
+            data = await asyncio.wait_for(reader.read(65536), TIMEOUT)
+            if not data:
+                break
+            for event in h2.receive_data(data):
+                if isinstance(event, ResponseReceived):
+                    responses[event.stream_id] = dict(event.headers)
+                    statuses[event.stream_id] = dict(event.headers)[b":status"]
+                elif isinstance(event, DataReceived):
+                    h2.acknowledge_received_data(
+                        event.flow_controlled_length, event.stream_id
+                    )
+                    if event.stream_id == 9:
+                        tunnel += event.data
+            writer.write(h2.data_to_send())
+        writer.close()
+        assert tunnel.endswith(WEBSOCKET_MESSAGE), tunnel
+    finally:
+        server.run = None
+        await server.close()
+    return run, statuses, responses
 
 
 async def h2_proxy_run() -> CaptureRun:
@@ -308,18 +410,184 @@ class ProxyRouteCaptureTests(unittest.TestCase):
         self.assertNotIn(b"background.example".hex(), text)
 
     def test_fixture_refuses_credential_bearing_fields(self) -> None:
-        run = CaptureRun("0123456789abcdef", "http-proxy-hostname")
-        exchange = Http1Exchange(run, 0)
-        exchange.feed(
-            b"GET http://origin.phantom.test:9/x HTTP/1.1\r\n"
-            b"Host: origin.phantom.test:9\r\nProxy-Authorization: Basic eDp5\r\n\r\n"
-        )
-        with self.assertRaises(ValueError):
-            fixture("http-proxy-hostname", "page", [run], METADATA)
+        for field in (b"Authorization: Basic eDp5", b"Cookie: session=1"):
+            run = CaptureRun("0123456789abcdef", "http-proxy-hostname")
+            exchange = Http1Exchange(run, 0)
+            exchange.feed(
+                b"GET http://origin.phantom.test:9/x HTTP/1.1\r\n"
+                b"Host: origin.phantom.test:9\r\n" + field + b"\r\n\r\n"
+            )
+            with self.assertRaises(ValueError):
+                fixture("http-proxy-hostname", "page", [run], METADATA)
 
     def test_listener_rejects_non_loopback_address(self) -> None:
         with self.assertRaises(ValueError):
             asyncio.run(CaptureServer(CERTIFICATE).start("0.0.0.0"))
+
+
+class ProxyAuthTests(unittest.TestCase):
+    def feed(self, exchange: Http1Exchange, head: bytes) -> bytes:
+        async def exercise() -> bytes:
+            return exchange.feed(head)
+
+        return asyncio.run(exercise())
+
+    def test_http1_connect_is_challenged_until_the_credential_matches(self) -> None:
+        run = auth_run()
+        exchange = Http1Exchange(run, 0, proxy=True)
+        request = (
+            b"CONNECT origin.phantom.test:9 HTTP/1.1\r\nHost: origin.phantom.test:9\r\n"
+        )
+        for credential in (None, WRONG_CREDENTIAL):
+            response = self.feed(exchange, request + proxy_field(credential) + b"\r\n")
+            self.assertEqual(response, CHALLENGE)
+            self.assertEqual(exchange.tunnel, "none")
+        response = self.feed(
+            exchange, request + proxy_field(PROXY_CREDENTIAL) + b"\r\n"
+        )
+        self.assertEqual(response, b"HTTP/1.1 200 Connection established\r\n\r\n")
+        upgraded = self.feed(
+            exchange, upgrade_request(b"origin.phantom.test:9", run.token)
+        )
+        self.assertTrue(upgraded.startswith(b"HTTP/1.1 101 "))
+        self.assertEqual(
+            [(r.kind, r.status, r.proxy_authorization, r.tunnel) for r in run.requests],
+            [
+                ("connect", 407, "none", "none"),
+                ("connect", 407, "other", "none"),
+                ("connect", 200, "capture-credential", "none"),
+                ("websocket", 101, "none", "h1-connect"),
+            ],
+        )
+
+    def test_http1_forwarded_request_is_challenged_until_the_credential_matches(
+        self,
+    ) -> None:
+        run = auth_run()
+        exchange = Http1Exchange(run, 0, proxy=True)
+        request = (
+            b"GET http://origin.phantom.test:9/page?run=" + run.token.encode() + b" "
+            b"HTTP/1.1\r\nHost: origin.phantom.test:9\r\n"
+        )
+        self.assertEqual(self.feed(exchange, request + b"\r\n"), CHALLENGE)
+        self.assertEqual(
+            self.feed(exchange, request + proxy_field(WRONG_CREDENTIAL) + b"\r\n"),
+            CHALLENGE,
+        )
+        response = self.feed(
+            exchange, request + proxy_field(PROXY_CREDENTIAL) + b"\r\n"
+        )
+        self.assertTrue(response.startswith(b"HTTP/1.1 200 OK"))
+        self.assertEqual(
+            [(r.kind, r.status, r.proxy_authorization) for r in run.requests],
+            [
+                ("page", 407, "none"),
+                ("page", 407, "other"),
+                ("page", 200, "capture-credential"),
+            ],
+        )
+
+    def test_origin_listener_and_background_traffic_are_not_challenged(self) -> None:
+        run = auth_run()
+        origin = Http1Exchange(run, 0)
+        page = (
+            b"GET /page?run=" + run.token.encode() + b" HTTP/1.1\r\n"
+            b"Host: origin.phantom.test:9\r\n\r\n"
+        )
+        self.assertTrue(self.feed(origin, page).startswith(b"HTTP/1.1 200 OK"))
+        proxy = Http1Exchange(run, 1, proxy=True)
+        response = self.feed(proxy, b"CONNECT www.example.com:443 HTTP/1.1\r\n\r\n")
+        self.assertEqual(response, b"HTTP/1.1 200 Connection established\r\n\r\n")
+        self.assertEqual([r.kind for r in run.requests], ["page", "background"])
+
+    def test_scenario_without_auth_is_never_challenged(self) -> None:
+        run = CaptureRun("0123456789abcdef", "http-proxy-hostname")
+        exchange = Http1Exchange(run, 0, proxy=True)
+        response = self.feed(
+            exchange, b"CONNECT origin.phantom.test:9 HTTP/1.1\r\n\r\n"
+        )
+        self.assertEqual(response, b"HTTP/1.1 200 Connection established\r\n\r\n")
+
+    def test_http1_fixture_keeps_the_field_position_but_not_the_value(self) -> None:
+        run = auth_run()
+        exchange = Http1Exchange(run, 0, proxy=True)
+        request = (
+            b"CONNECT origin.phantom.test:9 HTTP/1.1\r\nHost: origin.phantom.test:9\r\n"
+        )
+        self.feed(exchange, request + proxy_field(WRONG_CREDENTIAL) + b"\r\n")
+        self.feed(
+            exchange,
+            request + proxy_field(PROXY_CREDENTIAL) + b"User-Agent: test\r\n\r\n",
+        )
+        run.note("event:Fetch.authRequired,source:Proxy")
+        text = fixture("http-proxy-auth-hostname", "page", [run], METADATA)
+        self.assertFalse(leaks(text))
+        self.assertIn(",status:407,", text)
+        self.assertIn(",proxy_authorization:other\n", text)
+        self.assertIn(",proxy_authorization:capture-credential\n", text)
+        self.assertIn(
+            "run_0_request_0_header_1="
+            + b"Proxy-Authorization: redacted:other".hex()
+            + "\n",
+            text,
+        )
+        self.assertIn(
+            "run_0_request_1_header_1="
+            + b"Proxy-Authorization: redacted:capture-credential".hex()
+            + "\n",
+            text,
+        )
+        self.assertIn("run_0_request_1_header_2=" + b"User-Agent: test".hex(), text)
+        self.assertIn("proxy_auth=scheme:basic,realm:phantom-capture,", text)
+        self.assertIn("run_0_remote_event_count=1\n", text)
+        self.assertIn(",event:Fetch.authRequired,source:Proxy\n", text)
+
+    def test_http2_forwarded_and_connect_streams_are_challenged(self) -> None:
+        run, statuses, responses = asyncio.run(h2_auth_run())
+        self.assertEqual(
+            statuses,
+            {1: b"407", 3: b"407", 5: b"200", 7: b"407", 9: b"200", 11: b"200"},
+        )
+        self.assertEqual(
+            responses[1][b"proxy-authenticate"], b'Basic realm="phantom-capture"'
+        )
+        self.assertEqual(responses[7][b"content-length"], b"0")
+        self.assertEqual(
+            [(r.kind, r.status, r.proxy_authorization) for r in run.requests],
+            [
+                ("page", 407, "none"),
+                ("page", 407, "other"),
+                ("page", 200, "capture-credential"),
+                ("connect", 407, "none"),
+                ("connect", 200, "capture-credential"),
+                ("websocket", 101, "none"),
+                ("background", 200, "none"),
+            ],
+        )
+        text = fixture("https-proxy-auth-hostname", "page", [run], METADATA)
+        self.assertFalse(leaks(text))
+        self.assertIn(
+            "run_0_connection_0_headers_2_field_order="
+            ":method,:authority,:scheme,:path,proxy-authorization\n",
+            text,
+        )
+        self.assertIn(
+            # h2 sends proxy-authorization never-indexed on the static name.
+            "run_0_connection_0_headers_1_field_4=repr:never-indexed,index:49,"
+            f"name_hex:{b'proxy-authorization'.hex()},"
+            f"value_hex:{b'redacted:other'.hex()},redacted:true\n",
+            text,
+        )
+        self.assertIn(
+            f"value_hex:{b'redacted:capture-credential'.hex()},redacted:true\n", text
+        )
+
+    def test_auth_page_opens_two_websockets_in_turn(self) -> None:
+        page = auth_run().page().decode()
+        self.assertIn("open(0);", page)
+        self.assertIn("if (index + 1 < 2) open(index + 1); else done();", page)
+        plain = CaptureRun("0123456789abcdef", "http-proxy-hostname").page().decode()
+        self.assertNotIn("open(", plain)
 
 
 class LaunchTests(unittest.TestCase):
@@ -377,6 +645,41 @@ class LaunchTests(unittest.TestCase):
         self.assertEqual(name, "cert_override.txt")
         self.assertIn(f"{PROXY_HOST}:1003:", text)
         self.assertIn(CERTIFICATE.sha256_fingerprint, text)
+
+    def test_auth_launches_open_a_remote_port_on_a_blank_page(self) -> None:
+        chrome = launch_plan(
+            "chrome",
+            Path("chrome.exe"),
+            True,
+            SCENARIOS["https-proxy-auth-hostname"],
+            self.server,
+            CERTIFICATE,
+        )
+        arguments = launch_arguments(
+            chrome, Path("<temporary-profile>"), REMOTE_START_URL
+        )
+        self.assertIn(CHROMIUM_REMOTE_FLAG, arguments)
+        self.assertEqual(arguments[-1], "about:blank")
+        self.assertNotIn(DIRECT_FLAG, arguments)
+        self.assertTrue(
+            recorded_arguments(chrome, REMOTE_START_URL).endswith(
+                "--remote-debugging-port=0 about:blank"
+            )
+        )
+        firefox = launch_plan(
+            "firefox",
+            Path("firefox.exe"),
+            True,
+            SCENARIOS["http-proxy-auth-loopback"],
+            self.server,
+            CERTIFICATE,
+        )
+        self.assertEqual(firefox.extra_arguments, FIREFOX_REMOTE_ARGUMENTS)
+        self.assertIs(
+            dict(firefox.firefox_preferences)["remote.prefs.recommended"], False
+        )
+        plain = self.chromium("https-proxy-hostname")
+        self.assertNotIn(CHROMIUM_REMOTE_FLAG, plain)
 
     def test_firefox_http_proxy_uses_manual_settings(self) -> None:
         plan = launch_plan(

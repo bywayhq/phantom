@@ -27,10 +27,12 @@ from .browser_launch import (
     browser_arguments,
     render_preferences,
 )
+from .browser_remote import ChromiumAuthDriver, Credentials, FirefoxAuthDriver
 from .fixture_file import write_text_fixture
 from .http2_session import (
     Certificate,
     ConnectionRecord,
+    HeaderField,
     PlainChannel,
     TlsChannel,
     analyze_http2,
@@ -45,14 +47,47 @@ PROXY_HOST = "proxy.phantom.test"
 SUPPORTED_H2 = "4.4.1"
 SUPPORTED_HPACK = "4.2.0"
 MAX_REQUEST_HEAD = 64 * 1024
-SENSITIVE_HEADERS = {b"authorization", b"proxy-authorization", b"cookie"}
+# Fields the tool refuses to retain at all.
+SENSITIVE_HEADERS = {b"authorization", b"cookie"}
+# Retained with its name and position; the value becomes a marker.
+PROXY_AUTHORIZATION = b"proxy-authorization"
+# Throwaway credentials for the auth scenarios' loopback proxy only.
+PROXY_USERNAME = "phantom-user"
+PROXY_PASSWORD = "phantom-pass"
+PROXY_REALM = b"phantom-capture"
+PROXY_CREDENTIAL = b"Basic " + base64.b64encode(
+    f"{PROXY_USERNAME}:{PROXY_PASSWORD}".encode()
+)
+REDACTED_CAPTURE = "redacted:capture-credential"
+REDACTED_OTHER = "redacted:other"
 WEBSOCKET_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 # One unmasked server text frame; the page ends the run when it arrives.
 WEBSOCKET_MESSAGE = b"\x81\x07phantom"
+# ws:// openings an auth scenario page makes one after another.
+AUTH_WEBSOCKETS = 2
 DIRECT_FLAG = "--no-proxy-server"
 # Chromium field trials can change network behavior between otherwise equal
 # launches; the proxy captures pin the built-in defaults.
 CHROMIUM_EXTRA_FLAGS = ("--disable-field-trial-config",)
+# Auth scenarios start on about:blank and navigate over the remote protocol
+# once the credential handler is installed.
+REMOTE_START_URL = "about:blank"
+CHROMIUM_REMOTE_FLAG = "--remote-debugging-port=0"
+FIREFOX_REMOTE_ARGUMENTS = ("--remote-debugging-port", "0")
+CREDENTIAL_SUPPLY = {
+    "chrome": "cdp:Target.attachToTarget(flatten);"
+    "Fetch.enable(handleAuthRequests=true,urlPattern=*);"
+    "Fetch.continueRequest;"
+    "Fetch.continueWithAuth(ProvideCredentials if source=Proxy);"
+    "Page.navigate",
+    "firefox": "webdriver-bidi:session.new;"
+    "session.subscribe(network.authRequired);"
+    "network.addIntercept(phases=authRequired);"
+    "network.continueWithAuth(provideCredentials if status=407);"
+    "browsingContext.navigate",
+    "manual": "manual",
+}
+CREDENTIAL_SUPPLY["edge"] = CREDENTIAL_SUPPLY["chrome"]
 
 
 @dataclass(frozen=True)
@@ -62,6 +97,9 @@ class Scenario:
     proxy: str
     # loopback pages use 127.0.0.1; hostname pages use ORIGIN_HOST.
     origin: str
+    # Both proxy listeners answer capture requests without the expected
+    # Proxy-Authorization with 407, and the page opens two ws:// in turn.
+    auth: bool = False
 
 
 SCENARIOS = {
@@ -95,6 +133,34 @@ SCENARIOS = {
         "https",
         "hostname",
     ),
+    "http-proxy-auth-loopback": Scenario(
+        "loopback http:// and two ws:// through a plaintext HTTP proxy "
+        "requiring Basic auth",
+        "http",
+        "loopback",
+        auth=True,
+    ),
+    "http-proxy-auth-hostname": Scenario(
+        "named http:// and two ws:// through a plaintext HTTP proxy "
+        "requiring Basic auth",
+        "http",
+        "hostname",
+        auth=True,
+    ),
+    "https-proxy-auth-loopback": Scenario(
+        "loopback http:// and two ws:// through a TLS proxy offering h2 "
+        "requiring Basic auth",
+        "https",
+        "loopback",
+        auth=True,
+    ),
+    "https-proxy-auth-hostname": Scenario(
+        "named http:// and two ws:// through a TLS proxy offering h2 "
+        "requiring Basic auth",
+        "https",
+        "hostname",
+        auth=True,
+    ),
 }
 
 
@@ -116,6 +182,8 @@ class RequestRecord:
     status: int | None = None
     method: bytes = b""
     authority: bytes = b""
+    # none | capture-credential | other
+    proxy_authorization: str = "none"
 
     @property
     def form(self) -> str:
@@ -136,10 +204,14 @@ class CaptureRun:
     scenario: str
     observation_seconds: float = 1.0
     clock: Callable[[], float] = time.perf_counter
+    # The exact Proxy-Authorization value the proxies require, or None.
+    proxy_credential: bytes | None = None
     started: float = field(init=False)
     connections: list[ConnectionRecord] = field(default_factory=list)
     requests: list[RequestRecord] = field(default_factory=list)
     results: list[dict[str, str]] = field(default_factory=list)
+    # Remote-protocol credential events, as (received, note).
+    remote_events: list[tuple[float, str]] = field(default_factory=list)
     finished: float | None = None
     timed_out: bool = False
     done: asyncio.Event = field(default_factory=asyncio.Event)
@@ -158,8 +230,13 @@ class CaptureRun:
                 self.observation_seconds, self.done.set
             )
 
+    def note(self, text: str) -> None:
+        self.remote_events.append((self.now(), text))
+
     def page(self) -> bytes:
         token = self.token
+        if self.proxy_credential is not None:
+            return self.sequential_page()
         return (
             "<!doctype html><meta charset=utf-8>"
             '<link rel=icon href="data:,"><script>\n'
@@ -174,6 +251,39 @@ class CaptureRun:
             "socket.onerror = () => done('error');\n"
             "socket.onclose = (event) => done('close-' + event.code);\n"
             "setTimeout(() => done('timeout'), 10000);\n"
+            "</script>\n"
+        ).encode()
+
+    def sequential_page(self) -> bytes:
+        """Open ws:// openings one after another, then report every outcome."""
+        token = self.token
+        return (
+            "<!doctype html><meta charset=utf-8>"
+            '<link rel=icon href="data:,"><script>\n'
+            "const outcomes = [];\n"
+            "let sent = false;\n"
+            "function done() {\n"
+            "  if (sent) return;\n"
+            "  sent = true;\n"
+            f"  fetch('/done?run={token}&websocket=' + outcomes.join('.'));\n"
+            "}\n"
+            "function open(index) {\n"
+            "  let settled = false;\n"
+            "  const url = 'ws://' + location.host + "
+            f"'/echo?run={token}&socket=' + index;\n"
+            "  const socket = new WebSocket(url);\n"
+            "  const settle = (outcome) => {\n"
+            "    if (settled) return;\n"
+            "    settled = true;\n"
+            "    outcomes.push(outcome);\n"
+            f"    if (index + 1 < {AUTH_WEBSOCKETS}) open(index + 1); else done();\n"
+            "  };\n"
+            "  socket.onmessage = () => { socket.close(1000); settle('message'); };\n"
+            "  socket.onerror = () => settle('error');\n"
+            "  socket.onclose = (event) => settle('close-' + event.code);\n"
+            "}\n"
+            "open(0);\n"
+            "setTimeout(() => { outcomes.push('timeout'); done(); }, 10000);\n"
             "</script>\n"
         ).encode()
 
@@ -202,6 +312,7 @@ def response_head(status: int, fields: Sequence[tuple[bytes, bytes]]) -> bytes:
         200: b"OK",
         204: b"No Content",
         404: b"Not Found",
+        407: b"Proxy Authentication Required",
     }
     lines = [b"HTTP/1.1 " + str(status).encode() + b" " + reasons[status]]
     lines.extend(name + b": " + value for name, value in fields)
@@ -228,6 +339,33 @@ def route(
     return "page", 200, fields, body
 
 
+def proxy_authorization(value: bytes | None, expected: bytes | None) -> str:
+    """Classify a Proxy-Authorization value without keeping it."""
+    if value is None:
+        return "none"
+    return "capture-credential" if value == expected else "other"
+
+
+def challenge_fields() -> list[tuple[bytes, bytes]]:
+    return [
+        (b"Proxy-Authenticate", b'Basic realm="' + PROXY_REALM + b'"'),
+        (b"Content-Length", b"0"),
+    ]
+
+
+def challenged_kind(run: CaptureRun, method: bytes, target: bytes) -> str:
+    """The kind a request would have had, without routing it."""
+    if method == b"CONNECT":
+        return "connect"
+    parts = urlsplit(target.decode("latin-1"))
+    query = parse_qs(parts.query, keep_blank_values=True)
+    if query.get("run", [""])[0] != run.token:
+        return "other"
+    return {"/page": "page", "/done": "done", "/echo": "websocket"}.get(
+        parts.path, "other"
+    )
+
+
 class Http1Exchange:
     """Sans-I/O HTTP/1.1 server for one byte stream: a connection or tunnel."""
 
@@ -238,11 +376,14 @@ class Http1Exchange:
         *,
         tunnel: str = "none",
         stream_id: int | None = None,
+        proxy: bool = False,
     ) -> None:
         self.run = run
         self.connection = connection
         self.tunnel = tunnel
         self.stream_id = stream_id
+        # A proxy listener's own requests are challenged; tunnelled ones not.
+        self.proxy = proxy
         self.buffer = bytearray()
         # Set after a WebSocket upgrade or a background tunnel; later bytes
         # are not HTTP and are discarded.
@@ -285,6 +426,21 @@ class Http1Exchange:
         else:
             request.authority = header_value(request.header_lines, b"host") or b""
         background = not is_capture_authority(request.authority)
+        expected = self.run.proxy_credential
+        request.proxy_authorization = proxy_authorization(
+            header_value(request.header_lines, PROXY_AUTHORIZATION), expected
+        )
+        if (
+            self.proxy
+            and self.tunnel == "none"
+            and expected is not None
+            and not background
+            and request.proxy_authorization != "capture-credential"
+        ):
+            # The connection stays open so a retry can reuse it.
+            request.kind = challenged_kind(self.run, method, target)
+            request.status = 407
+            return response_head(407, challenge_fields())
         if method == b"CONNECT":
             request.kind = "background" if background else "connect"
             request.status = 200
@@ -369,6 +525,22 @@ class Http2Proxy:
         )
         self.run.requests.append(record)
         background = not is_capture_authority(record.authority)
+        expected = self.run.proxy_credential
+        credential = next(
+            (value for name, value in headers if name == PROXY_AUTHORIZATION), None
+        )
+        record.proxy_authorization = proxy_authorization(credential, expected)
+        if (
+            expected is not None
+            and not background
+            and record.proxy_authorization != "capture-credential"
+        ):
+            record.kind = challenged_kind(self.run, method, pseudo.get(b":path", b""))
+            record.status = 407
+            response = [(b":status", b"407")]
+            response.extend((name.lower(), value) for name, value in challenge_fields())
+            self.h2.send_headers(stream_id, response, end_stream=True)
+            return
         if method == b"CONNECT" and b":protocol" not in pseudo:
             record.kind = "background" if background else "connect"
             record.status = 200
@@ -421,6 +593,10 @@ class CaptureServer:
             self.servers.append(server)
             self.addresses[listener] = server.sockets[0].getsockname()[:2]
 
+    def note(self, text: str) -> None:
+        if self.run is not None:
+            self.run.note(text)
+
     def address(self, listener: str) -> str:
         return "{}:{}".format(*self.addresses[listener])
 
@@ -462,7 +638,8 @@ class CaptureServer:
                 await Http2Proxy(run, index, channel).serve()
             else:
                 record.protocol = "http/1.1"
-                await serve_http1(Http1Exchange(run, index), channel)
+                exchange = Http1Exchange(run, index, proxy=listener != "origin")
+                await serve_http1(exchange, channel)
         except Exception as error:  # noqa: BLE001 - recorded as evidence
             record.failure = type(error).__name__
         finally:
@@ -492,6 +669,8 @@ class CaptureMetadata:
     launch_arguments: str
     firefox_preferences: str
     profile_files: str
+    # How an auth scenario's browser received the proxy credential.
+    credential_supply: str = "none"
 
 
 def milliseconds(value: float | None) -> str:
@@ -508,8 +687,25 @@ def check_retainable(request: RequestRecord) -> None:
             raise ValueError("refusing to retain a credential-bearing request field")
 
 
+def redaction(value: bytes, expected: bytes | None) -> str:
+    if expected is not None and value == expected:
+        return REDACTED_CAPTURE
+    return REDACTED_OTHER
+
+
+def retained_line(line: bytes, expected: bytes | None) -> bytes:
+    """An H1 field line with a Proxy-Authorization value replaced by a marker."""
+    name, _, value = line.partition(b":")
+    if name.strip().lower() != PROXY_AUTHORIZATION:
+        return line
+    return name + b": " + redaction(value.strip(), expected).encode()
+
+
 def connection_lines(
-    prefix: str, record: ConnectionRecord, background_streams: set[int]
+    prefix: str,
+    record: ConnectionRecord,
+    background_streams: set[int],
+    expected: bytes | None = None,
 ) -> list[str]:
     hello = record.client_hello
     offer = "none"
@@ -557,13 +753,24 @@ def connection_lines(
         )
         lines.append(f"{key}_field_count={len(block.fields)}")
         lines.extend(
-            f"{key}_field_{position}=repr:{item.representation},"
-            f"index:{item.index},"
-            f"name_hex:{(item.name or b'').hex() or 'none'},"
-            f"value_hex:{(item.value or b'').hex() or 'none'}"
+            field_line(f"{key}_field_{position}", item, expected)
             for position, item in enumerate(block.fields)
         )
     return lines
+
+
+def field_line(key: str, item: HeaderField, expected: bytes | None) -> str:
+    value = item.value or b""
+    redacted = (item.name or b"").lower() == PROXY_AUTHORIZATION
+    if redacted:
+        # Representation and index stay; the value is a marker, never hex.
+        value = redaction(value, expected).encode()
+    return (
+        f"{key}=repr:{item.representation},"
+        f"index:{item.index},"
+        f"name_hex:{(item.name or b'').hex() or 'none'},"
+        f"value_hex:{value.hex() or 'none'}" + (",redacted:true" if redacted else "")
+    )
 
 
 def run_lines(prefix: str, run: CaptureRun) -> list[str]:
@@ -587,7 +794,12 @@ def run_lines(prefix: str, run: CaptureRun) -> list[str]:
             and request.stream_id is not None
         }
         lines.extend(
-            connection_lines(f"{prefix}_connection_{index}", connection, background)
+            connection_lines(
+                f"{prefix}_connection_{index}",
+                connection,
+                background,
+                run.proxy_credential,
+            )
         )
     lines.append(f"{prefix}_request_count={len(run.requests)}")
     for index, request in enumerate(run.requests):
@@ -599,6 +811,11 @@ def run_lines(prefix: str, run: CaptureRun) -> list[str]:
             f"stream:{optional(request.stream_id)},kind:{request.kind},"
             f"status:{optional(request.status)},"
             f"received_ms:{milliseconds(request.received)}"
+            + (
+                f",proxy_authorization:{request.proxy_authorization}"
+                if run.proxy_credential is not None
+                else ""
+            )
         )
         if request.kind == "background":
             # The target of browser background traffic can carry per-install
@@ -611,8 +828,14 @@ def run_lines(prefix: str, run: CaptureRun) -> list[str]:
         lines.append(f"{key}_line_hex={request.request_line.hex()}")
         lines.append(f"{key}_header_count={len(request.header_lines)}")
         lines.extend(
-            f"{key}_header_{position}={line.hex()}"
+            f"{key}_header_{position}={retained_line(line, run.proxy_credential).hex()}"
             for position, line in enumerate(request.header_lines)
+        )
+    if run.proxy_credential is not None:
+        lines.append(f"{prefix}_remote_event_count={len(run.remote_events)}")
+        lines.extend(
+            f"{prefix}_remote_event_{index}=received_ms:{milliseconds(received)},{note}"
+            for index, (received, note) in enumerate(run.remote_events)
         )
     return lines
 
@@ -639,6 +862,17 @@ def fixture(
         f"scenario={name}",
         f"scenario_purpose={scenario.purpose}",
         f"proxy={scenario.proxy}",
+    ]
+    if scenario.auth:
+        lines.extend(
+            [
+                "proxy_auth=scheme:basic,realm:"
+                + PROXY_REALM.decode()
+                + ",credential:throwaway,value:not-retained",
+                f"credential_supply={capture.credential_supply}",
+            ]
+        )
+    lines += [
         f"page_url={page_url}",
         f"repeat_count={len(runs)}",
     ]
@@ -694,6 +928,8 @@ def launch_plan(
         if scenario.proxy != "none":
             # Without this rule Chromium sends loopback origins directly.
             extra.append("--proxy-bypass-list=<-loopback>")
+        if scenario.auth:
+            extra.append(CHROMIUM_REMOTE_FLAG)
         return LaunchPlan(
             browser=browser,
             executable=executable,
@@ -737,10 +973,17 @@ def launch_plan(
                     ("network.proxy.no_proxies_on", ""),
                 ]
             )
+        extra_arguments: tuple[str, ...] = ()
+        if scenario.auth:
+            extra_arguments = FIREFOX_REMOTE_ARGUMENTS
+            # The remote agent otherwise applies its automation preferences,
+            # which change connection behavior against the other captures.
+            preferences.append(("remote.prefs.recommended", False))
         return LaunchPlan(
             browser="firefox",
             executable=executable,
             headless=headless,
+            extra_arguments=extra_arguments,
             firefox_preferences=tuple(preferences),
             profile_files=files,
         )
@@ -782,19 +1025,47 @@ class ProxyLaunchedBrowser(LaunchedBrowser):
 
 
 class ProxyBrowserDriver:
-    def __init__(self, plan: LaunchPlan, url: str) -> None:
+    """One browser run; an auth run answers proxy challenges remotely."""
+
+    def __init__(
+        self,
+        plan: LaunchPlan,
+        url: str,
+        *,
+        auth: bool = False,
+        note: Callable[[str], None] | None = None,
+    ) -> None:
         self.plan = plan
         self.url = url
+        self.auth = auth
+        self.note = note or (lambda _: None)
         self.browser: ProxyLaunchedBrowser | None = None
+        self.remote: ChromiumAuthDriver | FirefoxAuthDriver | None = None
 
     async def __aenter__(self) -> ProxyBrowserDriver:
         if self.plan.browser == "manual":
             print(f"open {self.url}", file=sys.stderr, flush=True)
-        else:
+            return self
+        if not self.auth:
             self.browser = ProxyLaunchedBrowser(self.plan, self.url).__enter__()
+            return self
+        self.browser = ProxyLaunchedBrowser(self.plan, REMOTE_START_URL).__enter__()
+        credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
+        if self.plan.browser in CHROMIUM_BROWSERS:
+            self.remote = ChromiumAuthDriver(credentials, self.note)
+        else:
+            self.remote = FirefoxAuthDriver(credentials, self.note)
+        assert self.browser.profile is not None
+        try:
+            await self.remote.start(self.browser.profile, self.url)
+        except Exception as error:  # noqa: BLE001 - recorded as evidence
+            self.note(f"event:driver-failure,error:{type(error).__name__}")
+            print(f"remote driver failed: {error!r}", file=sys.stderr, flush=True)
         return self
 
     async def __aexit__(self, *details: object) -> None:
+        if self.remote is not None:
+            await self.remote.close()
         if self.browser is not None:
             self.browser.__exit__(*details)
 
@@ -810,9 +1081,13 @@ async def capture_scenario(
 ) -> list[CaptureRun]:
     """Run `repeat` fresh clients; `drive(url)` returns an async context."""
     runs = []
+    auth = SCENARIOS[name].auth
     for _ in range(repeat):
         run = CaptureRun(
-            secrets.token_hex(8), name, observation_seconds=observation_seconds
+            secrets.token_hex(8),
+            name,
+            observation_seconds=observation_seconds,
+            proxy_credential=PROXY_CREDENTIAL if auth else None,
         )
         server.run = run
         try:
@@ -852,20 +1127,26 @@ async def run(args: argparse.Namespace) -> None:
                 repeat=args.repeat,
                 run_timeout=args.run_timeout,
                 observation_seconds=args.observation,
-                drive=lambda url, plan=plan: ProxyBrowserDriver(plan, url),
+                drive=lambda url, plan=plan, auth=scenario.auth: ProxyBrowserDriver(
+                    plan, url, auth=auth, note=server.note
+                ),
             )
             url = page_url(server, scenario, "<token>")
+            start = REMOTE_START_URL if scenario.auth else url
             capture = CaptureMetadata(
                 client=args.client or plan.client_name,
                 client_version=args.client_version,
                 operating_system=args.operating_system,
                 listen_addresses=listen,
                 launch_mode=plan.launch_mode,
-                launch_arguments=recorded_arguments(plan, url),
+                launch_arguments=recorded_arguments(plan, start),
                 firefox_preferences=render_preferences(plan.firefox_preferences)
                 or "none",
                 profile_files=",".join(item for item, _ in plan.profile_files)
                 or "none",
+                credential_supply=CREDENTIAL_SUPPLY[plan.browser]
+                if scenario.auth
+                else "none",
             )
             write_text_fixture(
                 args.output_dir / f"{name}.txt", fixture(name, url, runs, capture)
