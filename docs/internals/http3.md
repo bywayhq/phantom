@@ -497,22 +497,36 @@ early data, an early-data twin that shares its ticket cache. A request's
 first connection attempt uses the twin.
 
 A new connection from the twin that presents a ticket permitting early data is
-returned before its handshake completes. When the request that opened it is
-replay-safe (a safe method, no body, and no trailers), it goes out as early
-data, unless the profile's dynamic QPACK policy holds it until the server's
-SETTINGS arrive: those come with the server's first flight, so the request
-then leaves in 1-RTT packets. The vendored `h3` has no way yet to start a
-connection from the previous connection's SETTINGS (RFC 9114, section
-7.2.4.2). Any other request waits in the pool, within the connect timeout
-phase, until the handshake settles the early data, and keeps its body until
-then. If the server accepted, the connection is pooled and the request is sent
-on it. If the server rejects the early data, the rejected connection is not
-pooled, and the pool sends the request after a handshake over the same route
-and protocol, through the origin connector. A replay-safe request that went
-out early first fails inside the pool as unprocessed
-(`Http3Unprocessed::EarlyDataRejected`). Chromium resends on the same
-connection instead; see [QUIC resumption
-evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
+returned before its handshake completes, and the pool stores it at once, so
+later requests to the same transport location share it instead of opening
+their own. Every request on such a connection follows one rule
+(`sends_before_handshake` in `crates/phantom/src/session/http3_pool.rs`):
+
+- A replay-safe request (a safe method, no body, and no trailers) goes out
+  as early data while the early data is unanswered, with the client hints
+  known before the handshake, unless the profile's dynamic QPACK policy
+  holds it until the server's SETTINGS arrive. Those come with the server's
+  first flight, which completes the handshake, so under the Chrome 154
+  recipe only the control stream travels in 0-RTT. The vendored `h3` has no
+  way yet to start a connection from the previous connection's SETTINGS
+  (RFC 9114, section 7.2.4.2).
+- Every other request waits in the pool, within the connect timeout phase,
+  for `Http3Connector::early_data_settled_on`, and keeps its body until
+  then. It is then sent with the client hints the handshake's ALPS
+  delivered.
+- If the server accepted, the request is sent on the connection.
+- If the server rejected the early data, the first request to see it
+  invalidates the pooled connection, and each request is sent again after a
+  handshake over the same route and protocol, through the origin connector.
+  A replay-safe request that went out early first fails inside the pool as
+  unprocessed (`Http3Unprocessed::EarlyDataRejected`). Chromium resends on
+  the same connection instead; see [QUIC resumption
+  evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
+- If the handshake failed or its metadata was invalid, the connection is
+  invalidated and every waiting request fails with that error; none is sent
+  again, and no second connection is opened.
+- If the connect timeout expires first, that request fails with a
+  connect-phase timeout and the connection stays pooled for the others.
 
 A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as
@@ -535,26 +549,16 @@ SETTINGS through `h3::client::Connection::apply_peer_application_settings`,
 from the vendored `late-application-settings.patch`, and reconciles them with
 control-stream SETTINGS that arrived first. Only then does the connection
 report its early data as accepted. If the metadata is invalid, the connection
-is closed, the request that opened it fails with the same `Http3Error` a full
-handshake reports, and the pool never adopts it. The request that opened the
-connection was sent before any ALPS was known, so it carries no client hints
-requested through ALPS `ACCEPT_CH`; later requests on the adopted connection
-do.
+is closed, and the requests on it fail with the same `Http3Error` a full
+handshake reports. A request sent as early data went out before any ALPS was
+known, so it carries no client hints requested through ALPS `ACCEPT_CH`;
+requests sent after the handshake do.
 
-The pool adopts an early-data connection only after the early data is
-accepted: after the replay-safe request that opened it receives its response,
-or before any other request that opened it is sent. Until then, another
-request to the same transport location finds no pooled connection, takes the
-location's connect turn, and opens its own connection. Each ticket is used
-once, so `n` concurrent requests to one location open up to `n` connections
-while early data is unsettled: one early-data connection for each ticket the
-entry's cache holds (at most four, plus any that new handshakes deliver
-meanwhile), bounded by the entry's active-request limit. A request that finds
-no ticket makes a full handshake, and that connection is pooled before the
-turn passes on, so the requests after it share it. Holding the connect turn
-until the early data settles would cap this at one connection, but every
-waiting request would then wait the handshake round trip that early data
-exists to avoid, so the pool does not.
+Because the connection is pooled before its early data is answered, `n`
+concurrent requests to one resumed location share one connection, as the
+resumed Chrome 154 connection in the retained captures carried six
+concurrent fetches. They wait for the location's connect turn only while the
+connection is being opened, not while its handshake runs.
 
 ### Racing
 

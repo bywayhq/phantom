@@ -250,7 +250,9 @@ Supported:
   trailers is sent before the handshake completes; any other request waits
   for it. If the
   server rejects the early data, the request is sent again after a handshake
-  over the same route.
+  over the same route; a failed handshake or invalid handshake metadata
+  fails the waiting requests. Concurrent requests to a resumed origin share
+  one connection while its early data is unanswered.
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
@@ -267,12 +269,13 @@ Supported:
 
 Known gaps:
 
-- The Chrome 154 recipe's dynamic QPACK policy encodes a request only after
-  the server's SETTINGS arrive, which on a resumed connection is when the
-  handshake completes. A replay-safe request therefore leaves in 1-RTT
-  packets, while resumed Chrome 154 and Edge 153 connections send `GET`,
-  `HEAD`, and `OPTIONS` in 0-RTT. Phantom does not remember the previous
-  connection's SETTINGS for early data.
+- With the Chrome 154 and Edge 153 recipes, only the H3 control stream
+  travels in 0-RTT packets; every request leaves in 1-RTT. The recipes'
+  dynamic QPACK policy encodes a request only after the server's SETTINGS
+  arrive, which on a resumed connection is when the handshake completes,
+  while resumed Chrome 154 and Edge 153 connections send `GET`, `HEAD`, and
+  `OPTIONS` in 0-RTT. Phantom does not remember the previous connection's
+  SETTINGS for early data; the [roadmap](../roadmap.md) has the item.
 - After a server rejects early data, the captured browsers send the request
   again on the same connection; Phantom sends it on a new connection, which
   offers no early data. An Alt-Svc racing attempt offers no early data.

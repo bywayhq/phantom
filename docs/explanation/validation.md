@@ -1288,13 +1288,23 @@ Replay against Phantom:
   captured values 2509 µs and 54894 µs as `0x49cd` and `0x8000d66e`, varies
   the parameter's position with the permutation, and omits it when there is
   nothing to send.
-- `chrome_recipe_sends_get_as_early_data_and_holds_post`, in
-  `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes with
-  no early-data setting from the caller, and stateless QPACK request
+- `resumed_connection_sends_get_early_and_holds_post_with_stateless_qpack`,
+  in `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes
+  with no early-data setting from the caller, and stateless QPACK request
   encoding in place of the recipe's dynamic policy. A relay holds every
   server datagram, so no handshake can complete: a resumed connection's `GET`
   reaches the server through it, and a resumed connection's `POST` does not
   until the relay opens. The `POST`'s connection still offered early data.
+- `concurrent_requests_share_one_resumed_connection`, in the same file,
+  sends `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE` at once to a
+  resumed origin with the Chrome 154 recipes, and the server sees one new
+  connection, as Chrome 154 put its six concurrent fetches on one resumed
+  connection. Other tests there show a rejected `POST` resent with its whole
+  body, a failed handshake failing the request without a second connection,
+  and the connect timeout bounding the wait for the early-data answer.
+  `dynamic_qpack_holds_a_replay_safe_request_until_the_handshake`, in
+  `crates/phantom-net/src/http3/tests/early_data.rs`, shows the recipe's
+  `GET` opening its stream after the handshake.
 
 Phantom sends as `initial_rtt_us` the smoothed round-trip time that Quinn
 last measured on a connection to the same server name through the same pool
@@ -1323,11 +1333,13 @@ Limits:
   and Phantom's would not; no capture shows such a connection.
 - The `initial_rtt_us` value is Phantom's own measurement, so the tests
   compare its encoding, not its value.
-- With the Chrome 154 recipe's dynamic QPACK policy, Phantom encodes a
-  request only after the server's SETTINGS arrive. On a resumed connection
-  they come with the server's first flight, which also completes the
-  handshake, so a replay-safe request leaves in 1-RTT packets; only the
-  control stream travels in 0-RTT. The browsers sent such requests in 0-RTT.
+- With the Chrome 154 and Edge 153 recipes, only the H3 control stream
+  travels in 0-RTT packets today, and every request leaves in 1-RTT. Their
+  dynamic QPACK policy encodes a request only after the server's SETTINGS
+  arrive, and on a resumed connection those come with the server's first
+  flight, which also completes the handshake. The browsers sent `GET`,
+  `HEAD`, and `OPTIONS` in 0-RTT. The [roadmap](../roadmap.md) has the item
+  that closes this.
   Each Chromium connection that sent a request in 0-RTT also sent 0-RTT data
   on client stream 10, and no other resumed connection did.
   If that stream is the QPACK encoder stream, Chromium inserted into the

@@ -152,23 +152,39 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   field `early_data`, and `chromium::v154_quic` sets it, so these recipes
   offer early (0-RTT) data on every resumed connection: the resumed
   ClientHello now carries `early_data`, as resumed Chrome 154 and Edge 153
-  connections do. A replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE`
-  with no body and no trailers) that opens a resumed connection may be sent
-  as early data, which a server can process more than once; any other
-  request that opens one offers early data but waits for the handshake. With
-  the recipes' dynamic QPACK policy, the request also waits for the server's
-  SETTINGS, so it still leaves in 1-RTT packets.
-  `ClientBuilder::http3_early_data` now takes a `bool` that overrides the
-  profile. A `phantom_net::http3::Http3Connector` built from these recipes
-  sends early data from its isolated clones too; `without_early_data` turns
-  it off. The outer connection to a CONNECT-UDP proxy offers none.
-  (`7d81daa`, `6cd4027`)
+  connections do. With these recipes only the H3 control stream travels in
+  0-RTT packets today: their dynamic QPACK policy holds every request until
+  the server's SETTINGS arrive, which on a resumed connection is when the
+  handshake completes, so requests leave in 1-RTT packets where the browsers
+  sent `GET`, `HEAD`, and `OPTIONS` in 0-RTT. Remembering the previous
+  connection's SETTINGS is a roadmap item. Under a stateless QPACK policy, a
+  replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE` with no body and
+  no trailers) on an unanswered resumed connection is sent as early data,
+  which a server can process more than once. Requests to a resumed origin
+  share the connection while its early data is unanswered; any request that
+  is not sent early waits for the answer and keeps its body. A rejection
+  sends it again on a new connection; a failed handshake or invalid
+  handshake metadata is an error. `ClientBuilder::http3_early_data` now
+  takes a `bool` that overrides the profile.
+  `phantom_quic_btls::QuicClientConfig::with_transport_profile` now offers
+  early data when the profile's `early_data` is set, so a
+  `phantom_net::http3::Http3Connector` built from these recipes sends early
+  data from its isolated clones too; `without_early_data` turns it off. The
+  outer connection to a CONNECT-UDP proxy offers none. `Http3Connection`
+  gains `early_data_pending` and `early_data_settled`, and `Http3Connector`
+  gains `early_data_settled_on` and `requests_wait_for_peer_settings`.
+  (`7d81daa`, `6cd4027`, `0563d8d`, `9af2fb6`)
   Migrate: add `early_data: false` to each `QuicTransportSettings` struct
   literal, or `true` to offer early data. Replace
-  `ClientBuilder::http3_early_data()` with `http3_early_data(true)`. To keep
-  the previous behavior of the named recipes, call `http3_early_data(false)`
-  or set `early_data = false` on the `QuicTransportSettings` you pass to
-  `Http3ClientSettings::new`.
+  `ClientBuilder::http3_early_data()` with `http3_early_data(true)`. To
+  restore the previous wire shape of a resumed connection from the named
+  recipes, turn off both additions: call `http3_early_data(false)` or set
+  `early_data = false` on the `QuicTransportSettings` you pass to
+  `Http3ClientSettings::new`, and remove the `initial_rtt_us` entry with
+  `settings.wire_parameters.retain(|parameter| parameter.kind !=
+  QuicTransportParameterKind::InitialRtt)`. Code that builds a
+  `QuicClientConfig` with `with_transport_profile` from `chromium::v154_quic`
+  and should not offer early data calls `without_early_data` on it.
 
 ### Added
 
@@ -366,10 +382,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the wire. The value is the smoothed round-trip time that the last
   connection to the same server through the same pool entry measured, as a
   minimal-length varint, at a position permuted with the other parameters.
-  A fresh connection sends no `initial_rtt_us`.
+  A fresh connection sends no `initial_rtt_us`, and neither does the outer
+  connection to a CONNECT-UDP proxy, since no capture shows a browser's
+  resumed proxy connection.
   `phantom_profile::quic::QuicTransportParameterKind` gains `InitialRtt`, and
   `phantom_quic_btls::QuicClientConfig` gains `record_round_trip_time`.
-  (`7d81daa`)
+  (`7d81daa`, `fc99d5a`)
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
   cookies, treating every request as a top-level navigation, and evicts least
