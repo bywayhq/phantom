@@ -395,6 +395,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   as Chrome 154 and Edge 153 do. Firefox's templates are unchanged. A caller
   field named `Connection` or `Proxy-Connection` keeps its value at the
   template's position.
+- `HttpProxy` equality, and so connection pooling, now tells a proxy whose
+  CONNECT fields the caller set with `HttpProxy::header`, `headers`, or
+  `connect_headers` apart from one with the default fields, even when the
+  fields are the same, such as `headers(Vec::new())`. Only the default fields
+  take the profile's CONNECT recipe.
 - Wire change for forwarded `http://` requests with `HttpProxy::with_basic_auth`
   credentials and a built-in request template. The generated
   `Proxy-Authorization` field takes the position Chrome 154, Edge 153, and
