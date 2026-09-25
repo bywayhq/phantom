@@ -151,7 +151,7 @@ order and the differences from Chromium.
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v156_dns_cache`; an expired name, then the one that expires soonest, evicted |
 | Lifetime of cached addresses | `DnsCacheSettings::ttl`: 60 seconds in both recipes |
-| Lifetime of a cached failed lookup | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v156_dns_cache` |
+| Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v156_dns_cache` |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |

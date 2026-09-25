@@ -676,9 +676,12 @@ Limits:
 What is claimed: `chromium::v154_dns_cache` and `firefox::v156_dns_cache`
 keep as many names, and an answer and a failure for as long, as those
 browsers do for an answer without a record TTL at the profiled release tags.
-With a cache, the client resolves each name it resolves itself once per
-lifetime, shares one lookup between concurrent connections, keeps the
-resolver's address order, and never resolves a proxy-resolved target.
+With a cache, the client makes one lookup per name it resolves itself per
+cache `ttl`, shares one lookup between concurrent connections, keeps every
+resolved address as returned except its port, and never resolves a
+proxy-resolved target. The shared lookup runs on its own thread, so a
+connection on one Tokio runtime never waits on another runtime that has
+stopped being driven.
 
 Evidence: a capture of one page load cannot show how long a browser reuses
 an answer, so the recipes rest on browser source at Chromium tag
@@ -736,9 +739,11 @@ Unit tests in `crates/phantom-net/src/address_cache/tests.rs`:
 | `an_expired_answer_is_resolved_again` | A lookup after the TTL resolves again |
 | `concurrent_lookups_share_one_resolution` | Eight concurrent lookups make one resolution and get the same answer |
 | `a_resolution_fills_the_cache_after_its_lookups_are_dropped` | A resolution whose lookup was cancelled still stores its answer |
-| `a_resolution_abandoned_with_its_runtime_is_started_again` | A resolution dropped with its Tokio runtime does not block later lookups of the name |
+| `a_lookup_does_not_depend_on_another_runtime_being_driven` | A lookup on one runtime joins a resolution another runtime started and completes while that runtime is never driven again |
+| `a_scoped_ipv6_address_keeps_its_scope_and_flow_label` | A cached link-local IPv6 address keeps its scope ID and flow label; only the port changes |
+| `a_ttl_beyond_the_clock_range_never_expires` | `Duration::MAX` keeps the answer instead of expiring it at once |
 | `the_cache_keeps_at_most_max_entries_names` | The bound holds, and the name that expires soonest is evicted |
-| `failures_are_not_kept_without_a_negative_ttl`, `failures_are_kept_for_the_negative_ttl`, `an_empty_answer_is_a_failure` | Failures follow `negative_ttl` and keep the resolver's error kind |
+| `failures_are_not_kept_without_a_negative_ttl`, `failures_are_kept_for_the_negative_ttl`, `an_empty_answer_is_returned_and_kept_as_a_failure` | Failures and empty answers follow `negative_ttl`; failures keep the resolver's error kind, and an empty answer reaches each connection path as it would without a cache |
 | `a_zero_ttl_resolves_every_sequential_lookup`, `ip_literals_are_used_without_a_lookup`, `clear_forgets_answers_and_drops_resolutions_in_flight`, `clones_share_one_cache` | Edge cases of the lifetime, IP literals, clearing, and sharing |
 | `routes::*` | Each connector path resolves only the names the client resolves itself: the origin on direct TCP and QUIC, the proxy host on forward, CONNECT, HTTPS proxy, SOCKS5, and CONNECT-UDP over TCP routes, and the target as well only on local-DNS SOCKS5 over TCP and UDP |
 
