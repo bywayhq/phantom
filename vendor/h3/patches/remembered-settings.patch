@@ -141,10 +141,10 @@ index 8f30de9b..f4768d84 100644
      }
  }
 diff --git a/h3/src/connection.rs b/h3/src/connection.rs
-index d878abea..1297d8ed 100644
+index d878abea..f545176e 100644
 --- a/h3/src/connection.rs
 +++ b/h3/src/connection.rs
-@@ -97,6 +97,75 @@ fn reconcile_peer_settings(
+@@ -97,6 +97,77 @@ fn reconcile_peer_settings(
      Ok(merged)
  }
  
@@ -158,7 +158,9 @@ index d878abea..1297d8ed 100644
 +    received: &frame::Settings,
 +) -> Result<(), String> {
 +    // A remembered nonzero capacity must be repeated exactly (RFC 9204,
-+    // section 3.2.3).
++    // section 3.2.3). That section names QPACK_DECODER_STREAM_ERROR; the
++    // caller closes with H3_SETTINGS_ERROR, as quiche does, so the close is
++    // the same for every remembered setting.
 +    if let Some(capacity) = remembered
 +        .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
 +        .filter(|capacity| *capacity != 0)
@@ -220,7 +222,7 @@ index d878abea..1297d8ed 100644
  #[allow(missing_docs)]
  pub struct AcceptedStreams<C, B>
  where
-@@ -239,6 +308,8 @@ where
+@@ -239,6 +310,8 @@ where
      peer_application_settings: Option<frame::Settings>,
      /// The SETTINGS frame received on the peer's control stream.
      peer_control_settings: Option<frame::Settings>,
@@ -229,7 +231,7 @@ index d878abea..1297d8ed 100644
      pub(crate) handled_connection_error: Option<ConnectionError>,
      pub send_grease_frame: bool,
      // tells if the grease steam should be sent
-@@ -502,6 +573,7 @@ where
+@@ -502,6 +575,7 @@ where
              got_peer_control_frame: false,
              peer_application_settings: config.peer_settings,
              peer_control_settings: None,
@@ -237,7 +239,7 @@ index d878abea..1297d8ed 100644
              send_grease_frame: config.send_grease,
              config,
              accepted_streams: Default::default(),
-@@ -510,7 +582,13 @@ where
+@@ -510,7 +584,13 @@ where
              // start at first step
              grease_step: GreaseStatus::NotStarted(PhantomData),
          };
@@ -251,7 +253,7 @@ index d878abea..1297d8ed 100644
              conn_inner.apply_peer_settings((&settings).into())?;
          }
          conn_inner.send_control_stream_headers().await?;
-@@ -521,6 +599,17 @@ where
+@@ -521,6 +601,17 @@ where
      fn apply_peer_settings(
          &mut self,
          semantic_settings: crate::config::Settings,
@@ -269,7 +271,7 @@ index d878abea..1297d8ed 100644
      ) -> Result<(), ConnectionError> {
          let qpack = &mut self.qpack_streams;
          let configure_result = if let Some(outbound) = qpack.outbound.as_mut() {
-@@ -538,7 +627,6 @@ where
+@@ -538,7 +629,6 @@ where
                  format!("invalid peer QPACK settings: {error}"),
              )));
          }
@@ -277,7 +279,7 @@ index d878abea..1297d8ed 100644
          self.set_settings(semantic_settings);
          self.mark_peer_settings_ready();
          if let Some(outbound) = self.qpack_streams.outbound.as_ref() {
-@@ -562,6 +650,7 @@ where
+@@ -562,6 +652,7 @@ where
                  "peer application settings were already applied".to_string(),
              )));
          }
@@ -285,7 +287,7 @@ index d878abea..1297d8ed 100644
          self.peer_application_settings = Some(settings);
          let semantic_settings = match self.peer_control_settings.as_ref() {
              Some(control) => match reconcile_peer_settings(&settings, control) {
-@@ -578,6 +667,30 @@ where
+@@ -578,6 +669,30 @@ where
          self.apply_peer_settings(semantic_settings)
      }
  
@@ -316,7 +318,7 @@ index d878abea..1297d8ed 100644
      pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
          Arc::clone(&self.qpack_streams.decoder)
      }
-@@ -1143,6 +1256,9 @@ where
+@@ -1143,6 +1258,9 @@ where
                          ),
                      )));
                  }

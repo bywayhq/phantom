@@ -107,7 +107,9 @@ fn check_remembered_settings(
     received: &frame::Settings,
 ) -> Result<(), String> {
     // A remembered nonzero capacity must be repeated exactly (RFC 9204,
-    // section 3.2.3).
+    // section 3.2.3). That section names QPACK_DECODER_STREAM_ERROR; the
+    // caller closes with H3_SETTINGS_ERROR, as quiche does, so the close is
+    // the same for every remembered setting.
     if let Some(capacity) = remembered
         .get(frame::SettingId::QPACK_MAX_TABLE_CAPACITY)
         .filter(|capacity| *capacity != 0)

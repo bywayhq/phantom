@@ -240,7 +240,11 @@ section 3.2.3); a remembered blocked-stream limit, field-section limit, or
 WebTransport session limit must be neither omitted nor reduced; and a
 remembered enabled extended CONNECT, HTTP Datagram, or WebTransport setting
 must be neither omitted nor disabled. A violation closes the connection with
-`H3_SETTINGS_ERROR` and nothing is offered to remember. Chromium's quiche
+`H3_SETTINGS_ERROR` and nothing is offered to remember. For the QPACK table
+capacity this departs from RFC 9204 section 3.2.3, which names
+`QPACK_DECODER_STREAM_ERROR`; Chromium's quiche closes with
+`H3_SETTINGS_ERROR` for every remembered setting, and the engine matches it
+so the close looks the same on the wire. Chromium's quiche
 checks the first three and not the extension settings. The engine does not
 know whether the server accepted the early data, so it applies these checks
 either way; its caller does not reuse a connection whose early data was
