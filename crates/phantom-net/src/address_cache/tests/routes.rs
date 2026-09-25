@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use phantom_profile::chromium;
+use phantom_profile::{Http3PseudoHeader, chromium};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 use super::{Recorder, TestResult, V4, long_lived};
@@ -51,7 +51,7 @@ impl Drop for ClosingPeer {
 
 fn recording_cache() -> (Recorder, AddressCache) {
     let recorder = Recorder::open();
-    let cache = recorder.cache(long_lived(), || Ok(vec![V4]));
+    let cache = recorder.cache(long_lived(), super::answer(&[V4]));
     (recorder, cache)
 }
 
@@ -214,6 +214,49 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
 
     assert_eq!(names(&proxy_recorder), [PROXY]);
     assert!(names(&target_recorder).is_empty());
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
+    let (recorder, cache) = recording_cache();
+    let h3 = http3()?.with_address_cache(cache);
+    let mut request = chromium::v154_http3_request();
+    request.extended_connect_pseudo_header_order = Some(vec![
+        Http3PseudoHeader::Method,
+        Http3PseudoHeader::Protocol,
+        Http3PseudoHeader::Scheme,
+        Http3PseudoHeader::Authority,
+        Http3PseudoHeader::Path,
+    ]);
+    let proxy = Http3Connector::new(
+        &chromium::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &request,
+    )?;
+    // Nothing listens on this UDP port, so the outer QUIC connection never
+    // completes; the name lookup precedes it.
+    let port = std::net::UdpSocket::bind("127.0.0.1:0")?
+        .local_addr()?
+        .port();
+    let authority = format!("{PROXY}:{port}");
+
+    let _ = tokio::time::timeout(
+        QUIC_WAIT,
+        h3.connect_connect_udp(
+            &proxy,
+            PROXY,
+            port,
+            &authority,
+            OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,
+            Vec::new(),
+            ORIGIN,
+        ),
+    )
+    .await;
+
+    assert_eq!(names(&recorder), [PROXY]);
     Ok(())
 }
 

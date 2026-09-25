@@ -1,7 +1,7 @@
 //! The client's address cache, driven through requests to a loopback origin.
 
 use std::{
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{
         Arc,
@@ -93,7 +93,7 @@ fn with_counting_cache(client: &Client, gate: watch::Receiver<bool>) -> (Client,
             let mut gate = gate.clone();
             Box::pin(async move {
                 let _ = gate.wait_for(|open| *open).await;
-                Ok(vec![IpAddr::V4(Ipv4Addr::LOCALHOST)])
+                Ok(vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)])
             })
         }
     });

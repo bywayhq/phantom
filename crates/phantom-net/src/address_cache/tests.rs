@@ -1,6 +1,6 @@
 use std::{
     io,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6},
     num::NonZeroUsize,
     sync::{
         Arc, Mutex,
@@ -70,7 +70,7 @@ impl Recorder {
     fn cache(
         &self,
         settings: DnsCacheSettings,
-        answer: impl Fn() -> io::Result<Vec<IpAddr>> + Send + Sync + 'static,
+        answer: impl Fn() -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static,
     ) -> AddressCache {
         let recorder = self.clone();
         let answer = Arc::new(answer);
@@ -89,12 +89,17 @@ impl Recorder {
     }
 }
 
-fn answer(addresses: &[IpAddr]) -> impl Fn() -> io::Result<Vec<IpAddr>> + Send + Sync + 'static {
-    let addresses = addresses.to_vec();
+fn answer(
+    addresses: &[IpAddr],
+) -> impl Fn() -> io::Result<Vec<SocketAddr>> + Send + Sync + 'static {
+    let addresses = addresses
+        .iter()
+        .map(|address| SocketAddr::new(*address, 0))
+        .collect::<Vec<_>>();
     move || Ok(addresses.clone())
 }
 
-fn not_found() -> io::Result<Vec<IpAddr>> {
+fn not_found() -> io::Result<Vec<SocketAddr>> {
     Err(io::Error::new(io::ErrorKind::NotFound, "no such host"))
 }
 
@@ -204,11 +209,13 @@ async fn a_resolution_fills_the_cache_after_its_lookups_are_dropped() -> TestRes
 }
 
 #[test]
-fn a_resolution_abandoned_with_its_runtime_is_started_again() -> TestResult {
+fn a_lookup_does_not_depend_on_another_runtime_being_driven() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V4]));
 
+    // The first runtime starts the shared resolution, then is never driven
+    // again while it stays alive.
     let first = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
@@ -220,15 +227,64 @@ fn a_resolution_abandoned_with_its_runtime_is_started_again() -> TestResult {
         .await
     });
     assert!(abandoned.is_err(), "the gated lookup finished early");
-    drop(first);
+    let second = std::thread::spawn({
+        let cache = cache.clone();
+        move || -> Result<Vec<SocketAddr>, String> {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .map_err(|error| error.to_string())?;
+            runtime
+                .block_on(cache.lookup("origin.phantom.test", 443))
+                .map_err(|error| error.to_string())
+        }
+    });
+    std::thread::sleep(Duration::from_millis(20));
     open.send(true)?;
-    let second = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
-    let addresses = second.block_on(cache.lookup("origin.phantom.test", 443))?;
+    let addresses = second.join().map_err(|_| "the second lookup panicked")??;
 
     assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
-    assert_eq!(recorder.calls(), 2);
+    assert_eq!(
+        recorder.calls(),
+        1,
+        "the second runtime joined the first resolution"
+    );
+    drop(first);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_scoped_ipv6_address_keeps_its_scope_and_flow_label() -> TestResult {
+    let link_local = SocketAddr::V6(SocketAddrV6::new(
+        Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1),
+        0,
+        7,
+        3,
+    ));
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), move || Ok(vec![link_local]));
+
+    let _ = cache.lookup("router.phantom.test", 443).await?;
+    let cached = cache.lookup("router.phantom.test", 8443).await?;
+
+    let SocketAddr::V6(address) = cached.first().copied().ok_or("no address")? else {
+        return Err("the address lost its family".into());
+    };
+    assert_eq!(address.port(), 8443);
+    assert_eq!(address.scope_id(), 3);
+    assert_eq!(address.flowinfo(), 7);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_ttl_beyond_the_clock_range_never_expires() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(settings(16, Duration::MAX, None), answer(&[V4]));
+
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+
+    assert_eq!(recorder.calls(), 1);
+    assert_eq!(cache.len(), 1);
     Ok(())
 }
 
@@ -295,18 +351,28 @@ async fn failures_are_kept_for_the_negative_ttl() -> TestResult {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn an_empty_answer_is_a_failure() -> TestResult {
+async fn an_empty_answer_is_returned_and_kept_as_a_failure() -> TestResult {
     let recorder = Recorder::open();
-    let cache = recorder.cache(long_lived(), answer(&[]));
+    let uncached = recorder.cache(long_lived(), answer(&[]));
+    let negative = recorder.cache(
+        settings(16, Duration::from_secs(600), Some(Duration::from_secs(600))),
+        answer(&[]),
+    );
 
-    let error = cache
-        .lookup("empty.phantom.test", 443)
-        .await
-        .err()
-        .ok_or("an empty answer resolved")?;
+    for _ in 0..2 {
+        assert!(uncached.lookup("empty.phantom.test", 443).await?.is_empty());
+    }
+    assert!(uncached.is_empty());
+    assert_eq!(recorder.calls(), 2);
+    for _ in 0..2 {
+        assert!(negative.lookup("empty.phantom.test", 443).await?.is_empty());
+    }
 
-    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
-    assert!(cache.is_empty());
+    assert_eq!(
+        recorder.calls(),
+        3,
+        "the negative lifetime kept the empty answer"
+    );
     Ok(())
 }
 

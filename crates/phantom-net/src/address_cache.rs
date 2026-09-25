@@ -5,16 +5,17 @@ use std::{
     fmt,
     future::Future,
     io,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, SocketAddr, ToSocketAddrs},
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
+    thread,
     time::Instant,
 };
 
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<IpAddr>>> + Send>>;
+type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
 type Lookup = Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>;
 
 /// Addresses a client resolved for its own connections, reused until they
@@ -28,10 +29,19 @@ type Lookup = Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>;
 ///
 /// A lookup's answer keeps the operating system resolver's address order, on
 /// which address racing depends. It is kept for [`DnsCacheSettings::ttl`]; a
-/// failure is kept for [`DnsCacheSettings::negative_ttl`], or not at all.
-/// Concurrent lookups of one name share one resolution, which runs as its own
-/// task, so it completes and fills the cache even when every connection that
-/// asked for it has been dropped. The lock is never held across an `.await`.
+/// failure or an empty answer is kept for [`DnsCacheSettings::negative_ttl`],
+/// or not at all. A lifetime too long for the clock never expires.
+/// Addresses keep everything the resolver returned except the port, which
+/// each lookup supplies, so an IPv6 scope ID and flow label survive.
+///
+/// Concurrent lookups of one name share one resolution. It runs on its own
+/// thread, outside every Tokio runtime, and publishes its answer through a
+/// channel that any runtime can wait on: a lookup from one runtime never
+/// depends on another runtime being driven, and the resolution completes and
+/// fills the cache even when every connection that asked for it has been
+/// dropped. That thread blocks in the operating system resolver, as Tokio's
+/// own `lookup_host` does on its blocking pool. The lock is never held
+/// across an `.await`.
 ///
 /// Clones share one cache. It holds at most
 /// [`DnsCacheSettings::max_entries`] names; when it is full, a new answer
@@ -59,13 +69,27 @@ struct State {
 
 struct Entry {
     outcome: Outcome,
-    expires_at: Instant,
+    /// `None` when the lifetime reaches past what `Instant` can represent.
+    expires_at: Option<Instant>,
+}
+
+impl Entry {
+    fn is_fresh(&self, now: Instant) -> bool {
+        self.expires_at.is_none_or(|expires_at| expires_at > now)
+    }
+
+    /// Orders entries by expiry, soonest first, with never-expiring last.
+    fn eviction_key(&self) -> (bool, Option<Instant>) {
+        (self.expires_at.is_none(), self.expires_at)
+    }
 }
 
 /// One resolution's result, shared by every lookup that waited for it.
 #[derive(Clone)]
 enum Outcome {
-    Resolved(Arc<[IpAddr]>),
+    /// The resolver's answer, possibly empty; each connection path reports an
+    /// empty answer as it would without the cache.
+    Resolved(Arc<[SocketAddr]>),
     Failed {
         kind: io::ErrorKind,
         message: Arc<str>,
@@ -73,13 +97,9 @@ enum Outcome {
 }
 
 impl Outcome {
-    fn from_result(result: io::Result<Vec<IpAddr>>) -> Self {
+    fn from_result(result: io::Result<Vec<SocketAddr>>) -> Self {
         match result {
-            Ok(addresses) if !addresses.is_empty() => Self::Resolved(addresses.into()),
-            Ok(_) => Self::Failed {
-                kind: io::ErrorKind::InvalidInput,
-                message: Arc::from("could not resolve to any addresses"),
-            },
+            Ok(addresses) => Self::Resolved(addresses.into()),
             Err(error) => Self::Failed {
                 kind: error.kind(),
                 message: Arc::from(error.to_string()),
@@ -87,11 +107,23 @@ impl Outcome {
         }
     }
 
+    /// Whether this outcome is kept for the negative lifetime.
+    fn is_negative(&self) -> bool {
+        match self {
+            Self::Resolved(addresses) => addresses.is_empty(),
+            Self::Failed { .. } => true,
+        }
+    }
+
     fn addresses(&self, port: u16) -> io::Result<Vec<SocketAddr>> {
         match self {
             Self::Resolved(addresses) => Ok(addresses
                 .iter()
-                .map(|address| SocketAddr::new(*address, port))
+                .map(|address| {
+                    let mut address = *address;
+                    address.set_port(port);
+                    address
+                })
                 .collect()),
             Self::Failed { kind, message } => Err(io::Error::new(*kind, message.to_string())),
         }
@@ -103,18 +135,18 @@ impl AddressCache {
     /// system.
     #[must_use]
     pub fn new(settings: DnsCacheSettings) -> Self {
+        // Runs on the resolution's own thread, so blocking here is intended.
         Self::with_lookup(settings, |host| {
-            Box::pin(async move {
-                let addresses = tokio::net::lookup_host((&*host, 0)).await?;
-                Ok(addresses.map(|address| address.ip()).collect())
-            })
+            Box::pin(async move { Ok((&*host, 0).to_socket_addrs()?.collect()) })
         })
     }
 
     /// Creates an empty cache that resolves names with `lookup`.
     ///
     /// Test plumbing for the `phantom` facade, which counts lookups through
-    /// its connectors. `lookup` receives the lowercased name.
+    /// its connectors. `lookup` receives the lowercased name. Its future runs
+    /// on the resolution's own thread under a Tokio current-thread runtime
+    /// without I/O or timer drivers.
     #[doc(hidden)]
     pub fn with_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
     where
@@ -167,9 +199,8 @@ impl AddressCache {
     /// # Errors
     ///
     /// Returns the resolver's error, or a stored copy of it, when the name
-    /// does not resolve; an error of kind `InvalidInput` when it resolves to
-    /// no address; and an error when there is no Tokio runtime to run the
-    /// resolution or it ends without an answer.
+    /// does not resolve, and an error when the resolution thread cannot start
+    /// or ends without an answer. An empty answer is returned as `Ok`.
     pub(crate) async fn lookup(&self, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok(vec![SocketAddr::new(address, port)]);
@@ -193,7 +224,7 @@ impl AddressCache {
         let mut state = self.lock();
         let now = Instant::now();
         match state.entries.get(&host) {
-            Some(entry) if entry.expires_at > now => {
+            Some(entry) if entry.is_fresh(now) => {
                 return Ok(watch::channel(Some(entry.outcome.clone())).1);
             }
             Some(_) => {
@@ -201,17 +232,15 @@ impl AddressCache {
             }
             None => {}
         }
-        // A resolution whose task ended without an answer, as when its
-        // runtime shut down, has dropped its sender and is started again.
-        match state.pending.get(&host) {
-            Some(receiver) if receiver.has_changed().is_ok() => return Ok(receiver.clone()),
-            Some(_) => {
-                state.pending.remove(&host);
-            }
-            None => {}
+        // A resolution that ended without an answer, as when its thread
+        // panicked, has dropped its sender; such entries are pruned here and
+        // the name is resolved again.
+        state
+            .pending
+            .retain(|_, receiver| receiver.has_changed().is_ok());
+        if let Some(receiver) = state.pending.get(&host) {
+            return Ok(receiver.clone());
         }
-        let runtime = tokio::runtime::Handle::try_current()
-            .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
         let (sender, receiver) = watch::channel(None);
         let generation = state.generation;
         state.pending.insert(host.clone(), receiver.clone());
@@ -219,11 +248,22 @@ impl AddressCache {
 
         let cache = self.clone();
         let resolution = (self.inner.lookup)(host.clone());
-        drop(runtime.spawn(async move {
-            let outcome = Outcome::from_result(resolution.await);
-            cache.complete(host, generation, &outcome);
-            let _ = sender.send(Some(outcome));
-        }));
+        let pending_host = host.clone();
+        let started = thread::Builder::new()
+            .name("phantom-dns".into())
+            .spawn(move || {
+                let result = tokio::runtime::Builder::new_current_thread()
+                    .build()
+                    .map_err(io::Error::other)
+                    .and_then(|runtime| runtime.block_on(resolution));
+                let outcome = Outcome::from_result(result);
+                cache.complete(host, generation, &outcome);
+                let _ = sender.send(Some(outcome));
+            });
+        if let Err(error) = started {
+            self.lock().pending.remove(&pending_host);
+            return Err(error);
+        }
         Ok(receiver)
     }
 
@@ -235,26 +275,32 @@ impl AddressCache {
             return;
         }
         state.pending.remove(&host);
-        let ttl = match outcome {
-            Outcome::Resolved(_) => Some(self.inner.settings.ttl),
-            Outcome::Failed { .. } => self.inner.settings.negative_ttl,
+        state
+            .pending
+            .retain(|_, receiver| receiver.has_changed().is_ok());
+        let ttl = if outcome.is_negative() {
+            self.inner.settings.negative_ttl
+        } else {
+            Some(self.inner.settings.ttl)
         };
         let now = Instant::now();
+        // A lifetime too long for `Instant` never expires rather than
+        // expiring at once.
         let Some(expires_at) = ttl
             .filter(|ttl| !ttl.is_zero())
-            .map(|ttl| now.checked_add(ttl).unwrap_or(now))
+            .map(|ttl| now.checked_add(ttl))
         else {
             return;
         };
         if !state.entries.contains_key(&host)
             && state.entries.len() >= self.inner.settings.max_entries.get()
         {
-            state.entries.retain(|_, entry| entry.expires_at > now);
+            state.entries.retain(|_, entry| entry.is_fresh(now));
             while state.entries.len() >= self.inner.settings.max_entries.get() {
                 let Some(soonest) = state
                     .entries
                     .iter()
-                    .min_by_key(|(_, entry)| entry.expires_at)
+                    .min_by_key(|(_, entry)| entry.eviction_key())
                     .map(|(name, _)| name.clone())
                 else {
                     break;

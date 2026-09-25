@@ -317,6 +317,11 @@ impl Http3Connector {
     /// route. A target that a proxy resolves is never looked up locally. The
     /// clone shares this connector's ticket cache and identity, and its own
     /// clones share `cache`.
+    ///
+    /// Unlike the TCP connectors' `with_address_cache`, this borrows `self`,
+    /// like [`Self::with_early_data`] and the other clone-returning methods
+    /// here: an `Http3Connector` is not `Clone`, and callers often hold it in
+    /// an `Arc`, so a consuming method could not rebind a shared connector.
     #[must_use]
     pub fn with_address_cache(&self, cache: AddressCache) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));

@@ -790,7 +790,9 @@ impl ClientBuilder {
     /// proxy resolves, through `socks5h://`, an HTTP proxy, or CONNECT-UDP,
     /// is never resolved or cached locally. Concurrent connections to one
     /// host share one lookup, and the resolver's address order is kept for
-    /// address racing.
+    /// address racing. That lookup runs on its own thread, outside every
+    /// Tokio runtime, so a request on one runtime never waits on another
+    /// runtime that has stopped being driven.
     ///
     /// Clones of this client share the cache; a session built from the
     /// client starts with an empty cache of its own. The client does not
