@@ -11,7 +11,8 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::{Instrument, Span, debug_span, field};
 
 use super::{
-    HttpBasicCredentials, HttpConnectError, TunnelStream, authentication::has_valid_basic_challenge,
+    AuthAttempt, AuthStep, BasicAuthPlan, HttpBasicCredentials, HttpConnectError,
+    ProxyCredentialCache, ProxyScheme, TunnelStream, authentication::has_valid_basic_challenge,
 };
 use crate::{
     direct::{DirectConnectError, connect_tcp},
@@ -165,6 +166,7 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     http_connect_tunnel_with_basic_auth(
         None,
+        None,
         proxy_host,
         proxy_port,
         authority,
@@ -176,9 +178,13 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
 
 /// Opens a direct Basic-authenticated CONNECT tunnel with `tcp` options.
 ///
-/// Both proxy connections, including the authenticated retry, use `tcp`.
+/// Every proxy connection, including the authenticated retry, uses `tcp`.
+/// With `cache`, a proxy that accepted `credentials` before receives them on
+/// the first CONNECT.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn http_connect_tunnel_with_basic_auth(
     tcp: Option<TcpSettings>,
+    cache: Option<&ProxyCredentialCache>,
     proxy_host: &str,
     proxy_port: u16,
     authority: &str,
@@ -187,17 +193,59 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     trace_connect("http", async {
         let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
-        record_authentication_attempts(false);
-        let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
-        match establish_challenge(stream, requests.anonymous).await? {
-            ChallengeOutcome::Tunnel(tunnel) => Ok(tunnel),
-            ChallengeOutcome::Retry => {
-                record_authentication_attempts(true);
-                let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
-                establish_authenticated(stream, requests.authenticated).await
-            }
-        }
+        let plan = BasicAuthPlan::new(
+            cache,
+            ProxyScheme::Http,
+            proxy_host,
+            proxy_port,
+            credentials,
+        );
+        basic_auth_exchange(&plan, &requests, || {
+            connect_proxy_tcp(tcp, proxy_host, proxy_port)
+        })
+        .await
     })
+    .await
+}
+
+/// Runs one challenge-driven CONNECT exchange on connections from `connect`.
+///
+/// Each request, including the retry, uses a fresh proxy connection.
+pub(super) async fn basic_auth_exchange<S, C, F>(
+    plan: &BasicAuthPlan<'_>,
+    requests: &PreparedBasicConnect,
+    connect: C,
+) -> Result<TunnelStream<S>, HttpConnectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+    C: Fn() -> F,
+    F: Future<Output = Result<S, HttpConnectError>>,
+{
+    plan.run(
+        |attempt| {
+            let connect = &connect;
+            async move {
+                record_authentication_attempts(attempt, plan.preemptive());
+                let stream = connect().await?;
+                if attempt.is_retry() {
+                    return establish_authenticated(stream, &requests.authenticated)
+                        .await
+                        .map(AuthStep::Done);
+                }
+                let request = if attempt.sends_credentials() {
+                    &requests.authenticated
+                } else {
+                    &requests.anonymous
+                };
+                Ok(match establish_challenge(stream, request).await? {
+                    ChallengeOutcome::Tunnel(tunnel) => AuthStep::Done(tunnel),
+                    ChallengeOutcome::Retry => AuthStep::Challenged,
+                })
+            }
+        },
+        HttpConnectError::is_challenge_failure,
+        || HttpConnectError::AuthenticationRejected,
+    )
     .await
 }
 
@@ -221,7 +269,7 @@ pub(super) async fn establish<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    match exchange(stream, request, false).await? {
+    match exchange(stream, &request, false).await? {
         ExchangeOutcome::Tunnel(tunnel) => Ok(tunnel),
         ExchangeOutcome::Retry => Err(HttpConnectError::InvalidResponse),
     }
@@ -229,7 +277,7 @@ where
 
 pub(super) async fn establish_challenge<S>(
     stream: S,
-    request: PreparedConnect,
+    request: &PreparedConnect,
 ) -> Result<ChallengeOutcome<S>, HttpConnectError>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -242,7 +290,7 @@ where
 
 pub(super) async fn establish_authenticated<S>(
     stream: S,
-    request: PreparedConnect,
+    request: &PreparedConnect,
 ) -> Result<TunnelStream<S>, HttpConnectError>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -259,7 +307,7 @@ where
 
 async fn exchange<S>(
     mut stream: S,
-    request: PreparedConnect,
+    request: &PreparedConnect,
     inspect_challenge: bool,
 ) -> Result<ExchangeOutcome<S>, HttpConnectError>
 where
@@ -374,6 +422,7 @@ where
         status = field::Empty,
         outcome = field::Empty,
         error_kind = field::Empty,
+        authentication_preemptive = field::Empty,
         authentication_retry = field::Empty,
         proxy_attempts = field::Empty,
     );
@@ -383,7 +432,9 @@ where
     result
 }
 
-pub(super) fn record_authentication_attempts(retried: bool) {
+pub(super) fn record_authentication_attempts(attempt: AuthAttempt, preemptive: bool) {
+    let retried = attempt.is_retry();
+    Span::current().record("authentication_preemptive", preemptive);
     Span::current().record("authentication_retry", retried);
     Span::current().record("proxy_attempts", if retried { 2_u64 } else { 1_u64 });
 }

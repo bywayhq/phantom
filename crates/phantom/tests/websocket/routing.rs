@@ -257,7 +257,74 @@ async fn https_proxy_basic_challenge_reconnects_before_the_ws_tunnel() -> TestRe
 }
 
 #[tokio::test]
-async fn proxy_basic_authentication_is_fresh_per_logical_websocket() -> TestResult<()> {
+async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> TestResult<()> {
+    bounded(async {
+        let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+        origin.set_nonblocking(true)?;
+        let origin_address = origin.local_addr()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut anonymous_stream, _) = proxy_listener.accept().await?;
+            let anonymous = read_head(&mut anonymous_stream).await?;
+            challenge(
+                &mut anonymous_stream,
+                b"Proxy-Authenticate: Basic realm=websocket-tunnel\r\n",
+            )
+            .await?;
+            let mut tunnels = Vec::new();
+            for _ in 0..2 {
+                let (mut stream, _) = proxy_listener.accept().await?;
+                let connect = read_head(&mut stream).await?;
+                stream
+                    .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                    .await?;
+                let opening = accept_opening(&mut stream).await?;
+                tunnels.push((connect, opening));
+            }
+            let fourth = tokio::time::timeout(
+                std::time::Duration::from_millis(100),
+                proxy_listener.accept(),
+            )
+            .await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, tunnels, fourth.is_err()))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        for path in ["first", "second"] {
+            let socket = client
+                .websocket(&format!("ws://{origin_address}/{path}"))?
+                .connect()
+                .await?;
+            drop(socket);
+        }
+
+        let (anonymous, tunnels, no_fourth_connection) = proxy.await??;
+        assert!(header_value(&anonymous, "proxy-authorization").is_none());
+        let authorized = format!(
+            "CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\
+             Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
+        );
+        for ((connect, opening), path) in tunnels.iter().zip(["first", "second"]) {
+            assert_eq!(connect, authorized.as_bytes());
+            assert!(opening.starts_with(format!("GET /{path} HTTP/1.1\r\n").as_bytes()));
+            assert!(header_value(opening, "proxy-authorization").is_none());
+        }
+        assert!(no_fourth_connection);
+        assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn proxy_basic_authentication_is_fresh_per_logical_websocket_when_not_remembered()
+-> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -293,7 +360,10 @@ async fn proxy_basic_authentication_is_fresh_per_logical_websocket() -> TestResu
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );
-        let client = client_builder(&identity, false).route(route).build()?;
+        let client = client_builder(&identity, false)
+            .route(route)
+            .preemptive_proxy_authentication(false)
+            .build()?;
         for path in ["first", "second"] {
             let socket = client
                 .websocket(&format!("ws://{origin_address}/{path}"))?

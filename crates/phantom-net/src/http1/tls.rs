@@ -15,9 +15,9 @@ use super::{
 use crate::{
     direct::{DirectConnectError, connect_tcp},
     proxy::{
-        HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth,
-        http_connect_tunnel, http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns,
-        socks5_tunnel_remote_dns,
+        HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, ProxyCredentialCache,
+        Socks5Auth, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
+        socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     tls::{TlsConnector, trace_alpn},
 };
@@ -30,6 +30,7 @@ pub use error::Http1TlsError;
 pub struct Http1TlsConnector {
     tls: TlsConnector,
     tcp: Option<TcpSettings>,
+    proxy_credentials: Option<ProxyCredentialCache>,
 }
 
 impl Http1TlsConnector {
@@ -37,7 +38,11 @@ impl Http1TlsConnector {
     pub fn new(settings: &TlsSettings) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new(settings)
-            .map(|tls| Self { tls, tcp: None })
+            .map(|tls| Self {
+                tls,
+                tcp: None,
+                proxy_credentials: None,
+            })
             .map_err(Into::into)
     }
 
@@ -51,7 +56,11 @@ impl Http1TlsConnector {
     ) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new_with_additional_roots(settings, roots)
-            .map(|tls| Self { tls, tcp: None })
+            .map(|tls| Self {
+                tls,
+                tcp: None,
+                proxy_credentials: None,
+            })
             .map_err(Into::into)
     }
 
@@ -65,7 +74,11 @@ impl Http1TlsConnector {
     ) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new_with_server_authentication(settings, server_authentication)
-            .map(|tls| Self { tls, tcp: None })
+            .map(|tls| Self {
+                tls,
+                tcp: None,
+                proxy_credentials: None,
+            })
             .map_err(Into::into)
     }
 
@@ -76,7 +89,11 @@ impl Http1TlsConnector {
     ) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new_with_roots(settings, roots)
-            .map(|tls| Self { tls, tcp: None })
+            .map(|tls| Self {
+                tls,
+                tcp: None,
+                proxy_credentials: None,
+            })
             .map_err(Into::into)
     }
 
@@ -89,6 +106,7 @@ impl Http1TlsConnector {
         Self {
             tls: self.tls.with_isolated_session_cache(),
             tcp: self.tcp,
+            proxy_credentials: self.proxy_credentials.clone(),
         }
     }
 
@@ -105,6 +123,19 @@ impl Http1TlsConnector {
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);
+        self
+    }
+
+    /// Sends Basic credentials on the first CONNECT to a plaintext proxy
+    /// that accepted them before, as recorded in `cache`.
+    ///
+    /// Without a cache, every challenge-driven exchange starts without
+    /// credentials. An HTTPS proxy uses the cache of the
+    /// [`HttpsProxyConnector`] passed with it. Clones of this connector share
+    /// `cache`.
+    #[must_use]
+    pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
+        self.proxy_credentials = Some(cache);
         self
     }
 
@@ -337,6 +368,7 @@ impl Http1TlsConnector {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = http_connect_tunnel_with_basic_auth(
                 self.tcp,
+                self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -857,6 +889,7 @@ impl Http1TlsConnector {
         self.trace_connect(async {
             let stream = http_connect_tunnel_with_basic_auth(
                 self.tcp,
+                self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -1250,6 +1283,7 @@ impl Http1TlsConnector {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel_with_basic_auth(
                 self.tcp,
+                self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -1381,6 +1415,7 @@ impl Http1TlsConnector {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel_with_basic_auth(
                 self.tcp,
+                self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
                 connect_authority,

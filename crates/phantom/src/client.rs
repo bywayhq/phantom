@@ -2,8 +2,12 @@ use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
-    ServerAuthentication, http1::Http1TlsConnector, http1_or_2::Http1Or2TlsConnector,
-    http2::Http2TlsConnector, http3::Http3Connector, proxy::HttpsProxyConnector,
+    ServerAuthentication,
+    http1::Http1TlsConnector,
+    http1_or_2::Http1Or2TlsConnector,
+    http2::Http2TlsConnector,
+    http3::Http3Connector,
+    proxy::{HttpsProxyConnector, ProxyCredentialCache},
 };
 #[cfg(feature = "cookies")]
 use phantom_profile::CookiePlacement;
@@ -89,6 +93,8 @@ pub(crate) struct ClientInner {
     /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
     pub(crate) connect_udp_proxy: Option<ConnectUdpConnectors>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
+    /// Proxies that accepted Basic credentials, shared with the connectors.
+    pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
     pub(crate) http1_connections_per_origin: NonZeroUsize,
@@ -122,6 +128,7 @@ impl Client {
             proxy_server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
             options: ClientOptions::default(),
+            preemptive_proxy_authentication: true,
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
             #[cfg(feature = "diagnostics")]
@@ -413,6 +420,7 @@ pub struct ClientBuilder {
     proxy_server_authentication: ServerAuthentication,
     route: Route,
     options: ClientOptions,
+    preemptive_proxy_authentication: bool,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
@@ -450,6 +458,10 @@ impl fmt::Debug for ClientBuilder {
                 &self.proxy_server_authentication,
             )
             .field("route", &self.route)
+            .field(
+                "preemptive_proxy_authentication",
+                &self.preemptive_proxy_authentication,
+            )
             .field("redirect_policy", &self.options.redirect_policy)
             .field("retry_policy", &self.options.retry_policy)
             .field("request_timeouts", &self.options.request_timeouts)
@@ -622,6 +634,33 @@ impl ClientBuilder {
     #[must_use]
     pub fn route(mut self, route: Route) -> Self {
         self.route = route;
+        self
+    }
+
+    /// Sets whether Basic proxy credentials are sent before a challenge to a
+    /// proxy that already accepted them.
+    ///
+    /// Enabled by default, as Chrome, Edge, and Firefox do. After an HTTP or
+    /// HTTPS proxy configured with [`HttpProxy::with_basic_auth`] answers a
+    /// `407` and accepts the credentials on the retry, this client remembers
+    /// the proxy's scheme, host, and port with those credentials. Later
+    /// CONNECT tunnels (including WebSocket tunnels) and forwarded `http://`
+    /// requests to that proxy send `Proxy-Authorization` on the first
+    /// attempt. A `407` to such a request forgets the proxy and allows the
+    /// usual single retry. The record holds at most
+    /// [`MAX_PROXY_CREDENTIAL_ENTRIES`] proxy and credential pairs, is shared
+    /// by clones of this client and by sessions built from it, and is never
+    /// consulted for a route whose credentials differ.
+    ///
+    /// When disabled, every tunnel and forwarded request starts without
+    /// credentials and waits for a `407`. CONNECT-UDP routes always start
+    /// without credentials.
+    ///
+    /// [`HttpProxy::with_basic_auth`]: crate::HttpProxy::with_basic_auth
+    /// [`MAX_PROXY_CREDENTIAL_ENTRIES`]: phantom_net::proxy::MAX_PROXY_CREDENTIAL_ENTRIES
+    #[must_use]
+    pub fn preemptive_proxy_authentication(mut self, enabled: bool) -> Self {
+        self.preemptive_proxy_authentication = enabled;
         self
     }
 
@@ -1148,6 +1187,27 @@ impl ClientBuilder {
             })
             .transpose()?;
 
+        // Every connector that can open an authenticated proxy tunnel shares
+        // one record. Connector clones made later, such as a pool's isolated
+        // TLS session cache, keep it.
+        let proxy_credentials = self
+            .preemptive_proxy_authentication
+            .then(ProxyCredentialCache::new);
+        let (http1, http1_or_2, http2, https_proxy) = match &proxy_credentials {
+            Some(cache) => (
+                http1.map(|c| c.with_proxy_credential_cache(cache.clone())),
+                http1_or_2.map(|c| c.with_proxy_credential_cache(cache.clone())),
+                http2.map(|c| c.with_proxy_credential_cache(cache.clone())),
+                https_proxy.map(|c| c.with_proxy_credential_cache(cache.clone())),
+            ),
+            None => (http1, http1_or_2, http2, https_proxy),
+        };
+        #[cfg(feature = "websocket")]
+        let websocket_http1 = match &proxy_credentials {
+            Some(cache) => websocket_http1.map(|c| c.with_proxy_credential_cache(cache.clone())),
+            None => websocket_http1,
+        };
+
         #[cfg(feature = "diagnostics")]
         let key_log = self.key_log_capacity.map(|capacity| {
             let (sender, receiver) = phantom_net::nss_key_log_channel(capacity);
@@ -1177,6 +1237,7 @@ impl ClientBuilder {
             http3,
             connect_udp_proxy,
             https_proxy,
+            proxy_credentials,
             client_hints,
             http1_connections_per_origin: self
                 .profile

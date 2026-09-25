@@ -409,34 +409,178 @@ async fn exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io() -> 
 }
 
 #[tokio::test]
-async fn h2_forwarding_with_configured_basic_credentials_is_rejected_before_io() -> TestResult<()> {
-    let origin_identity = TestIdentity::generate()?;
-    let proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-    proxy.set_nonblocking(true)?;
-    let proxy_address = proxy.local_addr()?;
-    let route = Route::http_proxy(
-        HttpProxy::new(&format!("https://{proxy_address}"))?
-            .with_basic_auth("alice", "secret")?
-            .with_http2_transport()?,
-    );
-    let client = client_builder(&origin_identity, true)
-        .route(route)
-        .build()?;
+async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first()
+-> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let proxy = H2Proxy::bind().await?;
+        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+        let proxy_task = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let record = serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((record, second.is_err()))
+        });
+        let route = Route::http_proxy(
+            HttpProxy::new(&proxy_uri)?
+                .with_basic_auth("alice", "secret")?
+                .with_http2_transport()?,
+        );
+        let client = client_builder(&origin_identity, true)
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(route)
+            .build()?;
 
-    let error = match client
-        .get(HttpProtocol::Http2, "http://origin.invalid/")?
-        .send()
-        .await
-    {
-        Ok(_) => return Err("credentialed HTTP/2 forwarding reached the proxy".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-    assert!(matches!(
-        proxy.accept(),
-        Err(error) if error.kind() == io::ErrorKind::WouldBlock
-    ));
-    Ok(())
+        for path in ["/first", "/second"] {
+            let response = client
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("http://origin.test:8080{path}"),
+                )?
+                .send()
+                .await?;
+            assert_eq!(response.status(), 200);
+            assert_eq!(
+                response.into_body().collect().await?.to_bytes(),
+                "forwarded"
+            );
+        }
+
+        let (record, had_one_proxy_connection) = proxy_task.await??;
+        assert!(had_one_proxy_connection);
+        let credentials = (
+            "proxy-authorization".to_owned(),
+            b"Basic YWxpY2U6c2VjcmV0".to_vec(),
+        );
+        let fields: Vec<_> = record
+            .requests
+            .iter()
+            .map(|request| (request.path.as_str(), request.fields.clone()))
+            .collect();
+        assert_eq!(
+            fields,
+            [
+                ("/first", Vec::new()),
+                ("/first", vec![credentials.clone()]),
+                ("/second", vec![credentials]),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn h2_forwarding_fails_after_a_second_challenge() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let proxy = H2Proxy::bind().await?;
+        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+        let proxy_task = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            serve_forwarded_statuses(tcp, &acceptor, &[407, 407]).await
+        });
+        let route = Route::http_proxy(
+            HttpProxy::new(&proxy_uri)?
+                .with_basic_auth("alice", "secret")?
+                .with_http2_transport()?,
+        );
+        let client = client_builder(&origin_identity, true)
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(route)
+            .build()?;
+
+        let error = match client
+            .get(HttpProtocol::Http2, "http://origin.test:8080/")?
+            .send()
+            .await
+        {
+            Ok(_) => return Err("a second HTTP/2 forwarding challenge was accepted".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+        assert!(matches!(
+            connect_error(&error),
+            Some(HttpConnectError::AuthenticationRejected)
+        ));
+        assert!(!format!("{error:?}").contains("YWxpY2U6c2VjcmV0"));
+        assert_eq!(proxy_task.await??.requests.len(), 2);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin_address = origin_listener.local_addr()?;
+        let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
+        let origin = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (tcp, _) = origin_listener.accept().await?;
+                let mut stream = accept_tls_stream(tcp, origin_acceptor.clone()).await?;
+                read_head(&mut stream).await?;
+                // Closing each connection makes the next request open a new
+                // tunnel.
+                stream
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nok",
+                    )
+                    .await?;
+                stream.shutdown().await?;
+            }
+            Ok::<_, Box<dyn StdError + Send + Sync>>(())
+        });
+
+        let proxy = H2Proxy::bind().await?;
+        let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+        let proxy_task = tokio::spawn(async move {
+            let mut records = Vec::new();
+            for reply in [
+                Reply::Challenge,
+                Reply::Tunnel(origin_address),
+                Reply::Tunnel(origin_address),
+            ] {
+                let (tcp, _) = listener.accept().await?;
+                records.push(serve_connect(tcp, &acceptor, reply).await?);
+            }
+            let fourth = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((records, fourth.is_err()))
+        });
+        let route = Route::http_proxy(
+            HttpProxy::new(&proxy_uri)?
+                .with_basic_auth("alice", "secret")?
+                .with_http2_transport()?,
+        );
+        let client = client_builder(&origin_identity, true)
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(route)
+            .build()?;
+
+        for _ in 0..2 {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .send()
+                .await?;
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        }
+
+        let (records, no_fourth_connection) = proxy_task.await??;
+        assert!(no_fourth_connection);
+        let credentials = vec![(
+            "proxy-authorization".to_owned(),
+            b"Basic YWxpY2U6c2VjcmV0".to_vec(),
+        )];
+        assert!(records[0].fields.is_empty());
+        assert_eq!(records[1].fields, credentials);
+        assert_eq!(records[2].fields, credentials);
+        origin.await??;
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]
@@ -564,6 +708,19 @@ async fn serve_forwarded(
     acceptor: &SslAcceptor,
     count: usize,
 ) -> TestResult<ForwardRecord> {
+    serve_forwarded_statuses(tcp, acceptor, &vec![200; count]).await
+}
+
+/// Serves one forwarded request per status on one HTTP/2 proxy connection.
+///
+/// A `407` carries a Basic challenge and no body; any other status is
+/// answered as the origin with `forwarded`.
+async fn serve_forwarded_statuses(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    statuses: &[u16],
+) -> TestResult<ForwardRecord> {
+    let count = statuses.len();
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let alpn = stream.ssl().selected_alpn_protocol().map(<[u8]>::to_vec);
     let client_wire = Arc::new(Mutex::new(Vec::new()));
@@ -573,7 +730,7 @@ async fn serve_forwarded(
     };
     let mut connection = ::http2::server::handshake(recording).await?;
     let mut requests = Vec::with_capacity(count);
-    for _ in 0..count {
+    for &status in statuses {
         let (request, mut respond) = connection
             .accept()
             .await
@@ -595,7 +752,16 @@ async fn serve_forwarded(
                 .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
                 .collect(),
         });
-        let mut send = respond.send_response(Response::new(()), false)?;
+        if status == 407 {
+            let response = Response::builder()
+                .status(407)
+                .header("proxy-authenticate", "Basic realm=\"forward\"")
+                .body(())?;
+            respond.send_response(response, true)?;
+            continue;
+        }
+        let response = Response::builder().status(status).body(())?;
+        let mut send = respond.send_response(response, false)?;
         send.send_data(Bytes::from_static(b"forwarded"), true)?;
     }
     tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });

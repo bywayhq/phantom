@@ -149,6 +149,14 @@ pub enum HttpConnectError {
 }
 
 impl HttpConnectError {
+    /// Reports an unusable `407` challenge to a request that inspected it.
+    pub(crate) const fn is_challenge_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::MalformedAuthenticationChallenge | Self::UnsupportedAuthenticationChallenge
+        )
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub fn kind(&self) -> HttpConnectErrorKind {

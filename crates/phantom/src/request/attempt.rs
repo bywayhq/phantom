@@ -3,7 +3,11 @@ use std::time::Duration;
 use http::{Method, Response};
 use phantom_net::{
     http1::Http1TlsError,
-    proxy::{HttpConnectError, validate_basic_proxy_challenge},
+    http2::Http2TlsError,
+    proxy::{
+        HttpBasicCredentials, HttpConnectError, ProxyCredentialCache, ProxyScheme,
+        validate_basic_proxy_challenge,
+    },
     request::{RequestBody, RequestHeader},
 };
 use phantom_profile::Http2Priority;
@@ -94,13 +98,12 @@ async fn send_once_exact(
         trailers: request_trailers,
         body,
     } = attempt;
-    let has_forward_credentials = protocol == HttpProtocol::Http1
-        && request.uri.scheme_str() == Some("http")
-        && route
-            .as_http_proxy()
-            .and_then(crate::HttpProxy::basic_credentials)
-            .is_some();
-    if has_forward_credentials {
+    let forward_authentication = ForwardAuthentication::new(client, request, protocol, route);
+    if let Some(authentication) = &forward_authentication {
+        request_span.record(
+            "proxy_authentication_preemptive",
+            authentication.remembered(),
+        );
         request_span.record("proxy_authentication_retry", false);
         request_span.record("proxy_attempts", 1_u64);
     }
@@ -110,10 +113,16 @@ async fn send_once_exact(
     loop {
         let prepared_headers = attempt_headers(client, request, protocol, &request_headers);
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
-        if replays.performed(ReplayClass::ProxyAuthentication) {
+        let challenged = replays.performed(ReplayClass::ProxyAuthentication);
+        if challenged {
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
         }
+        // The retry after a challenge carries the credentials, and so does
+        // every request to a proxy that accepted them before.
+        let sends_forward_credentials = forward_authentication
+            .as_ref()
+            .is_some_and(|authentication| challenged || authentication.remembered());
         let dispatched = dispatch_attempt(
             client,
             request,
@@ -126,8 +135,11 @@ async fn send_once_exact(
             route,
             None,
             Http1Connect {
-                forward_authorization: replays.performed(ReplayClass::ProxyAuthentication),
-                fresh_connection: std::mem::take(&mut fresh_connection),
+                forward_authorization: sends_forward_credentials,
+                // The single retry after an H1 forwarding challenge opens a
+                // new proxy connection; a request that sends remembered
+                // credentials first reuses a pooled one.
+                fresh_connection: std::mem::take(&mut fresh_connection) || challenged,
             },
             timeout_budget,
             retries,
@@ -150,24 +162,31 @@ async fn send_once_exact(
         let response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
 
-        if has_forward_credentials
-            && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
-        {
-            if !replays.try_begin(ReplayClass::ProxyAuthentication, &method) {
+        if let Some(authentication) = &forward_authentication {
+            if response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED {
+                if sends_forward_credentials {
+                    authentication.forget();
+                }
+                if !replays.try_begin(ReplayClass::ProxyAuthentication, &method) {
+                    drop(response);
+                    return Err(proxy_authentication_error(
+                        protocol,
+                        HttpConnectError::AuthenticationRejected,
+                    ));
+                }
+                validate_basic_proxy_challenge(response.headers())
+                    .map_err(|error| proxy_authentication_error(protocol, error))?;
+                tracing::debug!(
+                    retry = 1,
+                    reason = "proxy_authentication",
+                    "retrying forward request with proxy credentials"
+                );
                 drop(response);
-                return Err(proxy_authentication_error(
-                    HttpConnectError::AuthenticationRejected,
-                ));
+                continue;
             }
-            validate_basic_proxy_challenge(response.headers())
-                .map_err(proxy_authentication_error)?;
-            tracing::debug!(
-                retry = 1,
-                reason = "proxy_authentication",
-                "retrying forward request with proxy credentials"
-            );
-            drop(response);
-            continue;
+            if sends_forward_credentials {
+                authentication.accepted();
+            }
         }
 
         let critical_retry_requested = observe_response(
@@ -646,10 +665,11 @@ pub(super) async fn dispatch(
     .await
 }
 
-/// HTTP/1 pool connection choices for one attempt; ignored by H2 and H3.
+/// HTTP/1 pool connection choices for one attempt; H3 ignores them.
 #[derive(Clone, Copy)]
 struct Http1Connect {
-    /// Selects the authenticated forward-proxy fields and a new connection.
+    /// Selects the authenticated forward-proxy fields. HTTP/2 forwarding
+    /// reads it too.
     forward_authorization: bool,
     /// Retires the pooled connection and opens a new one.
     fresh_connection: bool,
@@ -748,6 +768,7 @@ async fn dispatch_attempt(
                     client_hints,
                     body,
                     http2_priority(request),
+                    http1_connect.forward_authorization,
                     timeout_budget,
                     retries,
                 )
@@ -799,8 +820,91 @@ fn http2_priority(request: &ResolvedRequest) -> Option<Http2Priority> {
         .and_then(PreparedRequestTemplate::http2_priority)
 }
 
-fn proxy_authentication_error(error: HttpConnectError) -> RequestError {
-    RequestError::http1(Http1TlsError::Proxy(error))
+fn proxy_authentication_error(protocol: HttpProtocol, error: HttpConnectError) -> RequestError {
+    match protocol {
+        HttpProtocol::Http2 => RequestError::http2(Http2TlsError::Proxy(error)),
+        HttpProtocol::Http1 | HttpProtocol::Http3 => {
+            RequestError::http1(Http1TlsError::Proxy(error))
+        }
+    }
+}
+
+/// Basic credentials for an `http://` request that an HTTP proxy forwards.
+///
+/// The client's credential record decides whether the first attempt carries
+/// them. Only the route's own credentials are ever sent, and only to its
+/// proxy.
+struct ForwardAuthentication<'a> {
+    proxy: &'a crate::HttpProxy,
+    credentials: &'a HttpBasicCredentials,
+    cache: Option<&'a ProxyCredentialCache>,
+}
+
+impl<'a> ForwardAuthentication<'a> {
+    fn new(
+        client: &'a Client,
+        request: &ResolvedRequest,
+        protocol: HttpProtocol,
+        route: &'a Route,
+    ) -> Option<Self> {
+        if request.uri.scheme_str() != Some("http") {
+            return None;
+        }
+        let forwards = match protocol {
+            HttpProtocol::Http1 => !route.forwards_plaintext_over_http2(),
+            HttpProtocol::Http2 => route.forwards_plaintext_over_http2(),
+            HttpProtocol::Http3 => false,
+        };
+        let proxy = route.as_http_proxy().filter(|_| forwards)?;
+        Some(Self {
+            proxy,
+            credentials: proxy.basic_credentials()?,
+            cache: client.inner.proxy_credentials.as_ref(),
+        })
+    }
+
+    fn scheme(&self) -> ProxyScheme {
+        if self.proxy.uses_tls() {
+            ProxyScheme::Https
+        } else {
+            ProxyScheme::Http
+        }
+    }
+
+    /// Whether the proxy accepted these credentials after an earlier
+    /// challenge.
+    fn remembered(&self) -> bool {
+        self.cache.is_some_and(|cache| {
+            cache.contains(
+                self.scheme(),
+                self.proxy.host(),
+                self.proxy.port(),
+                self.credentials,
+            )
+        })
+    }
+
+    fn accepted(&self) {
+        if let Some(cache) = self.cache {
+            cache.insert(
+                self.scheme(),
+                self.proxy.host(),
+                self.proxy.port(),
+                self.credentials,
+            );
+        }
+    }
+
+    fn forget(&self) {
+        if let Some(cache) = self.cache {
+            cache.remove(
+                self.scheme(),
+                self.proxy.host(),
+                self.proxy.port(),
+                self.credentials,
+            );
+        }
+    }
 }
 fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,

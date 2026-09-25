@@ -512,7 +512,8 @@ async fn configured_basic_credentials_are_omitted_without_a_challenge() -> TestR
 }
 
 #[tokio::test]
-async fn basic_challenge_state_is_not_learned_across_logical_requests() -> TestResult<()> {
+async fn disabled_preemptive_authentication_starts_every_forwarded_request_without_credentials()
+-> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -551,7 +552,10 @@ async fn basic_challenge_state_is_not_learned_across_logical_requests() -> TestR
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
         );
-        let client = client_builder(&identity, false).route(route).build()?;
+        let client = client_builder(&identity, false)
+            .route(route)
+            .preemptive_proxy_authentication(false)
+            .build()?;
         for path in ["first", "second"] {
             let response = client
                 .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
@@ -580,6 +584,141 @@ async fn basic_challenge_state_is_not_learned_across_logical_requests() -> TestR
             b"proxy-authorization"
         ));
         assert!(!third_connection);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut anonymous, _) = listener.accept().await?;
+            let first_anonymous = read_head(&mut anonymous).await?;
+            anonymous
+                .write_all(
+                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                      Proxy-Authenticate: Basic realm=forward\r\n\
+                      Content-Length: 0\r\n\r\n",
+                )
+                .await?;
+
+            let (mut authenticated, _) = listener.accept().await?;
+            let mut heads = vec![first_anonymous];
+            for _ in 0..3 {
+                heads.push(read_head(&mut authenticated).await?);
+                authenticated
+                    .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                    .await?;
+            }
+            let third_connection = timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_ok();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((heads, third_connection))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let subscriber = OutcomeSubscriber::default();
+        let client = client_builder(&identity, false).route(route).build()?;
+        for path in ["first", "second", "third"] {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+        }
+
+        let (heads, third_connection) = proxy.await??;
+        assert!(!contains_ascii_case_insensitive(
+            &heads[0],
+            b"proxy-authorization"
+        ));
+        for (head, path) in heads[1..].iter().zip(["first", "second", "third"]) {
+            assert_eq!(
+                head,
+                format!(
+                    "GET http://origin.test/{path} HTTP/1.1\r\nHost: origin.test\r\n\
+                     Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
+                )
+                .as_bytes()
+            );
+        }
+        // Two requests saved a 407 and a proxy connection each.
+        assert!(!third_connection);
+        assert_eq!(
+            subscriber.proxy_authentication_retries_for("client.request"),
+            [false, true, false, false]
+        );
+        assert_eq!(
+            subscriber.proxy_attempts_for("client.request"),
+            [1, 2, 1, 1]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns() -> TestResult<()>
+{
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let challenge: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+            Proxy-Authenticate: Basic realm=forward\r\n\
+            Content-Length: 0\r\n\r\n";
+        let no_content: &[u8] = b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+        let proxy = tokio::spawn(async move {
+            let mut heads = Vec::new();
+            let (mut first, _) = listener.accept().await?;
+            heads.push(read_head(&mut first).await?);
+            first.write_all(challenge).await?;
+            let (mut second, _) = listener.accept().await?;
+            heads.push(read_head(&mut second).await?);
+            second.write_all(no_content).await?;
+            // The proxy now rejects the remembered credentials once.
+            heads.push(read_head(&mut second).await?);
+            second.write_all(challenge).await?;
+            let (mut third, _) = listener.accept().await?;
+            heads.push(read_head(&mut third).await?);
+            third.write_all(no_content).await?;
+            heads.push(read_head(&mut third).await?);
+            third.write_all(no_content).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        for path in ["first", "second", "third"] {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("http://origin.test/{path}"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            response.into_body().collect().await?;
+        }
+
+        let heads = proxy.await??;
+        let sent: Vec<bool> = heads
+            .iter()
+            .map(|head| {
+                contains_ascii_case_insensitive(
+                    head,
+                    b"proxy-authorization: basic ywxpy2u6c2vjcmv0",
+                )
+            })
+            .collect();
+        assert_eq!(sent, [false, true, true, true, true]);
         Ok(())
     })
     .await

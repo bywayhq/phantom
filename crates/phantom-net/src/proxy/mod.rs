@@ -2,6 +2,7 @@
 
 mod authentication;
 mod connect_udp;
+mod credential_cache;
 mod error;
 mod http2_connect;
 mod http_connect;
@@ -12,6 +13,8 @@ mod tunnel;
 
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};
 pub(crate) use connect_udp::PreparedConnectUdp;
+pub(crate) use credential_cache::{AuthAttempt, AuthStep, BasicAuthPlan};
+pub use credential_cache::{MAX_PROXY_CREDENTIAL_ENTRIES, ProxyCredentialCache, ProxyScheme};
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{
     HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct,

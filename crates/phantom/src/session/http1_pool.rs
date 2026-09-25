@@ -153,7 +153,7 @@ impl Http1Pool {
                         endpoint,
                         route,
                         mode,
-                        forward_authorization || fresh_connection,
+                        fresh_connection,
                     )
                     .await
             })

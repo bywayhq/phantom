@@ -264,9 +264,14 @@ impl HttpProxy {
 
     /// Configures challenge-driven HTTP Basic proxy authentication.
     ///
-    /// The first proxy request omits credentials. Phantom sends them only
-    /// after a valid Basic proxy challenge and retries once on a fresh proxy
-    /// connection. URI credentials remain unsupported.
+    /// The first request to the proxy omits credentials. After a valid Basic
+    /// proxy challenge, Phantom retries once with them: on a fresh proxy
+    /// connection for a CONNECT tunnel or HTTP/1.1 forwarding, and on the same
+    /// connection for HTTP/2 forwarding. Once the proxy accepts them, the
+    /// client sends them on the first attempt of later tunnels and forwarded
+    /// requests through this proxy; see
+    /// [`ClientBuilder::preemptive_proxy_authentication`](crate::ClientBuilder::preemptive_proxy_authentication).
+    /// URI credentials remain unsupported.
     ///
     /// Basic credentials sent to a plaintext `http://` proxy have no transport
     /// confidentiality. Use an `https://` proxy for sensitive credentials.
@@ -315,8 +320,7 @@ impl HttpProxy {
     /// selection is forwarded as an HTTP/2 request with `:scheme` `http` and
     /// the origin in `:authority`, on one proxy connection per origin that
     /// later requests reuse. Exact HTTP/1.1 `http://` requests fail before
-    /// proxy I/O with [`RequestErrorKind::UnsupportedRoute`], and so does
-    /// forwarding with [`Self::with_basic_auth`] credentials. HTTPS origins
+    /// proxy I/O with [`RequestErrorKind::UnsupportedRoute`]. HTTPS origins
     /// may use HTTP/1.1 or HTTP/2 inside the tunnel.
     ///
     /// [`RequestErrorKind::UnsupportedRoute`]: crate::RequestErrorKind::UnsupportedRoute

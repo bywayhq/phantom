@@ -8,11 +8,11 @@ use phantom_profile::{Http2Settings, TcpSettings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
-    HttpBasicCredentials, HttpConnectError, HttpConnectHeader, TunnelStream,
+    AuthStep, BasicAuthPlan, HttpBasicCredentials, HttpConnectError, HttpConnectHeader,
+    ProxyCredentialCache, ProxyScheme, TunnelStream,
     http_connect::{
-        ChallengeOutcome, PreparedBasicConnect, PreparedConnect, establish,
-        establish_authenticated, establish_challenge, record_authentication_attempts,
-        trace_connect,
+        PreparedBasicConnect, PreparedConnect, basic_auth_exchange, establish,
+        record_authentication_attempts, trace_connect,
     },
     http2_connect::{self, Http2ChallengeOutcome, PreparedBasicHttp2Connect, PreparedHttp2Connect},
 };
@@ -60,6 +60,7 @@ pub struct HttpsProxyConnector {
     http2: Option<Http2Settings>,
     protocol: HttpsProxyProtocol,
     tcp: Option<TcpSettings>,
+    proxy_credentials: Option<ProxyCredentialCache>,
 }
 
 impl HttpsProxyConnector {
@@ -103,6 +104,7 @@ impl HttpsProxyConnector {
             http2: None,
             protocol: HttpsProxyProtocol::Http1,
             tcp: None,
+            proxy_credentials: None,
         }
     }
 
@@ -128,6 +130,17 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);
+        self
+    }
+
+    /// Sends Basic credentials on the first CONNECT to a proxy that accepted
+    /// them before, as recorded in `cache`.
+    ///
+    /// Without a cache, every challenge-driven exchange starts without
+    /// credentials. Clones of this connector share `cache`.
+    #[must_use]
+    pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
+        self.proxy_credentials = Some(cache);
         self
     }
 
@@ -171,6 +184,7 @@ impl HttpsProxyConnector {
             http2: self.http2.clone(),
             protocol: self.protocol,
             tcp: self.tcp,
+            proxy_credentials: self.proxy_credentials.clone(),
         }
     }
 
@@ -256,47 +270,64 @@ impl HttpsProxyConnector {
         headers: &[HttpConnectHeader],
         credentials: &HttpBasicCredentials,
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        let plan = BasicAuthPlan::new(
+            self.proxy_credentials.as_ref(),
+            ProxyScheme::Https,
+            proxy_host,
+            proxy_port,
+            credentials,
+        );
         match self.protocol {
             HttpsProxyProtocol::Http1 => trace_connect("https", async {
                 let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
-                record_authentication_attempts(false);
-                let stream = self
-                    .connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
-                    .await?;
-                match establish_challenge(stream, requests.anonymous).await? {
-                    ChallengeOutcome::Tunnel(tunnel) => Ok(tunnel),
-                    ChallengeOutcome::Retry => {
-                        record_authentication_attempts(true);
-                        let stream = self
-                            .connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
-                            .await?;
-                        establish_authenticated(stream, requests.authenticated).await
-                    }
-                }
+                basic_auth_exchange(&plan, &requests, || {
+                    self.connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
+                })
+                .await
             })
             .await
             .map(HttpsProxyTunnel::http1),
             HttpsProxyProtocol::Http2 => trace_connect("https_h2", async {
                 let requests = PreparedBasicHttp2Connect::new(authority, headers, credentials)?;
                 self.http2_builder()?;
-                record_authentication_attempts(false);
-                let connection = self
-                    .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
-                    .await?;
-                match http2_connect::establish_challenge(&connection, &requests.anonymous).await? {
-                    Http2ChallengeOutcome::Tunnel(stream) => Ok(stream),
-                    Http2ChallengeOutcome::Retry => {
-                        // The challenged connection is not reused: each tunnel
-                        // owns one proxy connection, matching HTTP/1.1.
-                        drop(connection);
-                        record_authentication_attempts(true);
-                        let connection = self
-                            .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
-                            .await?;
-                        http2_connect::establish_authenticated(&connection, &requests.authenticated)
-                            .await
-                    }
-                }
+                plan.run(
+                    |attempt| {
+                        let requests = &requests;
+                        let plan = &plan;
+                        async move {
+                            record_authentication_attempts(attempt, plan.preemptive());
+                            // Each tunnel owns one proxy connection, matching
+                            // HTTP/1.1, so a challenged connection is not reused.
+                            let connection = self
+                                .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
+                                .await?;
+                            if attempt.is_retry() {
+                                return http2_connect::establish_authenticated(
+                                    &connection,
+                                    &requests.authenticated,
+                                )
+                                .await
+                                .map(AuthStep::Done);
+                            }
+                            let request = if attempt.sends_credentials() {
+                                &requests.authenticated
+                            } else {
+                                &requests.anonymous
+                            };
+                            Ok(
+                                match http2_connect::establish_challenge(&connection, request)
+                                    .await?
+                                {
+                                    Http2ChallengeOutcome::Tunnel(stream) => AuthStep::Done(stream),
+                                    Http2ChallengeOutcome::Retry => AuthStep::Challenged,
+                                },
+                            )
+                        }
+                    },
+                    HttpConnectError::is_challenge_failure,
+                    || HttpConnectError::AuthenticationRejected,
+                )
+                .await
             })
             .await
             .map(HttpsProxyTunnel::http2),

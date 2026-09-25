@@ -442,6 +442,7 @@ impl RequestBuilder {
             protocol = self.selection.trace_name(),
             selected_protocol = field::Empty,
             route = route.request_trace_name(self.request.uri.scheme_str()),
+            proxy_authentication_preemptive = field::Empty,
             proxy_authentication_retry = field::Empty,
             proxy_attempts = field::Empty,
             retries_performed = 0_u64,
