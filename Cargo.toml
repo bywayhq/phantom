@@ -65,5 +65,10 @@ unwrap_used = "warn"
 [profile.dev]
 debug = "line-tables-only"
 
+# Dependencies get no debug info; workspace crates keep line tables, so their
+# panics and backtraces still name a file and line. `test` inherits both.
+[profile.dev.package."*"]
+debug = false
+
 [profile.bench]
 debug = 1
