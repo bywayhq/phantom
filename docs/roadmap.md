@@ -95,6 +95,30 @@ have shown where the real architectural boundaries are.
   default, but a downstream caller with their own server has a reachable
   peer and Phantom already has the machinery. Off by default, custom
   profiles only, refused by every named recipe.
+- Bring the plaintext proxy routes in line with the
+  [proxy route captures](explanation/validation.md#proxy-route-browser-evidence)
+  of Chrome 154, Edge 153, and Firefox 156:
+  1. `ws://` through an HTTP/1.1 proxy. Every captured browser sends
+     `CONNECT host:port` and then the origin-form Upgrade inside the tunnel.
+     Phantom forwards an absolute-form Upgrade, which no captured browser
+     sends. Tunnel it for named recipes. The CONNECT field order is
+     per family and is in the fixtures.
+  2. `http://` through an HTTP/2 proxy. Every captured browser that
+     negotiates `h2` with a TLS proxy forwards the request as an HTTP/2
+     request with `:scheme` `http`, in the family's own pseudo-field order.
+     Phantom rejects the route before I/O. Forward it over HTTP/2, and send
+     `ws://` on that route as a CONNECT stream with the Upgrade inside, as
+     the browsers do. Chromium reuses the page's proxy session for the
+     CONNECT; Firefox opens a second proxy connection.
+  3. `Accept-Encoding` on plaintext. No captured browser offers `br` or
+     `zstd` to a named `http://` origin, direct or proxied; all three send
+     `gzip, deflate`. They offer `gzip, deflate, br, zstd` only to
+     `127.0.0.1`. A request template for a plaintext named origin must not
+     carry the HTTPS value.
+  4. Chromium forwards absolute-form requests with `Proxy-Connection:
+     keep-alive` where a direct request has `Connection: keep-alive`.
+     Firefox sends its direct fields unchanged. Check what Phantom's
+     forwarding path emits against both before claiming parity.
 
 ### Rules for this phase
 
