@@ -28,6 +28,7 @@ Run every command from the repository root; the Python tools need Python
 | Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
+| Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
 [Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
@@ -666,6 +667,61 @@ server name, the outer extension's fields, whether the origin decrypted the
 inner ClientHello, and the inner server name. Queries for names other than
 the origin are counted, not listed; they are the fresh profile's background
 requests.
+
+## Cookie crumbs
+
+`cookie_crumbs.py` records how a browser sends several cookies on one request:
+whether it splits the cookie field into one field per cookie, the position of
+those fields, and how each is encoded. It writes one
+`format=phantom-cookie-crumbs-v1` fixture per scenario, named
+`crumbs-<scenario>.txt`.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.cookie_crumbs   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/cookies/chrome/154.0.8037.58/windows-11-26200
+```
+
+For Edge, use
+`--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
+and for Firefox,
+`--browser firefox --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe"`.
+The tool refuses `h2`, `hpack`, and `aioquic` versions other than 4.4.1,
+4.2.0, and 1.3.0.
+
+Each run loads `/start`, whose response sets five probe cookies with
+`Path=/`, and navigates to `/page`, which fetches `/fetch` and then `/done`
+with `{cache: "no-store"}`. The three requests after `/start` carry the
+cookies, so each run has a navigation and two `fetch()` requests with cookies
+on one connection. The probes are `pa=1`, `phantom_b=12345`,
+`pc=0123456789abcdef` (19 bytes), `pd=0123456789abcdefg` (20 bytes), and a
+53-byte `phantom_long`; the 19- and 20-byte pair straddles Firefox's rule for
+indexing a crumb.
+
+| Scenario | Listener | Question |
+| --- | --- | --- |
+| `h1` | Plaintext HTTP/1.1 on the loopback address | `Cookie` line spelling, position, and joining |
+| `h2` | TLS for `server.phantom.test`, ALPN `h2` | Crumbs, their HPACK representations, and their position |
+| `h3` | aioquic HTTP/3 for `server.phantom.test` on a UDP port bound to 0 | Crumbs, their QPACK field lines and encoder-stream inserts, and their position |
+
+For each request the fixture keeps its kind (`start`, `page`, `fetch`, or
+`done`) and its fields in order:
+
+- for HTTP/1.1, the request line and header lines in hex;
+- for HTTP/2, the HPACK block in hex, with each representation, its index,
+  its Huffman flags, and the decoded field, as the WebSocket tool records;
+- for HTTP/3, the field section in hex, its Required Insert Count and Base,
+  and each field line's representation, table, index, absolute dynamic
+  index, `N` bit, Huffman flags, and decoded field.
+
+For each HTTP/3 connection it also keeps the QPACK encoder stream in hex and
+parsed into instructions. The HTTP/3 server advertises aioquic's QPACK limits:
+a table capacity of 4,096 bytes and 16 blocked streams.
+
+The tool refuses to write any cookie other than the probes, whether in a
+field or inserted into the QPACK table, and any `authorization` or
+`proxy-authorization` field. Browsers launch as for the WebSocket tool for
+`h1` and `h2`, and as for the QUIC resumption tool for `h3`.
 
 ## Next
 
