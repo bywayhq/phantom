@@ -474,6 +474,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the reused-connection error, where Chromium resends it. Reading the `407`
   body counts toward the response-head, read-idle, and total timeouts.
 
+- A negotiated HTTP/1.1-or-HTTP/2 request copies its field lists less
+  often: a bodyless `GET` no longer copies every list before dispatch in case
+  a graceful `GOAWAY` needs a replay, and the HTTP/1.1 fields as sent are
+  copied only when the connection selects HTTP/1.1. On a loopback benchmark
+  with the Chrome 154 navigation template, client-side allocations per
+  request fall from 542 to 453 on HTTP/2 and from 507 to 424 on HTTP/1.1.
+  The bytes on the wire are unchanged.
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,

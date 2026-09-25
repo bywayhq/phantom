@@ -170,9 +170,11 @@ Each of these needs no capture, because no named recipe may reach it
 
 #### Request pipeline
 
-- Build each request once. A negotiated request assembles its HTTP/1.1 and
-  HTTP/2 field lists, and an Alt-Svc attempt its HTTP/3 list as well, on
-  every attempt, before one protocol is chosen.
+- Build a raced request once. A request that races an Alt-Svc alternative
+  against its origin builds and checks its HTTP/3, HTTP/1.1, and HTTP/2
+  field lists before the race, then builds and checks the winner's lists
+  again. A negotiated request still builds both its HTTP/1.1 and HTTP/2
+  lists on every attempt, because both are checked before any I/O.
 
 #### Publication
 
