@@ -90,9 +90,10 @@ have shown where the real architectural boundaries are.
   on the vendored `http2` encoder, which chooses every representation
   internally and keeps one dynamic table per connection.
 - Apply origin trust to `ws://` openings, as the request templates already
-  do for `http://`. The proxy route captures (`fixtures/proxy/`) show every
-  browser's HTTP/1.1 Upgrade to `ws://origin.phantom.test` differing from
-  the one to `ws://127.0.0.1`:
+  do for `http://`. The proxy route captures
+  ([`fixtures/proxy/`](../fixtures/proxy/)) show every browser's HTTP/1.1
+  Upgrade to `ws://origin.phantom.test` differing from the one to
+  `ws://127.0.0.1`:
   1. Firefox 156 sends `Sec-Fetch-Dest: empty`, `Sec-Fetch-Mode:
      websocket`, and `Sec-Fetch-Site` only to loopback. Named origin, after
      `Host`: `User-Agent`, `Accept`, `Accept-Language`, `Accept-Encoding`,
@@ -118,12 +119,7 @@ have shown where the real architectural boundaries are.
 - Bring the plaintext proxy routes in line with the
   [proxy route captures](explanation/validation.md#proxy-route-browser-evidence)
   of Chrome 154, Edge 153, and Firefox 156:
-  1. `Accept-Encoding` on plaintext. No captured browser offers `br` or
-     `zstd` to a named `http://` origin, direct or proxied; all three send
-     `gzip, deflate`. They offer `gzip, deflate, br, zstd` only to
-     `127.0.0.1`. A request template for a plaintext named origin must not
-     carry the HTTPS value.
-  2. `Proxy-Connection` on H1 forwarding. Chromium forwards absolute-form
+  1. `Proxy-Connection` on H1 forwarding. Chromium forwards absolute-form
      requests with `Proxy-Connection: keep-alive` second, where a direct
      request has `Connection: keep-alive`; Firefox sends its direct fields
      unchanged. Phantom sends a template's H1 list unchanged on every route,
@@ -136,7 +132,7 @@ have shown where the real architectural boundaries are.
      templates and expanded with the route in hand. Until then a caller can
      forward with a custom template whose H1 list names
      `Proxy-Connection` in that position.
-  3. CONNECT fields. Chromium sends `Host`, `Proxy-Connection: keep-alive`,
+  2. CONNECT fields. Chromium sends `Host`, `Proxy-Connection: keep-alive`,
      and `User-Agent`; Firefox sends `User-Agent`,
      `Proxy-Connection: keep-alive`, `Connection: keep-alive`, and `Host`.
      Phantom's default CONNECT carries only `Host`; `HttpProxy::headers` and

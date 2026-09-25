@@ -76,6 +76,10 @@ struct Chromium {
     brands: &'static str,
 }
 
+// The named origin is reached through a forward proxy, where Chromium sends
+// `Proxy-Connection: keep-alive` in place of `Connection`. Phantom sends the
+// template's `Connection`; the Proxy-Connection item in docs/roadmap.md
+// tracks the gap.
 impl Chromium {
     fn navigation(&self, loopback: bool) -> Fields {
         let mut list = vec![("Connection", "keep-alive")];

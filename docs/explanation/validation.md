@@ -627,14 +627,24 @@ order: no `Sec-Fetch-*` fields and `Accept-Encoding: gzip, deflate`. Phantom
 sends automatic client hints to an `http://` loopback or `localhost` origin
 and learns `Accept-CH` from it, and sends none to a named `http://` origin.
 
-Evidence: the proxy route captures under `fixtures/proxy/` load the same page
-from `http://127.0.0.1` and from `http://origin.phantom.test`, directly and
-through a plaintext and a TLS proxy, three runs per scenario. On all 27
-named-origin runs the page request and the `fetch()` carry `gzip, deflate`,
-no `Sec-Fetch-*` field, and no client hint; on all 27 loopback runs they carry
-`gzip, deflate, br, zstd`, the fetch metadata, and (Chrome and Edge) the
-default client hints. Every other field keeps its order. The H2 requests
-through the TLS proxy show the same differences, in the H2 lists' order.
+Evidence: the proxy route captures under
+[`fixtures/proxy/`](../../fixtures/proxy/), described in
+[Proxy route browser evidence](#proxy-route-browser-evidence), load the same
+page from `http://127.0.0.1` and from `http://origin.phantom.test`, directly
+and through a plaintext and a TLS proxy, three runs per scenario. The fields
+depend on the origin, not on the route:
+
+| Origin | `Accept-Encoding` | `Sec-Fetch-*` | Client hints |
+| --- | --- | --- | --- |
+| `127.0.0.1` | `gzip, deflate, br, zstd` | Sent by all three | Chrome and Edge send the defaults |
+| `origin.phantom.test` | `gzip, deflate` | Not sent | Not sent |
+
+The table holds for the page request and the `fetch()` on all 27 runs of each
+origin. Every other field keeps its order. The H2 requests through the TLS
+proxy show the same differences, in the H2 lists' order. The other plaintext
+captures under `fixtures/` use a `127.0.0.1` origin, so their
+`Accept-Encoding`, client hints, and fetch metadata are what a browser sends
+to loopback, not to a named plaintext origin.
 
 Browser source at the captured tags gives the rule behind the captures:
 
@@ -679,7 +689,7 @@ Limits:
   plaintext origin is inferred.
 - Through an HTTP proxy, Chromium sends `Proxy-Connection: keep-alive` where
   the template has `Connection: keep-alive`. Phantom sends the template's
-  field.
+  field; the [roadmap](../roadmap.md) queues a route-dependent field.
 - `ws://` openings are not adjusted: Firefox's WebSocket recipe sends
   `Sec-Fetch-Dest` and `Sec-Fetch-Mode` to a named `ws://` origin, where
   Firefox sends neither. The [roadmap](../roadmap.md) queues the fix.
@@ -1269,12 +1279,12 @@ origins. Phantom's `ws://` route through an HTTP proxy follows them; the
 remaining differences from the [route matrix](../reference/route-matrix.md)
 are listed at the end of this section.
 
-Evidence: `fixtures/proxy/` retains captures from headless Chrome
-154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
-(10.0.26200). Each of six scenarios ran three times on a fresh profile, and
-the three runs agree on every request line, field order, and forwarding
-choice. One page load makes a navigation, a `ws://` opening, and a `fetch()`.
-The scenarios cross three routes with two origins:
+Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains captures from
+headless Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on
+Windows 11 (10.0.26200). Each of six scenarios ran three times on a fresh
+profile, and the three runs agree on every request line, field order, and
+forwarding choice. One page load makes a navigation, a `ws://` opening, and a
+`fetch()`. The scenarios cross three routes with two origins:
 
 - routes: direct, a plaintext HTTP proxy, and a TLS proxy for
   `proxy.phantom.test` that offers ALPN `h2` and `http/1.1`;
@@ -1298,19 +1308,10 @@ and authority only.
 | Pseudo-field order of that request | `:method`, `:authority`, `:scheme`, `:path` | `:method`, `:path`, `:authority`, `:scheme`, and `te: trailers` last |
 | `ws://` through the TLS proxy | H2 CONNECT (`:method`, `:authority`, `user-agent`) on the page's proxy session, then the H1 Upgrade in the stream | Same CONNECT fields, on a second H2 connection to the proxy |
 
-`Accept-Encoding` depends on the origin, not on the route:
-
-| Origin | All three browsers, direct or through either proxy |
-| --- | --- |
-| `127.0.0.1` | `gzip, deflate, br, zstd` |
-| `origin.phantom.test` | `gzip, deflate` |
-
-The browsers treat a loopback origin as potentially trustworthy. Chromium
-also adds client hints and fetch metadata to it, and Firefox adds fetch
-metadata. A named plaintext origin gets none of these, direct or proxied.
-The other plaintext captures under `fixtures/` use a `127.0.0.1` origin, so
-their `Accept-Encoding`, client hints, and fetch metadata are what a browser
-sends to loopback, not to a named plaintext origin.
+`Accept-Encoding`, fetch metadata, and client hints depend on the origin,
+not on the route. [Plaintext origin trust
+evidence](#plaintext-origin-trust-evidence) gives the values for each origin
+and how Phantom's templates follow them.
 
 Further observations:
 
