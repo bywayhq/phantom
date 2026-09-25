@@ -19,13 +19,13 @@ mod tracing_support;
 #[path = "support/websocket.rs"]
 mod websocket_support;
 
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use http::Version;
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, RequestHeader, WebSocket, WebSocketErrorKind, WebSocketHeader,
-    WebSocketMessage, WebSocketRequestBuilder,
+    BuildErrorKind, Client, HttpConnectHeader, HttpProxy, RequestHeader, Route, WebSocket,
+    WebSocketErrorKind, WebSocketHeader, WebSocketMessage, WebSocketRequestBuilder,
     profile::{ClientProfile, Http2Settings, WebSocketField, WebSocketSettings, chromium, firefox},
 };
 
@@ -61,6 +61,26 @@ const EDGE_FRESH: &str = fixture!("edge/153.0.4234.48/windows-11-26200/fresh-ori
 const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0/windows-11-26200/accept.txt");
 const FIREFOX_FRESH: &str = fixture!("firefox/156.0/windows-11-26200/fresh-origin.txt");
 const FIREFOX_NO_CONNECT: &str = fixture!("firefox/156.0/windows-11-26200/no-connect-protocol.txt");
+
+macro_rules! proxy_fixture {
+    ($path:literal) => {
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/proxy/",
+            $path
+        ))
+    };
+}
+
+// `ws://` to a `127.0.0.1` origin through a plaintext HTTP proxy. The
+// websocket recipes rest on `127.0.0.1` captures too; a named plaintext
+// origin gets fewer fields from Firefox.
+const CHROME_PROXY: &str =
+    proxy_fixture!("chrome/154.0.8037.58/windows-11-26200/http-proxy-loopback.txt");
+const EDGE_PROXY: &str =
+    proxy_fixture!("edge/153.0.4234.48/windows-11-26200/http-proxy-loopback.txt");
+const FIREFOX_PROXY: &str =
+    proxy_fixture!("firefox/156.0/windows-11-26200/http-proxy-loopback.txt");
 
 #[tokio::test]
 async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shape() -> TestResult<()>
@@ -253,6 +273,116 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
             let connections = server.connections()?;
             assert_eq!(connections.len(), 1);
             assert_http1_upgrade(&connections[0], &capture)?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+/// A `ws://` opening through an HTTP proxy is a CONNECT tunnel carrying the
+/// direct opening, as every browser in `fixtures/proxy/` sends it.
+///
+/// The CONNECT fields are set on the route to the captured order, because
+/// `HttpProxy` owns them; the opening inside the tunnel comes from the recipe
+/// alone and must match both the direct H1 capture and the proxy capture.
+#[tokio::test]
+async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening() -> TestResult<()>
+{
+    for (direct, proxied, http2, settings) in [
+        (
+            CHROME_H1,
+            CHROME_PROXY,
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
+        ),
+        (
+            CHROME_H1,
+            EDGE_PROXY,
+            chromium::v154_http2(),
+            chromium::v154_websocket(),
+        ),
+        (
+            FIREFOX_H1,
+            FIREFOX_PROXY,
+            firefox::v156_http2(),
+            firefox::v156_websocket(),
+        ),
+    ] {
+        let direct = Capture::parse(direct)?;
+        let proxied = Capture::parse(proxied)?;
+        assert_eq!(proxied.value("proxy")?, "http");
+        bounded(async {
+            let identity = TestIdentity::generate()?;
+            let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+            let proxy_listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy_address = proxy_listener.local_addr()?;
+            let proxy = tokio::spawn(websocket_support::forward_one_connect(
+                proxy_listener,
+                server.address,
+            ));
+            let captured_connect = proxied.tunnel_connect()?;
+            let connect_fields = captured_connect
+                .fields
+                .iter()
+                .map(|(name, value)| {
+                    if name == "Host" {
+                        HttpConnectHeader::authority(name.as_str())
+                    } else {
+                        HttpConnectHeader::field(RequestHeader::new(name.clone(), value.as_str()))
+                    }
+                })
+                .collect();
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(connect_fields),
+            );
+            let client = profile_client_on(&identity, http2.clone(), settings.clone(), route)?;
+            let upgrade = direct.upgrade()?;
+            let path = upgrade
+                .request_line
+                .split(' ')
+                .nth(1)
+                .ok_or("request line has no target")?;
+            let builder =
+                client.websocket_with_profile_policy(&format!("ws://{}{path}", server.address))?;
+            let builder = fill_callers(builder, &settings.http1_fields, &upgrade.fields);
+            let socket = with_profile_compression(builder, &settings)?
+                .connect()
+                .await?;
+            exchange(socket).await?;
+
+            let connect = proxy.await??;
+            let connect = String::from_utf8(connect)?;
+            let mut lines = connect.trim_end().split("\r\n");
+            assert_eq!(
+                lines.next(),
+                Some(format!("CONNECT {} HTTP/1.1", server.address).as_str())
+            );
+            assert_eq!(
+                lines
+                    .map(|line| line.split_once(':').map_or(line, |(name, _)| name))
+                    .collect::<Vec<_>>(),
+                captured_connect
+                    .fields
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<_>>()
+            );
+
+            let connections = server.connections()?;
+            assert_eq!(connections.len(), 1);
+            assert_http1_upgrade(&connections[0], &direct)?;
+            assert_eq!(
+                connections[0].h1[0]
+                    .fields
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<_>>(),
+                expected_fields(&proxied.upgrade()?.fields)
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<_>>()
+            );
             Ok(())
         })
         .await?;
@@ -1008,11 +1138,21 @@ fn profile_client(
     http2: Http2Settings,
     websocket: WebSocketSettings,
 ) -> TestResult<Client> {
+    profile_client_on(identity, http2, websocket, Route::direct())
+}
+
+fn profile_client_on(
+    identity: &TestIdentity,
+    http2: Http2Settings,
+    websocket: WebSocketSettings,
+    route: Route,
+) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(http2)
         .with_websocket(websocket);
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
+        .route(route)
         .build()?)
 }
 

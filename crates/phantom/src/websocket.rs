@@ -2,10 +2,7 @@
 
 use std::fmt;
 
-use phantom_net::{
-    http1::{AbsoluteForm, OriginForm},
-    request::RequestHeader,
-};
+use phantom_net::{http1::OriginForm, request::RequestHeader};
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
@@ -302,9 +299,7 @@ impl WebSocketRequestBuilder {
                 WebSocketSelection::ProfilePolicy => "profile_policy",
             },
             connection = field::Empty,
-            route = self.request.route_trace_name(route),
-            proxy_authentication_retry = field::Empty,
-            proxy_attempts = field::Empty,
+            route = route.trace_name(),
             refused_stream_retry = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
@@ -321,8 +316,7 @@ impl WebSocketRequestBuilder {
     async fn connect_inner(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
         match self.selection {
             WebSocketSelection::Exact(HttpProtocol::Http1) => {
-                self.connect_http1(Http1UpgradeConnector::Profile, request_span)
-                    .await
+                self.connect_http1(Http1UpgradeConnector::Profile).await
             }
             WebSocketSelection::Exact(HttpProtocol::Http2) => {
                 self.connect_http2(Http2Target::NewConnection, request_span)
@@ -404,8 +398,7 @@ impl WebSocketRequestBuilder {
             }
             WebSocketNewConnection::Http1Upgrade => {
                 request_span.record("connection", "new_http1");
-                self.connect_http1(Http1UpgradeConnector::PolicyAlpn, request_span)
-                    .await
+                self.connect_http1(Http1UpgradeConnector::PolicyAlpn).await
             }
             _ => Err(WebSocketError::invalid_request(
                 "profile WebSocket policy names an unsupported connection",
@@ -426,7 +419,6 @@ impl WebSocketRequestBuilder {
 struct ResolvedWebSocket {
     endpoint: Endpoint,
     target: OriginForm,
-    absolute_target: AbsoluteForm,
     transport: WebSocketTransport,
     #[cfg(feature = "cookies")]
     cookie_url: url::Url,
@@ -447,9 +439,9 @@ impl ResolvedWebSocket {
                 WebSocketError::invalid_request("WebSocket URI must not contain a fragment")
             }
         })?;
-        let (transport, default_port, cookie_scheme) = match uri.scheme_str() {
-            Some("ws") => (WebSocketTransport::Plaintext, 80, "http"),
-            Some("wss") => (WebSocketTransport::Tls, 443, "https"),
+        let (transport, default_port) = match uri.scheme_str() {
+            Some("ws") => (WebSocketTransport::Plaintext, 80),
+            Some("wss") => (WebSocketTransport::Tls, 443),
             _ => return Err(WebSocketError::unsupported_scheme()),
         };
         let authority = uri.authority().cloned().ok_or_else(|| {
@@ -459,14 +451,6 @@ impl ResolvedWebSocket {
             .map_err(|error| WebSocketError::invalid_authority(error.message()))?;
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(|_| WebSocketError::invalid_request("invalid WebSocket request target"))?;
-        let absolute_target = format!(
-            "{cookie_scheme}://{}{}",
-            endpoint.authority(),
-            uri.path_and_query().map_or("/", |value| value.as_str())
-        );
-        let absolute_target = AbsoluteForm::parse(&absolute_target).map_err(|_| {
-            WebSocketError::invalid_request("invalid WebSocket proxy request target")
-        })?;
         #[cfg(feature = "cookies")]
         let cookie_url = {
             let mut url = url::Url::parse(&uri.to_string()).map_err(|_| {
@@ -474,6 +458,10 @@ impl ResolvedWebSocket {
                     "WebSocket URI cannot be represented for cookie policy",
                 )
             })?;
+            let cookie_scheme = match transport {
+                WebSocketTransport::Plaintext => "http",
+                WebSocketTransport::Tls => "https",
+            };
             url.set_scheme(cookie_scheme).map_err(|()| {
                 WebSocketError::invalid_request(
                     "WebSocket URI cannot be represented for cookie policy",
@@ -485,18 +473,10 @@ impl ResolvedWebSocket {
         Ok(Self {
             endpoint,
             target,
-            absolute_target,
             transport,
             #[cfg(feature = "cookies")]
             cookie_url,
         })
-    }
-
-    fn route_trace_name(&self, route: &Route) -> &'static str {
-        route.request_trace_name(Some(match self.transport {
-            WebSocketTransport::Plaintext => "http",
-            WebSocketTransport::Tls => "https",
-        }))
     }
 }
 

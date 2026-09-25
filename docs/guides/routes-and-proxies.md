@@ -65,13 +65,14 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 ```
 
 - `https://` origins (exact H1 or H2, or negotiated) and `wss://` use a
-  CONNECT tunnel; the origin's TLS runs inside it.
+  CONNECT tunnel; the origin's TLS runs inside it. `ws://` uses the same
+  tunnel and sends its Upgrade inside it without TLS, as browsers do.
 - A negotiated request opens one CONNECT tunnel per connection and lets ALPN
   in the origin handshake choose H1 or H2. If that handshake fails, the
   request fails; Phantom does not retry with another ALPN offer or protocol.
   A tunnel cannot carry QUIC, so these requests never learn an Alt-Svc `h3`
   alternative.
-- `http://` and `ws://` origins use absolute-form forwarding over HTTP/1.1.
+- `http://` origins use absolute-form forwarding over HTTP/1.1.
   A negotiated `http://` request is forwarded as H1, because cleartext has no
   ALPN. Forwarding never switches to CONNECT, H2, H3, or a direct route.
 - With an `https://` proxy, Phantom verifies the proxy's certificate under

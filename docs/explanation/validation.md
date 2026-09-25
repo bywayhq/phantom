@@ -1154,16 +1154,19 @@ and inside a SOCKS5 tunnel; that the response reports H1; that an `h3`
 advertisement on it is not stored; and that a negotiated redirect to an
 `http://` target is followed over H1.
 
-WebSocket route regressions apply the same contract to a plaintext `ws://`
-Upgrade through plaintext and TLS-encrypted forward proxies. They assert the
-normalized absolute-form request target, the caller-selected order of
-opening fields, the absence of CONNECT and of direct-origin traffic,
-independent proxy trust, upgraded bytes coalesced with the response, and
-Ping/Pong traffic. Authentication cases prove an anonymous first attempt; one
-replay on a fresh connection with the same WebSocket key and generated
-credentials appended after the caller's fields; no learned state; and
-terminal behavior for malformed or repeated challenges. A caller-supplied
-`Proxy-Authorization` is rejected before any proxy or origin I/O.
+WebSocket route regressions in `crates/phantom/tests/websocket/routing.rs`
+tunnel a plaintext `ws://` Upgrade through plaintext and TLS-encrypted HTTP
+proxies. They assert the exact CONNECT head, then an origin-form opening
+inside the tunnel with the caller-selected field order and no origin TLS,
+no direct-origin traffic, independent proxy trust, and Ping/Pong traffic.
+Authentication cases prove an anonymous first CONNECT; one replay of the
+CONNECT on a fresh connection with generated credentials, which never reach
+the opening; no learned state; and terminal behavior for malformed or
+repeated challenges and for a `407` without credentials. An origin that
+refuses the opening inside the tunnel is returned with its body. A
+caller-supplied `Proxy-Authorization` is rejected before any proxy or origin
+I/O. `websocket_http2_proxy.rs` opens `ws://` in a CONNECT stream on the
+HTTP/2 proxy transport.
 
 SOCKS5 WebSocket regressions cover plaintext `ws://` as well as TLS-backed
 `wss://`. The plaintext cases prove remote-DNS Unicode canonicalization,
@@ -1189,10 +1192,11 @@ Limits:
 
 ### Proxy route browser evidence
 
-What is claimed: nothing about Phantom yet. These captures record what
-Chrome 154, Edge 153, and Firefox 156 send to an HTTP proxy for plaintext
-`http://` and `ws://` origins. They show that two cells of the
-[route matrix](../reference/route-matrix.md) do not follow the browsers.
+What is claimed: these captures record what Chrome 154, Edge 153, and
+Firefox 156 send to an HTTP proxy for plaintext `http://` and `ws://`
+origins. Phantom's `ws://` route through an HTTP proxy follows them; the
+remaining differences from the [route matrix](../reference/route-matrix.md)
+are listed at the end of this section.
 
 Evidence: `fixtures/proxy/` retains captures from headless Chrome
 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
@@ -1254,12 +1258,20 @@ Further observations:
 
 Against the route matrix:
 
-- `ws://` H1 through an H1 proxy: Phantom forwards an absolute-form Upgrade.
-  Every captured browser tunnels with CONNECT instead.
+- `ws://` H1 through an H1 proxy: Phantom tunnels with CONNECT and sends
+  the direct Upgrade inside, as every captured browser does.
+  `plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening`
+  in `crates/phantom/tests/websocket_profile.rs` sends the Chromium and
+  Firefox recipes' openings through a loopback CONNECT proxy and compares the
+  field order with the `http-proxy-loopback` captures. Phantom's CONNECT
+  carries only `Host` unless the route sets more fields; the test sets the
+  captured ones with `HttpProxy::connect_headers`.
 - `http://` exact H1 through an H2 proxy: Phantom rejects it before I/O.
   Every captured browser forwards it over H2 to the proxy.
-- `ws://` H1 through an H2 proxy: Phantom rejects it. Every captured browser
-  opens a CONNECT stream and sends the Upgrade inside it.
+- `ws://` H1 through an H2 proxy: Phantom opens a CONNECT stream and sends
+  the Upgrade inside it, as every captured browser does. The stream is on a
+  new proxy connection, as Firefox opens one; Chromium reuses the page's
+  proxy session instead.
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario all --repeat 3`; see
@@ -1275,7 +1287,9 @@ Limits:
   settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
 - Chromium was launched with `--disable-field-trial-config`; field trials in
   a normal profile may change these results.
-- No Phantom test replays these fixtures.
+- Only the `ws://` opening inside the tunnel is compared with a fixture.
+  The comparison uses the loopback captures, because the WebSocket recipes
+  rest on `127.0.0.1` captures.
 
 ### H3 SOCKS5 UDP evidence
 

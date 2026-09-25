@@ -1,8 +1,68 @@
 use super::*;
 
+const SWITCHING_PROTOCOLS: &str = "HTTP/1.1 101 Switching Protocols\r\n\
+    Upgrade: websocket\r\n\
+    Connection: Upgrade\r\n";
+
+/// Answers a CONNECT on `stream` with 200, then plays the origin: reads the
+/// opening inside the tunnel, accepts it, and sends one Ping.
+///
+/// Returns the CONNECT head, the opening head, and the client's Pong.
+async fn tunnel_and_accept<S>(
+    stream: &mut S,
+    ping: &'static [u8],
+) -> TestResult<(Vec<u8>, Vec<u8>, ClientFrame)>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let connect = read_head(stream).await?;
+    stream
+        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        .await?;
+    stream.flush().await?;
+    let opening = read_head(stream).await?;
+    let key = header_value(&opening, "sec-websocket-key").ok_or("missing key")?;
+    let accept = websocket_accept(key);
+    let mut response =
+        format!("{SWITCHING_PROTOCOLS}Sec-WebSocket-Accept: {accept}\r\n\r\n").into_bytes();
+    append_server_frame(&mut response, true, 0x9, ping);
+    stream.write_all(&response).await?;
+    stream.flush().await?;
+    let pong = read_client_frame(stream).await?;
+    Ok((connect, opening, pong))
+}
+
+/// Answers the opening inside an established tunnel without a Ping.
+async fn accept_opening<S>(stream: &mut S) -> TestResult<Vec<u8>>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let opening = read_head(stream).await?;
+    let key = header_value(&opening, "sec-websocket-key").ok_or("missing key")?;
+    let accept = websocket_accept(key);
+    stream
+        .write_all(
+            format!("{SWITCHING_PROTOCOLS}Sec-WebSocket-Accept: {accept}\r\n\r\n").as_bytes(),
+        )
+        .await?;
+    stream.flush().await?;
+    Ok(opening)
+}
+
+async fn challenge<S>(stream: &mut S, challenge: &[u8]) -> io::Result<()>
+where
+    S: tokio::io::AsyncWrite + Unpin,
+{
+    stream
+        .write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\n")
+        .await?;
+    stream.write_all(challenge).await?;
+    stream.write_all(b"Content-Length: 0\r\n\r\n").await?;
+    stream.flush().await
+}
+
 #[tokio::test]
-async fn plaintext_forward_proxy_preserves_absolute_target_fields_and_upgraded_bytes()
--> TestResult<()> {
+async fn plaintext_http_proxy_tunnels_ws_and_sends_the_direct_opening_inside() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -11,18 +71,7 @@ async fn plaintext_forward_proxy_preserves_absolute_target_fields_and_upgraded_b
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(async move {
             let (mut stream, _) = proxy_listener.accept().await?;
-            let request = read_head(&mut stream).await?;
-            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
-            let accept = websocket_accept(key);
-            let mut response = format!(
-                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
-            )
-            .into_bytes();
-            append_server_frame(&mut response, true, 0x9, b"forwarded");
-            stream.write_all(&response).await?;
-            stream.flush().await?;
-            let pong = read_client_frame(&mut stream).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, pong))
+            tunnel_and_accept(&mut stream, b"tunneled").await
         });
 
         let headers = vec![
@@ -38,24 +87,27 @@ async fn plaintext_forward_proxy_preserves_absolute_target_fields_and_upgraded_b
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
         let mut socket = client
-            .websocket(&format!(
-                "ws://{origin_address}/events?transport=forward"
-            ))?
+            .websocket(&format!("ws://{origin_address}/events?transport=tunnel"))?
             .headers(headers)
             .connect()
             .await?;
         assert_eq!(
             socket.receive().await?,
-            WebSocketMessage::Ping(Bytes::from_static(b"forwarded"))
+            WebSocketMessage::Ping(Bytes::from_static(b"tunneled"))
         );
         drop(socket);
 
-        let (request, pong) = proxy.await??;
-        let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+        let (connect, opening, pong) = proxy.await??;
         assert_eq!(
-            request,
+            connect,
+            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
+                .as_bytes()
+        );
+        let key = header_value(&opening, "sec-websocket-key").ok_or("missing key")?;
+        assert_eq!(
+            opening,
             format!(
-                "GET http://{origin_address}/events?transport=forward HTTP/1.1\r\n\
+                "GET /events?transport=tunnel HTTP/1.1\r\n\
                  host: {origin_address}\r\n\
                  X-First: one\r\n\
                  uPgRaDe: websocket\r\n\
@@ -71,7 +123,7 @@ async fn plaintext_forward_proxy_preserves_absolute_target_fields_and_upgraded_b
             ClientFrame {
                 rsv1: false,
                 opcode: 0xA,
-                payload: b"forwarded".to_vec(),
+                payload: b"tunneled".to_vec(),
             }
         );
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
@@ -81,7 +133,7 @@ async fn plaintext_forward_proxy_preserves_absolute_target_fields_and_upgraded_b
 }
 
 #[tokio::test]
-async fn verified_https_forward_proxy_uses_absolute_form_without_connect() -> TestResult<()> {
+async fn verified_https_proxy_tunnels_ws_without_origin_tls() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -92,18 +144,7 @@ async fn verified_https_forward_proxy_uses_absolute_form_without_connect() -> Te
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(async move {
             let mut stream = accept_tls(proxy_listener, proxy_acceptor).await?;
-            let request = read_head(&mut stream).await?;
-            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
-            let accept = websocket_accept(key);
-            let mut response = format!(
-                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
-            )
-            .into_bytes();
-            append_server_frame(&mut response, true, 0x9, b"secure-forward");
-            stream.write_all(&response).await?;
-            stream.flush().await?;
-            let pong = read_client_frame(&mut stream).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, pong))
+            tunnel_and_accept(&mut stream, b"secure-tunnel").await
         });
 
         let unrelated_origin_identity = TestIdentity::generate()?;
@@ -113,21 +154,28 @@ async fn verified_https_forward_proxy_uses_absolute_form_without_connect() -> Te
             .route(route)
             .build()?;
         let mut socket = client
-            .websocket(&format!("ws://{origin_address}/secure?forward=yes"))?
+            .websocket(&format!("ws://{origin_address}/secure?tunnel=yes"))?
             .connect()
             .await?;
         assert_eq!(
             socket.receive().await?,
-            WebSocketMessage::Ping(Bytes::from_static(b"secure-forward"))
+            WebSocketMessage::Ping(Bytes::from_static(b"secure-tunnel"))
         );
         drop(socket);
 
-        let (request, pong) = proxy.await??;
-        let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
+        let (connect, opening, pong) = proxy.await??;
         assert_eq!(
-            request,
+            connect,
+            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
+                .as_bytes()
+        );
+        // The opening arrives as plaintext bytes inside the proxy's TLS
+        // session: no second TLS handshake runs for a `ws://` origin.
+        let key = header_value(&opening, "sec-websocket-key").ok_or("missing key")?;
+        assert_eq!(
+            opening,
             format!(
-                "GET http://{origin_address}/secure?forward=yes HTTP/1.1\r\n\
+                "GET /secure?tunnel=yes HTTP/1.1\r\n\
                  Host: {origin_address}\r\n\
                  Upgrade: websocket\r\n\
                  Connection: Upgrade\r\n\
@@ -137,7 +185,7 @@ async fn verified_https_forward_proxy_uses_absolute_form_without_connect() -> Te
             .as_bytes()
         );
         assert_eq!(pong.opcode, 0xA);
-        assert_eq!(pong.payload, b"secure-forward");
+        assert_eq!(pong.payload, b"secure-tunnel");
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
     })
@@ -145,8 +193,7 @@ async fn verified_https_forward_proxy_uses_absolute_form_without_connect() -> Te
 }
 
 #[tokio::test]
-async fn https_forward_basic_challenge_retries_on_a_fresh_verified_tls_connection() -> TestResult<()>
-{
+async fn https_proxy_basic_challenge_reconnects_before_the_ws_tunnel() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -160,44 +207,22 @@ async fn https_forward_basic_challenge_retries_on_a_fresh_verified_tls_connectio
             let (anonymous_tcp, _) = proxy_listener.accept().await?;
             let mut anonymous =
                 tls_support::accept_tls_stream(anonymous_tcp, anonymous_acceptor).await?;
-            let anonymous_alpn = anonymous
-                .ssl()
-                .selected_alpn_protocol()
-                .map(<[u8]>::to_vec);
-            let anonymous_head = read_head(&mut anonymous).await?;
-            anonymous
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=https-websocket\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
+            let anonymous_connect = read_head(&mut anonymous).await?;
+            challenge(
+                &mut anonymous,
+                b"Proxy-Authenticate: Basic realm=https-websocket\r\n",
+            )
+            .await?;
 
             let (authorized_tcp, _) = proxy_listener.accept().await?;
             let mut authorized =
                 tls_support::accept_tls_stream(authorized_tcp, authorized_acceptor).await?;
-            let authorized_alpn = authorized
-                .ssl()
-                .selected_alpn_protocol()
-                .map(<[u8]>::to_vec);
-            let authorized_head = read_head(&mut authorized).await?;
-            let key = header_value(&authorized_head, "sec-websocket-key").ok_or("missing key")?;
-            let accept = websocket_accept(key);
+            let authorized_connect = read_head(&mut authorized).await?;
             authorized
-                .write_all(
-                    format!(
-                        "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
-                    )
-                    .as_bytes(),
-                )
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                 .await?;
-            authorized.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((
-                anonymous_alpn,
-                anonymous_head,
-                authorized_alpn,
-                authorized_head,
-            ))
+            let opening = accept_opening(&mut authorized).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous_connect, authorized_connect, opening))
         });
 
         let unrelated_origin_identity = TestIdentity::generate()?;
@@ -214,24 +239,17 @@ async fn https_forward_basic_challenge_retries_on_a_fresh_verified_tls_connectio
             .await?;
         drop(socket);
 
-        let (anonymous_alpn, anonymous, authorized_alpn, authorized) = proxy.await??;
-        assert_eq!(anonymous_alpn.as_deref(), Some(b"http/1.1".as_slice()));
-        assert_eq!(authorized_alpn.as_deref(), Some(b"http/1.1".as_slice()));
-        assert!(anonymous.starts_with(
-            format!("GET http://{origin_address}/https-auth HTTP/1.1\r\n").as_bytes()
-        ));
-        assert!(authorized.starts_with(
-            format!("GET http://{origin_address}/https-auth HTTP/1.1\r\n").as_bytes()
-        ));
+        let (anonymous, authorized, opening) = proxy.await??;
+        let connect_line = format!("CONNECT {origin_address} HTTP/1.1\r\n");
+        assert!(anonymous.starts_with(connect_line.as_bytes()));
+        assert!(authorized.starts_with(connect_line.as_bytes()));
         assert!(header_value(&anonymous, "proxy-authorization").is_none());
         assert_eq!(
             header_value(&authorized, "proxy-authorization"),
             Some("Basic YWxpY2U6c2VjcmV0")
         );
-        assert_eq!(
-            header_value(&anonymous, "sec-websocket-key"),
-            header_value(&authorized, "sec-websocket-key")
-        );
+        assert!(opening.starts_with(b"GET /https-auth HTTP/1.1\r\n"));
+        assert!(header_value(&opening, "proxy-authorization").is_none());
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
     })
@@ -239,7 +257,7 @@ async fn https_forward_basic_challenge_retries_on_a_fresh_verified_tls_connectio
 }
 
 #[tokio::test]
-async fn forward_basic_authentication_is_fresh_per_logical_websocket() -> TestResult<()> {
+async fn proxy_basic_authentication_is_fresh_per_logical_websocket() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -251,30 +269,21 @@ async fn forward_basic_authentication_is_fresh_per_logical_websocket() -> TestRe
             for _ in 0..2 {
                 let (mut anonymous_stream, _) = proxy_listener.accept().await?;
                 let anonymous = read_head(&mut anonymous_stream).await?;
-                anonymous_stream
-                    .write_all(
-                        b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                          Proxy-Authenticate: Basic realm=websocket-forward\r\n\
-                          Content-Length: 0\r\n\r\n",
-                    )
-                    .await?;
+                challenge(
+                    &mut anonymous_stream,
+                    b"Proxy-Authenticate: Basic realm=websocket-tunnel\r\n",
+                )
+                .await?;
 
                 // Keep the challenged transport alive while accepting the retry,
                 // proving authentication opens a fresh proxy connection.
                 let (mut authorized_stream, _) = proxy_listener.accept().await?;
                 let authorized = read_head(&mut authorized_stream).await?;
-                let key = header_value(&authorized, "sec-websocket-key").ok_or("missing key")?;
-                let accept = websocket_accept(key);
                 authorized_stream
-                    .write_all(
-                        format!(
-                            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
-                        )
-                        .as_bytes(),
-                    )
+                    .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                     .await?;
-                authorized_stream.flush().await?;
-                requests.push((anonymous, authorized));
+                let opening = accept_opening(&mut authorized_stream).await?;
+                requests.push((anonymous, authorized, opening));
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(requests)
         });
@@ -295,26 +304,23 @@ async fn forward_basic_authentication_is_fresh_per_logical_websocket() -> TestRe
 
         let requests = proxy.await??;
         assert_eq!(requests.len(), 2);
-        for (index, (anonymous, authorized)) in requests.iter().enumerate() {
+        for (index, (anonymous, authorized, opening)) in requests.iter().enumerate() {
             let path = if index == 0 { "first" } else { "second" };
-            assert!(anonymous.starts_with(
-                format!("GET http://{origin_address}/{path} HTTP/1.1\r\n").as_bytes()
-            ));
-            assert!(authorized.starts_with(
-                format!("GET http://{origin_address}/{path} HTTP/1.1\r\n").as_bytes()
-            ));
-            assert!(header_value(anonymous, "proxy-authorization").is_none());
             assert_eq!(
-                header_value(authorized, "proxy-authorization"),
-                Some("Basic YWxpY2U6c2VjcmV0")
+                anonymous,
+                format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
+                    .as_bytes()
             );
             assert_eq!(
-                header_value(anonymous, "sec-websocket-key"),
-                header_value(authorized, "sec-websocket-key")
+                authorized,
+                format!(
+                    "CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\
+                     Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
+                )
+                .as_bytes()
             );
-            assert!(authorized.ends_with(
-                b"Sec-WebSocket-Version: 13\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n"
-            ));
+            assert!(opening.starts_with(format!("GET /{path} HTTP/1.1\r\n").as_bytes()));
+            assert!(header_value(opening, "proxy-authorization").is_none());
         }
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
@@ -323,7 +329,7 @@ async fn forward_basic_authentication_is_fresh_per_logical_websocket() -> TestRe
 }
 
 #[tokio::test]
-async fn configured_basic_is_not_preemptively_sent_or_retried_after_immediate_upgrade()
+async fn configured_basic_is_not_preemptively_sent_or_retried_after_an_open_tunnel()
 -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
@@ -333,23 +339,17 @@ async fn configured_basic_is_not_preemptively_sent_or_retried_after_immediate_up
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(async move {
             let (mut stream, _) = proxy_listener.accept().await?;
-            let request = read_head(&mut stream).await?;
-            let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
-            let accept = websocket_accept(key);
+            let connect = read_head(&mut stream).await?;
             stream
-                .write_all(
-                    format!(
-                        "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
-                    )
-                    .as_bytes(),
-                )
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                 .await?;
+            accept_opening(&mut stream).await?;
             let second = tokio::time::timeout(
                 std::time::Duration::from_millis(100),
                 proxy_listener.accept(),
             )
             .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, second.is_err()))
+            Ok::<_, Box<dyn Error + Send + Sync>>((connect, second.is_err()))
         });
 
         let identity = TestIdentity::generate()?;
@@ -365,8 +365,9 @@ async fn configured_basic_is_not_preemptively_sent_or_retried_after_immediate_up
             .await?;
         drop(socket);
 
-        let (request, had_no_second_proxy_connection) = proxy.await??;
-        assert!(header_value(&request, "proxy-authorization").is_none());
+        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        assert!(connect.starts_with(b"CONNECT "));
+        assert!(header_value(&connect, "proxy-authorization").is_none());
         assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
@@ -375,7 +376,7 @@ async fn configured_basic_is_not_preemptively_sent_or_retried_after_immediate_up
 }
 
 #[tokio::test]
-async fn caller_proxy_authorization_is_rejected_before_forward_proxy_io() -> TestResult<()> {
+async fn caller_proxy_authorization_is_rejected_before_proxy_io() -> TestResult<()> {
     let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     origin.set_nonblocking(true)?;
     let origin_address = origin.local_addr()?;
@@ -395,7 +396,7 @@ async fn caller_proxy_authorization_is_rejected_before_forward_proxy_io() -> Tes
         .connect()
         .await
     {
-        Ok(_) => return Err("caller Proxy-Authorization reached the forward proxy".into()),
+        Ok(_) => return Err("caller Proxy-Authorization reached the proxy".into()),
         Err(error) => error,
     };
 
@@ -406,7 +407,7 @@ async fn caller_proxy_authorization_is_rejected_before_forward_proxy_io() -> Tes
 }
 
 #[tokio::test]
-async fn authenticated_forward_headers_are_bounded_before_proxy_io() -> TestResult<()> {
+async fn oversized_ws_opening_is_rejected_before_proxy_io() -> TestResult<()> {
     let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     origin.set_nonblocking(true)?;
     let origin_address = origin.local_addr()?;
@@ -414,6 +415,7 @@ async fn authenticated_forward_headers_are_bounded_before_proxy_io() -> TestResu
     proxy.set_nonblocking(true)?;
     let proxy_address = proxy.local_addr()?;
 
+    // With `Host`, 101 fields: one more than an HTTP/1.1 request may carry.
     let mut headers = vec![
         WebSocketHeader::authority("Host"),
         WebSocketHeader::field(RequestHeader::new("Upgrade", "websocket")),
@@ -421,7 +423,7 @@ async fn authenticated_forward_headers_are_bounded_before_proxy_io() -> TestResu
         WebSocketHeader::key("Sec-WebSocket-Key"),
         WebSocketHeader::field(RequestHeader::new("Sec-WebSocket-Version", "13")),
     ];
-    headers.extend((0..95).map(|_| WebSocketHeader::field(RequestHeader::new("X-Pad", "value"))));
+    headers.extend((0..96).map(|_| WebSocketHeader::field(RequestHeader::new("X-Pad", "value"))));
 
     let identity = TestIdentity::generate()?;
     let route = Route::http_proxy(
@@ -435,7 +437,7 @@ async fn authenticated_forward_headers_are_bounded_before_proxy_io() -> TestResu
         .connect()
         .await
     {
-        Ok(_) => return Err("oversized authenticated handshake reached the proxy".into()),
+        Ok(_) => return Err("oversized opening reached the proxy".into()),
         Err(error) => error,
     };
 
@@ -445,31 +447,32 @@ async fn authenticated_forward_headers_are_bounded_before_proxy_io() -> TestResu
     Ok(())
 }
 
+/// Serves one CONNECT with a 407 carrying `proxy_authenticate`, then reports
+/// the CONNECT head and whether no second proxy connection arrived.
+async fn challenge_once(
+    listener: TcpListener,
+    proxy_authenticate: &'static [u8],
+) -> TestResult<(Vec<u8>, bool)> {
+    let (mut stream, _) = listener.accept().await?;
+    let connect = read_head(&mut stream).await?;
+    challenge(&mut stream, proxy_authenticate).await?;
+    let second =
+        tokio::time::timeout(std::time::Duration::from_millis(100), listener.accept()).await;
+    Ok((connect, second.is_err()))
+}
+
 #[tokio::test]
-async fn malformed_forward_basic_challenge_has_no_direct_fallback() -> TestResult<()> {
+async fn malformed_proxy_basic_challenge_has_no_direct_fallback() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
-            let (mut stream, _) = proxy_listener.accept().await?;
-            let request = read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=\"unterminated\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
-            let second = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                proxy_listener.accept(),
-            )
-            .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, second.is_err()))
-        });
+        let proxy = tokio::spawn(challenge_once(
+            proxy_listener,
+            b"Proxy-Authenticate: Basic realm=\"unterminated\r\n",
+        ));
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(
@@ -488,12 +491,8 @@ async fn malformed_forward_basic_challenge_has_no_direct_fallback() -> TestResul
         };
         assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
 
-        let (request, had_no_second_proxy_connection) = proxy.await??;
-        assert!(
-            request.starts_with(
-                format!("GET http://{origin_address}/malformed HTTP/1.1\r\n").as_bytes()
-            )
-        );
+        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
         assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
@@ -509,23 +508,10 @@ async fn supported_non_basic_proxy_challenge_is_rejected_without_retry() -> Test
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
-            let (mut stream, _) = proxy_listener.accept().await?;
-            let request = read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Digest realm=websocket\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
-            let second = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                proxy_listener.accept(),
-            )
-            .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, second.is_err()))
-        });
+        let proxy = tokio::spawn(challenge_once(
+            proxy_listener,
+            b"Proxy-Authenticate: Digest realm=websocket\r\n",
+        ));
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(
@@ -544,8 +530,8 @@ async fn supported_non_basic_proxy_challenge_is_rejected_without_retry() -> Test
         };
         assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
 
-        let (request, had_no_second_proxy_connection) = proxy.await??;
-        assert!(header_value(&request, "proxy-authorization").is_none());
+        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        assert!(header_value(&connect, "proxy-authorization").is_none());
         assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
@@ -554,7 +540,7 @@ async fn supported_non_basic_proxy_challenge_is_rejected_without_retry() -> Test
 }
 
 #[tokio::test]
-async fn second_forward_basic_challenge_is_terminal_without_fallback() -> TestResult<()> {
+async fn second_proxy_basic_challenge_is_terminal_without_fallback() -> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
@@ -564,23 +550,19 @@ async fn second_forward_basic_challenge_is_terminal_without_fallback() -> TestRe
         let proxy = tokio::spawn(async move {
             let (mut anonymous_stream, _) = proxy_listener.accept().await?;
             let anonymous = read_head(&mut anonymous_stream).await?;
-            anonymous_stream
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=first-private-realm\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
+            challenge(
+                &mut anonymous_stream,
+                b"Proxy-Authenticate: Basic realm=first-private-realm\r\n",
+            )
+            .await?;
 
             let (mut authorized_stream, _) = proxy_listener.accept().await?;
             let authorized = read_head(&mut authorized_stream).await?;
-            authorized_stream
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=second-private-realm\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
+            challenge(
+                &mut authorized_stream,
+                b"Proxy-Authenticate: Basic realm=second-private-realm\r\n",
+            )
+            .await?;
             let third = tokio::time::timeout(
                 std::time::Duration::from_millis(100),
                 proxy_listener.accept(),
@@ -627,10 +609,6 @@ async fn second_forward_basic_challenge_is_terminal_without_fallback() -> TestRe
             header_value(&authorized, "proxy-authorization"),
             Some("Basic bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk")
         );
-        assert_eq!(
-            header_value(&anonymous, "sec-websocket-key"),
-            header_value(&authorized, "sec-websocket-key")
-        );
         assert!(had_no_third_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
@@ -639,31 +617,18 @@ async fn second_forward_basic_challenge_is_terminal_without_fallback() -> TestRe
 }
 
 #[tokio::test]
-async fn unauthenticated_407_is_returned_without_retry_or_direct_fallback() -> TestResult<()> {
+async fn unauthenticated_407_to_ws_connect_fails_without_retry_or_direct_fallback() -> TestResult<()>
+{
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
-            let (mut stream, _) = proxy_listener.accept().await?;
-            let request = read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=available\r\n\
-                      Content-Length: 6\r\n\r\n\
-                      denied",
-                )
-                .await?;
-            let second = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                proxy_listener.accept(),
-            )
-            .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, second.is_err()))
-        });
+        let proxy = tokio::spawn(challenge_once(
+            proxy_listener,
+            b"Proxy-Authenticate: Basic realm=available\r\n",
+        ));
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
@@ -674,14 +639,63 @@ async fn unauthenticated_407_is_returned_without_retry_or_direct_fallback() -> T
             .connect()
             .await
         {
-            Ok(_) => return Err("rejected forward proxy upgraded WebSocket".into()),
+            Ok(_) => return Err("rejected proxy tunnel upgraded WebSocket".into()),
+            Err(error) => error,
+        };
+        // A refused CONNECT is a proxy failure, as for `wss://`; no opening
+        // was sent, so there is no handshake response to return.
+        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+        assert!(error.into_response().is_none());
+
+        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        assert_eq!(
+            connect,
+            format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
+                .as_bytes()
+        );
+        assert!(had_no_second_proxy_connection);
+        assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn origin_rejection_inside_a_ws_tunnel_is_returned_with_its_body() -> TestResult<()> {
+    bounded(async {
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut stream, _) = proxy_listener.accept().await?;
+            let connect = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?;
+            let opening = read_head(&mut stream).await?;
+            stream
+                .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\n\r\ndenied")
+                .await?;
+            stream.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((connect, opening))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let error = match client_builder(&identity, false)
+            .route(route)
+            .build()?
+            .websocket("ws://origin.test:8080/rejected")?
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("rejected opening upgraded WebSocket".into()),
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::HandshakeRejected);
         let response = error
             .into_response()
-            .ok_or("forward rejection omitted HTTP response")?;
-        assert_eq!(response.status(), 407);
+            .ok_or("origin rejection omitted HTTP response")?;
+        assert_eq!(response.status(), 403);
         assert_eq!(
             http_body_util::BodyExt::collect(response.into_body())
                 .await?
@@ -689,14 +703,12 @@ async fn unauthenticated_407_is_returned_without_retry_or_direct_fallback() -> T
             "denied"
         );
 
-        let (request, had_no_second_proxy_connection) = proxy.await??;
-        assert!(
-            request.starts_with(
-                format!("GET http://{origin_address}/rejected HTTP/1.1\r\n").as_bytes()
-            )
+        let (connect, opening) = proxy.await??;
+        assert_eq!(
+            connect,
+            b"CONNECT origin.test:8080 HTTP/1.1\r\nHost: origin.test:8080\r\n\r\n".as_slice()
         );
-        assert!(had_no_second_proxy_connection);
-        assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+        assert!(opening.starts_with(b"GET /rejected HTTP/1.1\r\nHost: origin.test:8080\r\n"));
         Ok(())
     })
     .await

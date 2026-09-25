@@ -46,7 +46,11 @@ impl Capture {
             fields.insert(key.to_owned(), value.to_owned());
         }
         let capture = Self { fields };
-        if capture.value("format")? != "phantom-http2-websocket-v1" {
+        // `fixtures/proxy/` records H1 requests in the same shape.
+        if !matches!(
+            capture.value("format")?,
+            "phantom-http2-websocket-v1" | "phantom-proxy-route-v1"
+        ) {
             return Err("unexpected capture format".into());
         }
         Ok(capture)
@@ -63,7 +67,11 @@ impl Capture {
     pub(crate) fn websocket_alpn_offer(&self) -> TestResult<&str> {
         let connection = match self.first_connect()? {
             Some((connection, _)) => connection,
-            None => self.first_upgrade()?.ok_or("capture has no WebSocket")?.0,
+            None => {
+                self.first_request("websocket")?
+                    .ok_or("capture has no WebSocket")?
+                    .0
+            }
         };
         attribute(
             self.value(&format!("run_0_connection_{connection}"))?,
@@ -99,7 +107,22 @@ impl Capture {
 
     /// Returns the first HTTP/1.1 WebSocket opening of run 0.
     pub(crate) fn upgrade(&self) -> TestResult<CapturedUpgrade> {
-        let (_, prefix) = self.first_upgrade()?.ok_or("capture has no H1 WebSocket")?;
+        let (_, prefix) = self
+            .first_request("websocket")?
+            .ok_or("capture has no H1 WebSocket")?;
+        self.h1_request(&prefix)
+    }
+
+    /// Returns the first H1 CONNECT a `proxy_route.py` capture recorded for
+    /// the page's own origin.
+    pub(crate) fn tunnel_connect(&self) -> TestResult<CapturedUpgrade> {
+        let (_, prefix) = self
+            .first_request("connect")?
+            .ok_or("capture has no page CONNECT")?;
+        self.h1_request(&prefix)
+    }
+
+    fn h1_request(&self, prefix: &str) -> TestResult<CapturedUpgrade> {
         let request_line = decode_hex(self.value(&format!("{prefix}_line_hex"))?)?;
         let mut fields = Vec::new();
         for index in 0..self
@@ -138,14 +161,14 @@ impl Capture {
         Ok(None)
     }
 
-    fn first_upgrade(&self) -> TestResult<Option<(usize, String)>> {
+    fn first_request(&self, kind: &str) -> TestResult<Option<(usize, String)>> {
         let Some(count) = self.fields.get("run_0_request_count") else {
             return Ok(None);
         };
         for index in 0..count.parse::<usize>()? {
             let prefix = format!("run_0_request_{index}");
             let record = self.value(&prefix)?;
-            if attribute(record, "kind")? == "websocket" {
+            if attribute(record, "kind")? == kind {
                 return Ok(Some((attribute(record, "connection")?.parse()?, prefix)));
             }
         }

@@ -3,16 +3,8 @@
 #[cfg(feature = "cookies")]
 use std::sync::Arc;
 
-use http::{Method, Response};
-use phantom_net::{
-    http1::{
-        AbsoluteForm, Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome,
-        validate_forward_request_body,
-    },
-    proxy::{HttpConnectError, validate_basic_proxy_challenge},
-    request::RequestHeader,
-};
-use tracing::Span;
+use http::Response;
+use phantom_net::http1::Http1UpgradeOutcome;
 
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
@@ -26,7 +18,6 @@ impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
         self,
         upgrade_connector: Http1UpgradeConnector,
-        request_span: &Span,
     ) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
@@ -99,30 +90,72 @@ impl WebSocketRequestBuilder {
                         .await
                 }
                 Route::HttpProxy(proxy) => {
-                    let https_connector =
-                        if proxy.uses_tls() {
-                            Some(proxy.https_connector(
-                                client.inner.https_proxy.as_ref().ok_or_else(|| {
-                                    WebSocketError::request(RequestError::unsupported_route(
-                                        crate::HttpProtocol::Http1,
-                                    ))
-                                })?,
-                            ))
+                    // Browsers tunnel `ws://` with CONNECT and send the same
+                    // origin-form Upgrade as a direct connection inside it;
+                    // see the proxy route captures under `fixtures/proxy/`.
+                    let authority = request.endpoint.tunnel_authority();
+                    if proxy.uses_tls() {
+                        let proxy_connector = &proxy.https_connector(
+                            client.inner.https_proxy.as_ref().ok_or_else(|| {
+                                WebSocketError::request(RequestError::unsupported_route(
+                                    HttpProtocol::Http1,
+                                ))
+                            })?,
+                        );
+                        if let Some(credentials) = proxy.basic_credentials() {
+                            Box::pin(
+                                connector.upgrade_get_plaintext_https_connect_with_basic_auth(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    credentials,
+                                    request.target,
+                                    prepared.headers,
+                                ),
+                            )
+                            .await
                         } else {
-                            None
-                        };
-                    let transport = https_connector
-                        .as_ref()
-                        .map_or(ForwardProxyTransport::Plaintext, ForwardProxyTransport::Tls);
-                    forward_upgrade(
-                        connector,
-                        transport,
-                        proxy,
-                        request.absolute_target.clone(),
-                        prepared.headers.clone(),
-                        request_span,
-                    )
-                    .await
+                            connector
+                                .upgrade_get_plaintext_https_connect(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    request.target,
+                                    prepared.headers,
+                                )
+                                .await
+                        }
+                    } else if let Some(credentials) = proxy.basic_credentials() {
+                        Box::pin(
+                            connector.upgrade_get_plaintext_http_connect_with_basic_auth(
+                                proxy.host(),
+                                proxy.port(),
+                                &authority,
+                                proxy.ordered_connect_headers(),
+                                credentials,
+                                request.target,
+                                prepared.headers,
+                            ),
+                        )
+                        .await
+                    } else {
+                        connector
+                            .upgrade_get_plaintext_http_connect(
+                                proxy.host(),
+                                proxy.port(),
+                                &authority,
+                                proxy.ordered_connect_headers(),
+                                request.target,
+                                prepared.headers,
+                            )
+                            .await
+                    }
                 }
                 Route::Socks5(proxy) => match proxy.dns_mode() {
                     crate::Socks5DnsMode::Local => {
@@ -176,7 +209,7 @@ impl WebSocketRequestBuilder {
                         let proxy_connector = &proxy.https_connector(
                             client.inner.https_proxy.as_ref().ok_or_else(|| {
                                 WebSocketError::request(RequestError::unsupported_route(
-                                    crate::HttpProtocol::Http1,
+                                    HttpProtocol::Http1,
                                 ))
                             })?,
                         );
@@ -322,98 +355,4 @@ impl WebSocketRequestBuilder {
             }
         }
     }
-}
-
-async fn forward_upgrade(
-    connector: &Http1TlsConnector,
-    transport: ForwardProxyTransport<'_>,
-    proxy: &crate::HttpProxy,
-    target: AbsoluteForm,
-    headers: Vec<RequestHeader>,
-    request_span: &Span,
-) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-    let authenticated_headers = proxy
-        .basic_credentials()
-        .map(|credentials| {
-            let mut authenticated = headers.clone();
-            authenticated.push(credentials.proxy_authorization_header());
-            validate_forward_request_body(&Method::GET, &target, &authenticated, None)?;
-            Ok::<_, Http1TlsError>(authenticated)
-        })
-        .transpose()?;
-    if authenticated_headers.is_some() {
-        request_span.record("proxy_authentication_retry", false);
-        request_span.record("proxy_attempts", 1_u64);
-    }
-
-    let first =
-        send_forward_upgrade(connector, transport, proxy, target.clone(), headers.clone()).await?;
-    let Some(authenticated_headers) = authenticated_headers else {
-        return Ok(first);
-    };
-    let response = match first {
-        Http1UpgradeOutcome::Rejected(response) => response,
-        upgraded @ Http1UpgradeOutcome::Upgraded(_) => return Ok(upgraded),
-    };
-    if response.status() != http::StatusCode::PROXY_AUTHENTICATION_REQUIRED {
-        return Ok(Http1UpgradeOutcome::Rejected(response));
-    }
-
-    validate_basic_proxy_challenge(response.headers()).map_err(Http1TlsError::Proxy)?;
-    drop(response);
-    request_span.record("proxy_authentication_retry", true);
-    request_span.record("proxy_attempts", 2_u64);
-    tracing::debug!(
-        retry = 1,
-        reason = "proxy_authentication",
-        "retrying forward WebSocket handshake with proxy credentials"
-    );
-
-    let outcome =
-        send_forward_upgrade(connector, transport, proxy, target, authenticated_headers).await?;
-    if matches!(
-        &outcome,
-        Http1UpgradeOutcome::Rejected(response)
-            if response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
-    ) {
-        drop(outcome);
-        return Err(Http1TlsError::Proxy(
-            HttpConnectError::AuthenticationRejected,
-        ));
-    }
-    Ok(outcome)
-}
-
-async fn send_forward_upgrade(
-    connector: &Http1TlsConnector,
-    transport: ForwardProxyTransport<'_>,
-    proxy: &crate::HttpProxy,
-    target: AbsoluteForm,
-    headers: Vec<RequestHeader>,
-) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-    match transport {
-        ForwardProxyTransport::Tls(proxy_connector) => {
-            connector
-                .upgrade_get_https_forward_proxy(
-                    proxy_connector,
-                    proxy.host(),
-                    proxy.port(),
-                    proxy.host(),
-                    target,
-                    headers,
-                )
-                .await
-        }
-        ForwardProxyTransport::Plaintext => {
-            connector
-                .upgrade_get_forward_proxy(proxy.host(), proxy.port(), target, headers)
-                .await
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum ForwardProxyTransport<'a> {
-    Plaintext,
-    Tls(&'a phantom_net::proxy::HttpsProxyConnector),
 }

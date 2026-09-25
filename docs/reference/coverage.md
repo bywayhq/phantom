@@ -530,8 +530,11 @@ Supported WebSocket (`websocket` feature):
   (plaintext or TLS proxy, HTTP/1.1 or HTTP/2 proxy transport, one Basic
   replay on a fresh proxy connection), and SOCKS5 with local or remote DNS.
   The peer capability gate applies, with no route or H1 fallback.
-- Ordered, customizable handshakes, and Basic authentication to a forward
-  proxy when it sends a challenge.
+- `ws://` through an HTTP proxy as a CONNECT tunnel (HTTP/1.1 transport) or
+  CONNECT stream (HTTP/2 transport) with the direct Upgrade inside, as Chrome
+  154, Edge 153, and Firefox 156 send it.
+- Ordered, customizable handshakes, and Basic authentication to an HTTP
+  proxy when it sends a challenge to the CONNECT.
 - Typed opt-in `permessage-deflate` (`websocket-deflate` feature), including
   the per-profile empty-message rule: Chrome 154 and Edge 153 compress a
   zero-length message and set RSV1, Firefox 156 sends it with RSV1 clear.

@@ -430,33 +430,51 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
         assert!(request.starts_with(b"GET /h1-in-h2 HTTP/1.1\r\n"));
         assert_eq!(message, text_frame("hello"));
 
-        // Plaintext `ws://` uses absolute-form forwarding, which the HTTP/2
-        // proxy transport cannot carry; it fails before proxy I/O instead of
-        // switching to CONNECT or HTTP/1.1.
-        let unused_proxy = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-        unused_proxy.set_nonblocking(true)?;
-        let unused_address = unused_proxy.local_addr()?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (origin_address, origin_listener) = bind().await?;
+        let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+        let proxy_identity = TestIdentity::generate()?;
+        let (proxy_address, proxy_listener) = bind().await?;
+        let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+            proxy_listener,
+            proxy_identity.acceptor(H2_ALPN)?,
+            origin_address,
+        ));
+
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
+        );
         let client = client_builder(&identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(Route::http_proxy(
-                HttpProxy::new(&format!("https://{unused_address}"))?.with_http2_transport()?,
-            ))
+            .route(route)
             .build()?;
-        let error = expect_error(
-            client
-                .websocket(&format!("ws://{origin_address}/plaintext"))?
-                .connect()
-                .await,
-        )?;
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
-        assert!(matches!(
-            connect_error(&error),
-            Some(HttpConnectError::ForwardingRequiresHttp1)
+        let socket = client
+            .websocket(&format!("ws://{origin_address}/plaintext-in-h2"))?
+            .connect()
+            .await?;
+        assert_eq!(socket.handshake_response().status(), 101);
+        exchange_echo(socket).await?;
+
+        // An RFC 9113 CONNECT stream to the origin, as for `wss://`; the
+        // Upgrade inside it is plaintext and origin-form.
+        let record = proxy.await??;
+        assert_eq!(
+            record.authority.as_deref(),
+            Some(origin_address.to_string().as_str())
+        );
+        let (request, message) = origin.await??;
+        assert!(request.starts_with(
+            format!("GET /plaintext-in-h2 HTTP/1.1\r\nHost: {origin_address}\r\n").as_bytes()
         ));
-        assert!(matches!(
-            unused_proxy.accept(),
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock
-        ));
+        assert_eq!(message, text_frame("hello"));
         Ok(())
     })
     .await

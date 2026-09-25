@@ -98,24 +98,16 @@ have shown where the real architectural boundaries are.
 - Bring the plaintext proxy routes in line with the
   [proxy route captures](explanation/validation.md#proxy-route-browser-evidence)
   of Chrome 154, Edge 153, and Firefox 156:
-  1. `ws://` through an HTTP/1.1 proxy. Every captured browser sends
-     `CONNECT host:port` and then the origin-form Upgrade inside the tunnel.
-     Phantom forwards an absolute-form Upgrade, which no captured browser
-     sends. Tunnel it for named recipes. The CONNECT field order is
-     per family and is in the fixtures.
-  2. `http://` through an HTTP/2 proxy. Every captured browser that
+  1. `http://` through an HTTP/2 proxy. Every captured browser that
      negotiates `h2` with a TLS proxy forwards the request as an HTTP/2
      request with `:scheme` `http`, in the family's own pseudo-field order.
-     Phantom rejects the route before I/O. Forward it over HTTP/2, and send
-     `ws://` on that route as a CONNECT stream with the Upgrade inside, as
-     the browsers do. Chromium reuses the page's proxy session for the
-     CONNECT; Firefox opens a second proxy connection.
-  3. `Accept-Encoding` on plaintext. No captured browser offers `br` or
+     Phantom rejects the route before I/O. Forward it over HTTP/2.
+  2. `Accept-Encoding` on plaintext. No captured browser offers `br` or
      `zstd` to a named `http://` origin, direct or proxied; all three send
      `gzip, deflate`. They offer `gzip, deflate, br, zstd` only to
      `127.0.0.1`. A request template for a plaintext named origin must not
      carry the HTTPS value.
-  4. Chromium forwards absolute-form requests with `Proxy-Connection:
+  3. Chromium forwards absolute-form requests with `Proxy-Connection:
      keep-alive` where a direct request has `Connection: keep-alive`.
      Firefox sends its direct fields unchanged. Check what Phantom's
      forwarding path emits against both before claiming parity.
@@ -504,9 +496,10 @@ These pieces have passed their phase acceptance criteria:
   spelling and the order of duplicates across names, on exact H1/H2/H3 and
   negotiated H1/H2.
 - H1 WebSocket: direct plaintext `ws://` and routed TLS-backed `wss://`.
-  Plaintext `ws://` also works through plaintext and TLS-encrypted HTTP
-  forward proxies with strict challenge-driven Basic authentication, and
-  through authenticated SOCKS5 tunnels with local or remote DNS. These paths
+  Plaintext `ws://` also works through a CONNECT tunnel on plaintext,
+  TLS-encrypted, and HTTP/2 proxies with strict challenge-driven Basic
+  authentication, and through authenticated SOCKS5 tunnels with local or
+  remote DNS. These paths
   share the same ordered opening handshake, strict validation, and bounded
   message lifecycle.
 - Opt-in, bounded, typed connection-setup retries for exact H1/H2/H3 and

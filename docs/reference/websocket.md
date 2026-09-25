@@ -16,8 +16,8 @@ rules work this way is in [Design](../explanation/design.md#websocket-and-sse).
 | Route | H1 | H2 |
 | --- | --- | --- |
 | Direct | `ws://` and `wss://` | `wss://` |
-| HTTP proxy, HTTP/1.1 transport | `ws://` (forwarded), `wss://` (CONNECT tunnel) | `wss://` (CONNECT tunnel) |
-| HTTPS proxy, HTTP/2 transport (`HttpProxy::with_http2_transport`) | `wss://` (CONNECT stream) | `wss://` (CONNECT stream) |
+| HTTP proxy, HTTP/1.1 transport | `ws://` and `wss://` (CONNECT tunnel) | `wss://` (CONNECT tunnel) |
+| HTTPS proxy, HTTP/2 transport (`HttpProxy::with_http2_transport`) | `ws://` and `wss://` (CONNECT stream) | `wss://` (CONNECT stream) |
 | SOCKS5 (`socks5://` or `socks5h://`) | `ws://` and `wss://` | `wss://` |
 
 Any other combination fails with a typed error before proxy or origin I/O;
@@ -25,7 +25,7 @@ the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
 
 | Route | Rule |
 | --- | --- |
-| Forwarded `ws://` | A plaintext `ws://` request through an HTTP proxy uses an RFC 6455-compatible `http://` absolute-form target and never changes to CONNECT. The proxy connection can be plaintext or use its own authenticated TLS. An H2 proxy transport cannot forward plaintext, so H1 `ws://` through it fails. |
+| `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. This is what Chrome 154, Edge 153, and Firefox 156 send ([proxy route evidence](../explanation/validation.md#proxy-route-browser-evidence)). The CONNECT carries the route's CONNECT fields, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
 | SOCKS5 | After the tunnel is up, `ws://` sends the same origin-form Upgrade as a direct connection. `socks5://` resolves the origin locally; `socks5h://` sends the canonical DNS name to the proxy. Username and password authentication applies only to SOCKS negotiation. |
 | H2 through a proxy | Phantom opens a dedicated tunnel, then runs origin TLS, the HTTP/2 preface, and extended CONNECT inside it, as on a direct route. The origin must still enable extended CONNECT. |
 | Proxy credentials | Literal `Proxy-Authorization` fields are rejected. With Basic credentials on the proxy, each connection starts anonymously and replays once, on a fresh connection over the same route, only after a strict `407` Basic challenge. No challenge state is kept. |

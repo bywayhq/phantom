@@ -29,7 +29,7 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
 | `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
-| `ws://`, H1 | Plaintext Upgrade | Absolute-form forwarded Upgrade | Rejected | Plaintext Upgrade in a TCP tunnel | Rejected |
+| `ws://`, H1 | Plaintext Upgrade | Plaintext Upgrade in a CONNECT tunnel | Plaintext Upgrade in a CONNECT stream | Plaintext Upgrade in a TCP tunnel | Rejected |
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
 | `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Rejected |

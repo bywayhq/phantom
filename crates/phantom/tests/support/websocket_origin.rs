@@ -127,7 +127,22 @@ pub(crate) async fn serve_h1_echo(
     listener: TcpListener,
     acceptor: SslAcceptor,
 ) -> TestResult<(Vec<u8>, ClientFrame)> {
-    let mut stream = accept_tls(listener, acceptor).await?;
+    let stream = accept_tls(listener, acceptor).await?;
+    echo_h1(stream).await
+}
+
+/// Like [`serve_h1_echo`], over plaintext TCP: the origin of a `ws://`
+/// opening, or the far end of a proxy tunnel that carries one.
+pub(crate) async fn serve_plaintext_h1_echo(
+    listener: TcpListener,
+) -> TestResult<(Vec<u8>, ClientFrame)> {
+    let (stream, _) = listener.accept().await?;
+    echo_h1(stream).await
+}
+
+async fn echo_h1(
+    mut stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+) -> TestResult<(Vec<u8>, ClientFrame)> {
     let request = read_head(&mut stream).await?;
     let key = header_value(&request, "sec-websocket-key").ok_or("missing Sec-WebSocket-Key")?;
     let accept = websocket_accept(key);

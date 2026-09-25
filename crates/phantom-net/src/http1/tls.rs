@@ -1329,6 +1329,141 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Sends one plaintext HTTP/1.1 Upgrade GET through a CONNECT tunnel on a
+    /// plaintext HTTP proxy.
+    ///
+    /// The origin-form Upgrade is sent inside the tunnel exactly as on a direct
+    /// connection. Origin and CONNECT requests are validated before proxy I/O.
+    /// This method performs no origin TLS handshake, never sends an
+    /// absolute-form request, and never falls back to a direct connection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_http_connect(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_tunnel_upgrade("http_connect", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = http_connect_tunnel(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+            )
+            .await?;
+            send_plaintext_tunnel_upgrade(stream, prepared).await
+        })
+        .await
+    }
+
+    /// Sends a plaintext Upgrade GET through a CONNECT tunnel on a plaintext
+    /// HTTP proxy, using challenge-driven Basic authentication for CONNECT.
+    ///
+    /// Credentials go only to the proxy on the CONNECT request, never on the
+    /// Upgrade inside the tunnel.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_http_connect_with_basic_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_tunnel_upgrade("http_connect", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = http_connect_tunnel_with_basic_auth(
+                self.tcp,
+                proxy_host,
+                proxy_port,
+                connect_authority,
+                connect_headers,
+                credentials,
+            )
+            .await?;
+            send_plaintext_tunnel_upgrade(stream, prepared).await
+        })
+        .await
+    }
+
+    /// Sends one plaintext HTTP/1.1 Upgrade GET through a CONNECT tunnel on
+    /// an HTTPS proxy.
+    ///
+    /// The proxy connector's protocol selects an HTTP/1.1 CONNECT tunnel or an
+    /// RFC 9113 section 8.5 CONNECT stream on a dedicated HTTP/2 connection.
+    /// The origin-form Upgrade is sent inside it exactly as on a direct
+    /// connection, with no origin TLS handshake. Origin and CONNECT requests
+    /// are validated before proxy I/O.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_https_connect(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_tunnel_upgrade("https_connect", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = proxy_connector
+                .connect_tunnel(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                )
+                .await?;
+            send_plaintext_tunnel_upgrade(stream, prepared).await
+        })
+        .await
+    }
+
+    /// Sends a plaintext Upgrade GET through a CONNECT tunnel on an HTTPS
+    /// proxy, using challenge-driven Basic authentication for CONNECT.
+    ///
+    /// Credentials go only to the proxy on the CONNECT request, never on the
+    /// Upgrade inside the tunnel.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upgrade_get_plaintext_https_connect_with_basic_auth(
+        &self,
+        proxy_connector: &HttpsProxyConnector,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        connect_authority: &str,
+        connect_headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_plaintext_tunnel_upgrade("https_connect", async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let stream = proxy_connector
+                .connect_tunnel_with_basic_auth(
+                    proxy_host,
+                    proxy_port,
+                    proxy_server_name,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
+                )
+                .await?;
+            send_plaintext_tunnel_upgrade(stream, prepared).await
+        })
+        .await
+    }
+
     /// Sends one plaintext HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
     ///
     /// The origin request is validated before proxy I/O. The established tunnel
@@ -1745,6 +1880,28 @@ impl Http1TlsConnector {
         result
     }
 
+    async fn trace_plaintext_tunnel_upgrade<F>(
+        &self,
+        route: &'static str,
+        operation: F,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
+    where
+        F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
+    {
+        let span = debug_span!(
+            "http1.proxy.connect.upgrade_response_head",
+            method = "GET",
+            transport = "tcp",
+            route,
+            status = field::Empty,
+            outcome = field::Empty,
+        );
+        let outcome_guard = OperationOutcome::new(&span);
+        let result = operation.instrument(span.clone()).await;
+        outcome_guard.finish(upgrade_outcome(&result));
+        result
+    }
+
     async fn trace_plaintext_socks5_upgrade<F>(
         &self,
         route: &'static str,
@@ -1766,6 +1923,25 @@ impl Http1TlsConnector {
         outcome_guard.finish(upgrade_outcome(&result));
         result
     }
+}
+
+/// Sends a prepared plaintext Upgrade on an established proxy tunnel and
+/// records the response status on the current span.
+async fn send_plaintext_tunnel_upgrade<S>(
+    stream: S,
+    prepared: PreparedGet,
+) -> Result<Http1UpgradeOutcome, Http1TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    debug!("HTTP/1 plaintext Upgrade request prepared for a CONNECT tunnel");
+    let outcome = send_prepared_upgrade(stream, prepared).await?;
+    let status = match &outcome {
+        Http1UpgradeOutcome::Upgraded(response) => response.status(),
+        Http1UpgradeOutcome::Rejected(response) => response.status(),
+    };
+    Span::current().record("status", status.as_u16());
+    Ok(outcome)
 }
 
 fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'static str {

@@ -192,8 +192,6 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 - A message over the frame, message, or frame-count limit fails with
   `WebSocketErrorKind::Capacity`; set the limits with `WebSocketLimits`
   ([defaults](../reference/limits.md#websocket)).
-- A `ws://` request through an HTTP/2 proxy transport fails, because an HTTP
-  proxy forwards `ws://` and that transport cannot forward plaintext.
 - Other unsupported route combinations fail before any I/O
   ([route matrix](../reference/route-matrix.md)). No failure falls back to a
   direct connection or to H1.
