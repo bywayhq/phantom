@@ -98,6 +98,12 @@ impl PreparedRequestTemplate {
         self.0.template.http2_priority
     }
 
+    /// Returns the value the template's HTTP/1.1 list sends in the field
+    /// `name` to a URL of this trust when the caller supplies none.
+    pub(crate) fn default_field_value(&self, name: &str, trustworthy: bool) -> Option<&str> {
+        default_value(&self.0.template.http1_fields, name, trustworthy)
+    }
+
     /// Returns the `Accept-Encoding` value the template sends to a URL of
     /// this trust, for decoding decisions made before the protocol is chosen.
     pub(crate) fn accept_encoding(&self, trustworthy: bool) -> Option<&str> {

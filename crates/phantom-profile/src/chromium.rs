@@ -14,6 +14,7 @@ use crate::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
     },
+    proxy_connect::{ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
@@ -416,6 +417,38 @@ pub fn v154_websocket() -> WebSocketSettings {
         ],
         permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
         empty_message_compression: WebSocketEmptyMessageCompression::Compressed,
+    }
+}
+
+/// Returns the CONNECT request fields observed from Chrome 154.0.8037.58 on
+/// Windows 11.
+///
+/// From the retained proxy route captures, three runs of each scenario.
+/// Every HTTP/1.1 CONNECT for the page's `ws://` origin sends `Host`,
+/// `Proxy-Connection: keep-alive`, and `User-Agent`, then
+/// `Proxy-Authorization` when the proxy asked for credentials
+/// (`http-proxy-*` and `http-proxy-auth-*`). Every HTTP/2 CONNECT to the TLS
+/// proxy sends `user-agent` after `:method` and `:authority`, then
+/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`). Edge
+/// 153.0.4234.48 sends the same fields in the same order.
+///
+/// Chrome's `User-Agent` there is its own, which the captures show equal to
+/// the page request's. The recipe copies the `User-Agent` of the request
+/// that opens the tunnel: the caller's field, or the request template's
+/// value.
+#[must_use]
+pub fn v154_proxy_connect() -> ProxyConnectTemplate {
+    ProxyConnectTemplate {
+        http1_fields: vec![
+            ProxyConnectField::authority("Host"),
+            ProxyConnectField::literal("Proxy-Connection", "keep-alive"),
+            ProxyConnectField::from_request("User-Agent"),
+            ProxyConnectField::proxy_authorization("Proxy-Authorization"),
+        ],
+        http2_fields: vec![
+            ProxyConnectField::from_request("user-agent"),
+            ProxyConnectField::proxy_authorization("proxy-authorization"),
+        ],
     }
 }
 

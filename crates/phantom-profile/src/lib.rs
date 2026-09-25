@@ -8,6 +8,7 @@ pub mod firefox;
 pub mod http1;
 pub mod http2;
 pub mod http3;
+pub mod proxy_connect;
 pub mod quic;
 pub mod request_template;
 pub mod tcp;
@@ -31,6 +32,7 @@ pub use http3::{
     Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings,
     InvalidHttp3Settings,
 };
+pub use proxy_connect::{InvalidProxyConnectTemplate, ProxyConnectField, ProxyConnectTemplate};
 pub use request_template::{
     InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
 };

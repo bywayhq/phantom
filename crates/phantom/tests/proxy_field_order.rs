@@ -19,7 +19,10 @@ use std::{collections::BTreeMap, future::Future, net::Ipv4Addr, time::Duration};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, RequestHeader, Route,
-    profile::{ClientHintSettings, ClientProfile, RequestTemplate, chromium, edge, firefox},
+    profile::{
+        ClientHintSettings, ClientProfile, ProxyConnectTemplate, RequestTemplate, chromium, edge,
+        firefox,
+    },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
@@ -28,6 +31,10 @@ use tls_support::{TestResult, read_head};
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+const FIREFOX_UA: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
 const CREDENTIALS: &str = "Basic dXNlcjpzZWNyZXQ=";
 
 macro_rules! proxy_fixture {
@@ -130,8 +137,13 @@ struct Browser {
     navigation: RequestTemplate,
     fetch: RequestTemplate,
     caller: Vec<RequestHeader>,
+    connect: ProxyConnectTemplate,
+    /// The `User-Agent` the navigation sends.
+    user_agent: &'static str,
     /// `http-proxy-auth-hostname` and `http-proxy-auth-loopback`.
     authenticated: [&'static str; 2],
+    /// `http-proxy-hostname` and `http-proxy-loopback`.
+    anonymous: [&'static str; 2],
 }
 
 fn browsers() -> Vec<Browser> {
@@ -143,9 +155,15 @@ fn browsers() -> Vec<Browser> {
             navigation: chromium::v154_windows_navigation_template(),
             fetch: chromium::v154_windows_fetch_no_store_template(),
             caller: Vec::new(),
+            connect: chromium::v154_proxy_connect(),
+            user_agent: CHROME_UA,
             authenticated: [
                 proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-hostname"),
                 proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-loopback"),
+            ],
+            anonymous: [
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-hostname"),
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-loopback"),
             ],
         },
         Browser {
@@ -155,9 +173,15 @@ fn browsers() -> Vec<Browser> {
             navigation: edge::v153_windows_navigation_template(),
             fetch: edge::v153_windows_fetch_no_store_template(),
             caller: vec![RequestHeader::new("User-Agent", EDGE_UA)],
+            connect: chromium::v154_proxy_connect(),
+            user_agent: EDGE_UA,
             authenticated: [
                 proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-hostname"),
                 proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-loopback"),
+            ],
+            anonymous: [
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-hostname"),
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-loopback"),
             ],
         },
         Browser {
@@ -167,16 +191,23 @@ fn browsers() -> Vec<Browser> {
             navigation: firefox::v156_windows_navigation_template(),
             fetch: firefox::v156_windows_fetch_no_store_template(),
             caller: Vec::new(),
+            connect: firefox::v156_proxy_connect(),
+            user_agent: FIREFOX_UA,
             authenticated: [
                 proxy_fixture!("firefox/156.0", "http-proxy-auth-hostname"),
                 proxy_fixture!("firefox/156.0", "http-proxy-auth-loopback"),
+            ],
+            anonymous: [
+                proxy_fixture!("firefox/156.0", "http-proxy-hostname"),
+                proxy_fixture!("firefox/156.0", "http-proxy-loopback"),
             ],
         },
     ]
 }
 
-fn client(browser: &Browser, route: Route) -> TestResult<Client> {
-    let mut profile = ClientProfile::new(browser.tls.clone());
+fn profile_client(browser: &Browser, route: Route) -> TestResult<Client> {
+    let mut profile =
+        ClientProfile::new(browser.tls.clone()).with_proxy_connect(browser.connect.clone());
     if let Some(hints) = browser.hints.clone() {
         profile = profile.with_client_hints(hints);
     }
@@ -245,7 +276,7 @@ async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<
                 let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
                     .with_basic_auth("user", "secret")?;
                 let server = tokio::spawn(challenge_then_accept(listener));
-                let client = client(&browser, Route::http_proxy(proxy))?;
+                let client = profile_client(&browser, Route::http_proxy(proxy))?;
                 for (path, template, referer) in [
                     ("/page", &browser.navigation, None),
                     ("/done", &browser.fetch, Some("http://page.example/")),
@@ -295,6 +326,131 @@ async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<
                 );
             }
         }
+        Ok(())
+    })
+    .await
+}
+
+/// Reads one CONNECT head from each accepted proxy connection, answering
+/// the first `challenges` with a Basic `407` and the rest with `200` before
+/// closing, so the origin handshake inside the tunnel fails.
+async fn record_connects(
+    listener: TcpListener,
+    challenges: usize,
+    count: usize,
+) -> TestResult<Vec<String>> {
+    let mut heads = Vec::new();
+    for index in 0..count {
+        let (mut stream, _) = listener.accept().await?;
+        heads.push(String::from_utf8(read_head(&mut stream).await?)?);
+        let response: &[u8] = if index < challenges {
+            b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+Proxy-Authenticate: Basic realm=\"phantom-capture\"\r\nContent-Length: 0\r\n\r\n"
+        } else {
+            b"HTTP/1.1 200 Connection Established\r\n\r\n"
+        };
+        stream.write_all(response).await?;
+    }
+    Ok(heads)
+}
+
+/// Returns the `User-Agent` value of a head.
+fn user_agent(head: &str) -> Option<&str> {
+    head.split("\r\n")
+        .find_map(|line| line.strip_prefix("User-Agent: "))
+}
+
+/// Sends a navigation to an HTTPS origin, whose failure after the tunnel
+/// opens does not matter here.
+async fn open_tunnel(client: &Client, browser: &Browser, caller: Vec<RequestHeader>) {
+    let Ok(builder) = client.get(HttpProtocol::Http1, "https://origin.phantom.test/page") else {
+        return;
+    };
+    let Ok(template) = PreparedRequestTemplate::new(browser.navigation.clone()) else {
+        return;
+    };
+    let _ = builder.template(&template).headers(caller).send().await;
+}
+
+/// The profile's CONNECT fields for an HTTPS request through an HTTP/1.1
+/// proxy, anonymous, on the replay after a `407`, and with remembered
+/// credentials, compared with the captured CONNECT of each browser. The
+/// captures tunnel `ws://`; an HTTPS tunnel uses the same request.
+#[tokio::test]
+async fn connect_requests_send_the_captured_fields() -> TestResult<()> {
+    bounded(async {
+        for browser in browsers() {
+            for (anonymous, authenticated) in browser.anonymous.iter().zip(browser.authenticated) {
+                let label = browser.label;
+                let expected_anonymous =
+                    captured(&captured_requests(anonymous)?, "connect", "200")?.to_vec();
+                let expected_authenticated =
+                    captured(&captured_requests(authenticated)?, "connect", "200")?.to_vec();
+
+                let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+                let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+                let server = tokio::spawn(record_connects(listener, 0, 1));
+                let client = profile_client(&browser, Route::http_proxy(proxy))?;
+                open_tunnel(&client, &browser, browser.caller.clone()).await;
+                let heads = server.await??;
+                let (request_line, names) = head_names(&heads[0])?;
+                assert_eq!(request_line, "CONNECT origin.phantom.test:443 HTTP/1.1");
+                assert_eq!(names, expected_anonymous, "{label} anonymous");
+                assert_eq!(user_agent(&heads[0]), Some(browser.user_agent), "{label}");
+
+                let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+                let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
+                    .with_basic_auth("user", "secret")?;
+                let server = tokio::spawn(record_connects(listener, 1, 3));
+                let client = profile_client(&browser, Route::http_proxy(proxy))?;
+                for _ in 0..2 {
+                    open_tunnel(&client, &browser, browser.caller.clone()).await;
+                }
+                let heads = server.await??;
+                let (_, challenged) = head_names(&heads[0])?;
+                assert_eq!(challenged, expected_anonymous, "{label} challenged");
+                for (head, what) in [(&heads[1], "replay"), (&heads[2], "remembered")] {
+                    let (_, names) = head_names(head)?;
+                    assert_eq!(names, expected_authenticated, "{label} {what}");
+                    assert!(
+                        head.contains(&format!("\r\nProxy-Authorization: {CREDENTIALS}\r\n")),
+                        "{label} {what}"
+                    );
+                }
+            }
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// CONNECT fields set on the route replace the profile's, and a caller's
+/// `User-Agent` replaces the template's in the CONNECT too.
+#[tokio::test]
+async fn route_connect_fields_win_over_the_profile() -> TestResult<()> {
+    bounded(async {
+        let browser = browsers().swap_remove(0);
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
+            .header(RequestHeader::new("X-Route", "1"));
+        let server = tokio::spawn(record_connects(listener, 0, 1));
+        let client = profile_client(&browser, Route::http_proxy(proxy))?;
+        open_tunnel(&client, &browser, Vec::new()).await;
+        let heads = server.await??;
+        assert_eq!(head_names(&heads[0])?.1, ["Host", "X-Route"]);
+
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+        let server = tokio::spawn(record_connects(listener, 0, 1));
+        let client = profile_client(&browser, Route::http_proxy(proxy))?;
+        open_tunnel(
+            &client,
+            &browser,
+            vec![RequestHeader::new("user-agent", "caller")],
+        )
+        .await;
+        let heads = server.await??;
+        assert_eq!(user_agent(&heads[0]), Some("caller"));
         Ok(())
     })
     .await

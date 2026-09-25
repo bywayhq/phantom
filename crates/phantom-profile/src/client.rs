@@ -2,7 +2,8 @@
 
 use crate::{
     ClientHintSettings, CookiePlacement, Http1Settings, Http2Settings, Http3RequestSettings,
-    Http3Settings, TcpSettings, TlsSettings, WebSocketSettings, quic::QuicTransportSettings,
+    Http3Settings, ProxyConnectTemplate, TcpSettings, TlsSettings, WebSocketSettings,
+    quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -66,6 +67,7 @@ pub struct ClientProfile {
     http3: Option<Http3ClientSettings>,
     client_hints: Option<ClientHintSettings>,
     websocket: Option<WebSocketSettings>,
+    proxy_connect: Option<ProxyConnectTemplate>,
     cookie_placement: CookiePlacement,
 }
 
@@ -81,6 +83,7 @@ impl ClientProfile {
             http3: None,
             client_hints: None,
             websocket: None,
+            proxy_connect: None,
             cookie_placement: CookiePlacement::last(),
         }
     }
@@ -132,6 +135,19 @@ impl ClientProfile {
         self
     }
 
+    /// Adds the ordered fields of the CONNECT request that opens an HTTP
+    /// proxy tunnel.
+    ///
+    /// They apply to an HTTP proxy route whose CONNECT fields the caller has
+    /// not set with `HttpProxy::header`, `headers`, or `connect_headers`.
+    /// Without them, such a CONNECT request carries only `Host` and, when
+    /// needed, `Proxy-Authorization`.
+    #[must_use]
+    pub fn with_proxy_connect(mut self, proxy_connect: ProxyConnectTemplate) -> Self {
+        self.proxy_connect = Some(proxy_connect);
+        self
+    }
+
     /// Sets where the automatic `Cookie` request field goes.
     #[must_use]
     pub fn with_cookie_placement(mut self, cookie_placement: CookiePlacement) -> Self {
@@ -179,6 +195,12 @@ impl ClientProfile {
     #[must_use]
     pub fn websocket(&self) -> Option<&WebSocketSettings> {
         self.websocket.as_ref()
+    }
+
+    /// Returns the CONNECT request fields when configured.
+    #[must_use]
+    pub fn proxy_connect(&self) -> Option<&ProxyConnectTemplate> {
+        self.proxy_connect.as_ref()
     }
 
     /// Returns where the automatic `Cookie` request field goes.

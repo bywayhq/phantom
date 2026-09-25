@@ -95,8 +95,10 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
   request, the field fails with `RequestErrorKind::InvalidHeader` before I/O
   on any other route, where it would reach the origin, and on a proxy with
   configured credentials.
-- `HttpProxy::header`, `headers`, and `connect_headers` order the CONNECT
-  request's fields ([HTTP proxy rules](../reference/route-matrix.md#http-proxy-rules)).
+- A profile with `with_proxy_connect(chromium::v154_proxy_connect())` or
+  the Firefox recipe sends the browser's CONNECT fields.
+  `HttpProxy::header`, `headers`, and `connect_headers` set your own, which
+  replace the profile's ([HTTP proxy rules](../reference/route-matrix.md#http-proxy-rules)).
 
 ## Speak HTTP/2 to the proxy
 

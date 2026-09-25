@@ -198,8 +198,9 @@ pub mod profile {
         Http2StaticNameIndex, Http3ClientSettings, Http3PseudoHeader, Http3QpackDecoderStream,
         Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
         InvalidClientHintSettings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
-        InvalidHttp3Settings, InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings,
-        InvalidWebSocketSettings, NamedGroup, ProxyAuthorizationAttempt, RequestField,
+        InvalidHttp3Settings, InvalidProxyConnectTemplate, InvalidRequestTemplate,
+        InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup,
+        ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate, RequestField,
         RequestTemplate, SignatureScheme, TcpAddressRacing, TcpKeepalive, TcpSettings, TlsSettings,
         TlsVersion, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
         WebSocketNewConnection, WebSocketSettings,
@@ -209,7 +210,7 @@ pub mod profile {
     pub mod chromium {
         pub use phantom_profile::chromium::{
             v154_cookie_placement, v154_http1, v154_http2, v154_http3, v154_http3_request,
-            v154_http3_tls, v154_quic, v154_tcp, v154_tls, v154_websocket,
+            v154_http3_tls, v154_proxy_connect, v154_quic, v154_tcp, v154_tls, v154_websocket,
             v154_windows_client_hints, v154_windows_fetch_no_store_template,
             v154_windows_navigation_template,
         };
@@ -218,15 +219,16 @@ pub mod profile {
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v156_cookie_placement, v156_http1, v156_http2, v156_tcp, v156_tls, v156_websocket,
-            v156_windows_fetch_no_store_template, v156_windows_navigation_template,
+            v156_cookie_placement, v156_http1, v156_http2, v156_proxy_connect, v156_tcp, v156_tls,
+            v156_websocket, v156_windows_fetch_no_store_template, v156_windows_navigation_template,
         };
     }
 
     /// Microsoft Edge recipes implemented by the public facade.
     ///
-    /// Edge 153 shares the Chromium H2, QUIC, and H3 recipes; only its TLS
-    /// ClientHellos, client hints, and request identity differ.
+    /// Edge 153 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
+    /// CONNECT recipes; only its TLS ClientHellos, client hints, and request
+    /// identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{
             v153_http3_tls, v153_tls, v153_windows_client_hints,

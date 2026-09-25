@@ -14,7 +14,7 @@ use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
 use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
-use phantom_profile::{ClientHintSettings, ClientProfile, TcpSettings};
+use phantom_profile::{ClientHintSettings, ClientProfile, ProxyConnectTemplate, TcpSettings};
 
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
@@ -108,6 +108,8 @@ pub(crate) struct ClientInner {
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
     pub(crate) route: Route,
+    /// Profile CONNECT fields for HTTP proxy routes that set none.
+    pub(crate) proxy_connect: Option<Arc<ProxyConnectTemplate>>,
     /// Profile WebSocket templates and connection policy.
     #[cfg(feature = "websocket")]
     pub(crate) websocket: Option<WebSocketSettings>,
@@ -1041,6 +1043,11 @@ impl ClientBuilder {
                 .validate()
                 .map_err(BuildError::invalid_websocket_profile)?;
         }
+        if let Some(proxy_connect) = self.profile.proxy_connect() {
+            proxy_connect
+                .validate()
+                .map_err(BuildError::invalid_proxy_connect_profile)?;
+        }
 
         // `ServerAuthentication` is public and non-exhaustive, so compare
         // rather than match: phantom-net defines exactly these two policies.
@@ -1274,6 +1281,7 @@ impl ClientBuilder {
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
+            proxy_connect: self.profile.proxy_connect().cloned().map(Arc::new),
             #[cfg(feature = "websocket")]
             websocket: self.profile.websocket().cloned(),
             #[cfg(feature = "websocket")]

@@ -620,6 +620,9 @@ Supported HTTP proxies:
 - HTTP/1.1 CONNECT over plaintext proxies or TLS proxies verified with
   their own trust settings, including one bounded Basic retry after a challenge
   and credentials on the first CONNECT once the proxy has accepted them.
+- CONNECT fields from the profile, on both proxy transports, in the order
+  Chrome 154, Edge 153, and Firefox 156 send them, with the tunnelled
+  request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
   profile's ALPN is offered unchanged, and a selection mismatch is a typed

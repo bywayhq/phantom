@@ -24,8 +24,8 @@ use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 use http::Version;
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpConnectHeader, HttpProxy, RequestHeader, Route, WebSocket,
-    WebSocketErrorKind, WebSocketHeader, WebSocketMessage, WebSocketRequestBuilder,
+    BuildErrorKind, Client, HttpProxy, RequestHeader, Route, WebSocket, WebSocketErrorKind,
+    WebSocketHeader, WebSocketMessage, WebSocketRequestBuilder,
     profile::{ClientProfile, Http2Settings, WebSocketField, WebSocketSettings, chromium, firefox},
 };
 
@@ -289,24 +289,27 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
 #[tokio::test]
 async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening() -> TestResult<()>
 {
-    for (direct, proxied, http2, settings) in [
+    for (direct, proxied, http2, settings, connect) in [
         (
             CHROME_H1,
             CHROME_PROXY,
             chromium::v154_http2(),
             chromium::v154_websocket(),
+            chromium::v154_proxy_connect(),
         ),
         (
             CHROME_H1,
             EDGE_PROXY,
             chromium::v154_http2(),
             chromium::v154_websocket(),
+            chromium::v154_proxy_connect(),
         ),
         (
             FIREFOX_H1,
             FIREFOX_PROXY,
             firefox::v156_http2(),
             firefox::v156_websocket(),
+            firefox::v156_proxy_connect(),
         ),
     ] {
         let direct = Capture::parse(direct)?;
@@ -322,21 +325,17 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
                 server.address,
             ));
             let captured_connect = proxied.tunnel_connect()?;
-            let connect_fields = captured_connect
-                .fields
-                .iter()
-                .map(|(name, value)| {
-                    if name == "Host" {
-                        HttpConnectHeader::authority(name.as_str())
-                    } else {
-                        HttpConnectHeader::field(RequestHeader::new(name.clone(), value.as_str()))
-                    }
-                })
-                .collect();
-            let route = Route::http_proxy(
-                HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(connect_fields),
-            );
-            let client = profile_client_on(&identity, http2.clone(), settings.clone(), route)?;
+            // The profile's CONNECT recipe supplies the fields; the route
+            // sets none.
+            let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+            let profile = ClientProfile::new(tls_settings())
+                .with_http2(http2.clone())
+                .with_websocket(settings.clone())
+                .with_proxy_connect(connect.clone());
+            let client = Client::builder(profile)
+                .add_root_certificate_der(identity.root_der.clone())
+                .route(route)
+                .build()?;
             let upgrade = direct.upgrade()?;
             let path = upgrade
                 .request_line
@@ -358,16 +357,32 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
                 lines.next(),
                 Some(format!("CONNECT {} HTTP/1.1", server.address).as_str())
             );
+            let sent: Vec<(&str, &str)> = lines
+                .map(|line| line.split_once(": ").unwrap_or((line, "")))
+                .collect();
             assert_eq!(
-                lines
-                    .map(|line| line.split_once(':').map_or(line, |(name, _)| name))
-                    .collect::<Vec<_>>(),
+                sent.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
                 captured_connect
                     .fields
                     .iter()
                     .map(|(name, _)| name.as_str())
                     .collect::<Vec<_>>()
             );
+            // `User-Agent` is the opening's, and the literals are captured.
+            for ((name, value), (_, captured_value)) in sent.iter().zip(&captured_connect.fields) {
+                match *name {
+                    "Host" => {}
+                    "User-Agent" => assert_eq!(
+                        Some(*value),
+                        upgrade
+                            .fields
+                            .iter()
+                            .find(|(field, _)| field == "User-Agent")
+                            .map(|(_, value)| value.as_str())
+                    ),
+                    _ => assert_eq!(*value, captured_value.as_str(), "{name}"),
+                }
+            }
 
             let connections = server.connections()?;
             assert_eq!(connections.len(), 1);

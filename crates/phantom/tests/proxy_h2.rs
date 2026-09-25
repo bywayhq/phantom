@@ -636,6 +636,13 @@ macro_rules! proxy_fixture {
 /// that carries `:scheme`, which leaves out CONNECT, ordered by proxy
 /// connection and then by block.
 fn captured_forwarded_blocks(fixture: &str) -> TestResult<Vec<Vec<String>>> {
+    captured_blocks(fixture, true)
+}
+
+/// Returns the ordinary field names of the run-0 client HEADERS blocks that
+/// carry `:scheme` (`forwarded`) or do not (CONNECT), ordered by proxy
+/// connection and then by block.
+fn captured_blocks(fixture: &str, forwarded: bool) -> TestResult<Vec<Vec<String>>> {
     let mut blocks = Vec::new();
     for line in fixture.lines() {
         let Some((key, order)) = line.split_once('=') else {
@@ -651,7 +658,7 @@ fn captured_forwarded_blocks(fixture: &str) -> TestResult<Vec<Vec<String>>> {
             .split_once("_headers_")
             .ok_or("unexpected field-order key")?;
         let names: Vec<&str> = order.split(',').collect();
-        if names.contains(&":scheme") {
+        if names.contains(&":scheme") == forwarded {
             blocks.push((
                 connection.parse::<usize>()?,
                 block.parse::<usize>()?,
@@ -770,6 +777,112 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             Ok(())
         })
         .await?;
+    }
+    Ok(())
+}
+
+/// The profile's CONNECT fields on an HTTP/2 proxy: `user-agent` after the
+/// pseudo-fields, then `proxy-authorization` on the replay after a `407`,
+/// as every H2 CONNECT in the `https-proxy-hostname` and
+/// `https-proxy-auth-hostname` captures of Chrome 154, Edge 153, and
+/// Firefox 156 sends them. The captures tunnel `ws://`; an HTTPS tunnel uses
+/// the same request.
+#[tokio::test]
+async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
+    let cases = [
+        (
+            "chrome",
+            chromium::v154_proxy_connect(),
+            chromium::v154_windows_navigation_template(),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-hostname"),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
+        ),
+        (
+            "edge",
+            chromium::v154_proxy_connect(),
+            chromium::v154_windows_navigation_template(),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-hostname"),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
+        ),
+        (
+            "firefox",
+            firefox::v156_proxy_connect(),
+            firefox::v156_windows_navigation_template(),
+            proxy_fixture!("firefox/156.0", "https-proxy-hostname"),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
+        ),
+    ];
+    for (label, connect, navigation, anonymous, authenticated) in cases {
+        let expected_anonymous = captured_blocks(anonymous, false)?
+            .into_iter()
+            .next()
+            .ok_or("capture has no H2 CONNECT")?;
+        let expected_authenticated = captured_blocks(authenticated, false)?
+            .into_iter()
+            .next()
+            .ok_or("capture has no H2 CONNECT")?;
+        let user_agent = navigation
+            .http2_fields
+            .iter()
+            .find(|field| field.name() == Some("user-agent"))
+            .and_then(|field| field.default_value(true))
+            .ok_or("template has no user-agent")?
+            .as_bytes()
+            .to_vec();
+        let template = PreparedRequestTemplate::new(navigation)?;
+        for credentials in [false, true] {
+            bounded(async {
+                let origin_identity = TestIdentity::generate()?;
+                let proxy = H2Proxy::bind().await?;
+                let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+                let proxy_task = tokio::spawn(async move {
+                    let mut records = Vec::new();
+                    for reply in if credentials {
+                        vec![Reply::Challenge, Reply::Status(502)]
+                    } else {
+                        vec![Reply::Status(502)]
+                    } {
+                        let (tcp, _) = listener.accept().await?;
+                        records.push(serve_connect(tcp, &acceptor, reply).await?);
+                    }
+                    Ok::<_, Box<dyn StdError + Send + Sync>>(records)
+                });
+                let mut proxy = HttpProxy::new(&proxy_uri)?;
+                if credentials {
+                    proxy = proxy.with_basic_auth("alice", "secret")?;
+                }
+                let client = Client::builder(
+                    ClientProfile::new(tls_settings())
+                        .with_http2(if label == "firefox" {
+                            firefox::v156_http2()
+                        } else {
+                            chromium::v154_http2()
+                        })
+                        .with_proxy_connect(connect.clone()),
+                )
+                .add_root_certificate_der(origin_identity.root_der.clone())
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(Route::http_proxy(proxy.with_http2_transport()?))
+                .build()?;
+                let _ = client
+                    .get(HttpProtocol::Http2, "https://origin.test/page")?
+                    .template(&template)
+                    .send()
+                    .await;
+                let records = proxy_task.await??;
+                let last = records.last().ok_or("no CONNECT")?;
+                let names: Vec<String> = last.fields.iter().map(|(name, _)| name.clone()).collect();
+                let expected = if credentials {
+                    &expected_authenticated
+                } else {
+                    &expected_anonymous
+                };
+                assert_eq!(&names, expected, "{label} credentials={credentials}");
+                assert_eq!(last.fields[0].1, user_agent, "{label}");
+                Ok(())
+            })
+            .await?;
+        }
     }
     Ok(())
 }

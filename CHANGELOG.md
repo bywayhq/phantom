@@ -188,6 +188,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `RequestField::when_forwarded` constructors: a template field whose value
   depends on whether an HTTP proxy forwards the request (absolute form on
   HTTP/1.1, `:scheme` `http` on an HTTP/2 proxy connection).
+- `ClientProfile::with_proxy_connect` and `ClientProfile::proxy_connect`,
+  `ProxyConnectTemplate`, `ProxyConnectField`, and
+  `InvalidProxyConnectTemplate`: the ordered fields of the CONNECT request
+  that opens an HTTP proxy tunnel, per proxy transport, for a route that sets
+  none of its own. `chromium::v154_proxy_connect` (Chrome 154 and Edge 153)
+  and `firefox::v156_proxy_connect` carry the captured fields, with the
+  tunnelled request's `User-Agent`.
 - `RequestField::ProxyAuthorization`, with the
   `RequestField::proxy_authorization` constructor, and
   `ProxyAuthorizationAttempt`: the position of the generated

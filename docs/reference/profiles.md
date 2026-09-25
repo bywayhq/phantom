@@ -18,6 +18,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
+| `with_proxy_connect(template)` | Fields of the CONNECT request that opens an HTTP proxy tunnel ([details](#proxy-connect-fields)) |
 | `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/connections-and-state.md#place-the-cookie-field-where-a-browser-does)) |
 
 A request fails before any network I/O if the profile lacks a component it
@@ -45,6 +46,9 @@ build that can be recaptured and reverified.
 - HTTP/1.1 connection recipes are not in the table either, for the same
   reason. `chromium::v154_http1` and `firefox::v156_http1` come from browser
   source ([HTTP/1.1 connections](#http11-connections)).
+- Proxy CONNECT recipes are not in the table: `chromium::v154_proxy_connect`
+  serves Chrome and Edge, and `firefox::v156_proxy_connect` serves Firefox
+  ([Proxy CONNECT fields](#proxy-connect-fields)).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
   Only `chromium::v154_http2` and `firefox::v156_http2` carry one
   ([Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does)).
@@ -236,6 +240,32 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 
 The template's priority replaces the H2 recipe's connection priority, which
 is the navigation weight.
+
+## Proxy CONNECT fields
+
+A `ProxyConnectTemplate` orders the fields of the CONNECT request that opens
+an HTTP proxy tunnel for an HTTPS, `wss://`, or `ws://` origin, with one list
+per proxy transport. It applies to a route whose CONNECT fields you did not
+set with `HttpProxy::header`, `headers`, or `connect_headers`; fields you set
+replace it.
+
+| Recipe | HTTP/1.1 proxy | HTTP/2 proxy, after `:method` and `:authority` |
+| --- | --- | --- |
+| None (no `with_proxy_connect`) | `Host`, then `Proxy-Authorization` | `proxy-authorization` |
+| `chromium::v154_proxy_connect` (Chrome 154 and Edge 153) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+| `firefox::v156_proxy_connect` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+
+- `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`
+  credentials, after a challenge or once the proxy has accepted them.
+- `User-Agent` is a `ProxyConnectField::FromRequest` entry: the CONNECT
+  copies the value of the request or WebSocket opening that opens the
+  tunnel, your field or else its template's. Without one it sends none.
+- A tunnel opened for one request serves later requests on the same route,
+  so its CONNECT carries the first request's `User-Agent`.
+- The captures tunnel `ws://` origins only. That an HTTPS or `wss://` tunnel
+  sends the same fields is inferred.
+
+Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-route-browser-evidence).
 
 ## Required caller fields
 

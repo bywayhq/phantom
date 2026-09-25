@@ -13,7 +13,8 @@ use phantom_net::{
     tcp::UnsupportedTcpSettings,
 };
 use phantom_profile::{
-    InvalidClientHintSettings, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
+    InvalidClientHintSettings, InvalidProxyConnectTemplate, InvalidTcpSettings, InvalidTlsSettings,
+    InvalidWebSocketSettings,
 };
 
 use crate::{HttpProtocol, TimeoutPhase};
@@ -85,6 +86,14 @@ impl BuildError {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
             "invalid client-hint profile",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_proxy_connect_profile(source: InvalidProxyConnectTemplate) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidProfile,
+            "invalid proxy CONNECT profile",
             source,
         )
     }

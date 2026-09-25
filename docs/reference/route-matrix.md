@@ -66,6 +66,10 @@ Notes:
 
 ## HTTP proxy rules
 
+- Without CONNECT fields of your own, a CONNECT request carries the
+  profile's `with_proxy_connect` fields, or else only `Host` and the
+  credentials placeholder
+  ([Proxy CONNECT fields](profiles.md#proxy-connect-fields)).
 - `HttpProxy::header` appends a CONNECT field after the leading `Host`.
 - `HttpProxy::headers` replaces the fields after `Host`.
 - `HttpProxy::connect_headers` replaces the whole sequence, and

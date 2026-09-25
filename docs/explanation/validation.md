@@ -1623,9 +1623,24 @@ Against the route matrix:
   `plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening`
   in `crates/phantom/tests/websocket_profile.rs` sends the Chromium and
   Firefox recipes' openings through a loopback CONNECT proxy and compares the
-  field order with the `http-proxy-loopback` captures. Phantom's CONNECT
-  carries only `Host` unless the route sets more fields; the test sets the
-  captured ones with `HttpProxy::connect_headers`.
+  field order with the `http-proxy-loopback` captures.
+- CONNECT fields: a profile with `chromium::v154_proxy_connect` or
+  `firefox::v156_proxy_connect` sends the captured CONNECT fields in the
+  captured order on both proxy transports, with the `User-Agent` of the
+  request or opening that opens the tunnel. Without the recipe, or when the
+  route sets its own fields, the CONNECT carries only what the route names.
+  `connect_requests_send_the_captured_fields` in
+  `crates/phantom/tests/proxy_field_order.rs` compares the anonymous,
+  replayed, and remembered-credential CONNECT of an HTTPS request with the
+  `http-proxy-*` and `http-proxy-auth-*` captures;
+  `h2_connect_sends_the_captured_profile_fields` in `proxy_h2.rs` compares
+  the H2 CONNECT with the `https-proxy-hostname` and
+  `https-proxy-auth-hostname` captures; the `ws://` tests above and
+  `plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields` in
+  `websocket_http2_proxy.rs` cover WebSocket tunnels on both transports.
+  Every captured CONNECT tunnels a `ws://` origin, so the same fields on an
+  HTTPS or `wss://` tunnel are inferred. The captured CONNECT `User-Agent`
+  equals the page request's in every run.
 - `http://` through an H2 proxy: Phantom forwards exact H2 and negotiated
   requests over H2 with `:scheme` `http`, as every captured browser does.
   `chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order` and
@@ -1655,8 +1670,9 @@ Limits:
   settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
 - Chromium was launched with `--disable-field-trial-config`; field trials in
   a normal profile may change these results.
-- The `ws://` opening inside the tunnel, the fields of H1 forwarding, and
-  the pseudo-field order of H2 forwarding are compared with a fixture. The
+- The `ws://` opening inside the tunnel, the CONNECT fields, the fields of
+  H1 forwarding, and the pseudo-field order of H2 forwarding are compared
+  with a fixture. The
   `ws://` opening is compared for both origins; see
   [Plaintext origin trust evidence](#plaintext-origin-trust-evidence).
 
@@ -1752,9 +1768,9 @@ Against Phantom:
   `forward_proxy.rs` covers H1 forwarding on the pooled proxy connection and
   a `407` to remembered credentials. `websocket/routing.rs` covers two
   `ws://` tunnels after one challenge.
-- A CONNECT request places the field at the route's placeholder, last by
-  default, as both browsers do when the route's CONNECT fields are the
-  captured ones.
+- A CONNECT request places the field at the placeholder of the route's
+  CONNECT fields, or of the profile's `with_proxy_connect` recipe, last in
+  both built-in recipes, as both browsers do.
 - A forwarded request with a built-in request template places the field at
   the template's `RequestField::ProxyAuthorization` slot for the attempt.
   `forwarded_requests_place_proxy_credentials_as_captured` in

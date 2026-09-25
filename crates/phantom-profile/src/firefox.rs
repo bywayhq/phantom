@@ -9,6 +9,7 @@ use crate::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
     },
+    proxy_connect::{ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::{
@@ -357,6 +358,37 @@ pub fn v156_websocket() -> WebSocketSettings {
         ],
         permessage_deflate_offer: Vec::new(),
         empty_message_compression: WebSocketEmptyMessageCompression::Uncompressed,
+    }
+}
+
+/// Returns the CONNECT request fields observed from Firefox 156.0 on Windows 11.
+///
+/// From the retained proxy route captures, three runs of each scenario.
+/// Every HTTP/1.1 CONNECT for the page's `ws://` origin sends `User-Agent`,
+/// `Proxy-Connection: keep-alive`, `Connection: keep-alive`, and `Host`,
+/// then `Proxy-Authorization` when the proxy asked for credentials
+/// (`http-proxy-*` and `http-proxy-auth-*`). Every HTTP/2 CONNECT to the TLS
+/// proxy sends `user-agent` after `:method` and `:authority`, then
+/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`).
+///
+/// Firefox's `User-Agent` there is its own, which the captures show equal to
+/// the page request's. The recipe copies the `User-Agent` of the request
+/// that opens the tunnel: the caller's field, or the request template's
+/// value.
+#[must_use]
+pub fn v156_proxy_connect() -> ProxyConnectTemplate {
+    ProxyConnectTemplate {
+        http1_fields: vec![
+            ProxyConnectField::from_request("User-Agent"),
+            ProxyConnectField::literal("Proxy-Connection", "keep-alive"),
+            ProxyConnectField::literal("Connection", "keep-alive"),
+            ProxyConnectField::authority("Host"),
+            ProxyConnectField::proxy_authorization("Proxy-Authorization"),
+        ],
+        http2_fields: vec![
+            ProxyConnectField::from_request("user-agent"),
+            ProxyConnectField::proxy_authorization("proxy-authorization"),
+        ],
     }
 }
 

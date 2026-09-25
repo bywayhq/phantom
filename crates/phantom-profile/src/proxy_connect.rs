@@ -1,0 +1,297 @@
+//! Ordered fields of the CONNECT request that opens an HTTP proxy tunnel.
+//!
+//! A [`ProxyConnectTemplate`] records the fields one browser sends in the
+//! CONNECT request for a tunnel, in the order observed on each proxy
+//! transport. The `phantom` client applies it to an HTTP proxy route whose
+//! CONNECT fields the caller has not set.
+
+use std::{collections::HashSet, error::Error, fmt};
+
+/// One field or placeholder of a CONNECT request.
+///
+/// Field-name spelling is emitted exactly as written. HTTP/2 lists must use
+/// lowercase names.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ProxyConnectField {
+    /// The tunnel's `host:port`, as the HTTP/1.1 `Host` field.
+    ///
+    /// HTTP/2 sends the authority as the `:authority` pseudo-header field
+    /// before every other field, so an HTTP/2 list has no such entry.
+    Authority {
+        /// Field-name spelling, an ASCII case variant of `Host`.
+        name: Box<str>,
+    },
+    /// A field emitted with this name and value.
+    Literal {
+        /// Exact field-name spelling.
+        name: Box<str>,
+        /// Captured field value.
+        value: Box<str>,
+    },
+    /// The value of the field with this name in the request that opens the
+    /// tunnel, such as its `User-Agent`.
+    ///
+    /// The request's own field wins over its template's captured value. When
+    /// the request sends no such field, the CONNECT request sends none either.
+    FromRequest {
+        /// Exact field-name spelling emitted with the request's value.
+        name: Box<str>,
+    },
+    /// The position of the generated `Proxy-Authorization` field when the
+    /// route has Basic credentials.
+    ProxyAuthorization {
+        /// Field-name spelling, an ASCII case variant of
+        /// `Proxy-Authorization`.
+        name: Box<str>,
+    },
+}
+
+impl ProxyConnectField {
+    /// Creates the tunnel-authority placeholder.
+    #[must_use]
+    pub fn authority(name: impl Into<Box<str>>) -> Self {
+        Self::Authority { name: name.into() }
+    }
+
+    /// Creates a field with a captured value.
+    #[must_use]
+    pub fn literal(name: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        Self::Literal {
+            name: name.into(),
+            value: value.into(),
+        }
+    }
+
+    /// Creates a field that copies the tunnelled request's value.
+    #[must_use]
+    pub fn from_request(name: impl Into<Box<str>>) -> Self {
+        Self::FromRequest { name: name.into() }
+    }
+
+    /// Creates the generated-credentials placeholder.
+    #[must_use]
+    pub fn proxy_authorization(name: impl Into<Box<str>>) -> Self {
+        Self::ProxyAuthorization { name: name.into() }
+    }
+
+    /// Returns the entry's field name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Authority { name }
+            | Self::Literal { name, .. }
+            | Self::FromRequest { name }
+            | Self::ProxyAuthorization { name } => name,
+        }
+    }
+}
+
+/// Ordered CONNECT fields for each HTTP proxy transport.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProxyConnectTemplate {
+    /// Ordered fields of an HTTP/1.1 CONNECT request, after its request line.
+    pub http1_fields: Vec<ProxyConnectField>,
+    /// Ordered fields of an HTTP/2 CONNECT request, after `:method` and
+    /// `:authority`.
+    pub http2_fields: Vec<ProxyConnectField>,
+}
+
+impl ProxyConnectTemplate {
+    /// Validates both lists.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidProxyConnectTemplate`] when a name is not a token or
+    /// repeats, a placeholder's name is not a case variant of its field, a
+    /// literal is `Host`, `Proxy-Authorization`, or a framing field, a
+    /// literal value is invalid, or a list lacks exactly one
+    /// `Proxy-Authorization` placeholder. The HTTP/1.1 list must have exactly
+    /// one authority placeholder; the HTTP/2 list must have none, use
+    /// lowercase names, and carry no connection-specific field.
+    pub fn validate(&self) -> Result<(), InvalidProxyConnectTemplate> {
+        validate_fields(&self.http1_fields, "http1_fields", false)?;
+        validate_fields(&self.http2_fields, "http2_fields", true)
+    }
+}
+
+/// Error returned when CONNECT template data is inconsistent.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidProxyConnectTemplate {
+    field: &'static str,
+    message: &'static str,
+}
+
+impl InvalidProxyConnectTemplate {
+    const fn new(field: &'static str, message: &'static str) -> Self {
+        Self { field, message }
+    }
+
+    /// Returns the invalid list's field name.
+    #[must_use]
+    pub const fn field(&self) -> &'static str {
+        self.field
+    }
+
+    /// Returns the reason the list is invalid.
+    #[must_use]
+    pub const fn reason(&self) -> &'static str {
+        self.message
+    }
+}
+
+impl fmt::Display for InvalidProxyConnectTemplate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid proxy CONNECT template {}: {}",
+            self.field, self.message
+        )
+    }
+}
+
+impl Error for InvalidProxyConnectTemplate {}
+
+/// Connection-specific fields that HTTP/2 forbids (RFC 9113 section 8.2.2).
+const CONNECTION_SPECIFIC: [&str; 5] = [
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "te",
+    "upgrade",
+];
+
+fn validate_fields(
+    fields: &[ProxyConnectField],
+    list: &'static str,
+    http2: bool,
+) -> Result<(), InvalidProxyConnectTemplate> {
+    let mut names = HashSet::with_capacity(fields.len());
+    let mut authorities = 0_usize;
+    let mut authorizations = 0_usize;
+    for field in fields {
+        let name = field.name();
+        if name.is_empty() || !name.bytes().all(is_token_byte) {
+            return Err(InvalidProxyConnectTemplate::new(
+                list,
+                "field names must be non-empty tokens",
+            ));
+        }
+        if http2 && name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+            return Err(InvalidProxyConnectTemplate::new(
+                list,
+                "HTTP/2 field names must be lowercase",
+            ));
+        }
+        let lower = name.to_ascii_lowercase();
+        match field {
+            ProxyConnectField::Authority { .. } => {
+                if http2 {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "HTTP/2 sends the authority as :authority, so its list has no authority entry",
+                    ));
+                }
+                if lower != "host" {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "the authority placeholder must be named Host",
+                    ));
+                }
+                authorities += 1;
+            }
+            ProxyConnectField::ProxyAuthorization { .. } => {
+                if lower != "proxy-authorization" {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "the credentials placeholder must be named Proxy-Authorization",
+                    ));
+                }
+                authorizations += 1;
+            }
+            ProxyConnectField::Literal { value, .. } => {
+                if !value
+                    .bytes()
+                    .all(|byte| matches!(byte, b'\t' | b' '..=b'~'))
+                {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "literal values must contain only visible ASCII, spaces, or tabs",
+                    ));
+                }
+                if matches!(
+                    lower.as_str(),
+                    "host" | "proxy-authorization" | "content-length" | "transfer-encoding"
+                ) {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "Host, Proxy-Authorization, and framing fields are placeholders or generated",
+                    ));
+                }
+            }
+            ProxyConnectField::FromRequest { .. } => {
+                if matches!(
+                    lower.as_str(),
+                    "host" | "proxy-authorization" | "content-length" | "transfer-encoding"
+                ) {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "Host, Proxy-Authorization, and framing fields are placeholders or generated",
+                    ));
+                }
+            }
+        }
+        if http2 && CONNECTION_SPECIFIC.contains(&lower.as_str()) {
+            return Err(InvalidProxyConnectTemplate::new(
+                list,
+                "HTTP/2 lists must not carry connection-specific fields",
+            ));
+        }
+        if !names.insert(lower) {
+            return Err(InvalidProxyConnectTemplate::new(
+                list,
+                "field names must not repeat",
+            ));
+        }
+    }
+    if !http2 && authorities != 1 {
+        return Err(InvalidProxyConnectTemplate::new(
+            list,
+            "an HTTP/1.1 list needs exactly one authority placeholder",
+        ));
+    }
+    if authorizations != 1 {
+        return Err(InvalidProxyConnectTemplate::new(
+            list,
+            "a list needs exactly one Proxy-Authorization placeholder",
+        ));
+    }
+    Ok(())
+}
+
+const fn is_token_byte(byte: u8) -> bool {
+    matches!(
+        byte,
+        b'!' | b'#'
+            | b'$'
+            | b'%'
+            | b'&'
+            | b'\''
+            | b'*'
+            | b'+'
+            | b'-'
+            | b'.'
+            | b'^'
+            | b'_'
+            | b'`'
+            | b'|'
+            | b'~'
+            | b'0'..=b'9'
+            | b'a'..=b'z'
+            | b'A'..=b'Z'
+    )
+}
+
+#[cfg(test)]
+#[path = "proxy_connect/tests.rs"]
+mod tests;

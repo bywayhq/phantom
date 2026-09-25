@@ -21,9 +21,9 @@ use std::{
 };
 
 use phantom::{
-    Client, ConnectUdpProxy, HttpProtocol, HttpProxy, Route, Socks5Proxy, WebSocket,
+    Client, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestHeader, Route, Socks5Proxy, WebSocket,
     WebSocketCloseFrame, WebSocketErrorKind, WebSocketMessage,
-    profile::{ClientProfile, Http2PseudoHeader, chromium},
+    profile::{ClientProfile, Http2PseudoHeader, chromium, firefox},
 };
 use phantom_net::proxy::HttpConnectError;
 use tokio::{net::TcpListener, sync::oneshot, time::timeout};
@@ -478,6 +478,57 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
         Ok(())
     })
     .await
+}
+
+/// A `ws://` tunnel on an HTTP/2 proxy sends the profile's CONNECT fields
+/// with the opening's `User-Agent`, as every H2 CONNECT in the
+/// `https-proxy-hostname` and `https-proxy-loopback` captures of Chrome 154,
+/// Edge 153, and Firefox 156 does: `user-agent` alone after `:method` and
+/// `:authority`.
+#[tokio::test]
+async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestResult<()> {
+    for connect in [
+        chromium::v154_proxy_connect(),
+        firefox::v156_proxy_connect(),
+    ] {
+        bounded(async {
+            let (origin_address, origin_listener) = bind().await?;
+            let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+            let proxy_identity = TestIdentity::generate()?;
+            let (proxy_address, proxy_listener) = bind().await?;
+            let proxy = tokio::spawn(tunnel_proxy::http2_connect(
+                proxy_listener,
+                proxy_identity.acceptor(H2_ALPN)?,
+                origin_address,
+            ));
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
+            );
+            let profile = ClientProfile::new(tls_settings())
+                .with_http2(chromium::v154_http2())
+                .with_proxy_connect(connect.clone());
+            let client = Client::builder(profile)
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(route)
+                .build()?;
+            let socket = client
+                .websocket(&format!("ws://{origin_address}/profile-connect"))?
+                .header(RequestHeader::new("User-Agent", "opening-agent"))
+                .connect()
+                .await?;
+            exchange_echo(socket).await?;
+
+            let record = proxy.await??;
+            assert_eq!(
+                record.fields,
+                [("user-agent".to_owned(), b"opening-agent".to_vec())]
+            );
+            origin.await??;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 type OriginTask = tokio::task::JoinHandle<TestResult<websocket_origin::ExtendedConnectRecord>>;

@@ -1,9 +1,10 @@
-use std::{error::Error as StdError, fmt};
+use std::{error::Error as StdError, fmt, sync::Arc};
 
 use phantom_net::{
     proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol},
     request::RequestHeader,
 };
+use phantom_profile::{ProxyConnectField, ProxyConnectTemplate};
 
 use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
@@ -197,6 +198,24 @@ impl Route {
         uri.scheme_str() == Some("http") && matches!(self, Self::HttpProxy(_))
     }
 
+    /// Returns this route with the profile's CONNECT fields, for an HTTP
+    /// proxy whose CONNECT fields the caller has not set.
+    ///
+    /// `request_value` returns the value the request that opens the tunnel
+    /// sends in a field of the given name.
+    pub(crate) fn with_profile_connect(
+        &self,
+        template: Option<&ProxyConnectTemplate>,
+        request_value: impl Fn(&str) -> Option<Vec<u8>>,
+    ) -> Option<Self> {
+        match (self, template) {
+            (Self::HttpProxy(proxy), Some(template)) => proxy
+                .with_profile_connect(template, request_value)
+                .map(Self::HttpProxy),
+            _ => None,
+        }
+    }
+
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
             Self::HttpProxy(proxy) => Some(proxy),
@@ -208,9 +227,15 @@ impl Route {
 /// HTTP proxy configuration for forwarding and CONNECT tunneling.
 ///
 /// A new proxy speaks HTTP/1.1, sends no credentials, and sends a CONNECT
-/// request whose only field is a leading `Host`. The scheme, protocol, CONNECT
-/// fields, and credentials are all part of the route, so proxies that differ
-/// in any of them never share a pooled connection.
+/// request whose only field is a leading `Host`, unless the client profile
+/// has CONNECT fields
+/// ([`ClientProfile::with_proxy_connect`](crate::profile::ClientProfile::with_proxy_connect)).
+/// Fields set with [`Self::header`], [`Self::headers`], or
+/// [`Self::connect_headers`] replace the profile's. The scheme, protocol,
+/// CONNECT fields you set, and credentials are all part of the route, so
+/// proxies that differ in any of them never share a pooled connection. The
+/// profile's fields are not: a tunnel opened for one request serves later
+/// requests on the same route, as a browser's does.
 ///
 /// # Examples
 ///
@@ -225,14 +250,33 @@ impl Route {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct HttpProxy {
     transport: HttpProxyTransport,
     protocol: HttpsProxyProtocol,
     endpoint: Endpoint,
     connect_headers: Vec<HttpConnectHeader>,
+    /// Whether the caller set the CONNECT fields, which then win over the
+    /// profile's.
+    connect_headers_set: bool,
+    /// The profile's CONNECT fields for one request, which replace
+    /// `connect_headers` on the wire and are not part of route identity.
+    profile_connect_headers: Option<Arc<[HttpConnectHeader]>>,
     credentials: Option<HttpBasicCredentials>,
 }
+
+impl PartialEq for HttpProxy {
+    fn eq(&self, other: &Self) -> bool {
+        self.transport == other.transport
+            && self.protocol == other.protocol
+            && self.endpoint == other.endpoint
+            && self.connect_headers == other.connect_headers
+            && self.connect_headers_set == other.connect_headers_set
+            && self.credentials == other.credentials
+    }
+}
+
+impl Eq for HttpProxy {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HttpProxyTransport {
@@ -266,6 +310,8 @@ impl HttpProxy {
             protocol: HttpsProxyProtocol::Http1,
             endpoint,
             connect_headers: vec![HttpConnectHeader::authority("Host")],
+            connect_headers_set: false,
+            profile_connect_headers: None,
             credentials: None,
         })
     }
@@ -349,10 +395,12 @@ impl HttpProxy {
     /// Appends one ordered field to the CONNECT request.
     ///
     /// A literal `Host` or request-framing field is rejected before proxy I/O;
-    /// use [`HttpConnectHeader::Authority`] to control `Host` placement.
+    /// use [`HttpConnectHeader::Authority`] to control `Host` placement. The
+    /// route's CONNECT fields then replace the profile's.
     #[must_use]
     pub fn header(mut self, header: RequestHeader) -> Self {
         self.connect_headers.push(HttpConnectHeader::field(header));
+        self.connect_headers_set = true;
         self
     }
 
@@ -360,9 +408,11 @@ impl HttpProxy {
     ///
     /// When Basic credentials are configured, the `Proxy-Authorization`
     /// placeholder stays last. As with [`Self::header`], a literal `Host` or
-    /// request-framing field is rejected before proxy I/O.
+    /// request-framing field is rejected before proxy I/O, and the route's
+    /// CONNECT fields replace the profile's.
     #[must_use]
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
+        self.connect_headers_set = true;
         self.connect_headers = std::iter::once(HttpConnectHeader::authority("Host"))
             .chain(headers.into_iter().map(HttpConnectHeader::field))
             .chain(
@@ -380,10 +430,12 @@ impl HttpProxy {
     /// [`HttpConnectHeader::Authority`] placeholder. When Basic credentials are
     /// configured, it must also contain exactly one
     /// [`HttpConnectHeader::proxy_authorization`] placeholder. Validation
-    /// happens before proxy I/O when a request is sent.
+    /// happens before proxy I/O when a request is sent. The sequence
+    /// replaces the profile's CONNECT fields.
     #[must_use]
     pub fn connect_headers(mut self, headers: Vec<HttpConnectHeader>) -> Self {
         self.connect_headers = headers;
+        self.connect_headers_set = true;
         self
     }
 
@@ -417,7 +469,60 @@ impl HttpProxy {
     }
 
     pub(crate) fn ordered_connect_headers(&self) -> &[HttpConnectHeader] {
-        &self.connect_headers
+        self.profile_connect_headers
+            .as_deref()
+            .unwrap_or(&self.connect_headers)
+    }
+
+    /// Returns this proxy with `template`'s fields for its transport, or
+    /// `None` when the caller set the CONNECT fields.
+    ///
+    /// The HTTP/2 list starts with the authority placeholder, which HTTP/2
+    /// sends as `:authority`. A [`ProxyConnectField::FromRequest`] entry takes
+    /// `request_value` for its name and is left out when that is `None`; the
+    /// credentials placeholder is left out without credentials.
+    fn with_profile_connect(
+        &self,
+        template: &ProxyConnectTemplate,
+        request_value: impl Fn(&str) -> Option<Vec<u8>>,
+    ) -> Option<Self> {
+        if self.connect_headers_set {
+            return None;
+        }
+        let (fields, authority) = if self.uses_http2() {
+            (
+                &template.http2_fields,
+                Some(HttpConnectHeader::authority("host")),
+            )
+        } else {
+            (&template.http1_fields, None)
+        };
+        let mut headers: Vec<HttpConnectHeader> = authority.into_iter().collect();
+        for field in fields {
+            match field {
+                ProxyConnectField::Authority { name } => {
+                    headers.push(HttpConnectHeader::authority(&**name));
+                }
+                ProxyConnectField::Literal { name, value } => {
+                    headers.push(HttpConnectHeader::field(RequestHeader::new(
+                        &**name,
+                        value.as_bytes(),
+                    )));
+                }
+                ProxyConnectField::FromRequest { name } => {
+                    if let Some(value) = request_value(name) {
+                        headers.push(HttpConnectHeader::field(RequestHeader::new(&**name, value)));
+                    }
+                }
+                ProxyConnectField::ProxyAuthorization { name } if self.credentials.is_some() => {
+                    headers.push(HttpConnectHeader::proxy_authorization(&**name));
+                }
+                _ => {}
+            }
+        }
+        let mut proxy = self.clone();
+        proxy.profile_connect_headers = Some(headers.into());
+        Some(proxy)
     }
 
     pub(crate) fn basic_credentials(&self) -> Option<&HttpBasicCredentials> {
@@ -795,6 +900,54 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.kind(), ProxyConfigErrorKind::InvalidCredentials);
+        Ok(())
+    }
+
+    #[test]
+    fn profile_connect_fields_apply_only_without_route_fields_and_keep_route_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let template = phantom_profile::chromium::v154_proxy_connect();
+        let user_agent = |name: &str| {
+            name.eq_ignore_ascii_case("user-agent")
+                .then(|| b"agent".to_vec())
+        };
+        let proxy = HttpProxy::new("http://proxy.example")?;
+        let profiled = proxy
+            .with_profile_connect(&template, user_agent)
+            .ok_or("default fields were not replaced")?;
+        assert_eq!(profiled, proxy, "profile fields are not route identity");
+        let names: Vec<String> = profiled
+            .ordered_connect_headers()
+            .iter()
+            .map(|header| format!("{header:?}"))
+            .collect();
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(names[1].contains("Proxy-Connection") && names[2].contains("User-Agent"));
+
+        let credentials = proxy.clone().with_basic_auth("user", "secret")?;
+        let profiled = credentials
+            .with_profile_connect(&template, user_agent)
+            .ok_or("default fields were not replaced")?;
+        assert!(
+            profiled
+                .ordered_connect_headers()
+                .last()
+                .is_some_and(HttpConnectHeader::is_proxy_authorization)
+        );
+
+        for configured in [
+            proxy
+                .clone()
+                .header(phantom_net::request::RequestHeader::new("X-Route", "1")),
+            proxy.clone().headers(Vec::new()),
+            proxy.connect_headers(vec![HttpConnectHeader::authority("Host")]),
+        ] {
+            assert!(
+                configured
+                    .with_profile_connect(&template, user_agent)
+                    .is_none()
+            );
+        }
         Ok(())
     }
 

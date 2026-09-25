@@ -54,6 +54,14 @@ pub(super) async fn send_once(
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
     lifecycle.replays.start_hop();
+    let connect_route = if route.forwards(&request.uri) {
+        None
+    } else {
+        route.with_profile_connect(client.inner.proxy_connect.as_deref(), |name| {
+            request_field_value(request, &attempt.headers, name)
+        })
+    };
+    let route = connect_route.as_ref().unwrap_or(route);
     match selection {
         ProtocolSelection::Exact(protocol) => {
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
@@ -509,6 +517,26 @@ pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> 
         .as_ref()
         .filter(|_| is_potentially_trustworthy(&request.url))
         .map(|_| request.url.origin().ascii_serialization())
+}
+
+/// Returns the value `request` sends in the field `name`: the caller's field,
+/// or else its template's value for the URL.
+fn request_field_value(
+    request: &ResolvedRequest,
+    caller: &[RequestHeader],
+    name: &str,
+) -> Option<Vec<u8>> {
+    caller
+        .iter()
+        .find(|header| header.name().eq_ignore_ascii_case(name))
+        .map(|header| header.value().to_vec())
+        .or_else(|| {
+            request
+                .template
+                .as_ref()?
+                .default_field_value(name, is_potentially_trustworthy(&request.url))
+                .map(|value| value.as_bytes().to_vec())
+        })
 }
 
 /// Returns the fields of one attempt that no HTTP proxy forwards.

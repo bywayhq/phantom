@@ -98,18 +98,12 @@ have shown where the real architectural boundaries are.
 - Bring the plaintext proxy routes in line with the
   [proxy route captures](explanation/validation.md#proxy-route-browser-evidence)
   of Chrome 154, Edge 153, and Firefox 156:
-  1. CONNECT fields. Chromium sends `Host`, `Proxy-Connection: keep-alive`,
-     and `User-Agent`; Firefox sends `User-Agent`,
-     `Proxy-Connection: keep-alive`, `Connection: keep-alive`, and `Host`.
-     Phantom's default CONNECT carries only `Host`; `HttpProxy::headers` and
-     `HttpProxy::connect_headers` can set the captured fields, but no recipe
-     supplies them.
-  2. HPACK indexing of `proxy-authorization`. Both browsers send it as a
+  1. HPACK indexing of `proxy-authorization`. Both browsers send it as a
      literal with incremental indexing and then as an indexed field on the
      same H2 proxy connection; Phantom marks it sensitive, so it is always a
      never-indexed literal. Changing this needs a way to index a field
      without printing its value in diagnostics.
-  3. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
+  2. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
      browsers replay a challenged HTTP/1.1 forwarded request on the same
      proxy connection when the `407` leaves it open, and Chromium does the
      same for CONNECT. Phantom opens a new proxy connection for these

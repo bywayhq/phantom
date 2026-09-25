@@ -324,7 +324,17 @@ impl WebSocketRequestBuilder {
         result
     }
 
-    async fn connect_inner(self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
+    async fn connect_inner(mut self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
+        // A tunnel's CONNECT copies fields such as `User-Agent` from the
+        // opening, as browsers do.
+        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+        if let Some(route) = route
+            .with_profile_connect(self.client.inner.proxy_connect.as_deref(), |name| {
+                opening_field_value(&self.headers, name)
+            })
+        {
+            self.route = Some(route);
+        }
         match self.selection {
             WebSocketSelection::Exact(HttpProtocol::Http1) => {
                 self.connect_http1(Http1UpgradeConnector::Profile).await
@@ -425,6 +435,19 @@ impl WebSocketRequestBuilder {
         let compression = false;
         handshake::validate_policy_templates(&self.headers, &self.http2_headers, compression)
     }
+}
+
+/// Returns the value of the opening field `name`, from the caller or the
+/// profile recipe.
+fn opening_field_value(headers: &[WebSocketHeader], name: &str) -> Option<Vec<u8>> {
+    headers.iter().find_map(|header| match header {
+        WebSocketHeader::Field(field) | WebSocketHeader::DefaultField(field)
+            if field.name().eq_ignore_ascii_case(name) =>
+        {
+            Some(field.value().to_vec())
+        }
+        _ => None,
+    })
 }
 
 struct ResolvedWebSocket {
