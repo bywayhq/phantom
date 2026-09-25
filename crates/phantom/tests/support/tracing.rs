@@ -161,7 +161,7 @@ impl OutcomeSubscriber {
             .collect()
     }
 
-    /// The `early_data` field each span of this name was created with.
+    /// The `early_data` field of each span of this name, in recording order.
     #[allow(dead_code)]
     pub(crate) fn early_data_for(&self, span_name: &str) -> Vec<String> {
         self.state()
@@ -229,6 +229,15 @@ impl Subscriber for OutcomeSubscriber {
     }
 
     fn record(&self, span: &Id, values: &Record<'_>) {
+        // `early_data` is recorded once an HTTP/3 request stream opens.
+        let mut early = EarlyDataVisitor::default();
+        values.record(&mut early);
+        if let Some(early_data) = early.early_data {
+            let mut state = self.state();
+            if let Some(name) = state.span_names.get(&span.into_u64()).copied() {
+                state.early_data.push((name, early_data));
+            }
+        }
         let mut visitor = OutcomeVisitor::default();
         values.record(&mut visitor);
         if visitor.outcome.is_none()

@@ -123,77 +123,83 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
-        if connector.sends_early_data() {
-            let early = self
-                .admit(endpoint, route, timeout_budget)
+        let leased = self
+            .admit(endpoint, route, timeout_budget)
+            .await?
+            .connect(
+                connector,
+                connect_udp_proxy,
+                endpoint,
+                route,
+                transport,
+                timeout_budget,
+                retries,
+                Http3SetupControl {
+                    early_data: connector.sends_early_data(),
+                    ..Http3SetupControl::default()
+                },
+            )
+            .await?;
+        if sends_before_handshake(
+            is_replay_safe(&method, body.as_ref(), &trailers),
+            leased.lease.connection.early_data_pending(),
+            connector.requests_wait_for_peer_settings(),
+        ) {
+            // A replay-safe request on a connection whose early data is still
+            // unanswered goes out as early data, with the client hints known
+            // before the handshake.
+            let result = dispatch(
+                leased,
+                connector,
+                method.clone(),
+                authority,
+                target.clone(),
+                headers.clone(),
+                trailers.clone(),
+                client_hints,
+                None,
+                timeout_budget,
+                retries,
+            )
+            .await;
+            match result {
+                Err(error) if error.is_http3_early_data_rejected() => {}
+                result => return result,
+            }
+        } else {
+            // Any other request is sent once the early data is answered, with
+            // the client hints the completed handshake delivered, and keeps
+            // its body until then.
+            match leased
+                .wait_for_early_data(connector, timeout_budget)
                 .await?
-                .connect(
-                    connector,
-                    connect_udp_proxy,
-                    endpoint,
-                    route,
-                    transport,
-                    timeout_budget,
-                    retries,
-                    Http3SetupControl {
-                        early_data: true,
-                        ..Http3SetupControl::default()
-                    },
-                )
-                .await?;
-            if is_replay_safe(&method, body.as_ref(), &trailers) {
-                let result = dispatch(
-                    early,
-                    connector,
-                    method.clone(),
-                    authority,
-                    target.clone(),
-                    headers.clone(),
-                    trailers.clone(),
-                    client_hints,
-                    None,
-                    timeout_budget,
-                    retries,
-                )
-                .await;
-                match result {
-                    Err(error) if error.is_http3_early_data_rejected() => {
-                        // Rejected early data was not processed (RFC 9001,
-                        // section 4.6.2). The request is sent again after a
-                        // handshake, over the same route and protocol.
-                        debug!(
-                            outcome = "early_data_rejected",
-                            "HTTP/3 early data rejected; sending after the handshake"
-                        );
-                    }
-                    result => return result,
+            {
+                EarlyDataWait::Ready(leased) => {
+                    return dispatch(
+                        leased,
+                        connector,
+                        method,
+                        authority,
+                        target,
+                        headers,
+                        trailers,
+                        client_hints,
+                        body,
+                        timeout_budget,
+                        retries,
+                    )
+                    .await;
                 }
-            } else if let Some(settled) = early.settle_early_data(timeout_budget).await? {
-                // A new connection offered early data, as the captured
-                // browsers' connections do, but this request must not be
-                // replayed, so it goes out only once the handshake accepted
-                // the early data, and keeps its body until then.
-                return dispatch(
-                    settled,
-                    connector,
-                    method,
-                    authority,
-                    target,
-                    headers,
-                    trailers,
-                    client_hints,
-                    body,
-                    timeout_budget,
-                    retries,
-                )
-                .await;
-            } else {
-                debug!(
-                    outcome = "early_data_rejected",
-                    "HTTP/3 early data not accepted; the request waits for a new handshake"
-                );
+                EarlyDataWait::Rejected(_) => {}
             }
         }
+        // Rejected early data was not processed (RFC 9001, section 4.6.2). The
+        // request is sent again after a handshake, over the same route and
+        // protocol, on a connection that offers no early data.
+        debug!(
+            outcome = "early_data_rejected",
+            "HTTP/3 early data rejected; sending after a handshake"
+        );
         let leased = self
             .acquire_lease(
                 connector,
@@ -205,7 +211,7 @@ impl Http3Pool {
                 retries,
             )
             .await?;
-        dispatch(
+        self.send_request_on_lease(
             leased,
             connector,
             method,
@@ -295,6 +301,13 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
+        let leased = match leased
+            .wait_for_early_data(connector, timeout_budget)
+            .await?
+        {
+            EarlyDataWait::Ready(leased) => leased,
+            EarlyDataWait::Rejected(error) => return Err(error),
+        };
         dispatch(
             leased,
             connector,
@@ -504,12 +517,11 @@ impl PoolEntry {
             token: Arc::new(()),
             location,
         };
-        if slot.connection.sent_early_data() {
-            // Until the server accepts its early data, the connection serves
-            // only the replay-safe request that opened it.
-            drop(turn);
-            return Ok(slot.unpooled_lease());
-        }
+        // A connection whose early data is unanswered is pooled at once, so
+        // later requests to this location share it instead of opening their
+        // own; each waits for the answer unless it may go out early. A
+        // rejected or failed connection is invalidated by the first request
+        // that sees it.
         let lease = slot.lease();
         let mut slots = self.slots.lock().await;
         if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
@@ -684,20 +696,6 @@ impl PoolEntry {
         })
     }
 
-    /// Pools a connection whose early data the server accepted, unless its
-    /// location already has one.
-    async fn adopt(&self, slot: ConnectionSlot) {
-        let mut slots = self.slots.lock().await;
-        if slots.iter().any(|pooled| pooled.location == slot.location) {
-            return;
-        }
-        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
-            slots.pop_front();
-            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
-        }
-        slots.push_back(slot);
-    }
-
     async fn invalidate(&self, token: &Arc<()>) {
         let mut slots = self.slots.lock().await;
         if let Some(position) = slots
@@ -846,45 +844,65 @@ pub(crate) struct Http3Lease {
     permit: AdmissionPermit,
 }
 
+/// Whether a request may use its lease, after waiting for the early data.
+enum EarlyDataWait {
+    /// The connection sent no early data, or the server accepted it.
+    Ready(Http3Lease),
+    /// The server rejected the early data, so it processed none of it. The
+    /// error is the one to report when the request is not sent again.
+    Rejected(RequestError),
+}
+
 impl Http3Lease {
-    /// Waits, within the connect phase, until a new connection that sent
-    /// early data completes its handshake.
+    /// Waits, within the connect phase, until the server answers the leased
+    /// connection's early data.
     ///
-    /// Returns the lease with its connection pooled when the server accepted
-    /// the early data, and the lease unchanged for a connection that sent
-    /// none. Returns `None` when the server rejected the early data or the
-    /// handshake failed; that connection is never reused, and dropping the
-    /// lease releases its admission.
-    async fn settle_early_data(
+    /// A connection that sent none, or whose early data was accepted, is
+    /// ready at once. A rejection, a failed handshake, and invalid handshake
+    /// metadata each invalidate the pooled connection, and only a rejection
+    /// lets the request be sent elsewhere; the others are request errors.
+    /// A connect timeout leaves the connection pooled for the requests still
+    /// waiting on it. Dropping the lease releases its admission.
+    async fn wait_for_early_data(
         self,
+        connector: &Http3Connector,
         timeout_budget: TimeoutBudget,
-    ) -> Result<Option<Self>, RequestError> {
-        let Some(location) = self.lease.adopt_at.clone() else {
-            return Ok(Some(self));
-        };
-        let accepted = timeout_budget
+    ) -> Result<EarlyDataWait, RequestError> {
+        if !self.lease.connection.sent_early_data() {
+            return Ok(EarlyDataWait::Ready(self));
+        }
+        let settled = timeout_budget
             .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
-                Ok(self.lease.connection.early_data_accepted().await)
+                Ok(connector
+                    .early_data_settled_on(&self.lease.connection)
+                    .await)
             })
             .await?;
-        if accepted != Some(true) {
-            return Ok(None);
+        let Err(error) = settled else {
+            return Ok(EarlyDataWait::Ready(self));
+        };
+        self.entry.invalidate(&self.lease.token).await;
+        let error = RequestError::http3_stream(error);
+        if error.is_http3_early_data_rejected() {
+            Ok(EarlyDataWait::Rejected(error))
+        } else {
+            Err(error)
         }
-        self.entry
-            .adopt(ConnectionSlot {
-                connection: self.lease.connection.clone(),
-                token: Arc::clone(&self.lease.token),
-                location,
-            })
-            .await;
-        Ok(Some(Self {
-            lease: ConnectionLease {
-                adopt_at: None,
-                ..self.lease
-            },
-            ..self
-        }))
     }
+}
+
+/// Returns whether a request goes out before its connection's handshake
+/// completes: a replay-safe request on a connection whose early data is
+/// unanswered, unless the QPACK policy holds every request until the peer's
+/// SETTINGS, which arrive only with the completed handshake. Such a request
+/// uses the client hints known before the handshake; every other request
+/// waits for the answer and uses the hints the handshake delivered.
+const fn sends_before_handshake(
+    replay_safe: bool,
+    early_data_pending: bool,
+    requests_wait_for_peer_settings: bool,
+) -> bool {
+    replay_safe && early_data_pending && !requests_wait_for_peer_settings
 }
 
 /// Checks one request's H3 and route representation before any I/O.
@@ -1012,18 +1030,6 @@ async fn dispatch(
         .await;
     match result {
         Ok(Ok(response)) => {
-            if let Some(location) = lease.adopt_at {
-                // A response means the handshake has completed.
-                if lease.connection.early_data_accepted().await == Some(true) {
-                    entry
-                        .adopt(ConnectionSlot {
-                            connection: lease.connection.clone(),
-                            token: lease.token,
-                            location,
-                        })
-                        .await;
-                }
-            }
             let (parts, body) = response.into_parts();
             Ok((
                 http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
@@ -1098,17 +1104,6 @@ impl ConnectionSlot {
         ConnectionLease {
             connection: self.connection.clone(),
             token: Arc::clone(&self.token),
-            adopt_at: None,
-        }
-    }
-
-    /// A lease on a connection kept out of the pool until the request that
-    /// opened it shows the server accepted its early data.
-    fn unpooled_lease(self) -> ConnectionLease {
-        ConnectionLease {
-            connection: self.connection,
-            token: self.token,
-            adopt_at: Some(self.location),
         }
     }
 }
@@ -1116,8 +1111,6 @@ impl ConnectionSlot {
 struct ConnectionLease {
     connection: Http3Connection,
     token: Arc<()>,
-    /// Where to pool the connection once its early data is accepted.
-    adopt_at: Option<TransportLocation>,
 }
 
 #[cfg(test)]
@@ -1177,6 +1170,25 @@ mod tests {
         match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
             std::task::Poll::Ready(output) => Some(output),
             std::task::Poll::Pending => None,
+        }
+    }
+
+    /// Only a replay-safe request on a connection whose early data is
+    /// unanswered, under a QPACK policy that does not wait for the peer's
+    /// SETTINGS, goes out before the handshake with the pre-handshake client
+    /// hints; every other request waits and uses the handshake's hints.
+    #[test]
+    fn only_an_unheld_replay_safe_request_goes_out_before_the_handshake() {
+        use super::sends_before_handshake;
+
+        assert!(sends_before_handshake(true, true, false));
+        for (replay_safe, pending, waits) in [
+            (true, true, true),
+            (false, true, false),
+            (true, false, false),
+            (false, false, true),
+        ] {
+            assert!(!sends_before_handshake(replay_safe, pending, waits));
         }
     }
 

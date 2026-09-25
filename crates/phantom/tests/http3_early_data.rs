@@ -16,15 +16,18 @@ use std::{
     collections::HashMap,
     future::Future,
     net::{Ipv4Addr, SocketAddr},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::Duration,
 };
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol,
+    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase,
     profile::{ClientProfile, Http3ClientSettings, Http3QpackEncoding, chromium},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -249,7 +252,8 @@ fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
 /// wait for the server's SETTINGS, which the gate also holds, so this client
 /// encodes requests statelessly; see `stateless_chrome_profile`.
 #[tokio::test]
-async fn chrome_recipe_sends_get_as_early_data_and_holds_post() -> TestResult<()> {
+async fn resumed_connection_sends_get_early_and_holds_post_with_stateless_qpack() -> TestResult<()>
+{
     bounded(async {
         let identity = TestIdentity::generate()?;
         let endpoint = quinn::Endpoint::server(
@@ -515,6 +519,324 @@ async fn forward_gated(
             }
         }
     }
+}
+
+/// A `POST` that opens a resumed connection offers early data but waits for
+/// the handshake. When the server rejects the early data, the `POST` is sent
+/// on a new connection with its whole body.
+#[tokio::test]
+async fn rejected_early_data_resends_a_post_with_its_body() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let address = endpoint.local_addr()?;
+        let (served_tx, mut served) = mpsc::unbounded_channel();
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let declining = server_config(&identity, false)?;
+        let server = tokio::spawn(async move {
+            let first = serve_body_then_close(&endpoint, &mut read).await?;
+            let _ = served_tx.send(first);
+            // The server now declines early data, as after a key rotation.
+            endpoint.set_server_config(Some(declining));
+            let rejected = endpoint.accept().await.ok_or("endpoint closed")?;
+            let rejected = tokio::spawn(async move {
+                let connection = rejected.await?;
+                let mut connection =
+                    h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection))
+                        .await?;
+                let unexpected = connection.accept().await.ok().flatten().is_some();
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(unexpected)
+            });
+            let resent = serve_body_then_close(&endpoint, &mut read).await?;
+            let _ = served_tx.send(resent);
+            let unexpected = match timeout(Duration::from_secs(1), rejected).await {
+                Ok(joined) => joined?.unwrap_or(false),
+                Err(_) => false,
+            };
+            if unexpected {
+                return Err("the rejected connection delivered a request".into());
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = Client::builder(chrome_profile())
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        send(&client, address, "/first").await?;
+        read_tx.send(())?;
+        assert_eq!(
+            served.recv().await.ok_or("server stopped")?,
+            ("/first".to_owned(), Vec::new())
+        );
+
+        let body = b"a body that must arrive whole".to_vec();
+        let response = client
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/post"),
+            )?
+            .body(Bytes::from(body.clone()))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        response.into_body().collect().await?;
+        read_tx.send(())?;
+        assert_eq!(
+            served.recv().await.ok_or("server stopped")?,
+            ("/post".to_owned(), body)
+        );
+
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+/// A resumed connection whose handshake fails after it sent early data fails
+/// the request that is waiting on it, without a second connection.
+#[tokio::test]
+async fn failed_early_data_handshake_is_an_error_without_a_second_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let untrusted = TestIdentity::generate()?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let address = endpoint.local_addr()?;
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let (learned_tx, learned) = tokio::sync::oneshot::channel();
+        let incoming = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&incoming);
+        let untrusted_config = server_config(&untrusted, true)?;
+        let server = tokio::spawn(async move {
+            serve_body_then_close(&endpoint, &mut read).await?;
+            // A certificate the client does not trust fails the next
+            // handshake after the client has sent its early data.
+            endpoint.set_server_config(Some(untrusted_config));
+            let _ = learned_tx.send(());
+            while let Some(connecting) = endpoint.accept().await {
+                counted.fetch_add(1, Ordering::SeqCst);
+                tokio::spawn(async move {
+                    let _ = connecting.await;
+                });
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = Client::builder(chrome_profile())
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        send(&client, address, "/first").await?;
+        read_tx.send(())?;
+        learned.await?;
+
+        let error = match client
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{address}/post"),
+            )?
+            .body(Bytes::from_static(b"body"))
+            .send()
+            .await
+        {
+            Ok(_) => return Err("a failed handshake produced a response".into()),
+            Err(error) => error,
+        };
+        assert_ne!(error.kind(), RequestErrorKind::Timeout);
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert_eq!(incoming.load(Ordering::SeqCst), 1);
+
+        server.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// The connect timeout bounds a request waiting for its connection's early
+/// data to be answered.
+#[tokio::test]
+async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let (gate, gate_open) = tokio::sync::watch::channel(true);
+        let (relay, relay_task) = gated_relay(endpoint.local_addr()?, gate_open).await?;
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let (learned_tx, learned) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            serve_body_then_close(&endpoint, &mut read).await?;
+            let _ = learned_tx.send(());
+            while let Some(connecting) = endpoint.accept().await {
+                tokio::spawn(async move {
+                    let _ = connecting.await;
+                });
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = Client::builder(chrome_profile())
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        send(&client, relay, "/first").await?;
+        read_tx.send(())?;
+        learned.await?;
+
+        // The gate holds the server's replies, so the handshake cannot end.
+        gate.send_replace(false);
+        let error = match client
+            .request(
+                HttpProtocol::Http3,
+                Method::POST,
+                &format!("https://{relay}/post"),
+            )?
+            .body(Bytes::from_static(b"body"))
+            .timeouts(RequestTimeouts::new().connect(Duration::from_millis(400)))
+            .send()
+            .await
+        {
+            Ok(_) => return Err("a held handshake produced a response".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Timeout);
+        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Connect));
+
+        gate.send_replace(true);
+        server.abort();
+        relay_task.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// Concurrent requests to a resumed origin share the connection whose early
+/// data is still unanswered, as Chrome 154 put its six concurrent fetches on
+/// one resumed connection, instead of each opening a connection.
+#[tokio::test]
+async fn concurrent_requests_share_one_resumed_connection() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let (learned_tx, learned) = tokio::sync::oneshot::channel();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&connections);
+        let server = tokio::spawn(async move {
+            serve_body_then_close(&endpoint, &mut read).await?;
+            let _ = learned_tx.send(());
+            while let Some(connecting) = endpoint.accept().await {
+                counted.fetch_add(1, Ordering::SeqCst);
+                tokio::spawn(serve_every_request(connecting));
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let client = Client::builder(chrome_profile())
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        send(&client, relay, "/first").await?;
+        read_tx.send(())?;
+        learned.await?;
+
+        let mut requests = Vec::new();
+        for method in [
+            Method::GET,
+            Method::HEAD,
+            Method::OPTIONS,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+        ] {
+            requests.push(tokio::spawn(send_with(
+                client.clone(),
+                method,
+                relay,
+                "/concurrent",
+            )));
+        }
+        for request in requests {
+            request.await??;
+        }
+        assert_eq!(connections.load(Ordering::SeqCst), 1);
+
+        server.abort();
+        relay_task.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// Serves every request on one connection with `200`, concurrently.
+async fn serve_every_request(connecting: quinn::Incoming) {
+    let Ok(quic) = connecting.await else {
+        return;
+    };
+    let Ok(mut connection) =
+        h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(quic)).await
+    else {
+        return;
+    };
+    while let Ok(Some(resolver)) = connection.accept().await {
+        tokio::spawn(async move {
+            let Ok((_, mut stream)) = resolver.resolve_request().await else {
+                return;
+            };
+            while let Ok(Some(_)) = stream.recv_data().await {}
+            let Ok(response) = Response::builder().status(StatusCode::OK).body(()) else {
+                return;
+            };
+            if stream.send_response(response).await.is_ok() {
+                let _ = stream.finish().await;
+            }
+        });
+    }
+}
+
+/// Serves one request on the next connection, returning its path and body,
+/// then closes the connection as [`serve_then_close`] does.
+async fn serve_body_then_close(
+    endpoint: &quinn::Endpoint,
+    read: &mut mpsc::UnboundedReceiver<()>,
+) -> TestResult<(String, Vec<u8>)> {
+    let incoming = endpoint.accept().await.ok_or("endpoint closed")?;
+    let quic = incoming.await?;
+    let mut connection =
+        h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(quic.clone())).await?;
+    let resolver = connection
+        .accept()
+        .await?
+        .ok_or("connection closed before its request")?;
+    let (request, mut stream) = resolver.resolve_request().await?;
+    let mut body = Vec::new();
+    while let Some(mut chunk) = stream.recv_data().await? {
+        while chunk.has_remaining() {
+            let bytes = chunk.chunk();
+            body.extend_from_slice(bytes);
+            let len = bytes.len();
+            chunk.advance(len);
+        }
+    }
+    stream
+        .send_response(Response::builder().status(StatusCode::OK).body(())?)
+        .await?;
+    stream.finish().await?;
+    read.recv().await.ok_or("client stopped")?;
+    quic.close(0u32.into(), b"served");
+    drop(connection);
+    endpoint.wait_idle().await;
+    Ok((request.uri().path().to_owned(), body))
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
