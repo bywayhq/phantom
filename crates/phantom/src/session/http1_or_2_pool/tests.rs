@@ -8,8 +8,8 @@ use tokio::{
 };
 
 use super::{
-    Acquired, BeforeAdmission, Checkout, EntryConnections, Http1Or2Pool, PoolKey, PooledConnection,
-    Reservation,
+    Acquired, BeforeAdmission, Checkout, EntryConnections, Http1Or2Pool, Http2Keys, MAX_HTTP2_KEYS,
+    PoolKey, PooledConnection, Reservation,
 };
 use crate::{HttpProtocol, HttpProxy, Route, Socks5Proxy, authority::Endpoint};
 
@@ -36,6 +36,21 @@ async fn http2() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error:
     let (client, server) = duplex(64 * 1024);
     let connection = Http2Connection::connect(client, &chromium::v154_http2()).await?;
     Ok((PooledConnection::Http2(connection), server))
+}
+
+fn key(host: &str) -> Result<PoolKey, Box<dyn std::error::Error>> {
+    let endpoint = Endpoint::new(format!("{host}:443").parse()?, 443)?;
+    Ok(PoolKey::new(&endpoint, &Route::Direct))
+}
+
+/// The connections of a key that has never selected H2, with a memory of
+/// its own.
+fn connections(max: NonZeroUsize) -> Result<Arc<EntryConnections>, Box<dyn std::error::Error>> {
+    Ok(Arc::new(EntryConnections::new(
+        max,
+        Arc::new(Http2Keys::default()),
+        key("origin.test")?,
+    )))
 }
 
 fn reserve(connections: &Arc<EntryConnections>) -> Result<Reservation, Box<dyn std::error::Error>> {
@@ -86,7 +101,7 @@ async fn pool_key_admits_as_many_connection_slots_as_the_http1_bound() -> TestRe
 
 #[tokio::test]
 async fn unknown_protocol_reserves_parallel_setups_up_to_the_bound() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(2)?));
+    let connections = connections(bound(2)?)?;
     assert!(matches!(
         connections.before_admission(),
         BeforeAdmission::Admit(None)
@@ -119,7 +134,7 @@ async fn unknown_protocol_reserves_parallel_setups_up_to_the_bound() -> TestResu
 
 #[tokio::test]
 async fn idle_http1_connection_is_leased_before_a_setup_is_reserved() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(2)?));
+    let connections = connections(bound(2)?)?;
     let (connection, _peer) = http1().await?;
     drop(reserve(&connections)?.finish(connection));
     assert_eq!(connections.counts(), (1, 0, 0));
@@ -137,7 +152,7 @@ async fn idle_http1_connection_is_leased_before_a_setup_is_reserved() -> TestRes
 
 #[tokio::test]
 async fn fresh_connection_at_the_bound_closes_the_least_recently_used_idle_one() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(NonZeroUsize::MIN));
+    let connections = connections(NonZeroUsize::MIN)?;
     let (connection, _peer) = http1().await?;
     drop(reserve(&connections)?.finish(connection));
     assert_eq!(connections.counts(), (1, 0, 0));
@@ -152,7 +167,7 @@ async fn fresh_connection_at_the_bound_closes_the_least_recently_used_idle_one()
 
 #[tokio::test]
 async fn retired_http1_connection_is_not_returned_to_idle() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(2)?));
+    let connections = connections(bound(2)?)?;
     let (connection, _peer) = http1().await?;
     let Acquired::Http1(mut lease) = reserve(&connections)?.finish(connection) else {
         return Err("an H1 connection was not leased as H1".into());
@@ -165,7 +180,7 @@ async fn retired_http1_connection_is_not_returned_to_idle() -> TestResult {
 
 #[tokio::test]
 async fn known_http2_key_waits_for_the_setup_in_flight() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(6)?));
+    let connections = connections(bound(6)?)?;
     let (connection, _first_peer) = http2().await?;
     let Acquired::Http2(first) = reserve(&connections)?.finish(connection) else {
         return Err("an H2 connection was not leased as H2".into());
@@ -204,7 +219,7 @@ async fn known_http2_key_waits_for_the_setup_in_flight() -> TestResult {
 
 #[tokio::test]
 async fn failed_setup_releases_requests_waiting_for_it() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(6)?));
+    let connections = connections(bound(6)?)?;
     let (connection, _peer) = http2().await?;
     let Acquired::Http2(first) = reserve(&connections)?.finish(connection) else {
         return Err("an H2 connection was not leased as H2".into());
@@ -228,7 +243,7 @@ async fn failed_setup_releases_requests_waiting_for_it() -> TestResult {
 
 #[tokio::test]
 async fn second_http2_connection_is_closed_in_favor_of_the_current_one() -> TestResult {
-    let connections = Arc::new(EntryConnections::new(bound(6)?));
+    let connections = connections(bound(6)?)?;
     let first_setup = reserve(&connections)?;
     let second_setup = reserve(&connections)?;
     let (idle, _idle_peer) = http1().await?;
@@ -303,5 +318,76 @@ async fn negotiated_connections_through_http_proxies_are_keyed_by_proxy() -> Tes
         &entries[1],
         &pool.entry(PoolKey::new(&endpoint, &plaintext)).await
     ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn http2_selection_is_remembered_beyond_the_pool_entry() -> TestResult {
+    let one = NonZeroUsize::MIN;
+    let pool = Http1Or2Pool::new(one, bound(6)?, one, one, one, one);
+    let first = Endpoint::new("first.test:443".parse()?, 443)?;
+    let second = Endpoint::new("second.test:443".parse()?, 443)?;
+
+    let entry = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+    let setup = reserve(&entry.connections)?;
+    let (connection, _peer) = http2().await?;
+    drop(setup.finish(connection));
+    drop(entry);
+    // The single retained entry is evicted, then recreated.
+    pool.entry(PoolKey::new(&second, &Route::Direct)).await;
+    let recreated = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
+
+    // The new entry already knows the key selects H2, so a setup in flight
+    // holds back the next request.
+    let _setup = reserve(&recreated.connections)?;
+    assert!(matches!(
+        recreated.connections.before_admission(),
+        BeforeAdmission::AwaitSetup
+    ));
+    // Another route to the same origin is still a first contact.
+    let socks5 = Route::socks5(Socks5Proxy::new("socks5://proxy.test:1080")?);
+    let other_route = pool.entry(PoolKey::new(&first, &socks5)).await;
+    let _other_setup = reserve(&other_route.connections)?;
+    assert!(matches!(
+        other_route.connections.before_admission(),
+        BeforeAdmission::Admit(None)
+    ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn http1_selection_does_not_forget_http2() -> TestResult {
+    let connections = connections(bound(6)?)?;
+    let (connection, _h2_peer) = http2().await?;
+    let Acquired::Http2(first) = reserve(&connections)?.finish(connection) else {
+        return Err("an H2 connection was not leased as H2".into());
+    };
+    connections.invalidate_http2(&first.token);
+    let (connection, _h1_peer) = http1().await?;
+    let lease = reserve(&connections)?.finish(connection);
+
+    let _setup = reserve(&connections)?;
+    assert!(matches!(
+        connections.before_admission(),
+        BeforeAdmission::AwaitSetup
+    ));
+    drop(lease);
+    Ok(())
+}
+
+#[test]
+fn remembered_http2_keys_are_bounded_least_recently_used_first() -> TestResult {
+    let keys = Http2Keys::default();
+    let oldest = key("key-0.test")?;
+    keys.insert(&oldest);
+    for index in 1..MAX_HTTP2_KEYS {
+        keys.insert(&key(&format!("key-{index}.test"))?);
+    }
+    // A lookup marks the oldest key recently used, so the next one goes.
+    assert!(keys.contains(&oldest));
+    keys.insert(&key("newest.test")?);
+    assert!(keys.contains(&oldest));
+    assert!(!keys.contains(&key("key-1.test")?));
+    assert_eq!(keys.lock().len(), MAX_HTTP2_KEYS);
     Ok(())
 }

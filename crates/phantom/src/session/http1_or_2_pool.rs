@@ -33,7 +33,7 @@ use crate::{
     authority::Endpoint,
     error::is_unprocessed_http2,
     retry::ConnectionSetupRetryState,
-    timeout::{TimeoutBudget, TimeoutPhase},
+    timeout::{PhaseTimeout, TimeoutBudget, TimeoutPhase},
 };
 
 /// Negotiated HTTP/1.1-or-HTTP/2 connections, grouped by origin and route.
@@ -56,6 +56,7 @@ pub(crate) struct Http1Or2Pool {
     max_http2_active: NonZeroUsize,
     max_http2_pending: NonZeroUsize,
     state: Mutex<PoolState>,
+    http2_keys: Arc<Http2Keys>,
 }
 
 impl Http1Or2Pool {
@@ -74,6 +75,7 @@ impl Http1Or2Pool {
             max_http2_active,
             max_http2_pending,
             state: Mutex::new(PoolState::default()),
+            http2_keys: Arc::new(Http2Keys::default()),
         }
     }
 
@@ -341,11 +343,16 @@ impl Http1Or2Pool {
             state
                 .selection_admissions
                 .get(&key, selection_active, selection_pending);
+        let connections = EntryConnections::new(
+            self.max_http1_active,
+            Arc::clone(&self.http2_keys),
+            key.clone(),
+        );
         let entry = Arc::new(PoolEntry::new(
             selection_admission,
             http1_admission,
             http2_admission,
-            self.max_http1_active,
+            connections,
         ));
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
@@ -377,6 +384,52 @@ impl PoolKey {
     }
 }
 
+/// The most pool keys a client remembers as having selected H2: Chromium's
+/// `HttpServerProperties::kMaxServerInfoEntries`
+/// (`net/http/http_server_properties.h:97`).
+const MAX_HTTP2_KEYS: usize = 500;
+
+/// Pool keys whose connections have selected H2, least recently used first.
+///
+/// The memory outlives pool entries, as Chromium's `HttpServerProperties`
+/// outlives its sockets, so an evicted entry does not start over as a first
+/// contact. It is keyed by origin and route, as Firefox keys the
+/// `ConnectionEntry` that holds `mUsingSpdy`
+/// (`netwerk/protocol/http/nsHttpConnectionInfo.cpp:212-232`) and as Phantom
+/// keys its other learned state; Chromium keys it by origin alone.
+#[derive(Default)]
+struct Http2Keys {
+    keys: std::sync::Mutex<VecDeque<PoolKey>>,
+}
+
+impl Http2Keys {
+    fn lock(&self) -> MutexGuard<'_, VecDeque<PoolKey>> {
+        self.keys.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Returns whether `key` selected H2 before, marking it recently used.
+    fn contains(&self, key: &PoolKey) -> bool {
+        let mut keys = self.lock();
+        let Some(position) = keys.iter().position(|candidate| candidate == key) else {
+            return false;
+        };
+        if let Some(found) = keys.remove(position) {
+            keys.push_back(found);
+        }
+        true
+    }
+
+    fn insert(&self, key: &PoolKey) {
+        let mut keys = self.lock();
+        if let Some(position) = keys.iter().position(|candidate| candidate == key) {
+            keys.remove(position);
+        } else if keys.len() == MAX_HTTP2_KEYS {
+            keys.pop_front();
+        }
+        keys.push_back(key.clone());
+    }
+}
+
 struct PoolEntry {
     connections: Arc<EntryConnections>,
     selection_admission: Arc<Admission>,
@@ -391,10 +444,10 @@ impl PoolEntry {
         selection_admission: Arc<Admission>,
         http1_admission: Arc<Admission>,
         http2_admission: Arc<Admission>,
-        max_http1_connections: NonZeroUsize,
+        connections: EntryConnections,
     ) -> Self {
         Self {
-            connections: Arc::new(EntryConnections::new(max_http1_connections)),
+            connections: Arc::new(connections),
             selection_admission,
             http1_admission,
             http2_admission,
@@ -418,10 +471,12 @@ impl PoolEntry {
         }
     }
 
-    /// Admits one request to an H1 connection or a connection in setup.
+    /// Admits one request to an H1 connection slot, waiting in arrival order.
     ///
-    /// The capacity error names H1 only when the key already has an H1
-    /// connection; before that, ALPN has not chosen a protocol.
+    /// Only a request to a key with an H1 connection waits here, so the
+    /// capacity error names H1. `protocol` is `None` only when every slot was
+    /// taken with no setup in flight, which lasts until a slot holder
+    /// reserves its setup.
     async fn admit_connection_slot(
         &self,
         protocol: Option<HttpProtocol>,
@@ -438,7 +493,13 @@ impl PoolEntry {
     /// protocol admits the request, so the request is always counted by one
     /// bounded admission; its connection slot is released during the delay.
     /// No lock is held across an await. `fresh_http1` makes the request skip
-    /// idle H1 connections until it acquires one.
+    /// idle H1 connections until it acquires a connection.
+    ///
+    /// While ALPN has not chosen a protocol for the key, a request that finds
+    /// every slot held by a setup in flight waits for a setup to finish
+    /// instead of queueing for a slot: the setup may select H2, which serves
+    /// the request without a slot. Only a key with an H1 connection queues
+    /// requests at the H1 waiting bound.
     #[allow(clippy::too_many_arguments)]
     async fn acquire_selected(
         &self,
@@ -453,83 +514,138 @@ impl PoolEntry {
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(ConnectionLease, AdmissionPermit), RequestError> {
         let mut force_new_connection = fresh_http1;
+        // One connect deadline covers each setup attempt: waiting for another
+        // request's setup and this request's own. A setup retry starts anew.
+        let mut connect: Option<PhaseTimeout> = None;
         loop {
-            let lease = match self.connections.before_admission() {
-                BeforeAdmission::Http2(lease) => lease,
-                BeforeAdmission::AwaitSetup => {
-                    timeout_budget
-                        .run(TimeoutPhase::Connect, None, async {
-                            self.connections.setup_finished().await;
-                            Ok(())
-                        })
-                        .await?;
+            let slot = match self.connections.before_admission() {
+                BeforeAdmission::Http2(lease) => {
+                    if let Some(admitted) = self
+                        .try_admit_http2(lease, request_span, timeout_budget)
+                        .await?
+                    {
+                        drop(selection);
+                        return Ok(admitted);
+                    }
                     continue;
                 }
-                BeforeAdmission::Admit(protocol) => {
-                    let slot = timeout_budget
+                BeforeAdmission::AwaitSetup => {
+                    self.await_setup(&mut connect, timeout_budget).await?;
+                    continue;
+                }
+                BeforeAdmission::Admit(Some(protocol)) => {
+                    timeout_budget
                         .run(
                             TimeoutPhase::PoolAdmission,
-                            protocol,
-                            self.admit_connection_slot(protocol),
+                            Some(protocol),
+                            self.admit_connection_slot(Some(protocol)),
                         )
-                        .await?;
-                    // Connector futures include bounded proxy-authentication
-                    // state machines; keep them off this future's stack.
-                    let attempt = Box::pin(self.acquire(
-                        connector,
-                        https_proxy,
-                        endpoint,
-                        route,
-                        force_new_connection,
-                    ));
-                    let acquired = match timeout_budget
-                        .run(TimeoutPhase::Connect, None, attempt)
-                        .await
-                    {
-                        Ok(acquired) => {
-                            force_new_connection = false;
-                            acquired
+                        .await?
+                }
+                BeforeAdmission::Admit(None) => {
+                    match Arc::clone(&self.http1_admission).try_admit() {
+                        Some(slot) => slot,
+                        None if self.await_setup(&mut connect, timeout_budget).await? => continue,
+                        // Every slot is taken and no setup is in flight.
+                        None => {
+                            timeout_budget
+                                .run(
+                                    TimeoutPhase::PoolAdmission,
+                                    None,
+                                    self.admit_connection_slot(None),
+                                )
+                                .await?
                         }
-                        Err(error) => {
-                            // A request in a retry delay has no connection,
-                            // so its slot goes back before the delay.
-                            drop(slot);
-                            if retries.retry_after(&error, None, timeout_budget).await? {
-                                continue;
-                            }
-                            return Err(error);
-                        }
-                    };
-                    match acquired {
-                        // The slot goes back before waiting, so the setup
-                        // being awaited never waits for this request.
-                        Acquired::AwaitSetup => continue,
-                        Acquired::Http1(lease) => {
-                            request_span
-                                .record("selected_protocol", HttpProtocol::Http1.trace_name());
-                            drop(selection);
-                            return Ok((ConnectionLease::Http1(lease), slot));
-                        }
-                        // An H2 request holds H2 admission, not a slot.
-                        Acquired::Http2(lease) => lease,
                     }
                 }
             };
-            request_span.record("selected_protocol", HttpProtocol::Http2.trace_name());
-            let permit = timeout_budget
-                .run(
-                    TimeoutPhase::PoolAdmission,
-                    Some(HttpProtocol::Http2),
-                    self.admit(HttpProtocol::Http2),
-                )
-                .await?;
-            if self.connections.is_current_http2(&lease) {
-                drop(selection);
-                return Ok((ConnectionLease::Http2(lease), permit));
+            // Connector futures include bounded proxy-authentication state
+            // machines; keep them off this future's stack.
+            let attempt = Box::pin(self.acquire(
+                connector,
+                https_proxy,
+                endpoint,
+                route,
+                force_new_connection,
+            ));
+            let acquired = match connect_phase(&mut connect, timeout_budget)?
+                .run(attempt)
+                .await
+            {
+                Ok(acquired) => acquired,
+                Err(error) => {
+                    // A request in a retry delay has no connection, so its
+                    // slot goes back before the delay.
+                    drop(slot);
+                    connect = None;
+                    if retries.retry_after(&error, None, timeout_budget).await? {
+                        continue;
+                    }
+                    return Err(error);
+                }
+            };
+            match acquired {
+                // The slot goes back before waiting, so the setup being
+                // awaited never waits for this request.
+                Acquired::AwaitSetup => {}
+                Acquired::Http1(lease) => {
+                    request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
+                    drop(selection);
+                    return Ok((ConnectionLease::Http1(lease), slot));
+                }
+                // An H2 request holds H2 admission, not a slot.
+                Acquired::Http2(lease) => {
+                    drop(slot);
+                    force_new_connection = false;
+                    if let Some(admitted) = self
+                        .try_admit_http2(lease, request_span, timeout_budget)
+                        .await?
+                    {
+                        drop(selection);
+                        return Ok(admitted);
+                    }
+                }
             }
-            drop(permit);
-            self.connections.invalidate_http2(&lease.token);
         }
+    }
+
+    /// Waits under the attempt's connect deadline for a setup in flight;
+    /// returns `false` at once when none is.
+    async fn await_setup(
+        &self,
+        connect: &mut Option<PhaseTimeout>,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<bool, RequestError> {
+        connect_phase(connect, timeout_budget)?
+            .run(async { Ok(self.connections.setup_finished().await) })
+            .await
+    }
+
+    /// Admits a request to the key's H2 connection.
+    ///
+    /// Returns `None`, with the connection retired, when the connection
+    /// stopped being the key's reusable H2 connection while the request
+    /// waited for admission.
+    async fn try_admit_http2(
+        &self,
+        lease: Http2Lease,
+        request_span: &Span,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<Option<(ConnectionLease, AdmissionPermit)>, RequestError> {
+        request_span.record("selected_protocol", HttpProtocol::Http2.trace_name());
+        let permit = timeout_budget
+            .run(
+                TimeoutPhase::PoolAdmission,
+                Some(HttpProtocol::Http2),
+                self.admit(HttpProtocol::Http2),
+            )
+            .await?;
+        if self.connections.is_current_http2(&lease) {
+            return Ok(Some((ConnectionLease::Http2(lease), permit)));
+        }
+        drop(permit);
+        self.connections.invalidate_http2(&lease.token);
+        Ok(None)
     }
 
     /// Phase three: dispatches the request on its admitted lease.
@@ -801,6 +917,19 @@ impl PoolEntry {
     }
 }
 
+/// Returns the attempt's connect deadline, starting it on first use.
+fn connect_phase(
+    connect: &mut Option<PhaseTimeout>,
+    timeout_budget: TimeoutBudget,
+) -> Result<PhaseTimeout, RequestError> {
+    if let Some(phase) = *connect {
+        return Ok(phase);
+    }
+    let phase = timeout_budget.phase(TimeoutPhase::Connect, None)?;
+    *connect = Some(phase);
+    Ok(phase)
+}
+
 /// The connections of one negotiated pool key.
 ///
 /// At most one reusable H2 connection serves the key. H1 connections, idle
@@ -815,6 +944,9 @@ struct EntryConnections {
     state: std::sync::Mutex<ConnectionState>,
     /// Woken whenever a connection setup finishes, fails, or is cancelled.
     setup_done: Notify,
+    /// The client's memory of keys that selected H2, and this entry's key.
+    http2_keys: Arc<Http2Keys>,
+    key: PoolKey,
 }
 
 #[derive(Default)]
@@ -826,9 +958,13 @@ struct ConnectionState {
     http1_leased: usize,
     /// Connections being set up.
     connecting: usize,
-    /// A connection to this key has selected H2 before. Chromium's
-    /// `HttpServerProperties::SetSupportsSpdy` and Firefox's
-    /// `ConnectionEntry::mUsingSpdy` record the same fact.
+    /// A connection to this key has selected H2 before, in this entry or in
+    /// the client's [`Http2Keys`]. Chromium's `SetSupportsSpdy` and Firefox's
+    /// `mUsingSpdy` record the same fact, and neither clears it when a later
+    /// connection selects H1: every writer sets it to true
+    /// (`net/http/http_stream_factory_job.cc:1304-1306`,
+    /// `net/http/http_stream_pool_attempt_manager.cc:823-825`;
+    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1023`, `:3920`).
     selected_http2: bool,
 }
 
@@ -855,10 +991,12 @@ impl ConnectionState {
     /// Once the key has selected H2, the setup in flight will most likely
     /// select it again and then carry every request. Chromium 154 holds new
     /// connection attempts to such a server until the first one finishes, for
-    /// at most 300 ms (`net/http/http_stream_factory_job.cc:749-777`,
+    /// at most 300 ms (`net/http/http_stream_factory_job.cc:749-775`,
     /// `:1417-1429`), and Firefox 156 holds them until the attempt reports
     /// its protocol (`netwerk/protocol/http/ConnectionEntry.cpp:225-248`,
     /// `nsHttpConnectionMgr.cpp:1399-1409`). Phantom waits as Firefox does.
+    /// A key whose protocol is unknown waits only when every slot is taken
+    /// (see [`PoolEntry::acquire_selected`]).
     fn awaits_setup(&self) -> bool {
         self.selected_http2 && self.connecting > 0
     }
@@ -888,11 +1026,17 @@ enum Acquired {
 }
 
 impl EntryConnections {
-    fn new(max_http1: NonZeroUsize) -> Self {
+    fn new(max_http1: NonZeroUsize, http2_keys: Arc<Http2Keys>, key: PoolKey) -> Self {
+        let state = ConnectionState {
+            selected_http2: http2_keys.contains(&key),
+            ..ConnectionState::default()
+        };
         Self {
             max_http1,
-            state: std::sync::Mutex::new(ConnectionState::default()),
+            state: std::sync::Mutex::new(state),
             setup_done: Notify::new(),
+            http2_keys,
+            key,
         }
     }
 
@@ -916,16 +1060,19 @@ impl EntryConnections {
         BeforeAdmission::Admit(has_http1.then_some(HttpProtocol::Http1))
     }
 
-    /// Returns once no setup that the caller should wait for is in flight.
-    async fn setup_finished(&self) {
+    /// Waits until a setup in flight finishes, fails, or is cancelled.
+    ///
+    /// Returns `false` at once when no setup is in flight.
+    async fn setup_finished(&self) -> bool {
         let mut notified = pin!(self.setup_done.notified());
         // Registered before the check, so a setup finishing in between still
         // wakes this waiter.
         notified.as_mut().enable();
-        if !self.lock().awaits_setup() {
-            return;
+        if self.lock().connecting == 0 {
+            return false;
         }
         notified.await;
+        true
     }
 
     /// Leases the H2 connection or the most recently used idle H1
@@ -1042,6 +1189,7 @@ impl Reservation {
     /// closes the group's idle sockets (`:1283-1287`).
     fn finish(mut self, connection: PooledConnection) -> Acquired {
         self.finished = true;
+        let mut remember_http2 = false;
         let mut state = self.connections.lock();
         state.connecting = state.connecting.saturating_sub(1);
         let (lease, closed_http2, closed_http1) = match connection {
@@ -1056,6 +1204,7 @@ impl Reservation {
             }
             PooledConnection::Http2(connection) => {
                 state.selected_http2 = true;
+                remember_http2 = true;
                 match state.current_http2() {
                     Some(current) => {
                         debug!(
@@ -1081,6 +1230,9 @@ impl Reservation {
         // outside the state lock.
         drop(closed_http2);
         drop(closed_http1);
+        if remember_http2 {
+            self.connections.http2_keys.insert(&self.connections.key);
+        }
         self.connections.setup_done.notify_waiters();
         lease
     }

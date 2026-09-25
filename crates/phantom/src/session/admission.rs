@@ -68,6 +68,15 @@ impl Admission {
         self.acquire(RequestError::unselected_capacity).await
     }
 
+    /// Admits work only when an active slot is free now, without waiting.
+    pub(super) fn try_admit(self: Arc<Self>) -> Option<AdmissionPermit> {
+        let permit = Arc::clone(&self.active).try_acquire_owned().ok()?;
+        Some(AdmissionPermit {
+            _admission: self,
+            _permit: permit,
+        })
+    }
+
     async fn acquire(
         self: Arc<Self>,
         capacity_error: impl Fn() -> RequestError,

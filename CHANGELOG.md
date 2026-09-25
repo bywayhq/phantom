@@ -421,8 +421,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   connection. `ClientBuilder::max_concurrent_http1_requests_per_origin`
   replaces that bound too. Until a connection to the origin and route has
   selected HTTP/2, concurrent requests start their handshakes in parallel,
-  as Chromium 154 and Firefox 156 do; after that, a request waits for a
-  handshake in progress, and HTTP/2 requests share one connection. A
+  as Chromium 154 and Firefox 156 do, and requests beyond the bound wait for
+  a handshake instead of failing at the HTTP/1.1 waiting bound. After that,
+  a request waits for a handshake in progress, and HTTP/2 requests share
+  one connection. Each client remembers up to 500 origin and route pairs
+  that selected HTTP/2, beyond the life of their pool entries. Waiting for
+  another request's handshake counts against the connect timeout. A
   profile without `Http1Settings` keeps one connection, as before.
 
 - Wire and performance change for HTTP proxies with Basic credentials. A
