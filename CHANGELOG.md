@@ -37,6 +37,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `http2_rejected: Http2RejectedConnect::EndStream` to a
   `ProxyConnectTemplate` literal to keep the Chromium behavior, or
   `Http2RejectedConnect::LeaveOpen` for Firefox's.
+- `Http2HpackSettings` gained the public field `cookie_crumbs`
+  (`Http2CookieCrumbs`) and `Http3RequestSettings` gained `cookie_crumbs`
+  (`Http3CookieCrumbs`), so struct literals that name every field no longer
+  compile. The recipes change the wire: `chromium::v154_http2`,
+  `firefox::v156_http2`, and `chromium::v154_http3_request` send one `cookie`
+  field per cookie, at the joined field's position, instead of one joined
+  field. Chromium indexes every crumb on HTTP/2 and inserts each into the
+  QPACK table on HTTP/3; Firefox sends a crumb under 20 bytes as a
+  never-indexed literal and indexes a longer one. This covers a `Cookie`
+  field you supply, and `RequestHeader::sensitive` on it no longer makes it
+  never-indexed under these recipes. The captures behind it are under
+  `fixtures/cookies/`. (`39e1cb2`, `32200c8`)
+  Migrate: add `cookie_crumbs: Http2CookieCrumbs::Whole` or
+  `cookie_crumbs: Http3CookieCrumbs::Whole` to a struct literal to keep one
+  field, or fill the rest from a recipe with struct update syntax. To keep
+  one never-indexed field with a recipe, set `settings.hpack.cookie_crumbs =
+  Http2CookieCrumbs::Whole` on the value `chromium::v154_http2` or
+  `firefox::v156_http2` returns, and `cookie_crumbs =
+  Http3CookieCrumbs::Whole` on `chromium::v154_http3_request`.
 - `TlsSettings` gained the public field `ech_from_https_records`, so struct
   literals that name every field no longer compile. `chromium::v154_tls`
   sets it, which changes the Chrome 154 recipe's wire behavior on a client
