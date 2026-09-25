@@ -1404,6 +1404,10 @@ Limits:
   advertises no QPACK table capacity, so they show a request sent from
   remembered SETTINGS but no dynamic-table insert in 0-RTT; the vendored
   `h3` test fixes those bytes.
+- When a server that accepted early data changes or omits a remembered
+  nonzero QPACK table capacity, Phantom closes with `H3_SETTINGS_ERROR`, as
+  quiche does, where RFC 9204 section 3.2.3 names
+  `QPACK_DECODER_STREAM_ERROR`.
 - When the server rejects early data and then sends SETTINGS incompatible
   with the remembered ones, Chromium closes the connection with the
   transport error `INTERNAL_ERROR` and skips the check for omitted settings;

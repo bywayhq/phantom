@@ -566,7 +566,14 @@ cites the Chromium source.
   not omit or lower a remembered blocked-stream, field-section, or
   WebTransport session limit, or disable a remembered extended CONNECT,
   HTTP Datagram, or WebTransport setting. Otherwise the driver closes the
-  connection with `H3_SETTINGS_ERROR`, the code Chromium sends.
+  connection with `H3_SETTINGS_ERROR`, the code Chromium sends. For a
+  changed or omitted QPACK table capacity, RFC 9204 section 3.2.3 names
+  `QPACK_DECODER_STREAM_ERROR` instead; Phantom follows quiche, which uses
+  `H3_SETTINGS_ERROR` for every remembered setting.
+- State stored with a ticket that does not decode as SETTINGS closes the
+  connection with `H3_INTERNAL_ERROR` and fails the request with a protocol
+  error. It is not a handshake failure, so the pool does not repeat the
+  attempt with a full handshake.
 - If the server rejects the early data, the connection is not reused, so its
   remembered SETTINGS go with it; the request is sent again on a connection
   without early data, which starts from nothing remembered.

@@ -392,8 +392,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   data starts from the SETTINGS kept with its ticket (RFC 9114, section
   7.2.4.2), as Chromium does. Its QPACK encoder instructions and request
   HEADERS then go out before the handshake completes. If the server's
-  SETTINGS change a remembered QPACK table capacity, or omit or lower
-  another remembered value, the connection closes with `H3_SETTINGS_ERROR`.
+  SETTINGS change a remembered nonzero QPACK table capacity, or omit or
+  lower another remembered value, the connection closes with
+  `H3_SETTINGS_ERROR`.
   A connection holds the tickets it receives, at most two, until the
   server's SETTINGS arrive, and stores none if they never do.
   `phantom_quic_btls` gains `ApplicationState` and
@@ -403,6 +404,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   adds `client::Builder::remembered_peer_settings` and
   `client::Connection::peer_settings_to_remember`; `phantom-h3-datagram`
   0.0.2-phantom.3 and `phantom-h3-quinn` 0.0.10-phantom.3 follow its pin.
+
 - Wire change for plaintext `http://` requests. To an origin that is not
   potentially trustworthy (not HTTPS, loopback, `localhost`, or
   `.localhost`), the built-in request templates leave out the `Sec-Fetch-*`

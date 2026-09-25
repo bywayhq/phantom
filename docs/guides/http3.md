@@ -79,7 +79,7 @@ fn client_without_early_data(profile: ClientProfile) -> Result<Client, BuildErro
   handshake, even on a connection that offered early data. Under the
   recipes' dynamic QPACK policy, early requests are encoded with the server
   SETTINGS remembered with the ticket; see
-  [Session tickets](../internals/http3.md#session-tickets).
+  [Remembered SETTINGS](../internals/http3.md#remembered-settings).
   [QUIC session resumption](../explanation/validation.md#quic-session-resumption)
   gives the Chromium source for this rule.
 - Concurrent requests to a resumed origin share one connection while its
