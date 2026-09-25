@@ -6,12 +6,13 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
+    time::{Duration, Instant},
 };
 
 use ::http2::{Reason, SendStream, client};
 use bytes::Bytes;
 use http::{Method, Request, Response};
-use phantom_profile::{Http2Priority, Http2Settings};
+use phantom_profile::{Http2Priority, Http2RejectedConnect, Http2Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, debug, debug_span, field};
 
@@ -25,7 +26,7 @@ use super::{
     extended_connect_overrides, prepare_extended_connect, prepare_request, priority_overrides,
     request::PreparedRequestTrailers,
     translate_extended_connect_settings, translate_settings,
-    tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream},
+    tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream, Http2RejectedStream},
     upload::send_body,
 };
 
@@ -461,12 +462,13 @@ impl Http2Connection {
     /// Sends one prepared RFC 9113 section 8.5 CONNECT request.
     ///
     /// A 2xx response yields the stream as a flow-controlled byte tunnel. Any
-    /// other final status ends the request side with an empty END_STREAM
-    /// DATA frame, resets a response body that is still open, and reports
-    /// the status and fields. The connection stays usable for another stream.
+    /// other final status is reported with its fields, after the stream is
+    /// closed as `rejected` says; the connection stays usable for another
+    /// stream.
     pub(crate) async fn send_classic_connect(
         &self,
         request: Request<()>,
+        rejected: Http2RejectedConnect,
     ) -> Result<Http2ClassicConnectOutcome, Http2Error> {
         let span = debug_span!(
             "http2.connect.response_head",
@@ -489,7 +491,7 @@ impl Http2Connection {
             let (response, send) = sender
                 .send_request(request, false)
                 .map_err(Http2Error::protocol)?;
-            let mut send = RequestStreamGuard::new(send);
+            let send = RequestStreamGuard::new(send);
             let response = match response.await {
                 Ok(response) => response,
                 Err(error) => {
@@ -508,19 +510,13 @@ impl Http2Connection {
                     stream: Http2ConnectStream::new(incoming, send.disarm()?, self.lease()),
                 })
             } else {
-                // Chrome 154 and Edge 153 end their half of a challenged
-                // CONNECT with an empty END_STREAM DATA frame. The status is
-                // the outcome even when the send fails because the peer has
-                // reset the stream (RFC 9113 section 8.1) or closed the
-                // connection; a caller that reuses the connection checks it
-                // first. Dropping a response whose body is still open then
-                // resets the stream with CANCEL.
-                let _ = send.stream_mut()?.send_data(Bytes::new(), true);
-                drop(send.disarm());
-                drop(incoming);
+                let held = self
+                    .close_rejected_connect(send.disarm()?, incoming, rejected)
+                    .await;
                 Ok(Http2ClassicConnectOutcome::Rejected {
                     status: status.as_u16(),
                     headers: parts.headers,
+                    held,
                 })
             }
         }
@@ -534,6 +530,73 @@ impl Http2Connection {
         };
         outcome.finish(terminal_outcome);
         result
+    }
+
+    /// Ends the client side of a CONNECT stream that received a final
+    /// rejection.
+    ///
+    /// When the response ended its stream: with
+    /// [`Http2RejectedConnect::EndStream`], or when the peer allows only one
+    /// concurrent stream, an empty END_STREAM DATA frame ends the stream, and
+    /// this waits until the driver has handed that frame to the connection's
+    /// writer, so a stream opened afterwards follows it on the wire. With
+    /// [`Http2RejectedConnect::LeaveOpen`], nothing is sent and the stream
+    /// handles are returned for the caller to hold.
+    ///
+    /// A response body still arriving is reset with CANCEL, whatever the
+    /// profile says, and its data returns to the connection window. No
+    /// END_STREAM precedes the reset: the vendored encoder drops a queued
+    /// DATA frame when the stream is reset before the frame is written.
+    async fn close_rejected_connect(
+        &self,
+        mut send: SendStream<Bytes>,
+        incoming: ::http2::RecvStream,
+        rejected: Http2RejectedConnect,
+    ) -> Option<Http2RejectedStream> {
+        if !incoming.is_end_stream() {
+            // Dropping both handles resets the stream with CANCEL.
+            return None;
+        }
+        let single_stream = self
+            .peer_max_concurrent_streams()
+            .is_some_and(|limit| limit < 2);
+        if rejected == Http2RejectedConnect::LeaveOpen && !single_stream {
+            return Some(Http2RejectedStream::new(send, incoming));
+        }
+        let active = self.active_streams();
+        match send.send_data(Bytes::new(), true) {
+            // The status is the outcome even when the peer has already reset
+            // the stream or closed the connection; a caller that reuses the
+            // connection checks it first.
+            Err(error) => debug!(%error, "rejected CONNECT stream could not be ended"),
+            Ok(()) => self.wait_for_closed_stream(active).await,
+        }
+        None
+    }
+
+    /// Waits until fewer than `active` streams are open, which happens once
+    /// the driver has written the last queued frame of a closed stream.
+    ///
+    /// The vendored `http2` encoder writes a new stream's HEADERS ahead of
+    /// queued DATA and reports no flush, so the stream count is the signal.
+    /// The task yields between checks, so the driver runs on either runtime
+    /// flavor. The wait is bounded: after [`CLOSED_STREAM_WAIT`], a writer
+    /// blocked by the peer lets a later stream go first rather than stall.
+    async fn wait_for_closed_stream(&self, active: usize) {
+        let started = Instant::now();
+        while !self.is_closed() && self.active_streams() >= active {
+            if started.elapsed() >= CLOSED_STREAM_WAIT {
+                debug!("rejected CONNECT stream was not written before the wait bound");
+                return;
+            }
+            tokio::task::yield_now().await;
+        }
+    }
+
+    fn active_streams(&self) -> usize {
+        self.inner
+            .sender()
+            .map_or(0, client::SendRequest::num_active_streams)
     }
 
     /// Returns whether the connection driver has stopped.
@@ -857,6 +920,9 @@ impl Drop for ConnectionInner {
         self.driver.shutdown();
     }
 }
+
+/// Longest wait for a rejected CONNECT stream's END_STREAM to be written.
+const CLOSED_STREAM_WAIT: Duration = Duration::from_millis(50);
 
 fn connection_closed() -> ::http2::Error {
     ::http2::Error::from(::http2::Reason::INTERNAL_ERROR)

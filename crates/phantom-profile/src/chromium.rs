@@ -15,7 +15,7 @@ use crate::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
     },
-    proxy_connect::{ProxyConnectField, ProxyConnectTemplate},
+    proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
@@ -481,6 +481,10 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// the page request's. The recipe copies the `User-Agent` of the request
 /// that opens the tunnel: the caller's field, or the request template's
 /// value.
+///
+/// After an HTTP/2 CONNECT is challenged, Chrome and Edge end the challenged
+/// stream with an empty END_STREAM DATA frame before the replay
+/// (`https-proxy-auth-secure-hostname`).
 #[must_use]
 pub fn v154_proxy_connect() -> ProxyConnectTemplate {
     ProxyConnectTemplate {
@@ -494,6 +498,7 @@ pub fn v154_proxy_connect() -> ProxyConnectTemplate {
             ProxyConnectField::from_request("user-agent"),
             ProxyConnectField::proxy_authorization("proxy-authorization"),
         ],
+        http2_rejected: Http2RejectedConnect::EndStream,
     }
 }
 

@@ -10,7 +10,7 @@ use crate::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
     },
-    proxy_connect::{ProxyConnectField, ProxyConnectTemplate},
+    proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::{
@@ -408,6 +408,9 @@ pub fn v156_websocket() -> WebSocketSettings {
 /// the page request's. The recipe copies the `User-Agent` of the request
 /// that opens the tunnel: the caller's field, or the request template's
 /// value.
+///
+/// After an HTTP/2 CONNECT is challenged, Firefox sends nothing more on the
+/// challenged stream (`https-proxy-auth-secure-hostname`).
 #[must_use]
 pub fn v156_proxy_connect() -> ProxyConnectTemplate {
     ProxyConnectTemplate {
@@ -422,6 +425,7 @@ pub fn v156_proxy_connect() -> ProxyConnectTemplate {
             ProxyConnectField::from_request("user-agent"),
             ProxyConnectField::proxy_authorization("proxy-authorization"),
         ],
+        http2_rejected: Http2RejectedConnect::LeaveOpen,
     }
 }
 

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::{Method, Response};
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::{Http2RejectedConnect, chromium::v154_http2};
 use phantom_testkit::http2::CLIENT_CONNECTION_PREFACE;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
@@ -181,7 +181,7 @@ async fn h2_proxy_connect_emits_two_field_pseudo_order() -> TestResult<()> {
         )?;
         let exchange = tokio::spawn(async move {
             let connection = Http2Connection::connect(client, &v154_http2()).await?;
-            http2_connect::establish(&connection, &request)
+            http2_connect::establish(&connection, &request, Http2RejectedConnect::EndStream)
                 .await
                 .map(drop)
                 .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
@@ -350,8 +350,10 @@ async fn h2_proxy_tunnel_drop_resets_only_its_stream() -> TestResult<()> {
             "second.example:443",
             &[HttpConnectHeader::authority("host")],
         )?;
-        let first = http2_connect::establish(&connection, &first).await?;
-        let mut second = http2_connect::establish(&connection, &second).await?;
+        let first =
+            http2_connect::establish(&connection, &first, Http2RejectedConnect::EndStream).await?;
+        let mut second =
+            http2_connect::establish(&connection, &second, Http2RejectedConnect::EndStream).await?;
         drop(first);
 
         second.write_all(b"ping").await?;

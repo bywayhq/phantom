@@ -90,6 +90,26 @@ impl ProxyConnectField {
     }
 }
 
+/// What a client sends on an HTTP/2 CONNECT stream after the proxy ended it
+/// with a final status other than 2xx, such as a `407` challenge.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2RejectedConnect {
+    /// An empty DATA frame with END_STREAM, before any later stream opens.
+    ///
+    /// Chrome 154 and Edge 153 do this in the
+    /// `https-proxy-auth-secure-hostname` captures.
+    #[default]
+    EndStream,
+    /// Nothing while the connection carries the tunnel that follows.
+    ///
+    /// Firefox 156 does this in the `https-proxy-auth-secure-hostname`
+    /// captures. The stream stays open on the client side, so it holds one of
+    /// the proxy's concurrent streams. When the proxy allows only one
+    /// stream, the client ends the stream as in [`Self::EndStream`] instead.
+    LeaveOpen,
+}
+
 /// Ordered CONNECT fields for each HTTP proxy transport.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProxyConnectTemplate {
@@ -98,6 +118,8 @@ pub struct ProxyConnectTemplate {
     /// Ordered fields of an HTTP/2 CONNECT request, after `:method` and
     /// `:authority`.
     pub http2_fields: Vec<ProxyConnectField>,
+    /// What the client sends on an HTTP/2 CONNECT stream the proxy rejected.
+    pub http2_rejected: Http2RejectedConnect,
 }
 
 impl ProxyConnectTemplate {
