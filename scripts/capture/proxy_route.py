@@ -108,6 +108,7 @@ class Scenario:
     # secure: an https:// fetch, then a wss:// opening, each through CONNECT.
     # remembered: a fetch to /probe, then a second navigation over the
     # remote protocol.
+    # nostore: a no-store fetch to /probe, then a no-store fetch to /done.
     page: str = "websocket"
     # Which capture requests an auth scenario challenges: all, connect
     # (CONNECT only), or probe (the /probe fetch only).
@@ -214,6 +215,42 @@ SCENARIOS = {
         page="remembered",
         challenge="probe",
     ),
+    "http-proxy-auth-nostore-hostname": Scenario(
+        "a no-store fetch challenged by a plaintext HTTP proxy, then a "
+        "no-store fetch with the remembered credentials",
+        "http",
+        "hostname",
+        auth=True,
+        page="nostore",
+        challenge="probe",
+    ),
+    "http-proxy-auth-nostore-loopback": Scenario(
+        "a loopback no-store fetch challenged by a plaintext HTTP proxy, then "
+        "a no-store fetch with the remembered credentials",
+        "http",
+        "loopback",
+        auth=True,
+        page="nostore",
+        challenge="probe",
+    ),
+    "https-proxy-auth-nostore-loopback": Scenario(
+        "a loopback no-store fetch challenged by a TLS proxy offering h2, "
+        "then a no-store fetch with the remembered credentials",
+        "https",
+        "loopback",
+        auth=True,
+        page="nostore",
+        challenge="probe",
+    ),
+    "https-proxy-auth-nostore-hostname": Scenario(
+        "a no-store fetch challenged by a TLS proxy offering h2, then a "
+        "no-store fetch with the remembered credentials",
+        "https",
+        "hostname",
+        auth=True,
+        page="nostore",
+        challenge="probe",
+    ),
     "https-proxy-auth-remembered-hostname": Scenario(
         "a fetch challenged by a TLS proxy offering h2, then a navigation "
         "with the remembered credentials",
@@ -308,6 +345,8 @@ class CaptureRun:
             return self.secure_page()
         if kind == "remembered":
             return self.remembered_page(step)
+        if kind == "nostore":
+            return self.nostore_page()
         if self.proxy_credential is not None:
             return self.sequential_page()
         return (
@@ -365,6 +404,17 @@ class CaptureRun:
         return (
             "<!doctype html><meta charset=utf-8>"
             '<link rel=icon href="data:,"><script>\n' + script + "</script>\n"
+        ).encode()
+
+    def nostore_page(self) -> bytes:
+        """Fetch /probe, then /done, both with `cache: "no-store"`."""
+        token = self.token
+        return (
+            "<!doctype html><meta charset=utf-8>"
+            '<link rel=icon href="data:,"><script>\n'
+            f"fetch('/probe?run={token}', {{cache: 'no-store'}})"
+            f".then(() => fetch('/done?run={token}&nostore=1', {{cache: 'no-store'}}));\n"
+            "</script>\n"
         ).encode()
 
     def sequential_page(self) -> bytes:

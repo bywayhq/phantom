@@ -673,6 +673,18 @@ class ProxyAuthTests(unittest.TestCase):
         self.assertIn("new WebSocket('wss://origin.phantom.test:8443/tls?run=", page)
         self.assertLess(page.index("https://"), page.index("wss://"))
 
+    def test_nostore_page_fetches_the_probe_then_done_without_cache(self) -> None:
+        page = (
+            CaptureRun("0123456789abcdef", "http-proxy-auth-nostore-hostname")
+            .page()
+            .decode()
+        )
+        self.assertIn("fetch('/probe?run=0123456789abcdef', {cache: 'no-store'})", page)
+        self.assertIn("{cache: 'no-store'}));", page)
+        self.assertEqual(
+            SCENARIOS["http-proxy-auth-nostore-hostname"].challenge, "probe"
+        )
+
     def test_auth_page_opens_two_websockets_in_turn(self) -> None:
         page = auth_run().page().decode()
         self.assertIn("open(0);", page)

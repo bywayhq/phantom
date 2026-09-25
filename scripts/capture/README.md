@@ -483,6 +483,10 @@ server message, and reports to `/done`.
 | `https-proxy-auth-secure-hostname` | TLS proxy offering `h2`, Basic auth on CONNECT | `origin.phantom.test`, then `https://` and `wss://` tunnels |
 | `http-proxy-auth-remembered-hostname` | plaintext HTTP proxy, Basic auth on `/probe` | `origin.phantom.test`, navigated twice |
 | `https-proxy-auth-remembered-hostname` | TLS proxy offering `h2`, Basic auth on `/probe` | `origin.phantom.test`, navigated twice |
+| `http-proxy-auth-nostore-hostname` | plaintext HTTP proxy, Basic auth on `/probe` | `origin.phantom.test`, no-store `fetch()` twice |
+| `https-proxy-auth-nostore-hostname` | TLS proxy offering `h2`, Basic auth on `/probe` | `origin.phantom.test`, no-store `fetch()` twice |
+| `http-proxy-auth-nostore-loopback` | plaintext HTTP proxy, Basic auth on `/probe` | `127.0.0.1`, no-store `fetch()` twice |
+| `https-proxy-auth-nostore-loopback` | TLS proxy offering `h2`, Basic auth on `/probe` | `127.0.0.1`, no-store `fetch()` twice |
 
 The four `-auth-` scenarios show when a browser sends `Proxy-Authorization`
 after its first 407. Both proxy listeners require the throwaway credential
@@ -502,7 +506,7 @@ Browsers send `Accept-Encoding`, client hints, and fetch metadata to a
 loopback origin that they omit for a named plaintext origin, so every route
 runs with both.
 
-The six scenarios added for CONNECT and credential placement change the
+The ten scenarios added for CONNECT and credential placement change the
 page:
 
 - A `-secure-` page fetches `https://origin.phantom.test:443/tls` and then
@@ -524,6 +528,10 @@ page:
   `browsingContext.navigate`) to `/page?...&step=2`, which reports to
   `/done`. The run holds a challenged `fetch()`, its replay, and a
   navigation that carries the remembered credential.
+- A `-nostore-` page fetches `/probe` and then `/done`, both with
+  `{cache: "no-store"}`. The proxy challenges only `/probe`, so the run holds
+  a challenged no-store `fetch()`, its replay, and a no-store `fetch()` that
+  carries the remembered credential.
 
 Each browser gets these proxy settings, recorded with the launch:
 
