@@ -434,6 +434,31 @@ pub(crate) async fn sleep_until(deadline: Instant) -> Result<(), RequestError> {
     poll_fn(|context| timer.poll_expired(context)).await
 }
 
+/// Runs `future` for at most `limit`: `Ok(None)` when the limit passes first.
+///
+/// Unlike `tokio::time::timeout`, a runtime without its time driver is an
+/// error instead of a panic. The future is polled before the timer, so one
+/// that is ready at the limit still wins.
+pub(crate) async fn within<F: Future>(
+    limit: Duration,
+    future: F,
+) -> Result<Option<F::Output>, RequestError> {
+    let deadline = Instant::now()
+        .checked_add(limit)
+        .ok_or_else(RequestError::invalid_timeout)?;
+    let mut timer = DeadlineTimer::new(deadline)?;
+    let mut future = std::pin::pin!(future);
+    poll_fn(|context| {
+        if let Poll::Ready(output) = future.as_mut().poll(context) {
+            return Poll::Ready(Ok(Some(output)));
+        }
+        timer
+            .poll_expired(context)
+            .map(|expired| expired.map(|()| None))
+    })
+    .await
+}
+
 pub(crate) struct DeadlineTimer {
     sleep: Pin<Box<Sleep>>,
 }
@@ -492,6 +517,19 @@ mod tests {
     use std::{future::pending, time::Duration};
 
     use super::{RequestTimeouts, TimeoutBudget, TimeoutPhase};
+
+    #[tokio::test(start_paused = true)]
+    async fn within_returns_none_once_the_limit_passes() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            super::within(Duration::from_secs(1), async { 7 }).await?,
+            Some(7)
+        );
+        assert_eq!(
+            super::within(Duration::from_secs(1), pending::<()>()).await?,
+            None
+        );
+        Ok(())
+    }
 
     #[tokio::test(start_paused = true)]
     async fn ready_operation_wins_when_deadline_is_also_ready()

@@ -22,7 +22,7 @@ use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
 };
-use crate::timeout::{TimeoutBudget, TimeoutPhase};
+use crate::timeout::{TimeoutBudget, TimeoutPhase, within};
 use crate::{
     ConnectUdpProxy, HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,
     authority::Endpoint,
@@ -503,7 +503,9 @@ impl PoolEntry {
             control.early_data,
         );
         let connection = match control.attempt_limit {
-            Some(limit) => tokio::time::timeout(limit, connect).await.map_err(|_| {
+            // A runtime without a time driver fails the attempt instead of
+            // panicking.
+            Some(limit) => within(limit, connect).await?.ok_or_else(|| {
                 debug!(
                     timeout_phase = TimeoutPhase::Connect.trace_name(),
                     protocol = HttpProtocol::Http3.trace_name(),
@@ -1166,6 +1168,55 @@ mod tests {
         drop((exact, same));
         assert!(super::lock_turns(&entry.turns).is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn an_attempt_limit_without_a_time_driver_fails_instead_of_panicking()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use phantom_net::http3::Http3Connector;
+        use phantom_profile::chromium;
+
+        use super::Http3SetupControl;
+        use crate::RequestErrorKind;
+
+        // I/O but no time driver: `tokio::time::timeout` would panic here.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()?;
+        runtime.block_on(async {
+            let connector = Http3Connector::new_with_additional_roots(
+                &chromium::v154_http3_tls(),
+                &chromium::v154_quic(),
+                &chromium::v154_http3(),
+                &chromium::v154_http3_request(),
+                std::iter::empty(),
+            )?;
+            let one = NonZeroUsize::MIN;
+            let pool = Http3Pool::new(one, one, one);
+            let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+            let entry = pool.entry(PoolKey::new(&endpoint, &Route::Direct)).await;
+            let control = Http3SetupControl {
+                attempt_limit: Some(std::time::Duration::from_secs(1)),
+                ..Http3SetupControl::default()
+            };
+            let result = entry
+                .acquire(
+                    &connector,
+                    None,
+                    &endpoint,
+                    &Route::Direct,
+                    Http3TransportTarget::for_origin(&endpoint),
+                    control,
+                )
+                .await;
+            match result {
+                Ok(_) => Err("a limited attempt ran without a time driver".into()),
+                Err(error) => {
+                    assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+                    Ok(())
+                }
+            }
+        })
     }
 
     fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
