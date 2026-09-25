@@ -1,6 +1,6 @@
 [package]
 name = "phantom-h3-quinn"
-version = "0.0.10-phantom.3"
+version = "0.0.10-phantom.4"
 rust-version = "1.74"
 authors = ["Jean-Christophe BEGUE <jc.begue@pm.me>"]
 edition = "2021"
@@ -22,14 +22,14 @@ upstream-version = "0.0.10"
 upstream-source = "https://codeload.github.com/hyperium/h3/tar.gz/1f3d5295833ad454343f25d55633fb6bee1027b2"
 
 [dependencies]
-h3 = { package = "phantom-h3", version = "=0.0.8-phantom.3", path = "../h3" }
+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.4", path = "../h3" }
 bytes = "1"
 quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
     "futures-io",
 ] }
 tokio-util = { version = "0.7.9" }
 futures-util = { version = "0.3.28", default-features = false }
-h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram", optional = true }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.4", path = "../h3-datagram", optional = true }
 tracing = { version = "0.1.40", optional = true }
 
 [features]

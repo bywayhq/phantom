@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.3`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.3`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.3`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.4`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.4`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.4`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -213,6 +213,26 @@ sensitivity markers. Their trailing HEADERS section uses the same bounded,
 connection-owned outbound QPACK command path as the initial request section,
 including publication and cancellation accounting for multiple sections on one
 request stream. Stateless configurations keep their existing encoder path.
+
+## QPACK stream order
+
+Upstream opens the control stream, then the QPACK encoder stream, then the
+decoder stream, so on QUIC they are client streams 2, 6, and 10, and it writes
+each stream type when the connection starts. Chromium opens the decoder stream
+before the encoder stream, so its encoder is stream 10, and writes a QPACK
+stream's type only with its first instruction (quiche
+`http/quic_spdy_session.cc` lines 1629-1676 and `qpack/qpack_send_stream.cc`
+lines 32-51 at the revision Chromium 154 pins).
+
+`h3::client::Builder::qpack_decoder_stream_first` opens the decoder stream
+second and the encoder stream third. `defer_qpack_encoder_stream` reserves the
+encoder stream but holds its type in the outbound QPACK driver. Instructions
+queued before the first field section that needs them, such as the table
+capacity from peer or remembered SETTINGS, are held too, and all of them are
+written after the type ahead of that field section's HEADERS. A connection
+that encodes no such field section never writes to the stream. Both default to
+upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
+delta and its regression tests.
 
 ## Remembered SETTINGS for early data
 

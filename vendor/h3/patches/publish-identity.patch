@@ -8,8 +8,8 @@ index 16446da..4d753e8 100644
  futures = "0.3"
 -h3 = { path = "../h3", features = ["tracing"] }
 -h3-quinn = { path = "../h3-quinn", features = ["tracing", "datagram"] }
-+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.3", path = "../h3", features = ["tracing"] }
-+h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.3", path = "../h3-quinn", features = ["tracing", "datagram"] }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.4", path = "../h3", features = ["tracing"] }
++h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.4", path = "../h3-quinn", features = ["tracing", "datagram"] }
  h3-webtransport = { path = "../h3-webtransport" }
  http = "1"
 -quinn = { version = "0.11", default-features = false, features = [
@@ -22,7 +22,7 @@ index 16446da..4d753e8 100644
  
  tracing-tree = { version = "0.4" }
 -h3-datagram = { path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.4", path = "../h3-datagram" }
  
  [features]
  tree = []
@@ -35,7 +35,7 @@ index a2cdbf1..39e4199 100644
 -name = "h3-datagram"
 -version = "0.0.2"
 +name = "phantom-h3-datagram"
-+version = "0.0.2-phantom.3"
++version = "0.0.2-phantom.4"
  edition = "2021"
 -documentation = "https://docs.rs/h3-datagram"
 -repository = "https://github.com/hyperium/h3"
@@ -65,7 +65,7 @@ index a2cdbf1..39e4199 100644
  [dependencies.h3]
 -version = "0.0.8"
 +package = "phantom-h3"
-+version = "=0.0.8-phantom.3"
++version = "=0.0.8-phantom.4"
  path = "../h3"
  features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
 +
@@ -80,7 +80,7 @@ index bbb8914..d250f5c 100644
 -name = "h3-quinn"
 -version = "0.0.10"
 +name = "phantom-h3-quinn"
-+version = "0.0.10-phantom.3"
++version = "0.0.10-phantom.4"
  rust-version = "1.74"
  authors = ["Jean-Christophe BEGUE <jc.begue@pm.me>"]
  edition = "2021"
@@ -106,7 +106,7 @@ index bbb8914..d250f5c 100644
  
  [dependencies]
 -h3 = { version = "0.0.8", path = "../h3" }
-+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.3", path = "../h3" }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.4", path = "../h3" }
  bytes = "1"
 -quinn = { version = "0.11.7", default-features = false, features = [
 +quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.1", path = "../../quinn", default-features = false, features = [
@@ -115,7 +115,7 @@ index bbb8914..d250f5c 100644
  tokio-util = { version = "0.7.9" }
  futures-util = { version = "0.3.28", default-features = false }
 -h3-datagram = {version = "0.0.2", path = "../h3-datagram", optional = true }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram", optional = true }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.4", path = "../h3-datagram", optional = true }
  tracing = { version = "0.1.40", optional = true }
  
  [features]
@@ -133,12 +133,12 @@ index 28009d6..9adbbcf 100644
  tracing = "0.1.37"
  tokio = { version = "1.28", default-features = false }
 -h3-datagram = { version = "0.0.2", path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.4", path = "../h3-datagram" }
  
  [dependencies.h3]
 -version = "0.0.8"
 +package = "phantom-h3"
-+version = "=0.0.8-phantom.3"
++version = "=0.0.8-phantom.4"
  path = "../h3"
  features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
 diff --git a/h3/Cargo.toml b/h3/Cargo.toml
@@ -150,7 +150,7 @@ index c6767a4..abc5ee8 100644
 -name = "h3"
 -version = "0.0.8"
 +name = "phantom-h3"
-+version = "0.0.8-phantom.3"
++version = "0.0.8-phantom.4"
  rust-version = "1.74"
  authors = [
      "Sean McArthur <sean@seanmonstar.com>",
@@ -203,7 +203,7 @@ index c6767a4..abc5ee8 100644
  futures = { version = "0.3.28" }
  tokio-util = { version = "0.7.9" }
 -h3-datagram = {path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.3", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.4", path = "../h3-datagram" }
 +
 +[lib]
 +name = "h3"

@@ -15,4 +15,5 @@ extended-connect-readiness.patch
 poll-send-data.patch
 late-application-settings.patch
 remembered-settings.patch
+qpack-chromium-stream-order.patch
 publish-identity.patch

@@ -30,6 +30,7 @@ pub(crate) fn channel() -> (Driver, Sender) {
             publications: Vec::new(),
             commands_closed: false,
             configuration: None,
+            held_header: None,
         },
         Sender { commands, ready_rx },
     )
@@ -142,6 +143,10 @@ pub(crate) struct Driver {
     publications: Vec<PendingPublication>,
     commands_closed: bool,
     configuration: Option<(usize, usize)>,
+    /// The encoder stream type, while it is deferred. Nothing is written
+    /// until a field section needs instructions; the type then precedes
+    /// every instruction held until that point.
+    held_header: Option<Bytes>,
 }
 
 impl Driver {
@@ -188,6 +193,26 @@ impl Driver {
         self.ready.send_replace(true);
     }
 
+    /// Defers `header`, the encoder stream type, until the first field
+    /// section is prepared with encoder instructions.
+    pub(crate) fn hold_stream_header(&mut self, header: Bytes) {
+        self.held_header = Some(header);
+    }
+
+    /// Writes the held stream type ahead of the queued instructions once a
+    /// prepared field section depends on them.
+    fn release_stream_header(&mut self) {
+        if self.pending_release.is_none() || self.instructions.is_empty() {
+            return;
+        }
+        if let Some(header) = self.held_header.take() {
+            let mut instructions = BytesMut::with_capacity(header.len() + self.instructions.len());
+            instructions.put(header);
+            instructions.put(self.instructions.split());
+            self.instructions = instructions;
+        }
+    }
+
     pub(crate) fn poll<S, B>(
         &mut self,
         encoder: &mut Encoder,
@@ -203,7 +228,11 @@ impl Driver {
         let mut commands = 0;
 
         loop {
-            while self.instructions.has_remaining() && sent < MAX_INSTRUCTION_BYTES {
+            self.release_stream_header();
+            // While the stream type is held, instructions wait for a field
+            // section that needs them.
+            let writable = self.held_header.is_none();
+            while writable && self.instructions.has_remaining() && sent < MAX_INSTRUCTION_BYTES {
                 match send.poll_send(cx, &mut self.instructions) {
                     Poll::Ready(Ok(0)) => return Poll::Ready(Err(PollError::WriteZero)),
                     Poll::Ready(Ok(written)) => sent = sent.saturating_add(written),
@@ -212,7 +241,7 @@ impl Driver {
                 }
             }
 
-            if self.instructions.has_remaining() {
+            if writable && self.instructions.has_remaining() {
                 cx.waker().wake_by_ref();
                 return Poll::Pending;
             }
@@ -365,6 +394,106 @@ pub(crate) enum PollError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::task::noop_waker_ref;
+
+    use crate::{
+        quic::{SendStream, StreamId},
+        stream::WriteBuf,
+    };
+
+    #[derive(Default)]
+    struct RecordingSend {
+        written: Vec<u8>,
+    }
+
+    impl SendStream<Bytes> for RecordingSend {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn send_data<T: Into<WriteBuf<Bytes>>>(
+            &mut self,
+            _data: T,
+        ) -> Result<(), StreamErrorIncoming> {
+            Ok(())
+        }
+
+        fn poll_finish(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn reset(&mut self, _reset_code: u64) {}
+
+        fn send_id(&self) -> StreamId {
+            StreamId::try_from(10).unwrap()
+        }
+    }
+
+    impl SendStreamUnframed<Bytes> for RecordingSend {
+        fn poll_send<D: Buf>(
+            &mut self,
+            _cx: &mut Context<'_>,
+            buf: &mut D,
+        ) -> Poll<Result<usize, StreamErrorIncoming>> {
+            let written = buf.remaining();
+            self.written.extend_from_slice(&buf.copy_to_bytes(written));
+            Poll::Ready(Ok(written))
+        }
+
+        fn poll_stopped(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
+            Poll::Pending
+        }
+    }
+
+    #[test]
+    fn a_held_stream_type_is_written_with_the_first_field_section_instructions() {
+        let (mut driver, sender) = channel();
+        driver.hold_stream_header(Bytes::from_static(&[0x02]));
+        let mut encoder = Encoder::default();
+        let mut send = RecordingSend::default();
+        let mut cx = Context::from_waker(noop_waker_ref());
+
+        // The table capacity instruction is queued but not written: a
+        // connection that encodes no field section leaves the stream unused.
+        driver.configure(&mut encoder, 4096, 16).unwrap();
+        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
+        assert!(send.written.is_empty());
+
+        let fields = vec![HeaderField::new("x-phantom", "held")];
+        let mut expected_encoder = Encoder::default();
+        let mut expected = vec![0x02];
+        expected_encoder
+            .set_max_table_capacity(4096, &mut expected)
+            .unwrap();
+        expected_encoder.set_max_blocked_streams(16).unwrap();
+        let mut expected_block = Vec::new();
+        expected_encoder
+            .encode(0, &mut expected_block, &mut expected, fields.clone())
+            .unwrap();
+
+        let (command, mut response) = EncodeCommand::new(0, fields);
+        sender.commands.try_send(command).ok().unwrap();
+        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
+        assert_eq!(send.written, expected);
+        let encoded = response.try_recv().unwrap().unwrap();
+        assert_eq!(encoded.block, expected_block);
+        encoded.publication.published();
+
+        // Later instructions follow without a second stream type.
+        let fields = vec![HeaderField::new("x-next", "1")];
+        let mut expected_block = Vec::new();
+        expected_encoder
+            .encode(4, &mut expected_block, &mut expected, fields.clone())
+            .unwrap();
+        let (command, mut response) = EncodeCommand::new(4, fields);
+        sender.commands.try_send(command).ok().unwrap();
+        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
+        assert_eq!(send.written, expected);
+        assert_eq!(response.try_recv().unwrap().unwrap().block, expected_block);
+    }
 
     #[test]
     fn peer_blocked_stream_limit_is_clamped() {

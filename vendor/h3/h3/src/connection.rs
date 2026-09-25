@@ -402,6 +402,9 @@ where
         let mut decoder_send = Option::take(&mut self.qpack_streams.decoder_send);
         let mut encoder_send = Option::take(&mut self.qpack_streams.encoder_send);
         let defer_decoder_header = !self.qpack_streams.decoder_header_pending.is_empty();
+        // A deferred encoder stream type is written by the outbound QPACK
+        // driver with the first instructions, or never without dynamic QPACK.
+        let defer_encoder_header = self.config.defer_qpack_encoder_stream;
 
         let (control, decoder, encoder) = future::join3(
             stream::write(
@@ -420,10 +423,11 @@ where
                 }
             },
             async {
-                if let Some(stream) = &mut encoder_send {
-                    stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await
-                } else {
-                    Ok(())
+                match &mut encoder_send {
+                    Some(stream) if !defer_encoder_header => {
+                        stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await
+                    }
+                    _ => Ok(()),
                 }
             },
         )
@@ -477,11 +481,18 @@ where
         //# QPACK encoder and decoder streams) first, and then create additional
 
         // start streams
-        let (control_send, qpack_encoder, qpack_decoder) = (
-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
-        );
+        let control_send = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
+        // The opening order fixes the stream identifiers: control, encoder,
+        // decoder by default, or control, decoder, encoder.
+        let (qpack_encoder, qpack_decoder) = if config.qpack_decoder_stream_first {
+            let decoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
+            let encoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
+            (encoder, decoder)
+        } else {
+            let encoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
+            let decoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
+            (encoder, decoder)
+        };
 
         let control_send = match control_send {
             Err(StreamErrorIncoming::ConnectionErrorIncoming { connection_error }) => {
@@ -531,7 +542,12 @@ where
         })?;
 
         let (outbound, outbound_sender) = if config.dynamic_qpack {
-            let (driver, sender) = outbound_qpack::channel();
+            let (mut driver, sender) = outbound_qpack::channel();
+            if config.defer_qpack_encoder_stream {
+                let mut header = BytesMut::new();
+                UniStreamHeader::Encoder.encode(&mut header);
+                driver.hold_stream_header(header.freeze());
+            }
             (Some(driver), Some(sender))
         } else {
             (None, None)

@@ -1,0 +1,432 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index f0e5f477..426fb6e1 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -266,6 +266,30 @@ impl Builder {
+         self
+     }
+ 
++    /// Opens the local QPACK decoder stream before the encoder stream.
++    ///
++    /// By default the client opens its control stream, then its encoder
++    /// stream, then its decoder stream, so on QUIC they are client streams 2,
++    /// 6, and 10. When enabled, the decoder stream is opened second and the
++    /// encoder stream third, so the encoder stream is client stream 10.
++    pub fn qpack_decoder_stream_first(&mut self, enabled: bool) -> &mut Self {
++        self.config.qpack_decoder_stream_first = enabled;
++        self
++    }
++
++    /// Defers the local QPACK encoder stream type until the first field
++    /// section is encoded with encoder instructions.
++    ///
++    /// The stream is still reserved during connection setup, so its identifier
++    /// and critical-stream lifecycle remain unchanged. Instructions queued
++    /// before that field section, such as the dynamic table capacity, are
++    /// held and written with it, after the stream type, so a connection that
++    /// encodes no field section never writes to the stream.
++    pub fn defer_qpack_encoder_stream(&mut self, enabled: bool) -> &mut Self {
++        self.config.defer_qpack_encoder_stream = enabled;
++        self
++    }
++
+     /// Create a new HTTP/3 client from a `quic` connection
+     pub async fn build<C, O, B>(
+         &mut self,
+@@ -343,6 +367,16 @@ mod tests {
+         assert!(builder.config.defer_qpack_decoder_stream);
+     }
+ 
++    #[test]
++    fn qpack_stream_order_and_encoder_stream_type_can_follow_chromium() {
++        let mut builder = Builder::new();
++        builder
++            .qpack_decoder_stream_first(true)
++            .defer_qpack_encoder_stream(true);
++        assert!(builder.config.qpack_decoder_stream_first);
++        assert!(builder.config.defer_qpack_encoder_stream);
++    }
++
+     fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {
+         let settings = configured_settings(builder);
+         let mut bytes = Vec::new();
+diff --git a/h3/src/client/outbound_qpack.rs b/h3/src/client/outbound_qpack.rs
+index 6091958e..29807dec 100644
+--- a/h3/src/client/outbound_qpack.rs
++++ b/h3/src/client/outbound_qpack.rs
+@@ -30,6 +30,7 @@ pub(crate) fn channel() -> (Driver, Sender) {
+             publications: Vec::new(),
+             commands_closed: false,
+             configuration: None,
++            held_header: None,
+         },
+         Sender { commands, ready_rx },
+     )
+@@ -142,6 +143,10 @@ pub(crate) struct Driver {
+     publications: Vec<PendingPublication>,
+     commands_closed: bool,
+     configuration: Option<(usize, usize)>,
++    /// The encoder stream type, while it is deferred. Nothing is written
++    /// until a field section needs instructions; the type then precedes
++    /// every instruction held until that point.
++    held_header: Option<Bytes>,
+ }
+ 
+ impl Driver {
+@@ -188,6 +193,26 @@ impl Driver {
+         self.ready.send_replace(true);
+     }
+ 
++    /// Defers `header`, the encoder stream type, until the first field
++    /// section is prepared with encoder instructions.
++    pub(crate) fn hold_stream_header(&mut self, header: Bytes) {
++        self.held_header = Some(header);
++    }
++
++    /// Writes the held stream type ahead of the queued instructions once a
++    /// prepared field section depends on them.
++    fn release_stream_header(&mut self) {
++        if self.pending_release.is_none() || self.instructions.is_empty() {
++            return;
++        }
++        if let Some(header) = self.held_header.take() {
++            let mut instructions = BytesMut::with_capacity(header.len() + self.instructions.len());
++            instructions.put(header);
++            instructions.put(self.instructions.split());
++            self.instructions = instructions;
++        }
++    }
++
+     pub(crate) fn poll<S, B>(
+         &mut self,
+         encoder: &mut Encoder,
+@@ -203,7 +228,11 @@ impl Driver {
+         let mut commands = 0;
+ 
+         loop {
+-            while self.instructions.has_remaining() && sent < MAX_INSTRUCTION_BYTES {
++            self.release_stream_header();
++            // While the stream type is held, instructions wait for a field
++            // section that needs them.
++            let writable = self.held_header.is_none();
++            while writable && self.instructions.has_remaining() && sent < MAX_INSTRUCTION_BYTES {
+                 match send.poll_send(cx, &mut self.instructions) {
+                     Poll::Ready(Ok(0)) => return Poll::Ready(Err(PollError::WriteZero)),
+                     Poll::Ready(Ok(written)) => sent = sent.saturating_add(written),
+@@ -212,7 +241,7 @@ impl Driver {
+                 }
+             }
+ 
+-            if self.instructions.has_remaining() {
++            if writable && self.instructions.has_remaining() {
+                 cx.waker().wake_by_ref();
+                 return Poll::Pending;
+             }
+@@ -365,6 +394,106 @@ pub(crate) enum PollError {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++    use futures_util::task::noop_waker_ref;
++
++    use crate::{
++        quic::{SendStream, StreamId},
++        stream::WriteBuf,
++    };
++
++    #[derive(Default)]
++    struct RecordingSend {
++        written: Vec<u8>,
++    }
++
++    impl SendStream<Bytes> for RecordingSend {
++        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
++            Poll::Ready(Ok(()))
++        }
++
++        fn send_data<T: Into<WriteBuf<Bytes>>>(
++            &mut self,
++            _data: T,
++        ) -> Result<(), StreamErrorIncoming> {
++            Ok(())
++        }
++
++        fn poll_finish(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), StreamErrorIncoming>> {
++            Poll::Ready(Ok(()))
++        }
++
++        fn reset(&mut self, _reset_code: u64) {}
++
++        fn send_id(&self) -> StreamId {
++            StreamId::try_from(10).unwrap()
++        }
++    }
++
++    impl SendStreamUnframed<Bytes> for RecordingSend {
++        fn poll_send<D: Buf>(
++            &mut self,
++            _cx: &mut Context<'_>,
++            buf: &mut D,
++        ) -> Poll<Result<usize, StreamErrorIncoming>> {
++            let written = buf.remaining();
++            self.written.extend_from_slice(&buf.copy_to_bytes(written));
++            Poll::Ready(Ok(written))
++        }
++
++        fn poll_stopped(
++            &mut self,
++            _cx: &mut Context<'_>,
++        ) -> Poll<Result<Option<u64>, StreamErrorIncoming>> {
++            Poll::Pending
++        }
++    }
++
++    #[test]
++    fn a_held_stream_type_is_written_with_the_first_field_section_instructions() {
++        let (mut driver, sender) = channel();
++        driver.hold_stream_header(Bytes::from_static(&[0x02]));
++        let mut encoder = Encoder::default();
++        let mut send = RecordingSend::default();
++        let mut cx = Context::from_waker(noop_waker_ref());
++
++        // The table capacity instruction is queued but not written: a
++        // connection that encodes no field section leaves the stream unused.
++        driver.configure(&mut encoder, 4096, 16).unwrap();
++        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
++        assert!(send.written.is_empty());
++
++        let fields = vec![HeaderField::new("x-phantom", "held")];
++        let mut expected_encoder = Encoder::default();
++        let mut expected = vec![0x02];
++        expected_encoder
++            .set_max_table_capacity(4096, &mut expected)
++            .unwrap();
++        expected_encoder.set_max_blocked_streams(16).unwrap();
++        let mut expected_block = Vec::new();
++        expected_encoder
++            .encode(0, &mut expected_block, &mut expected, fields.clone())
++            .unwrap();
++
++        let (command, mut response) = EncodeCommand::new(0, fields);
++        sender.commands.try_send(command).ok().unwrap();
++        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
++        assert_eq!(send.written, expected);
++        let encoded = response.try_recv().unwrap().unwrap();
++        assert_eq!(encoded.block, expected_block);
++        encoded.publication.published();
++
++        // Later instructions follow without a second stream type.
++        let fields = vec![HeaderField::new("x-next", "1")];
++        let mut expected_block = Vec::new();
++        expected_encoder
++            .encode(4, &mut expected_block, &mut expected, fields.clone())
++            .unwrap();
++        let (command, mut response) = EncodeCommand::new(4, fields);
++        sender.commands.try_send(command).ok().unwrap();
++        assert!(driver.poll(&mut encoder, &mut send, &mut cx).is_pending());
++        assert_eq!(send.written, expected);
++        assert_eq!(response.try_recv().unwrap().unwrap().block, expected_block);
++    }
+ 
+     #[test]
+     fn peer_blocked_stream_limit_is_clamped() {
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index f4768d84..a8ec05dd 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -32,6 +32,13 @@ pub struct Config {
+     /// Delay the local QPACK decoder stream type until feedback is available.
+     pub(crate) defer_qpack_decoder_stream: bool,
+ 
++    /// Open the local QPACK decoder stream before the encoder stream.
++    pub(crate) qpack_decoder_stream_first: bool,
++
++    /// Delay the local QPACK encoder stream type until the first field
++    /// section needs encoder instructions.
++    pub(crate) defer_qpack_encoder_stream: bool,
++
+     #[cfg(test)]
+     pub(crate) send_settings: bool,
+ 
+@@ -124,6 +131,8 @@ impl TryFrom<Config> for frame::Settings {
+             send_grease,
+             dynamic_qpack: _,
+             defer_qpack_decoder_stream: _,
++            qpack_decoder_stream_first: _,
++            defer_qpack_encoder_stream: _,
+             #[cfg(test)]
+                 send_settings: _,
+             settings:
+@@ -242,6 +251,8 @@ impl Default for Config {
+             send_grease: true,
+             dynamic_qpack: false,
+             defer_qpack_decoder_stream: false,
++            qpack_decoder_stream_first: false,
++            defer_qpack_encoder_stream: false,
+             #[cfg(test)]
+             send_settings: true,
+             settings: Default::default(),
+@@ -274,6 +285,13 @@ mod tests {
+         assert!(!Config::default().defer_qpack_decoder_stream);
+     }
+ 
++    #[test]
++    fn qpack_encoder_stream_is_eager_and_opened_first_by_default() {
++        let config = Config::default();
++        assert!(!config.qpack_decoder_stream_first);
++        assert!(!config.defer_qpack_encoder_stream);
++    }
++
+     #[test]
+     fn maximum_qpack_settings_round_trip_through_frame_view() {
+         let mut config = Config {
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index f545176e..752a7e03 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -402,6 +402,9 @@ where
+         let mut decoder_send = Option::take(&mut self.qpack_streams.decoder_send);
+         let mut encoder_send = Option::take(&mut self.qpack_streams.encoder_send);
+         let defer_decoder_header = !self.qpack_streams.decoder_header_pending.is_empty();
++        // A deferred encoder stream type is written by the outbound QPACK
++        // driver with the first instructions, or never without dynamic QPACK.
++        let defer_encoder_header = self.config.defer_qpack_encoder_stream;
+ 
+         let (control, decoder, encoder) = future::join3(
+             stream::write(
+@@ -420,10 +423,11 @@ where
+                 }
+             },
+             async {
+-                if let Some(stream) = &mut encoder_send {
+-                    stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await
+-                } else {
+-                    Ok(())
++                match &mut encoder_send {
++                    Some(stream) if !defer_encoder_header => {
++                        stream::write(stream, WriteBuf::from(UniStreamHeader::Encoder)).await
++                    }
++                    _ => Ok(()),
+                 }
+             },
+         )
+@@ -477,11 +481,18 @@ where
+         //# QPACK encoder and decoder streams) first, and then create additional
+ 
+         // start streams
+-        let (control_send, qpack_encoder, qpack_decoder) = (
+-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
+-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
+-            future::poll_fn(|cx| conn.poll_open_send(cx)).await,
+-        );
++        let control_send = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
++        // The opening order fixes the stream identifiers: control, encoder,
++        // decoder by default, or control, decoder, encoder.
++        let (qpack_encoder, qpack_decoder) = if config.qpack_decoder_stream_first {
++            let decoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
++            let encoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
++            (encoder, decoder)
++        } else {
++            let encoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
++            let decoder = future::poll_fn(|cx| conn.poll_open_send(cx)).await;
++            (encoder, decoder)
++        };
+ 
+         let control_send = match control_send {
+             Err(StreamErrorIncoming::ConnectionErrorIncoming { connection_error }) => {
+@@ -531,7 +542,12 @@ where
+         })?;
+ 
+         let (outbound, outbound_sender) = if config.dynamic_qpack {
+-            let (driver, sender) = outbound_qpack::channel();
++            let (mut driver, sender) = outbound_qpack::channel();
++            if config.defer_qpack_encoder_stream {
++                let mut header = BytesMut::new();
++                UniStreamHeader::Encoder.encode(&mut header);
++                driver.hold_stream_header(header.freeze());
++            }
+             (Some(driver), Some(sender))
+         } else {
+             (None, None)
+diff --git a/h3/src/tests/qpack_request.rs b/h3/src/tests/qpack_request.rs
+index 6c7d9b2b..e1d937db 100644
+--- a/h3/src/tests/qpack_request.rs
++++ b/h3/src/tests/qpack_request.rs
+@@ -274,6 +274,78 @@ async fn dynamic_request_uses_remembered_settings_before_any_peer_settings() {
+     .expect("request waited for peer SETTINGS despite remembered settings");
+ }
+ 
++#[tokio::test]
++async fn chromium_stream_order_writes_the_encoder_stream_type_with_its_first_instructions() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let (expected_instructions, expected_block) =
++        dynamic_request_bytes("https://localhost/chromium");
++    let (captured, captured_rx) = oneshot::channel();
++
++    let server = async move {
++        let mut control = server_connection.open_uni().await.unwrap();
++        control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
++
++        // The control stream is client stream 2. The decoder stream (6)
++        // carries no feedback here; QUIC opens it implicitly when stream 10
++        // arrives (RFC 9000, section 2.1). The encoder stream is 10, and its
++        // type comes with the table capacity and the request's inserts.
++        let mut client_control = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(client_control.id()), 2);
++        assert_eq!(read_varint(&mut client_control).await, 0x00);
++        let decoder = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(decoder.id()), 6);
++        let mut encoder = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(encoder.id()), 10);
++        let mut instructions = vec![0; expected_instructions.len() + 1];
++        encoder.read_exact(&mut instructions).await.unwrap();
++        assert_eq!(instructions[0], 0x02);
++        assert_eq!(&instructions[1..], expected_instructions);
++
++        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
++        let (frame_type, payload) = read_frame(&mut request).await;
++        assert_eq!(frame_type, 0x01);
++        assert_eq!(payload, expected_block);
++
++        captured.send(()).unwrap();
++        server_connection.close(0_u32.into(), b"test complete");
++        drop((control, client_control, decoder, encoder));
++    };
++
++    let client = async move {
++        let mut builder = client::builder();
++        builder
++            .send_grease(false)
++            .enable_dynamic_qpack(true)
++            .defer_qpack_decoder_stream(true)
++            .qpack_decoder_stream_first(true)
++            .defer_qpack_encoder_stream(true);
++        let (mut driver, mut sender) = builder
++            .build::<_, _, Bytes>(client_connection)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            let mut stream = sender
++                .send_request(Request::get("https://localhost/chromium").body(()).unwrap())
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            captured_rx.await.unwrap();
++        };
++        let ((), _) = tokio::join!(request, drive);
++    };
++
++    tokio::time::timeout(TEST_TIMEOUT, async {
++        tokio::join!(server, client);
++    })
++    .await
++    .expect("request with the Chromium QPACK stream order did not complete");
++}
++
+ fn stateless_request_block(uri: &'static str) -> Vec<u8> {
+     let request = Request::get(uri).body(()).unwrap();
+     let (parts, ()) = request.into_parts();

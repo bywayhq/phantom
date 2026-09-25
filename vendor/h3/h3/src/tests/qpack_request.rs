@@ -274,6 +274,78 @@ async fn dynamic_request_uses_remembered_settings_before_any_peer_settings() {
     .expect("request waited for peer SETTINGS despite remembered settings");
 }
 
+#[tokio::test]
+async fn chromium_stream_order_writes_the_encoder_stream_type_with_its_first_instructions() {
+    let mut pair = Pair::default();
+    let endpoint = pair.server_inner();
+    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
+        endpoint.accept().await.unwrap().await.unwrap()
+    });
+    let (expected_instructions, expected_block) =
+        dynamic_request_bytes("https://localhost/chromium");
+    let (captured, captured_rx) = oneshot::channel();
+
+    let server = async move {
+        let mut control = server_connection.open_uni().await.unwrap();
+        control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
+
+        // The control stream is client stream 2. The decoder stream (6)
+        // carries no feedback here; QUIC opens it implicitly when stream 10
+        // arrives (RFC 9000, section 2.1). The encoder stream is 10, and its
+        // type comes with the table capacity and the request's inserts.
+        let mut client_control = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(client_control.id()), 2);
+        assert_eq!(read_varint(&mut client_control).await, 0x00);
+        let decoder = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(decoder.id()), 6);
+        let mut encoder = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(encoder.id()), 10);
+        let mut instructions = vec![0; expected_instructions.len() + 1];
+        encoder.read_exact(&mut instructions).await.unwrap();
+        assert_eq!(instructions[0], 0x02);
+        assert_eq!(&instructions[1..], expected_instructions);
+
+        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
+        let (frame_type, payload) = read_frame(&mut request).await;
+        assert_eq!(frame_type, 0x01);
+        assert_eq!(payload, expected_block);
+
+        captured.send(()).unwrap();
+        server_connection.close(0_u32.into(), b"test complete");
+        drop((control, client_control, decoder, encoder));
+    };
+
+    let client = async move {
+        let mut builder = client::builder();
+        builder
+            .send_grease(false)
+            .enable_dynamic_qpack(true)
+            .defer_qpack_decoder_stream(true)
+            .qpack_decoder_stream_first(true)
+            .defer_qpack_encoder_stream(true);
+        let (mut driver, mut sender) = builder
+            .build::<_, _, Bytes>(client_connection)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            let mut stream = sender
+                .send_request(Request::get("https://localhost/chromium").body(()).unwrap())
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+            captured_rx.await.unwrap();
+        };
+        let ((), _) = tokio::join!(request, drive);
+    };
+
+    tokio::time::timeout(TEST_TIMEOUT, async {
+        tokio::join!(server, client);
+    })
+    .await
+    .expect("request with the Chromium QPACK stream order did not complete");
+}
+
 fn stateless_request_block(uri: &'static str) -> Vec<u8> {
     let request = Request::get(uri).body(()).unwrap();
     let (parts, ()) = request.into_parts();

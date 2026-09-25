@@ -266,6 +266,30 @@ impl Builder {
         self
     }
 
+    /// Opens the local QPACK decoder stream before the encoder stream.
+    ///
+    /// By default the client opens its control stream, then its encoder
+    /// stream, then its decoder stream, so on QUIC they are client streams 2,
+    /// 6, and 10. When enabled, the decoder stream is opened second and the
+    /// encoder stream third, so the encoder stream is client stream 10.
+    pub fn qpack_decoder_stream_first(&mut self, enabled: bool) -> &mut Self {
+        self.config.qpack_decoder_stream_first = enabled;
+        self
+    }
+
+    /// Defers the local QPACK encoder stream type until the first field
+    /// section is encoded with encoder instructions.
+    ///
+    /// The stream is still reserved during connection setup, so its identifier
+    /// and critical-stream lifecycle remain unchanged. Instructions queued
+    /// before that field section, such as the dynamic table capacity, are
+    /// held and written with it, after the stream type, so a connection that
+    /// encodes no field section never writes to the stream.
+    pub fn defer_qpack_encoder_stream(&mut self, enabled: bool) -> &mut Self {
+        self.config.defer_qpack_encoder_stream = enabled;
+        self
+    }
+
     /// Create a new HTTP/3 client from a `quic` connection
     pub async fn build<C, O, B>(
         &mut self,
@@ -341,6 +365,16 @@ mod tests {
         assert!(!builder.config.defer_qpack_decoder_stream);
         builder.defer_qpack_decoder_stream(true);
         assert!(builder.config.defer_qpack_decoder_stream);
+    }
+
+    #[test]
+    fn qpack_stream_order_and_encoder_stream_type_can_follow_chromium() {
+        let mut builder = Builder::new();
+        builder
+            .qpack_decoder_stream_first(true)
+            .defer_qpack_encoder_stream(true);
+        assert!(builder.config.qpack_decoder_stream_first);
+        assert!(builder.config.defer_qpack_encoder_stream);
     }
 
     fn settings_frame_bytes(builder: &Builder) -> Vec<u8> {

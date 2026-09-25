@@ -32,6 +32,13 @@ pub struct Config {
     /// Delay the local QPACK decoder stream type until feedback is available.
     pub(crate) defer_qpack_decoder_stream: bool,
 
+    /// Open the local QPACK decoder stream before the encoder stream.
+    pub(crate) qpack_decoder_stream_first: bool,
+
+    /// Delay the local QPACK encoder stream type until the first field
+    /// section needs encoder instructions.
+    pub(crate) defer_qpack_encoder_stream: bool,
+
     #[cfg(test)]
     pub(crate) send_settings: bool,
 
@@ -124,6 +131,8 @@ impl TryFrom<Config> for frame::Settings {
             send_grease,
             dynamic_qpack: _,
             defer_qpack_decoder_stream: _,
+            qpack_decoder_stream_first: _,
+            defer_qpack_encoder_stream: _,
             #[cfg(test)]
                 send_settings: _,
             settings:
@@ -242,6 +251,8 @@ impl Default for Config {
             send_grease: true,
             dynamic_qpack: false,
             defer_qpack_decoder_stream: false,
+            qpack_decoder_stream_first: false,
+            defer_qpack_encoder_stream: false,
             #[cfg(test)]
             send_settings: true,
             settings: Default::default(),
@@ -272,6 +283,13 @@ mod tests {
     #[test]
     fn qpack_decoder_stream_is_eager_by_default() {
         assert!(!Config::default().defer_qpack_decoder_stream);
+    }
+
+    #[test]
+    fn qpack_encoder_stream_is_eager_and_opened_first_by_default() {
+        let config = Config::default();
+        assert!(!config.qpack_decoder_stream_first);
+        assert!(!config.defer_qpack_encoder_stream);
     }
 
     #[test]
