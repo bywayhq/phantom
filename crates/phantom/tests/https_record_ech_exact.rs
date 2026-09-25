@@ -21,7 +21,7 @@ mod tunnel_proxy;
 // `tunnel_proxy` reaches the TLS helpers as `super::tls`.
 use tls_support as tls;
 
-use std::{net::Ipv4Addr, time::Duration};
+use std::{net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use btls::ssl::SslAcceptor;
 #[cfg(feature = "websocket")]
@@ -29,7 +29,8 @@ use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, Route,
+    AddressResolver, Client, HttpProtocol, HttpProxy, Route,
+    dns::HttpsRecordResolver,
     profile::{ClientProfile, chromium},
 };
 use phantom_testkit::{
@@ -42,8 +43,8 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle
 use tokio_btls::SslStream;
 
 use ech_support::{
-    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, TEST_TIMEOUT, discovering_client, ech_acceptor,
-    ech_tls_settings, https_rdata, origin_identity, record_server, try_handshake,
+    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
+    ech_acceptor, ech_tls_settings, https_rdata, origin_identity, record_server, try_handshake,
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, H2_ALPN, TestResult, read_head};
@@ -511,6 +512,47 @@ async fn websocket_opening_takes_the_record_for_its_alpn_offer() -> TestResult<(
         assert_accepted(request);
         assert_eq!(websocket.outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!websocket.ech_accepted);
+        Ok(())
+    })
+    .await
+}
+
+/// An exact request that offers the record's ECH resolves its origin through
+/// the client's host resolver: the override answers the name, so the caller's
+/// resolver, which fails every lookup, is never asked, and the handshake
+/// still offers and completes ECH.
+#[tokio::test]
+async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let dns = published_record().await?;
+        let acceptor = ech_acceptor(&identity, H2_ALPN, 1, &TEST_ECH_KEYS[0])?;
+        let origin = Origin::spawn(acceptor, vec![Opening::Http2; 2]).await?;
+        let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
+        let records = HttpsRecordResolver::from_fn(move |_, port| {
+            let upstream = upstream.clone();
+            async move { upstream.lookup(STAND_IN_NAME, port).await }
+        });
+        let failing = AddressResolver::from_fn(|host| async move {
+            Err(std::io::Error::other(format!(
+                "no lookup expected for {host}"
+            )))
+        });
+        let client = Client::builder(Opening::profile(true))
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(NonZeroUsize::MIN.saturating_add(7))
+            .https_record_discovery(records)
+            .dns_resolver(failing)
+            .resolve(ORIGIN_NAME, [Ipv4Addr::LOCALHOST.into()])
+            .build()?;
+
+        for path in ["/first", "/second"] {
+            Opening::Http2.send(&client, origin.port, path).await?;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+
+        let observed = origin.finish().await?;
+        assert_accepted(observed.last().ok_or("no connection")?);
         Ok(())
     })
     .await
