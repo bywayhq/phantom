@@ -200,8 +200,7 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
   selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
 - There is no Edge HTTP/1.1 connection recipe: no source or capture shows
-  Edge 153's value. Negotiated requests keep one connection per origin
-  whatever the profile says
+  Edge 153's value
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 - Templates cover only address-bar navigations and same-origin no-store
   `fetch` GETs. Firefox templates have no HTTP/3 list and no hint slots

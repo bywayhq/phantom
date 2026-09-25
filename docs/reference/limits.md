@@ -44,7 +44,7 @@ limit is one deadline over all attempts, delays, and the final response body.
 | Bound | Default | Builder method |
 | --- | --- | --- |
 | Retained H1 pool entries | 32 | `max_retained_http1_connections` |
-| Active H1 requests, and so H1 connections, per pool key | The profile's `Http1Settings`, otherwise 1 | `max_concurrent_http1_requests_per_origin` |
+| Active H1 requests, and so H1 connections, per pool key, exact or negotiated | The profile's `Http1Settings`, otherwise 1 | `max_concurrent_http1_requests_per_origin` |
 | Waiting H1 requests per pool key | 100 | `max_pending_http1_requests_per_origin` |
 | Retained H2 pool entries | 32 | `max_retained_http2_connections` |
 | Active H2 requests per pool key | 100 | `max_concurrent_http2_requests_per_origin` |
@@ -62,8 +62,14 @@ limit is one deadline over all attempts, delays, and the final response body.
   most recently used idle connection before it opens another. The
   `chromium::v154_http1` and `firefox::v156_http1` recipes set 6, the
   browsers' per-host limit; a profile without `Http1Settings` keeps one
-  connection. The negotiated H1/H2 pool still keeps one connection per
-  origin.
+  connection.
+- The negotiated H1/H2 pool applies the same bound to each pool key.
+  Connections that selected H1 and connections still in their TLS handshake
+  count toward it. A pool key whose connection selected H2 keeps that one
+  connection for all its requests, under the H2 active bound. Before a
+  connection has selected H1, a request past the waiting bound fails with
+  `RequestErrorKind::Capacity` and no protocol. The handshake rules are in
+  [HTTP/1.1 connections](profiles.md#http11-connections).
 - An H3 entry keeps connections for up to four transport locations, so exact
   H3 and Alt-Svc H3 do not replace each other.
 - The negotiated H1/H2 pool retains at most the lower of the H1 and H2

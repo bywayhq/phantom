@@ -565,7 +565,9 @@ Limits:
 What is claimed: `chromium::v154_http1` and `firefox::v156_http1` allow 6
 HTTP/1.1 connections to one origin and route, as those browsers do at the
 profiled release tags, and the client opens connections up to the profile's
-bound.
+bound. Negotiated requests that select HTTP/1.1 use the same bound, and
+their TLS handshakes follow the browsers' rule for a server whose protocol
+is not yet known.
 
 Evidence: a capture of one page load cannot show a limit that the page never
 reached, so the recipes rest on browser source at Chromium tag
@@ -589,6 +591,29 @@ Differences from the browsers:
   by 3 (`modules/libpref/init/all.js:1163-1165`).
 - Edge's network-stack source is not public, so there is no Edge recipe.
 
+Negotiated requests: both browsers count a connection whose ALPN selected
+HTTP/1.1 against the same per-group limit, and differ from each other only
+while a handshake to a server known to speak HTTP/2 is in flight.
+
+| Browser | Source behavior |
+| --- | --- |
+| Chromium 154 | Every HTTPS job registers with `SpdySessionPool::RequestSession` (`net/http/http_stream_factory_job.cc:749-777`). The first job for a session key is the blocking request (`net/spdy/spdy_session_pool.cc:269-302`). A later job is held only when `HttpServerProperties` says the server supports HTTP/2 (`net/http/http_stream_factory_job.cc:1417-1429`), until the blocking request finishes (`net/spdy/spdy_session_pool.cc:531-548`) or `kHTTP2ThrottleMs`, 300 ms, passes (`net/http/http_stream_factory_job.h:62`). Support is recorded when a connection negotiates HTTP/2 (`net/http/http_stream_factory_job.cc:1304-1306`). Without it, each job asks the socket pool for its own socket at once, up to the group limit. A job whose socket negotiated HTTP/2 after another session to the key appeared closes its socket and uses that session (`:1245-1280`), and a new session closes the group's idle sockets (`:1283-1287`). `HttpStreamPool`, which applies the same rule with the same 300 ms delay (`net/http/http_stream_pool_attempt_manager.cc:1597-1615`, `net/http/http_stream_pool_attempt_manager.h:100`), runs only with `kHappyEyeballsV3`, off by default (`net/base/features.cc:124`). |
+| Firefox 156 | `nsHttpConnectionMgr::MakeNewConnection` opens no connection while `ConnectionEntry::RestrictConnections` holds (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1399-1409`). That requires `mUsingSpdy` and an attempt still negotiating, or an active connection whose ALPN result is pending or that can take another stream (`netwerk/protocol/http/ConnectionEntry.cpp:225-282`). `mUsingSpdy` starts false (`:38`) and is set only when a connection reports HTTP/2 (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1007-1024`), so a new entry opens connections in parallel up to the limit. |
+
+Phantom follows both: a pool key that has never selected HTTP/2 starts
+handshakes in parallel up to the bound, and a key that has holds each new
+handshake until the one in flight finishes. Differences:
+
+- Chromium stops holding after 300 ms; Phantom, like Firefox, holds until
+  the handshake in flight finishes or fails.
+- Chromium keeps HTTP/2 support in `HttpServerProperties`, which outlives
+  sockets and is saved to disk. Phantom keeps it in the pool entry, so an
+  evicted entry, or a new client, starts as a first contact.
+- Chromium closes a waiting job's socket, handshake finished or not, when a
+  session to the key becomes available
+  (`net/http/http_stream_factory_job.cc:1337-1342`). Phantom lets every
+  handshake it started finish, then closes a second HTTP/2 connection.
+
 Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
 
 | Test | What it proves |
@@ -600,6 +625,19 @@ Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
 | `profile_without_http1_policy_keeps_one_connection_per_origin` | A profile without `Http1Settings` keeps one connection |
 | `requests_cancelled_during_connection_setup_leave_the_full_bound` | Requests dropped while their connection is being set up do not use up the bound |
 | `custom_profile_carries_its_own_http1_bound` | A custom `Http1Settings` bound reaches the client |
+
+Loopback tests in `crates/phantom/tests/negotiated_parallel.rs`:
+
+| Test | What it proves |
+| --- | --- |
+| `first_contact_with_an_http1_origin_opens_parallel_handshakes_up_to_the_bound` | Five concurrent requests open three connections whose handshakes run at once, and all succeed over HTTP/1.1 |
+| `fewer_requests_than_the_bound_open_one_connection_each` | Two concurrent requests open two connections under a bound of six |
+| `named_recipe_opens_six_negotiated_http1_connections` | Both recipes open six negotiated connections and hold a seventh request |
+| `idle_negotiated_http1_connection_is_reused_before_another_opens` | A freed connection is reused before a new one opens |
+| `negotiated_http1_request_beyond_the_bound_waits_for_a_free_connection` | A request past the bound waits and then runs on the connection freed first |
+| `first_contact_with_an_h2_origin_converges_on_one_connection` | Parallel first handshakes that all select HTTP/2 leave one connection carrying every request |
+| `concurrent_requests_to_a_known_h2_origin_wait_for_the_handshake_in_flight` | Once HTTP/2 was selected, concurrent requests open one connection |
+| `negotiated_http1_through_an_http_proxy_opens_one_tunnel_per_connection` | Each HTTP/1.1 connection through an HTTP proxy has its own CONNECT tunnel |
 
 How to reproduce: read the cited files at the tags above, and run the listed
 tests.

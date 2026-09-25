@@ -68,7 +68,10 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
   [connection bound](../reference/glossary.md#connection-bound), and a
   request waits once the bound is reached. Without `with_http1` the bound
   is 1; `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces
-  it. Negotiated requests and other rules:
+  it.
+- `get_negotiated` requests use the same bound when ALPN selects HTTP/1.1.
+  When it selects HTTP/2, they share one connection. Handshake order and
+  other rules:
   [HTTP/1.1 connections](../reference/profiles.md#http11-connections).
 
 ## Follow redirects

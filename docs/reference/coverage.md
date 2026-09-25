@@ -155,7 +155,9 @@ Supported:
   arrival order, up to a bounded number of waiters, once the bound is
   reached. The Chrome 154 and Firefox 156 recipes set the browsers'
   per-host limit of 6, from browser source. A profile without
-  `Http1Settings` keeps one connection.
+  `Http1Settings` keeps one connection. Negotiated requests that select H1
+  use the same bound, each connection with its own TLS handshake; before
+  the first H1 or H2 selection, their handshakes run in parallel.
 - Finite opt-in redirects for `http://` and `https://` requests.
 - Opt-in typed connection-setup retries before dispatch.
 - Opt-in replay of an idempotent request, once, on a fresh connection when a
@@ -176,8 +178,10 @@ Not modeled:
   proxy, where its recipe keeps 6, and the 3 extra connections it allows
   urgent-start requests. Firefox also leaves idle connections out of its
   count; Phantom counts them.
-- Parallel connections for negotiated H1/H2 requests, which keep one
-  connection per origin.
+- Chromium's 300 ms cap on holding a connection attempt to a server known
+  to speak H2 while another attempt is in flight. Phantom holds it until
+  that attempt finishes, as Firefox does. Phantom also forgets that a
+  server spoke H2 when its pool entry is evicted.
 
 Planned:
 

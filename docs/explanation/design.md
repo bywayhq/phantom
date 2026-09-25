@@ -172,11 +172,13 @@ pool's pre-TLS connect step. They cannot absorb TLS, ALPN, proxy negotiation,
 response, or post-dispatch failures.
 
 A negotiated request first takes a bounded pre-selection admission, sized by
-the larger of the H1 and H2 active and waiting limits. After ALPN, that
-admission converts to the selected protocol's admission. The request holds
-its admission permit across the retry delay but holds no pool-entry
-connection lock. Bounds and queue order therefore stay stable, and another
-request can install a compatible connection generation in the meantime.
+the larger of the H1 and H2 active and waiting limits. To open a connection
+or use an idle H1 one, it also takes one of the pool key's H1 connection
+slots. After ALPN, the pre-selection admission converts to the selected
+protocol's admission. The request holds its pre-selection permit across the
+retry delay, but gives back its connection slot and holds no lock. Bounds
+and queue order therefore stay stable, and another request can open a
+connection, or install an H2 connection, in the meantime.
 
 H2 has one built-in graceful-`GOAWAY` replay for a bodyless GET, and it keeps
 the same boundary. An exact H2 request keeps its admission for the

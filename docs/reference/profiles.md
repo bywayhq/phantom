@@ -125,7 +125,16 @@ for each origin and route.
 - `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
   profile's value.
 - Negotiated requests, which let ALPN choose between HTTP/1.1 and HTTP/2,
-  keep one connection per origin whatever the profile says.
+  use the same limit when ALPN selects HTTP/1.1. Each connection runs its own
+  TLS handshake with the same ALPN offer. When ALPN selects HTTP/2, the
+  origin and route's requests share one connection.
+- Until a connection to an origin and route has selected HTTP/2, concurrent
+  negotiated requests start their handshakes in parallel, up to the limit,
+  as Chromium and Firefox do for a server they have not yet seen speak
+  HTTP/2. If several select HTTP/2, the first is kept and the others close.
+  After one has selected HTTP/2, a request that finds a handshake to the
+  same origin and route in progress waits for it instead of starting its
+  own.
 - Firefox allows 32 connections for plaintext requests forwarded through an
   HTTP proxy, and 3 more for urgent-start requests; its recipe keeps 6 for
   both. Firefox also leaves idle connections out of its count.
