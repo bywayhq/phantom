@@ -75,8 +75,10 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
   lookup and encrypts its ClientHello with the record's `ech`, as Chrome
   does.
 - Only negotiated requests on the direct route with no stored Alt-Svc
-  alternative look up records. Proxy routes and IP-literal origins send no
-  query.
+  alternative look up records for H3. With the Chrome 154 recipe, every
+  direct TLS connection over TCP also looks them up for its `ech`,
+  including those of exact-protocol requests and `wss://` openings. Proxy
+  routes and IP-literal origins send no query.
 - The H3 endpoint is the origin's own host and port, so the request carries
   no `Alt-Used` field. If H3 setup fails, the location is marked broken and
   later requests go to the origin until the backoff ends.
@@ -139,8 +141,9 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   sources where Chrome shows one
   ([HTTPS record evidence](../explanation/validation.md#https-dns-record-evidence)).
 - Encrypted Client Hello from a record's `ech` value covers direct
-  negotiated HTTP/1.1 and HTTP/2 connections only, not H3 or exact-protocol
-  requests ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
+  HTTP/1.1 and HTTP/2 connections, negotiated or exact, and `wss://`
+  openings, but not H3
+  ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
 - Not implemented: racing more than one alternative (a stored Alt-Svc
   alternative is used instead of an HTTPS-record one), persisting
   brokenness or clearing it on a network change, an RTT-derived racing

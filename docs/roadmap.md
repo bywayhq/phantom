@@ -30,8 +30,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
-- Encrypted Client Hello from an HTTPS record on direct negotiated TCP
-  connections with the Chrome 154 recipe
+- Encrypted Client Hello from an HTTPS record on direct TCP connections,
+  negotiated or exact, and on `wss://` openings, with the Chrome 154 recipe
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
@@ -131,8 +131,6 @@ anything does.
 - Edge's ECH default. Evidence: unknown; `edge::v153_tls` keeps GREASE.
   Blocker: a capture on a host where Edge's DNS-over-HTTPS policy can be set,
   which needs elevation.
-- ECH for exact-protocol requests. Exact HTTP/1.1 and HTTP/2 requests look
-  up no HTTPS record and always send ECH GREASE. Blocker: none recorded.
 - DNS over HTTPS where the captured browser uses it. Blocker: none
   recorded; a caller can already supply an `AddressResolver` that queries
   over HTTPS, but no recipe does.

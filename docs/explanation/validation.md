@@ -1362,6 +1362,13 @@ configurations, or with ECH GREASE and the true name when the server sent
 none. The ClientHello waits for the lookup as Chrome's does, for at most 50 ms
 after the addresses arrive.
 
+The direct connections of exact-protocol HTTP/1.1 and HTTP/2 requests and of
+`wss://` WebSocket openings follow the same rules through the same connection
+code. For a `wss://` opening this rests on Chromium's source, not on a
+capture: no retained capture shows Chrome's `wss://` ClientHello, whose ALPN
+offers only `http/1.1`. A WebSocket over exact HTTP/2 extended CONNECT has no
+Chrome counterpart.
+
 Evidence: `fixtures/tls/chrome/154.0.8037.58/windows-11-26200/` retains
 `ech-accept.txt` and `ech-reject.txt`, headless Chrome 154.0.8037.58 on
 Windows 11 (10.0.26200), recorded by
@@ -1395,7 +1402,23 @@ lookup still running after the bounded wait is abandoned.
 `crates/phantom/tests/https_record_ech.rs` proves the same through the client
 facade with a loopback DNS server, that a profile without the field keeps
 GREASE, and that a request through an HTTP proxy sends no HTTPS query and no
-ECH. `crates/phantom-net/src/dns/ech_config/tests.rs` checks, on truncated,
+ECH.
+
+`crates/phantom/tests/https_record_ech_exact.rs` covers exact HTTP/1.1 and
+HTTP/2 requests and WebSocket openings over an HTTP/1.1 Upgrade and over
+HTTP/2 extended CONNECT, through the facade:
+
+- Once the record is cached, each connection has its ECH accepted, with the
+  origin's name inside.
+- A rejection is retried once, with the server's retry configuration.
+- Through an HTTP proxy, the client sends no HTTPS query and no ECH.
+- With the field unset, the client sends no HTTPS query and every connection
+  sends GREASE.
+- An exact HTTP/1.1 request, which offers `h2` too, takes a first record that
+  supports only `h2`; a WebSocket opening, which offers only `http/1.1`,
+  skips it.
+
+`crates/phantom-net/src/dns/ech_config/tests.rs` checks, on truncated,
 corrupted, unknown-version, invalid-name, mandatory-extension, and
 malformed-extension samples, that the `ECHConfigList` parser accepts exactly
 the lists BoringSSL's `SSL_set1_ech_config_list` accepts, and the `ech_config_list` fuzz target
@@ -1414,6 +1437,15 @@ submodule commit `f1f2556a`, states the rules the recipe follows:
   (`net/socket/ssl_connect_job.cc` lines 406-420), and a proxied request sends
   no HTTPS query, as [HTTPS DNS record evidence](#https-dns-record-evidence)
   records.
+- A `wss://` connection takes the same path. `InitSocketHandleForWebSocketRequest`
+  passes it to the socket pools with the `https` scheme
+  (`net/socket/client_socket_pool_manager.cc` lines 240-271), and
+  `ClientSocketPool::CreateConnectJob` builds its connect job as for any
+  request, except that ALPN offers only `http/1.1`
+  (`net/socket/client_socket_pool.cc` lines 244-256). That offer becomes the
+  job's supported protocols (`net/socket/connect_job_params_factory.cc` lines
+  71-73 and 323-326), which pick the record below, and `SSLConnectJob` applies
+  the record's `ech`.
 - The record that counts is the first usable endpoint, in priority order,
   whose protocols include `h2` or `http/1.1`
   (`net/dns/dns_task_results_manager.cc` lines 295-339,
@@ -1466,6 +1498,16 @@ rule that HTTPS record discovery never delays a request.
   connections each have ECH accepted, and
   `crates/phantom-net/src/http1_or_2/tests/ech.rs` proves the no-wait rule on
   a cached address and the wait after a slow resolution.
+- Exact-protocol HTTP/1.1 and HTTP/2 requests and `wss://` openings follow
+  the same rules on the connections they open, through the same connection
+  code. Chrome has no exact-protocol request, so Phantom treats each as the
+  direct TLS connection it is and picks the record for that connection's own
+  ALPN offer: the exact connectors offer the profile's list, `h2` and
+  `http/1.1` in the Chrome recipe, and an opening under Chrome's WebSocket
+  policy offers only `http/1.1`. A WebSocket over exact HTTP/2 extended
+  CONNECT opens a connection of its own, which Chrome never does, since it
+  runs a WebSocket over HTTP/2 only on a session it already has; that
+  connection offers the record's `ech` too.
 
 Firefox 156, at tag `FIREFOX_156_0_RELEASE`, does not follow these rules, and
 its recipe keeps GREASE:
@@ -1490,10 +1532,9 @@ failed with access denied without elevation, so the capture does not use it.
 
 Limits:
 
-- Only direct negotiated HTTP/1.1 and HTTP/2 connections, on a client with
-  HTTPS record discovery, use the record's `ech`. Exact HTTP/1.1 and HTTP/2
-  requests have no discovery and send GREASE, as Chrome does without a
-  record. The QUIC leg does not implement it: `chromium::v154_http3_tls`
+- Only direct HTTP/1.1 and HTTP/2 connections over TCP, on a client with
+  HTTPS record discovery, use the record's `ech`. The QUIC leg does not
+  implement it: `chromium::v154_http3_tls`
   leaves the field unset, and a QUIC connector rejects it, although Chrome
   passes the list to QUIC too (`net/quic/quic_chromium_client_session.cc`
   lines 1765-1780).
