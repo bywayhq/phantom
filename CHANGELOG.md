@@ -200,6 +200,24 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `Http2Connection::peer_max_concurrent_streams` in `phantom-net`.
 - [Tune throughput and latency](docs/guides/performance.md), and a table of
   every timer in [Defaults and limits](docs/reference/limits.md#delays-and-timers).
+
+- An address cache for the names a client resolves itself: origin hosts on a
+  direct route, proxy hosts, and local-DNS `socks5://` targets.
+  `phantom_profile::DnsCacheSettings` (`max_entries`, `ttl`, `negative_ttl`),
+  `ClientProfile::with_dns_cache` and `ClientProfile::dns_cache`, the recipes
+  `chromium::v154_dns_cache` (1,000 names, answers for 60 seconds, failures
+  not kept) and `firefox::v156_dns_cache` (1,600 names, answers and failures
+  for 60 seconds) from browser source, `ClientBuilder::dns_cache`,
+  `ClientBuilder::no_dns_cache`, and `Client::clear_dns_cache`. Concurrent
+  connections to one host share one lookup, and the resolver's address order
+  is kept. Clones share the cache; each session starts with an empty one.
+  Targets that `socks5h://`, an HTTP proxy, or CONNECT-UDP resolves never
+  reach it. A client with a cache sends fewer DNS queries: one per host per
+  lifetime instead of one per new connection. Without `with_dns_cache` or
+  `ClientBuilder::dns_cache`, nothing changes. `phantom_net` gains
+  `address_cache::AddressCache` and `with_address_cache` and
+  `address_cache` on its TCP, HTTPS proxy, and HTTP/3 connectors.
+
 - `RequestField::ByForwarding`, with the `RequestField::unless_forwarded` and
   `RequestField::when_forwarded` constructors: a template field whose value
   depends on whether an HTTP proxy forwards the request (absolute form on

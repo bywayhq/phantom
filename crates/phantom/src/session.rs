@@ -570,6 +570,19 @@ impl Client {
         }
     }
 
+    /// Forgets every host address this client and its clones resolved.
+    ///
+    /// Browsers flush their address caches when the network changes; Phantom
+    /// does not watch the network, so call this after such a change. A
+    /// lookup in flight still answers the connections waiting for it, but
+    /// its answer is not kept. Does nothing when the client caches no
+    /// addresses.
+    pub fn clear_dns_cache(&self) {
+        if let Some(cache) = &self.inner.address_cache {
+            cache.clear();
+        }
+    }
+
     /// Clears all alternative services learned by this client.
     pub fn clear_alt_svc(&self) {
         if let Some(alt_svc) = &self.state.alt_svc {
@@ -872,7 +885,7 @@ impl SessionBuilder {
     /// [`ClientBuilder::build`]: crate::ClientBuilder::build
     pub fn build(self) -> Result<Client, BuildError> {
         self.options.validate(&self.inner)?;
-        let inner = self.inner.with_fresh_proxy_credentials();
+        let inner = self.inner.with_fresh_session_state();
         let state = self.options.build(&inner);
         Ok(Client { inner, state })
     }

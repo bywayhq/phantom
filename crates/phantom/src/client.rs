@@ -3,6 +3,7 @@ use std::{fmt, num::NonZeroUsize, sync::Arc};
 use http::Method;
 use phantom_net::{
     ServerAuthentication,
+    address_cache::AddressCache,
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector,
@@ -14,7 +15,9 @@ use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
 use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
-use phantom_profile::{ClientHintSettings, ClientProfile, ProxyConnectTemplate, TcpSettings};
+use phantom_profile::{
+    ClientHintSettings, ClientProfile, DnsCacheSettings, ProxyConnectTemplate, TcpSettings,
+};
 
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
@@ -53,7 +56,8 @@ impl HttpProtocol {
 /// Cloneable owner of transport configuration and bounded cross-request state.
 ///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
-/// sessions, negotiated client-hint state, and optional Alt-Svc state.
+/// sessions, negotiated client-hint state, optional Alt-Svc state, and the
+/// address cache.
 /// Independently built clients share none of that mutable state. Settings
 /// are fixed when [`ClientBuilder::build`] returns; a request can override
 /// only its route, timeouts, and retry policy, and can opt into content
@@ -88,7 +92,7 @@ pub struct Client {
 ///
 /// Cloning is shallow: TLS contexts, the HTTP/3 connectors, and the key log
 /// stay shared. A session takes a clone whose connectors hold its own proxy
-/// credential record.
+/// credential record and address cache.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
@@ -101,6 +105,9 @@ pub(crate) struct ClientInner {
     /// Proxies that accepted Basic credentials, shared with the connectors.
     /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
+    /// Resolved host addresses, shared with the connectors. Each session has
+    /// its own.
+    pub(crate) address_cache: Option<AddressCache>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
     pub(crate) http1_connections_per_origin: NonZeroUsize,
@@ -121,20 +128,65 @@ pub(crate) struct ClientInner {
 }
 
 impl ClientInner {
-    /// Returns this configuration with an empty proxy credential record, or
-    /// itself when preemptive proxy authentication is disabled.
+    /// Returns this configuration with an empty proxy credential record and
+    /// an empty address cache, or itself when it keeps neither.
     ///
     /// Sessions call this so that one session's remembered proxy credentials
-    /// never reach another, as with cookies, Alt-Svc, and pools.
-    pub(crate) fn with_fresh_proxy_credentials(self: &Arc<Self>) -> Arc<Self> {
-        if self.proxy_credentials.is_none() {
+    /// and resolved addresses never reach another, as with cookies, Alt-Svc,
+    /// and pools.
+    pub(crate) fn with_fresh_session_state(self: &Arc<Self>) -> Arc<Self> {
+        if self.proxy_credentials.is_none() && self.address_cache.is_none() {
             return Arc::clone(self);
         }
-        let cache = ProxyCredentialCache::new();
         let mut inner = Self::clone(self);
-        inner.bind_proxy_credentials(&cache);
-        inner.proxy_credentials = Some(cache);
+        if inner.proxy_credentials.is_some() {
+            let cache = ProxyCredentialCache::new();
+            inner.bind_proxy_credentials(&cache);
+            inner.proxy_credentials = Some(cache);
+        }
+        if let Some(settings) = self.address_cache.as_ref().map(AddressCache::settings) {
+            inner.bind_address_cache(AddressCache::new(*settings));
+        }
         Arc::new(inner)
+    }
+
+    /// Gives every connector that resolves host names the same address cache.
+    fn bind_address_cache(&mut self, cache: AddressCache) {
+        let bind = |connector: Http1TlsConnector| connector.with_address_cache(cache.clone());
+        self.http1 = self.http1.take().map(bind);
+        self.http1_or_2 = self
+            .http1_or_2
+            .take()
+            .map(|connector| connector.with_address_cache(cache.clone()));
+        self.http2 = self
+            .http2
+            .take()
+            .map(|connector| connector.with_address_cache(cache.clone()));
+        self.http3 = self
+            .http3
+            .take()
+            .map(|connector| Arc::new(connector.with_address_cache(cache.clone())));
+        self.https_proxy = self
+            .https_proxy
+            .take()
+            .map(|connector| connector.with_address_cache(cache.clone()));
+        self.connect_udp_proxy = self.connect_udp_proxy.take().map(|connectors| {
+            Arc::new(ConnectUdpConnectors {
+                http3: connectors
+                    .http3
+                    .as_ref()
+                    .map(|connector| connector.with_address_cache(cache.clone())),
+                tcp: connectors
+                    .tcp
+                    .clone()
+                    .map(|connector| connector.with_address_cache(cache.clone())),
+            })
+        });
+        #[cfg(feature = "websocket")]
+        {
+            self.websocket_http1 = self.websocket_http1.take().map(bind);
+        }
+        self.address_cache = Some(cache);
     }
 
     /// Gives every connector that can open an authenticated proxy tunnel the
@@ -179,6 +231,7 @@ impl Client {
             route: Route::Direct,
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
+            dns_cache: None,
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
             #[cfg(feature = "diagnostics")]
@@ -425,7 +478,7 @@ impl Client {
     #[doc(hidden)]
     pub fn session(&self) -> Session {
         // Default options enable no Alt-Svc store, so they need no validation.
-        let inner = self.inner.with_fresh_proxy_credentials();
+        let inner = self.inner.with_fresh_session_state();
         let state = ClientOptions::default().build(&inner);
         Client { inner, state }
     }
@@ -470,6 +523,9 @@ pub struct ClientBuilder {
     route: Route,
     options: ClientOptions,
     preemptive_proxy_authentication: bool,
+    /// The caller's address cache choice: `None` keeps the profile's, and
+    /// `Some(None)` turns caching off.
+    dns_cache: Option<Option<DnsCacheSettings>>,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
@@ -511,6 +567,7 @@ impl fmt::Debug for ClientBuilder {
                 "preemptive_proxy_authentication",
                 &self.preemptive_proxy_authentication,
             )
+            .field("dns_cache", &self.dns_cache_settings())
             .field("redirect_policy", &self.options.redirect_policy)
             .field("retry_policy", &self.options.retry_policy)
             .field("request_timeouts", &self.options.request_timeouts)
@@ -720,6 +777,45 @@ impl ClientBuilder {
     pub fn preemptive_proxy_authentication(mut self, enabled: bool) -> Self {
         self.preemptive_proxy_authentication = enabled;
         self
+    }
+
+    /// Caches the addresses this client resolves with `settings` in place of
+    /// the profile's.
+    ///
+    /// By default the client uses the profile's [`DnsCacheSettings`], set
+    /// with [`ClientProfile::with_dns_cache`], and resolves the host of every
+    /// new connection when the profile has none. The cache covers each name
+    /// the client resolves itself: origin hosts on a direct route, proxy
+    /// hosts, and the target of a local-DNS `socks5://` route. A target a
+    /// proxy resolves, through `socks5h://`, an HTTP proxy, or CONNECT-UDP,
+    /// is never resolved or cached locally. Concurrent connections to one
+    /// host share one lookup, and the resolver's address order is kept for
+    /// address racing.
+    ///
+    /// Clones of this client share the cache; a session built from the
+    /// client starts with an empty cache of its own. The client does not
+    /// watch for network changes as browsers do;
+    /// [`Client::clear_dns_cache`] forgets every answer.
+    #[must_use]
+    pub fn dns_cache(mut self, settings: DnsCacheSettings) -> Self {
+        self.dns_cache = Some(Some(settings));
+        self
+    }
+
+    /// Resolves the host of every new connection, even when the profile
+    /// caches addresses.
+    #[must_use]
+    pub fn no_dns_cache(mut self) -> Self {
+        self.dns_cache = Some(None);
+        self
+    }
+
+    /// Returns the address cache settings the client will use, if any.
+    fn dns_cache_settings(&self) -> Option<&DnsCacheSettings> {
+        match &self.dns_cache {
+            Some(choice) => choice.as_ref(),
+            None => self.profile.dns_cache(),
+        }
     }
 
     /// Sets the finite policy for following redirect responses.
@@ -1323,6 +1419,7 @@ impl ClientBuilder {
             Arc::new(crate::KeyLog::new(receiver))
         });
 
+        let dns_cache = self.dns_cache_settings().copied();
         let mut inner = ClientInner {
             http1,
             http1_or_2,
@@ -1331,6 +1428,7 @@ impl ClientBuilder {
             connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
             proxy_credentials: None,
+            address_cache: None,
             client_hints,
             http1_connections_per_origin: self
                 .profile
@@ -1351,6 +1449,9 @@ impl ClientBuilder {
             let cache = ProxyCredentialCache::new();
             inner.bind_proxy_credentials(&cache);
             inner.proxy_credentials = Some(cache);
+        }
+        if let Some(settings) = dns_cache {
+            inner.bind_address_cache(AddressCache::new(settings));
         }
         let inner = Arc::new(inner);
         let state = self.options.build(&inner);
@@ -1412,6 +1513,9 @@ fn connect_udp_proxy_quic(settings: &QuicTransportSettings) -> QuicTransportSett
         .retain(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt);
     quic
 }
+
+#[cfg(test)]
+mod dns_cache_tests;
 
 #[cfg(test)]
 mod tests {
