@@ -10,4 +10,5 @@ empty-data-frame-budget.patch
 local-header-list-limit.patch
 informational-response-limit.patch
 hpack-encoder-profile.patch
+cookie-crumbs.patch
 publish-identity.patch

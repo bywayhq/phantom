@@ -1,5 +1,5 @@
 use super::Header;
-use crate::ext::{HpackEncoderProfile, StaticNameIndex};
+use crate::ext::{CookieCrumbs, HpackEncoderProfile, StaticNameIndex};
 use crate::frame::PseudoId;
 
 use fnv::FnvHasher;
@@ -151,7 +151,9 @@ impl Table {
         let statik = index_static(&header, self.profile.static_name());
 
         // Don't index certain headers. This logic is borrowed from nghttp2.
-        if header.skip_value_index() {
+        // A `cookie` crumb is the exception: the profile that asked for
+        // crumbs decides its representation, through its sensitivity.
+        if header.skip_value_index() && !self.indexes_crumb(&header) {
             // Right now, if this is true, the header name is always in the
             // static table. At some point in the future, this might not be true
             // and this logic will need to be updated.
@@ -177,6 +179,12 @@ impl Table {
         }
 
         self.index_dynamic(header, statik)
+    }
+
+    /// Returns whether `header` is a `cookie` crumb the profile may index.
+    fn indexes_crumb(&self, header: &Header) -> bool {
+        self.profile.crumbs() != CookieCrumbs::Whole
+            && matches!(header, Header::Field { name, .. } if name == http::header::COOKIE)
     }
 
     /// Returns whether the caller asked for this pseudo-header to stay literal.

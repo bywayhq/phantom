@@ -1,6 +1,6 @@
 use super::table::{Index, Table};
 use super::{huffman, Header};
-use crate::ext::{HpackEncoderProfile, HuffmanCoding};
+use crate::ext::{CookieCrumbs, HpackEncoderProfile, HuffmanCoding};
 use crate::tracing;
 
 use bytes::{BufMut, BytesMut};
@@ -11,6 +11,7 @@ pub struct Encoder {
     table: Table,
     size_update: Option<SizeUpdate>,
     huffman: HuffmanCoding,
+    crumbs: CookieCrumbs,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -25,6 +26,7 @@ impl Encoder {
             table: Table::new(max_size, capacity),
             size_update: None,
             huffman: HuffmanCoding::default(),
+            crumbs: CookieCrumbs::default(),
         }
     }
 
@@ -34,6 +36,7 @@ impl Encoder {
     /// choices decide which entries reach the dynamic table.
     pub fn set_profile(&mut self, profile: HpackEncoderProfile) {
         self.huffman = profile.huffman();
+        self.crumbs = profile.crumbs();
         self.table.set_profile(profile);
     }
 
@@ -80,12 +83,25 @@ impl Encoder {
         self.encode_size_updates(dst);
 
         let mut last_index = None;
+        // Whether the previous named field was a `cookie` field sent as
+        // crumbs, so that its nameless further values are split too.
+        let mut crumbling = false;
 
         for header in headers {
             match header.reify() {
+                Ok(Header::Field { name, value })
+                    if name == http::header::COOKIE && self.crumbs != CookieCrumbs::Whole =>
+                {
+                    crumbling = true;
+                    last_index = self.encode_crumbs(&value, dst).or(last_index);
+                }
+                Err(value) if crumbling => {
+                    last_index = self.encode_crumbs(&value, dst).or(last_index);
+                }
                 // The header has an associated name. In which case, try to
                 // index it in the table.
                 Ok(header) => {
+                    crumbling = false;
                     let index = self.table.index(header);
                     self.encode_header(&index, dst);
 
@@ -106,6 +122,36 @@ impl Encoder {
                 }
             }
         }
+    }
+
+    /// Encodes one `cookie` value as one field per crumb, in order, and
+    /// returns the index of the last crumb.
+    fn encode_crumbs(&mut self, value: &HeaderValue, dst: &mut BytesMut) -> Option<Index> {
+        // A slice of a valid field value is itself a valid value, so every
+        // crumb converts. Should one not, the field is sent once, whole.
+        let crumbs = self
+            .crumbs
+            .split(value.as_bytes())
+            .into_iter()
+            .map(|(crumb, never_indexed)| {
+                HeaderValue::from_bytes(crumb).ok().map(|mut crumb| {
+                    crumb.set_sensitive(never_indexed);
+                    crumb
+                })
+            })
+            .collect::<Option<Vec<_>>>();
+        debug_assert!(crumbs.is_some(), "a cookie crumb was not a valid value");
+        let crumbs = crumbs.unwrap_or_else(|| vec![value.clone()]);
+        let mut last = None;
+        for crumb in crumbs {
+            let index = self.table.index(Header::Field {
+                name: http::header::COOKIE,
+                value: crumb,
+            });
+            self.encode_header(&index, dst);
+            last = Some(index);
+        }
+        last
     }
 
     fn encode_size_updates(&mut self, dst: &mut BytesMut) {
@@ -349,8 +395,9 @@ mod test {
     use super::*;
     use crate::ext::{Protocol, StaticNameIndex};
     use crate::frame::PseudoId;
-    use crate::hpack::BytesStr;
+    use crate::hpack::{BytesStr, Decoder};
     use http::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_encode_method_get() {
@@ -916,6 +963,186 @@ mod test {
             let res = encode(&mut encoder, vec![header("x-empty", "")]);
             assert_eq!(res[res.len() - 1], 0, "{coding:?} changed the empty value");
         }
+    }
+
+    /// Chromium sends one incrementally indexed field per cookie, then
+    /// indexes each crumb on the next block.
+    #[test]
+    fn index_all_crumbs_insert_each_cookie_then_index_it() {
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::IndexAll));
+        let mut decoder = Decoder::new(4096);
+
+        let first = encode(&mut encoder, vec![header("cookie", "a=1; b=22")]);
+        assert_eq!(representations(&first), [0x40 | 32, 0x40 | 32]);
+        assert_eq!(
+            decode(&mut decoder, first),
+            pairs(&[("cookie", "a=1"), ("cookie", "b=22")])
+        );
+        assert_eq!(encoder.table.len(), 2);
+
+        let repeat = encode(&mut encoder, vec![header("cookie", "a=1; b=22")]);
+        assert_eq!(*repeat, [0x80 | 63, 0x80 | 62]);
+    }
+
+    /// Chromium trims the value and splits at a `;` with no space after it.
+    #[test]
+    fn index_all_crumbs_follow_chromium_splitting() {
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::IndexAll));
+        let block = encode(&mut encoder, vec![header("cookie", " a=1;b=2;  c=3	")]);
+        assert_eq!(
+            decode(&mut Decoder::new(4096), block),
+            pairs(&[("cookie", "a=1"), ("cookie", "b=2"), ("cookie", " c=3")])
+        );
+    }
+
+    /// The profile, not the field's sensitivity, decides a crumb's form.
+    #[test]
+    fn index_all_crumbs_index_a_sensitive_cookie() {
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::IndexAll));
+        let mut value = HeaderValue::from_static("a=1");
+        value.set_sensitive(true);
+        let field = Header::Field {
+            name: Some(http::header::COOKIE),
+            value,
+        };
+        let block = encode(&mut encoder, vec![field]);
+        assert_eq!(representations(&block), [0x40 | 32]);
+    }
+
+    /// A further nameless value of the same `cookie` field is split too.
+    #[test]
+    fn crumbs_split_every_value_of_a_cookie_field() {
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::IndexAll));
+        let second = Header::Field {
+            name: None,
+            value: HeaderValue::from_static("c=3; d=4"),
+        };
+        let block = encode(&mut encoder, vec![header("cookie", "a=1; b=2"), second]);
+        assert_eq!(representations(&block), [0x40 | 32; 4]);
+        assert_eq!(decode(&mut Decoder::new(4096), block).len(), 4);
+    }
+
+    /// Firefox never indexes a crumb shorter than 20 bytes and indexes a
+    /// longer one.
+    #[test]
+    fn never_index_short_crumbs_split_on_length() {
+        let mut encoder = Encoder::default();
+        encoder
+            .set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::NeverIndexShort));
+        let short = "pc=0123456789abcdef";
+        let long = "pd=0123456789abcdefg";
+        assert_eq!((short.len(), long.len()), (19, 20));
+
+        let first = encode(
+            &mut encoder,
+            vec![header("cookie", &format!("{short}; {long}"))],
+        );
+        // Never-indexed naming static 32 (0x1f then 17), then incremental.
+        assert_eq!(&first[..2], &[0x1f, 17]);
+        assert_eq!(representations(&first), [0x10, 0x40 | 32]);
+        assert_eq!(
+            decode(&mut Decoder::new(4096), first),
+            pairs(&[("cookie", short), ("cookie", long)])
+        );
+        assert_eq!(encoder.table.len(), 1);
+
+        let repeat = encode(&mut encoder, vec![header("cookie", long)]);
+        assert_eq!(*repeat, [0x80 | 62]);
+    }
+
+    /// Firefox splits only at `"; "`.
+    #[test]
+    fn never_index_short_crumbs_split_only_at_semicolon_space() {
+        let mut encoder = Encoder::default();
+        encoder
+            .set_profile(HpackEncoderProfile::new().cookie_crumbs(CookieCrumbs::NeverIndexShort));
+        let block = encode(&mut encoder, vec![header("cookie", "a=1;b=2; c=3")]);
+        assert_eq!(
+            decode(&mut Decoder::new(4096), block),
+            pairs(&[("cookie", "a=1;b=2"), ("cookie", "c=3")])
+        );
+    }
+
+    /// Without crumbs, `cookie` stays one literal outside the table.
+    #[test]
+    fn whole_cookies_are_one_literal_without_indexing() {
+        let mut encoder = Encoder::default();
+        let block = encode(&mut encoder, vec![header("cookie", "a=1; b=2")]);
+        assert_eq!(representations(&block), [0x00]);
+        assert_eq!(encoder.table.len(), 0);
+    }
+
+    /// Returns each representation's leading pattern: the indexed bit, the
+    /// incremental pattern with its 6-bit name index, or the 4-bit literal
+    /// pattern without its name index.
+    fn representations(block: &[u8]) -> Vec<u8> {
+        fn int(block: &[u8], offset: &mut usize, prefix: u8) -> usize {
+            let limit = (1usize << prefix) - 1;
+            let mut value = usize::from(block[*offset]) & limit;
+            *offset += 1;
+            if value == limit {
+                let mut shift = 0;
+                loop {
+                    let byte = block[*offset];
+                    *offset += 1;
+                    value += usize::from(byte & 0x7f) << shift;
+                    shift += 7;
+                    if byte & 0x80 == 0 {
+                        break;
+                    }
+                }
+            }
+            value
+        }
+        fn string(block: &[u8], offset: &mut usize) {
+            let length = int(block, offset, 7);
+            *offset += length;
+        }
+        let mut kinds = Vec::new();
+        let mut offset = 0;
+        while offset < block.len() {
+            let byte = block[offset];
+            let (kind, prefix) = if byte & 0x80 != 0 {
+                (byte, 7)
+            } else if byte & 0x40 != 0 {
+                (byte, 6)
+            } else {
+                (byte & 0xf0, 4)
+            };
+            kinds.push(kind);
+            let name = int(block, &mut offset, prefix);
+            if prefix != 7 {
+                if name == 0 {
+                    string(block, &mut offset);
+                }
+                string(block, &mut offset);
+            }
+        }
+        kinds
+    }
+
+    fn pairs(items: &[(&str, &str)]) -> Vec<(String, String)> {
+        items
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    }
+
+    fn decode(decoder: &mut Decoder, mut block: BytesMut) -> Vec<(String, String)> {
+        let mut fields = Vec::new();
+        decoder
+            .decode(&mut Cursor::new(&mut block), |header| {
+                if let Header::Field { name, value } = header {
+                    fields.push((name.as_str().to_owned(), value.to_str().unwrap().to_owned()));
+                }
+                std::ops::ControlFlow::Continue(())
+            })
+            .unwrap();
+        fields
     }
 
     fn protocol(s: &str) -> Header<Option<HeaderName>> {

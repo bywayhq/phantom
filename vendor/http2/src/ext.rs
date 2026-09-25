@@ -121,6 +121,90 @@ pub enum HuffmanCoding {
     WhenNotLonger,
 }
 
+/// How an HPACK encoder sends each `cookie` field.
+///
+/// RFC 9113 section 8.2.3 lets a client split the `cookie` field into one
+/// field per cookie, called crumbs, so that each crumb can be indexed on its
+/// own. The split and each crumb's representation are visible on the wire.
+///
+/// When crumbs are sent, this choice alone decides each crumb's
+/// representation: a `cookie` value marked sensitive is split and encoded
+/// like any other.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CookieCrumbs {
+    /// Send each `cookie` field whole, as a literal that never enters the
+    /// dynamic table.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    Whole,
+    /// Split at every `;` and index every crumb like any other field.
+    ///
+    /// Spaces and tabs at both ends of the value are removed first, and one
+    /// space after each `;` is skipped. This is Chromium's
+    /// `HpackEncoder::CookieToCrumbs` with its default indexing policy.
+    IndexAll,
+    /// Split at every `"; "`, send a crumb shorter than 20 bytes as a
+    /// never-indexed literal, and index a longer one like any other field.
+    ///
+    /// This is Firefox's `Http2Compressor::EncodeHeaderBlock`.
+    NeverIndexShort,
+}
+
+impl CookieCrumbs {
+    /// Returns the crumbs of one `cookie` value in order, each with whether
+    /// it must be sent as a never-indexed literal.
+    pub(crate) fn split(self, value: &[u8]) -> Vec<(&[u8], bool)> {
+        match self {
+            CookieCrumbs::Whole => vec![(value, false)],
+            CookieCrumbs::IndexAll => {
+                let is_space = |byte: &u8| *byte == b' ' || *byte == b'\t';
+                let start = value.iter().position(|byte| !is_space(byte));
+                let value = match start {
+                    None => &value[..0],
+                    Some(start) => {
+                        let end = value
+                            .iter()
+                            .rposition(|byte| !is_space(byte))
+                            .map_or(start, |end| end + 1);
+                        &value[start..end]
+                    }
+                };
+                let mut crumbs = Vec::new();
+                let mut rest = value;
+                loop {
+                    match rest.iter().position(|byte| *byte == b';') {
+                        None => {
+                            crumbs.push((rest, false));
+                            return crumbs;
+                        }
+                        Some(end) => {
+                            crumbs.push((&rest[..end], false));
+                            rest = &rest[end + 1..];
+                            if rest.first() == Some(&b' ') {
+                                rest = &rest[1..];
+                            }
+                        }
+                    }
+                }
+            }
+            CookieCrumbs::NeverIndexShort => {
+                let mut crumbs = Vec::new();
+                let mut rest = value;
+                loop {
+                    let end = rest.windows(2).position(|pair| pair == b"; ");
+                    let crumb = &rest[..end.unwrap_or(rest.len())];
+                    crumbs.push((crumb, crumb.len() < 20));
+                    match end {
+                        None => return crumbs,
+                        Some(end) => rest = &rest[end + 2..],
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Connection-wide HPACK encoder choices that RFC 7541 leaves open.
 ///
 /// Every encoder that RFC 7541 allows produces a block the peer decodes to the
@@ -132,6 +216,7 @@ pub struct HpackEncoderProfile {
     literal_pseudo_headers: u8,
     static_name_index: StaticNameIndex,
     huffman_coding: HuffmanCoding,
+    cookie_crumbs: CookieCrumbs,
 }
 
 impl HpackEncoderProfile {
@@ -169,6 +254,13 @@ impl HpackEncoderProfile {
         self
     }
 
+    /// Sends each `cookie` field by this rule.
+    #[must_use]
+    pub fn cookie_crumbs(mut self, crumbs: CookieCrumbs) -> Self {
+        self.cookie_crumbs = crumbs;
+        self
+    }
+
     pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
         self.literal_pseudo_headers & pseudo_bit(id) != 0
     }
@@ -179,6 +271,10 @@ impl HpackEncoderProfile {
 
     pub(crate) fn huffman(self) -> HuffmanCoding {
         self.huffman_coding
+    }
+
+    pub(crate) fn crumbs(self) -> CookieCrumbs {
+        self.cookie_crumbs
     }
 }
 
