@@ -329,7 +329,11 @@ async fn a_server_that_reduces_a_remembered_setting_is_closed_with_settings_erro
     wait_for_ticket(&early).await?;
     drop(learning);
     let resumed = connect(&early, address).await?;
+    assert!(resumed.sent_early_data());
     assert!(resumed.started_from_remembered_settings());
+    // The server accepted the early data, so its SETTINGS were bound by the
+    // remembered ones.
+    assert_eq!(resumed.early_data_accepted().await, Some(true));
     let reason = timeout(TEST_TIMEOUT, async {
         while let Some((limit, reason)) = closed.recv().await {
             if limit == 8_192 {
@@ -350,6 +354,42 @@ async fn a_server_that_reduces_a_remembered_setting_is_closed_with_settings_erro
     assert!(!early.can_reuse(&resumed).await);
 
     drop(resumed);
+    server.abort();
+    Ok(())
+}
+
+/// State stored with a ticket that does not decode as SETTINGS fails the
+/// connection with a protocol error at once and closes it, without a panic,
+/// a hang, or a second connection attempt.
+#[tokio::test(flavor = "current_thread")]
+async fn malformed_remembered_settings_fail_the_connection() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let served = Served::default();
+    let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
+    let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
+    // A SETTINGS frame that ends inside a varint.
+    let corrupt = isolated.with_test_remembered_settings(&[0x04, 0x02, 0x01]);
+
+    let result = timeout(
+        TEST_TIMEOUT,
+        corrupt.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+    )
+    .await
+    .map_err(|_| "a connection with corrupt remembered SETTINGS hung")?;
+    let error = match result {
+        Ok(_) => return Err("corrupt remembered SETTINGS produced a connection".into()),
+        Err(error) => error,
+    };
+    let error = http3_error(&error).ok_or("connection failure lost its HTTP/3 error")?;
+    assert_eq!(error.kind(), super::super::Http3ErrorKind::Protocol);
+    assert_eq!(error.to_string(), "remembered HTTP/3 SETTINGS are invalid");
+    assert!(
+        served
+            .lock()
+            .map_err(|_| "served paths poisoned")?
+            .is_empty()
+    );
+
     server.abort();
     Ok(())
 }

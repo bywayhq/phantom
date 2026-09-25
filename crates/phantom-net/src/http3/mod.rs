@@ -49,6 +49,8 @@ type RequestRecvStream = h3::client::RequestStream<h3_quinn::RecvStream, Bytes>;
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 /// `H3_GENERAL_PROTOCOL_ERROR` (RFC 9114, section 8.1).
 const H3_GENERAL_PROTOCOL_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0101);
+/// `H3_INTERNAL_ERROR` (RFC 9114, section 8.1).
+const H3_INTERNAL_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0102);
 /// Matches the HTTP CONNECT proxy's bound on interim responses per request.
 const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
@@ -475,6 +477,8 @@ async fn connect(
     let round_trip = RoundTripRecorder::new(&crypto, server_name);
     #[cfg(test)]
     let peer_alps_override = diagnostics.early_peer_alps.clone();
+    #[cfg(test)]
+    let remembered_override = diagnostics.remembered_settings.clone();
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -506,16 +510,22 @@ async fn connect(
         .as_ref()
         .and(application_state.as_ref())
         .and_then(ApplicationState::remembered);
+    #[cfg(test)]
+    let remembered_settings =
+        remembered_settings.map(|stored| remembered_override.unwrap_or(stored));
+    // Only this connection's own earlier SETTINGS are stored, so state that
+    // does not decode means local corruption. The connection is closed and
+    // the request fails with a protocol error; it is not a handshake failure,
+    // so the pool does not repeat it with a full handshake.
     if let Some(remembered) = &remembered_settings {
-        builder
-            .remembered_peer_settings(remembered)
-            .map_err(|error| {
-                Http3Error::with_source(
-                    Http3ErrorKind::Protocol,
-                    "remembered HTTP/3 SETTINGS are invalid",
-                    error,
-                )
-            })?;
+        if let Err(error) = builder.remembered_peer_settings(remembered) {
+            connection.close(H3_INTERNAL_ERROR, b"invalid remembered SETTINGS");
+            return Err(Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "remembered HTTP/3 SETTINGS are invalid",
+                error,
+            ));
+        }
         debug!("HTTP/3 connection starting from remembered SETTINGS");
     }
     let accept_ch = Arc::new(OnceLock::new());
@@ -940,6 +950,10 @@ pub(super) struct ConnectionDiagnostics {
     /// when the handshake completes, for tests against peers without ALPS.
     #[cfg(test)]
     pub(super) early_peer_alps: Option<Arc<[u8]>>,
+    /// State an early-data connection reads in place of the SETTINGS stored
+    /// with its ticket, for tests of corrupt state.
+    #[cfg(test)]
+    pub(super) remembered_settings: Option<Arc<[u8]>>,
 }
 
 impl PendingRequest {

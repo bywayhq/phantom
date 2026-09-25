@@ -53,6 +53,8 @@ pub struct Http3Connector {
     qlog_dir: Option<Arc<std::path::Path>>,
     #[cfg(test)]
     early_peer_alps: Option<Arc<[u8]>>,
+    #[cfg(test)]
+    remembered_settings: Option<Arc<[u8]>>,
 }
 
 impl Http3Connector {
@@ -139,6 +141,8 @@ impl Http3Connector {
             qlog_dir: None,
             #[cfg(test)]
             early_peer_alps: None,
+            #[cfg(test)]
+            remembered_settings: None,
         })
     }
 
@@ -266,6 +270,8 @@ impl Http3Connector {
             qlog_dir: self.qlog_dir.clone(),
             #[cfg(test)]
             early_peer_alps: self.early_peer_alps.clone(),
+            #[cfg(test)]
+            remembered_settings: self.remembered_settings.clone(),
         }
     }
 
@@ -323,6 +329,8 @@ impl Http3Connector {
             qlog_dir: self.qlog_dir.clone(),
             #[cfg(test)]
             early_peer_alps: self.early_peer_alps.clone(),
+            #[cfg(test)]
+            remembered_settings: self.remembered_settings.clone(),
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -332,6 +340,14 @@ impl Http3Connector {
     #[cfg(test)]
     pub(super) fn with_test_early_peer_alps(mut self, alps: &[u8]) -> Self {
         self.early_peer_alps = Some(Arc::from(alps));
+        self
+    }
+
+    /// Makes each connection that starts from remembered SETTINGS read
+    /// `payload` in place of the state stored with its ticket.
+    #[cfg(test)]
+    pub(super) fn with_test_remembered_settings(mut self, payload: &[u8]) -> Self {
+        self.remembered_settings = Some(Arc::from(payload));
         self
     }
 
