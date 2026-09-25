@@ -18,6 +18,7 @@ policies that stay off until you enable them.
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
 | HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; the Chrome 154 and Edge 153 recipes offer it | `ClientBuilder::http3_early_data(bool)` overrides the profile |
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
+| Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
@@ -148,6 +149,9 @@ order and the differences from Chromium.
 | Lifetime of an HTTPS DNS record result | Lowest answer TTL, at most 1 day; a negative answer's SOA TTL; 60 seconds with no TTL or after a failed lookup |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
+| Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v156_dns_cache`; an expired name, then the one that expires soonest, evicted |
+| Lifetime of cached addresses | `DnsCacheSettings::ttl`: 60 seconds in both recipes |
+| Lifetime of a cached failed lookup | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v156_dns_cache` |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |

@@ -472,6 +472,14 @@ Supported:
 - Alt-Svc broken state per origin, route, and alternative, with capped
   doubling backoff. A successful connection to the alternative or
   `clear_alt_svc` clears it.
+- A per-client address cache (`DnsCacheSettings`) for the names the client
+  resolves itself: origin hosts on a direct route, proxy hosts, and local-DNS
+  `socks5://` targets. It is bounded, keeps each answer for a fixed time and
+  failures optionally, shares one lookup between concurrent connections, and
+  keeps the resolver's address order. The recipes `chromium::v154_dns_cache`
+  and `firefox::v156_dns_cache` come from browser source. Proxy-resolved
+  targets never reach it. See
+  [Address cache evidence](../explanation/validation.md#address-cache-evidence).
 - With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
   record results, one entry per origin, bounded by the Alt-Svc store's
   capacity and kept for the record TTL. It stores only whether the records
@@ -523,14 +531,18 @@ Not modeled:
   rejects every `Domain` on a `__Host-` cookie. Only a request to an IP
   literal can reach the difference, which for `http://` means a loopback
   address.
+- The browsers' address cache lifetimes from record TTLs (Chromium's built-in
+  DNS client, Firefox on Windows), Firefox's 600-second grace period for
+  expired answers, and the flush both browsers do when the network changes.
+  Phantom's lookups go through the operating system and report no TTL.
 
 Planned:
 
 - Cookie contexts the caller selects (cross-site and embedded requests, and
   cross-site CHIPS partitions).
 - Permissions and delegation context.
-- DNS state beyond HTTPS records: address caching, host-to-address
-  overrides, and a caller-supplied address resolver.
+- DNS state beyond HTTPS records and the address cache: host-to-address
+  overrides and a caller-supplied address resolver.
 - Persistence of Alt-Svc brokenness, reset on network change, and proxy-route
   snapshots.
 - Broader policy and retry classes.

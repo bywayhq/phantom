@@ -7,8 +7,8 @@ and clear what a client has learned.
 
 A `Client` owns every piece of state that outlives one request: connection
 pools, redirect policy, cookies, learned client hints, Alt-Svc
-advertisements, and TLS session tickets. None of it is global to the process,
-and every store has a size limit
+advertisements, TLS session tickets, and resolved host addresses. None of it
+is global to the process, and every store has a size limit
 ([Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)).
 
 ## Share a client between tasks
@@ -29,8 +29,8 @@ async fn in_background(client: &Client) -> Result<(), Box<dyn std::error::Error>
 }
 ```
 
-- Clones share pools, cookies, learned hints, Alt-Svc state, and TLS
-  tickets. Separately built clients share nothing.
+- Clones share pools, cookies, learned hints, Alt-Svc state, TLS tickets,
+  and cached addresses. Separately built clients share nothing.
 - H1 connections carry one request at a time, without pipelining; the
   profile decides how many run in parallel
   ([next task](#send-http11-requests-to-one-origin-in-parallel)). H2 and H3
@@ -75,6 +75,40 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
   When it selects HTTP/2, they share one connection. Handshake order and
   other rules:
   [HTTP/1.1 connections](../reference/profiles.md#http11-connections).
+
+## Resolve each host once
+
+Reuse the addresses a host resolved to for later connections, as a browser
+does, instead of resolving it for every new connection.
+
+```rust
+use std::time::Duration;
+
+use phantom::profile::{chromium, ClientProfile, DnsCacheSettings};
+use phantom::{BuildError, Client};
+
+fn build() -> Result<Client, BuildError> {
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_dns_cache(chromium::v154_dns_cache());
+    // Keep answers for five minutes instead of the recipe's 60 seconds.
+    let longer = DnsCacheSettings {
+        ttl: Duration::from_secs(300),
+        ..chromium::v154_dns_cache()
+    };
+    Client::builder(profile).dns_cache(longer).build()
+}
+```
+
+- Without `with_dns_cache` or `ClientBuilder::dns_cache`, every new
+  connection resolves its host. `ClientBuilder::no_dns_cache` turns off the
+  profile's cache.
+- The cache covers origin hosts on a direct route, proxy hosts, and the
+  target of a `socks5://` route. A target that `socks5h://`, an HTTP proxy,
+  or CONNECT-UDP resolves never reaches it.
+- Concurrent connections to one host share one lookup, and the resolver's
+  address order is kept. Bounds and recipe values are in
+  [Address cache](../reference/profiles.md#address-cache).
 
 ## Follow redirects
 
@@ -222,8 +256,8 @@ the field among your fields or a
 
 ## Clear what a client has learned
 
-Discard learned client hints, Alt-Svc advertisements, and cookies without
-building a new client.
+Discard learned client hints, Alt-Svc advertisements, cached addresses, and
+cookies without building a new client.
 
 ```rust
 use phantom::Client;
@@ -231,6 +265,7 @@ use phantom::Client;
 fn forget(client: &Client) {
     client.clear_client_hints();
     client.clear_alt_svc();
+    client.clear_dns_cache();
     if let Some(jar) = client.cookie_jar() {
         jar.clear();
     }
@@ -243,6 +278,8 @@ fn forget(client: &Client) {
   keyed by exact origin for negotiated HTTPS requests; `export_alt_svc` and
   `import_alt_svc` move it through storage you own, and `alt_svc_policy`
   opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
+- Browsers forget cached addresses when the network changes. Phantom does
+  not watch the network, so call `clear_dns_cache` after such a change.
 - TLS session tickets for H1/H2, and QUIC session tickets for H3, are
   bounded and keyed by exact origin and route. Only QUIC tickets carry early
   data, when the profile or `ClientBuilder::http3_early_data` enables it

@@ -14,6 +14,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `ClientProfile::new(tls)` | TLS ClientHello for H1 and H2 |
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
 | `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
+| `with_dns_cache(settings)` | How long the client reuses the addresses it resolves ([details](#address-cache)) |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, and HPACK encoder choices |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
@@ -46,6 +47,10 @@ build that can be recaptured and reverified.
 - HTTP/1.1 connection recipes are not in the table either, for the same
   reason. `chromium::v154_http1` and `firefox::v156_http1` come from browser
   source ([HTTP/1.1 connections](#http11-connections)).
+- Address cache recipes are not in the table either: a cache is not visible
+  on the wire, only the queries it saves. `chromium::v154_dns_cache` and
+  `firefox::v156_dns_cache` come from browser source
+  ([Address cache](#address-cache)).
 - Proxy CONNECT recipes are not in the table: `chromium::v154_proxy_connect`
   serves Chrome and Edge, and `firefox::v156_proxy_connect` serves Firefox
   ([Proxy CONNECT fields](#proxy-connect-fields)).
@@ -147,6 +152,41 @@ for each origin and route.
 
 Each recipe's rustdoc cites the source lines. Evidence:
 [HTTP/1.1 connection bound evidence](../explanation/validation.md#http11-connection-bound-evidence).
+
+## Address cache
+
+`DnsCacheSettings` sets how long the client reuses the addresses it resolves
+for its own connections: origin hosts on a direct route, proxy hosts, and the
+target of a local-DNS `socks5://` route. A target that a proxy resolves is
+never resolved locally.
+
+| Recipe | Names kept | Answer kept for | Failure kept for |
+| --- | --- | --- | --- |
+| None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept |
+| `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
+| `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
+| Edge | Not covered | Not covered | Not covered |
+
+- Phantom resolves through the operating system, which reports no record
+  TTL. Both recipes use the browser's value for an answer without one:
+  Chromium's system-resolver path and Firefox's `network.dnsCacheExpiration`.
+- Chromium's built-in DNS client keeps an answer for its record TTL, at least
+  60 s, and Firefox on Windows asks the OS for the TTL. Neither is modeled.
+- Firefox serves an expired answer for up to 600 s more while it resolves the
+  name again in the background. Phantom resolves an expired name before it
+  connects.
+- Concurrent connections to one host share one lookup, as in both browsers.
+  The resolver's address order is kept, so address racing sees it
+  unchanged.
+- When the cache is full, an expired name is replaced first, then the one
+  that would expire soonest, as in Chromium.
+- `ClientBuilder::dns_cache` replaces the profile's settings and
+  `ClientBuilder::no_dns_cache` turns the cache off. Browsers flush the cache
+  when the network changes; Phantom does not watch the network, so call
+  `Client::clear_dns_cache` after such a change.
+
+Each recipe's rustdoc cites the source lines. Evidence:
+[Address cache evidence](../explanation/validation.md#address-cache-evidence).
 
 ## Request templates
 

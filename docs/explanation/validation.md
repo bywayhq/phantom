@@ -25,6 +25,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
+| [Address cache](#address-cache-evidence) | Browser source at one tag per browser, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 153, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
@@ -667,6 +668,96 @@ tests.
 Limits:
 
 - No capture confirms the limit or the reuse order.
+- The source was read at one tag per browser, so field-trial changes would
+  not be seen.
+
+### Address cache evidence
+
+What is claimed: `chromium::v154_dns_cache` and `firefox::v156_dns_cache`
+keep as many names, and an answer and a failure for as long, as those
+browsers do for an answer without a record TTL at the profiled release tags.
+With a cache, the client resolves each name it resolves itself once per
+lifetime, shares one lookup between concurrent connections, keeps the
+resolver's address order, and never resolves a proxy-resolved target.
+
+Evidence: a capture of one page load cannot show how long a browser reuses
+an answer, so the recipes rest on browser source at Chromium tag
+`154.0.8037.58` and Firefox tag `FIREFOX_156_0_RELEASE`.
+
+| Recipe | Source behavior |
+| --- | --- |
+| `chromium::v154_dns_cache` | Each `URLRequestContext`, one per browser profile, creates its resolver with caching on (`net/url_request/url_request_context_builder.cc:363-382`), and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000` entries in builds with the built-in DNS client (`net/dns/resolve_context.cc:109-121`), which is every Blink build (`net/dns/BUILD.gn:9`). An answer from the system resolver is kept for `kCacheEntryTTLSeconds = 60` and a failure for `kNegativeCacheEntryTTLSeconds = 0` (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`); a failure without a positive TTL is not cached (`net/dns/host_resolver_manager.cc:1284-1291`). A full cache evicts the entry that expires soonest, stale entries first (`net/dns/host_cache.cc:886-916`, `:1289-1319`). A request joins the job already running for its key (`net/dns/host_resolver_manager.cc:993-1010`). |
+| `firefox::v156_dns_cache` | `network.dnsCacheEntries` is 1600 outside nightly builds and `network.dnsCacheExpiration`, the lifetime of an answer without an OS TTL, is 60 seconds (`modules/libpref/init/StaticPrefList.yaml:15551-15565`; `netwerk/dns/nsHostResolver.cpp:1310-1317`). A failed lookup is kept for `NEGATIVE_RECORD_LIFETIME`, 60 seconds (`netwerk/dns/nsHostResolver.cpp:65-67`, `:1303-1308`). A request for a name being resolved is appended to that record's callbacks (`netwerk/dns/nsHostResolver.cpp:646-652`). |
+
+Both browsers keep one cache per browser profile. Chromium keys an entry by
+host, query type, flags, source, secure mode, target network, and network
+anonymization key (`net/dns/host_cache.h:70-111`), but the key is empty
+unless `kPartitionConnectionsByNetworkIsolationKey` is on, and it is off by
+default (`net/dns/host_resolver_manager_request_impl.cc:51-56`,
+`net/base/network_anonymization_key.cc:261-266`,
+`net/base/features.cc:213-217`). Firefox keys a record by host, type, flags,
+address family, private browsing, and origin-attributes suffix
+(`netwerk/dns/nsHostRecord.h:77-93`). Phantom keys an entry by the
+lowercased host name alone, one cache per client, with a new empty cache for
+each session built from it, as it does for cookies and Alt-Svc.
+
+Differences from the browsers:
+
+- Chromium's built-in DNS client, on by default on Windows, macOS, Linux,
+  ChromeOS, and Android (`net/base/features.cc:42-48`), keeps an answer for
+  its record TTL, at least 60 seconds
+  (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`), and a negative
+  answer for its SOA TTL (`:907-908`). Firefox asks Windows for the record
+  TTL (`network.dns.get-ttl`,
+  `modules/libpref/init/StaticPrefList.yaml:15567-15575`). Phantom resolves
+  through the operating system, which reports no TTL, so it follows the
+  browsers' rule for an answer without one.
+- Firefox serves an expired answer for up to
+  `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
+  the name again (`modules/libpref/init/StaticPrefList.yaml:15584-15589`,
+  `netwerk/dns/nsHostResolver.cpp:1265-1283`). Phantom resolves an expired
+  name before it connects.
+- Both browsers flush the cache when the network changes
+  (`net/dns/host_resolver_manager.cc:1803-1816`, `:1912-1925`;
+  `netwerk/dns/nsDNSService2.cpp:1369-1386`,
+  `netwerk/dns/nsHostResolver.cpp:218-255`). Phantom does not watch the
+  network; `Client::clear_dns_cache` is the caller's equivalent.
+- Firefox evicts from an LRU queue; Phantom, like Chromium, evicts the entry
+  that expires soonest.
+- Edge's network-stack source is not public, so there is no Edge recipe.
+
+Unit tests in `crates/phantom-net/src/address_cache/tests.rs`:
+
+| Test | What it proves |
+| --- | --- |
+| `repeated_lookups_within_the_ttl_resolve_once` | A second lookup, on another port, uses the stored answer |
+| `answers_keep_the_resolver_order` | Stored addresses come back in the resolver's order |
+| `names_differing_only_in_case_share_an_entry` | Names are compared without regard to ASCII case |
+| `an_expired_answer_is_resolved_again` | A lookup after the TTL resolves again |
+| `concurrent_lookups_share_one_resolution` | Eight concurrent lookups make one resolution and get the same answer |
+| `a_resolution_fills_the_cache_after_its_lookups_are_dropped` | A resolution whose lookup was cancelled still stores its answer |
+| `a_resolution_abandoned_with_its_runtime_is_started_again` | A resolution dropped with its Tokio runtime does not block later lookups of the name |
+| `the_cache_keeps_at_most_max_entries_names` | The bound holds, and the name that expires soonest is evicted |
+| `failures_are_not_kept_without_a_negative_ttl`, `failures_are_kept_for_the_negative_ttl`, `an_empty_answer_is_a_failure` | Failures follow `negative_ttl` and keep the resolver's error kind |
+| `a_zero_ttl_resolves_every_sequential_lookup`, `ip_literals_are_used_without_a_lookup`, `clear_forgets_answers_and_drops_resolutions_in_flight`, `clones_share_one_cache` | Edge cases of the lifetime, IP literals, clearing, and sharing |
+| `routes::*` | Each connector path resolves only the names the client resolves itself: the origin on direct TCP and QUIC, the proxy host on forward, CONNECT, HTTPS proxy, SOCKS5, and CONNECT-UDP over TCP routes, and the target as well only on local-DNS SOCKS5 over TCP and UDP |
+
+Loopback tests in `crates/phantom/src/client/dns_cache_tests.rs` drive the
+client against a plaintext origin that closes each connection:
+`repeated_requests_to_one_host_resolve_it_once`,
+`concurrent_requests_to_one_host_share_one_lookup`,
+`clones_share_the_cache_and_sessions_start_empty`, and
+`clear_dns_cache_resolves_the_host_again`.
+`profile_dns_cache_reaches_every_connector` and
+`builder_settings_replace_or_disable_the_profiles` check the wiring.
+
+How to reproduce: read the cited files at the tags above, and run the listed
+tests.
+
+Limits:
+
+- No capture counts a browser's DNS queries, so the lifetimes rest on
+  source alone.
 - The source was read at one tag per browser, so field-trial changes would
   not be seen.
 
