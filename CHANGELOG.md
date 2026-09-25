@@ -160,6 +160,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   these requests stay on HTTP/1.1 or HTTP/2. A CONNECT-UDP route still
   rejects negotiated requests with `RequestErrorKind::UnsupportedRoute`.
   (`ecdd984`, `5c2a749`)
+- Exact HTTP/1.1 `http://` requests can use a SOCKS5 route, with local or
+  remote DNS and optional RFC 1929 credentials. The request stays plaintext
+  inside the TCP tunnel. `phantom_net::http1::Http1TlsConnector` gains
+  `connect_plaintext_socks5_local_with_auth` and
+  `connect_plaintext_socks5_remote_with_auth` for this path. (`0ad0621`)
+- Negotiated requests accept `http://` URLs. Cleartext has no ALPN, so the
+  request is sent as exact HTTP/1.1 on any route that carries exact HTTP/1.1
+  `http://` (direct, HTTP proxy forwarding, or SOCKS5), reports
+  `HttpProtocol::Http1`, and learns no Alt-Svc alternative. A CONNECT-UDP
+  route still rejects it before I/O with `RequestErrorKind::UnsupportedRoute`.
+  A negotiated redirect to an `http://` target follows the same rule.
+  (`e05234b`, `2335c85`)
 
 ### Changed
 
@@ -192,6 +204,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   checksum, and the `phantom-btls` and `phantom-tokio-btls` forks move to
   `0.5.6-phantom.2`. A downstream lockfile changes only the `btls-sys`
   source and those two versions. (`7744ce3`)
+- A client with a redirect policy no longer rejects `http://` requests before
+  I/O, and follows redirects to `http://` as well as `https://` targets. Each
+  hop is still checked against the request's protocol and route before it is
+  sent, and a change between `http://` and `https://` counts as cross-origin,
+  so credential fields are removed. A target with another scheme still fails
+  with `RequestErrorKind::Redirect`. (`17a5be5`)
+- A caller's own `Proxy-Authorization` field on an `http://` request is
+  forwarded to an HTTP proxy that has no configured credentials, so the
+  first request can authenticate without a `407` round trip. The field still
+  fails with `RequestErrorKind::InvalidHeader` before I/O on any other route
+  and on a proxy with `with_basic_auth`. (`2f9d072`)
 
 ### Fixed
 
