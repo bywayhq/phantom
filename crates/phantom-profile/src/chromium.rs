@@ -557,24 +557,29 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// As on the navigation, the `Sec-Fetch-*` fields and the `br` and `zstd`
 /// codings are sent only to a potentially trustworthy URL. The proxy route
 /// captures back that shape with a same-origin `fetch()` in the default cache
-/// mode; that `Pragma` and `Cache-Control` keep their positions on a plaintext
-/// named origin is inferred, not captured. Forwarded through an HTTP/1.1
+/// mode, and the `*-auth-nostore-*` captures with a no-store `fetch()` through
+/// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included. Forwarded through an HTTP/1.1
 /// proxy, `Connection` becomes `Proxy-Connection`, as on the navigation.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-/// Returns Chromium 154's position of forwarded proxy credentials: after
+/// Returns Chromium 154's position of forwarded proxy credentials, on the
+/// replay after a `407` and on later requests alike: after
 /// `Proxy-Connection` on HTTP/1.1 and first after the pseudo-header fields
-/// on HTTP/2, on the replay after a `407` and on later requests alike.
+/// on HTTP/2, except that the `Pragma` and `Cache-Control` fields of a
+/// no-store `fetch()` come before it.
 ///
 /// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
 /// captures of Chrome 154 and Edge 153 show this on the replayed navigation
-/// and on the `fetch()` that follows it, to loopback and named origins; the
-/// client hints of a loopback origin come after it. The
+/// and on the default-mode `fetch()` that follows it, to loopback and named
+/// origins, with a loopback origin's client hints after it. The
 /// `*-auth-remembered-hostname` captures show the same place on a replayed
-/// `fetch()` and on a navigation with remembered credentials.
+/// `fetch()` and on a navigation with remembered credentials, and the
+/// `*-auth-nostore-*` captures show a no-store `fetch()`, challenged,
+/// replayed, and with remembered credentials, placing it after
+/// `Cache-Control` and before the client hints.
 fn chromium_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Every)
 }
@@ -640,9 +645,9 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
         http1_fields: vec![
             RequestField::unless_forwarded("Connection", "keep-alive"),
             RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
-            chromium_proxy_authorization("Proxy-Authorization"),
             RequestField::literal("Pragma", "no-cache"),
             RequestField::literal("Cache-Control", "no-cache"),
+            chromium_proxy_authorization("Proxy-Authorization"),
             RequestField::client_hint("sec-ch-ua-platform"),
             user_agent("User-Agent"),
             RequestField::client_hint("sec-ch-ua"),
@@ -657,9 +662,9 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
             RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
         ],
         http2_fields: vec![
-            chromium_proxy_authorization("proxy-authorization"),
             RequestField::literal("pragma", "no-cache"),
             RequestField::literal("cache-control", "no-cache"),
+            chromium_proxy_authorization("proxy-authorization"),
             RequestField::client_hint("sec-ch-ua-platform"),
             user_agent("user-agent"),
             RequestField::client_hint("sec-ch-ua"),

@@ -740,12 +740,12 @@ fn captured_connect(fixture: &str, port: &str, credential: bool) -> TestResult<V
         .ok_or_else(|| format!("capture has no CONNECT to port {port}").into())
 }
 
-/// A navigation challenged by an HTTP/2 proxy, its replay, and a `fetch()`
-/// that sends remembered credentials first place `proxy-authorization`
-/// where Chrome 154, Edge 153, and Firefox 156 do in the
-/// `https-proxy-auth-hostname` captures, whose three runs agree. The
-/// captured `fetch()` used the default cache mode, so the no-store
-/// template's `pragma` and `cache-control` are left out of the comparison.
+/// A navigation challenged by an HTTP/2 proxy and its replay place
+/// `proxy-authorization` where Chrome 154, Edge 153, and Firefox 156 do in
+/// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
+/// sends remembered credentials first places it where they do in the
+/// `https-proxy-auth-nostore-hostname` captures. Every run of each agrees.
+/// The field stays a never-indexed literal on static name 49.
 #[tokio::test]
 async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
@@ -755,6 +755,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         RequestTemplate,
         RequestTemplate,
         &str,
+        &str,
         bool,
     ); 3] = [
         (
@@ -763,6 +764,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             chromium::v154_windows_navigation_template(),
             chromium::v154_windows_fetch_no_store_template(),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-nostore-hostname"),
             false,
         ),
         (
@@ -771,6 +773,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             edge::v153_windows_navigation_template(),
             edge::v153_windows_fetch_no_store_template(),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
             true,
         ),
         (
@@ -779,14 +782,25 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             firefox::v156_windows_navigation_template(),
             firefox::v156_windows_fetch_no_store_template(),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
             false,
         ),
     ];
-    for (label, http2, navigation, fetch, fixture, caller_ua) in cases {
+    for (label, http2, navigation, fetch, fixture, nostore, caller_ua) in cases {
         let captured = captured_forwarded_blocks(fixture)?;
-        let [challenged, replay, remembered] = captured.as_slice() else {
+        let [challenged, replay, _] = captured.as_slice() else {
             return Err(format!("{label}: expected three forwarded requests").into());
         };
+        let remembered = captured_h2_blocks(nostore)?
+            .into_iter()
+            .find(|block| {
+                block
+                    .pseudo
+                    .get(":path")
+                    .is_some_and(|path| path.starts_with("/done"))
+            })
+            .map(|block| block.names)
+            .ok_or("capture has no remembered no-store fetch")?;
         bounded(async {
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
@@ -833,13 +847,29 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
                         .fields
                         .iter()
                         .map(|(name, _)| name.clone())
-                        .filter(|name| name != "pragma" && name != "cache-control")
                         .collect()
                 })
                 .collect();
             assert_eq!(names[0], *challenged, "{label} challenged");
             assert_eq!(names[1], *replay, "{label} replay");
-            assert_eq!(names[2], *remembered, "{label} remembered");
+            assert_eq!(names[2], remembered, "{label} remembered");
+            // A template slot does not change the HPACK form: never indexed,
+            // naming static entry 49.
+            let blocks = header_blocks(&record.client_wire)?;
+            assert_eq!(blocks.len(), 3, "{label}");
+            for block in &blocks[1..] {
+                let representations = hpack_representations(block)?;
+                assert!(
+                    representations.contains(&(Representation::NeverIndexed, 49)),
+                    "{label}"
+                );
+                assert!(
+                    representations
+                        .iter()
+                        .all(|&(kind, index)| index != 49 || kind == Representation::NeverIndexed),
+                    "{label}"
+                );
+            }
             Ok(())
         })
         .await?;
@@ -1007,9 +1037,11 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     Ok(())
 }
 
-/// A `fetch()` challenged by an HTTP/2 proxy, its replay on the same
-/// connection, and a navigation with the remembered credentials, compared
-/// with the `https-proxy-auth-remembered-hostname` capture of each browser.
+/// A no-store `fetch()` challenged by an HTTP/2 proxy and its replay on the
+/// same connection, compared with the `https-proxy-auth-nostore-hostname`
+/// capture of each browser, and a navigation with the remembered
+/// credentials, compared with the `https-proxy-auth-remembered-hostname`
+/// capture.
 /// Firefox places `proxy-authorization` before `te` on the replayed
 /// `fetch()` and after `accept-encoding` on the remembered navigation.
 #[tokio::test]
@@ -1027,6 +1059,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                 "chrome/154.0.8037.58",
                 "https-proxy-auth-remembered-hostname"
             ),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-nostore-hostname"),
             false,
         ),
         (
@@ -1035,6 +1068,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             edge::v153_windows_navigation_template(),
             edge::v153_windows_fetch_no_store_template(),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
             true,
         ),
         (
@@ -1043,12 +1077,15 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             firefox::v156_windows_navigation_template(),
             firefox::v156_windows_fetch_no_store_template(),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
             false,
         ),
     ];
-    for (label, http2, navigation, fetch, fixture, caller_ua) in cases {
+    for (label, http2, navigation, fetch, fixture, nostore, caller_ua) in cases {
         let blocks = captured_h2_blocks(fixture)?;
+        let nostore = captured_h2_blocks(nostore)?;
         let find = |path: &str, credential: bool| -> TestResult<Vec<String>> {
+            let blocks = if path == "/probe" { &nostore } else { &blocks };
             blocks
                 .iter()
                 .find(|block| {
@@ -1113,7 +1150,6 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                         .fields
                         .iter()
                         .map(|(name, _)| name.clone())
-                        .filter(|name| name != "pragma" && name != "cache-control")
                         .collect()
                 })
                 .collect();

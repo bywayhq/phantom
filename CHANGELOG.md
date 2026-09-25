@@ -397,7 +397,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   credentials and a built-in request template. The generated
   `Proxy-Authorization` field takes the position Chrome 154, Edge 153, and
   Firefox 156 give it, on HTTP/1.1 and HTTP/2 proxies: after
-  `Proxy-Connection`, or first on HTTP/2, for Chrome and Edge; before
+  `Proxy-Connection`, or first on HTTP/2, for Chrome and Edge (after
+  `Cache-Control` on a no-store `fetch`); before
   `Connection` with remembered credentials, and last or before `te` on the
   replay after a `407`, for Firefox. It used to follow every other field,
   which is still the position without a template. On a route without

@@ -698,9 +698,10 @@ Limits:
 
 - The request template tests hold the captured field lists as data; they do
   not read the fixtures. The WebSocket tests read them.
-- The captured `fetch()` used the default cache mode. That the no-store
-  template's `Pragma` and `Cache-Control` keep their positions on a named
-  plaintext origin is inferred.
+- The direct captures' `fetch()` used the default cache mode. The
+  `*-auth-nostore-*` proxy captures show a no-store `fetch()` to a named and
+  a loopback origin, with `Pragma` and `Cache-Control` where the no-store
+  templates place them.
 - Through an HTTP/1.1 proxy, Chromium sends `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`. The Chrome and Edge
   templates carry both as `RequestField::ByForwarding` entries; see
@@ -1799,17 +1800,20 @@ Against Phantom:
   capture tool starts over the remote protocol after the `fetch()`.
   `remembered_navigation_and_fetch_replay_place_credentials_as_captured` and
   `h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured`
-  compare Phantom with them. Without a template, or with a template that
+  compare Phantom with them. The `*-auth-nostore-hostname` and
+  `*-auth-nostore-loopback` captures record a no-store `fetch()`, challenged,
+  replayed, and then sent with remembered credentials, through both proxies:
+  Chrome and Edge place the field after `Cache-Control` and before the client
+  hints, and Firefox after `Cache-Control` on the replay and before
+  `Connection` with remembered credentials. The tests above compare
+  Phantom's no-store template with these captures, every field included.
+  Without a template, or with a template that
   has no slot for the attempt, the field follows every other field. On a
   route without configured credentials, a caller's own `Proxy-Authorization`
   on a forwarded request takes the template's slot for a first attempt.
 
 Remaining differences:
 
-- The captured `fetch()` requests used the default cache mode, so where
-  Firefox puts `Proxy-Authorization` on a replayed no-store `fetch()`
-  relative to `Pragma` and `Cache-Control` is not captured. The template
-  puts it after them, last, as on the captured replay.
 - H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
   literal, where both browsers index it. Phantom keeps this on purpose, as of
   2026-09-25. The HPACK block goes only to the proxy, which already holds the
@@ -1834,7 +1838,9 @@ Remaining differences:
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario http-proxy-auth-remembered-hostname
-https-proxy-auth-remembered-hostname http-proxy-auth-secure-hostname
+https-proxy-auth-remembered-hostname http-proxy-auth-nostore-hostname
+https-proxy-auth-nostore-hostname http-proxy-auth-nostore-loopback
+https-proxy-auth-nostore-loopback http-proxy-auth-secure-hostname
 https-proxy-auth-secure-hostname http-proxy-auth-hostname https-proxy-auth-hostname
 http-proxy-auth-loopback https-proxy-auth-loopback --repeat 3`; see
 [Proxy routes](../../scripts/capture/README.md#proxy-routes).

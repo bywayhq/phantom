@@ -439,11 +439,11 @@ fn preemptive_proxy_authorization(name: &str) -> RequestField {
 /// replay after a `407`: after every template field on HTTP/1.1, and before
 /// `te` on HTTP/2.
 ///
-/// The same captures show it there on the replayed navigation, and the
-/// `*-auth-remembered-hostname` captures on a replayed `fetch()`. That
-/// capture's `fetch()` used the default cache mode, so where the field goes
-/// relative to the no-store template's `Pragma` and `Cache-Control` is not
-/// captured.
+/// The same captures show it there on the replayed navigation, the
+/// `*-auth-remembered-hostname` captures on a replayed default-mode
+/// `fetch()`, and the `*-auth-nostore-*` captures on a replayed no-store
+/// `fetch()`, after `Pragma` and `Cache-Control`. Those captures also show
+/// the remembered-credentials slot on a no-store `fetch()`.
 fn replay_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Replay)
 }
@@ -537,8 +537,8 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 /// As on the navigation, the `Sec-Fetch-*` fields and the `br` and `zstd`
 /// codings are sent only to a potentially trustworthy URL. The proxy route
 /// captures back that shape with a same-origin `fetch()` in the default cache
-/// mode; that `Pragma` and `Cache-Control` keep their positions on a plaintext
-/// named origin is inferred, not captured.
+/// mode, and the `*-auth-nostore-*` captures with a no-store `fetch()` through
+/// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included.
 #[must_use]
 pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
     RequestTemplate {

@@ -168,6 +168,8 @@ struct Browser {
     secure: [&'static str; 2],
     /// `http-proxy-auth-remembered-hostname`.
     remembered: &'static str,
+    /// `http-proxy-auth-nostore-hostname` and `http-proxy-auth-nostore-loopback`.
+    nostore: [&'static str; 2],
 }
 
 fn browsers() -> Vec<Browser> {
@@ -193,6 +195,10 @@ fn browsers() -> Vec<Browser> {
                 "chrome/154.0.8037.58",
                 "http-proxy-auth-remembered-hostname"
             ),
+            nostore: [
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-nostore-loopback"),
+            ],
         },
         Browser {
             label: "edge",
@@ -212,6 +218,10 @@ fn browsers() -> Vec<Browser> {
                 proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-secure-hostname"),
             ],
             remembered: proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-remembered-hostname"),
+            nostore: [
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-nostore-loopback"),
+            ],
         },
         Browser {
             label: "firefox",
@@ -231,6 +241,10 @@ fn browsers() -> Vec<Browser> {
                 proxy_fixture!("firefox/156.0", "http-proxy-auth-secure-hostname"),
             ],
             remembered: proxy_fixture!("firefox/156.0", "http-proxy-auth-remembered-hostname"),
+            nostore: [
+                proxy_fixture!("firefox/156.0", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("firefox/156.0", "http-proxy-auth-nostore-loopback"),
+            ],
         },
     ]
 }
@@ -258,14 +272,6 @@ fn head_names(head: &str) -> TestResult<(String, Vec<String>)> {
     Ok((request_line, names))
 }
 
-fn without_no_store(names: &[String]) -> Vec<String> {
-    names
-        .iter()
-        .filter(|name| !matches!(name.as_str(), "Pragma" | "Cache-Control"))
-        .cloned()
-        .collect()
-}
-
 /// Answers the first forwarded request with a Basic `407` on one proxy
 /// connection, then the replay and one more request with `204` on a second.
 async fn challenge_then_accept(listener: TcpListener) -> TestResult<Vec<String>> {
@@ -288,20 +294,24 @@ Proxy-Authenticate: Basic realm=\"phantom-capture\"\r\nContent-Length: 0\r\n\r\n
     Ok(heads)
 }
 
-/// A navigation challenged by the proxy, its replay, and a `fetch()` that
-/// sends the remembered credentials first, forwarded through an HTTP/1.1
-/// proxy to a named and to a loopback origin.
+/// A navigation challenged by the proxy and its replay, compared with the
+/// `http-proxy-auth-*` captures, and a no-store `fetch()` that sends the
+/// remembered credentials first, compared with the `http-proxy-auth-nostore-*`
+/// captures, forwarded through an HTTP/1.1 proxy to a named and to a loopback
+/// origin.
 #[tokio::test]
 async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<()> {
     bounded(async {
         for browser in browsers() {
-            for (fixture, origin) in browser
+            for ((fixture, nostore), origin) in browser
                 .authenticated
                 .iter()
+                .zip(browser.nostore)
                 .zip(["origin.phantom.test", "127.0.0.1"])
             {
                 let label = format!("{} {origin}", browser.label);
                 let requests = captured_requests(fixture)?;
+                let nostore = captured_requests(nostore)?;
                 let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
                 let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
                     .with_basic_auth("user", "secret")?;
@@ -337,8 +347,8 @@ async fn forwarded_requests_place_proxy_credentials_as_captured() -> TestResult<
                 }
                 let (_, names) = head_names(remembered)?;
                 assert_eq!(
-                    without_no_store(&names),
-                    captured(&requests, "done", "204")?,
+                    names,
+                    captured(&nostore, "done", "204")?,
                     "{label} remembered"
                 );
                 for head in [replay, remembered] {
@@ -495,9 +505,10 @@ async fn wss_connect_sends_the_captured_fields() -> TestResult<()> {
     .await
 }
 
-/// A `fetch()` challenged by the proxy, its replay, and a navigation that
-/// sends the remembered credentials first, compared with the
-/// `http-proxy-auth-remembered-hostname` capture of each browser. This is
+/// A no-store `fetch()` challenged by the proxy and its replay, compared
+/// with the `http-proxy-auth-nostore-hostname` capture of each browser, and
+/// a navigation that sends the remembered credentials first, compared with
+/// the `http-proxy-auth-remembered-hostname` capture. This is
 /// the order the forwarded-credentials test above does not cover: Firefox
 /// places the field last on a replayed `fetch()` and before `Connection` on
 /// a navigation with remembered credentials.
@@ -507,6 +518,7 @@ async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() 
         for browser in browsers() {
             let label = browser.label;
             let requests = captured_requests(browser.remembered)?;
+            let nostore = captured_requests(browser.nostore[0])?;
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
                 .with_basic_auth("user", "secret")?;
@@ -542,12 +554,12 @@ async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() 
             for (head, expected, what) in [
                 (
                     challenged,
-                    captured(&requests, "probe", "407")?.to_vec(),
+                    captured(&nostore, "probe", "407")?.to_vec(),
                     "challenged fetch",
                 ),
                 (
                     replay,
-                    captured(&requests, "probe", "204")?.to_vec(),
+                    captured(&nostore, "probe", "204")?.to_vec(),
                     "fetch replay",
                 ),
                 (
@@ -557,7 +569,7 @@ async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() 
                 ),
             ] {
                 let (_, names) = head_names(head)?;
-                assert_eq!(without_no_store(&names), expected, "{label} {what}");
+                assert_eq!(names, expected, "{label} {what}");
             }
         }
         Ok(())
