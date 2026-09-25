@@ -536,6 +536,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   for at most 50 ms after address resolution, and a rejection is retried
   once. Before, they sent ECH GREASE and made no lookup. Proxy routes and
   profiles without `ech_from_https_records` are unchanged.
+- Wire and performance change for HTTPS proxies with
+  `HttpProxy::with_http2_transport` and `with_basic_auth`. After a `407` to
+  an HTTP/2 CONNECT, WebSocket tunnels included, the replay is stream 3 of
+  the proxy connection that carried the `407` on stream 1, as Chrome 154,
+  Edge 153, and Firefox 156 replay on the challenged HTTP/2 connection. It
+  used to open a new proxy connection, so each challenge now saves a TCP
+  connect, a TLS handshake, and the HTTP/2 preface. Phantom ends the
+  challenged stream with an empty END_STREAM DATA frame, as Chrome and Edge
+  do, where it used to reset it with `CANCEL`; this also applies to other
+  rejected HTTP/2 CONNECT responses. The tunnel still holds its proxy
+  connection alone. A proxy that closes the connection, or answers the
+  replay with `GOAWAY` or `REFUSED_STREAM`, gets the replay once more on a
+  new connection. Error kinds and the single-replay rule are unchanged.
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,

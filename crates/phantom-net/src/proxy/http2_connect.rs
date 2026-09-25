@@ -1,5 +1,6 @@
 //! RFC 9113 section 8.5 CONNECT over an HTTP/2 connection to an HTTPS proxy.
 
+use ::http2::Reason;
 use http::{
     HeaderValue,
     header::{CONNECTION, HeaderName, PROXY_AUTHORIZATION, TE, UPGRADE},
@@ -12,8 +13,8 @@ use super::{
     http_connect::{Authorization, PreparedBasicConnect, PreparedConnect},
 };
 use crate::http2::{
-    Http2ClassicConnectOutcome, Http2ConnectStream, Http2Connection, Http2TlsError,
-    prepare_classic_connect,
+    Http2ClassicConnectOutcome, Http2ConnectStream, Http2Connection, Http2Error,
+    Http2ProtocolErrorKind, Http2TlsError, prepare_classic_connect,
 };
 
 /// A validated HTTP/2 CONNECT request that can be sent on a fresh connection.
@@ -137,6 +138,62 @@ pub(super) async fn establish_authenticated(
         Ok(Http2ChallengeOutcome::Tunnel(stream)) => Ok(stream),
         Ok(Http2ChallengeOutcome::Retry) => Err(HttpConnectError::InvalidResponse),
         Err(error) => Err(error),
+    }
+}
+
+/// Result of the credentialed CONNECT sent on the connection that carried
+/// the `407`.
+pub(super) enum Http2Replay {
+    /// The proxy answered the replay, or failed it after processing it.
+    Answered(Result<Http2ConnectStream, HttpConnectError>),
+    /// The proxy closed the connection or refused the stream before it
+    /// processed the replay, so the replay may go on a new connection.
+    Unprocessed,
+}
+
+/// Sends the credentialed CONNECT as a new stream on the challenged
+/// connection, as Chrome 154, Edge 153, and Firefox 156 do.
+///
+/// A connection that has stopped or received `GOAWAY` since the `407` is not
+/// used.
+pub(super) async fn replay_on_challenged(
+    connection: &Http2Connection,
+    request: &PreparedHttp2Connect,
+) -> Http2Replay {
+    // Chrome 154 and Edge 153 end the challenged stream before they open the
+    // replay. The vendored encoder writes a new stream's HEADERS ahead of
+    // queued DATA, so the connection driver gets a turn to write the queued
+    // END_STREAM first. On a current-thread runtime this fixes the order; on
+    // a multi-thread runtime the driver may run later.
+    tokio::task::yield_now().await;
+    if !connection.is_reusable() {
+        return Http2Replay::Unprocessed;
+    }
+    match establish_authenticated(connection, request).await {
+        Err(HttpConnectError::ProxyHttp2(error)) if is_unprocessed(&error) => {
+            Http2Replay::Unprocessed
+        }
+        result => Http2Replay::Answered(result),
+    }
+}
+
+/// Reports a failure that RFC 9113 sections 6.8 and 8.7 describe as a
+/// request the peer did not process, or a connection that ended before any
+/// response head.
+///
+/// A received `GOAWAY` fails a stream only when the stream is above its
+/// last-stream-id or never opened, so any remote `GOAWAY` qualifies.
+fn is_unprocessed(error: &Http2TlsError) -> bool {
+    let Http2TlsError::Http2(Http2Error::Protocol(error)) = error else {
+        return false;
+    };
+    match error.kind() {
+        Http2ProtocolErrorKind::Transport => true,
+        Http2ProtocolErrorKind::ConnectionError => error.is_remote(),
+        Http2ProtocolErrorKind::StreamReset => {
+            error.is_remote() && error.reason_code() == Some(u32::from(Reason::REFUSED_STREAM))
+        }
+        Http2ProtocolErrorKind::Protocol | Http2ProtocolErrorKind::Local => false,
     }
 }
 

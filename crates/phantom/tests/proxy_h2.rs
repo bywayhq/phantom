@@ -176,8 +176,11 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
     .await
 }
 
+/// A challenged CONNECT is replayed once, as stream 3 of the proxy
+/// connection that carried the `407` on stream 1, as Chrome 154, Edge 153,
+/// and Firefox 156 do in the `https-proxy-auth-secure-hostname` captures.
 #[tokio::test]
-async fn h2_proxy_basic_challenge_replays_once_on_fresh_connection() -> TestResult<()> {
+async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() -> TestResult<()> {
     bounded(async {
         let origin_identity = TestIdentity::generate()?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -196,12 +199,15 @@ async fn h2_proxy_basic_challenge_replays_once_on_fresh_connection() -> TestResu
         let proxy = H2Proxy::bind().await?;
         let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
         let proxy_task = tokio::spawn(async move {
-            let (first, _) = listener.accept().await?;
-            let challenged = serve_connect(first, &acceptor, Reply::Challenge).await?;
-            let (second, _) = listener.accept().await?;
-            let authorized =
-                serve_connect(second, &acceptor, Reply::Tunnel(origin_address)).await?;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((challenged, authorized))
+            let (tcp, _) = listener.accept().await?;
+            let records = serve_connects(
+                tcp,
+                &acceptor,
+                vec![Reply::Challenge, Reply::Tunnel(origin_address)],
+            )
+            .await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((records, second.is_err()))
         });
         let route = Route::http_proxy(
             HttpProxy::new(&proxy_uri)?
@@ -219,12 +225,13 @@ async fn h2_proxy_basic_challenge_replays_once_on_fresh_connection() -> TestResu
             .await?;
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
-        let (challenged, authorized) = proxy_task.await??;
+        let (records, one_connection) = proxy_task.await??;
+        assert!(one_connection, "the replay opened a new proxy connection");
+        let [challenged, authorized] = records.as_slice() else {
+            return Err(format!("expected two CONNECT streams, got {records:?}").into());
+        };
+        assert_eq!((challenged.stream_id, authorized.stream_id), (1, 3));
         assert!(challenged.fields.is_empty(), "{:?}", challenged.fields);
-        assert_eq!(
-            challenged.later_requests, 0,
-            "challenged connection was reused"
-        );
         assert_eq!(
             authorized.fields,
             [(
@@ -554,16 +561,16 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
         let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
         let proxy_task = tokio::spawn(async move {
             let mut records = Vec::new();
-            for reply in [
-                Reply::Challenge,
-                Reply::Tunnel(origin_address),
-                Reply::Tunnel(origin_address),
+            // The first tunnel's replay shares its challenged connection.
+            for replies in [
+                vec![Reply::Challenge, Reply::Tunnel(origin_address)],
+                vec![Reply::Tunnel(origin_address)],
             ] {
                 let (tcp, _) = listener.accept().await?;
-                records.push(serve_connect(tcp, &acceptor, reply).await?);
+                records.extend(serve_connects(tcp, &acceptor, replies).await?);
             }
-            let fourth = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((records, fourth.is_err()))
+            let third = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((records, third.is_err()))
         });
         let route = Route::http_proxy(
             HttpProxy::new(&proxy_uri)?
@@ -583,8 +590,10 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
         }
 
-        let (records, no_fourth_connection) = proxy_task.await??;
-        assert!(no_fourth_connection);
+        let (records, no_third_connection) = proxy_task.await??;
+        assert!(no_third_connection);
+        let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
+        assert_eq!(streams, [1, 3, 1]);
         let credentials = vec![(
             "proxy-authorization".to_owned(),
             b"Basic YWxpY2U6c2VjcmV0".to_vec(),
@@ -926,16 +935,13 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 let proxy = H2Proxy::bind().await?;
                 let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
                 let proxy_task = tokio::spawn(async move {
-                    let mut records = Vec::new();
-                    for reply in if credentials {
+                    let replies = if credentials {
                         vec![Reply::Challenge, Reply::Status(502)]
                     } else {
                         vec![Reply::Status(502)]
-                    } {
-                        let (tcp, _) = listener.accept().await?;
-                        records.push(serve_connect(tcp, &acceptor, reply).await?);
-                    }
-                    Ok::<_, Box<dyn StdError + Send + Sync>>(records)
+                    };
+                    let (tcp, _) = listener.accept().await?;
+                    serve_connects(tcp, &acceptor, replies).await
                 });
                 let mut proxy = HttpProxy::new(&proxy_uri)?;
                 if credentials {
@@ -1545,76 +1551,99 @@ enum Reply {
 
 #[derive(Debug)]
 struct ConnectRecord {
+    stream_id: u32,
     authority: Option<String>,
     fields: Vec<(String, Vec<u8>)>,
     later_requests: usize,
 }
 
 /// Serves one HTTP/2 proxy connection with one CONNECT exchange.
-///
-/// The HTTP/2 server rejects `:scheme` or `:path` in a classic CONNECT, so
-/// every recorded request used the two-field pseudo-header form.
 async fn serve_connect(
     tcp: TcpStream,
     acceptor: &SslAcceptor,
     reply: Reply,
 ) -> TestResult<ConnectRecord> {
+    serve_connects(tcp, acceptor, vec![reply])
+        .await?
+        .pop()
+        .ok_or_else(|| "no CONNECT was served".into())
+}
+
+/// Serves one HTTP/2 proxy connection, answering one CONNECT stream per
+/// reply, in order.
+///
+/// After a final rejection, every later request on the connection is counted
+/// in the last record until the client closes it. The HTTP/2 server rejects
+/// `:scheme` or `:path` in a classic CONNECT, so every recorded request used
+/// the two-field pseudo-header form.
+async fn serve_connects(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    replies: Vec<Reply>,
+) -> TestResult<Vec<ConnectRecord>> {
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let mut connection = ::http2::server::handshake(stream).await?;
-    let (request, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("proxy connection closed before CONNECT")??;
-    if request.method() != Method::CONNECT {
-        return Err("proxy received a non-CONNECT request".into());
-    }
-    let authority = request.uri().authority().map(ToString::to_string);
-    let fields = request
-        .extensions()
-        .get::<::http2::ext::OrderedHeaders>()
-        .ok_or("missing ordered CONNECT fields")?
-        .as_slice()
-        .iter()
-        .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
-        .collect();
-    let mut record = ConnectRecord {
-        authority,
-        fields,
-        later_requests: 0,
-    };
-
-    match reply {
-        Reply::Tunnel(origin) => {
-            let send = respond.send_response(Response::new(()), false)?;
-            let upstream = TcpStream::connect(origin).await?;
-            spawn_relay(request.into_body(), send, upstream);
-            tokio::spawn(async move {
-                while let Some(result) = connection.accept().await {
-                    if result.is_err() {
-                        break;
-                    }
-                }
-            });
+    let mut records = Vec::with_capacity(replies.len());
+    let mut tunneled = false;
+    for reply in replies {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("proxy connection closed before CONNECT")??;
+        if request.method() != Method::CONNECT {
+            return Err("proxy received a non-CONNECT request".into());
         }
-        Reply::Challenge | Reply::Status(_) => {
-            let mut response = Response::builder().status(match reply {
-                Reply::Status(status) => status,
-                _ => 407,
-            });
-            if matches!(reply, Reply::Challenge) {
-                response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
+        records.push(ConnectRecord {
+            stream_id: respond.stream_id().as_u32(),
+            authority: request.uri().authority().map(ToString::to_string),
+            fields: request
+                .extensions()
+                .get::<::http2::ext::OrderedHeaders>()
+                .ok_or("missing ordered CONNECT fields")?
+                .as_slice()
+                .iter()
+                .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+                .collect(),
+            later_requests: 0,
+        });
+        tunneled = matches!(reply, Reply::Tunnel(_));
+        match reply {
+            Reply::Tunnel(origin) => {
+                let send = respond.send_response(Response::new(()), false)?;
+                let upstream = TcpStream::connect(origin).await?;
+                spawn_relay(request.into_body(), send, upstream);
             }
-            respond.send_response(response.body(())?, true)?;
-            drop(request);
+            Reply::Challenge | Reply::Status(_) => {
+                let mut response = Response::builder().status(match reply {
+                    Reply::Status(status) => status,
+                    _ => 407,
+                });
+                if matches!(reply, Reply::Challenge) {
+                    response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
+                }
+                respond.send_response(response.body(())?, true)?;
+            }
+        }
+    }
+    if tunneled {
+        tokio::spawn(async move {
             while let Some(result) = connection.accept().await {
                 if result.is_err() {
                     break;
                 }
-                record.later_requests += 1;
             }
+        });
+        return Ok(records);
+    }
+    while let Some(result) = connection.accept().await {
+        if result.is_err() {
+            break;
+        }
+        if let Some(record) = records.last_mut() {
+            record.later_requests += 1;
         }
     }
-    Ok(record)
+    Ok(records)
 }
 
 fn spawn_relay(

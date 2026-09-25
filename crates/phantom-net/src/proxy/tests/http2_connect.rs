@@ -386,13 +386,11 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
             let connector = http2_connector(&identity)?;
             let (address, listener) = loopback_listener().await?;
             let acceptor = identity.acceptor(TestServerAlpn::H2)?;
-            let attempts = if credentials { 2 } else { 1 };
+            // The replay after a challenge is the next stream on the same
+            // connection.
+            let streams = if credentials { 2 } else { 1 };
             let proxy_task = tokio::spawn(async move {
-                let listener = listener;
-                for _ in 0..attempts {
-                    reject_one(&listener, &acceptor, status, challenge).await?;
-                }
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                reject_streams(&listener, &acceptor, status, challenge, streams).await
             });
 
             let result = if credentials {
@@ -437,34 +435,45 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
     .await
 }
 
-async fn reject_one(
+/// Answers `streams` CONNECT streams on one proxy connection with `status`.
+async fn reject_streams(
     listener: &TcpListener,
     acceptor: &btls::ssl::SslAcceptor,
     status: u16,
     challenge: Option<&'static str>,
+    streams: usize,
 ) -> TestResult<()> {
     let (tcp, _) = listener.accept().await?;
     let ssl = btls::ssl::Ssl::new(acceptor.context())?;
     let mut stream = tokio_btls::SslStream::new(ssl, tcp)?;
     std::pin::Pin::new(&mut stream).accept().await?;
     let mut connection = ::http2::server::handshake(stream).await?;
-    let (_request, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("proxy connection closed before CONNECT")??;
-    let mut response = Response::builder().status(status);
-    if let Some(challenge) = challenge {
-        response = response.header("proxy-authenticate", challenge);
+    for _ in 0..streams {
+        let (_request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("proxy connection closed before CONNECT")??;
+        let mut response = Response::builder().status(status);
+        if let Some(challenge) = challenge {
+            response = response.header("proxy-authenticate", challenge);
+        }
+        respond.send_response(response.body(())?, true)?;
     }
-    respond.send_response(response.body(())?, true)?;
-    // The client abandons the connection after one final status.
+    // The client abandons the connection after its last final status, and
+    // opens no other.
     if let Some(Ok(_)) = connection.accept().await {
         return Err("client reused a rejected proxy connection".into());
+    }
+    if timeout(Duration::from_millis(100), listener.accept())
+        .await
+        .is_ok()
+    {
+        return Err("client opened a second proxy connection".into());
     }
     Ok(())
 }
 
-fn http2_connector(identity: &TestIdentity) -> TestResult<HttpsProxyConnector> {
+pub(super) fn http2_connector(identity: &TestIdentity) -> TestResult<HttpsProxyConnector> {
     Ok(
         HttpsProxyConnector::new_with_additional_roots(&tls_settings(), [identity.root_der()])?
             .with_http2_settings(&v154_http2())
@@ -511,7 +520,11 @@ fn static_name_indexes(block: &[u8]) -> TestResult<Vec<usize>> {
     Ok(names)
 }
 
-fn read_integer(block: &[u8], position: &mut usize, prefix_bits: u32) -> TestResult<usize> {
+pub(super) fn read_integer(
+    block: &[u8],
+    position: &mut usize,
+    prefix_bits: u32,
+) -> TestResult<usize> {
     let mask = (1_usize << prefix_bits) - 1;
     let mut value = usize::from(*block.get(*position).ok_or("truncated integer")?) & mask;
     *position += 1;
@@ -530,7 +543,7 @@ fn read_integer(block: &[u8], position: &mut usize, prefix_bits: u32) -> TestRes
     }
 }
 
-fn skip_string(block: &[u8], position: &mut usize) -> TestResult<()> {
+pub(super) fn skip_string(block: &[u8], position: &mut usize) -> TestResult<()> {
     let length = read_integer(block, position, 7)?;
     *position += length;
     if *position > block.len() {
@@ -539,7 +552,7 @@ fn skip_string(block: &[u8], position: &mut usize) -> TestResult<()> {
     Ok(())
 }
 
-async fn bounded<F>(future: F) -> TestResult<()>
+pub(super) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: std::future::Future<Output = TestResult<()>>,
 {

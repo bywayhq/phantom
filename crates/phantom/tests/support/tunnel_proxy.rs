@@ -8,6 +8,7 @@ use std::{
     future::poll_fn,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
 };
 
 use btls::ssl::SslAcceptor;
@@ -16,6 +17,7 @@ use http::{Method, Response};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
+    time::timeout,
 };
 
 use super::tls::{TestResult, accept_tls_stream, read_head};
@@ -135,6 +137,7 @@ pub(crate) async fn https1_challenge_then_connect(
 /// The CONNECT request observed by an HTTP/2 proxy.
 #[derive(Debug)]
 pub(crate) struct Http2ConnectRecord {
+    pub(crate) stream_id: u32,
     pub(crate) authority: Option<String>,
     pub(crate) fields: Vec<(String, Vec<u8>)>,
 }
@@ -149,35 +152,75 @@ pub(crate) async fn http2_connect(
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<Http2ConnectRecord> {
+    let mut records = http2_connects(&listener, acceptor, origin, false).await?;
+    records.pop().ok_or_else(|| "no CONNECT was served".into())
+}
+
+/// Accepts one h2-only TLS proxy connection, answers its first CONNECT with a
+/// Basic `407` and the next with 200, and relays that stream to `origin`.
+///
+/// Returns both requests and whether no other proxy connection arrived
+/// within 100 ms after the tunnel opened.
+pub(crate) async fn http2_challenge_then_connect(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<(Vec<Http2ConnectRecord>, bool)> {
+    let records = http2_connects(&listener, acceptor, origin, true).await?;
+    let second = timeout(Duration::from_millis(100), listener.accept()).await;
+    Ok((records, second.is_err()))
+}
+
+async fn http2_connects(
+    listener: &TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+    challenge_first: bool,
+) -> TestResult<Vec<Http2ConnectRecord>> {
     let (tcp, _) = listener.accept().await?;
     let stream = accept_tls_stream(tcp, acceptor).await?;
     if stream.ssl().selected_alpn_protocol() != Some(b"h2") {
         return Err("proxy connection did not select h2".into());
     }
     let mut connection = ::http2::server::handshake(stream).await?;
-    let (request, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("proxy connection closed before CONNECT")??;
-    if request.method() != Method::CONNECT {
-        return Err("proxy received a non-CONNECT request".into());
+    let mut records = Vec::new();
+    let mut challenge = challenge_first;
+    loop {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("proxy connection closed before CONNECT")??;
+        if request.method() != Method::CONNECT {
+            return Err("proxy received a non-CONNECT request".into());
+        }
+        records.push(Http2ConnectRecord {
+            stream_id: respond.stream_id().as_u32(),
+            authority: request.uri().authority().map(ToString::to_string),
+            fields: request
+                .extensions()
+                .get::<::http2::ext::OrderedHeaders>()
+                .ok_or("missing ordered CONNECT fields")?
+                .as_slice()
+                .iter()
+                .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+                .collect(),
+        });
+        if challenge {
+            let response = Response::builder()
+                .status(407)
+                .header("proxy-authenticate", "Basic realm=\"websocket\"")
+                .body(())?;
+            respond.send_response(response, true)?;
+            challenge = false;
+            continue;
+        }
+        let send = respond.send_response(Response::new(()), false)?;
+        let upstream = TcpStream::connect(origin).await?;
+        spawn_http2_relay(request.into_body(), send, upstream);
+        break;
     }
-    let record = Http2ConnectRecord {
-        authority: request.uri().authority().map(ToString::to_string),
-        fields: request
-            .extensions()
-            .get::<::http2::ext::OrderedHeaders>()
-            .ok_or("missing ordered CONNECT fields")?
-            .as_slice()
-            .iter()
-            .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
-            .collect(),
-    };
-    let send = respond.send_response(Response::new(()), false)?;
-    let upstream = TcpStream::connect(origin).await?;
-    spawn_http2_relay(request.into_body(), send, upstream);
     tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
-    Ok(record)
+    Ok(records)
 }
 
 /// The SOCKS5 CONNECT target observed by the proxy.
