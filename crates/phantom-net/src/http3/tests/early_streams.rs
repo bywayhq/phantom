@@ -407,7 +407,8 @@ async fn handshake_window_rejection(
     });
     tokio::time::sleep(release).await;
     if request.is_finished() {
-        return Err("the request did not wait for the answer".into());
+        let result = request.await?;
+        return Err(format!("the request did not wait for the answer: {result:?}").into());
     }
     if !served
         .lock()

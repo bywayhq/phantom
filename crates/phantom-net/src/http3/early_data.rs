@@ -70,13 +70,22 @@ pub(super) struct EarlyData {
 /// Publishes a connection's early-data answer to its [`EarlyData`].
 pub(super) struct EarlyDataAnswer {
     sender: watch::Sender<Option<EarlyDataOutcome>>,
+    #[cfg(test)]
+    hold: Option<std::sync::Arc<tokio::sync::Semaphore>>,
 }
 
 impl EarlyData {
     /// Returns the unsettled answer and the handle that settles it.
     pub(super) fn channel() -> (EarlyDataAnswer, Self) {
         let (sender, outcome) = watch::channel(None);
-        (EarlyDataAnswer { sender }, Self { outcome })
+        (
+            EarlyDataAnswer {
+                sender,
+                #[cfg(test)]
+                hold: None,
+            },
+            Self { outcome },
+        )
     }
 
     /// Returns a receiver of the published answer, `None` until it settles.
@@ -100,6 +109,18 @@ impl EarlyData {
 }
 
 impl EarlyDataAnswer {
+    /// Makes the connection take a permit from `hold` after Quinn's answer
+    /// arrives and before the handshake metadata is checked or HTTP/3 starts
+    /// again, for tests of requests sent in between.
+    #[cfg(test)]
+    pub(super) fn with_test_hold(
+        mut self,
+        hold: Option<std::sync::Arc<tokio::sync::Semaphore>>,
+    ) -> Self {
+        self.hold = hold;
+        self
+    }
+
     /// Records the server's answer once the connection driver reports it at
     /// handshake end.
     ///
@@ -121,9 +142,18 @@ impl EarlyDataAnswer {
         R: FnOnce() -> S + Send + 'static,
         S: Future<Output = EarlyDataOutcome> + Send,
     {
-        let Self { sender } = self;
+        let Self {
+            sender,
+            #[cfg(test)]
+            hold,
+        } = self;
         drop(tokio::spawn(async move {
-            let outcome = match answer.await {
+            let answer = answer.await;
+            #[cfg(test)]
+            if let Some(hold) = &hold {
+                let _ = hold.acquire().await;
+            }
+            let outcome = match answer {
                 Ok(true) => complete().await,
                 Ok(false) if connection.close_reason().is_none() => restart().await,
                 Ok(false) | Err(_) => EarlyDataOutcome::Failed,

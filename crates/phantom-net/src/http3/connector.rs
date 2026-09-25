@@ -416,10 +416,10 @@ impl Http3Connector {
         self
     }
 
-    /// Makes each early-data connection take a permit from `hold` before it
-    /// publishes the server's answer: before its handshake metadata is
-    /// checked on an acceptance, and after its new HTTP/3 session is built
-    /// on a rejection.
+    /// Makes each early-data connection take a permit from `hold` after
+    /// Quinn's answer arrives and before the connection checks its handshake
+    /// metadata or starts HTTP/3 again, so the answer is published only after
+    /// the test releases it.
     #[cfg(test)]
     pub(super) fn with_test_answer_hold(mut self, hold: Arc<tokio::sync::Semaphore>) -> Self {
         self.answer_hold = Some(hold);

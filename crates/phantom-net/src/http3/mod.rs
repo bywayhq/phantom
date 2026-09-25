@@ -631,12 +631,12 @@ async fn connect(
                 round_trip: round_trip.clone(),
                 #[cfg(test)]
                 peer_alps_override: peer_alps_override.clone(),
-                #[cfg(test)]
-                answer_hold: answer_hold.clone(),
             };
             let rejected = accepted.clone();
             let session = Arc::downgrade(&session);
             let router = datagrams.clone();
+            #[cfg(test)]
+            let publisher = publisher.with_test_hold(answer_hold.clone());
             publisher.spawn(
                 connection.clone(),
                 answer,
@@ -675,8 +675,6 @@ struct EarlyHandshake {
     round_trip: Option<RoundTripRecorder>,
     #[cfg(test)]
     peer_alps_override: Option<Arc<[u8]>>,
-    #[cfg(test)]
-    answer_hold: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl EarlyHandshake {
@@ -735,10 +733,6 @@ async fn complete_early_handshake(
     handshake: EarlyHandshake,
     late_settings: oneshot::Sender<LateApplicationSettings>,
 ) -> EarlyDataOutcome {
-    #[cfg(test)]
-    if let Some(hold) = &handshake.answer_hold {
-        let _ = hold.acquire().await;
-    }
     let alps = match handshake.check() {
         Ok(alps) => alps,
         Err(outcome) => return outcome,
@@ -821,10 +815,6 @@ async fn restart_after_rejected_early_data(
             return EarlyDataOutcome::Failed;
         }
     };
-    #[cfg(test)]
-    if let Some(hold) = &handshake.answer_hold {
-        let _ = hold.acquire().await;
-    }
     // The driver task drops the discarded session when it takes this one,
     // which fails any request still waiting on it.
     if replacement.send(driver).is_err() {
