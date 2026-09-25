@@ -93,7 +93,16 @@ pub(crate) struct MasqueProxy {
 
 impl MasqueProxy {
     pub(crate) fn spawn(identity: &TestIdentity, mode: ProxyMode) -> TestResult<Self> {
-        let (address, endpoint) = relay_endpoint(identity)?;
+        Self::spawn_with_session_storage(identity, mode, None)
+    }
+
+    /// A proxy whose TLS server keeps its resumable sessions in `storage`.
+    pub(crate) fn spawn_with_session_storage(
+        identity: &TestIdentity,
+        mode: ProxyMode,
+        storage: Option<Arc<dyn rustls::server::StoresServerSessions>>,
+    ) -> TestResult<Self> {
+        let (address, endpoint) = relay_endpoint(identity, storage)?;
         let log = Arc::new(Mutex::new(ProxyLog::default()));
         let (close, close_rx) = watch::channel(false);
         let task_log = Arc::clone(&log);
@@ -302,7 +311,10 @@ fn encode_varint(value: u64, output: &mut Vec<u8>) {
 }
 
 /// A QUIC server endpoint whose path MTU carries a full relayed Initial.
-fn relay_endpoint(identity: &TestIdentity) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+fn relay_endpoint(
+    identity: &TestIdentity,
+    storage: Option<Arc<dyn rustls::server::StoresServerSessions>>,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let certificate = CertificateDer::from(identity.leaf_der().to_vec());
     let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
         identity.private_key_der().to_vec(),
@@ -311,6 +323,9 @@ fn relay_endpoint(identity: &TestIdentity) -> TestResult<(SocketAddr, quinn::End
         .with_no_client_auth()
         .with_single_cert(vec![certificate], private_key)?;
     tls.alpn_protocols = vec![b"h3".to_vec()];
+    if let Some(storage) = storage {
+        tls.session_storage = storage;
+    }
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     let mut transport = quinn::TransportConfig::default();
     transport.initial_mtu(1_400).min_mtu(1_400);
