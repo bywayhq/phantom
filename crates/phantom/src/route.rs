@@ -319,9 +319,12 @@ impl HttpProxy {
     /// Configures challenge-driven HTTP Basic proxy authentication.
     ///
     /// The first request to the proxy omits credentials. After a valid Basic
-    /// proxy challenge, Phantom retries once with them: on a fresh proxy
-    /// connection for a CONNECT tunnel or HTTP/1.1 forwarding, and on the same
-    /// connection for HTTP/2 forwarding. Once the proxy accepts them, the
+    /// proxy challenge, Phantom retries once with them. A CONNECT tunnel or
+    /// HTTP/1.1 forwarding retries on the challenged proxy connection when the
+    /// `407` keeps it open and its body ends within
+    /// [`MAX_CHALLENGE_BODY_BYTES`](phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES),
+    /// and on a new connection otherwise; HTTP/2 forwarding retries on the
+    /// same connection. Once the proxy accepts them, the
     /// client sends them on the first attempt of later tunnels and forwarded
     /// requests through this proxy; see
     /// [`ClientBuilder::preemptive_proxy_authentication`](crate::ClientBuilder::preemptive_proxy_authentication).

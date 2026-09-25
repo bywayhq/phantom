@@ -164,8 +164,8 @@ Supported:
   reused keep-alive connection closes before any response byte.
 - Direct HTTPS and plaintext HTTP.
 - Absolute-form forwarding of `http://` origins over plaintext or TLS proxies,
-  including one replay on a fresh connection after a strict, valid Basic
-  challenge.
+  including one replay after a strict, valid Basic challenge, on the
+  challenged connection when the `407` leaves it open.
 - HTTP and HTTPS CONNECT routes, and SOCKS5 routes with local or remote DNS.
 - Upgrade handoff that preserves every byte.
 - At most 8 informational (1xx) responses before the final response head.
@@ -574,7 +574,8 @@ Supported WebSocket (`websocket` feature):
 - Exact WebSocket over H2 extended CONNECT, for profiles that define an
   extended CONNECT pseudo-header order. Routes: direct, HTTP CONNECT
   (plaintext or TLS proxy, HTTP/1.1 or HTTP/2 proxy transport, one Basic
-  replay on a fresh proxy connection), and SOCKS5 with local or remote DNS.
+  replay, on the challenged HTTP/1.1 connection when the `407` leaves it
+  open), and SOCKS5 with local or remote DNS.
   The peer capability gate applies, with no route or H1 fallback.
 - `ws://` through an HTTP proxy as a CONNECT tunnel (HTTP/1.1 transport) or
   CONNECT stream (HTTP/2 transport) with the direct Upgrade inside, as Chrome
@@ -638,8 +639,9 @@ Supported HTTP proxies:
 
 - HTTP/1.1 absolute-form forwarding for `http://` origins over plaintext or
   TLS-encrypted proxies. Basic authentication is challenge-driven: the first
-  request to a proxy is anonymous, and exactly one replay follows on a fresh
-  connection over the same route. After the proxy accepts the credentials,
+  request to a proxy is anonymous, and exactly one replay follows over the
+  same route, on the challenged connection when the `407` leaves it open and
+  on a new connection otherwise. After the proxy accepts the credentials,
   later requests through it send them first. A caller's own
   `Proxy-Authorization` field is forwarded
   when the proxy has no configured credentials. A negotiated `http://` request

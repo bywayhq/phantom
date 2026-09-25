@@ -456,6 +456,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire and performance change for HTTP proxies with
+  `HttpProxy::with_basic_auth`. After a `407` to an HTTP/1.1 CONNECT
+  (plaintext or TLS proxy, WebSocket tunnels included) or to a forwarded
+  `http://` request, the replay goes on the connection that carried the
+  `407`, as Chrome 154, Edge 153, and Firefox 156 do, instead of a new proxy
+  connection. This saves a TCP connect, and a TLS handshake for an
+  `https://` proxy, per challenge. A `407` with `Connection: close` or
+  `Proxy-Connection: close`, without a stated length, or with a body over
+  `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB) still gets a new
+  connection, and so does a replay whose kept connection the proxy closes.
+
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,

@@ -35,6 +35,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
+  A `407` on an HTTP/1.1 proxy connection is replayed on that connection
+  when the proxy keeps it open, as the captured browsers do.
 - SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
@@ -134,15 +136,14 @@ anything does.
 
 #### Routes and proxies
 
-- Replay a challenged request on the same proxy connection after a `407`.
-  Evidence: in the
-  [proxy route captures](explanation/validation.md#proxy-route-browser-evidence),
-  Chromium and Firefox replay a challenged forwarded request on the same
-  proxy connection when the `407` leaves it open, Chromium does the same for
-  CONNECT, and both replay on a new stream of the same HTTP/2 proxy
-  connection. Phantom opens a new proxy connection for CONNECT and HTTP/1.1
-  forwarding replays. Status: the HTTP/1.1 proxy cases are in progress; an
-  HTTP/2 CONNECT replay on the challenged connection remains.
+- Replay a challenged HTTP/2 CONNECT on the challenged proxy connection.
+  Evidence: in the `https-proxy-auth-secure-hostname`
+  [captures](explanation/validation.md#proxy-authentication-evidence),
+  Chromium and Firefox open the replay as a new stream on the HTTP/2 proxy
+  connection that carried the `407`. Phantom gives each HTTP/2 tunnel its own
+  proxy connection and opens a new one for the replay. HTTP/1.1 CONNECT,
+  HTTP/1.1 forwarding, and HTTP/2 forwarding already replay on the
+  challenged connection. Blocker: none recorded.
 
 #### Caller options, off by default
 

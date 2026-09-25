@@ -83,7 +83,11 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
   the proxy trust settings. Basic credentials sent to an `http://` proxy
   travel unencrypted.
 - The first request to a proxy carries no credentials. A valid Basic `407`
-  challenge allows exactly one replay with them over the same route. Once the
+  challenge allows exactly one replay with them over the same route. The
+  replay goes on the connection that carried the `407` when the proxy keeps
+  it open, as browsers do, and on a new connection when the `407` says
+  `Connection: close` or `Proxy-Connection: close`, has no length, or has a
+  body over 64 KiB. Once the
   proxy accepts them, later tunnels, WebSocket tunnels, and forwarded
   requests through it send `Proxy-Authorization` on the first attempt, as
   Chrome, Edge, and Firefox do. A `407` to such a request allows the same

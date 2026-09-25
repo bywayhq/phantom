@@ -1792,7 +1792,8 @@ non-H1 selections, and proxy failure without fallback to a direct route.
 
 Authentication regressions prove that the first request to a proxy is sent
 without credentials, and that only a strict, valid Basic `407` challenge
-triggers one replay on a fresh connection over the same route. They assert
+triggers one replay over the same route, on the challenged connection when
+the `407` leaves it open. They assert
 the position of the generated sensitive `Proxy-Authorization` field, after the
 caller's fields and before framing; exact replay of owned bodies and static
 trailers, and failure before a retry connection opens for a one-shot
@@ -1843,9 +1844,10 @@ proxies. They assert the exact CONNECT head, then an origin-form opening
 inside the tunnel with the caller-selected field order and no origin TLS,
 no direct-origin traffic, independent proxy trust, and Ping/Pong traffic.
 Authentication cases prove an anonymous first CONNECT; one replay of the
-CONNECT on a fresh connection with generated credentials, which never reach
-the opening; credentials on the first CONNECT of a later WebSocket to the
-same proxy, or a fresh challenge for each when the record is disabled; and
+CONNECT with generated credentials on the challenged connection, which the
+`407` left open, and the credentials never reach the opening; credentials
+on the first CONNECT of a later WebSocket to the same proxy, or a fresh
+challenge for each when the record is disabled; and
 terminal behavior for malformed or repeated challenges and for a `407`
 without credentials. An origin that
 refuses the opening inside the tunnel is returned with its body. A
@@ -2023,8 +2025,10 @@ What is claimed: after an HTTP proxy challenges one request with a Basic
 `Proxy-Authorization` on the first attempt of every later CONNECT tunnel and
 forwarded request to that proxy. Phantom does the same by default for CONNECT
 tunnels on both proxy transports, including WebSocket tunnels, and for H1 and
-H2 forwarding. The differences that remain are listed at the end of this
-section.
+H2 forwarding. The browsers send the replay after a `407` on the connection
+that carried it when the proxy keeps that connection open, and so does
+Phantom on HTTP/1.1 proxy connections. The differences that remain are
+listed at the end of this section.
 
 Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains four
 authentication scenarios per browser, `http-proxy-auth-*` and
@@ -2081,6 +2085,34 @@ Firefox tag `FIREFOX_156_0_RELEASE`, agrees and explains the mechanism:
   leaves it as a TODO (`net/quic/quic_proxy_datagram_client_socket.cc` line
   367), and Firefox copies the value into `Authorization`
   (`netwerk/protocol/http/HttpConnectionUDP.cpp` lines 586 to 592).
+- Chromium replays a challenged CONNECT on the same connection unless the
+  `407` is not keep-alive, has no length, or the socket closed
+  (`net/http/http_proxy_client_socket.cc` lines 207 to 240). It reads the
+  body in 1,024-byte reads with no total limit (lines 534 to 553) and gives
+  up the connection when bytes follow the body (lines 230 to 233).
+  `HttpProxyConnectJob` then opens a new connection, and also retries once on
+  a new connection when the proxy closed the reused one before answering
+  (`net/http/http_proxy_connect_job.cc` lines 837 to 878). A forwarded
+  request follows the same rules (`net/http/http_network_transaction.cc`
+  lines 572 to 638 and 1812 to 1835; `net/http/http_stream_parser.cc` lines
+  1189 to 1218). The response is keep-alive when the first `keep-alive` or
+  `close` token in `Connection` and then `Proxy-Connection` says so, and
+  otherwise unless it is HTTP/1.0 (`net/http/http_response_headers.cc` lines
+  1523 to 1551).
+- Firefox decides keep-alive from the same two fields, but any `close`
+  token wins over `keep-alive`, and HTTP/1.0 needs `keep-alive`
+  (`netwerk/protocol/http/nsHttpConnection.cpp` lines 1072 to 1107). A
+  challenged CONNECT leaves the connection in its tunnel-setup state
+  (lines 1167 to 1230), and a keep-alive connection returns to the idle pool
+  for the replay (`nsHttpConnection.cpp` lines 936 to 980,
+  `nsHttpConnectionMgr.cpp` lines 2663 to 2755). Basic is not a sticky
+  scheme, so the replay takes the connection from the pool; in the captures
+  it is the only idle one.
+- The `http-proxy-auth-secure-hostname` captures challenge a CONNECT for an
+  `https://` origin: in all three runs, each browser sends the replay on the
+  challenged connection. The capture proxy's `407` is keep-alive with
+  `Content-Length: 0`; no capture covers a closing or body-bearing `407`, so
+  those cases rest on the source above.
 - Credentials supplied through `Fetch.continueWithAuth` and
   `network.continueWithAuth` reach the same caches as a prompt's
   (`content/browser/devtools/devtools_url_loader_interceptor.cc` lines 1433 to
@@ -2096,6 +2128,19 @@ Against Phantom:
   connections and four `407` responses. The same file proves that another
   proxy port, other credentials, and the origin never receive remembered
   credentials, and that each session starts with an empty record.
+- `keep_alive_challenges_cost_no_extra_proxy_connection` in the same file
+  sends the four tunnels through a proxy whose `407` keeps the connection
+  open: the proxy sees four connections, with the record and without it.
+- `crates/phantom-net/src/proxy/tests/challenged_connection.rs` checks the
+  bytes on each proxy connection: the anonymous CONNECT and the replay on one
+  connection after a keep-alive `407` with an empty, sized, or chunked body,
+  on plaintext and TLS proxies and for HTTP/1.0 with `keep-alive`; two
+  connections after `Connection: close`, `Proxy-Connection: close`, a body
+  without a length, conflicting framing, bytes after the body, or a body over
+  the bound; and a replay moved to a new connection when the proxy closes the
+  challenged one. `forward_proxy.rs` checks the same for H1 forwarding,
+  including a request queued behind the challenged one, which never takes
+  the connection before the replay.
 - `crates/phantom-net/src/proxy/tests/credential_cache.rs` covers the record:
   a pair is added only after the proxy accepts the replay; a `407` or an
   unusable challenge to remembered credentials forgets them and permits one
@@ -2154,10 +2199,15 @@ Remaining differences:
   `http2` frame `Debug` output leaves out every field, and Phantom never
   prints the connection whose HPACK table would hold the value, but the
   request fields pass through Phantom's own types first.
-- The replay after a challenge to a CONNECT or H1 forwarded request opens a
-  new proxy connection, where both browsers reuse a connection that the `407`
-  left open. The record limits this cost to the first challenge for each
-  proxy and credentials.
+- An H2 CONNECT replay opens a new proxy connection, because each H2
+  tunnel owns its proxy connection; both browsers open a new stream on the
+  challenged H2 connection.
+- A `407` body over 64 KiB closes the connection, where browsers read any
+  length. A forwarded `407` in HTTP/1.0 closes it even with `keep-alive`,
+  because Phantom's HTTP/1.1 transport never reuses an HTTP/1.0 response's
+  connection; a CONNECT `407` follows the browsers. When a `407` names both
+  `keep-alive` and `close`, Phantom closes, as Firefox does; Chromium follows
+  the first token.
 - Phantom records a pair only after the proxy accepts it; browsers record it
   when the credentials are supplied.
 - The record holds 128 pairs; Chromium holds 20 and Firefox has no limit.

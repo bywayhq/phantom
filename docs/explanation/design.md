@@ -446,10 +446,27 @@ HTTP proxy Basic authentication starts from a challenge and is then
 remembered, as Chrome, Edge, and Firefox remember it
 ([evidence](validation.md#proxy-authentication-evidence)). The first CONNECT
 or forwarded request to a proxy carries no credentials. A strict, valid Basic
-`407` challenge permits one replay with the route's credentials: a CONNECT
-replay and an H1 forwarding replay open a fresh proxy connection, and an H2
+`407` challenge permits one replay with the route's credentials. An H2
 forwarding replay uses a new stream on the same pooled proxy connection. A
-second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
+CONNECT replay and an H1 forwarding replay use the HTTP/1.1 connection that
+carried the `407` when the response leaves it open, as Chromium and Firefox
+do, and open a new proxy connection otherwise. A second `407`, or a
+challenge Phantom cannot use, is a typed proxy failure.
+
+The `407` leaves the connection open when it names no `close` token in
+`Connection` or `Proxy-Connection` (an HTTP/1.0 response needs
+`keep-alive`), states its body length with `Content-Length` or chunked
+coding, and its body ends within
+[`MAX_CHALLENGE_BODY_BYTES`](../reference/limits.md#protocol-state),
+64 KiB, with no bytes after it. Phantom reads that body and discards it.
+Browsers read a `407` body of any length; the bound keeps a proxy from
+holding the replay on an endless body, and a longer body costs only the new
+connection. A forwarded replay holds the connection and its pool slot until
+it is sent, so no other request takes the connection first. When the proxy
+closes the kept connection before it answers the replay, the replay is sent
+once more on a new connection, as Chromium does. This is part of the
+authentication replay and needs no
+[retry policy](../guides/retries.md#replay-a-request-after-a-reused-connection-closes).
 
 When the replay succeeds, the client records the proxy's scheme, host, and
 port together with those credentials. Later tunnels, WebSocket tunnels, and
