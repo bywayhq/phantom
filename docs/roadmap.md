@@ -207,19 +207,12 @@ have shown where the real architectural boundaries are.
      longer than its at-risk-of-loss time.
   3. Apply the per-profile HPACK indexing decisions planned for extended
      CONNECT to ordinary requests too.
-  4. Prove that a resumed ClientHello keeps the captured shape. A test
-     compares a resumed Phantom QUIC ClientHello with the retained Chrome 154
-     captures, which are all fresh connections, and requires every field to
-     match except the added `pre_shared_key`. The browser side of QUIC
-     resumption is now captured
-     ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)):
-     resumed Chrome 154 and Edge 153 connections add `early_data` at a
-     permuted position, `pre_shared_key` last, and QUIC transport parameter
-     `0x3127` (`initial_rtt_us`) carrying the previous connection's RTT, and
-     keep every other extension and parameter. Phantom's recipes send
-     `early_data` only when the caller opts in and never send `0x3127`.
-     Align both, test against the resumed captures, and capture TLS
-     resumption over TCP, which has no evidence or test yet.
+  4. Prove that a resumed TCP ClientHello keeps the captured shape. Capture
+     TLS resumption over TCP, which has no evidence or test yet. The QUIC side
+     is done: tests replay resumed Chrome 154 and Edge 153 connections,
+     including `early_data`, `pre_shared_key` last, and `initial_rtt_us`,
+     against Phantom's resumed H3 ClientHello
+     ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Close the behaviour gaps that no fingerprint field reveals but a session
   does. A survey of client APIs does not surface these, because they are
   browser behaviour rather than caller surface:
@@ -234,12 +227,19 @@ have shown where the real architectural boundaries are.
   2. Establish whether a captured browser sends `Expect: 100-continue`, and on
      which upload shapes. Phantom never sends it. Whether that is correct is
      currently unknown, which is itself the gap.
-  3. Send early data where the captured browser does. Phantom resumes with
-     the Chrome 154 and Edge 153 recipes but sends early data only when the
-     caller asks, while resumed Chrome 154 and Edge 153 connections send
-     `GET`, `HEAD`, and `OPTIONS` requests as early data and never `POST`,
-     `PUT`, or `DELETE`. The ClientHello side of this gap is item 4 of the
-     wire gaps above.
+  3. Send early data in 0-RTT packets under the Chrome recipe. Its dynamic
+     QPACK policy holds each request until the server's SETTINGS arrive, and
+     on a resumed connection they arrive as the handshake completes, so the
+     request leaves in 1-RTT. Remember the server's SETTINGS with the ticket
+     and start an early-data connection from them, as RFC 9114 section
+     7.2.4.2 allows and the resumption captures suggest Chromium does. This
+     needs a vendored `h3` seam.
+  4. Resend on the same connection when a server rejects early data. The
+     captured Chrome 154, Edge 153, and Firefox 156 connections send every
+     request again in 1-RTT on the connection whose early data was rejected.
+     Phantom retires that connection and sends the request on a new one,
+     which offers no early data, so a server that rejects early data sees one
+     more connection than a browser opens.
 - Close the remaining transport and discovery gaps, each from evidence:
   1. Settle what a browser does when an origin advertises more than one
      alternative. Phantom races at most one. Capture an origin advertising
@@ -256,6 +256,13 @@ have shown where the real architectural boundaries are.
      every TCP path, so a Firefox profile currently connects with Chromium's
      transport behaviour. Chromium's macOS idle-only keepalive is a named
      recipe gap beside it.
+  4. Settle what a Firefox H3 recipe needs before building one. The only
+     Firefox H3 evidence is the resumption captures, and they show a resumed
+     Firefox 156 connection choosing QUIC v2 (`0x6b3343cf`) in
+     `version_information` and starting in v2 packets
+     ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
+     Phantom speaks only QUIC v1, so a Firefox recipe needs a fresh-connection
+     capture and QUIC v2 support first.
 - Settle whether Chrome draws its trust-anchor identifier order per process,
   as the retained 60-process capture shows, or per connection, as the nearest
   comparable clients assume. Capture many connections from one process.
@@ -336,18 +343,18 @@ recipe.
    learn it, and pinning sidesteps the prerequisite entirely.
 3. Racing more than one alternative, bounded and caller-chosen, whatever the
    capture of a browser turns out to show.
-4. Done: QUIC early data as a caller opt-in
-   (`ClientBuilder::http3_early_data`), off by default and never set by a
-   recipe.
-5. `Expect: 100-continue` on a caller's own request.
-6. Caller-owned conditional-request validators, ahead of any cache.
-7. An opt-in buffered request body that may be replayed, for a caller who
+4. `Expect: 100-continue` on a caller's own request.
+5. Caller-owned conditional-request validators, ahead of any cache.
+6. An opt-in buffered request body that may be replayed, for a caller who
    wants a retry to survive a body they can afford to hold. A streaming body
    stays one-shot.
-8. Keepalive schedule and address-selection knobs on a custom profile,
+7. Keepalive schedule and address-selection knobs on a custom profile,
    independent of which browser's model a named recipe carries.
-9. WebSocket reuse of a pooled HTTP/2 session on a proxy route, which is
+8. WebSocket reuse of a pooled HTTP/2 session on a proxy route, which is
    gated to the direct route today only because no capture covers it.
+
+QUIC early data left this list: it began as a caller opt-in, and the
+resumption captures moved it into the Chrome 154 and Edge 153 recipes.
 
 ### Deliberate non-goals for this phase
 

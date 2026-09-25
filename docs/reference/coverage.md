@@ -241,18 +241,24 @@ Supported:
   same verified server name. Tickets are single-use and expire at the server's
   lifetime; an expired ticket falls back to a full handshake. A handshake that
   presented a ticket and failed is repeated once with a full handshake on the
-  same route. A test compares a resumed Phantom ClientHello with the
-  retained Chrome 154 captures, which are all fresh connections, and requires
-  every field to match except the added `pre_shared_key`.
-- Early (0-RTT) data only when the caller enables
-  `ClientBuilder::http3_early_data`; no named recipe does (see the known
-  gaps below). Only a request with a safe method, no body, and no trailers
-  opens a new resumed connection with early data; every other request waits
-  for the handshake. If the server rejects the early
-  data, the request is sent again after the handshake over the same route. A
-  test compares the resulting ClientHello with the same fresh-connection
-  Chrome 154 captures and requires every field to match except the added
-  `early_data` and `pre_shared_key`.
+  same route.
+- Early (0-RTT) data on resumed connections, offered by the Chrome 154 and
+  Edge 153 recipes through `QuicTransportSettings::early_data`.
+  `ClientBuilder::http3_early_data` overrides the profile either way. A
+  request's first new connection offers early data when it presents a ticket
+  that permits it, but only a request with a safe method, no body, and no
+  trailers is sent before the handshake completes; any other request waits
+  for it. If the
+  server rejects the early data, the request is sent again after a handshake
+  over the same route.
+- QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
+  connections, carrying the round-trip time last measured to the same server
+  through the same pool entry, as a minimal-length varint.
+- Tests replay the retained resumed Chrome 154 and Edge 153 connections
+  against Phantom's resumed ClientHello and transport parameters, and check,
+  with stateless QPACK encoding, that a resumed connection sends `GET` as
+  early data and holds `POST`
+  ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
 - A QUIC v1 packet analyzer that retains no payloads, and a comparator of
@@ -261,12 +267,17 @@ Supported:
 
 Known gaps:
 
-- The Chrome 154 and Edge 153 recipes resume with `pre_shared_key`, but omit
-  `early_data` unless the caller opts into early data, and never send QUIC
-  transport parameter `0x3127` (`initial_rtt_us`). Resumed Chrome 154 and
-  Edge 153 connections send both, and carry `GET`, `HEAD`, and `OPTIONS`
-  requests as early data. A follow-up will align the recipes; see
-  [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
+- The Chrome 154 recipe's dynamic QPACK policy encodes a request only after
+  the server's SETTINGS arrive, which on a resumed connection is when the
+  handshake completes. A replay-safe request therefore leaves in 1-RTT
+  packets, while resumed Chrome 154 and Edge 153 connections send `GET`,
+  `HEAD`, and `OPTIONS` in 0-RTT. Phantom does not remember the previous
+  connection's SETTINGS for early data.
+- After a server rejects early data, the captured browsers send the request
+  again on the same connection; Phantom sends it on a new connection, which
+  offers no early data. An Alt-Svc racing attempt offers no early data.
+- No H3 recipe exists for Firefox, whose resumed connections switch to QUIC
+  v2, which Phantom does not implement.
 
 Planned:
 

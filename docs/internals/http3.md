@@ -457,9 +457,10 @@ another.
 When the H3 TLS settings enable `session_tickets`, as the Chrome 154 and Edge
 153 recipes do, the pool keeps the TLS 1.3 tickets a server issues and
 presents one on the next QUIC connection to the same origin over the same
-route. A resumed ClientHello adds only the `pre_shared_key` extension to the
-recipe's offer. A TLS 1.3-only ClientHello carries no `session_ticket`
-extension, so the first ClientHello of a connection is unchanged.
+route. A resumed ClientHello adds the `pre_shared_key` extension, last, to
+the recipe's offer, and `early_data` when the connection offers early data. A
+TLS 1.3-only ClientHello carries no `session_ticket` extension, so the first
+ClientHello of a connection is unchanged.
 
 The H3 connector builds its TLS context through a hook that installs the QUIC
 adapter's ticket delivery instead of the scoped-session callback used for TCP.
@@ -485,17 +486,45 @@ TCP:
   once with a full handshake over the same route and protocol, through
   `Http3Connector::without_ticket_offers`.
 
-By default resumption sends no early (0-RTT) data: the first request on
-every connection waits for the handshake to complete.
-`ClientBuilder::http3_early_data` gives the pool connector
-`Http3Connector::with_early_data`. A new connection that presents a ticket
-permitting early data then sends its first request as early data when that
-request is replay-safe: a safe method, no body, and no trailers. Other
-requests on the connection wait for the handshake. If the server rejects the
-early data, the request fails inside the pool as unprocessed
-(`Http3Unprocessed::EarlyDataRejected`), the rejected connection is not
-pooled, and the pool sends the request again after a handshake over the same
-route and protocol.
+Whether a resumed connection offers early (0-RTT) data is profile data:
+`QuicTransportSettings::early_data`, which `chromium::v154_quic` sets.
+`QuicClientConfig::with_transport_profile` reads it, and `with_tls_profile`
+clears it when the TLS settings disable `session_tickets`, since such a
+connection never resumes. `ClientBuilder::http3_early_data(bool)` overrides it
+through `Http3Connector::with_early_data` or `without_early_data`. The pool
+keeps an origin connector without early data and, when the client offers
+early data, an early-data twin that shares its ticket cache. A request's
+first connection attempt uses the twin.
+
+A new connection from the twin that presents a ticket permitting early data is
+returned before its handshake completes. When the request that opened it is
+replay-safe (a safe method, no body, and no trailers), it goes out as early
+data, unless the profile's dynamic QPACK policy holds it until the server's
+SETTINGS arrive: those come with the server's first flight, so the request
+then leaves in 1-RTT packets. The vendored `h3` has no way yet to start a
+connection from the previous connection's SETTINGS (RFC 9114, section
+7.2.4.2). Any other request waits in the pool, within the connect timeout
+phase, until the handshake settles the early data, and keeps its body until
+then. If the server accepted, the connection is pooled and the request is sent
+on it. If the server rejects the early data, the rejected connection is not
+pooled, and the pool sends the request after a handshake over the same route
+and protocol, through the origin connector. A replay-safe request that went
+out early first fails inside the pool as unprocessed
+(`Http3Unprocessed::EarlyDataRejected`). Chromium resends on the same
+connection instead; see [QUIC resumption
+evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
+
+A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
+transport profile lists `QuicTransportParameterKind::InitialRtt`, as
+`chromium::v154_quic` does. The ticket cache keeps the round-trip time last
+measured to each server name, at most four names. `phantom-net` records
+Quinn's smoothed RTT through `QuicClientConfig::record_round_trip_time` when
+a connection's handshake completes and again when its driver ends, but never
+for a connection whose handshake did not complete. `start_session` takes the
+ticket first, and passes the recorded value to the transport-parameter
+encoder only when it presents one. The encoder writes a minimal-length
+varint and permutes the parameter with the others; without a value it omits
+the parameter, and the other parameters are ordered as on a fresh connection.
 
 A connection that sends early data is built before its handshake delivers the
 server's TLS metadata. When the handshake completes with the early data
@@ -512,19 +541,20 @@ connection was sent before any ALPS was known, so it carries no client hints
 requested through ALPS `ACCEPT_CH`; later requests on the adopted connection
 do.
 
-The pool adopts an early-data connection only after the request that opened it
-receives its response and the early data is accepted. Until then, another
-replay-safe request to the same transport location finds no pooled
-connection, takes the location's connect turn, and opens its own connection.
-Each ticket is used once, so `n` concurrent replay-safe requests to one
-location open up to `n` connections while early data is unsettled: one early
-data connection for each ticket the entry's cache holds (at most four, plus
-any that new handshakes deliver meanwhile), bounded by the entry's
-active-request limit. A request that finds no ticket makes a full handshake,
-and that connection is pooled before the turn passes on, so the requests
-after it share it. Holding the connect turn until the early data settles would
-cap this at one connection, but every waiting request would then wait the
-handshake round trip that early data exists to avoid, so the pool does not.
+The pool adopts an early-data connection only after the early data is
+accepted: after the replay-safe request that opened it receives its response,
+or before any other request that opened it is sent. Until then, another
+request to the same transport location finds no pooled connection, takes the
+location's connect turn, and opens its own connection. Each ticket is used
+once, so `n` concurrent requests to one location open up to `n` connections
+while early data is unsettled: one early-data connection for each ticket the
+entry's cache holds (at most four, plus any that new handshakes deliver
+meanwhile), bounded by the entry's active-request limit. A request that finds
+no ticket makes a full handshake, and that connection is pooled before the
+turn passes on, so the requests after it share it. Holding the connect turn
+until the early data settles would cap this at one connection, but every
+waiting request would then wait the handshake round trip that early data
+exists to avoid, so the pool does not.
 
 ### Racing
 

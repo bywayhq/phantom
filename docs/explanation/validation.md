@@ -31,7 +31,7 @@ Phantom's claims rest on four kinds of evidence:
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
-| [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | Browser behavior only; no Phantom replay test yet |
+| [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, with the Chromium ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins, proxy authentication, or SOCKS |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
@@ -262,12 +262,15 @@ extension, so the first ClientHello of a connection is unchanged.
 
 `resumed_chrome_154_client_hello_keeps_the_captured_shape`, in
 `crates/phantom-net/src/http3/tests/resumption.rs`, resumes a loopback
-connection with the Chrome 154 recipe. It compares the resumed ClientHello
-with the retained Chrome 154 captures, which are all fresh connections, and
-requires every field to match except the added `pre_shared_key` extension.
+connection with the Chrome 154 recipe against a server whose tickets do not
+permit early data. It compares the resumed ClientHello with the retained
+Chrome 154 startup captures, which are all fresh connections, and requires
+every field to match except the added `pre_shared_key` extension.
 `early_data_client_hello_adds_only_early_data_and_pre_shared_key`, in
 `crates/phantom-net/src/http3/tests/early_data.rs`, does the same for a
-connection that offers early data, which also adds `early_data`.
+ticket that permits early data, which also adds `early_data`. The comparison
+with resumed browser connections is under
+[QUIC resumption and 0-RTT evidence](#quic-resumption-and-0-rtt-evidence).
 
 Chromium enables client early (0-RTT) data by default. The quiche
 `QuicCryptoClientConfig` constructor passes `!quic_disable_client_tls_zero_rtt`
@@ -276,23 +279,10 @@ lines 84-85), and that flag defaults to false
 (`quiche/common/quiche_protocol_flags_list.h` line 209).
 `HttpNetworkTransaction` lets a request of default idempotency use early data
 when `HttpUtil::IsMethodSafe` accepts its method
-(`net/http/http_network_transaction.cc` lines 435-439). Phantom applies the
-same method rule to `ClientBuilder::http3_early_data`, and requires no body
-and no trailers as well.
-
-Limits:
-
-- The retained QUIC captures are all fresh connections, so the tests above
-  show that resumption adds only `pre_shared_key` to Phantom's offer, not that
-  the result matches a resumed browser connection.
-- Resumed Chrome 154 and Edge 153 connections on Windows differ from
-  Phantom's. Captures of them, not yet in the repository, show every resumed
-  ClientHello carrying `pre_shared_key` (last), `psk_key_exchange_modes`, and
-  `early_data`; `GET`, `HEAD`, and `OPTIONS` requests sent as early data, and
-  `POST`, `PUT`, and `DELETE` never; and QUIC transport parameter `0x3127`
-  (`initial_rtt_us`) only on resumed connections. The recipes omit
-  `early_data` unless the caller opts into early data, and never send
-  `0x3127`. A follow-up will align the recipes with those captures.
+(`net/http/http_network_transaction.cc` lines 435-439). `chromium::v154_quic`
+sets `early_data`, so the Chrome 154 and Edge 153 recipes offer early data on
+every resumed connection, and Phantom applies the same method rule to the
+requests it sends early, requiring no body and no trailers as well.
 
 #### Comparison with Chrome 153
 
@@ -1193,9 +1183,14 @@ Limits, as differences from Chrome:
 
 ### QUIC resumption and 0-RTT evidence
 
-What is claimed: nothing about Phantom yet. These captures record what
-Chrome 154, Edge 153, and Firefox 156 send when they resume a QUIC session,
-for a later comparison with Phantom's resumed H3 connections.
+What is claimed: with the Chrome 154 or Edge 153 recipe, a resumed Phantom
+H3 connection offers the ClientHello extensions and QUIC transport parameters
+these captures show for that browser. Phantom may send `GET`, `HEAD`, and
+`OPTIONS` requests as early data and never sends `POST`, `PUT`, or `DELETE`
+early. With the recipes' dynamic QPACK policy, though, a request waits for
+the server's SETTINGS, so it leaves in 1-RTT packets where the browsers used
+0-RTT; see the limits below. The Firefox 156 captures record browser
+behavior only; Firefox has no H3 recipe.
 
 Evidence: `fixtures/http3/<browser>/<version>/windows-11-26200/` retains
 `resumption-accept.txt` (5 runs), `resumption-accept-delayed.txt` (3 runs),
@@ -1267,6 +1262,50 @@ investigated. Firefox needs
 `network.http.http3.disable_when_third_party_roots_found=false` to keep an H3
 connection whose certificate is trusted through `cert_override.txt`.
 
+Replay against Phantom:
+
+- `chromium_resumption_captures_match_the_quic_recipe`, in
+  `crates/phantom-profile/src/chromium/quic_tests.rs`, reads every Chrome and
+  Edge connection in the six fixtures. Each resumed one offered early data and
+  carried the `chromium::v154_quic` parameter set plus `initial_rtt_us`; no
+  fresh one carried `initial_rtt_us`. Where the fixture keeps raw ClientHello
+  bytes (the first run of each scenario), `initial_rtt_us` has a two-byte id,
+  a one-byte length, and a minimal-length varint value equal to the recorded
+  `initial_rtt_us` field. The recipe lists the parameter with those widths.
+- `resumed_chromium_client_hellos_match_the_resumption_captures`, in
+  `crates/phantom-net/src/http3/tests/resumption.rs`, learns a ticket that
+  permits early data from a loopback server with each recipe, then builds the
+  resumed ClientHello and compares it with every resumed ClientHello the
+  browser's fixtures keep. The extension sets are equal, with `early_data`
+  present and `pre_shared_key` last in both. Cipher suites, supported
+  versions, groups, key-share groups, signature algorithms, ALPN, trust
+  anchors, and the `early_data`, `psk_key_exchange_modes`, and ALPS bodies are
+  equal. The transport parameters have the same ids and id and length widths;
+  their values are equal apart from GREASE, the reserved version's position,
+  and `initial_rtt_us`, whose value must be a positive minimal-length varint.
+- `a_resumed_connection_adds_only_initial_rtt_as_a_minimal_varint`, in
+  `crates/phantom-quic-btls/src/transport_parameters/tests.rs`, encodes the
+  captured values 2509 µs and 54894 µs as `0x49cd` and `0x8000d66e`, varies
+  the parameter's position with the permutation, and omits it when there is
+  nothing to send.
+- `chrome_recipe_sends_get_as_early_data_and_holds_post`, in
+  `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes with
+  no early-data setting from the caller, and stateless QPACK request
+  encoding in place of the recipe's dynamic policy. A relay holds every
+  server datagram, so no handshake can complete: a resumed connection's `GET`
+  reaches the server through it, and a resumed connection's `POST` does not
+  until the relay opens. The `POST`'s connection still offered early data.
+
+Phantom sends as `initial_rtt_us` the smoothed round-trip time that Quinn
+last measured on a connection to the same server name through the same pool
+entry. A connection records it when its handshake completes and again when
+it closes. Phantom sends the parameter only on a connection that presents a
+ticket. In every resumed Chromium connection in these captures, the ticket
+came from the connection immediately before it, which was also the most
+recent connection to the server, so the captures cannot tell a value that
+follows the ticket from one that follows the latest connection. Phantom keeps
+the latest measurement.
+
 How to reproduce: `scripts/capture/quic_resumption.py`;
 [Capture tools](../../scripts/capture/README.md#quic-resumption-and-0-rtt)
 has the commands and launch flags.
@@ -1279,8 +1318,25 @@ Limits:
   keeps, and which it prefers, is not observed.
 - Chromium's `initial_rtt_us` appeared only on connections that also resumed.
   These captures cannot tell whether it follows the ticket or Chromium's
-  stored network statistics for the server.
-- No test replays these fixtures against Phantom yet.
+  stored network statistics for the server. If it follows the statistics, a
+  Chromium connection that has statistics but no usable ticket would send it
+  and Phantom's would not; no capture shows such a connection.
+- The `initial_rtt_us` value is Phantom's own measurement, so the tests
+  compare its encoding, not its value.
+- With the Chrome 154 recipe's dynamic QPACK policy, Phantom encodes a
+  request only after the server's SETTINGS arrive. On a resumed connection
+  they come with the server's first flight, which also completes the
+  handshake, so a replay-safe request leaves in 1-RTT packets; only the
+  control stream travels in 0-RTT. The browsers sent such requests in 0-RTT.
+  Each Chromium connection that sent a request in 0-RTT also sent 0-RTT data
+  on client stream 10, and no other resumed connection did.
+  If that stream is the QPACK encoder stream, Chromium inserted into the
+  dynamic table in 0-RTT from the previous connection's SETTINGS, which RFC
+  9114 section 7.2.4.2 permits. Phantom does not remember SETTINGS.
+- When the server rejects early data, the captured browsers send the request
+  again on the same connection. Phantom does not reuse the rejected
+  connection: it sends the request on a new one, which offers no early data.
+- A connection opened by an Alt-Svc racing attempt offers no early data.
 - Headless launches on one Windows build; no TCP TLS resumption capture.
 - Chromium ran with `--disable-field-trial-config`; the retained Chrome 154
   startup captures ran without it. The fresh ClientHello of Chrome `accept`

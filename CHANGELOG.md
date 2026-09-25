@@ -147,6 +147,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   a proxy's refusal of a `ws://` opening with `WebSocketError::into_response`,
   match `WebSocketErrorKind::Proxy` instead and find the status in the
   error's `HttpConnectError::Rejected` source.
+- Resumed HTTP/3 connections from the Chrome 154 and Edge 153 recipes change
+  on the wire. `phantom_profile::quic::QuicTransportSettings` gains the public
+  field `early_data`, and `chromium::v154_quic` sets it, so these recipes
+  offer early (0-RTT) data on every resumed connection: the resumed
+  ClientHello now carries `early_data`, as resumed Chrome 154 and Edge 153
+  connections do. A replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE`
+  with no body and no trailers) that opens a resumed connection may be sent
+  as early data, which a server can process more than once; any other
+  request that opens one offers early data but waits for the handshake. With
+  the recipes' dynamic QPACK policy, the request also waits for the server's
+  SETTINGS, so it still leaves in 1-RTT packets.
+  `ClientBuilder::http3_early_data` now takes a `bool` that overrides the
+  profile. (`eb05df0`)
+  Migrate: add `early_data: false` to each `QuicTransportSettings` struct
+  literal, or `true` to offer early data. Replace
+  `ClientBuilder::http3_early_data()` with `http3_early_data(true)`. To keep
+  the previous behavior of the named recipes, call `http3_early_data(false)`
+  or set `early_data = false` on the `QuicTransportSettings` you pass to
+  `Http3ClientSettings::new`.
 
 ### Added
 
@@ -273,10 +292,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `enable_session_resumption`, `with_isolated_session_cache`,
   `without_ticket_offers`, `has_ticket_for`, and `resumes_sessions`.
   (`f084850`, `278645f`)
-- `ClientBuilder::http3_early_data` lets a new resumed HTTP/3 connection send
-  a replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE` with no body and
-  no trailers) as early (0-RTT) data. Early data is replayable, so the option
-  is off by default and no recipe enables it. `build` fails with
+- `ClientBuilder::http3_early_data(true)` lets a new resumed HTTP/3
+  connection send a replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE`
+  with no body and no trailers) as early (0-RTT) data. Early data is
+  replayable; the named recipes that now enable it are listed under
+  Breaking. `build` fails with
   `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
   `session_tickets`. If the server rejects the early data, the request is
   sent again after the handshake over the same route and protocol. When the
@@ -336,6 +356,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   URL and left `Sec-Fetch-Site` to the caller. This matches the Chrome 154,
   Edge 153, and Firefox 156 proxy route captures. A caller field with one of
   these names still replaces the recipe's value in place.
+
+- Resumed HTTP/3 connections from the Chrome 154 and Edge 153 recipes add
+  QUIC transport parameter `initial_rtt_us` (`0x3127`), as resumed Chrome 154
+  and Edge 153 connections do. This changes their transport parameters on
+  the wire. The value is the smoothed round-trip time that the last
+  connection to the same server through the same pool entry measured, as a
+  minimal-length varint, at a position permuted with the other parameters.
+  A fresh connection sends no `initial_rtt_us`.
+  `phantom_profile::quic::QuicTransportParameterKind` gains `InitialRtt`, and
+  `phantom_quic_btls::QuicClientConfig` gains `record_round_trip_time`.
+  (`eb05df0`)
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
   cookies, treating every request as a top-level navigation, and evicts least
