@@ -413,6 +413,18 @@ recipe.
   paths have typed errors. A panic aborts embedders that compile with
   `panic = "abort"`.
 - Broaden fuzzing, sanitizer coverage, lifecycle regressions, and soak tests.
+  - Cover the QUIC session-resumption FFI in `phantom-quic-btls` under the
+    sanitizer workflow. Its tests reach only the success paths. Add a test
+    that drops a `ClientSession` while it holds a session from
+    `SSL_set_session`, while it is in early data, and just after early data
+    was rejected; one that feeds arbitrary post-handshake bytes to a
+    completed handshake, so the server's NewSessionTicket parse and the
+    new-session callback run on hostile input; and one for the callback's
+    path that returns 0 and leaves the session with BoringSSL.
+  - Make `enable_session_resumption` refuse a context that already has a
+    new-session callback, rather than replacing it without an error.
+  - Give the facade's HTTPS-record `h3` selection and its TTL cap a
+    reviewed fuzzing seam; the `https_record` target stops at the records.
 - Keep vendored patches reproducible, and review dependency updates in
   isolation.
 - Audit the vendored H3 engine against both Hyperium and the independently
