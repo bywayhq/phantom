@@ -29,8 +29,9 @@ use std::{
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ClientBuilder, ContentCoding, ContentDecoding, HttpProtocol, PreparedRequestTemplate,
-    RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
+    Client, ClientBuilder, ConnectUdpProxy, ContentCoding, ContentDecoding, HttpProtocol,
+    HttpProxy, PreparedRequestTemplate, RedirectPolicy, RequestErrorKind, RequestHeader,
+    ResponseInfo, Route, Socks5Proxy,
     profile::{
         ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate,
         chromium, edge, firefox,
@@ -964,5 +965,80 @@ async fn template_without_http3_order_rejects_http3_before_any_connection() -> T
         .err()
         .ok_or("template without an H3 list was sent over H3")?;
     assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    Ok(())
+}
+
+#[tokio::test]
+async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes() -> TestResult<()>
+{
+    let profile = ClientProfile::new(tls_settings())
+        .with_http2(firefox::v156_http2())
+        .with_http3(client_settings());
+    let client = Client::builder(profile)
+        .alt_svc(NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?)
+        .build()?;
+    let template = PreparedRequestTemplate::new(firefox::v156_windows_navigation_template())?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let port = listener.local_addr()?.port();
+    let url = format!("https://127.0.0.1:{port}/");
+
+    // Direct and SOCKS5 routes can reach an HTTP/3 alternative, so the
+    // request is refused before any connection.
+    for route in [
+        Route::direct(),
+        Route::socks5(Socks5Proxy::new(&format!("socks5://127.0.0.1:{port}"))?),
+    ] {
+        let error = client
+            .get_negotiated(&url)?
+            .template(&template)
+            .route(route)
+            .send()
+            .await
+            .err()
+            .ok_or("a route that carries QUIC accepted a template without an H3 list")?;
+        assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+    }
+    assert!(
+        timeout(Duration::from_millis(100), listener.accept())
+            .await
+            .is_err(),
+        "a refused request opened a connection"
+    );
+
+    // A CONNECT-UDP route carries no negotiated request at all, and says so.
+    let error = client
+        .get_negotiated(&url)?
+        .template(&template)
+        .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
+            "https://127.0.0.1:{port}/udp/{{target_host}}/{{target_port}}/"
+        ))?))
+        .send()
+        .await
+        .err()
+        .ok_or("a negotiated request was sent over CONNECT-UDP")?;
+    assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
+
+    // A CONNECT tunnel never carries QUIC, so the request reaches the proxy.
+    let proxy = tokio::spawn(async move {
+        let (mut tunnel, _) = listener.accept().await?;
+        let head = read_head(&mut tunnel).await?;
+        tunnel
+            .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+            .await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
+    });
+    let error = client
+        .get_negotiated(&url)?
+        .template(&template)
+        .route(Route::http_proxy(HttpProxy::new(&format!(
+            "http://127.0.0.1:{port}"
+        ))?))
+        .send()
+        .await
+        .err()
+        .ok_or("the proxy refused the tunnel but the request succeeded")?;
+    assert_eq!(error.kind(), RequestErrorKind::Proxy);
+    let head = timeout(TEST_TIMEOUT, proxy).await???;
+    assert!(head.starts_with(format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n").as_bytes()));
     Ok(())
 }

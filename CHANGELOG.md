@@ -662,6 +662,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   when a response carries an HTTPS record owned by a name other than the end
   of the query's CNAME chain, as Chromium does. Before, such a record was
   returned and could decide whether HTTP/3 discovery advertised `h3`.
+- A negotiated request with a template that has no HTTP/3 list, such as a
+  Firefox template, on a client with Alt-Svc enabled is sent through an HTTP
+  proxy route instead of failing with `RequestErrorKind::RequestTemplate`. A
+  CONNECT tunnel cannot carry QUIC, so the request never moves to HTTP/3. On
+  a CONNECT-UDP route it fails with `UnsupportedRoute`, as a negotiated
+  request without a template does. A direct or SOCKS5 route still refuses it.
 
 ### Removed
 
