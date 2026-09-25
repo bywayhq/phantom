@@ -74,12 +74,14 @@ fn pinned() -> Result<Client, BuildError> {
 - The TLS server name, the certificate check, `Host` or `:authority`,
   cookies, and pool keys all use `example.com`. Only the TCP or QUIC
   connection goes to the addresses.
-- An override skips the address resolver and the address cache. Names match
-  without regard to ASCII case; `example.com.` with a trailing dot is a
+- An override skips the address resolver and the address cache. The name
+  is normalized as a URL host is: ASCII case folds, and a Unicode name
+  matches its `xn--` form. `example.com.` with a trailing dot is a
   different name.
 - An empty list makes the name fail to resolve. Calling `resolve` again for
-  a name replaces its addresses. An IP literal cannot be overridden, and
-  `build` fails with `BuildErrorKind::InvalidPolicy` if you try.
+  a name replaces its addresses. An IP address in any form, such as `127.1`
+  or `[::1]`, cannot be overridden: `build` fails with
+  `BuildErrorKind::InvalidPolicy`.
 
 ## Resolve names with your own resolver
 
@@ -108,16 +110,19 @@ fn with_resolver() -> Result<Client, BuildError> {
 }
 ```
 
-- The function receives the name in ASCII lowercase, never an IP literal or
-  a name with an override. Return addresses in the order to try them; the
-  port comes from the URL.
+- The function receives the name as a URL host, in ASCII lowercase with
+  `xn--` labels, never an IP literal or a name with an override. Return
+  addresses in the order to try them; the port comes from the URL.
 - With an address cache, as here, the function runs once per name per cache
-  lifetime, as a task on the Tokio runtime of the request that asked first.
-  Without one, it runs inside every new connection attempt.
+  lifetime, as a task on the Tokio runtime of the request that asked first;
+  requests on another runtime start their own lookup rather than wait on
+  it. Without a cache, it runs inside every new connection attempt.
 - A returned error fails the request with the kind a failed system lookup
   gets on that path: `Resolve` for an HTTP/3 origin, a `socks5://` target,
   or a CONNECT-UDP proxy host; `Proxy` for another proxy host; `Connect` for
-  a TCP origin. The `io::Error` stays in the error's source chain.
+  a TCP origin. Without a cache, your `io::Error` is in the error's source
+  chain; with one, a copy with the same kind and message is, because one
+  stored failure can answer several requests.
 
 ## Limits
 
@@ -127,10 +132,15 @@ fn with_resolver() -> Result<Client, BuildError> {
   ([HTTP/3 discovery](http3-discovery.md)).
 - Addresses are `IpAddr` values, so an IPv6 link-local address cannot carry
   a scope ID. Leave such a name to the operating system resolver.
-- Phantom does not bound the work your resolver does. A lookup that never
-  answers holds each request that waits for it until its connect timeout,
-  if you set one ([Timeouts](../reference/limits.md#timeouts)). With a
-  cache, later requests for the name join that same lookup until it ends.
+- A lookup that never answers holds each request that waits for it until
+  its connect timeout, if you set one
+  ([Timeouts](../reference/limits.md#timeouts)). With a cache, later
+  requests for the name on the same runtime join that lookup, and at most
+  `DnsCacheSettings::max_entries` shared lookups run at once; past that, each
+  request runs its own lookup and drops it when it ends.
+- With the `https-records` feature and a profile that uses ECH from HTTPS
+  records, an overridden name counts as resolved at once, so the TLS
+  handshake waits only the 5 ms minimum for the record.
 - A resolver that sends its own DNS queries changes the client's DNS
   traffic, which no longer comes from the operating system's resolver as a
   browser's does. The connections keep the profile's fingerprint.

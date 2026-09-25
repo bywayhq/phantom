@@ -106,8 +106,7 @@ fn post(client: &Client, json: String) -> Result<RequestBuilder, phantom::Reques
 
 ## Follow redirects, set timeouts, use a proxy, and keep cookies
 
-Follow at most five redirects, bound each request, send it through an HTTP
-proxy with Basic credentials, and keep cookies between requests.
+Follow five redirects, bound each request, use a Basic-auth proxy, and keep cookies.
 
 ```rust,ignore
 let client = reqwest::Client::builder()
@@ -190,6 +189,7 @@ async fn text(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
   ([Content decoding](content-decoding.md)).
 - Phantom adds no browser fields and keeps the order of yours
   ([Order is part of the fingerprint](../explanation/design.md#order-is-part-of-the-fingerprint)).
+- No proxy comes from the environment ([Routes and proxies](routes-and-proxies.md)).
 - Proxy credentials go out after the proxy's first `407`, then on every later
   request ([Proxy authentication](../explanation/design.md#proxy-authentication)).
 
