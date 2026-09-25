@@ -295,9 +295,10 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 - The templates always depend on stream 0, as every capture did. Chrome can
   depend on another open stream of equal or higher priority; Phantom does not
   reproduce that.
-- Every Edge, Brave, and Opera capture ran headless, so their templates
-  leave `User-Agent` to you. The Firefox value comes from headless captures; Firefox sent no
-  headless marker, but no headful Firefox capture confirms the value.
+- Every retained Edge, Brave, and Opera capture ran headless, so their
+  templates leave `User-Agent` to you. The Firefox value comes from headless
+  captures; Firefox sent no headless marker, but no headful Firefox capture
+  confirms the value.
 - Firefox has no HTTP/3 recipe, so its templates have no HTTP/3 list.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |

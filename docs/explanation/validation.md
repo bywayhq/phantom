@@ -526,12 +526,14 @@ the Chromium recipes on every compared field. The client-hint recipes and
 request templates carry the brand lists and the differences in the table.
 
 Brave's `Accept-Language` is the one request value that no literal can
-match. Across the 88 retained Brave runs that carry the field, Brave sent
-`en-US,en;q=` followed by `0.5`, `0.6`, `0.7`, `0.8`, or `0.9`: one value on
-every request of a run, varying between runs. Brave's templates therefore make
+match. The sample is the 87 runs of the Brave WebSocket and proxy route
+fixtures (9 and 20 scenarios, three runs each). Brave sent `en-US,en;q=`
+followed by `0.5`, `0.6`, `0.7`, `0.8`, or `0.9`: one value on every request
+of a run, varying between runs, with all five values present. Brave's templates therefore make
 `Accept-Language` a required caller slot, as the Edge, Brave, and Opera
 templates do for `User-Agent`: every retained capture of these browsers ran
-headless and sent `HeadlessChrome`. `Sec-GPC: 1` appears on every Brave page
+headless and sent `HeadlessChrome`, and the one headful client-hint run
+per browser was not retained. `Sec-GPC: 1` appears on every Brave page
 request and `fetch()`, to loopback and named plaintext origins alike, and on
 no WebSocket opening.
 
@@ -539,14 +541,24 @@ Opera needed a different launch for two layers. At startup it opens a
 preconnect to the page's origin, then logs `Cert verifier changed` and
 abandons every open connection. The raw H2 and QUIC capture tools serve only
 their first connection, so with the page URL on the command line they saw
-the abandoned preconnect and no request. A diagnostic NetLog run, not
-retained, showed the preconnect session and the
-`QUIC_SESSION_POOL_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY` event. The retained
-Opera H2 and H3 startups were therefore taken by starting Opera on
-`about:blank` with `--remote-debugging-port=0` and calling `Page.navigate`
-over DevTools five seconds later; their `launch_mode` is `devtools-navigate`.
-One Brave H3 run launched the same way matched Brave's command-line H3
-startups on every compared field. The TLS capture tool records only the
+the abandoned preconnect and no request. (A diagnostic Opera NetLog run
+showed the preconnect session and the
+`QUIC_SESSION_POOL_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY` event. It was not
+retained and backs no claim; it only explained the failed captures.) The
+retained Opera H2 and H3 startups were therefore taken by
+`startup_capture.py --navigate devtools`, which starts Opera on
+`about:blank` with `--remote-debugging-port=0` and calls `Page.navigate` over
+DevTools five seconds later; their `launch_mode` is `devtools-navigate`.
+
+The DevTools launch does not change what the page's connection sends. One
+Brave H3 run taken the same way is retained under
+`fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/`
+(`client-startup-devtools.txt` and `quic-client-hello-devtools.txt`, 1
+process). `brave_154_devtools_launch_sends_the_command_line_h3_startup`
+compares its H3 SETTINGS and request fields, apart from `:authority`, with
+Brave's command-line startup, and the Brave QUIC tests replay its transport
+parameters and ClientHello against the same recipes as the command-line
+runs. The TLS capture tool records only the
 first ClientHello, which for Opera may be the startup preconnect's; one of
 the 20 Opera processes closed its connection before a ClientHello completed.
 In two Opera `refused-stream` WebSocket runs, Opera had closed the page's H2
@@ -573,15 +585,36 @@ connector paths, H2 startup frames through the public H2 path, and Brave's
 ECH outer ClientHello through the ECH connector. Request templates are sent
 by the `phantom` client in `crates/phantom/tests/request_templates.rs`,
 `plaintext_templates.rs`, `proxy_field_order.rs`, and `proxy_h2.rs`, and
-compared with the captured requests. `brave_154_accept_language_is_one_drawn_value_per_session`
-checks the `Accept-Language` observations above.
+compared with the captured requests.
+`brave_154_accept_language_is_one_drawn_value_per_session` checks the
+`Accept-Language` observations above on all 87 runs.
 
 How to reproduce: the Python tools take `--browser brave` or
 `--browser opera` with the executable paths in
 [Capture tools](../../scripts/capture/README.md#browser-launcher). The TLS,
-H2, and QUIC runs use the Cargo examples and `chrome_http3.py` with the
-Chrome 154 launch arguments; the Opera H2 and H3 launch arguments are
-recorded in their fixtures.
+H2, and QUIC startups come from
+[`startup_capture.py`](../../scripts/capture/README.md#connection-startup-launches),
+once per fresh process:
+
+| Fixture | Command arguments after `--browser <name> --browser-path <path> --client-version <version> --operating-system "Windows 11 Home 10.0.26200 x64"` |
+| --- | --- |
+| Brave and Opera `tls` | `--layer tls --repeat 20` |
+| Brave `http2` | `--layer http2 --repeat 3` |
+| Brave `http3` | `--layer http3 --repeat 3` |
+| Brave `http3`, `launch-mode/` files | `--layer http3 --navigate devtools` |
+| Opera `http2` | `--layer http2 --navigate devtools --repeat 3` |
+| Opera `http3` | `--layer http3 --navigate devtools --repeat 3` |
+
+`startup_capture.py` was committed after these captures. They came from a
+scratch script that ran the same listeners with the same launch arguments;
+`test_startup_capture.py` checks that the tool records exactly the
+`launch_arguments` and `launch_mode` of every retained Brave and Opera
+startup fixture, and one run of each Opera DevTools layer and of Brave TLS,
+repeated with the committed tool, matched the retained fixtures on every
+compared field. The other layers use `client_hints.py --repeat 3`,
+`http2_websocket.py --scenario all --repeat 3`,
+`proxy_route.py --scenario all --repeat 3`, `quic_resumption.py` as in its
+section, and `chrome_ech.py --scenario accept` and `reject`.
 
 Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26200/`:
 
@@ -591,6 +624,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Opera 135.0.5973.92 | `tls` | `client-hello.txt` |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
+| Brave 154.1.96.59 | `http3` | `launch-mode/client-startup-devtools.txt`, `launch-mode/quic-client-hello-devtools.txt` |
 | Both | `client-hints` | `navigation.txt` |
 | Both | `websocket` | Nine scenarios |
 | Both | `proxy` | Twenty scenarios |
@@ -599,8 +633,8 @@ Limits:
 
 - One Windows build per browser. No macOS or Linux capture of these versions
   exists.
-- Headless launches only, except one headful client-hint check per browser,
-  which matched the headless runs.
+- Every retained capture ran headless. One headful client-hint run per
+  browser matched the headless runs, but it was not retained.
 - No TCP, HTTP/1.1 connection, address cache, or cookie placement recipe.
   Socket options and connection counts are not visible in these captures.
   Brave's source is public and could back them after a source reading at
