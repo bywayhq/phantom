@@ -60,6 +60,13 @@ have shown where the real architectural boundaries are.
   negotiated requests that select HTTP/1.1 share the rule; negotiated
   handshakes to a server not yet seen speaking HTTP/2 start in parallel, as
   in both browsers.
+- Caller throughput options, each off by default with the browser behavior
+  kept: more than one HTTP/2 connection per origin and route, a limit on a
+  negotiated request's wait for another handshake (Chromium's 300 ms), and
+  the raced Alt-Svc alternative's setup limit. The
+  [performance guide](guides/performance.md) and the timer table in
+  [Defaults and limits](reference/limits.md#delays-and-timers) record what a
+  server can observe for each.
 
 ### Remaining
 
@@ -346,6 +353,11 @@ recipe.
    independent of which browser's model a named recipe carries.
 8. WebSocket reuse of a pooled HTTP/2 session on a proxy route, which is
    gated to the direct route today only because no capture covers it.
+9. More than one HTTP/3 connection per origin and route, as HTTP/2 already
+   allows. The H3 pool keeps one connection per transport location, and
+   its early-data and connect-turn state assume that; spreading streams
+   needs the peer's `initial_max_streams_bidi` and a per-connection stream
+   count first.
 
 QUIC early data left this list: it began as a caller opt-in, and the
 resumption captures moved it into the Chrome 154 and Edge 153 recipes.

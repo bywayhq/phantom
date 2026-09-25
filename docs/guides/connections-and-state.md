@@ -34,7 +34,9 @@ async fn in_background(client: &Client) -> Result<(), Box<dyn std::error::Error>
 - H1 connections carry one request at a time, without pipelining; the
   profile decides how many run in parallel
   ([next task](#send-http11-requests-to-one-origin-in-parallel)). H2 and H3
-  multiplex requests within the peer's limits and the client's own.
+  multiplex requests within the peer's limits and the client's own, on one
+  connection per pool key unless you
+  [allow more H2 connections](performance.md#open-more-than-one-http2-connection-per-origin).
 - A pool key is the origin plus the complete route. Admission and retained
   connections are bounded per key
   ([Defaults and limits](../reference/limits.md#connection-pools)).

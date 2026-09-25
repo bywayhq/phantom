@@ -19,6 +19,8 @@ policies that stay off until you enable them.
 | HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; the Chrome 154 and Edge 153 recipes offer it | `ClientBuilder::http3_early_data(bool)` overrides the profile |
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
+| More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
+| Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
 ## Timeouts
@@ -49,6 +51,7 @@ limit is one deadline over all attempts, delays, and the final response body.
 | Retained H2 pool entries | 32 | `max_retained_http2_connections` |
 | Active H2 requests per pool key | 100 | `max_concurrent_http2_requests_per_origin` |
 | Waiting H2 requests per pool key | 100 | `max_pending_http2_requests_per_origin` |
+| H2 connections per pool key, exact or negotiated | 1 | `max_http2_connections_per_origin` |
 | Retained H3 pool entries | 32 | `max_retained_http3_connections` |
 | Active H3 requests per pool key | 100 | `max_concurrent_http3_requests_per_origin` |
 | Waiting H3 requests per pool key | 100 | `max_pending_http3_requests_per_origin` |
@@ -83,6 +86,44 @@ limit is one deadline over all attempts, delays, and the final response body.
   retention limits. Before ALPN selects a protocol, its admission uses the
   larger of their active and waiting limits.
 - The peer's stream limit also caps active H2 and H3 work.
+- With more than one H2 connection allowed, a request opens another only
+  when every connection to the key carries as many streams as the lower of
+  the active bound and the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`. The
+  active and waiting bounds still count all of the key's connections. H3
+  keeps one connection per transport location.
+- [Tune throughput and latency](../guides/performance.md) says what a server
+  can observe when you raise these bounds.
+
+## Delays and timers
+
+Every timer Phantom runs, with its default and where it comes from. A server
+can observe a change to any timer that decides when a connection opens,
+closes, or sends; the last column says which.
+
+| Delay | Default | Source | Set with | A server sees a change |
+| --- | --- | --- | --- | --- |
+| Request phase and total timeouts | None | Phantom | `RequestTimeouts` | Yes: reset or closed connection |
+| Connection-setup retry delay | No retries | Phantom | `RetryPolicy::connection_failures` | Yes: timing of the new connection |
+| Status retry delay, `Retry-After` cap | No retries | Phantom | `StatusRetry` | Yes: timing of the repeat |
+| Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 156; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
+| Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
+| Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
+| Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
+| Alt-Svc lifetime without `ma` | 24 hours | RFC 7838 | Server's `ma` | No |
+| HTTPS record result lifetime | Answer TTL, at most 1 day; 60 seconds without one | Phantom | Not configurable | Resolver only |
+| HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
+| Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
+| TCP address-racing fallback delay | 300 ms in `chromium::v154_tcp`; Firefox recipe tries addresses in order | Chromium 154 source | `TcpSettings::address_racing` | Yes |
+| TCP keepalive idle and interval | 45 seconds in `chromium::v154_tcp`; unset for Firefox | Chromium 154 source | `TcpSettings::keepalive` | Yes |
+| QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
+| HTTP/2 idle PING | None sent | Phantom | Not configurable | No |
+| SSE reconnect delay | 3 seconds, or the server's `retry` | Phantom | `initial_retry`, `min_retry` | Yes |
+| Resend after a stale keep-alive connection closes | Immediate, when enabled | Chrome | `RetryPolicy::with_reused_connection_replay` | Yes |
+| H2 and H3 driver shutdown after the last handle drops | 1 second | Phantom | Not configurable | Yes: close timing |
+| Queued CONNECT-UDP datagram lifetime | 10 ms to 1 second | Phantom | Not configurable | No |
+
+The pools have no sleeps of their own: a request waits only for an admission
+slot, a connection another request is setting up, or the timers above.
 
 ## Cookies
 
@@ -102,7 +143,7 @@ order and the differences from Chromium.
 | Limit | Value |
 | --- | --- |
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
-| Raced Alt-Svc alternative setup, including name resolution | 4 seconds |
+| Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
 | Origins with a cached HTTPS DNS record result, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
 | Lifetime of an HTTPS DNS record result | Lowest answer TTL, at most 1 day; a negative answer's SOA TTL; 60 seconds with no TTL or after a failed lookup |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
@@ -187,3 +228,5 @@ Details are in [HTTP/3 internals](../internals/http3.md#connect-udp-masque).
 - [Coverage](coverage.md): what each layer supports.
 - [Connections, redirects, and cookies](../guides/connections-and-state.md):
   how the pools and the cookie jar behave.
+- [Tune throughput and latency](../guides/performance.md): which bounds to
+  raise, and what a server sees.

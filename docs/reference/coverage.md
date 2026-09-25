@@ -179,8 +179,9 @@ Not modeled:
   urgent-start requests. Firefox also leaves idle connections out of its
   count; Phantom counts them.
 - Chromium's 300 ms cap on holding a connection attempt to a server known
-  to speak H2 while another attempt is in flight. Phantom holds it until
-  that attempt finishes, as Firefox does. Phantom remembers that a server
+  to speak H2 while another attempt is in flight is not a recipe value.
+  By default Phantom holds it until that attempt finishes, as Firefox does;
+  `ClientBuilder::negotiated_setup_wait_limit` sets a cap. Phantom remembers that a server
   spoke H2 per origin and route, as Firefox does; Chromium remembers it per
   origin, across proxies, and saves it to disk.
 
@@ -441,6 +442,9 @@ Supported:
 
 - Bounded retained H1, H2, and H3 pools, with active and waiting admission per
   origin and route.
+- One H2 connection per origin and route, as browsers keep; an opt-in
+  `max_http2_connections_per_origin` opens more when every connection is at
+  its stream limit. H3 keeps one connection per transport location.
 - Bounded admission per origin and route for negotiated requests before
   protocol selection, converted to H1 or H2 admission after ALPN.
 - A bounded opt-in Alt-Svc store keyed by exact origin and route:

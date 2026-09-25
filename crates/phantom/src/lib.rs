@@ -108,6 +108,10 @@ struct ComingFromReqwestGuideDoctests;
 #[doc = include_str!("../../../docs/guides/troubleshooting.md")]
 struct TroubleshootingGuideDoctests;
 
+#[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/performance.md")]
+struct PerformanceGuideDoctests;
+
 #[cfg(all(doctest, feature = "sse"))]
 #[doc = include_str!("../../../docs/guides/sse.md")]
 struct SseGuideDoctests;

@@ -33,6 +33,9 @@ Task guides for using Phantom in an application.
   upgrade.
 - [Content decoding](guides/content-decoding.md): opt-in decompression of
   response bodies.
+- [Tune throughput and latency](guides/performance.md): per-origin
+  concurrency, extra HTTP/2 connections, shorter waits, and what a server
+  can observe for each.
 - [Server-sent events](guides/sse.md): the `sse` feature.
 - [WebSocket](guides/websocket.md): the `websocket` and `websocket-deflate`
   features.
