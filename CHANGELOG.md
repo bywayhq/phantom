@@ -20,7 +20,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Http1TlsConnector`, `Http2TlsConnector`, `Http1Or2TlsConnector`,
   `Http3Connector`, and `HttpsProxyConnector`, `with_address_cache` and
   `address_cache` are replaced by `with_host_resolver` and `host_resolver`.
-  The `phantom` facade API is unchanged.
+  The `phantom` facade API is unchanged. (`f741c5f`)
   Migrate: replace `connector.with_address_cache(AddressCache::new(settings))`
   with `connector.with_host_resolver(HostResolver::new().with_cache(settings))`,
   and `connector.address_cache()` with
@@ -33,7 +33,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   longer compile. It sets what an HTTP/2 CONNECT sends on a stream the proxy
   rejected: `chromium::v154_proxy_connect` uses `EndStream`, and
   `firefox::v156_proxy_connect` uses `LeaveOpen`. `HttpsProxyConnector`
-  gained `with_http2_rejected_connect` to apply it.
+  gained `with_http2_rejected_connect` to apply it. (`8627ac1`)
   Migrate: add `http2_rejected: Http2RejectedConnect::EndStream` to a
   `ProxyConnectTemplate` literal to keep the Chromium behavior, or
   `Http2RejectedConnect::LeaveOpen` for Firefox's.
@@ -48,7 +48,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   never-indexed literal and indexes a longer one. This covers a `Cookie`
   field you supply, and `RequestHeader::sensitive` on it no longer makes it
   never-indexed under these recipes. The captures behind it are under
-  `fixtures/cookies/`. (`39e1cb2`, `32200c8`)
+  `fixtures/cookies/`. (`a2c785b`, `6384c1f`)
   Migrate: add `cookie_crumbs: Http2CookieCrumbs::Whole` or
   `cookie_crumbs: Http3CookieCrumbs::Whole` to a struct literal to keep one
   field, or fill the rest from a recipe with struct update syntax. To keep
