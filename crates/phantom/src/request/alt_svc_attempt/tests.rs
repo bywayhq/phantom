@@ -357,3 +357,22 @@ async fn cancelling_raced_request_cancels_both_attempts() -> TestResult {
     assert_eq!(admission.available_permits(), 1);
     Ok(())
 }
+
+#[test]
+fn a_failed_early_handshake_is_raced_again_at_most_once() {
+    use super::races_again;
+
+    // The first race allowed early data; its retry allows none.
+    assert!(races_again(true, true));
+    assert!(!races_again(false, true));
+    // A one-shot streaming body cannot be sent again.
+    assert!(!races_again(true, false));
+}
+
+#[test]
+fn an_orphaned_setup_that_failed_its_early_handshake_marks_and_confirms_nothing() {
+    use super::confirms_orphan;
+
+    assert!(confirms_orphan(false));
+    assert!(!confirms_orphan(true));
+}

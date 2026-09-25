@@ -724,3 +724,66 @@ fn a_failed_early_handshake_disallows_early_data_without_breaking_the_alternativ
     assert!(allows_early_data(&store, &origin, later)?);
     Ok(())
 }
+
+#[test]
+fn confirming_an_alternative_keeps_a_broken_period_of_the_origin_location() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\"alt.example:8443\"", now);
+    let own = AltSvcLocation::origin(&origin);
+    let key = StoreKey::new(&origin, &DIRECT);
+
+    // A failed race to the origin's own location starts a broken period.
+    store.mark_broken_at(
+        &origin,
+        &DIRECT,
+        &own,
+        backoff()?,
+        std::time::Instant::now(),
+    );
+    let alternative = location(&store, &origin, now)?;
+    store.confirm(&origin, &DIRECT, &alternative);
+    assert!(store.is_broken_at(&key, &own, std::time::Instant::now()));
+    assert!(store.has_failed(&key, &own));
+
+    // Once the period has ended, a confirmation clears the record.
+    let ended = std::time::Instant::now() + Duration::from_secs(3600);
+    assert!(!store.is_broken_at(&key, &own, ended));
+    {
+        let mut broken = store.lock_broken();
+        for record in broken.iter_mut() {
+            record.until = std::time::Instant::now();
+        }
+    }
+    store.confirm(&origin, &DIRECT, &alternative);
+    assert!(!store.has_failed(&key, &own));
+    Ok(())
+}
+
+#[test]
+fn recently_broken_records_are_bounded_by_the_store_capacity() -> TestResult {
+    let store = AltSvcStore::new(NonZeroUsize::new(2).ok_or("zero capacity")?);
+    let origins = [
+        endpoint("a.example:443")?,
+        endpoint("b.example:443")?,
+        endpoint("c.example:443")?,
+    ];
+    for origin in &origins {
+        store.mark_origin_quic_recently_broken(origin, &DIRECT);
+        // Marking again adds nothing.
+        store.mark_origin_quic_recently_broken(origin, &DIRECT);
+    }
+    assert_eq!(store.lock_broken().len(), 2);
+    let failed = |origin: &Endpoint| {
+        store.has_failed(
+            &StoreKey::new(origin, &DIRECT),
+            &AltSvcLocation::origin(origin),
+        )
+    };
+    // The least recently marked origin is evicted first.
+    assert!(!failed(&origins[0]));
+    assert!(failed(&origins[1]));
+    assert!(failed(&origins[2]));
+    Ok(())
+}

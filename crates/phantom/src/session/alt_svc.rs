@@ -401,8 +401,13 @@ impl AltSvcStore {
             debug!(outcome = "confirmed", "cleared Alt-Svc broken state");
         }
         // A completed QUIC handshake for the origin also confirms QUIC to the
-        // origin's own host and port, as Chromium keys it, unless that
-        // location is in a broken period of its own.
+        // origin's own host and port, as Chromium keys it. Chromium leaves a
+        // location in a broken period as it is:
+        // `QuicSessionPool::ProcessGoingAwaySession` returns before
+        // `ConfirmAlternativeService` while it is broken
+        // (`net/quic/quic_session_pool.cc` lines 2679-2683 and 2691-2694 at
+        // 154.0.8037.58), so only a record whose broken period has ended is
+        // cleared here.
         let own = AltSvcLocation::origin(origin);
         let now = Instant::now();
         if let Some(position) = broken
