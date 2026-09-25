@@ -241,21 +241,33 @@ Supported:
   same verified server name. Tickets are single-use and expire at the server's
   lifetime; an expired ticket falls back to a full handshake. A handshake that
   presented a ticket and failed is repeated once with a full handshake on the
-  same route. A test proves a resumed Chrome 154 ClientHello matches the
-  retained captures apart from the added `pre_shared_key`.
+  same route. A test compares a resumed Phantom ClientHello with the
+  retained Chrome 154 captures, which are all fresh connections, and requires
+  every field to match except the added `pre_shared_key`. No capture shows a
+  resumed Chrome ClientHello.
 - Early (0-RTT) data only when the caller enables
   `ClientBuilder::http3_early_data`; no named recipe does, and no retained
   capture shows a browser sending it. Only a request with a safe method, no
   body, and no trailers opens a new resumed connection with early data; every
   other request waits for the handshake. If the server rejects the early
   data, the request is sent again after the handshake over the same route. A
-  test proves the resulting ClientHello matches the retained Chrome 154
-  captures apart from the added `early_data` and `pre_shared_key`.
+  test compares the resulting ClientHello with the same fresh-connection
+  Chrome 154 captures and requires every field to match except the added
+  `early_data` and `pre_shared_key`.
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
 - A QUIC v1 packet analyzer that retains no payloads, and a comparator of
   logical flights that does not depend on packetization.
 - Controlled decrypted Chrome and Phantom captures through the first request.
+
+Known gaps:
+
+- Chrome 154 very likely sends early (0-RTT) data on a resumed connection for
+  a safe request: Chromium enables client 0-RTT by default. The Chrome 154 and
+  Edge 153 recipes do not, so a resumed Phantom ClientHello lacks the
+  `early_data` extension that such a Chrome ClientHello would carry. No
+  capture of a resumed Chrome connection exists yet; see
+  [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
 
 Planned:
 

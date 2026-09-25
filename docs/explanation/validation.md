@@ -239,18 +239,51 @@ permutation template;
 capture's transport parameters byte for byte from that recipe with fixed
 entropy.
 
-No capture shows Chrome resuming a QUIC session. The QUIC recipe enables
-`session_tickets` because Chromium 154 keeps a QUIC session cache per crypto
-configuration (`QuicSessionPool`) and quiche enables BoringSSL client session
-caching. `resumed_chrome_154_client_hello_keeps_the_captured_shape`, in
+#### QUIC session resumption
+
+`chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, enable
+`session_tickets`, so a later QUIC connection to an origin resumes the TLS
+session. This rests on Chromium source, not on a capture. At tag
+`154.0.8037.58`:
+
+- `QuicSessionPool::CreateCryptoConfigHandle` gives each crypto configuration
+  its own `quic::QuicClientSessionCache` (`net/quic/quic_session_pool.cc`
+  lines 2799-2800).
+- `TlsClientConnection::CreateSslCtx` turns on BoringSSL client session
+  caching with `SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL` and a
+  new-session callback (`quiche/quic/core/crypto/tls_client_connection.cc`
+  lines 38-40, at quiche revision `80bf9559`, the one Chromium's `DEPS` pins
+  at that tag).
+
+A TLS 1.3-only ClientHello never carries the TLS 1.2 `session_ticket`
+extension, so the first ClientHello of a connection is unchanged.
+
+`resumed_chrome_154_client_hello_keeps_the_captured_shape`, in
 `crates/phantom-net/src/http3/tests/resumption.rs`, resumes a loopback
-connection with the Chrome 154 recipe and requires the resumed ClientHello to
-match the retained captures apart from the added `pre_shared_key` extension.
+connection with the Chrome 154 recipe. It compares the resumed ClientHello
+with the retained Chrome 154 captures, which are all fresh connections, and
+requires every field to match except the added `pre_shared_key` extension.
 `early_data_client_hello_adds_only_early_data_and_pre_shared_key`, in
 `crates/phantom-net/src/http3/tests/early_data.rs`, does the same for a
-connection that offers early data, which adds `early_data` as well. The
-recipes do not enable early data: Chromium 154 enables client 0-RTT by
-default, but no retained capture shows Chrome sending it.
+connection that offers early data, which also adds `early_data`.
+
+Limits:
+
+- No capture shows Chrome resuming a QUIC session, so nothing compares a
+  resumed Phantom ClientHello with a resumed Chrome one.
+- Chrome very likely sends early (0-RTT) data on a resumed connection. The
+  quiche `QuicCryptoClientConfig` constructor passes
+  `!quic_disable_client_tls_zero_rtt` to `CreateSslCtx`
+  (`quiche/quic/core/crypto/quic_crypto_client_config.cc` lines 84-85), and
+  that flag defaults to false (`quiche/common/quiche_protocol_flags_list.h`
+  line 209). `HttpNetworkTransaction` lets a request of default idempotency
+  use early data when `HttpUtil::IsMethodSafe` accepts its method
+  (`net/http/http_network_transaction.cc` lines 435-439). Phantom applies
+  the same method rule to `ClientBuilder::http3_early_data`, and requires no
+  body and no trailers as well.
+- The recipes do not enable early data, so a resumed Phantom ClientHello lacks
+  the `early_data` extension that Chrome's likely carries. A capture of a
+  resumed Chrome connection decides whether the recipe should send it.
 
 #### Comparison with Chrome 153
 

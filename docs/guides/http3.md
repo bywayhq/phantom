@@ -68,9 +68,10 @@ fn early_data_client(profile: ClientProfile) -> Result<Client, BuildError> {
   server again, and the server may process each copy. The option is off by
   default, and no named recipe enables it.
 - Only a replay-safe request opens a connection with early data: `GET`,
-  `HEAD`, `OPTIONS`, or `TRACE`, with no body and no trailers. This is the
-  rule Chromium 154 applies to a request of default idempotency. Other
+  `HEAD`, `OPTIONS`, or `TRACE`, with no body and no trailers. Other
   requests wait for the handshake.
+  [QUIC session resumption](../explanation/validation.md#quic-session-resumption)
+  gives the Chromium source for this rule.
 - The server must have issued a ticket that permits early data. `build`
   fails with `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings
   enable `session_tickets`.
@@ -227,8 +228,9 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 - Not implemented: racing more than one alternative, DNS HTTPS-record
   (`dns_alpn_h3`) jobs, persisting brokenness or clearing it on a network
   change, an RTT-derived racing delay, proxy-route snapshots, WebSocket over
-  H3, and early data in a named recipe. Chromium 154 source enables it by
-  default, but no retained capture shows Chrome sending it.
+  H3, and early data in a named recipe. Why the recipes resume sessions but
+  send no early data is in
+  [QUIC session resumption](../explanation/validation.md#quic-session-resumption).
 
 ## Next
 

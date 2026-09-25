@@ -185,9 +185,13 @@ have shown where the real architectural boundaries are.
      longer than its at-risk-of-loss time.
   3. Apply the per-profile HPACK indexing decisions planned for extended
      CONNECT to ordinary requests too.
-  4. Done: a test proves a resumed Chrome 154 QUIC ClientHello matches the
-     retained captures apart from the added `pre_shared_key`. A resumed TCP
-     ClientHello has no such test yet.
+  4. Prove that a resumed ClientHello keeps the captured shape. This needs a
+     capture of Chrome resuming a session. A test compares a resumed Phantom
+     QUIC ClientHello with the retained Chrome 154 captures, which are all
+     fresh connections, and requires every field to match except the added
+     `pre_shared_key`; that shows resumption adds nothing else, not that
+     Chrome's resumed ClientHello looks the same. A resumed TCP ClientHello
+     has no such test yet.
 - Close the behaviour gaps that no fingerprint field reveals but a session
   does. A survey of client APIs does not surface these, because they are
   browser behaviour rather than caller surface:

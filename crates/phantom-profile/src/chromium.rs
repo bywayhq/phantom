@@ -605,14 +605,18 @@ pub fn v154_http3() -> Http3Settings {
 /// follows Chromium's QUIC configuration. The returned value is owned and can
 /// be customized before transport setup.
 ///
-/// `session_tickets` is enabled: Chrome 154 keeps a QUIC session cache and
-/// resumes with TLS 1.3 tickets (`QuicSessionPool` creates a
-/// `QuicClientSessionCache` for each crypto configuration, and quiche's
+/// `session_tickets` is enabled because Chrome 154 resumes QUIC sessions with
+/// TLS 1.3 tickets. `QuicSessionPool::CreateCryptoConfigHandle` gives each
+/// crypto configuration a `quic::QuicClientSessionCache`
+/// (`net/quic/quic_session_pool.cc` at tag `154.0.8037.58`), and
 /// `TlsClientConnection::CreateSslCtx` enables BoringSSL client session
-/// caching). A TLS 1.3-only offer never carries the TLS 1.2 `session_ticket`
-/// extension, so a first ClientHello is unchanged; a resumed one adds only
-/// `pre_shared_key`. Chrome also offers 0-RTT on resumption, which no
-/// retained capture shows and this recipe does not enable.
+/// caching (`quiche/quic/core/crypto/tls_client_connection.cc` at quiche
+/// revision `80bf9559`, which Chromium's `DEPS` pins at that tag). A TLS
+/// 1.3-only offer never carries the TLS 1.2 `session_ticket` extension, so a
+/// first ClientHello is unchanged; a resumed one adds only `pre_shared_key`.
+/// Chrome very likely also sends early (0-RTT) data on a resumed connection;
+/// this recipe does not, and no retained capture shows a resumed Chrome
+/// connection.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();
