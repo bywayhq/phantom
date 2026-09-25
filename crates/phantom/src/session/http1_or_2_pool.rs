@@ -1022,8 +1022,9 @@ fn connect_phase(
 struct EntryConnections {
     max_http1: NonZeroUsize,
     state: std::sync::Mutex<ConnectionState>,
-    /// Woken whenever a connection setup finishes, fails, or is cancelled.
-    setup_done: Notify,
+    /// Woken whenever a connection setup finishes, fails, or is cancelled,
+    /// and whenever a stream on one of the key's H2 connections ends.
+    setup_done: Arc<Notify>,
     /// The client's memory of keys that selected H2, and this entry's key.
     http2_keys: Arc<Http2Keys>,
     key: PoolKey,
@@ -1132,7 +1133,7 @@ impl EntryConnections {
         Self {
             max_http1,
             state: std::sync::Mutex::new(state),
-            setup_done: Notify::new(),
+            setup_done: Arc::new(Notify::new()),
             http2_keys,
             key,
         }
@@ -1194,7 +1195,8 @@ impl EntryConnections {
         BeforeAdmission::Admit(has_http1.then_some(HttpProtocol::Http1))
     }
 
-    /// Waits until a setup in flight finishes, fails, or is cancelled.
+    /// Waits until a setup in flight finishes, fails, or is cancelled, or an
+    /// H2 stream of the key ends; callers choose again either way.
     ///
     /// Returns `false` at once when no setup is in flight.
     async fn setup_finished(&self) -> bool {
@@ -1358,7 +1360,9 @@ impl Reservation {
                         let slot = Http2Slot {
                             connection,
                             token: Arc::new(()),
-                            streams: StreamCount::default(),
+                            streams: StreamCount::notifying(Arc::clone(
+                                &self.connections.setup_done,
+                            )),
                         };
                         state.http2.push(slot);
                         let idle = if first {

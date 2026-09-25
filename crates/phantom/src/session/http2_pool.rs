@@ -372,8 +372,9 @@ struct PoolEntry {
     /// The key's connections, oldest first. The lock is never held across an
     /// await; a setup in flight is counted in it instead.
     connections: std::sync::Mutex<Connections>,
-    /// Woken whenever a connection setup finishes, fails, or is cancelled.
-    setup_done: Notify,
+    /// Woken whenever a connection setup finishes, fails, or is cancelled,
+    /// and whenever a stream on one of the key's connections ends.
+    setup_done: Arc<Notify>,
     admission: Arc<Admission>,
     connector: OnceLock<Http2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
@@ -384,10 +385,10 @@ impl PoolEntry {
         Self {
             connections: std::sync::Mutex::new(Connections {
                 slots: Vec::new(),
-                connecting: 0,
+                connecting: false,
                 spread,
             }),
-            setup_done: Notify::new(),
+            setup_done: Arc::new(Notify::new()),
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
@@ -406,20 +407,38 @@ impl PoolEntry {
 
     /// Returns the connection a new stream would use, without counting one.
     ///
-    /// A WebSocket holds admission rather than a counted stream, so it does
-    /// not steer later requests to another connection.
+    /// When the key has no connection but one is being set up, this waits
+    /// for that setup and returns its connection, so a WebSocket joins it as
+    /// with the single-connection pool instead of opening its own. The wait
+    /// ends with the setup, whether it succeeds or fails. A WebSocket holds
+    /// admission rather than a counted stream, so it does not steer later
+    /// requests to another connection.
     #[cfg(feature = "websocket")]
     async fn current_reusable(&self) -> Option<Http2Connection> {
-        let mut connections = self.lock();
-        connections.retain_reusable();
-        let index = match connections.choose() {
-            Choice::Use(index) => index,
-            Choice::Open => 0,
-        };
-        connections
-            .slots
-            .get(index)
-            .map(|slot| slot.connection.clone())
+        loop {
+            let mut setup_done = pin!(self.setup_done.notified());
+            // Registered before the check; see `acquire`.
+            setup_done.as_mut().enable();
+            {
+                let mut connections = self.lock();
+                connections.retain_reusable();
+                if connections.slots.is_empty() {
+                    if !connections.connecting {
+                        return None;
+                    }
+                } else {
+                    let index = match connections.choose() {
+                        Choice::Use(index) => index,
+                        Choice::Open => 0,
+                    };
+                    return connections
+                        .slots
+                        .get(index)
+                        .map(|slot| slot.connection.clone());
+                }
+            }
+            setup_done.await;
+        }
     }
 
     async fn acquire(
@@ -431,8 +450,10 @@ impl PoolEntry {
         mode: Http2ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
         // One setup runs at a time per key. Requests that a connection with
-        // room can serve never wait for it; the rest wait for it to finish,
-        // as the single-connection pool did, and choose again.
+        // room can serve never wait for it; the rest wait until it finishes
+        // or a stream ends, as the single-connection pool did, and choose
+        // again. Waiters are woken together, not in arrival order: after a
+        // failed setup, whichever runs first makes the next attempt.
         let reservation = loop {
             let mut setup_done = pin!(self.setup_done.notified());
             // Registered before the check, so a setup finishing in between
@@ -450,8 +471,8 @@ impl PoolEntry {
                     );
                     return Ok(slot.lease());
                 }
-                if connections.connecting == 0 {
-                    connections.connecting = 1;
+                if !connections.connecting {
+                    connections.connecting = true;
                     break SetupReservation {
                         entry: self,
                         finished: false,
@@ -604,15 +625,16 @@ impl PoolEntry {
 /// One pool key's HTTP/2 connections and how streams spread across them.
 struct Connections {
     slots: Vec<ConnectionSlot>,
-    /// Connection setups in flight: zero or one.
-    connecting: usize,
+    /// Whether the key's one connection setup is in flight.
+    connecting: bool,
     spread: Http2Spread,
 }
 
 /// The key's one connection setup in flight.
 ///
 /// Dropping it unfinished, when setup fails or the request is cancelled,
-/// frees the setup and wakes the requests waiting for it.
+/// frees the setup and wakes every request waiting for it. They are not
+/// served in arrival order: the first to run takes the next setup.
 struct SetupReservation<'a> {
     entry: &'a PoolEntry,
     finished: bool,
@@ -625,11 +647,11 @@ impl SetupReservation<'_> {
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
-            streams: StreamCount::default(),
+            streams: StreamCount::notifying(Arc::clone(&self.entry.setup_done)),
         };
         let lease = slot.lease();
         let mut connections = self.entry.lock();
-        connections.connecting = 0;
+        connections.connecting = false;
         connections.slots.push(slot);
         drop(connections);
         self.entry.setup_done.notify_waiters();
@@ -640,7 +662,7 @@ impl SetupReservation<'_> {
 impl Drop for SetupReservation<'_> {
     fn drop(&mut self) {
         if !self.finished {
-            self.entry.lock().connecting = 0;
+            self.entry.lock().connecting = false;
             self.entry.setup_done.notify_waiters();
         }
     }
@@ -688,8 +710,85 @@ struct ConnectionLease {
 mod tests {
     use std::{num::NonZeroUsize, sync::Arc};
 
-    use super::{Http2Pool, PoolKey};
+    use super::{Http2Pool, PoolEntry, PoolKey, SetupReservation};
     use crate::{Route, authority::Endpoint};
+
+    fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
+        match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
+            std::task::Poll::Ready(output) => Some(output),
+            std::task::Poll::Pending => None,
+        }
+    }
+
+    async fn cold_entry() -> Result<Arc<PoolEntry>, Box<dyn std::error::Error>> {
+        let one = NonZeroUsize::MIN;
+        let pool = Http2Pool::new(one, one, one);
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        Ok(pool
+            .entry(PoolKey::new(
+                &endpoint,
+                &Route::Direct,
+                super::Http2ConnectionMode::TlsOrigin,
+            ))
+            .await)
+    }
+
+    /// Reserves the key's one setup, as `PoolEntry::acquire` does.
+    fn reserve(entry: &PoolEntry) -> SetupReservation<'_> {
+        entry.lock().connecting = true;
+        SetupReservation {
+            entry,
+            finished: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn dropping_an_unfinished_setup_frees_it_and_wakes_waiters()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let entry = cold_entry().await?;
+        let reservation = reserve(&entry);
+        let mut waiter = std::pin::pin!(entry.setup_done.notified());
+        waiter.as_mut().enable();
+        assert!(poll_once(waiter.as_mut()).is_none());
+
+        drop(reservation);
+        assert!(!entry.lock().connecting);
+        assert!(poll_once(waiter).is_some());
+        Ok(())
+    }
+
+    #[cfg(feature = "websocket")]
+    #[tokio::test]
+    async fn websocket_reuse_waits_for_the_setup_in_flight()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let entry = cold_entry().await?;
+        // With no connection and no setup, there is nothing to reuse.
+        assert!(entry.current_reusable().await.is_none());
+
+        let reservation = reserve(&entry);
+        let mut reuse = std::pin::pin!(entry.current_reusable());
+        assert!(poll_once(reuse.as_mut()).is_none());
+        let (client, _server) = tokio::io::duplex(64 * 1024);
+        let connection = phantom_net::http2::Http2Connection::connect(
+            client,
+            &phantom_profile::chromium::v154_http2(),
+        )
+        .await?;
+        drop(reservation.finish(connection));
+        assert!(
+            reuse.await.is_some(),
+            "the WebSocket did not join the new connection"
+        );
+
+        // A setup that fails ends the wait with nothing to reuse.
+        entry.lock().slots.clear();
+        let reservation = reserve(&entry);
+        let mut reuse = std::pin::pin!(entry.current_reusable());
+        assert!(poll_once(reuse.as_mut()).is_none());
+        drop(reservation);
+        assert!(reuse.await.is_none());
+        Ok(())
+    }
 
     #[tokio::test]
     async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>>

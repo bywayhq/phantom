@@ -15,30 +15,53 @@ use std::{
 };
 
 use phantom_net::http2::Http2Connection;
+use tokio::sync::Notify;
 
 /// The streams in flight on one pooled HTTP/2 connection.
 #[derive(Clone, Debug, Default)]
-pub(super) struct StreamCount(Arc<AtomicUsize>);
+pub(super) struct StreamCount {
+    count: Arc<AtomicUsize>,
+    /// Woken when a stream ends, so a request waiting for a connection setup
+    /// can take the room that stream freed instead.
+    ended: Option<Arc<Notify>>,
+}
 
 impl StreamCount {
+    /// Counts streams and wakes `ended`'s waiters whenever one ends.
+    pub(super) fn notifying(ended: Arc<Notify>) -> Self {
+        Self {
+            count: Arc::default(),
+            ended: Some(ended),
+        }
+    }
+
     fn get(&self) -> usize {
-        self.0.load(Ordering::Acquire)
+        self.count.load(Ordering::Acquire)
     }
 
     /// Counts one more stream until the returned guard drops.
     pub(super) fn open(&self) -> OpenStream {
-        self.0.fetch_add(1, Ordering::AcqRel);
-        OpenStream(Arc::clone(&self.0))
+        self.count.fetch_add(1, Ordering::AcqRel);
+        OpenStream {
+            count: Arc::clone(&self.count),
+            ended: self.ended.clone(),
+        }
     }
 }
 
 /// One stream counted against its connection until it ends.
 #[derive(Debug)]
-pub(super) struct OpenStream(Arc<AtomicUsize>);
+pub(super) struct OpenStream {
+    count: Arc<AtomicUsize>,
+    ended: Option<Arc<Notify>>,
+}
 
 impl Drop for OpenStream {
     fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::AcqRel);
+        self.count.fetch_sub(1, Ordering::AcqRel);
+        if let Some(ended) = &self.ended {
+            ended.notify_waiters();
+        }
     }
 }
 
