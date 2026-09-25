@@ -322,6 +322,13 @@ replace it.
 - The captures cover `ws://`, `https://`, and `wss://` tunnels through both
   proxy transports, with and without a challenge; every browser sends the
   same fields for each.
+- `http2_rejected` sets what an HTTP/2 CONNECT sends on a stream the proxy
+  rejected, such as a challenged one, before the replay:
+  `Http2RejectedConnect::EndStream` (an empty END_STREAM DATA frame) in the
+  Chromium recipe and without a recipe, and `Http2RejectedConnect::LeaveOpen`
+  (nothing) in the Firefox recipe. A proxy that allows one concurrent stream
+  gets END_STREAM in both, and a `407` body still arriving is reset with
+  `CANCEL` in both.
 
 Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-route-browser-evidence).
 
