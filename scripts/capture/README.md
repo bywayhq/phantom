@@ -21,6 +21,7 @@ Run every command from the repository root; the Python tools need Python
 | A TLS ClientHello over TCP | `cargo run -p phantom-testkit --example capture_client_hello` | `fixtures/tls/` |
 | HTTP/2 startup frames | `cargo run -p phantom-net --example capture_http2_tls` | `fixtures/http2/` |
 | A QUIC ClientHello and HTTP/3 startup | [`chrome_http3.py`](#http3-startup) | `fixtures/http3/` |
+| Any of those three, with the browser launched for you | [`startup_capture.py`](#connection-startup-launches) | `fixtures/tls/`, `fixtures/http2/`, `fixtures/http3/` |
 | QUIC session resumption and 0-RTT requests | [`quic_resumption.py`](#quic-resumption-and-0-rtt) | `fixtures/http3/` |
 | Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
@@ -278,14 +279,44 @@ SHA-256 that `scripts/capture/tests/test_chrome_http3.py` pins are stable in
 the repository, because `.gitattributes` marks `fixtures/**` as `-text`, and
 every parser strips the carriage return. Do not rewrite its line endings.
 
-The tool serves only the first QUIC connection it receives. Opera 135 opens a
-preconnect session at startup and abandons it when its certificate verifier
-changes, so its request arrives on a later connection that the tool ignores.
-The Opera fixtures were therefore taken by starting Opera on `about:blank`
-with `--remote-debugging-port=0` and navigating over the DevTools protocol
-five seconds later; their `launch_mode` is `devtools-navigate`.
-[Validation](../../docs/explanation/validation.md#brave-154-and-opera-135-recipes)
-records the comparison with a command-line launch.
+The tool serves only the first QUIC connection it receives.
+[`startup_capture.py`](#connection-startup-launches) launches the browser for
+it and handles a browser that abandons its startup connections.
+
+## Connection-startup launches
+
+`startup_capture.py` runs one of the three single-connection listeners (the
+`capture_client_hello` and `capture_http2_tls` examples, or
+`chrome_http3.py`) and launches a fresh Chromium browser against it, once per
+`--repeat`. The browser gets the launch arguments of the retained Chrome 154
+fixture for the layer, and the fixture records them with the profile path and
+certificate hash replaced by placeholders.
+
+`--navigate command-line` (the default) puts the page URL on the command
+line, as the Chrome, Edge, and Brave fixtures were taken. `--navigate
+devtools` starts the browser on `about:blank` with `--remote-debugging-port=0`,
+waits `--settle` seconds (default 5), and navigates its first page with
+`Page.navigate` over DevTools. The fixture's `launch_mode` is then
+`devtools-navigate`. Use it for a browser such as Opera 135, which opens a
+preconnect at startup and abandons it when its certificate verifier changes;
+the listener would otherwise record that connection and never see the
+request.
+
+Build the examples, then capture Opera's HTTP/2 and HTTP/3 startups:
+
+```sh
+cargo build -p phantom-testkit --example capture_client_hello
+cargo build -p phantom-net --example capture_http2_tls
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.startup_capture   --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/135.0.5973.92/opera.exe"   --client-version 135.0.5973.92   --operating-system "Windows 11 Home 10.0.26200 x64"   --layer http2 --navigate devtools --repeat 3   --output-dir <scratch-directory>/opera-http2
+```
+
+Use `--layer http3` for the QUIC ClientHello and HTTP/3 startup, and
+`--layer tls` for the TCP ClientHello. Run `n` writes `client-hello-<n>.txt`
+for TLS, `client-startup-<n>.txt` for HTTP/2, and `client-startup-<n>.txt`
+with `quic-client-hello-<n>.txt` for HTTP/3; retain a run under the names in
+[Validation](../../docs/explanation/validation.md#brave-154-and-opera-135-recipes).
+`chrome_http3.py` reports nothing when it binds, so the tool waits
+`--server-start` seconds (default 3) before it launches the browser.
 
 ## QUIC resumption and 0-RTT
 

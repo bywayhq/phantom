@@ -369,6 +369,47 @@ async def wait_for_endpoint(
     raise TimeoutError("the browser did not publish a remote protocol endpoint")
 
 
+async def first_page_target(connection: RemoteConnection) -> str:
+    """Return the id of the browser's first page target, polling until it opens."""
+    for _ in range(100):
+        result = await connection.call("Target.getTargets", {})
+        pages = [
+            item["targetId"]
+            for item in result.get("targetInfos", [])
+            if item.get("type") == "page"
+        ]
+        if pages:
+            return pages[0]
+        await asyncio.sleep(0.1)
+    raise TimeoutError("the browser opened no page target")
+
+
+async def navigate_page(profile: Path, url: str, settle: float) -> None:
+    """Navigate a Chromium browser's first page to `url` over DevTools.
+
+    The browser must have been started with `--remote-debugging-port=0` and
+    `--user-data-dir=<profile>`. The call waits `settle` seconds after the
+    endpoint appears, so connections the browser opens and abandons at
+    startup are over before the navigation starts.
+    """
+    endpoint = await wait_for_endpoint(chromium_endpoint, profile)
+    await asyncio.sleep(settle)
+    connection = RemoteConnection(await RemoteSocket.connect(endpoint))
+
+    async def ignore(_: dict) -> None:
+        return None
+
+    connection.start(ignore)
+    try:
+        target = await first_page_target(connection)
+        attached = await connection.call(
+            "Target.attachToTarget", {"targetId": target, "flatten": True}
+        )
+        await connection.call("Page.navigate", {"url": url}, attached["sessionId"])
+    finally:
+        await connection.close()
+
+
 class ChromiumAuthDriver:
     """Attach to the first page, answer proxy challenges, then navigate."""
 
@@ -402,17 +443,7 @@ class ChromiumAuthDriver:
 
     async def page_target(self) -> str:
         assert self.connection is not None
-        for _ in range(100):
-            result = await self.connection.call("Target.getTargets", {})
-            pages = [
-                item["targetId"]
-                for item in result.get("targetInfos", [])
-                if item.get("type") == "page"
-            ]
-            if pages:
-                return pages[0]
-            await asyncio.sleep(0.1)
-        raise TimeoutError("the browser opened no page target")
+        return await first_page_target(self.connection)
 
     async def handle(self, event: dict) -> None:
         note = cdp_note(event)
