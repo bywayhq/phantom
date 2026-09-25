@@ -1142,3 +1142,35 @@ fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
         Err("http3_fields")
     );
 }
+
+#[test]
+fn validation_checks_the_spelling_of_every_credentials_slot() {
+    use super::ProxyAuthorizationAttempt::Replay;
+
+    let mut template = firefox::v156_windows_navigation_template();
+    let replay = template
+        .http2_fields
+        .iter()
+        .position(|field| {
+            matches!(
+                field,
+                RequestField::ProxyAuthorization {
+                    attempt: Replay,
+                    ..
+                }
+            )
+        })
+        .unwrap_or_else(|| panic!("Firefox has a replay slot"));
+    template.http2_fields[replay] =
+        RequestField::proxy_authorization("Proxy-Authorization", Replay);
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http2_fields")
+    );
+
+    // The same slot in lowercase is valid, and so is a repeat of the name
+    // by a second slot on HTTP/1.1.
+    template.http2_fields[replay] =
+        RequestField::proxy_authorization("proxy-authorization", Replay);
+    assert_eq!(template.validate(), Ok(()));
+}
