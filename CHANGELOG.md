@@ -242,6 +242,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest
   `407` body Phantom reads so the replay can use the challenged HTTP/1.1
   proxy connection.
+
+- Brave 154 and Opera 135 recipes, from Windows 11 captures of Brave
+  154.1.96.59 and Opera 135.0.5973.92: `brave::v154_tls`,
+  `v154_http3_tls`, `v154_windows_client_hints`,
+  `v154_windows_navigation_template`, and
+  `v154_windows_fetch_no_store_template`, and the matching `opera::v135_*`
+  functions, in `phantom-profile` and the `phantom::profile` facade. Both
+  use the Chromium 154 H2, QUIC, H3, WebSocket, and proxy CONNECT recipes,
+  which equal their captures. Both TLS recipes omit trust-anchor IDs; Opera's
+  also sends no GREASE signature algorithm, and Brave's keeps ECH from HTTPS
+  records. Brave's templates add `Sec-GPC: 1`, drop signed exchanges from
+  the navigation `Accept`, and require the caller's `User-Agent` and
+  `Accept-Language`; Opera's require the caller's `User-Agent`. Neither
+  browser has a TCP, HTTP/1.1 connection, address cache, or cookie placement
+  recipe.
+- The capture tools launch `--browser brave` and `--browser opera`, and
+  `chrome_http3.py --output` writes its startup fixture with LF line endings.
 - `ClientBuilder::max_http2_connections_per_origin`: lets exact HTTP/2 and
   negotiated requests that select HTTP/2 open up to that many connections per
   origin and route. A request opens another only when every connection

@@ -16,8 +16,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 
 - One-line git or path dependency with no `[patch]` table
   ([Adding Phantom to a project](guides/downstream.md)).
-- Chrome 154, Edge 153, and Firefox 156 recipes from retained captures and
-  browser source, with request templates and client hints
+- Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 recipes from
+  retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
 - Exact and negotiated HTTP/1.1 and HTTP/2, ordered fields, streaming bodies,
@@ -25,14 +25,14 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - Bounded response collection and opt-in decompression
   ([Responses and errors](guides/responses.md),
   [Content decoding](guides/content-decoding.md)).
-- Exact HTTP/3 with QUIC session resumption and early data in the Chrome and
-  Edge recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
+- Exact HTTP/3 with QUIC session resumption and early data in the Chrome,
+  Edge, Brave, and Opera recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
-  negotiated or exact, and on `wss://` openings, with the Chrome 154 and
-  Edge 153 recipes
+  negotiated or exact, and on `wss://` openings, with the Chrome 154, Edge
+  153, and Brave 154 recipes
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
@@ -76,10 +76,15 @@ anything does.
   capture host. Retain each difference from the Windows recipe rather than
   assuming the platforms match.
 - Chrome for Android. Evidence: none. Blocker: Android emulator captures.
-- Brave and Opera. Evidence: none; the development host carries Brave
-  153.1.95.104 and Opera 135.0.5973.92. Blocker: captures in all seven areas.
-  A Chromium fork cannot borrow the Chrome recipe: the Edge captures
-  disproved that every Chromium browser shares one fingerprint.
+- Brave and Opera TCP, HTTP/1.1 connection, address cache, and cookie
+  placement recipes. Evidence: none; the captured Brave 154 and Opera 135
+  layers are recipes
+  ([Brave 154 and Opera 135 recipes](explanation/validation.md#brave-154-and-opera-135-recipes)).
+  Blocker: a Brave source reading at its release tag; Opera's network source
+  is not public.
+- Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
+  query with the capture tool's preferences, and `opera::v135_tls` keeps
+  GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.
 - Firefox keepalive schedule and address selection. Evidence: not yet
   gathered. Today every TCP path applies Chromium's keepalive and Happy Eyeballs v2, so
   a Firefox profile connects with Chromium's transport behavior.

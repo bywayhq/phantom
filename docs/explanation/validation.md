@@ -24,18 +24,19 @@ Phantom's claims rest on four kinds of evidence:
 | --- | --- | --- |
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
+| [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 153, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox's HPACK name index and Firefox H3 not reproduced |
-| [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
-| [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, with the Chromium ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
+| [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
-| [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins or SOCKS |
+| [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins or SOCKS |
 | [Proxy authentication](#proxy-authentication-evidence) | Chrome 154, Edge 153, and Firefox 156 captures and browser source, plus loopback tests of Phantom | One realm; no `407` to a CONNECT captured; forwarded field position and H2 indexing differ |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
 | [Content decoding](#content-decoding-evidence) | Unit and loopback tests; browser source for documented divergences | No browser-parity claim |
@@ -482,6 +483,133 @@ Limits:
 - Headless launches only, except the headful client-hint check.
 - Firefox 156 has no raw H2 startup fixture, so its SETTINGS and connection
   window rest on the H2 session captures rather than on raw startup bytes.
+
+### Brave 154 and Opera 135 recipes
+
+What is claimed: the `brave::v154_*` recipes, with the Chromium recipes they
+reuse, reproduce Brave 154.1.96.59, and the `opera::v135_*` recipes, with the
+Chromium recipes they reuse, reproduce Opera 135.0.5973.92, both on Windows
+11. Brave 154 is built on Chromium 154. Opera 135 reports Chromium
+151.0.7922.176 in its client hints; Phantom carries no Chromium 151 recipe,
+so every Opera capture is compared with the Chrome 154 recipes.
+
+Evidence: both are the builds installed on the Windows 11 capture host,
+read from the file versions of `brave.exe` and of Opera's versioned
+`opera.exe`. Brave had updated from 153.1.95.104, which the roadmap named,
+before these captures. Every capture used a fresh profile, a loopback
+listener, and the launch flags of the retained Chrome 154 fixture for the
+same layer, with `--browser brave` or `--browser opera` in the Python tools.
+
+| Browser and layer | Samples | Result against the Chromium recipes |
+| --- | --- | --- |
+| Brave TLS | 20 processes | The Chrome 154 ClientHello without the trust-anchor IDs extension |
+| Opera TLS | 19 of 20 processes | The Chrome 154 ClientHello without trust-anchor IDs and without a GREASE value in `signature_algorithms` |
+| Brave and Opera QUIC ClientHello | 3 processes each | The Chrome 154 QUIC ClientHello without trust-anchor IDs |
+| Brave and Opera H2 startup | 3 raw startups each | Byte-identical to the Chrome 154 SETTINGS and WINDOW_UPDATE frames |
+| Brave and Opera H2 request HEADERS, pseudo-header order, priority, HPACK | 3 H2 session runs each | Equal to `chromium::v154_http2` |
+| Brave and Opera QUIC transport parameters, H3 SETTINGS, H3 pseudo-header order | 3 processes each | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request` |
+| Brave client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery without `sec-ch-ua-full-version` and `sec-ch-ua-form-factors`; every version reduced to `154.0.0.0` or `99.0.0.0` |
+| Opera client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery; Opera brand list and version values |
+| Brave request fields | 9 WebSocket scenarios, 20 proxy scenarios, H3 startup | Chromium order, plus `Sec-GPC: 1` after `Accept`; `Accept` without signed exchanges; `Accept-Language` q value drawn per session |
+| Opera request fields | Same | Equal to the Chromium templates except `User-Agent` and brand values |
+| WebSocket openings and connection choice | 9 scenarios, 3 runs each | Equal to `chromium::v154_websocket` |
+| Proxy CONNECT fields | 20 proxy scenarios, 3 runs each | Equal to `chromium::v154_proxy_connect` |
+| Brave ECH from an HTTPS record | 1 `accept` and 1 `reject` run | Chrome 154's outer extension fields; one retry with the server's configuration after a rejection |
+
+The recipes follow from those results. `brave::v154_tls` and
+`brave::v154_http3_tls` remove the trust-anchor IDs from the Chromium
+recipes, and `brave::v154_tls` keeps `ech_from_https_records`.
+`opera::v135_tls` also clears `grease_signature_algorithms`;
+`opera::v135_http3_tls` removes only the IDs, since the Chromium QUIC offer
+has no signature algorithm GREASE. Neither browser has an H2, QUIC, H3,
+WebSocket, or proxy CONNECT recipe of its own, because those layers equal
+the Chromium recipes on every compared field. The client-hint recipes and
+request templates carry the brand lists and the differences in the table.
+
+Brave's `Accept-Language` is the one request value that no literal can
+match. Across the 88 retained Brave runs that carry the field, Brave sent
+`en-US,en;q=` followed by `0.5`, `0.6`, `0.7`, `0.8`, or `0.9`: one value on
+every request of a run, varying between runs. Brave's templates therefore make
+`Accept-Language` a required caller slot, as the Edge, Brave, and Opera
+templates do for `User-Agent`: every retained capture of these browsers ran
+headless and sent `HeadlessChrome`. `Sec-GPC: 1` appears on every Brave page
+request and `fetch()`, to loopback and named plaintext origins alike, and on
+no WebSocket opening.
+
+Opera needed a different launch for two layers. At startup it opens a
+preconnect to the page's origin, then logs `Cert verifier changed` and
+abandons every open connection. The raw H2 and QUIC capture tools serve only
+their first connection, so with the page URL on the command line they saw
+the abandoned preconnect and no request. A diagnostic NetLog run, not
+retained, showed the preconnect session and the
+`QUIC_SESSION_POOL_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY` event. The retained
+Opera H2 and H3 startups were therefore taken by starting Opera on
+`about:blank` with `--remote-debugging-port=0` and calling `Page.navigate`
+over DevTools five seconds later; their `launch_mode` is `devtools-navigate`.
+One Brave H3 run launched the same way matched Brave's command-line H3
+startups on every compared field. The TLS capture tool records only the
+first ClientHello, which for Opera may be the startup preconnect's; one of
+the 20 Opera processes closed its connection before a ClientHello completed.
+In two Opera `refused-stream` WebSocket runs, Opera had closed the page's H2
+session before opening the socket, so it opened an HTTP/1.1 Upgrade
+connection, which the Chromium policy also chooses without a session, and no
+stream was refused.
+
+In the resumption captures every later Brave and Opera connection resumed
+and offered early data, and the resumed ClientHellos match Phantom's for each
+recipe. Brave's second navigation in `accept` arrived in 0-RTT in all 5 runs
+where Chrome's and Opera's arrived in 1-RTT; Phantom does not model the
+preconnect timing that decides this (see
+[QUIC resumption and 0-RTT evidence](#quic-resumption-and-0-rtt-evidence)).
+
+Opera sent no DNS-over-HTTPS query with the `chrome_ech.py` preferences, as
+Edge 153 did not, so no capture shows whether Opera uses an HTTPS record's
+`ech`. `opera::v135_tls` leaves `ech_from_https_records` unset and keeps ECH
+GREASE, which every Opera ClientHello carried.
+
+Tests: the `brave_154_*` and `opera_135_*` tests in `phantom-profile` and
+`phantom-net`, and the Brave and Opera cases of the Chromium tests, replay
+these fixtures. TLS and QUIC ClientHellos go through the public TLS and H3
+connector paths, H2 startup frames through the public H2 path, and Brave's
+ECH outer ClientHello through the ECH connector. Request templates are sent
+by the `phantom` client in `crates/phantom/tests/request_templates.rs`,
+`plaintext_templates.rs`, `proxy_field_order.rs`, and `proxy_h2.rs`, and
+compared with the captured requests. `brave_154_accept_language_is_one_drawn_value_per_session`
+checks the `Accept-Language` observations above.
+
+How to reproduce: the Python tools take `--browser brave` or
+`--browser opera` with the executable paths in
+[Capture tools](../../scripts/capture/README.md#browser-launcher). The TLS,
+H2, and QUIC runs use the Cargo examples and `chrome_http3.py` with the
+Chrome 154 launch arguments; the Opera H2 and H3 launch arguments are
+recorded in their fixtures.
+
+Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26200/`:
+
+| Browser | Area | Files |
+| --- | --- | --- |
+| Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt` |
+| Opera 135.0.5973.92 | `tls` | `client-hello.txt` |
+| Both | `http2` | `client-startup.txt` |
+| Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
+| Both | `client-hints` | `navigation.txt` |
+| Both | `websocket` | Nine scenarios |
+| Both | `proxy` | Twenty scenarios |
+
+Limits:
+
+- One Windows build per browser. No macOS or Linux capture of these versions
+  exists.
+- Headless launches only, except one headful client-hint check per browser,
+  which matched the headless runs.
+- No TCP, HTTP/1.1 connection, address cache, or cookie placement recipe.
+  Socket options and connection counts are not visible in these captures.
+  Brave's source is public and could back them after a source reading at
+  its release tag; Opera's network source is not public.
+- No SSE or Alt-Svc racing capture exists for either browser.
+- The Opera comparison is with Chrome 154, not with a Chromium 151 build.
+- Opera's H2 and H3 startups were launched through DevTools; its TLS
+  ClientHello may be the startup preconnect's.
 
 ### TCP socket option evidence
 
@@ -1073,6 +1201,9 @@ What is claimed: Phantom's profile WebSocket connection policy and recipes
 open a WebSocket the way Chrome 154, Edge 153, and Firefox 156 do, apart from
 the [differences](../reference/websocket.md#differences-from-the-captures)
 the WebSocket reference lists.
+The Brave 154 and Opera 135 openings match `chromium::v154_websocket` too;
+[Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) records
+them.
 
 Evidence: `fixtures/websocket/` retains WebSocket openings from headless
 Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
@@ -1457,6 +1588,14 @@ query over DNS over HTTPS and sent no AAAA query.
 - The outer extension set equals the set of Chrome's ECH GREASE ClientHello in
   `client-hello.txt`.
 
+Brave 154.1.96.59 behaves the same way. Its retained `ech-accept.txt` and
+`ech-reject.txt`, under `fixtures/tls/brave/154.1.96.59/windows-11-26200/`,
+show the same outer server name and extension fields, the Chrome extension
+set without trust-anchor IDs, and, after a rejection, one connection with
+retry configuration 2 that the origin accepted.
+`outer_client_hello_has_the_shape_brave_154_sent` replays the accept capture
+with `brave::v154_tls`, as described below.
+
 `fixtures/tls/edge/153.0.4234.48/windows-11-26200/` retains `ech-accept.txt`
 and `ech-reject.txt` from headless Edge 153.0.4234.48 on the same host and
 origin. Edge ignores the `Local State` preferences, so its lookups were sent
@@ -1484,9 +1623,9 @@ name, the same extension fields, and the same extension set, GREASE values
 folded and order ignored because both permute it. It replays Edge's
 `ech-reject.txt` too: with the Edge 153 recipe, the rejected connection and
 its retry have the outer name, extension fields, acceptance, and name seen
-by the origin that Edge's first rejected connection and its retry had. The same file proves, against a
-loopback BoringSSL origin that decrypts ECH, that the origin receives the
-inner name; that a rejection is retried once with the retry configurations,
+by the origin that Edge's first rejected connection and its retry had. The
+same file proves, against a loopback BoringSSL origin that decrypts ECH,
+that the origin receives the inner name; that a rejection is retried once with the retry configurations,
 and with GREASE and the true name when there are none, but not when the
 server's certificate does not cover the public name; that a second
 rejection fails with `EchFailure::Rejected`; that a list which does not parse
@@ -1657,7 +1796,9 @@ Limits:
 
 What is claimed: with the Chrome 154 or Edge 153 recipe, a resumed Phantom
 H3 connection offers the ClientHello extensions and QUIC transport parameters
-these captures show for that browser. Phantom sends `GET`, `HEAD`, and
+these captures show for that browser. The Brave 154 and Opera 135 recipes
+are compared with their own resumption captures the same way; see
+[Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes). Phantom sends `GET`, `HEAD`, and
 `OPTIONS` requests issued before the handshake completes in 0-RTT packets,
 as the browsers did, and never sends `POST`, `PUT`, or `DELETE` early. Like
 Chromium, it starts a resumed connection from the server SETTINGS remembered

@@ -1,13 +1,13 @@
 # Phantom
 
-> Rust HTTP client that connects the way a chosen browser does. Phantom reproduces the TLS ClientHello, HTTP/1.1 and HTTP/2 behavior, request fields, and WebSocket openings of Chrome 154, Edge 153, and Firefox 156; QUIC and HTTP/3 for Chrome and Edge only; client hints for Chrome and Edge (Firefox sends none); and TCP socket options from browser source for Chrome and, partly, Firefox. Edge has no TCP recipe. Phantom never falls back to another protocol or route. Package `phantom-http`, library crate `phantom`. Pre-1.0 and not on crates.io; depend on a pinned git revision.
+> Rust HTTP client that connects the way a chosen browser does. Phantom reproduces the TLS ClientHello, HTTP/1.1 and HTTP/2 behavior, request fields, and WebSocket openings of Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156; QUIC and HTTP/3 for the four Chromium-based browsers only; client hints for the same four (Firefox sends none); and TCP socket options from browser source for Chrome and, partly, Firefox. Edge, Brave, and Opera have no TCP recipe. Phantom never falls back to another protocol or route. Package `phantom-http`, library crate `phantom`. Pre-1.0 and not on crates.io; depend on a pinned git revision.
 
 When you use Phantom as a dependency, a git checkout of the pinned revision sits under `~/.cargo/git/checkouts/`. Its `docs/` directory matches the version you build against. Prefer those files over what you remember about Phantom: the API changes between commits.
 
 ## Rules
 
-- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 153 uses the Chromium 154 HTTP/2, WebSocket, QUIC, and HTTP/3 recipes; Edge captures match them on every compared field, so the pairing is one browser.
-- Do not hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::{chromium, edge, firefox}`.
+- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 153, Brave 154, and Opera 135 use the Chromium 154 HTTP/2, WebSocket, QUIC, and HTTP/3 recipes; their captures match them on every compared field, so the pairing is one browser. The Edge, Brave, and Opera request templates need your `User-Agent`, and Brave's also need your `Accept-Language` (one of `en-US,en;q=0.5` to `q=0.9`, kept per session).
+- Do not hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::{brave, chromium, edge, firefox, opera}`.
 - Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`, or `get_negotiated` to let TLS ALPN choose HTTP/1.1 or HTTP/2.
 - Phantom never falls back. An unsupported protocol, route, or proxy returns a typed error; handle it instead of retrying with a different protocol.
 - Redirects, retries, timeouts, cookies, Alt-Svc, and content decoding are off until you enable them on the `ClientBuilder` or request.
@@ -16,7 +16,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - Header order is part of the fingerprint. Add fields in the order you want them sent; do not sort or deduplicate them.
 - `RequestErrorKind` and `BuildErrorKind` are non-exhaustive; every `match` needs a fallback arm.
 - Requests need a Tokio runtime with I/O and time enabled.
-- Cargo features `cookies`, `https-records` (HTTP/3 discovery from HTTPS DNS records, and for the Chrome 154 recipe Encrypted Client Hello from them, which can hold a direct TLS handshake up to 50 ms), `sse`, `websocket`, `websocket-deflate`, and `serde` (cookie-jar snapshots, with `cookies`) are off by default; `full` enables all of them. `diagnostics` (TLS key log and QUIC qlog files) is also off by default and not part of `full`, because a key log decrypts the client's traffic.
+- Cargo features `cookies`, `https-records` (HTTP/3 discovery from HTTPS DNS records, and for the Chrome 154 and Brave 154 recipes Encrypted Client Hello from them, which can hold a direct TLS handshake up to 50 ms), `sse`, `websocket`, `websocket-deflate`, and `serde` (cookie-jar snapshots, with `cookies`) are off by default; `full` enables all of them. `diagnostics` (TLS key log and QUIC qlog files) is also off by default and not part of `full`, because a key log decrypts the client's traffic.
 - A cookie snapshot from `Client::export_cookies` holds cookie values, which are credentials. `Client::import_cookies` rejects the whole snapshot if one entry is invalid, and never replaces a cookie the jar already holds.
 - The Chromium HTTP/2 and HTTP/3 recipes and the Firefox HTTP/2 recipe split every `cookie` field, yours included, into one field per cookie and choose how each is compressed. `RequestHeader::sensitive` on a `cookie` field then only hides it from `Debug` output.
 - Read a response body to the end, or with `collect_with_limit`, when you want the connection reused.

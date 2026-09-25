@@ -54,7 +54,8 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   field. A caller slot, such as `Referer` or Edge's `User-Agent`, sends
   nothing until you fill it
   ([assembly rules](../reference/profiles.md#template-assembly)).
-- The Edge templates require your `User-Agent`; a request without one fails
+- The Edge, Brave, and Opera templates require your `User-Agent`, and
+  Brave's also require your `Accept-Language`; a request without one fails
   with `RequestErrorKind::RequestTemplate` before any I/O. Phantom does not
   compare your `User-Agent` or `sec-ch-ua` with the template, so use the
   template, client hints, and `User-Agent` of one browser and version

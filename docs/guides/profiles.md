@@ -19,9 +19,11 @@ request, such as `User-Agent`, come from a
 Combine one browser's recipes into a profile.
 
 ```rust
-use phantom::profile::{chromium, edge, firefox, ClientProfile, Http3ClientSettings};
+use phantom::profile::{
+    brave, chromium, edge, firefox, opera, ClientProfile, Http3ClientSettings,
+};
 
-fn profiles() -> [ClientProfile; 2] {
+fn profiles() -> [ClientProfile; 4] {
     // Firefox 156: TLS, HTTP/2, and cookie-field recipes, plus its
     // source-derived TCP options and HTTP/1.1 connection count.
     let firefox = ClientProfile::new(firefox::v156_tls())
@@ -43,12 +45,34 @@ fn profiles() -> [ClientProfile; 2] {
         ))
         .with_client_hints(edge::v153_windows_client_hints());
 
-    [firefox, edge]
+    // Brave 154 and Opera 135 follow the same pattern with their own TLS,
+    // H3 TLS, and client hints.
+    let brave = ClientProfile::new(brave::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_http3(Http3ClientSettings::new(
+            brave::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
+        ))
+        .with_client_hints(brave::v154_windows_client_hints());
+    let opera = ClientProfile::new(opera::v135_tls())
+        .with_http2(chromium::v154_http2())
+        .with_http3(Http3ClientSettings::new(
+            opera::v135_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
+        ))
+        .with_client_hints(opera::v135_windows_client_hints());
+
+    [firefox, edge, brave, opera]
 }
 ```
 
 - Phantom carries one version per browser: Chrome 154 (`chromium::v154_*`),
-  Edge 153 (`edge::v153_*`), and Firefox 156 (`firefox::v156_*`). The
+  Edge 153 (`edge::v153_*`), Brave 154 (`brave::v154_*`), Opera 135
+  (`opera::v135_*`), and Firefox 156 (`firefox::v156_*`). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
   components each one has; Firefox has no QUIC, HTTP/3, or client-hint
   recipe.
@@ -98,11 +122,11 @@ fn chrome_on_macos() -> ClientProfile {
   ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
-- There is no Edge TCP recipe, and Firefox's keepalive schedule and address
-  selection are not modeled
+- There is no Edge, Brave, or Opera TCP recipe, and Firefox's keepalive
+  schedule and address selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-- There is no Edge HTTP/1.1 connection recipe: no source or capture shows
-  Edge 153's value
+- There is no Edge, Brave, or Opera HTTP/1.1 connection recipe: no source
+  or capture shows their values
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 
 ## Next
