@@ -584,7 +584,12 @@ impl Client {
     /// its answer is not kept. Does nothing when the client caches no
     /// addresses.
     pub fn clear_dns_cache(&self) {
-        if let Some(cache) = &self.inner.address_cache {
+        if let Some(cache) = self
+            .inner
+            .host_resolver
+            .as_ref()
+            .and_then(|resolver| resolver.cache())
+        {
             cache.clear();
         }
     }

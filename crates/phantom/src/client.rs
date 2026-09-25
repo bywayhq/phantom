@@ -1,9 +1,9 @@
-use std::{fmt, num::NonZeroUsize, sync::Arc};
+use std::{collections::HashMap, fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
     ServerAuthentication,
-    address_cache::AddressCache,
+    host_resolver::{AddressResolver, HostResolver},
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector,
@@ -57,7 +57,7 @@ impl HttpProtocol {
 ///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
 /// sessions, negotiated client-hint state, optional Alt-Svc state, and the
-/// address cache.
+/// address cache. Host overrides and the address resolver are settings.
 /// Independently built clients share none of that mutable state. Settings
 /// are fixed when [`ClientBuilder::build`] returns; a request can override
 /// only its route, timeouts, and retry policy, and can opt into content
@@ -92,7 +92,8 @@ pub struct Client {
 ///
 /// Cloning is shallow: TLS contexts, the HTTP/3 connectors, and the key log
 /// stay shared. A session takes a clone whose connectors hold its own proxy
-/// credential record and address cache.
+/// credential record and address cache, with the same host overrides and
+/// address resolver.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
@@ -105,9 +106,10 @@ pub(crate) struct ClientInner {
     /// Proxies that accepted Basic credentials, shared with the connectors.
     /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
-    /// Resolved host addresses, shared with the connectors. Each session has
-    /// its own.
-    pub(crate) address_cache: Option<AddressCache>,
+    /// Host overrides, the address resolver, and the address cache, shared
+    /// with the connectors. Each session has its own cache. `None` when the
+    /// client asks the operating system for every connection.
+    pub(crate) host_resolver: Option<HostResolver>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
     pub(crate) http1_connections_per_origin: NonZeroUsize,
@@ -135,7 +137,11 @@ impl ClientInner {
     /// and resolved addresses never reach another, as with cookies, Alt-Svc,
     /// and pools.
     pub(crate) fn with_fresh_session_state(self: &Arc<Self>) -> Arc<Self> {
-        if self.proxy_credentials.is_none() && self.address_cache.is_none() {
+        let caches_addresses = self
+            .host_resolver
+            .as_ref()
+            .is_some_and(|resolver| resolver.cache().is_some());
+        if self.proxy_credentials.is_none() && !caches_addresses {
             return Arc::clone(self);
         }
         let mut inner = Self::clone(self);
@@ -144,49 +150,49 @@ impl ClientInner {
             inner.bind_proxy_credentials(&cache);
             inner.proxy_credentials = Some(cache);
         }
-        if let Some(settings) = self.address_cache.as_ref().map(AddressCache::settings) {
-            inner.bind_address_cache(AddressCache::new(*settings));
+        if let Some(resolver) = self.host_resolver.as_ref().filter(|_| caches_addresses) {
+            inner.bind_host_resolver(resolver.with_empty_cache());
         }
         Arc::new(inner)
     }
 
-    /// Gives every connector that resolves host names the same address cache.
-    fn bind_address_cache(&mut self, cache: AddressCache) {
-        let bind = |connector: Http1TlsConnector| connector.with_address_cache(cache.clone());
+    /// Gives every connector that resolves host names the same resolver.
+    pub(crate) fn bind_host_resolver(&mut self, resolver: HostResolver) {
+        let bind = |connector: Http1TlsConnector| connector.with_host_resolver(resolver.clone());
         self.http1 = self.http1.take().map(bind);
         self.http1_or_2 = self
             .http1_or_2
             .take()
-            .map(|connector| connector.with_address_cache(cache.clone()));
+            .map(|connector| connector.with_host_resolver(resolver.clone()));
         self.http2 = self
             .http2
             .take()
-            .map(|connector| connector.with_address_cache(cache.clone()));
+            .map(|connector| connector.with_host_resolver(resolver.clone()));
         self.http3 = self
             .http3
             .take()
-            .map(|connector| Arc::new(connector.with_address_cache(cache.clone())));
+            .map(|connector| Arc::new(connector.with_host_resolver(resolver.clone())));
         self.https_proxy = self
             .https_proxy
             .take()
-            .map(|connector| connector.with_address_cache(cache.clone()));
+            .map(|connector| connector.with_host_resolver(resolver.clone()));
         self.connect_udp_proxy = self.connect_udp_proxy.take().map(|connectors| {
             Arc::new(ConnectUdpConnectors {
                 http3: connectors
                     .http3
                     .as_ref()
-                    .map(|connector| connector.with_address_cache(cache.clone())),
+                    .map(|connector| connector.with_host_resolver(resolver.clone())),
                 tcp: connectors
                     .tcp
                     .clone()
-                    .map(|connector| connector.with_address_cache(cache.clone())),
+                    .map(|connector| connector.with_host_resolver(resolver.clone())),
             })
         });
         #[cfg(feature = "websocket")]
         {
             self.websocket_http1 = self.websocket_http1.take().map(bind);
         }
-        self.address_cache = Some(cache);
+        self.host_resolver = Some(resolver);
     }
 
     /// Gives every connector that can open an authenticated proxy tunnel the
@@ -232,6 +238,8 @@ impl Client {
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
             dns_cache: None,
+            host_overrides: HashMap::new(),
+            address_resolver: None,
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
             #[cfg(feature = "diagnostics")]
@@ -526,6 +534,9 @@ pub struct ClientBuilder {
     /// The caller's address cache choice: `None` keeps the profile's, and
     /// `Some(None)` turns caching off.
     dns_cache: Option<Option<DnsCacheSettings>>,
+    /// Host names, in ASCII lowercase, answered with fixed addresses.
+    host_overrides: HashMap<Box<str>, Vec<IpAddr>>,
+    address_resolver: Option<AddressResolver>,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
@@ -568,6 +579,8 @@ impl fmt::Debug for ClientBuilder {
                 &self.preemptive_proxy_authentication,
             )
             .field("dns_cache", &self.dns_cache_settings())
+            .field("host_overrides", &self.host_overrides.len())
+            .field("address_resolver", &self.address_resolver.is_some())
             .field("redirect_policy", &self.options.redirect_policy)
             .field("retry_policy", &self.options.retry_policy)
             .field("request_timeouts", &self.options.request_timeouts)
@@ -788,12 +801,15 @@ impl ClientBuilder {
     /// the client resolves itself: origin hosts on a direct route, proxy
     /// hosts, and the target of a local-DNS `socks5://` route. A target a
     /// proxy resolves, through `socks5h://`, an HTTP proxy, or CONNECT-UDP,
-    /// is never resolved or cached locally. Concurrent connections to one
-    /// host share one lookup, and the resolver's address order is kept for
-    /// address racing. That lookup runs on the blocking pool of the runtime
-    /// that started it, as `tokio::net::lookup_host` does, so the number in
-    /// flight is bounded by that pool, and a request on one runtime never
-    /// waits on another runtime that has stopped being driven.
+    /// is never resolved or cached locally, and neither is a name with an
+    /// override from [`resolve`](Self::resolve). Concurrent connections to
+    /// one host share one lookup, and the resolver's address order is kept
+    /// for address racing. A system lookup runs on the blocking pool of the
+    /// runtime that started it, as `tokio::net::lookup_host` does, so the
+    /// number in flight is bounded by that pool, and a request on one runtime
+    /// never waits on another runtime that has stopped being driven. A
+    /// lookup through a [`dns_resolver`](Self::dns_resolver) runs as a task on
+    /// the runtime that started it instead.
     ///
     /// Clones of this client share the cache; a session built from the
     /// client starts with an empty cache of its own. The client does not
@@ -811,6 +827,132 @@ impl ClientBuilder {
     pub fn no_dns_cache(mut self) -> Self {
         self.dns_cache = Some(None);
         self
+    }
+
+    /// Connects to `addresses` whenever this client resolves `host` itself,
+    /// without asking the address resolver or the address cache.
+    ///
+    /// The override applies wherever the client resolves a name locally: the
+    /// origin host on a direct route, proxy hosts, and the target of a
+    /// local-DNS `socks5://` route. A target that a proxy resolves, through
+    /// `socks5h://`, an HTTP proxy, or CONNECT-UDP, is sent to the proxy by
+    /// name and never uses the override. The port always comes from the
+    /// request or proxy URL. The TLS server name, certificate check, `Host`
+    /// or `:authority`, cookies, and pool keys all keep using `host`.
+    ///
+    /// Names are compared without regard to ASCII case, so `Example.com` and
+    /// `example.com` are one name, but `example.com.` with a trailing dot is
+    /// another. Connections try `addresses` in the given order, raced as the
+    /// profile's TCP settings describe; an empty list makes `host` fail to
+    /// resolve. Calling this again for the same name replaces its addresses.
+    /// HTTPS DNS record lookups, with the `https-records` feature, still
+    /// query the record for `host`.
+    ///
+    /// [`build`](Self::build) fails with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+    /// when `host` is empty or an IP literal, which the client always uses
+    /// as written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::{IpAddr, Ipv4Addr};
+    ///
+    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::Client;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// // Send example.com traffic to a staging server, keeping SNI and Host.
+    /// let client = Client::builder(profile)
+    ///     .resolve("example.com", [IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10))])
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn resolve(mut self, host: &str, addresses: impl IntoIterator<Item = IpAddr>) -> Self {
+        self.host_overrides.insert(
+            host.to_ascii_lowercase().into_boxed_str(),
+            addresses.into_iter().collect(),
+        );
+        self
+    }
+
+    /// Resolves the host names this client resolves itself through
+    /// `resolver` instead of the operating system.
+    ///
+    /// The resolver answers the same names the operating system would:
+    /// origin hosts on a direct route, proxy hosts, and the target of a
+    /// local-DNS `socks5://` route, except names that have an override from
+    /// [`resolve`](Self::resolve). With an address cache, from the profile or
+    /// [`dns_cache`](Self::dns_cache), each name is asked for once per cache
+    /// lifetime, and concurrent connections share that lookup; without one,
+    /// every new connection asks. Clones and sessions of the client share
+    /// the resolver.
+    ///
+    /// A resolver error fails the request with the kind a failed system
+    /// lookup gets on the same path:
+    /// [`Resolve`](crate::RequestErrorKind::Resolve) for an HTTP/3 origin, a
+    /// local-DNS SOCKS5 target, or a CONNECT-UDP proxy host;
+    /// [`Proxy`](crate::RequestErrorKind::Proxy) for another proxy host; and
+    /// [`Connect`](crate::RequestErrorKind::Connect) for a TCP origin. The
+    /// resolver's `io::Error` stays in the error's source chain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::io;
+    /// use std::net::{IpAddr, Ipv4Addr};
+    ///
+    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::{AddressResolver, Client};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let resolver = AddressResolver::from_fn(|host: String| async move {
+    ///     // Look `host` up with a DNS library of your choice.
+    ///     match host.as_str() {
+    ///         "example.com" => Ok(vec![IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10))]),
+    ///         _ => Err(io::Error::new(io::ErrorKind::NotFound, "unknown host")),
+    ///     }
+    /// });
+    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let client = Client::builder(profile).dns_resolver(resolver).build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn dns_resolver(mut self, resolver: AddressResolver) -> Self {
+        self.address_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the host resolver the client will share with its connectors,
+    /// or `None` when it asks the operating system for every connection.
+    fn host_resolver(&self) -> Result<Option<HostResolver>, BuildError> {
+        let dns_cache = self.dns_cache_settings().copied();
+        if self.host_overrides.is_empty() && self.address_resolver.is_none() && dns_cache.is_none()
+        {
+            return Ok(None);
+        }
+        let mut resolver = HostResolver::new();
+        if let Some(address_resolver) = &self.address_resolver {
+            resolver = resolver.with_resolver(address_resolver.clone());
+        }
+        if let Some(settings) = dns_cache {
+            resolver = resolver.with_cache(settings);
+        }
+        for (host, addresses) in &self.host_overrides {
+            if host.is_empty() || host.parse::<IpAddr>().is_ok() {
+                return Err(BuildError::invalid_policy(
+                    "a host override must name a host, not an IP address",
+                ));
+            }
+            resolver = resolver.with_override(host, addresses.iter().copied());
+        }
+        Ok(Some(resolver))
     }
 
     /// Returns the address cache settings the client will use, if any.
@@ -1429,7 +1571,7 @@ impl ClientBuilder {
             Arc::new(crate::KeyLog::new(receiver))
         });
 
-        let dns_cache = self.dns_cache_settings().copied();
+        let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
             http1,
             http1_or_2,
@@ -1438,7 +1580,7 @@ impl ClientBuilder {
             connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
             proxy_credentials: None,
-            address_cache: None,
+            host_resolver: None,
             client_hints,
             http1_connections_per_origin: self
                 .profile
@@ -1460,8 +1602,8 @@ impl ClientBuilder {
             inner.bind_proxy_credentials(&cache);
             inner.proxy_credentials = Some(cache);
         }
-        if let Some(settings) = dns_cache {
-            inner.bind_address_cache(AddressCache::new(settings));
+        if let Some(resolver) = host_resolver {
+            inner.bind_host_resolver(resolver);
         }
         let inner = Arc::new(inner);
         let state = self.options.build(&inner);

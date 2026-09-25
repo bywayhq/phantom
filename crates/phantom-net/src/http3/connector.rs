@@ -24,8 +24,8 @@ use super::{
     prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
-    address_cache::{AddressCache, resolve},
     direct::{Dialer, RuntimeUnavailable, poll_tokio_io},
+    host_resolver::{HostResolver, resolve},
     proxy::{
         HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, PreparedConnectUdp,
         Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth,
@@ -47,7 +47,7 @@ pub struct Http3Connector {
     max_udp_payload_size: u64,
     identity: Arc<()>,
     tcp: Option<TcpSettings>,
-    address_cache: Option<AddressCache>,
+    host_resolver: Option<HostResolver>,
     #[cfg(feature = "keylog")]
     key_log: crate::tls::key_log::KeyLogSlot,
     /// Directory that receives one qlog file per new QUIC connection.
@@ -137,7 +137,7 @@ impl Http3Connector {
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
             tcp: None,
-            address_cache: None,
+            host_resolver: None,
             #[cfg(feature = "keylog")]
             key_log,
             #[cfg(feature = "qlog")]
@@ -271,7 +271,7 @@ impl Http3Connector {
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
             tcp: self.tcp,
-            address_cache: self.address_cache.clone(),
+            host_resolver: self.host_resolver.clone(),
             #[cfg(feature = "keylog")]
             key_log: self.key_log.clone(),
             #[cfg(feature = "qlog")]
@@ -309,36 +309,36 @@ impl Http3Connector {
         self.tcp.as_ref()
     }
 
-    /// Returns a clone that resolves host names through `cache` instead of
+    /// Returns a clone that resolves host names through `resolver` instead of
     /// asking the operating system for every connection.
     ///
-    /// The cache covers the origin host of a direct connection, the host of a
-    /// SOCKS5 or CONNECT-UDP proxy, and the target of a local-DNS SOCKS5
+    /// The resolver covers the origin host of a direct connection, the host
+    /// of a SOCKS5 or CONNECT-UDP proxy, and the target of a local-DNS SOCKS5
     /// route. A target that a proxy resolves is never looked up locally. The
     /// clone shares this connector's ticket cache and identity, and its own
-    /// clones share `cache`.
+    /// clones share `resolver`.
     ///
-    /// Unlike the TCP connectors' `with_address_cache`, this borrows `self`,
+    /// Unlike the TCP connectors' `with_host_resolver`, this borrows `self`,
     /// like [`Self::with_early_data`] and the other clone-returning methods
     /// here: an `Http3Connector` is not `Clone`, and callers often hold it in
     /// an `Arc`, so a consuming method could not rebind a shared connector.
     #[must_use]
-    pub fn with_address_cache(&self, cache: AddressCache) -> Self {
+    pub fn with_host_resolver(&self, resolver: HostResolver) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
-        connector.address_cache = Some(cache);
+        connector.host_resolver = Some(resolver);
         connector
     }
 
-    /// Returns the address cache new connections resolve through, if any.
+    /// Returns the host resolver new connections resolve through, if any.
     #[must_use]
-    pub fn address_cache(&self) -> Option<&AddressCache> {
-        self.address_cache.as_ref()
+    pub fn host_resolver(&self) -> Option<&HostResolver> {
+        self.host_resolver.as_ref()
     }
 
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
-            addresses: self.address_cache.as_ref(),
+            resolver: self.host_resolver.as_ref(),
         }
     }
 
@@ -454,7 +454,7 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = resolve(self.address_cache.as_ref(), host, port)
+            let addresses = resolve(self.host_resolver.as_ref(), host, port)
                 .await
                 .map_err(Http3ConnectorError::resolve)?;
             let connection = self.connect_to_addresses(addresses, server_name).await?;
@@ -482,7 +482,7 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = resolve(self.address_cache.as_ref(), host, port)
+            let addresses = resolve(self.host_resolver.as_ref(), host, port)
                 .await
                 .map_err(Http3ConnectorError::resolve)?;
             self.connect_to_addresses(addresses, server_name).await
@@ -611,7 +611,7 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = resolve(self.address_cache.as_ref(), target_host, target_port)
+            let addresses = resolve(self.host_resolver.as_ref(), target_host, target_port)
                 .await
                 .map_err(Http3ConnectorError::resolve)?;
             self.connect_socks5_to_addresses(proxy_host, proxy_port, auth, addresses, server_name)
@@ -825,7 +825,7 @@ impl Http3Connector {
         poll_tokio_io(|| async {
             let span = connect_udp::span("h3");
             let tunnel = async {
-                let addresses = resolve(self.address_cache.as_ref(), proxy_host, proxy_port)
+                let addresses = resolve(self.host_resolver.as_ref(), proxy_host, proxy_port)
                     .await
                     .map_err(|error| {
                         ConnectUdpError::with_source(

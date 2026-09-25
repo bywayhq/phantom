@@ -442,19 +442,20 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
     Ok(())
 }
 
-fn slow_cache(delay: Duration) -> crate::address_cache::AddressCache {
+fn slow_resolver(delay: Duration) -> crate::host_resolver::HostResolver {
     let settings = phantom_profile::DnsCacheSettings {
         max_entries: std::num::NonZeroUsize::MIN,
         ttl: Duration::from_secs(60),
         negative_ttl: None,
     };
-    crate::address_cache::AddressCache::with_lookup(settings, move |_| {
+    let cache = crate::address_cache::AddressCache::with_lookup(settings, move |_| {
         // The lookup runs on a thread of its own without a timer driver.
         Box::pin(async move {
             std::thread::sleep(delay);
             Ok(vec![SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0))])
         })
-    })
+    });
+    crate::host_resolver::HostResolver::new().with_address_cache(cache)
 }
 
 /// A lookup that finishes within the bounded wait after a slow address
@@ -465,7 +466,7 @@ async fn a_resolved_address_waits_for_a_lookup_within_the_bound() -> TestResult<
     let key = server_key(1, TEST_ECH_KEYS[0]);
     let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
     let connector =
-        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
 
     // 250 ms of resolution allows 50 ms more; the record arrives 5 ms after
     // the addresses. Started now, as the client's lookup starts with the
@@ -499,7 +500,7 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
     ])
     .await?;
     let connector =
-        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
 
     tokio::time::timeout(
         TEST_TIMEOUT,
@@ -532,7 +533,7 @@ async fn a_lookup_past_the_bound_leaves_grease() -> TestResult<()> {
     let key = server_key(1, TEST_ECH_KEYS[0]);
     let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
     let connector =
-        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
 
     // The wait ends 50 ms after the addresses; the record comes 150 ms later.
     let lookup = tokio::spawn(async {

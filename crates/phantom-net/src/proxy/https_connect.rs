@@ -17,8 +17,8 @@ use super::{
     http2_connect::{self, Http2ChallengeOutcome, PreparedBasicHttp2Connect, PreparedHttp2Connect},
 };
 use crate::{
-    address_cache::AddressCache,
     direct::{Dialer, DirectConnectError, connect_tcp},
+    host_resolver::HostResolver,
     http2::{
         Http2ConnectStream, Http2Connection, Http2TlsError, connect_selected,
         connect_selected_extended, translate_extended_connect_settings, translate_settings,
@@ -61,7 +61,7 @@ pub struct HttpsProxyConnector {
     http2: Option<Http2Settings>,
     protocol: HttpsProxyProtocol,
     tcp: Option<TcpSettings>,
-    address_cache: Option<AddressCache>,
+    host_resolver: Option<HostResolver>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -106,7 +106,7 @@ impl HttpsProxyConnector {
             http2: None,
             protocol: HttpsProxyProtocol::Http1,
             tcp: None,
-            address_cache: None,
+            host_resolver: None,
             proxy_credentials: None,
         }
     }
@@ -153,27 +153,28 @@ impl HttpsProxyConnector {
         self.tcp.as_ref()
     }
 
-    /// Resolves host names through `cache` instead of asking the operating
+    /// Resolves host names through `resolver` instead of asking the operating
     /// system for every connection.
     ///
-    /// The cache covers the HTTPS proxy's host. A target that a proxy resolves is never looked
-    /// up locally. Clones of this connector share `cache`.
+    /// The resolver covers the HTTPS proxy's host. A target that a proxy
+    /// resolves is never looked up locally. Clones of this connector share
+    /// `resolver`.
     #[must_use]
-    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
-        self.address_cache = Some(cache);
+    pub fn with_host_resolver(mut self, resolver: HostResolver) -> Self {
+        self.host_resolver = Some(resolver);
         self
     }
 
-    /// Returns the address cache new connections resolve through, if any.
+    /// Returns the host resolver new connections resolve through, if any.
     #[must_use]
-    pub fn address_cache(&self) -> Option<&AddressCache> {
-        self.address_cache.as_ref()
+    pub fn host_resolver(&self) -> Option<&HostResolver> {
+        self.host_resolver.as_ref()
     }
 
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
-            addresses: self.address_cache.as_ref(),
+            resolver: self.host_resolver.as_ref(),
         }
     }
 
@@ -211,7 +212,7 @@ impl HttpsProxyConnector {
             http2: self.http2.clone(),
             protocol: self.protocol,
             tcp: self.tcp,
-            address_cache: self.address_cache.clone(),
+            host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }

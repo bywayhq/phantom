@@ -8,7 +8,7 @@ use std::{
 use phantom_profile::TcpSettings;
 use tokio::net::TcpStream;
 
-use crate::address_cache::{AddressCache, resolve};
+use crate::host_resolver::{HostResolver, resolve};
 
 const TOKIO_IO_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.";
 
@@ -21,16 +21,16 @@ pub(crate) enum DirectConnectError {
 }
 
 /// How a connector opens its TCP connections: the profile's socket options
-/// and the client's address cache.
+/// and the client's host resolver.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Dialer<'a> {
     pub(crate) tcp: Option<TcpSettings>,
-    pub(crate) addresses: Option<&'a AddressCache>,
+    pub(crate) resolver: Option<&'a HostResolver>,
 }
 
 /// Opens one TCP connection, applying the connector's profile socket options.
 ///
-/// `host` is resolved through the dialer's address cache when it has one.
+/// `host` is resolved through the dialer's host resolver when it has one.
 /// Without profile options the socket keeps its operating-system defaults and
 /// the addresses are tried one at a time in resolver order.
 pub(crate) async fn connect_tcp(
@@ -41,11 +41,11 @@ pub(crate) async fn connect_tcp(
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
     let stream = match dialer.tcp {
         Some(settings) => {
-            poll_tokio_io(|| crate::tcp::connect(host, port, settings, dialer.addresses)).await
+            poll_tokio_io(|| crate::tcp::connect(host, port, settings, dialer.resolver)).await
         }
         None => {
             poll_tokio_io(|| async {
-                let addresses = resolve(dialer.addresses, host, port).await?;
+                let addresses = resolve(dialer.resolver, host, port).await?;
                 TcpStream::connect(&*addresses).await
             })
             .await
@@ -81,7 +81,7 @@ pub(crate) fn https_record_extra_time(
 /// Opens one TCP connection while `lookup` finishes, as Chromium's
 /// `TcpConnectJob` does before its TLS handshake.
 ///
-/// The addresses are resolved first, through the dialer's address cache
+/// The addresses are resolved first, through the dialer's host resolver
 /// when it has one. The TCP connect then starts at once, and `lookup` gets
 /// [`https_record_extra_time`] of the address resolution time, counted from
 /// the end of that resolution, to finish; a lookup still running then counts
@@ -106,7 +106,7 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
     let started = std::time::Instant::now();
     let (addresses, stored) =
-        poll_tokio_io(|| crate::address_cache::resolve_noting_cache(dialer.addresses, host, port))
+        poll_tokio_io(|| crate::host_resolver::resolve_noting_cache(dialer.resolver, host, port))
             .await
             .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
             .map_err(DirectConnectError::Connect)?;

@@ -1,4 +1,4 @@
-//! Which names each connector resolves through its address cache.
+//! Which names each connector resolves through its host resolver and cache.
 //!
 //! Every name resolves to a loopback peer that accepts and immediately
 //! closes, so the step after the TCP connect fails; QUIC attempts are cut
@@ -13,6 +13,7 @@ use tokio::{net::TcpListener, task::JoinHandle};
 use super::{Recorder, TestResult, V4, long_lived};
 use crate::{
     address_cache::AddressCache,
+    host_resolver::HostResolver,
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector,
@@ -49,10 +50,10 @@ impl Drop for ClosingPeer {
     }
 }
 
-fn recording_cache() -> (Recorder, AddressCache) {
+fn recording_cache() -> (Recorder, HostResolver) {
     let recorder = Recorder::open();
     let cache = recorder.cache(long_lived(), super::answer(&[V4]));
-    (recorder, cache)
+    (recorder, HostResolver::new().with_address_cache(cache))
 }
 
 fn names(recorder: &Recorder) -> Vec<String> {
@@ -75,8 +76,14 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     let connector = || -> TestResult<(Recorder, Http1TlsConnector)> {
         let (recorder, cache) = recording_cache();
         let connector =
-            Http1TlsConnector::new(&chromium::v154_tls())?.with_address_cache(cache.clone());
-        assert_eq!(connector.address_cache().map(AddressCache::len), Some(0));
+            Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(cache.clone());
+        assert_eq!(
+            connector
+                .host_resolver()
+                .and_then(HostResolver::cache)
+                .map(AddressCache::len),
+            Some(0)
+        );
         Ok((recorder, connector))
     };
 
@@ -117,7 +124,7 @@ async fn http2_and_negotiated_connectors_resolve_through_the_cache() -> TestResu
     let peer = ClosingPeer::bind().await?;
     let (recorder, cache) = recording_cache();
     let http2 = Http2TlsConnector::new(&chromium::v154_tls(), &chromium::v154_http2())?
-        .with_address_cache(cache);
+        .with_host_resolver(cache);
 
     let _ = http2.connect_direct(ORIGIN, peer.port, ORIGIN).await;
     let _ = http2
@@ -127,7 +134,7 @@ async fn http2_and_negotiated_connectors_resolve_through_the_cache() -> TestResu
     let _ = negotiated.connect_direct(ORIGIN, peer.port, ORIGIN).await;
 
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "each name resolved once");
-    assert!(negotiated.address_cache().is_some());
+    assert!(negotiated.host_resolver().is_some());
     Ok(())
 }
 
@@ -136,8 +143,8 @@ async fn https_proxy_host_resolves_through_the_proxy_connector() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let (origin_recorder, origin_cache) = recording_cache();
     let (proxy_recorder, proxy_cache) = recording_cache();
-    let origin = Http1TlsConnector::new(&chromium::v154_tls())?.with_address_cache(origin_cache);
-    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_address_cache(proxy_cache);
+    let origin = Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(origin_cache);
+    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_host_resolver(proxy_cache);
     let connect_headers = [HttpConnectHeader::authority("Host")];
 
     let _ = origin
@@ -162,7 +169,7 @@ async fn http3_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     let peer = ClosingPeer::bind().await?;
     let connector = || -> TestResult<(Recorder, Http3Connector)> {
         let (recorder, cache) = recording_cache();
-        Ok((recorder, http3()?.with_address_cache(cache)))
+        Ok((recorder, http3()?.with_host_resolver(cache)))
     };
 
     let (recorder, h3) = connector()?;
@@ -192,8 +199,8 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let (target_recorder, target_cache) = recording_cache();
     let (proxy_recorder, proxy_cache) = recording_cache();
-    let h3 = http3()?.with_address_cache(target_cache);
-    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_address_cache(proxy_cache);
+    let h3 = http3()?.with_host_resolver(target_cache);
+    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_host_resolver(proxy_cache);
     let authority = format!("{PROXY}:{}", peer.port);
 
     let _ = tokio::time::timeout(
@@ -220,7 +227,7 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
 #[tokio::test(flavor = "current_thread")]
 async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
     let (recorder, cache) = recording_cache();
-    let h3 = http3()?.with_address_cache(cache);
+    let h3 = http3()?.with_host_resolver(cache);
     let mut request = chromium::v154_http3_request();
     request.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
@@ -263,21 +270,21 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
 #[tokio::test(flavor = "current_thread")]
 async fn clones_for_isolated_tls_sessions_keep_the_cache() -> TestResult {
     let (_, cache) = recording_cache();
-    let http1 = Http1TlsConnector::new(&chromium::v154_tls())?.with_address_cache(cache.clone());
-    let http3 = http3()?.with_address_cache(cache);
+    let http1 = Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(cache.clone());
+    let http3 = http3()?.with_host_resolver(cache);
 
     assert!(
         http1
             .with_isolated_session_cache()
-            .address_cache()
+            .host_resolver()
             .is_some()
     );
     assert!(
         http3
             .with_isolated_session_cache()
-            .address_cache()
+            .host_resolver()
             .is_some()
     );
-    assert!(http3.with_early_data().address_cache().is_some());
+    assert!(http3.with_early_data().host_resolver().is_some());
     Ok(())
 }

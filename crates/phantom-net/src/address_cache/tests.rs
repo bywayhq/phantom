@@ -12,7 +12,7 @@ use std::{
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use super::{AddressCache, resolve};
+use super::AddressCache;
 
 mod routes;
 
@@ -522,14 +522,6 @@ async fn clones_share_one_cache() -> TestResult {
 
     assert_eq!(recorder.calls(), 1);
     assert_eq!(clone.len(), 1);
-    Ok(())
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn resolve_without_a_cache_uses_the_address_as_written() -> TestResult {
-    let addresses = resolve(None, "127.0.0.1", 443).await?;
-
-    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
     Ok(())
 }
 

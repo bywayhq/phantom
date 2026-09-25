@@ -10,12 +10,12 @@ use phantom_profile::{TcpKeepalive, TcpSettings};
 use socket2::SockRef;
 use tokio::net::{TcpSocket, TcpStream};
 
-use crate::address_cache::AddressCache;
+use crate::host_resolver::HostResolver;
 
 mod address_racing;
 
-/// Resolves `host`, through `cache` when there is one, and connects to one of
-/// its addresses.
+/// Resolves `host`, through `resolver` when there is one, and connects to one
+/// of its addresses.
 ///
 /// Each attempt opens a fresh socket and applies `settings` before
 /// connecting, as a browser does, so the options already cover the TLS
@@ -27,10 +27,10 @@ pub(crate) async fn connect(
     host: &str,
     port: u16,
     settings: TcpSettings,
-    cache: Option<&AddressCache>,
+    resolver: Option<&HostResolver>,
 ) -> io::Result<TcpStream> {
     check_settings(&settings)?;
-    let addresses = crate::address_cache::resolve(cache, host, port).await?;
+    let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
     connect_resolved(addresses, settings).await
 }
 
