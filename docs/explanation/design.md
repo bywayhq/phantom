@@ -522,6 +522,31 @@ bodies and static trailers can be replayed; a one-shot streaming body fails
 before Phantom opens a retry connection. This lifecycle never changes the
 selected protocol or route, and never falls back to a direct connection.
 
+### Cookie crumbs and compression
+
+On HTTP/2 and HTTP/3 the Chromium recipes insert every cookie crumb into the
+HPACK or QPACK dynamic table, and the Firefox HTTP/2 recipe inserts every
+crumb of 20 bytes or more, because the browsers do
+([evidence](validation.md#cookie-crumb-evidence)). A crumb sent as a
+never-indexed literal would mark the client as not being that browser on
+every request that carries cookies.
+
+Indexing has a cost that RFC 7541 section 7.1.3 describes. A party that can
+add chosen fields to requests on the same connection and observe the size of
+the encrypted HEADERS frames can confirm a guess at an indexed value: a
+correct guess is sent as a short index. Cookies are credentials, which is
+why the RFC recommends never indexing them. The same reasoning keeps
+Phantom's `proxy-authorization` never-indexed
+([proxy authentication evidence](validation.md#proxy-authentication-evidence)).
+For cookies, Phantom takes the browsers' side of the trade: the browsers
+accept this exposure, and a client that differs from them is recognizable.
+
+To remove the exposure, set `cookie_crumbs` to `Whole` in
+`Http2HpackSettings` and `Http3RequestSettings`. Each `cookie` field is then
+sent as one literal that never enters the dynamic table, never-indexed when
+it is marked sensitive, as the jar's field is. A server that fingerprints
+HPACK can then tell the client from Chrome, Edge, or Firefox.
+
 ## Next
 
 - [Validation](validation.md): the evidence behind each claim.

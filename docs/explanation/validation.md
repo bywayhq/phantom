@@ -29,6 +29,7 @@ Phantom's claims rest on four kinds of evidence:
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 153, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
+| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox's HPACK name index and Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
@@ -996,6 +997,75 @@ Limits:
 
 - The captures cover plaintext HTTP/1.1 only. H2, H3, macOS, and Safari
   behavior is not inferred from them.
+
+### Cookie crumb evidence
+
+What is claimed: over HTTP/2, the Chromium and Firefox recipes split the
+`cookie` field into one field per cookie at the field's position and encode
+each crumb as Chrome 154, Edge 153, and Firefox 156 do, except for Firefox's
+name index noted below. Over HTTP/3, the Chromium request recipe splits it and
+its QPACK encoder stream and field sections equal Chrome's and Edge's.
+
+Evidence: `fixtures/cookies/` retains three runs per protocol from headless
+Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
+(10.0.26200), each on a fresh profile. A run loads `/start`, whose response
+sets five probe cookies, then navigates to `/page`, which fetches `/fetch` and
+`/done`, so three requests on one connection carry the cookies. The probes
+include crumbs of 19 and 20 bytes. Every run of a browser and protocol agrees.
+
+| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
+| --- | --- | --- |
+| HTTP/1.1 | One `Cookie` line, joined with `"; "`, last | One `Cookie` line after `Referer` and `Connection`, before `Upgrade-Insecure-Requests` or `Sec-Fetch-Dest` |
+| HTTP/2 split | One `cookie` field per cookie, in jar order, before `priority` | One field per cookie, after `Referer`, before `upgrade-insecure-requests` or `sec-fetch-dest` |
+| HTTP/2 first request with cookies | Every crumb a literal with incremental indexing naming static entry 32, Huffman-coded | Crumbs under 20 bytes never-indexed literals naming entry 32; the 20-byte and 53-byte crumbs incrementally indexed |
+| HTTP/2 later requests | Every crumb an index into the dynamic table | Short crumbs never-indexed again, named by the oldest dynamic `cookie` entry; long crumbs indexed |
+| HTTP/3 | One field per cookie before `priority`; each inserted with a static name reference to entry 5 and sent as an indexed field line | One joined `cookie` field after `referer` and `alt-used`, a literal with a static name reference, never inserted |
+
+The HTTP/2 rules match browser source: quiche
+`HpackEncoder::CookieToCrumbs` followed by its default indexing policy, and
+Firefox's `Http2Compressor::EncodeHeaderBlock`, which never indexes a crumb
+shorter than 20 bytes. `vendor/http2/PHANTOM.md` cites both.
+
+`crates/phantom/tests/cookie_crumbs.rs` replays run 0 of each HTTP/2 capture
+through a client with a cookie jar and the browser's HTTP/2 and cookie
+placement recipes: the loopback origin sets the probes on `/start`, and the
+client sends the captured fields of each later request without `cookie`. For
+Chrome and Edge, the ordinary field order and every crumb's value,
+representation, index, and Huffman flag equal the capture. For Firefox the
+same holds except the name index of a crumb sent after a `cookie` entry has
+entered the dynamic table. Firefox names the oldest dynamic `cookie` entry.
+Phantom names static entry 32 in an incrementally indexed literal and the
+newest dynamic `cookie` entry in a never-indexed one, as it does for any
+field. In each Firefox run, 7 of the 15 crumbs carry such an index.
+
+`crates/phantom-net/src/http3/tests/cookie_crumbs.rs` encodes the four
+captured requests of each Chromium HTTP/3 capture with a caller `cookie`
+field and compares the encoder stream and each field section with the
+capture byte for byte. `extended_connect_sends_one_cookie_field_per_jar_cookie`
+in `crates/phantom/tests/websocket_profile.rs` checks that the jar's field is
+split on an HTTP/2 WebSocket opening too; no capture shows a browser's
+WebSocket opening with cookies.
+
+How to reproduce: `scripts/capture/cookie_crumbs.py --browser <browser>
+--scenario all --repeat 3`, as shown in the
+[capture tool README](../../scripts/capture/README.md#cookie-crumbs).
+
+Limits:
+
+- One origin, five cookies with `Path=/`, and navigations and `fetch()`
+  only. No capture covers cookies on a WebSocket opening, a redirect, or a
+  proxy route.
+- Firefox names a literal with the highest-numbered table entry that has its
+  name; Phantom's HPACK encoder does not, for crumbs or any other field. See
+  the [roadmap](../roadmap.md#wire-fidelity).
+- Firefox 156 does not split `cookie` over HTTP/3, and Phantom has no Firefox
+  HTTP/3 recipe.
+- The HTTP/3 capture server advertised aioquic's QPACK limits (4,096 bytes,
+  16 blocked streams), not Chrome's own.
+- Indexing crumbs exposes cookie values to the compression side channel
+  that RFC 7541 section 7.1.3 describes;
+  [Design](design.md#cookie-crumbs-and-compression) explains the trade and
+  the opt-out.
 
 ### WebSocket browser evidence
 
@@ -2204,7 +2274,8 @@ Remaining differences:
   difference is visible to the proxy and not to an origin. RFC 7541 section
   7.1.3 recommends never indexing credentials, because a peer that can add
   chosen fields to requests on the same connection and observe their size
-  can guess an indexed value. Indexing would also need a new marker:
+  can guess an indexed value. Indexing would also need a new marker: on
+  every field but a `cookie` that a recipe splits into crumbs,
   `RequestHeader::sensitive` both selects the never-indexed form and hides
   the value from `Debug` output, and a field without it prints its value in
   `RequestHeader` and `http::HeaderValue` `Debug` output. The vendored
