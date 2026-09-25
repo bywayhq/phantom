@@ -357,12 +357,21 @@ pub fn v154_http2() -> Http2Settings {
 /// record that connection's ALPN offer, not its complete ClientHello.
 ///
 /// The opening templates keep the captured field order and spelling.
-/// `User-Agent`, `Origin`, `Accept-Encoding`, and `Accept-Language` are caller
-/// slots because their values are persona and page data. The captures carry no
-/// cookies, so the cookie placeholder's final position is not observed. The
+/// `User-Agent`, `Origin`, and `Accept-Language` are caller slots because
+/// their values are persona and page data. The captures carry no cookies, so
+/// the cookie placeholder's final position is not observed. The
 /// compression offer is `permessage-deflate; client_max_window_bits`; Chrome
 /// always sends it, while Phantom sends it only when the caller enables
 /// compression. Edge 153.0.4234.48 matches this recipe on every compared field.
+///
+/// `Accept-Encoding` is a [`WebSocketField::ByTrust`] entry, as on
+/// ordinary requests: Chrome offers `br` and `zstd` only to a potentially
+/// trustworthy URL. The retained proxy route captures show the `ws://`
+/// Upgrade to `127.0.0.1` with `gzip, deflate, br, zstd` and the one to
+/// the plaintext name `origin.phantom.test` with `gzip, deflate`, direct and
+/// through both proxies; every other field is the same in both. Chrome
+/// sends no `Sec-Fetch-*` field on a WebSocket opening to either. A caller
+/// field named `Accept-Encoding` replaces the recipe's value in place.
 ///
 /// The `refused-stream` captures show Chrome answering
 /// `RST_STREAM(REFUSED_STREAM)` with one further extended CONNECT on the same
@@ -388,7 +397,7 @@ pub fn v154_websocket() -> WebSocketSettings {
             WebSocketField::literal("Upgrade", "websocket"),
             WebSocketField::caller("Origin"),
             WebSocketField::literal("Sec-WebSocket-Version", "13"),
-            WebSocketField::caller("Accept-Encoding"),
+            websocket_accept_encoding("Accept-Encoding"),
             WebSocketField::caller("Accept-Language"),
             WebSocketField::key("Sec-WebSocket-Key"),
             WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
@@ -400,7 +409,7 @@ pub fn v154_websocket() -> WebSocketSettings {
             WebSocketField::caller("user-agent"),
             WebSocketField::caller("origin"),
             WebSocketField::literal("sec-websocket-version", "13"),
-            WebSocketField::caller("accept-encoding"),
+            websocket_accept_encoding("accept-encoding"),
             WebSocketField::caller("accept-language"),
             WebSocketField::permessage_deflate("sec-websocket-extensions"),
             WebSocketField::client_cookies("cookie"),
@@ -429,6 +438,11 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 /// through both proxies.
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
+}
+
+/// Returns [`accept_encoding`] for a WebSocket opening template.
+fn websocket_accept_encoding(name: &str) -> WebSocketField {
+    WebSocketField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
 }
 
 /// Returns navigation request fields observed from Chrome 154.0.8037.58 on Windows 11.

@@ -209,6 +209,14 @@ fn assert_recipe_matches(
         assert_eq!(capture.value("client")?, client);
         assert_eq!(capture.value("scenario")?, scenario);
         let secure = capture.value("socket_scheme")? == "wss";
+        // Every socket is potentially trustworthy: `wss://`, or `ws://` to
+        // `127.0.0.1`. A plaintext page opening a `wss://` socket is on
+        // another site, which the page reports in `Sec-Fetch-Site`.
+        let caller: &[(&str, &str)] = if secure && capture.value("page_listener")? == "plain" {
+            &[("sec-fetch-site", "cross-site")]
+        } else {
+            &[]
+        };
         for run in 0..capture.value("repeat_count")?.parse::<usize>()? {
             for observed in capture.empty_message_compression(run)? {
                 assert_eq!(
@@ -240,11 +248,11 @@ fn assert_recipe_matches(
             for connect in capture.connect_headers(run)? {
                 assert_eq!(connect.pseudo, expected_pseudo, "{scenario} run {run}");
                 assert_eq!(connect.priority, expected_priority, "{scenario} run {run}");
-                assert_template(&recipe.http2_fields, &connect.fields, &offer)?;
+                assert_template(&recipe.http2_fields, &connect.fields, &offer, true, caller)?;
                 websocket_connection = Some((connect.connection, true));
             }
             for request in capture.websocket_requests(run)? {
-                assert_template(&recipe.http1_fields, &request.fields, &offer)?;
+                assert_template(&recipe.http1_fields, &request.fields, &offer, true, caller)?;
                 websocket_connection = Some((request.connection, false));
             }
             let (connection, extended_connect) =
@@ -289,10 +297,16 @@ fn assert_recipe_matches(
 /// Checks that captured ordinary fields are the template with optional slots
 /// removed: literals must appear with their exact value, caller slots and the
 /// compression placeholder may be absent, and cookies are never captured.
+///
+/// A trust-dependent entry must appear with its value for `trustworthy`, or
+/// be absent when it has none. `caller` names the entries whose value the
+/// page chose, as a caller field would, with that value.
 fn assert_template(
     template: &[WebSocketField],
     observed: &[(String, String)],
     offer: &str,
+    trustworthy: bool,
+    caller: &[(&str, &str)],
 ) -> TestResult {
     let mut observed = observed.iter().peekable();
     for field in template {
@@ -301,6 +315,15 @@ fn assert_template(
             WebSocketField::Authority { name } | WebSocketField::Key { name } => (name, None, true),
             WebSocketField::Caller { name } => (name, None, false),
             WebSocketField::PerMessageDeflate { name } => (name, Some(offer), false),
+            WebSocketField::ByTrust { name, .. } => {
+                let chosen = caller.iter().find_map(|(caller, value)| {
+                    name.eq_ignore_ascii_case(caller).then_some(*value)
+                });
+                match chosen.or_else(|| field.default_value(trustworthy)) {
+                    Some(value) => (name, Some(value), true),
+                    None => continue,
+                }
+            }
             WebSocketField::ClientCookies { .. } => continue,
         };
         match observed.peek() {
@@ -606,6 +629,102 @@ fn parse_pseudo_header(name: &str) -> TestResult<Http2PseudoHeader> {
         ":protocol" => Ok(Http2PseudoHeader::Protocol),
         _ => Err(format!("unsupported pseudo-header {name}").into()),
     }
+}
+
+macro_rules! proxy_fixture {
+    ($browser:literal, $version:literal, $scenario:literal) => {
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/proxy/",
+            $browser,
+            "/",
+            $version,
+            "/windows-11-26200/",
+            $scenario,
+            ".txt"
+        ))
+    };
+}
+
+macro_rules! proxy_fixture_set {
+    ($browser:literal, $version:literal) => {
+        [
+            proxy_fixture!($browser, $version, "direct-hostname"),
+            proxy_fixture!($browser, $version, "direct-loopback"),
+            proxy_fixture!($browser, $version, "http-proxy-hostname"),
+            proxy_fixture!($browser, $version, "http-proxy-loopback"),
+            proxy_fixture!($browser, $version, "https-proxy-hostname"),
+            proxy_fixture!($browser, $version, "https-proxy-loopback"),
+        ]
+    };
+}
+
+/// Every `ws://` Upgrade in the proxy route captures is the recipe's HTTP/1.1
+/// template for that origin's trust: `127.0.0.1` is potentially trustworthy
+/// and `origin.phantom.test` is not. The pages are same-origin, so no entry
+/// takes a page-chosen value.
+#[test]
+fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestResult {
+    let chromium = chromium::v154_websocket();
+    let firefox = firefox::v156_websocket();
+    for (fixtures, client, recipe) in [
+        (
+            proxy_fixture_set!("chrome", "154.0.8037.58"),
+            "Google Chrome",
+            &chromium,
+        ),
+        (
+            proxy_fixture_set!("edge", "153.0.4234.48"),
+            "Microsoft Edge",
+            &chromium,
+        ),
+        (
+            proxy_fixture_set!("firefox", "156.0"),
+            "Mozilla Firefox",
+            &firefox,
+        ),
+    ] {
+        let offer = render_offer(&recipe.permessage_deflate_offer);
+        let mut openings = [0_usize; 2];
+        for input in fixtures {
+            let mut fields = BTreeMap::new();
+            for line in input.lines() {
+                let (key, value) = line.split_once('=').ok_or("capture line is missing `=`")?;
+                fields.insert(key, value);
+            }
+            let value = |key: &str| -> TestResult<&str> {
+                fields
+                    .get(key)
+                    .copied()
+                    .ok_or_else(|| format!("capture omitted {key}").into())
+            };
+            assert_eq!(value("format")?, "phantom-proxy-route-v1");
+            assert_eq!(value("client")?, client);
+            let scenario = value("scenario")?;
+            let trustworthy = scenario.ends_with("-loopback");
+            assert!(trustworthy || scenario.ends_with("-hostname"), "{scenario}");
+            for run in 0..value("repeat_count")?.parse::<usize>()? {
+                for index in 0..value(&format!("run_{run}_request_count"))?.parse::<usize>()? {
+                    let prefix = format!("run_{run}_request_{index}");
+                    if attribute(value(&prefix)?, "kind")? != "websocket" {
+                        continue;
+                    }
+                    let mut observed = Vec::new();
+                    for field in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
+                        let line = decode_hex(value(&format!("{prefix}_header_{field}"))?)?;
+                        let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+                        observed.push((name.to_owned(), value.to_owned()));
+                    }
+                    assert_template(&recipe.http1_fields, &observed, &offer, trustworthy, &[])
+                        .map_err(|error| format!("{client} {scenario} run {run}: {error}"))?;
+                    openings[usize::from(trustworthy)] += 1;
+                }
+            }
+        }
+        // Three scenarios of three runs for each kind of origin.
+        assert_eq!(openings, [9, 9], "{client}");
+    }
+    Ok(())
 }
 
 #[test]

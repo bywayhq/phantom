@@ -64,6 +64,14 @@ pub enum WebSocketHeader {
         /// Exact field-name spelling to emit with the caller's value.
         name: Box<str>,
     },
+    /// Emits one ordered field unless the caller supplies its value.
+    ///
+    /// [`WebSocketRequestBuilder::header`](crate::WebSocketRequestBuilder::header)
+    /// with the same case-insensitive name replaces the value, keeping this
+    /// position and spelling, as it fills a [`Self::CallerField`]. A profile
+    /// recipe's [`WebSocketField::ByTrust`] entry becomes this field, or a
+    /// caller slot when it sends nothing to the WebSocket URL.
+    DefaultField(RequestHeader),
 }
 
 impl WebSocketHeader {
@@ -110,6 +118,12 @@ impl WebSocketHeader {
     pub fn caller_field(name: impl Into<Box<str>>) -> Self {
         Self::CallerField { name: name.into() }
     }
+
+    /// Creates an ordered field whose value a caller field can replace.
+    #[must_use]
+    pub fn default_field(header: RequestHeader) -> Self {
+        Self::DefaultField(header)
+    }
 }
 
 impl fmt::Debug for WebSocketHeader {
@@ -123,6 +137,7 @@ impl fmt::Debug for WebSocketHeader {
             Self::PerMessageDeflate { name } => ("permessage_deflate", name.as_ref()),
             Self::Field(header) => ("field", header.name()),
             Self::CallerField { name } => ("caller_field", name.as_ref()),
+            Self::DefaultField(header) => ("default_field", header.name()),
         };
         formatter
             .debug_struct("WebSocketHeader")
@@ -193,7 +208,9 @@ pub(super) fn prepare_http2(
                     headers.push(RequestHeader::new(name, value));
                 }
             }
-            WebSocketHeader::Field(header) => headers.push(header),
+            WebSocketHeader::Field(header) | WebSocketHeader::DefaultField(header) => {
+                headers.push(header);
+            }
             WebSocketHeader::CallerField { .. } => {}
             WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
                 return Err(WebSocketError::invalid_request(
@@ -246,7 +263,9 @@ pub(super) fn prepare(
                     headers.push(RequestHeader::new(name, value));
                 }
             }
-            WebSocketHeader::Field(header) => headers.push(header),
+            WebSocketHeader::Field(header) | WebSocketHeader::DefaultField(header) => {
+                headers.push(header);
+            }
             WebSocketHeader::CallerField { .. } => {}
         }
     }
@@ -301,7 +320,7 @@ fn validate_http2_templates(
                 validate_http2_placeholder_name(name, EXTENSIONS_NAME)?;
                 extension_placeholder_count += 1;
             }
-            WebSocketHeader::Field(header) => {
+            WebSocketHeader::Field(header) | WebSocketHeader::DefaultField(header) => {
                 let name = header.name();
                 if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
                     return Err(WebSocketError::invalid_request(
@@ -413,7 +432,7 @@ fn validate_templates(
                 validate_placeholder_name(name, EXTENSIONS_NAME)?;
                 extension_placeholder_count += 1;
             }
-            WebSocketHeader::Field(header) => {
+            WebSocketHeader::Field(header) | WebSocketHeader::DefaultField(header) => {
                 let name = header.name();
                 if name.eq_ignore_ascii_case(HOST.as_str()) {
                     return Err(WebSocketError::invalid_request(
@@ -534,17 +553,23 @@ pub(super) fn validate_policy_templates(
     validate_http2_templates(http2, extension_required).map(drop)
 }
 
-/// Fills the first matching caller slot, or appends the field.
+/// Fills the first matching caller slot or default field, or appends the field.
 pub(super) fn fill_or_append(headers: &mut Vec<WebSocketHeader>, header: RequestHeader) {
-    let slot = headers.iter_mut().find(|template| {
-        matches!(template, WebSocketHeader::CallerField { name } if name.eq_ignore_ascii_case(header.name()))
+    let slot = headers.iter_mut().find(|template| match template {
+        WebSocketHeader::CallerField { name } => name.eq_ignore_ascii_case(header.name()),
+        WebSocketHeader::DefaultField(default) => {
+            default.name().eq_ignore_ascii_case(header.name())
+        }
+        _ => false,
     });
     match slot {
         Some(slot) => {
-            let WebSocketHeader::CallerField { name } = slot else {
-                return;
+            let name: Box<str> = match slot {
+                WebSocketHeader::CallerField { name } => name.clone(),
+                WebSocketHeader::DefaultField(default) => default.name().into(),
+                _ => return,
             };
-            let filled = RequestHeader::new(name.clone(), header.value());
+            let filled = RequestHeader::new(name, header.value());
             *slot = WebSocketHeader::Field(if header.is_sensitive() {
                 filled.sensitive()
             } else {
@@ -555,12 +580,16 @@ pub(super) fn fill_or_append(headers: &mut Vec<WebSocketHeader>, header: Request
     }
 }
 
-/// Converts a profile opening template into builder fields.
+/// Converts a profile opening template into builder fields for a WebSocket
+/// URL that is, or is not, potentially trustworthy.
 ///
-/// Without `websocket-deflate` the compression placeholder is omitted: no
-/// offer can be generated, so it would never emit a field.
+/// A trust-dependent entry becomes a [`WebSocketHeader::DefaultField`] with
+/// its value for that URL, or a caller slot when it has none. Without
+/// `websocket-deflate` the compression placeholder is omitted: no offer can
+/// be generated, so it would never emit a field.
 pub(super) fn profile_headers(
     fields: &[WebSocketField],
+    trustworthy: bool,
 ) -> Result<Vec<WebSocketHeader>, WebSocketError> {
     let mut headers = Vec::with_capacity(fields.len());
     for field in fields {
@@ -569,6 +598,13 @@ pub(super) fn profile_headers(
                 WebSocketHeader::Field(RequestHeader::new(name.clone(), value.as_bytes()))
             }
             WebSocketField::Caller { name } => WebSocketHeader::caller_field(name.clone()),
+            WebSocketField::ByTrust { name, .. } => match field.default_value(trustworthy) {
+                Some(value) => WebSocketHeader::default_field(RequestHeader::new(
+                    name.clone(),
+                    value.as_bytes(),
+                )),
+                None => WebSocketHeader::caller_field(name.clone()),
+            },
             WebSocketField::Authority { name } => WebSocketHeader::authority(name.clone()),
             WebSocketField::Key { name } => WebSocketHeader::key(name.clone()),
             WebSocketField::ClientCookies { name } => WebSocketHeader::client_cookies(name.clone()),
@@ -641,7 +677,7 @@ fn accept_for_key(key: &str) -> String {
 mod tests {
     use phantom_net::request::RequestHeader;
 
-    use phantom_profile::chromium;
+    use phantom_profile::{chromium, firefox};
 
     use super::{
         WebSocketHeader, accept_for_key, default_http2_headers, fill_or_append, prepare,
@@ -756,7 +792,7 @@ mod tests {
     fn profile_templates_convert_to_valid_openings() -> Result<(), super::WebSocketError> {
         let settings = chromium::v154_websocket();
         let http1 = prepare(
-            profile_headers(&settings.http1_fields)?,
+            profile_headers(&settings.http1_fields, true)?,
             "example.test",
             no_cookie,
             None,
@@ -775,16 +811,102 @@ mod tests {
                 "Cache-Control",
                 "Upgrade",
                 "Sec-WebSocket-Version",
+                "Accept-Encoding",
                 "Sec-WebSocket-Key",
             ]
         );
-        let http2 = prepare_http2(profile_headers(&settings.http2_fields)?, no_cookie, None)?;
+        let http2 = prepare_http2(
+            profile_headers(&settings.http2_fields, true)?,
+            no_cookie,
+            None,
+        )?;
         let names = http2
             .headers
             .iter()
             .map(RequestHeader::name)
             .collect::<Vec<_>>();
-        assert_eq!(names, ["pragma", "cache-control", "sec-websocket-version"]);
+        assert_eq!(
+            names,
+            [
+                "pragma",
+                "cache-control",
+                "sec-websocket-version",
+                "accept-encoding"
+            ]
+        );
+        Ok(())
+    }
+
+    /// Returns the opening's `Accept-Encoding` and `Sec-Fetch-*` fields.
+    fn trust_fields(
+        fields: &[phantom_profile::WebSocketField],
+        trustworthy: bool,
+        caller: &[RequestHeader],
+    ) -> Result<Vec<(String, String)>, super::WebSocketError> {
+        let mut headers = profile_headers(fields, trustworthy)?;
+        for header in caller {
+            fill_or_append(&mut headers, header.clone());
+        }
+        let prepared = prepare(headers, "example.test", no_cookie, None)?;
+        Ok(prepared
+            .headers
+            .iter()
+            .filter(|header| {
+                header.name() == "Accept-Encoding" || header.name().starts_with("Sec-Fetch-")
+            })
+            .map(|header| {
+                (
+                    header.name().to_owned(),
+                    String::from_utf8_lossy(header.value()).into_owned(),
+                )
+            })
+            .collect())
+    }
+
+    fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn trust_dependent_profile_fields_follow_the_url_and_yield_to_the_caller()
+    -> Result<(), super::WebSocketError> {
+        let fields = firefox::v156_websocket().http1_fields;
+        assert_eq!(
+            trust_fields(&fields, true, &[])?,
+            pairs(&[
+                ("Accept-Encoding", "gzip, deflate, br, zstd"),
+                ("Sec-Fetch-Dest", "empty"),
+                ("Sec-Fetch-Mode", "websocket"),
+                ("Sec-Fetch-Site", "same-origin"),
+            ])
+        );
+        assert_eq!(
+            trust_fields(&fields, false, &[])?,
+            pairs(&[("Accept-Encoding", "gzip, deflate")])
+        );
+        // A caller field replaces the value in place, once, to either kind of URL.
+        let caller = [
+            RequestHeader::new("accept-encoding", "identity"),
+            RequestHeader::new("sec-fetch-site", "cross-site"),
+        ];
+        assert_eq!(
+            trust_fields(&fields, true, &caller)?,
+            pairs(&[
+                ("Accept-Encoding", "identity"),
+                ("Sec-Fetch-Dest", "empty"),
+                ("Sec-Fetch-Mode", "websocket"),
+                ("Sec-Fetch-Site", "cross-site"),
+            ])
+        );
+        assert_eq!(
+            trust_fields(&fields, false, &caller)?,
+            pairs(&[
+                ("Accept-Encoding", "identity"),
+                ("Sec-Fetch-Site", "cross-site"),
+            ])
+        );
         Ok(())
     }
 }

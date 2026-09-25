@@ -25,14 +25,25 @@ use url::{Host, Url};
 /// offer `br` and `zstd`, only to such an origin. The cookie jar uses the
 /// same test for `Secure` cookies.
 pub(crate) fn is_potentially_trustworthy(url: &Url) -> bool {
-    if url.scheme() == "https" {
-        return true;
-    }
-    match url.host() {
-        Some(Host::Ipv4(address)) => address.is_loopback(),
-        Some(Host::Ipv6(address)) => address.is_loopback(),
-        Some(Host::Domain(host)) => is_localhost_name(host),
-        None => false,
+    url.scheme() == "https"
+        || url
+            .host()
+            .is_some_and(|host| is_potentially_trustworthy_host(&host))
+}
+
+/// Returns whether a URL with a non-cryptographic scheme and this host is a
+/// potentially trustworthy origin: the host rules of
+/// [`is_potentially_trustworthy`].
+///
+/// A `ws://` WebSocket URL follows these rules too: the retained proxy route
+/// captures show Chrome 154, Edge 153, and Firefox 156 sending a `ws://`
+/// opening to `127.0.0.1` the fields they send only to a trustworthy origin,
+/// and withholding them from `origin.phantom.test`.
+pub(crate) fn is_potentially_trustworthy_host(host: &Host<&str>) -> bool {
+    match host {
+        Host::Ipv4(address) => address.is_loopback(),
+        Host::Ipv6(address) => address.is_loopback(),
+        Host::Domain(host) => is_localhost_name(host),
     }
 }
 

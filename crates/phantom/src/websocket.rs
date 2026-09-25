@@ -1,6 +1,9 @@
 //! Ordered WebSocket opening handshakes and bounded message I/O.
 
-use std::fmt;
+use std::{
+    fmt,
+    net::{Ipv4Addr, Ipv6Addr},
+};
 
 use phantom_net::{http1::OriginForm, request::RequestHeader};
 use tracing::{Instrument, Span, debug_span, field};
@@ -8,6 +11,7 @@ use tracing::{Instrument, Span, debug_span, field};
 use crate::{
     Client, HttpProtocol, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
+    request::secure_context::is_potentially_trustworthy_host,
 };
 
 #[cfg(feature = "websocket-deflate")]
@@ -130,10 +134,11 @@ impl WebSocketRequestBuilder {
             .websocket
             .as_ref()
             .ok_or_else(WebSocketError::profile_policy_unavailable)?;
-        let headers = profile_headers(&settings.http1_fields)?;
-        let http2_headers = profile_headers(&settings.http2_fields)?;
+        let request = ResolvedWebSocket::new(uri)?;
+        let headers = profile_headers(&settings.http1_fields, request.trustworthy)?;
+        let http2_headers = profile_headers(&settings.http2_fields, request.trustworthy)?;
         Ok(Self {
-            request: ResolvedWebSocket::new(uri)?,
+            request,
             client,
             selection: WebSocketSelection::ProfilePolicy,
             headers,
@@ -155,9 +160,15 @@ impl WebSocketRequestBuilder {
         if !available {
             return Err(WebSocketError::protocol_unavailable(protocol));
         }
+        let request = ResolvedWebSocket::new(uri)?;
+        let trustworthy = request.trustworthy;
         let headers = match (protocol, client.inner.websocket.as_ref()) {
-            (HttpProtocol::Http1, Some(settings)) => profile_headers(&settings.http1_fields)?,
-            (HttpProtocol::Http2, Some(settings)) => profile_headers(&settings.http2_fields)?,
+            (HttpProtocol::Http1, Some(settings)) => {
+                profile_headers(&settings.http1_fields, trustworthy)?
+            }
+            (HttpProtocol::Http2, Some(settings)) => {
+                profile_headers(&settings.http2_fields, trustworthy)?
+            }
             (HttpProtocol::Http1, None) => default_headers(),
             (HttpProtocol::Http2, None) => default_http2_headers(),
             (HttpProtocol::Http3, _) => {
@@ -165,7 +176,7 @@ impl WebSocketRequestBuilder {
             }
         };
         Ok(Self {
-            request: ResolvedWebSocket::new(uri)?,
+            request,
             client,
             selection: WebSocketSelection::Exact(protocol),
             headers,
@@ -420,6 +431,10 @@ struct ResolvedWebSocket {
     endpoint: Endpoint,
     target: OriginForm,
     transport: WebSocketTransport,
+    /// Whether the URL is potentially trustworthy, which chooses the value of
+    /// each trust-dependent recipe field. A WebSocket follows no redirect, so
+    /// the opening URL is the only one.
+    trustworthy: bool,
     #[cfg(feature = "cookies")]
     cookie_url: url::Url,
 }
@@ -449,6 +464,7 @@ impl ResolvedWebSocket {
         })?;
         let endpoint = Endpoint::new(authority, default_port)
             .map_err(|error| WebSocketError::invalid_authority(error.message()))?;
+        let trustworthy = transport == WebSocketTransport::Tls || trustworthy_host(endpoint.host());
         let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
             .map_err(|_| WebSocketError::invalid_request("invalid WebSocket request target"))?;
         #[cfg(feature = "cookies")]
@@ -474,15 +490,52 @@ impl ResolvedWebSocket {
             endpoint,
             target,
             transport,
+            trustworthy,
             #[cfg(feature = "cookies")]
             cookie_url,
         })
     }
 }
 
+/// Applies the Secure Contexts host rules to an endpoint's canonical host,
+/// which holds an IPv6 literal without brackets.
+fn trustworthy_host(host: &str) -> bool {
+    let host = if let Ok(address) = host.parse::<Ipv4Addr>() {
+        url::Host::Ipv4(address)
+    } else if let Ok(address) = host.parse::<Ipv6Addr>() {
+        url::Host::Ipv6(address)
+    } else {
+        url::Host::Domain(host)
+    };
+    is_potentially_trustworthy_host(&host)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{OriginForm, ResolvedWebSocket, WebSocketTransport};
+
+    #[test]
+    fn only_a_secure_or_local_websocket_url_is_trustworthy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (uri, trustworthy) in [
+            ("wss://origin.example/", true),
+            ("ws://127.0.0.1:8080/", true),
+            ("ws://127.9.0.1/", true),
+            ("ws://[::1]:8080/", true),
+            ("ws://localhost/", true),
+            ("ws://app.localhost./", true),
+            ("ws://origin.example/", false),
+            ("ws://10.0.0.1/", false),
+            ("ws://[::ffff:127.0.0.1]/", false),
+        ] {
+            assert_eq!(
+                ResolvedWebSocket::new(uri)?.trustworthy,
+                trustworthy,
+                "{uri}"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn resolves_plaintext_websocket_with_default_port() -> Result<(), Box<dyn std::error::Error>> {

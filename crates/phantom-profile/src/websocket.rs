@@ -49,6 +49,24 @@ pub enum WebSocketField {
         /// Exact field-name spelling.
         name: Box<str>,
     },
+    /// A field whose captured value depends on whether the WebSocket URL is
+    /// potentially trustworthy, as W3C Secure Contexts defines it.
+    ///
+    /// A `wss://` URL is potentially trustworthy, and so is a `ws://` URL
+    /// whose host is a loopback address (`127.0.0.0/8` or `::1`),
+    /// `localhost`, or a name under `.localhost`. A caller field with this
+    /// name takes this position in either case, as it does for
+    /// [`Self::Caller`].
+    ByTrust {
+        /// Exact field-name spelling.
+        name: Box<str>,
+        /// Value sent to a potentially trustworthy URL, or `None` to send
+        /// nothing there unless the caller supplies the field.
+        trustworthy: Option<Box<str>>,
+        /// Value sent to any other URL, or `None` to send nothing there
+        /// unless the caller supplies the field.
+        untrustworthy: Option<Box<str>>,
+    },
 }
 
 impl WebSocketField {
@@ -89,6 +107,51 @@ impl WebSocketField {
     #[must_use]
     pub fn client_cookies(name: impl Into<Box<str>>) -> Self {
         Self::ClientCookies { name: name.into() }
+    }
+
+    /// Creates a field sent only to a potentially trustworthy URL.
+    #[must_use]
+    pub fn trustworthy_only(name: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        Self::ByTrust {
+            name: name.into(),
+            trustworthy: Some(value.into()),
+            untrustworthy: None,
+        }
+    }
+
+    /// Creates a field with one value for a potentially trustworthy URL and
+    /// another for any other URL.
+    #[must_use]
+    pub fn by_trust(
+        name: impl Into<Box<str>>,
+        trustworthy: impl Into<Box<str>>,
+        untrustworthy: impl Into<Box<str>>,
+    ) -> Self {
+        Self::ByTrust {
+            name: name.into(),
+            trustworthy: Some(trustworthy.into()),
+            untrustworthy: Some(untrustworthy.into()),
+        }
+    }
+
+    /// Returns the value this entry sends when the caller supplies no field
+    /// of its name: a literal's value, or a trust-dependent entry's value
+    /// for `trustworthy`. Slots and placeholders return `None`.
+    #[must_use]
+    pub fn default_value(&self, trustworthy: bool) -> Option<&str> {
+        match self {
+            Self::Literal { value, .. } => Some(value),
+            Self::ByTrust {
+                trustworthy: secure,
+                untrustworthy: other,
+                ..
+            } => if trustworthy { secure } else { other }.as_deref(),
+            Self::Caller { .. }
+            | Self::Authority { .. }
+            | Self::Key { .. }
+            | Self::PerMessageDeflate { .. }
+            | Self::ClientCookies { .. } => None,
+        }
     }
 }
 
@@ -317,7 +380,9 @@ fn validate_template(
     let mut cookies = 0;
     for template in fields {
         let name = match template {
-            WebSocketField::Literal { name, .. } | WebSocketField::Caller { name } => name,
+            WebSocketField::Literal { name, .. }
+            | WebSocketField::Caller { name }
+            | WebSocketField::ByTrust { name, .. } => name,
             WebSocketField::Authority { name } => {
                 authority += 1;
                 name

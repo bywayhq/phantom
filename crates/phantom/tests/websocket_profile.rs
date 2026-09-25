@@ -1257,19 +1257,25 @@ async fn upgrade_like(
         .await?)
 }
 
-/// Supplies the captured value for every caller slot the template names.
+/// Supplies the captured value for every caller slot the template names, and
+/// for every trust-dependent entry whose captured value is not the recipe's.
+///
+/// Every capture here opens a potentially trustworthy URL, so a differing
+/// value is one the page chose, such as `Sec-Fetch-Site: cross-site`.
 fn fill_callers(
     mut builder: WebSocketRequestBuilder,
     template: &[WebSocketField],
     captured: &[(String, String)],
 ) -> WebSocketRequestBuilder {
     for field in template {
-        let WebSocketField::Caller { name } = field else {
-            continue;
+        let name = match field {
+            WebSocketField::Caller { name } | WebSocketField::ByTrust { name, .. } => name,
+            _ => continue,
         };
         if let Some((_, value)) = captured
             .iter()
             .find(|(captured, _)| captured.eq_ignore_ascii_case(name))
+            && field.default_value(true) != Some(value.as_str())
         {
             builder = builder.header(RequestHeader::new(name.clone(), value.as_str()));
         }

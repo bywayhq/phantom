@@ -154,6 +154,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `RequestField::by_trust` constructors, and `RequestField::default_value`:
   a template field whose value depends on whether the request URL is
   potentially trustworthy.
+- `WebSocketField::ByTrust`, with the `WebSocketField::trustworthy_only` and
+  `WebSocketField::by_trust` constructors, and `WebSocketField::default_value`:
+  a WebSocket opening field whose value depends on whether the WebSocket URL
+  is potentially trustworthy. `WebSocketHeader::DefaultField` and
+  `WebSocketHeader::default_field` add an opening field whose value a caller
+  field with the same name replaces in place.
 
 - Chrome 154, Edge 153, and Firefox 156 recipes for TLS, HTTP/2, HTTP/3, QUIC,
   TCP, WebSocket, cookie placement, client hints, and request templates.
@@ -320,6 +326,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and `Accept-CH` from them is learned, where before only HTTPS origins got
   them. Content decoding follows the `Accept-Encoding` of the final redirect
   hop.
+- Wire change for WebSocket openings from `chromium::v154_websocket` and
+  `firefox::v156_websocket`. The recipes now send `Accept-Encoding`
+  themselves: `gzip, deflate, br, zstd` to a `wss://` or loopback `ws://`
+  URL, and `gzip, deflate` to any other `ws://` URL, where before the field
+  was left to the caller. Firefox's recipe sends `Sec-Fetch-Dest`,
+  `Sec-Fetch-Mode`, and `Sec-Fetch-Site` (default `same-origin`) only to a
+  potentially trustworthy URL, where before it sent the first two to every
+  URL and left `Sec-Fetch-Site` to the caller. This matches the Chrome 154,
+  Edge 153, and Firefox 156 proxy route captures. A caller field with one of
+  these names still replaces the recipe's value in place.
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
   cookies, treating every request as a top-level navigation, and evicts least

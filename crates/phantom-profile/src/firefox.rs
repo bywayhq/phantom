@@ -284,13 +284,27 @@ pub fn v156_http2() -> Http2Settings {
 /// ClientHello.
 ///
 /// The opening templates keep the captured field order and spelling.
-/// `User-Agent`, `Accept-Language`, `Accept-Encoding`, `Origin`, and
-/// `Sec-Fetch-Site` are caller slots because their values are persona and
-/// page data; the H2 template also places `sec-fetch-storage-access`, which
-/// Firefox sent from a cross-site page. The captures carry no cookies, so the
-/// cookie placeholder's final position is not observed. The compression
-/// offer is bare `permessage-deflate`; Firefox always sends it, while Phantom
-/// sends it only when the caller enables compression.
+/// `User-Agent`, `Accept-Language`, and `Origin` are caller slots because
+/// their values are persona and page data; the H2 template also places
+/// `sec-fetch-storage-access`, which Firefox sent from a cross-site page. The
+/// captures carry no cookies, so the cookie placeholder's final position is
+/// not observed. The compression offer is bare `permessage-deflate`; Firefox
+/// always sends it, while Phantom sends it only when the caller enables
+/// compression.
+///
+/// `Accept-Encoding` and the three `Sec-Fetch-*` fields are
+/// [`WebSocketField::ByTrust`] entries, as on ordinary requests: Firefox
+/// offers `br` and `zstd`, and sends `Sec-Fetch-*` at all, only to a
+/// potentially trustworthy URL. The retained proxy route captures show the
+/// `ws://` Upgrade to `127.0.0.1` with `gzip, deflate, br, zstd` and
+/// `Sec-Fetch-Dest`, `Sec-Fetch-Mode`, and `Sec-Fetch-Site` between
+/// `Connection` and `Pragma`, and the one to the plaintext name
+/// `origin.phantom.test` with `gzip, deflate` and no `Sec-Fetch-*` field,
+/// direct and through both proxies; the remaining fields keep their order.
+/// `Sec-Fetch-Site` defaults to `same-origin`, the value every same-origin
+/// page in the captures sent; a page on another site sends `cross-site`, as
+/// in the `fresh-origin` capture. A caller field with the name of any of
+/// these entries replaces the recipe's value in place, to any URL.
 ///
 /// In the `refused-stream` captures Firefox answers
 /// `RST_STREAM(REFUSED_STREAM)` by failing the WebSocket with close code
@@ -311,15 +325,15 @@ pub fn v156_websocket() -> WebSocketSettings {
             WebSocketField::caller("User-Agent"),
             WebSocketField::literal("Accept", "*/*"),
             WebSocketField::caller("Accept-Language"),
-            WebSocketField::caller("Accept-Encoding"),
+            websocket_accept_encoding("Accept-Encoding"),
             WebSocketField::literal("Sec-WebSocket-Version", "13"),
             WebSocketField::caller("Origin"),
             WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
             WebSocketField::key("Sec-WebSocket-Key"),
             WebSocketField::literal("Connection", "Upgrade"),
-            WebSocketField::literal("Sec-Fetch-Dest", "empty"),
-            WebSocketField::literal("Sec-Fetch-Mode", "websocket"),
-            WebSocketField::caller("Sec-Fetch-Site"),
+            WebSocketField::trustworthy_only("Sec-Fetch-Dest", "empty"),
+            WebSocketField::trustworthy_only("Sec-Fetch-Mode", "websocket"),
+            WebSocketField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
             WebSocketField::literal("Pragma", "no-cache"),
             WebSocketField::literal("Cache-Control", "no-cache"),
             WebSocketField::literal("Upgrade", "websocket"),
@@ -329,14 +343,14 @@ pub fn v156_websocket() -> WebSocketSettings {
             WebSocketField::caller("user-agent"),
             WebSocketField::literal("accept", "*/*"),
             WebSocketField::caller("accept-language"),
-            WebSocketField::caller("accept-encoding"),
+            websocket_accept_encoding("accept-encoding"),
             WebSocketField::literal("sec-websocket-version", "13"),
             WebSocketField::caller("origin"),
             WebSocketField::permessage_deflate("sec-websocket-extensions"),
             WebSocketField::caller("sec-fetch-storage-access"),
-            WebSocketField::literal("sec-fetch-dest", "empty"),
-            WebSocketField::literal("sec-fetch-mode", "websocket"),
-            WebSocketField::caller("sec-fetch-site"),
+            WebSocketField::trustworthy_only("sec-fetch-dest", "empty"),
+            WebSocketField::trustworthy_only("sec-fetch-mode", "websocket"),
+            WebSocketField::trustworthy_only("sec-fetch-site", "same-origin"),
             WebSocketField::literal("pragma", "no-cache"),
             WebSocketField::literal("cache-control", "no-cache"),
             WebSocketField::client_cookies("cookie"),
@@ -366,6 +380,11 @@ const V156_WINDOWS_USER_AGENT: &str =
 /// `modules/libpref/init/all.js` lines 1187-1188 at `FIREFOX_156_0_RELEASE`).
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
+}
+
+/// Returns [`accept_encoding`] for a WebSocket opening template.
+fn websocket_accept_encoding(name: &str) -> WebSocketField {
+    WebSocketField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
 }
 
 /// Returns navigation request fields observed from Firefox 156.0 on Windows 11.
