@@ -288,10 +288,6 @@ Supported:
 
 Known gaps:
 
-- Phantom's QPACK encoder stream is client stream 6, and its type byte is
-  sent when a connection starts. Chrome 154 and Edge 153 use stream 10 and
-  send the type byte with the first encoder instruction, so their 0-RTT
-  encoder instructions travel on a different stream than Phantom's.
 - After a server rejects early data, the captured browsers send the request
   again on the same connection; Phantom sends it on a new connection, which
   offers no early data. An Alt-Svc racing attempt offers no early data.
@@ -350,6 +346,10 @@ Supported wire behavior:
 - Typed, ordered SETTINGS and request and response fields.
 - Chrome's nonzero inbound [QPACK](glossary.md#qpack), randomized GREASE, H3
   DATAGRAM, and deferred decoder-stream policy.
+- Chrome's QPACK stream order: the decoder stream is client stream 6 and the
+  encoder stream is client stream 10. The encoder stream's type is written
+  with its first instructions, ahead of the first request's HEADERS, so a
+  connection that sends no request writes only its control stream.
 - Bounded dynamic decoding of responses and request encoding owned by the
   connection. Live QPACK stream and HEADERS bytes match the captures.
 - A local 256 KiB ceiling on a decoded response field section, lower when the

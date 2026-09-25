@@ -95,6 +95,15 @@ The built-in Chrome profile reproduces the retained encoder and HEADERS bytes
 of Chrome's first request. A profile that does not opt into dynamic encoding
 stays stateless.
 
+`Http3Settings::qpack_stream_order` and `qpack_encoder_stream` decide which
+client stream each QPACK stream gets and when the encoder stream appears on
+the wire. The Chrome recipe opens the decoder stream before the encoder
+stream, so they are client streams 6 and 10, and holds the encoder stream's
+type, with any instruction queued before the first request, such as the
+table capacity, until that request's field section needs instructions. The
+vendored `h3` builder applies both through `qpack_decoder_stream_first` and
+`defer_qpack_encoder_stream`.
+
 ## Request streams
 
 The one-shot `phantom_net::http3::send_request*` functions take

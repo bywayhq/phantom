@@ -237,6 +237,24 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `QuicClientConfig` with `with_transport_profile` from `chromium::v154_quic`
   and should not offer early data calls `without_early_data` on it.
 
+- Wire change for HTTP/3 connections from the Chrome 154 and Edge 153
+  recipes. The QPACK encoder stream is now client stream 10 and the decoder
+  stream client stream 6, and the encoder stream's type is written with its
+  first instructions, ahead of the first request's HEADERS, instead of when
+  the connection starts. A connection that sends no request writes only its
+  control stream, as Chrome 154 and Edge 153 do.
+  `phantom_profile::Http3Settings` gains the public fields
+  `qpack_encoder_stream` (`Http3QpackEncoderStream`) and `qpack_stream_order`
+  (`Http3QpackStreamOrder`), which `chromium::v154_http3` sets to
+  `OnFirstInstruction` and `DecoderFirst`. The vendored `phantom-h3`
+  0.0.8-phantom.4 adds `client::Builder::qpack_decoder_stream_first` and
+  `defer_qpack_encoder_stream`; `phantom-h3-datagram` 0.0.2-phantom.4 and
+  `phantom-h3-quinn` 0.0.10-phantom.4 follow its pin.
+  Migrate: add `qpack_encoder_stream: Http3QpackEncoderStream::Eager` and
+  `qpack_stream_order: Http3QpackStreamOrder::EncoderFirst` to each
+  `Http3Settings` struct literal to keep the previous streams, or fill them
+  from `chromium::v154_http3()` with struct update syntax.
+
 ### Added
 
 - `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest

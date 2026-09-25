@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use http::Request;
 use phantom_profile::{
-    Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
-    chromium,
+    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
+    Http3Setting, Http3SettingOrder, Http3Settings, chromium,
 };
 use tokio::time::timeout;
 
@@ -25,6 +25,8 @@ async fn rejects_invalid_profile_before_connecting() -> TestResult<()> {
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
+        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
     };
     let result = super::send_request_head(
         "127.0.0.1:9".parse()?,
@@ -245,6 +247,8 @@ async fn local_field_section_limit_is_not_advertised() -> TestResult<()> {
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
+        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
     };
     let prefix = capture_seeded_control_stream(&settings, [0; 8]).await?;
 

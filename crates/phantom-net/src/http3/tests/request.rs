@@ -11,8 +11,8 @@ use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
 use http::{HeaderValue, Request, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use phantom_profile::{
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting,
-    Http3SettingOrder, Http3Settings, chromium,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+    Http3QpackStreamOrder, Http3Setting, Http3SettingOrder, Http3Settings, chromium,
 };
 use tokio::{sync::oneshot, time::timeout};
 use tracing::instrument::WithSubscriber;
@@ -760,6 +760,8 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
+        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
     };
     let mut invalid_request_settings = chromium::v154_http3_request();
     invalid_request_settings.pseudo_header_order[3] = Http3PseudoHeader::Method;
@@ -959,91 +961,38 @@ fn fixture_request_input(
 
 struct ChromeClientStreams {
     _control: quinn::RecvStream,
+    _decoder: quinn::RecvStream,
     encoder: quinn::RecvStream,
-    _grease: Vec<quinn::RecvStream>,
-    _pending: Vec<quinn::RecvStream>,
 }
 
+/// Accepts the client streams of a Chrome 154 request in their wire order.
+///
+/// The control stream is client stream 2. The QPACK decoder stream is 6 and
+/// carries nothing before the response, so QUIC opens it only implicitly
+/// when stream 10 arrives (RFC 9000, section 2.1). The encoder stream is 10,
+/// and its type arrives with its first instructions.
 async fn accept_chrome_client_request(
     connection: &quinn::Connection,
 ) -> TestResult<(ChromeClientStreams, quinn::SendStream, quinn::RecvStream)> {
-    let mut control = None;
-    let mut encoder = None;
-    let mut grease = Vec::new();
-    let mut pending = Vec::new();
-    while control.is_none() || encoder.is_none() {
-        let stream = connection.accept_uni().await?;
-        classify_chrome_client_stream(stream, &mut control, &mut encoder, &mut grease).await?;
+    let mut control = connection.accept_uni().await?;
+    if u64::from(control.id()) != 2 || read_stream_varint(&mut control).await? != 0x00 {
+        return Err("client stream 2 is not the control stream".into());
     }
-
-    let request = 'request: loop {
-        tokio::select! {
-            biased;
-            stream = connection.accept_uni() => {
-                let mut stream = stream?;
-                tokio::select! {
-                    biased;
-                    kind = read_stream_varint(&mut stream) => {
-                        store_chrome_client_stream(
-                            kind?,
-                            stream,
-                            &mut control,
-                            &mut encoder,
-                            &mut grease,
-                        )?;
-                    }
-                    request = connection.accept_bi() => {
-                        let request = request?;
-                        pending.push(stream);
-                        break 'request request;
-                    }
-                }
-            }
-            request = connection.accept_bi() => break 'request request?,
-        }
-    };
-
+    let decoder = connection.accept_uni().await?;
+    if u64::from(decoder.id()) != 6 {
+        return Err("client opened an unexpected second unidirectional stream".into());
+    }
+    let mut encoder = connection.accept_uni().await?;
+    if u64::from(encoder.id()) != 10 || read_stream_varint(&mut encoder).await? != 0x02 {
+        return Err("client stream 10 is not the QPACK encoder stream".into());
+    }
+    let (response, request) = connection.accept_bi().await?;
     let streams = ChromeClientStreams {
-        _control: control.ok_or("client omitted its control stream")?,
-        encoder: encoder.ok_or("client omitted its QPACK encoder stream")?,
-        _grease: grease,
-        _pending: pending,
+        _control: control,
+        _decoder: decoder,
+        encoder,
     };
-    Ok((streams, request.0, request.1))
-}
-
-async fn classify_chrome_client_stream(
-    mut stream: quinn::RecvStream,
-    control: &mut Option<quinn::RecvStream>,
-    encoder: &mut Option<quinn::RecvStream>,
-    grease: &mut Vec<quinn::RecvStream>,
-) -> TestResult<()> {
-    let kind = read_stream_varint(&mut stream).await?;
-    store_chrome_client_stream(kind, stream, control, encoder, grease)
-}
-
-fn store_chrome_client_stream(
-    kind: u64,
-    stream: quinn::RecvStream,
-    control: &mut Option<quinn::RecvStream>,
-    encoder: &mut Option<quinn::RecvStream>,
-    grease: &mut Vec<quinn::RecvStream>,
-) -> TestResult<()> {
-    match kind {
-        0x00 => {
-            if control.replace(stream).is_some() {
-                return Err("client opened a duplicate control stream".into());
-            }
-        }
-        0x02 => {
-            if encoder.replace(stream).is_some() {
-                return Err("client opened a duplicate QPACK encoder stream".into());
-            }
-        }
-        0x03 => return Err("client emitted QPACK decoder bytes before the request".into()),
-        _ => grease.push(stream),
-    }
-    Ok(())
+    Ok((streams, response, request))
 }
 
 async fn read_stream_varint(stream: &mut quinn::RecvStream) -> TestResult<u64> {

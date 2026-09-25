@@ -1,7 +1,7 @@
 use super::{
-    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding,
-    Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
-    InvalidHttp3RequestSettings, InvalidHttp3Settings,
+    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+    Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
 };
 
 fn settings() -> Http3Settings {
@@ -16,6 +16,8 @@ fn settings() -> Http3Settings {
         setting_order: Http3SettingOrder::Ascending,
         qpack_encoding: Http3QpackEncoding::Dynamic,
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
+        qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
+        qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
     }
 }
 

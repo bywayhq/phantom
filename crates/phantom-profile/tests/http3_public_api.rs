@@ -1,8 +1,9 @@
 //! Public HTTP/3 profile construction checks.
 
 use phantom_profile::http3::{
-    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding,
-    Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+    Http3SettingOrder, Http3Settings,
 };
 
 #[test]
@@ -17,6 +18,8 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
         setting_order: Http3SettingOrder::Ascending,
         qpack_encoding: Http3QpackEncoding::Dynamic,
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
+        qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
+        qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
     };
     let mut request = Http3RequestSettings {
         pseudo_header_order: vec![

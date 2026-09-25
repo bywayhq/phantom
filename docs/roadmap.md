@@ -27,6 +27,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   [Content decoding](guides/content-decoding.md)).
 - Exact HTTP/3 with QUIC session resumption and early data in the Chrome,
   Edge, Brave, and Opera recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
+- Chrome's QPACK stream order in the Chrome, Edge, Brave, and Opera HTTP/3
+  recipes: the encoder stream is client stream 10, and its type is written
+  with its first instructions
+  ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
@@ -91,11 +95,6 @@ anything does.
 
 #### Wire fidelity
 
-- QPACK stream order. Chromium opens its decoder stream before its encoder
-  stream (client stream 10) and writes a stream's type byte with its first
-  instruction; Phantom's encoder is stream 6 and sends its type byte at
-  connection start. Status: in progress. Needs a vendored `h3` seam and a
-  capture that records stream types.
 - Resend on the same connection after a server rejects early data. Evidence:
   the Chrome 154, Edge 153, and Firefox 156 captures resend every request in
   1-RTT on that connection; Phantom opens a new one. Status: in progress.

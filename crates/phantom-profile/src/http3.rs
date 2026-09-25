@@ -74,6 +74,34 @@ pub enum Http3QpackDecoderStream {
     OnFeedback,
 }
 
+/// Opening order of the local QPACK encoder and decoder streams.
+///
+/// Both streams are opened after the control stream, so on QUIC the control
+/// stream is client stream 2 and the QPACK streams are 6 and 10 in this order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3QpackStreamOrder {
+    /// Open the encoder stream (6) before the decoder stream (10).
+    EncoderFirst,
+    /// Open the decoder stream (6) before the encoder stream (10).
+    DecoderFirst,
+}
+
+/// Stream-type emission policy for the local QPACK encoder stream.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3QpackEncoderStream {
+    /// Write the encoder stream type when the HTTP/3 connection starts.
+    Eager,
+    /// Reserve the stream but write its type only with the first encoder
+    /// instructions that a request's field section needs.
+    ///
+    /// Instructions queued earlier, such as the dynamic table capacity, wait
+    /// for that field section. A connection that sends no request, or whose
+    /// requests need no instructions, never writes to the stream.
+    OnFirstInstruction,
+}
+
 /// A request pseudo-header in its QPACK field-section order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -103,6 +131,10 @@ pub struct Http3Settings {
     pub qpack_encoding: Http3QpackEncoding,
     /// Controls when the local QPACK decoder stream becomes visible on the wire.
     pub qpack_decoder_stream: Http3QpackDecoderStream,
+    /// Controls when the local QPACK encoder stream becomes visible on the wire.
+    pub qpack_encoder_stream: Http3QpackEncoderStream,
+    /// Opening order, and so stream identifiers, of the local QPACK streams.
+    pub qpack_stream_order: Http3QpackStreamOrder,
 }
 
 impl Http3Settings {

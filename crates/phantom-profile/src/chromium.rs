@@ -12,8 +12,9 @@ use crate::{
         Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
     },
     http3::{
-        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding,
-        Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+        Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+        Http3SettingOrder, Http3Settings,
     },
     proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
@@ -750,8 +751,12 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
 /// The five settings, their ascending order, their id and value widths, and the
 /// randomized reserved setting come from the retained Chrome 154 raw
 /// control-stream capture, three fresh processes. The QPACK encoding and the
-/// empty decoder-stream prefix come from the same capture. The returned value
-/// is owned and can be customized before constructing a transport.
+/// empty decoder-stream prefix come from the same capture. The QPACK stream
+/// order and the encoder stream's lazy type follow the retained resumption
+/// captures: Chrome 154 opens its decoder stream before its encoder stream, so
+/// the encoder is client stream 10, and writes the encoder stream type only
+/// with its first instructions. The returned value is owned and can be
+/// customized before constructing a transport.
 #[must_use]
 pub fn v154_http3() -> Http3Settings {
     Http3Settings {
@@ -765,6 +770,8 @@ pub fn v154_http3() -> Http3Settings {
         setting_order: Http3SettingOrder::Ascending,
         qpack_encoding: Http3QpackEncoding::Dynamic,
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
+        qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
+        qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
     }
 }
 

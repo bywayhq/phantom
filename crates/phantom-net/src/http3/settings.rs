@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use phantom_profile::{
-    Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
+    Http3Setting, Http3SettingOrder, Http3Settings,
 };
 use phantom_quic_btls::QuicClientConfig;
 
@@ -73,7 +74,28 @@ fn builder_with_entropy(
             ));
         }
     }
+    match settings.qpack_encoder_stream {
+        Http3QpackEncoderStream::Eager => {}
+        Http3QpackEncoderStream::OnFirstInstruction => {
+            builder.defer_qpack_encoder_stream(true);
+        }
+        _ => return Err(unsupported_qpack_stream_policy()),
+    }
+    match settings.qpack_stream_order {
+        Http3QpackStreamOrder::EncoderFirst => {}
+        Http3QpackStreamOrder::DecoderFirst => {
+            builder.qpack_decoder_stream_first(true);
+        }
+        _ => return Err(unsupported_qpack_stream_policy()),
+    }
     Ok(builder)
+}
+
+fn unsupported_qpack_stream_policy() -> Http3Error {
+    Http3Error::without_source(
+        Http3ErrorKind::Configuration,
+        "HTTP/3 profile contains an unsupported QPACK stream policy",
+    )
 }
 
 pub(super) fn validate(
@@ -125,6 +147,15 @@ pub(super) fn validate(
                 "HTTP/3 profile contains an unsupported QPACK decoder stream policy",
             ));
         }
+    }
+    if !matches!(
+        settings.qpack_encoder_stream,
+        Http3QpackEncoderStream::Eager | Http3QpackEncoderStream::OnFirstInstruction
+    ) || !matches!(
+        settings.qpack_stream_order,
+        Http3QpackStreamOrder::EncoderFirst | Http3QpackStreamOrder::DecoderFirst
+    ) {
+        return Err(unsupported_qpack_stream_policy());
     }
     match settings.setting_order {
         Http3SettingOrder::Fixed | Http3SettingOrder::Ascending => {}

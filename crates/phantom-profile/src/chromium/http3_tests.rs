@@ -1,6 +1,6 @@
 use crate::{
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
-    Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+    Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
 };
 
 use super::{v154_http3, v154_http3_request};
@@ -260,4 +260,101 @@ fn named_http3_recipes_leave_extended_connect_order_unset() {
         v154_http3_request().extended_connect_pseudo_header_order,
         None
     );
+}
+
+const STREAM_FIXTURES: [&str; 4] = [
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-streams-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-streams-reject.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-streams-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-streams-reject.txt"
+    )),
+];
+
+/// In every captured Chrome 154 and Edge 153 connection, fresh or resumed,
+/// the control stream (type 0x00) is client stream 2 and carries the first
+/// unidirectional byte. The QPACK encoder stream (type 0x02) is stream 10, is
+/// written exactly on the connections that carried a request, and its first
+/// STREAM frame holds instructions after the type. The decoder stream (type
+/// 0x03) is stream 6 and, when written at all, comes after the encoder
+/// stream. The recipe opens the decoder stream first and defers both types.
+#[test]
+fn chromium_captures_open_qpack_streams_in_the_recipe_order()
+-> Result<(), Box<dyn std::error::Error>> {
+    let profile = v154_http3();
+    assert_eq!(
+        profile.qpack_stream_order,
+        Http3QpackStreamOrder::DecoderFirst
+    );
+    assert_eq!(
+        profile.qpack_encoder_stream,
+        Http3QpackEncoderStream::OnFirstInstruction
+    );
+    assert_eq!(
+        profile.qpack_decoder_stream,
+        Http3QpackDecoderStream::OnFeedback
+    );
+
+    let mut connections = 0;
+    for fixture in STREAM_FIXTURES {
+        let fields = fixture
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .collect::<std::collections::HashMap<_, _>>();
+        let mut requested = std::collections::HashSet::new();
+        for (key, value) in &fields {
+            if let Some(rest) = key.strip_prefix("run_")
+                && let Some((run, request)) = rest.split_once("_request_")
+                && request.parse::<usize>().is_ok()
+            {
+                let connection = value
+                    .split(',')
+                    .find_map(|field| field.strip_prefix("connection:"))
+                    .ok_or("request line names no connection")?;
+                requested.insert(format!("run_{run}_connection_{connection}"));
+            }
+        }
+        for (key, order) in &fields {
+            let Some(prefix) = key.strip_suffix("_unidirectional_streams") else {
+                continue;
+            };
+            connections += 1;
+            let order = order.split(',').collect::<Vec<_>>();
+            let expected: &[&str] = match (requested.contains(prefix), order.len()) {
+                (false, _) => &["2"],
+                (true, 2) => &["2", "10"],
+                (true, _) => &["2", "10", "6"],
+            };
+            assert_eq!(order, expected, "{prefix}");
+            for stream in order {
+                let record = fields
+                    .get(format!("{prefix}_unidirectional_stream_{stream}").as_str())
+                    .ok_or("stream record missing")?;
+                let expected_type = match stream {
+                    "2" => "type:0x00,",
+                    "6" => "type:0x03,",
+                    _ => "type:0x02,",
+                };
+                assert!(record.starts_with(expected_type), "{prefix} {stream}");
+                let first_frame_bytes: usize = record
+                    .split(',')
+                    .find_map(|field| field.strip_prefix("first_frame_bytes:"))
+                    .ok_or("first frame length missing")?
+                    .parse()?;
+                assert!(first_frame_bytes > 1, "{prefix} {stream}");
+            }
+        }
+    }
+    assert_eq!(connections, 69);
+    Ok(())
 }

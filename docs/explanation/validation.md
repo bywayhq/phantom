@@ -1917,6 +1917,28 @@ Chromium's QPACK encoder stream (see the source below), so Chromium inserted
 into the dynamic table in 0-RTT, using the table capacity the aioquic server
 advertised on the ticket's connection.
 
+The `resumption-streams-accept.txt` and `resumption-streams-reject.txt`
+fixtures repeat the `accept` and `reject` scenarios, three runs each per
+browser, and also record each client unidirectional stream's type and the
+packet-number space, length, and arrival time of the STREAM frame that carried
+its first byte. In all 69 Chrome and Edge connections, fresh or resumed:
+
+- client stream 2 is the control stream (type 0x00), and its first byte
+  arrives before any other unidirectional byte. On all 29 resumed
+  connections whose early data was accepted it arrived in 0-RTT packets;
+- client stream 10 is the QPACK encoder stream (type 0x02). It is written on
+  exactly the connections that carried a request, 0.1 to 2.6 ms before the
+  first request's HEADERS reached the server, and its first STREAM frame
+  holds 367 to 476 bytes: the type, the table capacity, and the request's
+  inserts. A connection that carried no request, such as an idle preconnect,
+  wrote only stream 2;
+- client stream 6 is the QPACK decoder stream (type 0x03). It was written on
+  33 connections, always after stream 10 and in 1-RTT packets, with a first
+  STREAM frame of 2 or 5 bytes: the type and its first feedback;
+- when the server rejected early data, streams 2 and 10 and every request
+  were written again in 1-RTT packets on the same connection, with the same
+  stream numbers, when the handshake completed.
+
 Chromium's source shows what it remembers. Chrome 154.0.8037.58's `DEPS`
 pins quiche `80bf9559d3a4c08dde4b85abc46d190a88ffef64`; paths below are under
 `quiche/quic/core/` at that revision:
@@ -2002,6 +2024,20 @@ Replay against Phantom:
   `early_data_needs_a_ticket_stored_with_application_state` and
   `held_tickets_are_bounded_and_dropped_with_oversized_state` cover the
   bounds.
+- `chromium_captures_open_qpack_streams_in_the_recipe_order`, in
+  `crates/phantom-profile/src/chromium/http3_tests.rs`, reads the four
+  `resumption-streams-*` fixtures, checks the stream order and types above,
+  and checks that `chromium::v154_http3` opens the decoder stream first
+  (`Http3QpackStreamOrder::DecoderFirst`) and defers both QPACK stream types.
+  `chrome_request_matches_captured_qpack_on_a_live_connection`, in
+  `crates/phantom-net/src/http3/tests/request.rs`, sends the recipe's request
+  to a loopback server, which sees the control stream as stream 2, the
+  encoder stream as stream 10 with the captured instructions after its type,
+  and no decoder bytes. The vendored `h3` tests
+  `chromium_stream_order_writes_the_encoder_stream_type_with_its_first_instructions`
+  and `a_held_stream_type_is_written_with_the_first_field_section_instructions`
+  show that the table-capacity instruction waits for the first field section
+  and follows the type.
 - The vendored `h3` tests `dynamic_request_uses_remembered_settings_before_any_peer_settings`,
   `remembered_settings_apply_until_compatible_control_settings_replace_them`,
   `control_settings_incompatible_with_remembered_settings_are_rejected`,
@@ -2037,12 +2073,6 @@ Limits:
   and Phantom's would not; no capture shows such a connection.
 - The `initial_rtt_us` value is Phantom's own measurement, so the tests
   compare its encoding, not its value.
-- Phantom opens its QPACK encoder stream as client stream 6 and its decoder
-  stream as stream 10, and writes the encoder stream's type byte when the
-  connection starts. Chromium uses stream 10 for its encoder and writes the
-  type byte with the first instruction. So Phantom's 0-RTT encoder
-  instructions travel on stream 6, where Chromium's travel on stream 10.
-  The [roadmap](../roadmap.md) has the item.
 - Phantom keeps only the SETTINGS it understands, where Chromium keeps the
   whole frame; the kept values are the same. Phantom also rejects a server
   that disables a remembered extended CONNECT, HTTP Datagram, or WebTransport

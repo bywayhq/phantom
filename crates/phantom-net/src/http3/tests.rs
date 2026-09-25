@@ -14,8 +14,8 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::{
-    Http3QpackDecoderStream, Http3QpackEncoding, Http3Setting, Http3SettingOrder, Http3Settings,
-    chromium, quic::QuicTransportSettings,
+    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
+    Http3Setting, Http3SettingOrder, Http3Settings, chromium, quic::QuicTransportSettings,
 };
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -560,6 +560,8 @@ fn test_settings() -> Http3Settings {
         setting_order: Http3SettingOrder::Fixed,
         qpack_encoding: Http3QpackEncoding::Stateless,
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
+        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
     }
 }
 
