@@ -3,11 +3,13 @@ use std::{error::Error as StdError, fmt, future::Future};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use phantom_profile::TcpSettings;
 use tokio_socks::{IntoTargetAddr, TargetAddr, tcp::Socks5Stream};
 use tracing::{Instrument, Span, debug_span, field};
 
-use crate::direct::{DirectConnectError, connect_tcp, poll_tokio_io};
+use crate::{
+    address_cache::resolve,
+    direct::{Dialer, DirectConnectError, connect_tcp, poll_tokio_io},
+};
 
 /// Stable category of SOCKS5 tunnel failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,12 +237,21 @@ pub async fn connect_socks5_tunnel_direct_with_auth(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    socks5_tunnel_remote_dns(None, proxy_host, proxy_port, target_host, target_port, auth).await
+    socks5_tunnel_remote_dns(
+        Dialer::default(),
+        proxy_host,
+        proxy_port,
+        target_host,
+        target_port,
+        auth,
+    )
+    .await
 }
 
-/// Opens a SOCKS5 CONNECT tunnel with proxy-owned DNS on a `tcp` socket.
+/// Opens a SOCKS5 CONNECT tunnel with proxy-owned DNS on a socket from
+/// `dialer`; the target is never resolved locally.
 pub(crate) async fn socks5_tunnel_remote_dns(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
     target_host: &str,
@@ -250,7 +261,7 @@ pub(crate) async fn socks5_tunnel_remote_dns(
     trace_connect("remote", async {
         let auth = auth.validate()?;
         let target = prepare_target(target_host, target_port)?;
-        let stream = connect_proxy(tcp, proxy_host, proxy_port).await?;
+        let stream = connect_proxy(dialer, proxy_host, proxy_port).await?;
         establish(stream, target, auth).await
     })
     .await
@@ -299,12 +310,21 @@ pub async fn connect_socks5_tunnel_local_with_auth(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    socks5_tunnel_local_dns(None, proxy_host, proxy_port, target_host, target_port, auth).await
+    socks5_tunnel_local_dns(
+        Dialer::default(),
+        proxy_host,
+        proxy_port,
+        target_host,
+        target_port,
+        auth,
+    )
+    .await
 }
 
-/// Opens a SOCKS5 CONNECT tunnel with local target DNS on `tcp` sockets.
+/// Opens a SOCKS5 CONNECT tunnel with local target DNS on sockets from
+/// `dialer`, resolving the target through the dialer's address cache.
 pub(crate) async fn socks5_tunnel_local_dns(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
     target_host: &str,
@@ -318,17 +338,17 @@ pub(crate) async fn socks5_tunnel_local_dns(
         }
         tokio::runtime::Handle::try_current()
             .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
-        let mut targets = poll_tokio_io(|| tokio::net::lookup_host((target_host, target_port)))
+        let targets = poll_tokio_io(|| resolve(dialer.addresses, target_host, target_port))
             .await
             .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?
             .map_err(Socks5Error::resolve)?;
         let mut ordered = Vec::new();
-        for target in targets.by_ref() {
+        for target in targets {
             if !ordered.contains(&target) {
                 ordered.push(target);
             }
         }
-        connect_local_to_addresses_with_auth(tcp, proxy_host, proxy_port, ordered, auth).await
+        connect_local_to_addresses_with_auth(dialer, proxy_host, proxy_port, ordered, auth).await
     })
     .await
 }
@@ -397,12 +417,18 @@ pub(super) async fn connect_local_to_addresses(
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_local_to_addresses_with_auth(None, proxy_host, proxy_port, targets, Socks5Auth::None)
-        .await
+    connect_local_to_addresses_with_auth(
+        Dialer::default(),
+        proxy_host,
+        proxy_port,
+        targets,
+        Socks5Auth::None,
+    )
+    .await
 }
 
 pub(super) async fn connect_local_to_addresses_with_auth(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
@@ -411,7 +437,7 @@ pub(super) async fn connect_local_to_addresses_with_auth(
     let auth = auth.validate()?;
     let mut last_rejection = None;
     for target in targets {
-        let stream = connect_proxy(tcp, proxy_host, proxy_port).await?;
+        let stream = connect_proxy(dialer, proxy_host, proxy_port).await?;
         match establish(stream, TargetAddr::Ip(target), auth).await {
             Ok(stream) => return Ok(stream),
             Err(error) if error.is_target_specific_rejection() => {
@@ -439,11 +465,11 @@ impl Socks5Error {
 }
 
 pub(super) async fn connect_proxy(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_tcp(proxy_host, proxy_port, tcp)
+    connect_tcp(proxy_host, proxy_port, dialer)
         .await
         .map_err(|error| match error {
             DirectConnectError::RuntimeUnavailable => {

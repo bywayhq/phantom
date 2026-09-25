@@ -24,7 +24,8 @@ use super::{
     prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
-    direct::{RuntimeUnavailable, poll_tokio_io},
+    address_cache::{AddressCache, resolve},
+    direct::{Dialer, RuntimeUnavailable, poll_tokio_io},
     proxy::{
         HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, PreparedConnectUdp,
         Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth,
@@ -46,6 +47,7 @@ pub struct Http3Connector {
     max_udp_payload_size: u64,
     identity: Arc<()>,
     tcp: Option<TcpSettings>,
+    address_cache: Option<AddressCache>,
     #[cfg(feature = "keylog")]
     key_log: crate::tls::key_log::KeyLogSlot,
     /// Directory that receives one qlog file per new QUIC connection.
@@ -135,6 +137,7 @@ impl Http3Connector {
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
             tcp: None,
+            address_cache: None,
             #[cfg(feature = "keylog")]
             key_log,
             #[cfg(feature = "qlog")]
@@ -256,14 +259,19 @@ impl Http3Connector {
     }
 
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
+        self.with_shared_crypto(Arc::new(crypto))
+    }
+
+    fn with_shared_crypto(&self, crypto: Arc<QuicClientConfig>) -> Self {
         Self {
-            crypto: Arc::new(crypto),
+            crypto,
             settings: self.settings.clone(),
             request_settings: self.request_settings.clone(),
             max_datagram_frame_size: self.max_datagram_frame_size,
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
             tcp: self.tcp,
+            address_cache: self.address_cache.clone(),
             #[cfg(feature = "keylog")]
             key_log: self.key_log.clone(),
             #[cfg(feature = "qlog")]
@@ -299,6 +307,34 @@ impl Http3Connector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Returns a clone that resolves host names through `cache` instead of
+    /// asking the operating system for every connection.
+    ///
+    /// The cache covers the origin host of a direct connection, the host of a
+    /// SOCKS5 or CONNECT-UDP proxy, and the target of a local-DNS SOCKS5
+    /// route. A target that a proxy resolves is never looked up locally. The
+    /// clone shares this connector's ticket cache and identity, and its own
+    /// clones share `cache`.
+    #[must_use]
+    pub fn with_address_cache(&self, cache: AddressCache) -> Self {
+        let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
+        connector.address_cache = Some(cache);
+        connector
+    }
+
+    /// Returns the address cache new connections resolve through, if any.
+    #[must_use]
+    pub fn address_cache(&self) -> Option<&AddressCache> {
+        self.address_cache.as_ref()
+    }
+
+    fn dialer(&self) -> Dialer<'_> {
+        Dialer {
+            tcp: self.tcp,
+            addresses: self.address_cache.as_ref(),
+        }
     }
 
     /// Queues the TLS secrets of this connector's connections to `sender`.
@@ -413,10 +449,9 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = tokio::net::lookup_host((host, port))
+            let addresses = resolve(self.address_cache.as_ref(), host, port)
                 .await
-                .map_err(Http3ConnectorError::resolve)?
-                .collect::<Vec<_>>();
+                .map_err(Http3ConnectorError::resolve)?;
             let connection = self.connect_to_addresses(addresses, server_name).await?;
             connection
                 .send_prepared_request(request)
@@ -442,10 +477,9 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = tokio::net::lookup_host((host, port))
+            let addresses = resolve(self.address_cache.as_ref(), host, port)
                 .await
-                .map_err(Http3ConnectorError::resolve)?
-                .collect::<Vec<_>>();
+                .map_err(Http3ConnectorError::resolve)?;
             self.connect_to_addresses(addresses, server_name).await
         })
         .await
@@ -501,7 +535,11 @@ impl Http3Connector {
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
             let association = associate_socks5_udp_remote_with_auth(
-                self.tcp, proxy_host, proxy_port, target, auth,
+                self.dialer(),
+                proxy_host,
+                proxy_port,
+                target,
+                auth,
             )
             .await
             .map_err(Http3ConnectorError::proxy)?;
@@ -568,10 +606,9 @@ impl Http3Connector {
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
-            let addresses = tokio::net::lookup_host((target_host, target_port))
+            let addresses = resolve(self.address_cache.as_ref(), target_host, target_port)
                 .await
-                .map_err(Http3ConnectorError::resolve)?
-                .collect::<Vec<_>>();
+                .map_err(Http3ConnectorError::resolve)?;
             self.connect_socks5_to_addresses(proxy_host, proxy_port, auth, addresses, server_name)
                 .await
         })
@@ -783,7 +820,7 @@ impl Http3Connector {
         poll_tokio_io(|| async {
             let span = connect_udp::span("h3");
             let tunnel = async {
-                let addresses = tokio::net::lookup_host((proxy_host, proxy_port))
+                let addresses = resolve(self.address_cache.as_ref(), proxy_host, proxy_port)
                     .await
                     .map_err(|error| {
                         ConnectUdpError::with_source(
@@ -791,8 +828,7 @@ impl Http3Connector {
                             "failed to resolve CONNECT-UDP proxy",
                             error,
                         )
-                    })?
-                    .collect::<Vec<_>>();
+                    })?;
                 if addresses.is_empty() {
                     return Err(ConnectUdpError::new(
                         ConnectUdpErrorKind::Resolve,
@@ -1262,7 +1298,11 @@ impl Http3Connector {
             .ok_or_else(Http3ConnectorError::no_address)?;
         loop {
             let association = associate_socks5_udp_local_with_auth(
-                self.tcp, proxy_host, proxy_port, remote, auth,
+                self.dialer(),
+                proxy_host,
+                proxy_port,
+                remote,
+                auth,
             )
             .await
             .map_err(Http3ConnectorError::proxy)?;

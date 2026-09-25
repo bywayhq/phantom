@@ -15,6 +15,7 @@
 //! resolver dependency they need.
 
 mod accept_ch;
+pub mod address_cache;
 mod direct;
 #[cfg(feature = "https-records")]
 pub mod dns;

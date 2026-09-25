@@ -10,9 +10,12 @@ use phantom_profile::{TcpKeepalive, TcpSettings};
 use socket2::SockRef;
 use tokio::net::{TcpSocket, TcpStream};
 
+use crate::address_cache::AddressCache;
+
 mod address_racing;
 
-/// Resolves `host` and connects to one of its addresses.
+/// Resolves `host`, through `cache` when there is one, and connects to one of
+/// its addresses.
 ///
 /// Each attempt opens a fresh socket and applies `settings` before
 /// connecting, as a browser does, so the options already cover the TLS
@@ -20,7 +23,12 @@ mod address_racing;
 /// [`address_racing::race`] describes; otherwise they are tried one at a time
 /// in resolver order. Either way, if every attempt fails, the most recent
 /// failure is returned.
-pub(crate) async fn connect(host: &str, port: u16, settings: TcpSettings) -> io::Result<TcpStream> {
+pub(crate) async fn connect(
+    host: &str,
+    port: u16,
+    settings: TcpSettings,
+    cache: Option<&AddressCache>,
+) -> io::Result<TcpStream> {
     settings
         .validate()
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
@@ -28,7 +36,7 @@ pub(crate) async fn connect(host: &str, port: u16, settings: TcpSettings) -> io:
     // connector used directly still must not drop an option silently.
     check_host_support(&settings)
         .map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))?;
-    let addresses = tokio::net::lookup_host((host, port)).await?;
+    let addresses = crate::address_cache::resolve(cache, host, port).await?;
     match settings.address_racing {
         Some(racing) => {
             let fallback = crate::shutdown_timer::after(racing.fallback_delay).map_err(|_| {
@@ -40,7 +48,7 @@ pub(crate) async fn connect(host: &str, port: u16, settings: TcpSettings) -> io:
             let fallback = async {
                 let _ = fallback.await;
             };
-            address_racing::race(addresses.collect(), fallback, |address| {
+            address_racing::race(addresses, fallback, |address| {
                 connect_address(address, settings)
             })
             .await

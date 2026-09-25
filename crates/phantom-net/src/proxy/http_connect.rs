@@ -6,7 +6,6 @@ use http::{
     header::{CONTENT_LENGTH, HOST, HeaderName, PROXY_AUTHORIZATION, TRANSFER_ENCODING},
     uri::Authority,
 };
-use phantom_profile::TcpSettings;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::{Instrument, Span, debug_span, field};
 
@@ -15,7 +14,7 @@ use super::{
     ProxyCredentialCache, ProxyScheme, TunnelStream, authentication::has_valid_basic_challenge,
 };
 use crate::{
-    direct::{DirectConnectError, connect_tcp},
+    direct::{Dialer, DirectConnectError, connect_tcp},
     request::RequestHeader,
 };
 
@@ -128,12 +127,19 @@ pub async fn connect_http_tunnel_direct(
     authority: &str,
     headers: &[HttpConnectHeader],
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    http_connect_tunnel(None, proxy_host, proxy_port, authority, headers).await
+    http_connect_tunnel(
+        Dialer::default(),
+        proxy_host,
+        proxy_port,
+        authority,
+        headers,
+    )
+    .await
 }
 
-/// Opens a direct HTTP CONNECT tunnel on a proxy socket with `tcp` options.
+/// Opens a direct HTTP CONNECT tunnel on a proxy socket from `dialer`.
 pub(crate) async fn http_connect_tunnel(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
     authority: &str,
@@ -141,7 +147,7 @@ pub(crate) async fn http_connect_tunnel(
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     trace_connect("http", async {
         let request = PreparedConnect::new(authority, headers)?;
-        let stream = connect_proxy_tcp(tcp, proxy_host, proxy_port).await?;
+        let stream = connect_proxy_tcp(dialer, proxy_host, proxy_port).await?;
         establish(stream, request).await
     })
     .await
@@ -165,7 +171,7 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
     credentials: &HttpBasicCredentials,
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
     http_connect_tunnel_with_basic_auth(
-        None,
+        Dialer::default(),
         None,
         proxy_host,
         proxy_port,
@@ -176,14 +182,14 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
     .await
 }
 
-/// Opens a direct Basic-authenticated CONNECT tunnel with `tcp` options.
+/// Opens a direct Basic-authenticated CONNECT tunnel on sockets from `dialer`.
 ///
-/// Every proxy connection, including the authenticated retry, uses `tcp`.
+/// Every proxy connection, including the authenticated retry, uses `dialer`.
 /// With `cache`, a proxy that accepted `credentials` before receives them on
 /// the first CONNECT.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn http_connect_tunnel_with_basic_auth(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     cache: Option<&ProxyCredentialCache>,
     proxy_host: &str,
     proxy_port: u16,
@@ -201,7 +207,7 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
             credentials,
         );
         basic_auth_exchange(&plan, &requests, || {
-            connect_proxy_tcp(tcp, proxy_host, proxy_port)
+            connect_proxy_tcp(dialer, proxy_host, proxy_port)
         })
         .await
     })
@@ -250,11 +256,11 @@ where
 }
 
 async fn connect_proxy_tcp(
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
 ) -> Result<tokio::net::TcpStream, HttpConnectError> {
-    connect_tcp(proxy_host, proxy_port, tcp)
+    connect_tcp(proxy_host, proxy_port, dialer)
         .await
         .map_err(|error| match error {
             DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,

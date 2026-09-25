@@ -33,7 +33,7 @@ async fn connected_socket_carries_requested_options() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
 
-    let stream = connect("127.0.0.1", port, chromium_like()).await?;
+    let stream = connect("127.0.0.1", port, chromium_like(), None).await?;
     let socket = SockRef::from(&stream);
 
     assert!(socket.tcp_nodelay()?);
@@ -71,7 +71,7 @@ async fn connect_races_resolved_names() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
 
-    let stream = connect("127.0.0.1", port, chromium_like()).await?;
+    let stream = connect("127.0.0.1", port, chromium_like(), None).await?;
 
     assert_eq!(stream.peer_addr()?, listener.local_addr()?);
     Ok(())
@@ -198,7 +198,7 @@ async fn settings_that_ask_for_nothing_keep_os_defaults() -> TestResult {
         address_racing: None,
     };
 
-    let stream = connect("127.0.0.1", port, settings).await?;
+    let stream = connect("127.0.0.1", port, settings, None).await?;
     let socket = SockRef::from(&stream);
 
     assert!(!socket.tcp_nodelay()?);
@@ -219,7 +219,7 @@ async fn invalid_settings_fail_before_any_connection() -> TestResult {
         address_racing: None,
     };
 
-    let error = match connect("127.0.0.1", port, settings).await {
+    let error = match connect("127.0.0.1", port, settings, None).await {
         Ok(_) => return Err("invalid keepalive was applied".into()),
         Err(error) => error,
     };
@@ -244,7 +244,7 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
         address_racing: None,
     };
 
-    let error = match connect("127.0.0.1", port, settings).await {
+    let error = match connect("127.0.0.1", port, settings, None).await {
         Ok(_) => return Err("keepalive without an interval was applied".into()),
         Err(error) => error,
     };

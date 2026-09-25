@@ -7,7 +7,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    direct::{DirectConnectError, connect_tcp},
+    address_cache::AddressCache,
+    direct::{Dialer, DirectConnectError, connect_tcp},
     http1::{Http1Connection, Http1Error},
     http2::{
         Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected, translate_settings,
@@ -181,6 +182,7 @@ pub struct Http1Or2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
     tcp: Option<TcpSettings>,
+    address_cache: Option<AddressCache>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -194,6 +196,7 @@ impl Http1Or2TlsConnector {
             tls: TlsConnector::new(tls)?,
             http2: http2.clone(),
             tcp: None,
+            address_cache: None,
             proxy_credentials: None,
         })
     }
@@ -209,6 +212,7 @@ impl Http1Or2TlsConnector {
             tls: TlsConnector::new_with_additional_roots(tls, roots)?,
             http2: http2.clone(),
             tcp: None,
+            address_cache: None,
             proxy_credentials: None,
         })
     }
@@ -231,6 +235,7 @@ impl Http1Or2TlsConnector {
             tls: connector.tls_connector().clone(),
             http2: connector.settings().clone(),
             tcp: connector.tcp_settings().copied(),
+            address_cache: connector.address_cache().cloned(),
             proxy_credentials: connector.proxy_credential_cache().cloned(),
         })
     }
@@ -242,6 +247,7 @@ impl Http1Or2TlsConnector {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
             tcp: self.tcp,
+            address_cache: self.address_cache.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -277,6 +283,32 @@ impl Http1Or2TlsConnector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Resolves host names through `cache` instead of asking the operating
+    /// system for every connection.
+    ///
+    /// The cache covers direct origin hosts and HTTP and SOCKS5 proxy hosts, and the target of a
+    /// local-DNS SOCKS5 route. An HTTPS proxy host is resolved through the
+    /// [`HttpsProxyConnector`] passed with it. A target that a proxy resolves is never looked
+    /// up locally. Clones of this connector share `cache`.
+    #[must_use]
+    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
+        self.address_cache = Some(cache);
+        self
+    }
+
+    /// Returns the address cache new connections resolve through, if any.
+    #[must_use]
+    pub fn address_cache(&self) -> Option<&AddressCache> {
+        self.address_cache.as_ref()
+    }
+
+    fn dialer(&self) -> Dialer<'_> {
+        Dialer {
+            tcp: self.tcp,
+            addresses: self.address_cache.as_ref(),
+        }
     }
 
     /// Selects HTTP/1.1 or HTTP/2 over an already-connected stream.
@@ -321,12 +353,15 @@ impl Http1Or2TlsConnector {
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1Or2TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => {
+                            Http1Or2TlsError::RuntimeUnavailable
+                        }
+                        DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
+                    })?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
         })
@@ -357,7 +392,7 @@ impl Http1Or2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -394,7 +429,7 @@ impl Http1Or2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -514,7 +549,7 @@ impl Http1Or2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -552,7 +587,7 @@ impl Http1Or2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,

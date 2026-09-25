@@ -245,7 +245,7 @@ async fn local_fallback_replays_authentication_for_each_target() -> TestResult {
     };
 
     let tunnel = connect_local_to_addresses_with_auth(
-        None,
+        crate::direct::Dialer::default(),
         "127.0.0.1",
         address.port(),
         [first, second],
@@ -282,7 +282,7 @@ async fn local_fallback_stops_after_authentication_failure() -> TestResult {
     };
 
     let error = match connect_local_to_addresses_with_auth(
-        None,
+        crate::direct::Dialer::default(),
         "127.0.0.1",
         address.port(),
         [first, second],

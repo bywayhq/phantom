@@ -14,7 +14,8 @@ use super::{
     translate_settings, validate_extended_connect,
 };
 use crate::{
-    direct::{DirectConnectError, connect_tcp},
+    address_cache::AddressCache,
+    direct::{Dialer, DirectConnectError, connect_tcp},
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
         ProxyCredentialCache, Socks5Auth, Socks5Error, http_connect_tunnel,
@@ -31,6 +32,7 @@ pub struct Http2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
     tcp: Option<TcpSettings>,
+    address_cache: Option<AddressCache>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -44,6 +46,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -65,6 +68,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -86,6 +90,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -104,6 +109,7 @@ impl Http2TlsConnector {
                 tls,
                 http2: http2.clone(),
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -119,6 +125,7 @@ impl Http2TlsConnector {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
             tcp: self.tcp,
+            address_cache: self.address_cache.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -160,6 +167,32 @@ impl Http2TlsConnector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Resolves host names through `cache` instead of asking the operating
+    /// system for every connection.
+    ///
+    /// The cache covers direct origin hosts and HTTP and SOCKS5 proxy hosts, and the target of a
+    /// local-DNS SOCKS5 route. An HTTPS proxy host is resolved through the
+    /// [`HttpsProxyConnector`] passed with it. A target that a proxy resolves is never looked
+    /// up locally. Clones of this connector share `cache`.
+    #[must_use]
+    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
+        self.address_cache = Some(cache);
+        self
+    }
+
+    /// Returns the address cache new connections resolve through, if any.
+    #[must_use]
+    pub fn address_cache(&self) -> Option<&AddressCache> {
+        self.address_cache.as_ref()
+    }
+
+    fn dialer(&self) -> Dialer<'_> {
+        Dialer {
+            tcp: self.tcp,
+            addresses: self.address_cache.as_ref(),
+        }
     }
 
     /// Queues the TLS secrets of this connector's connections to `sender`.
@@ -220,12 +253,13 @@ impl Http2TlsConnector {
     ) -> Result<Http2Connection, Http2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
+                    })?;
             self.connect_prepared(stream, server_name, client).await
         })
         .await
@@ -253,7 +287,7 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
         let client = self.prepare_extended_connect(authority, &target, &headers)?;
-        let stream = connect_tcp(host, port, self.tcp)
+        let stream = connect_tcp(host, port, self.dialer())
             .await
             .map_err(|error| match error {
                 DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
@@ -289,7 +323,7 @@ impl Http2TlsConnector {
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
         let client = self.prepare_extended_connect(authority, &target, &headers)?;
         let stream = http_connect_tunnel(
-            self.tcp,
+            self.dialer(),
             proxy_host,
             proxy_port,
             connect_authority,
@@ -325,7 +359,7 @@ impl Http2TlsConnector {
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
         let client = self.prepare_extended_connect(authority, &target, &headers)?;
         let stream = http_connect_tunnel_with_basic_auth(
-            self.tcp,
+            self.dialer(),
             self.proxy_credentials.as_ref(),
             proxy_host,
             proxy_port,
@@ -435,7 +469,7 @@ impl Http2TlsConnector {
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
         let client = self.prepare_extended_connect(authority, &target, &headers)?;
         let stream = socks5_tunnel_remote_dns(
-            self.tcp,
+            self.dialer(),
             proxy_host,
             proxy_port,
             target_host,
@@ -469,7 +503,7 @@ impl Http2TlsConnector {
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
         let client = self.prepare_extended_connect(authority, &target, &headers)?;
         let stream = socks5_tunnel_local_dns(
-            self.tcp,
+            self.dialer(),
             proxy_host,
             proxy_port,
             target_host,
@@ -503,7 +537,7 @@ impl Http2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -529,7 +563,7 @@ impl Http2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -644,7 +678,7 @@ impl Http2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -697,7 +731,7 @@ impl Http2TlsConnector {
         self.trace_connect(async {
             let client = translate_settings(&self.http2)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -820,12 +854,13 @@ impl Http2TlsConnector {
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
+                    })?;
             self.send_prepared_request(stream, server_name, prepared)
                 .await
         })
@@ -893,7 +928,7 @@ impl Http2TlsConnector {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -928,7 +963,7 @@ impl Http2TlsConnector {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -1106,7 +1141,7 @@ impl Http2TlsConnector {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1204,7 +1239,7 @@ impl Http2TlsConnector {
             let prepared =
                 PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,

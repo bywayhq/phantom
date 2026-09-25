@@ -58,7 +58,7 @@ async fn tunnel(
     credentials: &HttpBasicCredentials,
 ) -> Result<(), HttpConnectError> {
     http_connect_tunnel_with_basic_auth(
-        None,
+        crate::direct::Dialer::default(),
         Some(cache),
         "127.0.0.1",
         address.port(),

@@ -98,7 +98,7 @@ impl Association {
         });
 
         let association = associate_socks5_udp_local_with_auth(
-            None,
+            crate::direct::Dialer::default(),
             "127.0.0.1",
             proxy_address.port(),
             TARGET,

@@ -13,7 +13,8 @@ use super::{
     OriginForm, PreparedGet, PreparedRequest, RequestHeader, send_prepared_upgrade,
 };
 use crate::{
-    direct::{DirectConnectError, connect_tcp},
+    address_cache::AddressCache,
+    direct::{Dialer, DirectConnectError, connect_tcp},
     proxy::{
         HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, ProxyCredentialCache,
         Socks5Auth, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
@@ -30,6 +31,7 @@ pub use error::Http1TlsError;
 pub struct Http1TlsConnector {
     tls: TlsConnector,
     tcp: Option<TcpSettings>,
+    address_cache: Option<AddressCache>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -41,6 +43,7 @@ impl Http1TlsConnector {
             .map(|tls| Self {
                 tls,
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -59,6 +62,7 @@ impl Http1TlsConnector {
             .map(|tls| Self {
                 tls,
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -77,6 +81,7 @@ impl Http1TlsConnector {
             .map(|tls| Self {
                 tls,
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -92,6 +97,7 @@ impl Http1TlsConnector {
             .map(|tls| Self {
                 tls,
                 tcp: None,
+                address_cache: None,
                 proxy_credentials: None,
             })
             .map_err(Into::into)
@@ -106,6 +112,7 @@ impl Http1TlsConnector {
         Self {
             tls: self.tls.with_isolated_session_cache(),
             tcp: self.tcp,
+            address_cache: self.address_cache.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -143,6 +150,32 @@ impl Http1TlsConnector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Resolves host names through `cache` instead of asking the operating
+    /// system for every connection.
+    ///
+    /// The cache covers direct origin hosts and HTTP and SOCKS5 proxy hosts, and the target of a
+    /// local-DNS SOCKS5 route. An HTTPS proxy host is resolved through the
+    /// [`HttpsProxyConnector`] passed with it. A target that a proxy resolves is never looked
+    /// up locally. Clones of this connector share `cache`.
+    #[must_use]
+    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
+        self.address_cache = Some(cache);
+        self
+    }
+
+    /// Returns the address cache new connections resolve through, if any.
+    #[must_use]
+    pub fn address_cache(&self) -> Option<&AddressCache> {
+        self.address_cache.as_ref()
+    }
+
+    fn dialer(&self) -> Dialer<'_> {
+        Dialer {
+            tcp: self.tcp,
+            addresses: self.address_cache.as_ref(),
+        }
     }
 
     /// Queues the TLS secrets of this connector's connections to `sender`.
@@ -241,12 +274,13 @@ impl Http1TlsConnector {
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+                    })?;
             let connection = self.connect_prepared(stream, server_name).await?;
             self.send_prepared_request(&connection, prepared).await
         })
@@ -334,7 +368,7 @@ impl Http1TlsConnector {
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -367,7 +401,7 @@ impl Http1TlsConnector {
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -534,7 +568,7 @@ impl Http1TlsConnector {
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -626,7 +660,7 @@ impl Http1TlsConnector {
         self.trace_response_head(&trace_method, body_bytes, async {
             let prepared = PreparedRequest::new(method, target, headers, body)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -671,12 +705,13 @@ impl Http1TlsConnector {
         server_name: &str,
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+                    })?;
             self.connect_prepared(stream, server_name).await
         })
         .await
@@ -703,12 +738,13 @@ impl Http1TlsConnector {
         );
         let outcome = OperationOutcome::new(&span);
         let result = async {
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+                    })?;
             Http1Connection::connect(stream).await.map_err(Into::into)
         }
         .instrument(span.clone())
@@ -737,7 +773,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_plaintext_socks5_connect("socks5_remote_dns", async {
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -771,7 +807,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_plaintext_socks5_connect("socks5_local_dns", async {
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -801,7 +837,7 @@ impl Http1TlsConnector {
         );
         let outcome = OperationOutcome::new(&span);
         let result = async {
-            let stream = connect_tcp(proxy_host, proxy_port, self.tcp)
+            let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
                 .await
                 .map_err(|error| match error {
                     DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
@@ -863,7 +899,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -888,7 +924,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -1004,7 +1040,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1061,7 +1097,7 @@ impl Http1TlsConnector {
     ) -> Result<Http1Connection, Http1TlsError> {
         self.trace_connect(async {
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1089,12 +1125,13 @@ impl Http1TlsConnector {
     ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+                    })?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await
         })
@@ -1125,12 +1162,13 @@ impl Http1TlsConnector {
         let outcome_guard = OperationOutcome::new(&span);
         let result = async {
             let prepared = PreparedGet::new(target, headers)?;
-            let stream = connect_tcp(host, port, self.tcp)
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                })?;
+            let stream =
+                connect_tcp(host, port, self.dialer())
+                    .await
+                    .map_err(|error| match error {
+                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
+                    })?;
             debug!("HTTP/1 plaintext Upgrade request prepared");
             let outcome = send_prepared_upgrade(stream, prepared).await?;
             let status = match &outcome {
@@ -1170,7 +1208,7 @@ impl Http1TlsConnector {
         let outcome_guard = OperationOutcome::new(&span);
         let result = async {
             let prepared = PreparedGet::new_forward(target, headers)?;
-            let stream = connect_tcp(proxy_host, proxy_port, self.tcp)
+            let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
                 .await
                 .map_err(|error| match error {
                     DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
@@ -1253,7 +1291,7 @@ impl Http1TlsConnector {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -1282,7 +1320,7 @@ impl Http1TlsConnector {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -1383,7 +1421,7 @@ impl Http1TlsConnector {
         self.trace_plaintext_tunnel_upgrade("http_connect", async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 connect_authority,
@@ -1414,7 +1452,7 @@ impl Http1TlsConnector {
         self.trace_plaintext_tunnel_upgrade("http_connect", async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = http_connect_tunnel_with_basic_auth(
-                self.tcp,
+                self.dialer(),
                 self.proxy_credentials.as_ref(),
                 proxy_host,
                 proxy_port,
@@ -1542,7 +1580,7 @@ impl Http1TlsConnector {
         self.trace_plaintext_socks5_upgrade("socks5_remote_dns", async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1606,7 +1644,7 @@ impl Http1TlsConnector {
         self.trace_plaintext_socks5_upgrade("socks5_local_dns", async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1670,7 +1708,7 @@ impl Http1TlsConnector {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = socks5_tunnel_remote_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,
@@ -1728,7 +1766,7 @@ impl Http1TlsConnector {
         self.trace_upgrade(async {
             let prepared = PreparedGet::new(target, headers)?;
             let stream = socks5_tunnel_local_dns(
-                self.tcp,
+                self.dialer(),
                 proxy_host,
                 proxy_port,
                 target_host,

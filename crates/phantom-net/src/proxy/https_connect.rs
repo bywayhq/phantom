@@ -17,7 +17,8 @@ use super::{
     http2_connect::{self, Http2ChallengeOutcome, PreparedBasicHttp2Connect, PreparedHttp2Connect},
 };
 use crate::{
-    direct::{DirectConnectError, connect_tcp},
+    address_cache::AddressCache,
+    direct::{Dialer, DirectConnectError, connect_tcp},
     http2::{
         Http2ConnectStream, Http2Connection, Http2TlsError, connect_selected,
         connect_selected_extended, translate_extended_connect_settings, translate_settings,
@@ -60,6 +61,7 @@ pub struct HttpsProxyConnector {
     http2: Option<Http2Settings>,
     protocol: HttpsProxyProtocol,
     tcp: Option<TcpSettings>,
+    address_cache: Option<AddressCache>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
 
@@ -104,6 +106,7 @@ impl HttpsProxyConnector {
             http2: None,
             protocol: HttpsProxyProtocol::Http1,
             tcp: None,
+            address_cache: None,
             proxy_credentials: None,
         }
     }
@@ -150,6 +153,30 @@ impl HttpsProxyConnector {
         self.tcp.as_ref()
     }
 
+    /// Resolves host names through `cache` instead of asking the operating
+    /// system for every connection.
+    ///
+    /// The cache covers the HTTPS proxy's host. A target that a proxy resolves is never looked
+    /// up locally. Clones of this connector share `cache`.
+    #[must_use]
+    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
+        self.address_cache = Some(cache);
+        self
+    }
+
+    /// Returns the address cache new connections resolve through, if any.
+    #[must_use]
+    pub fn address_cache(&self) -> Option<&AddressCache> {
+        self.address_cache.as_ref()
+    }
+
+    fn dialer(&self) -> Dialer<'_> {
+        Dialer {
+            tcp: self.tcp,
+            addresses: self.address_cache.as_ref(),
+        }
+    }
+
     /// Queues the TLS secrets of this connector's connections to `sender`.
     ///
     /// Clones share the TLS context and its key log. The first sender
@@ -184,6 +211,7 @@ impl HttpsProxyConnector {
             http2: self.http2.clone(),
             protocol: self.protocol,
             tcp: self.tcp,
+            address_cache: self.address_cache.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
     }
@@ -340,7 +368,7 @@ impl HttpsProxyConnector {
         proxy_port: u16,
         proxy_server_name: &str,
     ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
-        let stream = connect_tcp(proxy_host, proxy_port, self.tcp)
+        let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
             .await
             .map_err(|error| match error {
                 DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
