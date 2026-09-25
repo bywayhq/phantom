@@ -181,9 +181,9 @@ Not modeled:
 - Chromium's 300 ms cap on holding a connection attempt to a server known
   to speak H2 while another attempt is in flight is not a recipe value.
   By default Phantom holds it until that attempt finishes, as Firefox does;
-  `ClientBuilder::negotiated_setup_wait_limit` sets a cap. Phantom remembers that a server
-  spoke H2 per origin and route, as Firefox does; Chromium remembers it per
-  origin, across proxies, and saves it to disk.
+  `ClientBuilder::negotiated_setup_wait_limit` sets a cap. Phantom
+  remembers that a server spoke H2 per origin and route, as Firefox does;
+  Chromium remembers it per origin, across proxies, and saves it to disk.
 
 Planned:
 

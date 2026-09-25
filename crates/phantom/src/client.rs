@@ -1059,8 +1059,9 @@ impl ClientBuilder {
     ///   invalid, or this host cannot apply the TCP settings;
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
-    ///   delay or setup limit exceeds the runtime clock range; disabled authentication is combined with added roots, HTTP/3,
-    ///   or a CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
+    ///   delay or setup limit exceeds the runtime clock range; disabled
+    ///   authentication is combined with added roots, HTTP/3, or a
+    ///   CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
     ///   and HTTP/3; a racing Alt-Svc policy has no store; or the profile's
     ///   WebSocket connection policy needs HTTP/2 settings it lacks;
     /// - [`TrustStore`](crate::BuildErrorKind::TrustStore) when an added
