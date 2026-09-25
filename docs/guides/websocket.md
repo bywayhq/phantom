@@ -94,6 +94,9 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
   or protocol.
 - `headers` fails under this builder. Fill the recipe's caller slots, such as
   `User-Agent` and `Origin`, with `header`.
+- The recipe sets `Accept-Encoding` and Firefox's `Sec-Fetch-*` by
+  [origin trust](../reference/websocket.md#browser-recipes); a `header` with
+  the same name replaces the value.
 
 ## Order the opening request fields
 
@@ -204,7 +207,7 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 - The recipes do not reproduce Firefox's leading dynamic-table size update,
   some stream and reset behavior, or Chrome's message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
-- No browser capture covers a proxied WebSocket.
+- No browser capture covers a `wss://` WebSocket through a proxy.
 - WebSocket over HTTP/3 is not implemented.
 
 ## Next

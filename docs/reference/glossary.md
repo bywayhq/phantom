@@ -204,11 +204,11 @@ admission, and learned state are never shared across pool keys. See
 ## Potentially trustworthy
 
 An [origin](#origin) that W3C Secure Contexts lets browsers treat as secure:
-an `https` origin, or an `http` origin whose host is a loopback address
-(`127.0.0.0/8` or `::1`), `localhost`, or a name under `.localhost`. Browsers
-send client hints, `Sec-Fetch-*` fields, and the `br` and `zstd` codings only
-to such origins, and allow `Secure` cookies from them. See
-[Template assembly](profiles.md#template-assembly).
+an `https` or `wss` origin, or an `http` or `ws` origin whose host is a
+loopback address (`127.0.0.0/8` or `::1`), `localhost`, or a name under
+`.localhost`. Browsers send client hints, `Sec-Fetch-*` fields, and the `br`
+and `zstd` codings only to such origins, and allow `Secure` cookies from them.
+See [Template assembly](profiles.md#template-assembly).
 
 ## Profile
 

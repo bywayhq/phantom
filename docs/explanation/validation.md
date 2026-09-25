@@ -626,6 +626,9 @@ the fields Chrome 154, Edge 153, and Firefox 156 send there, in the same
 order: no `Sec-Fetch-*` fields and `Accept-Encoding: gzip, deflate`. Phantom
 sends automatic client hints to an `http://` loopback or `localhost` origin
 and learns `Accept-CH` from it, and sends none to a named `http://` origin.
+The built-in WebSocket recipes do the same for a `ws://` opening: to
+`ws://origin.phantom.test` they send `Accept-Encoding: gzip, deflate`, and
+Firefox's sends no `Sec-Fetch-*` field.
 
 Evidence: the proxy route captures under
 [`fixtures/proxy/`](../../fixtures/proxy/), described in
@@ -640,7 +643,9 @@ depend on the origin, not on the route:
 | `origin.phantom.test` | `gzip, deflate` | Not sent | Not sent |
 
 The table holds for the page request and the `fetch()` on all 27 runs of each
-origin. Every other field keeps its order. The H2 requests through the TLS
+origin, and for the `ws://` Upgrade too, except that Chrome and Edge send no
+`Sec-Fetch-*` field on it to either origin. Every other field keeps its
+order. The H2 requests through the TLS
 proxy show the same differences, in the H2 lists' order. The other plaintext
 captures under `fixtures/` use a `127.0.0.1` origin, so their
 `Accept-Encoding`, client hints, and fetch metadata are what a browser sends
@@ -657,8 +662,10 @@ Browser source at the captured tags gives the rule behind the captures:
 
 Phantom's test is `is_potentially_trustworthy` in
 `crates/phantom/src/request/secure_context.rs`, the same one the cookie jar
-uses for `Secure` cookies. The templates carry the per-browser data as
-`RequestField::ByTrust` entries, so the transport has no browser branch.
+uses for `Secure` cookies. A WebSocket URL applies its host rules, with
+`wss://` counted as `https://`. The templates carry the per-browser data as
+`RequestField::ByTrust` entries, and the WebSocket recipes as
+`WebSocketField::ByTrust` entries, so the transport has no browser branch.
 
 Tests:
 
@@ -674,25 +681,42 @@ Tests:
   to decode while `gzip` decodes.
 - `direct_plaintext_loopback_sends_and_learns_client_hints` in
   `direct_http.rs` covers a profile without a template.
+- `websocket_recipes_follow_origin_trust_in_the_proxy_route_captures` in
+  `phantom-profile` reads every `ws://` Upgrade in `fixtures/proxy/`, 18 per
+  browser, and compares it with the recipe's HTTP/1.1 template for that
+  origin's trust, value for value.
+- `crates/phantom/tests/websocket_trust.rs` opens each built-in WebSocket
+  recipe, through `Client::websocket` and through
+  `Client::websocket_with_profile_policy`, to `ws://127.0.0.1` directly and
+  to `ws://origin.phantom.test` through a loopback CONNECT proxy. It supplies
+  only `User-Agent`, `Origin`, and `Accept-Language` and compares every
+  received field and value, apart from the fresh key and the loopback `Host`,
+  with the `direct-loopback` and `http-proxy-hostname` captures. It also
+  checks that a caller `Accept-Encoding` replaces the recipe's value in place.
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario all --repeat 3`, then
-`cargo test -p phantom-http --all-features --test plaintext_templates` and
-`cargo test -p phantom-profile plaintext_named_origin`.
+`cargo test -p phantom-http --all-features --test plaintext_templates
+--test websocket_trust` and
+`cargo test -p phantom-profile plaintext_named_origin` and
+`cargo test -p phantom-profile origin_trust`.
 
 Limits:
 
-- The tests hold the captured field lists as data; they do not read the
-  fixtures.
+- The request template tests hold the captured field lists as data; they do
+  not read the fixtures. The WebSocket tests read them.
 - The captured `fetch()` used the default cache mode. That the no-store
   template's `Pragma` and `Cache-Control` keep their positions on a named
   plaintext origin is inferred.
 - Through an HTTP proxy, Chromium sends `Proxy-Connection: keep-alive` where
   the template has `Connection: keep-alive`. Phantom sends the template's
   field; the [roadmap](../roadmap.md) queues a route-dependent field.
-- `ws://` openings are not adjusted: Firefox's WebSocket recipe sends
-  `Sec-Fetch-Dest` and `Sec-Fetch-Mode` to a named `ws://` origin, where
-  Firefox sends neither. The [roadmap](../roadmap.md) queues the fix.
+- Every captured WebSocket page is same-origin with its socket, except the
+  `fresh-origin` scenario in `fixtures/websocket/`, whose Firefox socket
+  sends `Sec-Fetch-Site: cross-site`. The recipe's `same-origin` default fits
+  the first case; a caller sets the field for the second.
+- H2 extended CONNECT carries only `wss://`, which is always potentially
+  trustworthy, so its trust-dependent fields have one captured value.
 
 ### Recorded coverage losses
 
@@ -1367,9 +1391,9 @@ Limits:
 - Chromium was launched with `--disable-field-trial-config`; field trials in
   a normal profile may change these results.
 - Only the `ws://` opening inside the tunnel and the pseudo-field order of
-  H2 forwarding are compared with a fixture.
-  The comparison uses the loopback captures, because the WebSocket recipes
-  rest on `127.0.0.1` captures.
+  H2 forwarding are compared with a fixture. The `ws://` opening is compared
+  for both origins; see
+  [Plaintext origin trust evidence](#plaintext-origin-trust-evidence).
 
 ### H3 SOCKS5 UDP evidence
 

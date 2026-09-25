@@ -125,12 +125,30 @@ and a separate `extended_connect_priority`:
 | `firefox::v156_http2` | Non-exclusive on stream 0, weight 22 | Weight 42 |
 
 The recipes' H1 and H2 templates reproduce the captured field order,
-spelling, and fixed values. `User-Agent`, `Origin`, `Accept-Encoding`,
-`Accept-Language`, and, for Firefox, `Sec-Fetch-Site` and
-`sec-fetch-storage-access` are caller slots. Fixture tests replay every
-retained capture against the recipes, and loopback tests compare Phantom's
-CONNECT HEADERS and H1 openings with the captures
-([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
+spelling, and fixed values. `User-Agent`, `Origin`, `Accept-Language`, and,
+for Firefox on H2, `sec-fetch-storage-access` are caller slots. Some fields
+depend on whether the WebSocket URL is
+[potentially trustworthy](glossary.md#potentially-trustworthy): `wss://`, or
+`ws://` to a loopback address, `localhost`, or a `.localhost` name.
+
+| Field | Recipe | Trustworthy URL | Other `ws://` URL |
+| --- | --- | --- | --- |
+| `Accept-Encoding` | Both | `gzip, deflate, br, zstd` | `gzip, deflate` |
+| `Sec-Fetch-Dest` | Firefox | `empty` | Not sent |
+| `Sec-Fetch-Mode` | Firefox | `websocket` | Not sent |
+| `Sec-Fetch-Site` | Firefox | `same-origin` | Not sent |
+
+A field added with `WebSocketRequestBuilder::header` under one of these names
+replaces the recipe's value in its position, for either kind of URL. Set
+`Sec-Fetch-Site: cross-site` for a socket that a page on another site opens.
+A WebSocket follows no redirect, so the opening URL alone decides. The
+other fields keep their order for both kinds of URL.
+
+Fixture tests replay every retained capture against the recipes, and
+loopback tests compare Phantom's CONNECT HEADERS and H1 openings with the
+captures
+([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence),
+[Plaintext origin trust evidence](../explanation/validation.md#plaintext-origin-trust-evidence)).
 
 Each paired H2 recipe also states its HPACK encoder choices in
 `Http2Settings::hpack`, so the emitted CONNECT block matches the capture's

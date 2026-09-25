@@ -577,7 +577,7 @@ The WebSocket recipes still differ from those captures in three ways:
 | --- | --- | --- |
 | Firefox's leading dynamic-table size update | Firefox starts a header block with a dynamic-table size update, and no profile setting emits one. | A per-profile size-update setting |
 | Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
-| WebSocket through a proxy | No capture records a WebSocket opened through a proxy. | A capture through a proxy |
+| `wss://` WebSocket through a proxy | The proxy route captures record only `ws://` openings through a proxy. | A `wss://` capture through a proxy |
 
 ## Routes
 
