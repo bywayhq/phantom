@@ -30,7 +30,10 @@ use crate::{
     direct::https_record_extra_time,
     dns::EchConfigList,
     http1_or_2::{EchFailure, Http1Or2Connection, Http1Or2TlsConnector, Http1Or2TlsError},
-    tls::test_support::{TEST_TIMEOUT, TestIdentity, TestResult},
+    tls::{
+        TlsErrorKind,
+        test_support::{TEST_TIMEOUT, TestIdentity, TestResult},
+    },
 };
 
 const INNER_NAME: &str = "inner.phantom.test";
@@ -464,10 +467,11 @@ async fn a_resolved_address_waits_for_a_lookup_within_the_bound() -> TestResult<
     let connector =
         connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
 
-    // 250 ms of resolution allows 50 ms more; the record arrives after 20.
-    // Started now, as the client's lookup starts with the request.
+    // 250 ms of resolution allows 50 ms more; the record arrives 5 ms after
+    // the addresses. Started now, as the client's lookup starts with the
+    // request.
     let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(270)).await;
+        tokio::time::sleep(Duration::from_millis(255)).await;
         published(1, &TEST_ECH_KEYS[0])
     });
     let ech = async { lookup.await.ok() };
@@ -518,5 +522,62 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
     let observed = server.await??;
     assert_eq!(observed[1].outer_server_name.as_deref(), Some(INNER_NAME));
     assert!(!observed[1].ech_accepted);
+    Ok(())
+}
+
+/// A record that arrives well after the bounded wait is not waited for.
+#[tokio::test]
+async fn a_lookup_past_the_bound_leaves_grease() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(1, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
+    let connector =
+        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+
+    // The wait ends 50 ms after the addresses; the record comes 150 ms later.
+    let lookup = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_millis(450)).await;
+        published(1, &TEST_ECH_KEYS[0])
+    });
+    let ech = async { lookup.await.ok() };
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+    )
+    .await??;
+
+    let observed = server.await??;
+    assert_eq!(observed[0].outer_server_name.as_deref(), Some(INNER_NAME));
+    assert!(observed[0].ech.is_some());
+    assert!(!observed[0].ech_accepted);
+    Ok(())
+}
+
+/// A rejection is retried only when the server authenticates as the public
+/// name; otherwise certificate verification fails the one connection, as
+/// in Chrome, where the error is `ERR_ECH_FALLBACK_CERTIFICATE_INVALID`.
+#[tokio::test]
+async fn a_rejection_without_a_public_name_certificate_is_not_retried() -> TestResult<()> {
+    let identity = TestIdentity::generate_for_names(&[INNER_NAME])?;
+    let key = server_key(2, TEST_ECH_KEYS[1]);
+    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
+
+    let result = connect(&identity, address, async {
+        Some(published(1, &TEST_ECH_KEYS[0]))
+    })
+    .await?;
+
+    let error = result
+        .err()
+        .ok_or("a rejection without a valid certificate was accepted")?;
+    assert_eq!(error.ech_failure(), None);
+    // A retry would have found no listener and failed to connect instead.
+    assert!(
+        matches!(&error, Http1Or2TlsError::Tls(tls) if tls.kind() == TlsErrorKind::Handshake),
+        "{error:?}"
+    );
+    let observed = server.await??;
+    assert_eq!(observed.len(), 1);
+    assert!(!observed[0].handshake_completed);
     Ok(())
 }

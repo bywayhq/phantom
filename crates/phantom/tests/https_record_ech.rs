@@ -8,6 +8,11 @@ mod h3_support;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
+#[allow(dead_code)]
+#[path = "support/tunnel_proxy.rs"]
+mod tunnel_proxy;
+// `tunnel_proxy` reaches the TLS helpers as `super::tls`.
+use tls_support as tls;
 
 use std::{
     io,
@@ -25,7 +30,7 @@ use btls::{
 };
 use http_body_util::BodyExt;
 use phantom::{
-    Client,
+    Client, HttpProxy, Route,
     dns::HttpsRecordResolver,
     profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings, TlsVersion, chromium},
 };
@@ -434,4 +439,61 @@ async fn futures_join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Out
     })
     .await;
     results.into_iter().flatten().collect()
+}
+
+/// A request through an HTTP proxy sends no HTTPS query and offers no ECH,
+/// as Chrome does: a proxied request's DNS happens at the proxy.
+#[tokio::test]
+async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()> {
+    timeout(TEST_TIMEOUT, async {
+        let identity =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
+        let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
+        let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
+        let dns = DnsServer::spawn(move |_| {
+            DnsReply::new(DnsAnswer::Records {
+                ttl: 300,
+                rdata: vec![rdata.clone()],
+            })
+        })
+        .await?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin = listener.local_addr()?;
+        let server = tokio::spawn(serve(listener, ech_acceptor(&identity, &config)?, 1));
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin));
+
+        let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
+        let resolver = HttpsRecordResolver::from_fn(move |_, port| {
+            let upstream = upstream.clone();
+            async move { upstream.lookup(STAND_IN_NAME, port).await }
+        });
+        let profile = ClientProfile::new(ech_tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_http3(client_settings());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(NonZeroUsize::MIN.saturating_add(7))
+            .https_record_discovery(resolver)
+            .route(Route::http_connect(HttpProxy::new(&format!(
+                "http://{proxy_address}"
+            ))?))
+            .build()?;
+
+        let response = client
+            .get_negotiated(&format!("https://{ORIGIN_NAME}:{}/", origin.port()))?
+            .send()
+            .await?;
+        response.into_body().collect().await?;
+
+        proxy.await??;
+        let observed = server.await??;
+        assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
+        assert!(!observed[0].ech_accepted);
+        assert!(dns.queries().is_empty());
+        Ok(())
+    })
+    .await
+    .map_err(|_| "ECH test exceeded its deadline")?
 }

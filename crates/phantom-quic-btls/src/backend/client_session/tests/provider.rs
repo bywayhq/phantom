@@ -346,6 +346,15 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
         (
             {
                 let mut settings = base.clone();
+                settings.ech_grease = true;
+                settings.ech_from_https_records = true;
+                settings
+            },
+            "ech_from_https_records",
+        ),
+        (
+            {
+                let mut settings = base.clone();
                 settings.session_tickets = true;
                 settings
             },
