@@ -159,7 +159,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the recipes' dynamic QPACK policy, the request also waits for the server's
   SETTINGS, so it still leaves in 1-RTT packets.
   `ClientBuilder::http3_early_data` now takes a `bool` that overrides the
-  profile. (`eb05df0`)
+  profile. A `phantom_net::http3::Http3Connector` built from these recipes
+  sends early data from its isolated clones too; `without_early_data` turns
+  it off. The outer connection to a CONNECT-UDP proxy offers none.
+  (`7d81daa`, `6cd4027`)
   Migrate: add `early_data: false` to each `QuicTransportSettings` struct
   literal, or `true` to offer early data. Replace
   `ClientBuilder::http3_early_data()` with `http3_early_data(true)`. To keep
@@ -366,7 +369,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   A fresh connection sends no `initial_rtt_us`.
   `phantom_profile::quic::QuicTransportParameterKind` gains `InitialRtt`, and
   `phantom_quic_btls::QuicClientConfig` gains `record_round_trip_time`.
-  (`eb05df0`)
+  (`7d81daa`)
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
   cookies, treating every request as a top-level navigation, and evicts least
