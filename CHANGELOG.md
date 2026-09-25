@@ -110,6 +110,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   message still names `Host`. (`f14cb08`)
   Migrate: match `RequestErrorKind::InvalidHeader` where you matched
   `RequestErrorKind::AuthorityHeader`.
+- `phantom_net::http3::Http3Unprocessed` gains `EarlyDataRejected`, reported
+  when a server rejects a request sent as HTTP/3 early data. The enum is
+  exhaustive, so a `match` on it without a wildcard arm no longer compiles.
+  (`550e6f6`)
+  Migrate: add an `Http3Unprocessed::EarlyDataRejected` arm. The server did
+  not process the request, so handle it as you handle `RequestRejected` and
+  `GoAway`.
 
 ### Added
 
@@ -211,6 +218,24 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   drains the queue. `ClientBuilder::qlog_dir(dir)` writes one JSON-SEQ qlog
   file per QUIC connection. The feature is off by default and not part of
   `full`, because a key log decrypts the client's traffic. (`a2519af`)
+- HTTP/3 connections resume TLS 1.3 sessions when the H3 TLS settings enable
+  `session_tickets`. Each client pool entry, one origin and one route, keeps
+  its own cache of at most 4 tickets, filled only by connections that
+  authenticated the server. A ticket is used once, only for the same
+  verified server name, and never on another origin or route. A handshake
+  that presented a ticket and failed is repeated once with a full handshake
+  over the same route. `phantom_net::http3::Http3Connector` gains
+  `with_isolated_session_cache`, `without_ticket_offers`, `resumes_sessions`,
+  and `has_ticket_for`. (`f084850`, `278645f`)
+- `ClientBuilder::http3_early_data` lets a new resumed HTTP/3 connection send
+  a replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE` with no body and
+  no trailers) as early (0-RTT) data. Early data is replayable, so the option
+  is off by default and no recipe enables it. `build` fails with
+  `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
+  `session_tickets`. If the server rejects the early data, the request is
+  sent again after the handshake over the same route and protocol.
+  `Http3Connector` gains `with_early_data`, `without_early_data`, and
+  `sends_early_data`. (`31da936`, `550e6f6`)
 
 ### Changed
 
@@ -259,6 +284,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   its client-hint placement behind an `Arc`, and the request path parses the
   advertised content codings once instead of once per redirect hop. The
   fields sent on the wire do not change. (`6cdd227`, `f14cb08`)
+- `chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, enable
+  `session_tickets`, so HTTP/3 connections built from them resume sessions.
+  The first ClientHello of a connection is unchanged. A resumed ClientHello
+  adds the `pre_shared_key` extension, which changes the wire fingerprint of
+  every resumed connection. (`278645f`)
 
 ### Fixed
 
