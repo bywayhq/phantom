@@ -146,6 +146,72 @@ pub(crate) async fn connect_tcp_address(
     connect_addresses(vec![address], tcp).await
 }
 
+/// Why a direct TLS connection that could offer Encrypted Client Hello failed.
+#[cfg(feature = "https-records")]
+pub(crate) enum DirectTlsError {
+    Direct(DirectConnectError),
+    Tls(crate::tls::TlsError),
+}
+
+/// Opens one direct TCP connection and TLS handshake that offers Encrypted
+/// Client Hello with the `ECHConfigList` that `ech` yields, as Chrome 154's
+/// `SSLConnectJob` does for an origin's HTTPS record.
+///
+/// The TCP connect and the bounded wait for `ech` follow
+/// [`connect_tcp_with_lookup`]; `None` gives the handshake
+/// [`crate::tls::TlsConnector::connect`] makes. A list the TLS client rejects
+/// fails with [`crate::tls::EchFailure::InvalidConfigList`] before any TLS
+/// byte is sent. When the server rejects ECH and authenticates as the public
+/// name, this connects once more to the same address, offering the server's
+/// retry configurations, or ECH GREASE and the true server name when it sent
+/// none (`SSLConnectJob::DoSSLConnectComplete`,
+/// `net/socket/ssl_connect_job.cc` lines 506-525 at `154.0.8037.58`). A
+/// second rejection fails with [`crate::tls::EchFailure::Rejected`].
+#[cfg(feature = "https-records")]
+pub(crate) async fn connect_tls_with_ech(
+    tls: &crate::tls::TlsConnector,
+    dialer: Dialer<'_>,
+    host: &str,
+    port: u16,
+    server_name: &str,
+    ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+) -> Result<crate::tls::TlsStream<TcpStream>, DirectTlsError> {
+    use crate::{
+        dns::EchConfigList,
+        tls::{EchFailure, TlsError},
+    };
+
+    let (stream, list) = connect_tcp_with_lookup(host, port, dialer, ech)
+        .await
+        .map_err(DirectTlsError::Direct)?;
+    if let Some(Err(error)) = list.as_ref().map(EchConfigList::parse) {
+        return Err(DirectTlsError::Tls(TlsError::invalid_ech_config_list(
+            error,
+        )));
+    }
+    let address = stream
+        .peer_addr()
+        .map_err(|error| DirectTlsError::Direct(DirectConnectError::Connect(error)))?;
+    let offered = list.as_ref().map(EchConfigList::as_bytes);
+    match tls.connect_with_ech(server_name, stream, offered).await {
+        Ok(stream) => Ok(stream),
+        Err(mut error) if error.ech_failure() == Some(EchFailure::Rejected) => {
+            let retry_configs = error.take_ech_retry_configs();
+            tracing::debug!(
+                retry_configs = retry_configs.is_some(),
+                "server rejected ECH; connecting once more"
+            );
+            let stream = connect_tcp_address(address, dialer.tcp)
+                .await
+                .map_err(DirectTlsError::Direct)?;
+            tls.connect_with_ech(server_name, stream, retry_configs.as_deref())
+                .await
+                .map_err(DirectTlsError::Tls)
+        }
+        Err(error) => Err(DirectTlsError::Tls(error)),
+    }
+}
+
 #[cfg(feature = "https-records")]
 async fn connect_addresses(
     addresses: Vec<std::net::SocketAddr>,
