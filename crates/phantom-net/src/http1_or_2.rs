@@ -22,6 +22,8 @@ use crate::{
     tls::{TlsConnector, TlsError, trace_alpn},
 };
 
+pub use crate::tls::EchFailure;
+
 /// An established connection selected from one TLS ALPN negotiation.
 #[derive(Debug)]
 pub enum Http1Or2Connection {
@@ -84,6 +86,16 @@ pub enum Http1Or2TlsError {
 }
 
 impl Http1Or2TlsError {
+    /// Returns why a connection that offered Encrypted Client Hello failed,
+    /// when that is the cause.
+    #[must_use]
+    pub fn ech_failure(&self) -> Option<EchFailure> {
+        match self {
+            Self::Tls(error) => error.ech_failure(),
+            _ => None,
+        }
+    }
+
     /// Returns the stable failure category.
     #[must_use]
     pub fn kind(&self) -> Http1Or2TlsErrorKind {
@@ -142,6 +154,15 @@ impl StdError for Http1Or2TlsError {
             | Self::UnsupportedAlpn { .. }
             | Self::MissingHttp1Alpn
             | Self::MissingHttp2Alpn => None,
+        }
+    }
+}
+
+impl Http1Or2TlsError {
+    fn from_direct(error: DirectConnectError) -> Self {
+        match error {
+            DirectConnectError::RuntimeUnavailable => Self::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => Self::Connect(error),
         }
     }
 }
@@ -311,6 +332,88 @@ impl Http1Or2TlsConnector {
         }
     }
 
+    /// Returns whether the TLS settings offer Encrypted Client Hello from
+    /// HTTPS records on direct connections
+    /// ([`TlsSettings::ech_from_https_records`]).
+    #[must_use]
+    pub fn ech_from_https_records(&self) -> bool {
+        self.tls.ech_from_https_records()
+    }
+
+    /// Returns the ALPN protocols the TLS settings offer, in order.
+    #[must_use]
+    pub fn alpn_protocols(&self) -> Vec<Box<[u8]>> {
+        self.tls.alpn_protocols()
+    }
+
+    /// Opens one direct TCP connection and selects HTTP/1.1 or HTTP/2 over
+    /// TLS, offering Encrypted Client Hello with the `ECHConfigList` that
+    /// `ech` yields, as Chrome 154 does for an origin's HTTPS record.
+    ///
+    /// The host is resolved first; the TCP connect then runs while `ech`
+    /// finishes. The ClientHello waits for `ech` at most 20% of the address
+    /// resolution time, clamped to 5-50 ms, counted from when the addresses
+    /// arrived; `ech` still pending then counts as `None`. With `None` the
+    /// handshake is the one [`Self::connect_direct`] makes.
+    ///
+    /// A list the TLS client rejects fails with
+    /// [`EchFailure::InvalidConfigList`] before any TLS byte is sent. When
+    /// the server rejects ECH and authenticates as the public name, this
+    /// connects once more to the same address, offering the server's retry
+    /// configurations, or ECH GREASE and the true server name when it sent
+    /// none. A second rejection fails with [`EchFailure::Rejected`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, connection, TLS, ECH, ALPN,
+    /// ALPS, or protocol setup failures.
+    #[cfg(feature = "https-records")]
+    pub async fn connect_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let (stream, list) =
+                crate::direct::connect_tcp_with_lookup(host, port, self.dialer(), ech)
+                    .await
+                    .map_err(Http1Or2TlsError::from_direct)?;
+            if let Some(Err(error)) = list.as_ref().map(crate::dns::EchConfigList::parse) {
+                return Err(Http1Or2TlsError::Tls(TlsError::invalid_ech_config_list(
+                    error,
+                )));
+            }
+            let address = stream.peer_addr().map_err(Http1Or2TlsError::Connect)?;
+            let offered = list.as_ref().map(crate::dns::EchConfigList::as_bytes);
+            let stream = match self
+                .tls
+                .connect_with_ech(server_name, stream, offered)
+                .await
+            {
+                Ok(stream) => stream,
+                Err(mut error) if error.ech_failure() == Some(EchFailure::Rejected) => {
+                    let retry_configs = error.take_ech_retry_configs();
+                    debug!(
+                        retry_configs = retry_configs.is_some(),
+                        "server rejected ECH; connecting once more"
+                    );
+                    let stream = crate::direct::connect_tcp_address(address, self.tcp)
+                        .await
+                        .map_err(Http1Or2TlsError::from_direct)?;
+                    self.tls
+                        .connect_with_ech(server_name, stream, retry_configs.as_deref())
+                        .await?
+                }
+                Err(error) => return Err(error.into()),
+            };
+            select_connection(stream, client).await
+        })
+        .await
+    }
+
     /// Selects HTTP/1.1 or HTTP/2 over an already-connected stream.
     ///
     /// This performs exactly one TLS handshake. `h2` enters HTTP/2;
@@ -353,15 +456,9 @@ impl Http1Or2TlsConnector {
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream =
-                connect_tcp(host, port, self.dialer())
-                    .await
-                    .map_err(|error| match error {
-                        DirectConnectError::RuntimeUnavailable => {
-                            Http1Or2TlsError::RuntimeUnavailable
-                        }
-                        DirectConnectError::Connect(error) => Http1Or2TlsError::Connect(error),
-                    })?;
+            let stream = connect_tcp(host, port, self.dialer())
+                .await
+                .map_err(Http1Or2TlsError::from_direct)?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
         })
@@ -717,31 +814,4 @@ impl Drop for ConnectOutcome {
 }
 
 #[cfg(test)]
-mod tests {
-    use phantom_profile::chromium::{v154_http2, v154_tls};
-
-    use super::{Http1Or2TlsErrorKind, validate_settings};
-
-    #[test]
-    fn negotiation_requires_both_alpn_protocols() {
-        let http2 = v154_http2();
-
-        let mut tls = v154_tls();
-        tls.alpn_protocols
-            .retain(|protocol| protocol.as_ref() != b"http/1.1");
-        let error = match validate_settings(&tls, &http2) {
-            Ok(()) => panic!("missing HTTP/1.1 was accepted"),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), Http1Or2TlsErrorKind::InvalidConfiguration);
-
-        let mut tls = v154_tls();
-        tls.alpn_protocols
-            .retain(|protocol| protocol.as_ref() != b"h2");
-        let error = match validate_settings(&tls, &http2) {
-            Ok(()) => panic!("missing h2 was accepted"),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), Http1Or2TlsErrorKind::InvalidConfiguration);
-    }
-}
+mod tests;

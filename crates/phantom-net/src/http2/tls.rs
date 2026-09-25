@@ -24,7 +24,7 @@ use crate::{
     tls::{TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{ServerAuthentication, TlsError, TlsErrorKind};
+pub use crate::tls::{EchFailure, ServerAuthentication, TlsError, TlsErrorKind};
 
 /// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
 #[derive(Clone, Debug)]

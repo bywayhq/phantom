@@ -689,7 +689,7 @@ mod request;
 mod tls;
 mod tunnel;
 
-pub use tls::{Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
+pub use tls::{EchFailure, Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
 pub(crate) use tls::{connect_selected, connect_selected_extended, validate_http2};
 
 #[cfg(test)]

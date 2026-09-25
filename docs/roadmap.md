@@ -247,42 +247,16 @@ have shown where the real architectural boundaries are.
      several before building anything: whether Chrome races them, picks one by
      a stated rule, or tries them in order decides whether this is a feature
      or a documented limit.
-  2. Use real ECH from HTTPS DNS records. Phantom now reads the records: an
-     opt-in client learns `h3` from them without an Alt-Svc advertisement,
-     and each record's `ech` value is kept as raw `ECHConfigList` bytes.
-     [Real ECH source findings](explanation/validation.md#real-ech-source-findings)
-     records Chrome 154's rules. The first slice is Chrome's direct TCP path
-     on the negotiated pool:
-     - A TLS recipe field, such as `ech_from_https_records`, true for Chrome
-       154 only. Edge's default is unread and Firefox's ClientHelloOuter
-       comes from NSS, so both stay on GREASE. A QUIC connector rejects the
-       field until the QUIC leg implements it.
-     - A bounded `ECHConfigList` parser with a fuzz target, following
-       BoringSSL's `ssl_is_valid_ech_config_list`. A list that does not parse
-       fails the connection with a typed error, as Chrome's
-       `ERR_INVALID_ECH_CONFIG_LIST` does; the whole list goes to
-       `set_ech_config_list`, which picks the configuration.
-     - The discovery cache keeps, per origin, the `ech` of the
-       lowest-priority-value usable record that allows `h2` or
-       `http/1.1`.
-     - The direct connect resolves addresses, starts the TCP connect, and
-       holds the ClientHello until the lookup ends or a timer fires: 20% of
-       the address resolution time, at least 5 ms and at most 50 ms after
-       the addresses arrive. This is Chrome's wait, so it replaces the rule
-       that discovery never delays a request, for this field only.
-     - On `SSL_R_ECH_REJECTED`, one new TCP connection to the same address
-       with the retry configurations, or with GREASE and the true SNI when
-       there are none. A second rejection is a typed error.
-     - Tests against a loopback server that decrypts ECH: outer SNI is the
-       public name and the inner SNI reaches the server, rejection with and
-       without retry configurations, a malformed list, and no query or ECH
-       on proxy routes.
-
-     Blocked on a `btls` wrapper patch: the loopback server needs
-     `SslEchKeys` and `SslEchKeysBuilder`, which the wrapper keeps private.
-     The client calls are already public. A Chrome capture that shows the
-     ClientHelloOuter next to a GREASE ClientHello is also missing, so the
-     slice may claim only that it makes Chrome's BoringSSL calls.
+  2. Extend real ECH from HTTPS records past Chrome's direct TCP path.
+     The Chrome 154 recipe now encrypts a direct negotiated ClientHello with
+     the record's `ech`
+     ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
+     Chrome also passes the list to QUIC; Phantom's QUIC connector rejects
+     the field until the QUIC leg offers the list and handles a rejection,
+     which needs a capture of Chrome's QUIC behavior with a record. Edge's
+     default is unknown: its DNS over HTTPS could not be configured without
+     elevation, so settling it needs a capture on a host where its policy can
+     be set.
   3. Model Firefox's per-connection keepalive schedule and its address
      selection. Phantom applies Chromium's keepalive and Happy Eyeballs v2 on
      every TCP path, so a Firefox profile currently connects with Chromium's
@@ -450,7 +424,6 @@ resumption captures moved it into the Chrome 154 and Edge 153 recipes.
     they already are for an HTTP proxy route. SOCKS4 takes an IPv4
     address and SOCKS4a a hostname, so the DNS ownership a caller chooses
     with `Socks5DnsMode` maps onto the choice between them.
-  - Real ECH from DNS HTTPS records, where the captured browser uses it.
   - Import of externally described fingerprints, limited to fields Phantom
     can reproduce byte for byte.
 

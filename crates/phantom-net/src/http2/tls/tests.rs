@@ -622,6 +622,7 @@ fn tls_settings() -> TlsSettings {
         ech_grease: false,
         ech_grease_payload_length: None,
         ech_grease_aeads: Vec::new(),
+        ech_from_https_records: false,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,

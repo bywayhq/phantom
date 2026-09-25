@@ -12,7 +12,7 @@ use phantom_net::{
         Http1Connection,
         validate_request_body_source_with_trailers as validate_http1_request_body_source_with_trailers,
     },
-    http1_or_2::{Http1Or2Connection, Http1Or2TlsConnector},
+    http1_or_2::{Http1Or2Connection, Http1Or2TlsConnector, Http1Or2TlsError},
     http2::{
         Http2Connection, Http2Error, Http2ProtocolErrorKind,
         validate_request_body_source_with_trailers as validate_http2_request_body_source_with_trailers,
@@ -63,6 +63,8 @@ pub(crate) struct Http1Or2Pool {
     setup_wait_limit: Option<Duration>,
     state: Mutex<PoolState>,
     http2_keys: Arc<Http2Keys>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http1Or2Pool {
@@ -84,6 +86,8 @@ impl Http1Or2Pool {
             setup_wait_limit: None,
             state: Mutex::new(PoolState::default()),
             http2_keys: Arc::new(Http2Keys::default()),
+            #[cfg(feature = "https-records")]
+            https_records: None,
         }
     }
 
@@ -98,6 +102,16 @@ impl Http1Or2Pool {
     pub(super) const fn with_setup_wait_limit(mut self, limit: Option<Duration>) -> Self {
         self.setup_wait_limit = limit;
         self
+    }
+
+    /// Gives direct connections the client's HTTPS record lookups, for
+    /// profiles that offer ECH from HTTPS records.
+    #[cfg(feature = "https-records")]
+    pub(super) fn set_https_records(
+        &mut self,
+        discovery: Option<super::alt_svc::HttpsRecordDiscovery>,
+    ) {
+        self.https_records = discovery;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -373,15 +387,21 @@ impl Http1Or2Pool {
             self.max_http2_connections,
             self.max_http2_active,
         ));
-        let entry = Arc::new(
-            PoolEntry::new(
-                selection_admission,
-                http1_admission,
-                http2_admission,
-                connections,
-            )
-            .with_setup_wait_limit(self.setup_wait_limit),
-        );
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut entry = PoolEntry::new(
+            selection_admission,
+            http1_admission,
+            http2_admission,
+            connections,
+        )
+        .with_setup_wait_limit(self.setup_wait_limit);
+        // HTTPS records are looked up on the direct route only: Chromium sends
+        // no HTTPS query for a proxied request.
+        #[cfg(feature = "https-records")]
+        if key.route == Route::Direct {
+            entry.https_records = self.https_records.clone();
+        }
+        let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -466,6 +486,8 @@ struct PoolEntry {
     connector: OnceLock<Http1Or2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
     setup_wait_limit: Option<Duration>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl PoolEntry {
@@ -483,12 +505,35 @@ impl PoolEntry {
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
             setup_wait_limit: None,
+            #[cfg(feature = "https-records")]
+            https_records: None,
         }
     }
 
     const fn with_setup_wait_limit(mut self, limit: Option<Duration>) -> Self {
         self.setup_wait_limit = limit;
         self
+    }
+
+    /// Opens a direct connection, offering the `ech` value of the origin's
+    /// HTTPS record when the profile does, as Chrome 154 does.
+    async fn connect_direct(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        #[cfg(feature = "https-records")]
+        if connector.ech_from_https_records()
+            && let Some(discovery) = &self.https_records
+        {
+            let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
+            return connector
+                .connect_direct_with_ech(endpoint.host(), endpoint.port(), endpoint.host(), ech)
+                .await;
+        }
+        connector
+            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+            .await
     }
 
     /// Phase one: bounded admission before ALPN selects a protocol.
@@ -892,8 +937,8 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
-            Route::Direct => connector
-                .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+            Route::Direct => self
+                .connect_direct(connector, endpoint)
                 .await
                 .map_err(RequestError::http1_or_2_connection_setup)?,
             // The origin keeps its own TLS identity: the proxy carries the

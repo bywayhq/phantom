@@ -54,7 +54,9 @@ pub(super) enum NegotiatedPlan {
 /// `net/http/http_stream_factory_job_controller.cc` lines 1125-1133 at
 /// 154.0.8037.58).
 ///
-/// An HTTPS-record lookup never delays the origin. While one is in flight,
+/// An HTTPS-record lookup does not hold back the origin request; only the
+/// TLS handshake of a profile that offers ECH from HTTPS records waits for
+/// it, for at most 50 ms after address resolution. While one is in flight,
 /// the sequential policy sends the request to the origin and leaves the
 /// result for later requests; the racing policy starts origin setup at once
 /// and alternative setup when the lookup advertises `h3`.

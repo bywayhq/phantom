@@ -68,6 +68,7 @@ fn minimal_settings() -> TlsSettings {
         ech_grease: false,
         ech_grease_payload_length: None,
         ech_grease_aeads: Vec::new(),
+        ech_from_https_records: false,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
@@ -172,6 +173,30 @@ fn tls_12_rejects_ech_grease() {
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease")
     );
+}
+
+#[test]
+fn ech_from_https_records_requires_ech_grease() {
+    let mut settings = minimal_settings();
+    settings.ech_from_https_records = true;
+
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_from_https_records")
+    );
+
+    settings.ech_grease = true;
+    assert!(settings.validate().is_ok());
+}
+
+#[test]
+fn only_the_chrome_154_tcp_recipe_uses_ech_from_https_records() {
+    assert!(crate::chromium::v154_tls().ech_from_https_records);
+    assert!(!crate::chromium::v154_http3_tls().ech_from_https_records);
+    assert!(!crate::edge::v153_tls().ech_from_https_records);
+    assert!(!crate::edge::v153_http3_tls().ech_from_https_records);
+    assert!(!crate::firefox::v156_tls().ech_from_https_records);
 }
 
 #[test]

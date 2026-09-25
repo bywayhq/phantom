@@ -58,6 +58,110 @@ pub(crate) async fn connect_tcp(
     Ok(stream)
 }
 
+/// Shortest wait for an HTTPS record after the address answers
+/// (`UseDnsHttpsSvcbInsecureExtraTimeMin`, `net/base/features.cc` lines
+/// 95-97 at Chromium tag `154.0.8037.58`).
+#[cfg(feature = "https-records")]
+const HTTPS_RECORD_EXTRA_TIME_MIN: std::time::Duration = std::time::Duration::from_millis(5);
+/// Longest such wait (`UseDnsHttpsSvcbInsecureExtraTimeMax`, lines 88-90).
+#[cfg(feature = "https-records")]
+const HTTPS_RECORD_EXTRA_TIME_MAX: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// Returns how long Chromium keeps waiting for an HTTPS record once the
+/// address answers are in: 20% of the time the addresses took, clamped to
+/// 5-50 ms (`HostResolverDnsTask::MaybeStartTimeoutTimer`,
+/// `net/dns/host_resolver_dns_task.cc` lines 1122-1195 at `154.0.8037.58`).
+#[cfg(feature = "https-records")]
+pub(crate) fn https_record_extra_time(
+    address_resolution: std::time::Duration,
+) -> std::time::Duration {
+    (address_resolution / 5).clamp(HTTPS_RECORD_EXTRA_TIME_MIN, HTTPS_RECORD_EXTRA_TIME_MAX)
+}
+
+/// Opens one TCP connection while `lookup` finishes, as Chromium's
+/// `TcpConnectJob` does before its TLS handshake.
+///
+/// The addresses are resolved first, through the dialer's address cache
+/// when it has one. The TCP connect then starts at once, and `lookup` gets
+/// [`https_record_extra_time`] of the address resolution time, counted from
+/// the end of that resolution, to finish; a lookup still running then counts
+/// as `None` (`net/socket/tcp_connect_job_connector.cc` lines 250-255 at
+/// `154.0.8037.58`). A failed TCP connect returns without waiting.
+///
+/// When a stored answer supplies the addresses, nothing is waited for:
+/// `lookup` gets no extra time and counts as `None` unless it is already done.
+/// Chromium's cache hit likewise finalizes the request at once, with the
+/// HTTPS record state stored beside the addresses, so its handshake does not
+/// wait either (`ServiceEndpointRequestImpl::DoResolveLocally` and
+/// `EndpointsCryptoReady`,
+/// `net/dns/host_resolver_manager_service_endpoint_request_impl.cc` lines
+/// 366-369, 433-445, and 161-167).
+#[cfg(feature = "https-records")]
+pub(crate) async fn connect_tcp_with_lookup<T>(
+    host: &str,
+    port: u16,
+    dialer: Dialer<'_>,
+    lookup: impl Future<Output = Option<T>>,
+) -> Result<(TcpStream, Option<T>), DirectConnectError> {
+    tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
+    let started = std::time::Instant::now();
+    let (addresses, stored) =
+        poll_tokio_io(|| crate::address_cache::resolve_noting_cache(dialer.addresses, host, port))
+            .await
+            .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
+            .map_err(DirectConnectError::Connect)?;
+    let extra_time = if stored {
+        std::time::Duration::ZERO
+    } else {
+        https_record_extra_time(started.elapsed())
+    };
+    let deadline = crate::shutdown_timer::after(extra_time).map_err(|_| {
+        DirectConnectError::Connect(std::io::Error::other(
+            "could not schedule the HTTPS record deadline",
+        ))
+    })?;
+    let bounded_lookup = async move {
+        tokio::select! {
+            biased;
+            result = lookup => result,
+            _ = deadline => None,
+        }
+    };
+    let connect = connect_addresses(addresses, dialer.tcp);
+    let (stream, result) = tokio::try_join!(connect, async {
+        Ok::<_, DirectConnectError>(bounded_lookup.await)
+    })?;
+    Ok((stream, result))
+}
+
+/// Opens one TCP connection to `address`, as Chromium's ECH retry connects
+/// to the server it reached before (`net/socket/ssl_connect_job.cc` lines
+/// 251-285 at `154.0.8037.58`).
+#[cfg(feature = "https-records")]
+pub(crate) async fn connect_tcp_address(
+    address: std::net::SocketAddr,
+    tcp: Option<TcpSettings>,
+) -> Result<TcpStream, DirectConnectError> {
+    tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
+    connect_addresses(vec![address], tcp).await
+}
+
+#[cfg(feature = "https-records")]
+async fn connect_addresses(
+    addresses: Vec<std::net::SocketAddr>,
+    tcp: Option<TcpSettings>,
+) -> Result<TcpStream, DirectConnectError> {
+    let stream = match tcp {
+        Some(settings) => poll_tokio_io(|| crate::tcp::connect_resolved(addresses, settings)).await,
+        None => poll_tokio_io(|| async move { TcpStream::connect(&addresses[..]).await }).await,
+    }
+    .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
+    .map_err(DirectConnectError::Connect)?;
+    #[cfg(test)]
+    crate::tcp::observed::record(&stream);
+    Ok(stream)
+}
+
 pub(crate) async fn poll_tokio_io<Operation, OperationFuture, Output>(
     operation: Operation,
 ) -> Result<Output, RuntimeUnavailable>

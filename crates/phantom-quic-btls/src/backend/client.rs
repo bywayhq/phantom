@@ -578,6 +578,12 @@ impl ClientTlsProfile {
                 "QUIC requires the exact `h3` ALPN protocol",
             ));
         }
+        if settings.ech_from_https_records {
+            return Err(QuicTlsProfileError::unsupported(
+                "ech_from_https_records",
+                "QUIC connections do not use ECH from HTTPS records",
+            ));
+        }
         if settings
             .alps
             .as_ref()

@@ -29,14 +29,26 @@ pub(crate) async fn connect(
     settings: TcpSettings,
     cache: Option<&AddressCache>,
 ) -> io::Result<TcpStream> {
+    check_settings(&settings)?;
+    let addresses = crate::address_cache::resolve(cache, host, port).await?;
+    connect_resolved(addresses, settings).await
+}
+
+fn check_settings(settings: &TcpSettings) -> io::Result<()> {
     settings
         .validate()
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
     // A client built through the facade has already passed this check; a
     // connector used directly still must not drop an option silently.
-    check_host_support(&settings)
-        .map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))?;
-    let addresses = crate::address_cache::resolve(cache, host, port).await?;
+    check_host_support(settings).map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))
+}
+
+/// Connects to one of `addresses`, already resolved, as [`connect`] does.
+pub(crate) async fn connect_resolved(
+    addresses: Vec<SocketAddr>,
+    settings: TcpSettings,
+) -> io::Result<TcpStream> {
+    check_settings(&settings)?;
     match settings.address_racing {
         Some(racing) => {
             let fallback = crate::shutdown_timer::after(racing.fallback_delay).map_err(|_| {

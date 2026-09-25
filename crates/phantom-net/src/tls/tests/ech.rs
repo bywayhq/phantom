@@ -1,4 +1,7 @@
-use phantom_profile::{EchGreaseAead, chromium::v154_tls};
+use phantom_profile::{
+    EchGreaseAead,
+    chromium::{v154_http3_tls, v154_tls},
+};
 
 use super::{
     TestResult, TlsConnector, TlsErrorKind, capture_client_hello_from, client_hello_fixture,
@@ -42,6 +45,7 @@ async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResul
 fn exact_ech_grease_payload_without_ech_fails_before_stream_io() -> TestResult<()> {
     let mut settings = v154_tls();
     settings.ech_grease = false;
+    settings.ech_from_https_records = false;
     settings.ech_grease_payload_length = Some(239);
 
     let error = match TlsConnector::new(&settings) {
@@ -72,6 +76,7 @@ async fn configured_ech_grease_aead_controls_the_wire_cipher_suite() -> TestResu
 fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
     let mut settings = v154_tls();
     settings.ech_grease = false;
+    settings.ech_from_https_records = false;
     settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
 
     let error = match TlsConnector::new(&settings) {
@@ -81,4 +86,16 @@ fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
     assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
     assert!(error.to_string().contains("ech_grease_aeads"));
     Ok(())
+}
+
+#[test]
+fn quic_connector_rejects_ech_from_https_records() {
+    let mut settings = v154_http3_tls();
+    settings.ech_from_https_records = true;
+
+    let error = match TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {}) {
+        Ok(_) => panic!("a QUIC connector accepted ECH from HTTPS records"),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), TlsErrorKind::UnsupportedSetting);
 }

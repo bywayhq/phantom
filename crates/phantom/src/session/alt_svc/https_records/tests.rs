@@ -4,7 +4,7 @@ use http::uri::Authority;
 use phantom_net::dns::{HttpsRecord, HttpsRecordResolver};
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 
-use super::{Discovery, HttpsRecordDiscovery, advertises_h3};
+use super::{Discovery, HttpsRecordDiscovery, advertises_h3, summarize};
 use crate::authority::Endpoint;
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -207,5 +207,59 @@ async fn ip_literal_origins_are_never_queried() -> TestResult<()> {
     }
     tokio::task::yield_now().await;
     assert!(server.queries().is_empty());
+    Ok(())
+}
+
+fn tcp_ech(records: &[Vec<u8>]) -> TestResult<Option<Vec<u8>>> {
+    let parsed = records
+        .iter()
+        .map(|bytes| record(bytes))
+        .collect::<TestResult<Vec<_>>>()?;
+    let answers = parsed
+        .iter()
+        .map(|record| (OWNER, record))
+        .collect::<Vec<_>>();
+    let alpn = [Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])];
+    Ok(summarize(&answers, HOST, 8443)
+        .tcp_ech(&alpn)
+        .map(|list| list.as_bytes().to_vec()))
+}
+
+const ECH_A: (u16, &[u8]) = (5, b"\x00\x01\xaa");
+const ECH_B: (u16, &[u8]) = (5, b"\x00\x01\xbb");
+const H2: (u16, &[u8]) = (1, b"\x02h2");
+const NO_DEFAULT_ALPN: (u16, &[u8]) = (2, b"");
+
+#[test]
+fn tcp_uses_the_ech_of_the_first_record_by_priority() -> TestResult<()> {
+    let records = [rdata(2, &[], &[H2, ECH_B]), rdata(1, &[], &[H2, ECH_A])];
+    assert_eq!(tcp_ech(&records)?.as_deref(), Some(&b"\x00\x01\xaa"[..]));
+    Ok(())
+}
+
+#[test]
+fn a_first_record_without_ech_means_no_ech() -> TestResult<()> {
+    let records = [rdata(1, &[], &[H2]), rdata(2, &[], &[H2, ECH_A])];
+    assert_eq!(tcp_ech(&records)?, None);
+    Ok(())
+}
+
+#[test]
+fn records_tcp_cannot_use_are_skipped() -> TestResult<()> {
+    // HTTP/3 only: no `h2`, and `no-default-alpn` drops `http/1.1`.
+    let quic_only = rdata(1, &[], &[H3, NO_DEFAULT_ALPN, ECH_B]);
+    let records = [quic_only, rdata(2, &[], &[H2, ECH_A])];
+    assert_eq!(tcp_ech(&records)?.as_deref(), Some(&b"\x00\x01\xaa"[..]));
+    Ok(())
+}
+
+#[test]
+fn records_chromium_ignores_carry_no_ech() -> TestResult<()> {
+    let alias = rdata(0, &["elsewhere", "test"], &[]);
+    assert_eq!(tcp_ech(&[alias, rdata(1, &[], &[H2, ECH_A])])?, None);
+    let other_port = rdata(1, &[], &[H2, (3, b"\x00\x01"), ECH_A]);
+    assert_eq!(tcp_ech(&[other_port])?, None);
+    let other_target = rdata(1, &["cdn", "test"], &[H2, ECH_A]);
+    assert_eq!(tcp_ech(&[other_target])?, None);
     Ok(())
 }

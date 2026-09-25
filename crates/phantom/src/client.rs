@@ -1103,10 +1103,17 @@ impl ClientBuilder {
     /// request uses HTTP/3 at that location under the
     /// [`AltSvcPolicy`](crate::AltSvcPolicy), without an `Alt-Used` field.
     ///
-    /// The lookup never delays a request. While it is in flight, a sequential
-    /// client sends the request to the origin, and a racing client starts
-    /// origin setup at once and alternative setup when the lookup
-    /// advertises `h3`. A failed lookup counts as no advertisement.
+    /// The lookup does not hold back the request. While it is in flight, a
+    /// sequential client sends the request to the origin, and a racing
+    /// client starts origin setup at once and alternative setup when the
+    /// lookup advertises `h3`. A failed lookup counts as no advertisement.
+    ///
+    /// A profile that sets
+    /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
+    /// as the Chrome 154 recipe does, also uses the records for Encrypted
+    /// Client Hello on direct negotiated connections: the TLS handshake
+    /// waits for the lookup at most 20% of the address resolution time,
+    /// clamped to 5-50 ms, and then offers the record's `ech`.
     ///
     /// Results are cached per origin for the records' TTL, capped at one day,
     /// or 60 seconds when there is no TTL, as after a failed lookup. The

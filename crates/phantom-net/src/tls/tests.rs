@@ -51,6 +51,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     settings.key_shares.clear();
     settings.certificate_compression.clear();
     settings.ech_grease = false;
+    settings.ech_from_https_records = false;
     settings.requested_trust_anchor_ids = None;
     let connector = TlsConnector::new(&settings)?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;

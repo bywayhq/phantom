@@ -147,6 +147,11 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 /// processes. All 60 processes of the retained `trust-anchor-orders.txt`
 /// capture emit the one ascending order this recipe carries.
 ///
+/// Chrome 154 offers real Encrypted Client Hello on a direct connection
+/// whose HTTPS record carries `ech`, so
+/// [`TlsSettings::ech_from_https_records`] is set; it applies only on a
+/// client that looks up HTTPS records.
+///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -208,6 +213,7 @@ pub fn v154_tls() -> TlsSettings {
         ech_grease: true,
         ech_grease_payload_length: None,
         ech_grease_aeads: Vec::new(),
+        ech_from_https_records: true,
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
@@ -799,6 +805,9 @@ pub fn v154_http3_tls() -> TlsSettings {
         use_new_codepoint: true,
     });
     settings.session_tickets = true;
+    // Chrome passes the record's `ech` to QUIC too, but Phantom's QUIC leg
+    // does not implement it yet.
+    settings.ech_from_https_records = false;
     settings.grease = false;
     settings.grease_signature_algorithms = false;
     settings.request_ocsp_staple = false;

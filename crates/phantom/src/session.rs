@@ -185,6 +185,25 @@ impl ClientOptions {
     }
 
     pub(crate) fn build(self, inner: &ClientInner) -> Arc<ClientState> {
+        #[cfg(feature = "https-records")]
+        let https_records = self
+            .https_record_resolver
+            .zip(self.max_alt_svc_origins)
+            .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity));
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut http1_or_2 = http1_or_2_pool::Http1Or2Pool::new(
+            self.max_retained_http1_connections,
+            self.max_concurrent_http1_requests_per_origin
+                .unwrap_or(inner.http1_connections_per_origin),
+            self.max_pending_http1_requests_per_origin,
+            self.max_retained_http2_connections,
+            self.max_concurrent_http2_requests_per_origin,
+            self.max_pending_http2_requests_per_origin,
+        )
+        .with_max_http2_connections(self.max_http2_connections_per_origin)
+        .with_setup_wait_limit(self.negotiated_setup_wait_limit);
+        #[cfg(feature = "https-records")]
+        http1_or_2.set_https_records(https_records.clone());
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
@@ -195,17 +214,7 @@ impl ClientOptions {
                     .unwrap_or(inner.http1_connections_per_origin),
                 self.max_pending_http1_requests_per_origin,
             ),
-            http1_or_2: http1_or_2_pool::Http1Or2Pool::new(
-                self.max_retained_http1_connections,
-                self.max_concurrent_http1_requests_per_origin
-                    .unwrap_or(inner.http1_connections_per_origin),
-                self.max_pending_http1_requests_per_origin,
-                self.max_retained_http2_connections,
-                self.max_concurrent_http2_requests_per_origin,
-                self.max_pending_http2_requests_per_origin,
-            )
-            .with_max_http2_connections(self.max_http2_connections_per_origin)
-            .with_setup_wait_limit(self.negotiated_setup_wait_limit),
+            http1_or_2,
             http2: http2_pool::Http2Pool::new(
                 self.max_retained_http2_connections,
                 self.max_concurrent_http2_requests_per_origin,
@@ -220,10 +229,7 @@ impl ClientOptions {
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             alt_svc_policy: self.alt_svc_policy,
             #[cfg(feature = "https-records")]
-            https_records: self
-                .https_record_resolver
-                .zip(self.max_alt_svc_origins)
-                .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity)),
+            https_records,
             client_hints: inner
                 .client_hints
                 .is_some()

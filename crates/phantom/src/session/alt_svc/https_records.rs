@@ -1,4 +1,4 @@
-//! HTTP/3 discovery from HTTPS DNS records (RFC 9460).
+//! HTTP/3 discovery and ECH configuration from HTTPS DNS records (RFC 9460).
 //!
 //! Chromium 154.0.8037.58 starts a `DNS_ALPN_H3` job beside its main job
 //! for a direct `https` request whose QUIC alternative is not broken
@@ -8,7 +8,7 @@
 //! ServiceMode record lists `h3` (`QuicSessionPool::DirectJob::DoAttemptSession`,
 //! `net/quic/quic_session_pool_direct_job.cc` lines 191-231). This module
 //! makes the same decision from Phantom's own lookup and caches it per
-//! origin.
+//! origin, together with the `ech` value a direct TCP connection offers.
 
 use std::{
     collections::VecDeque,
@@ -22,7 +22,8 @@ use std::{
 };
 
 use phantom_net::dns::{
-    HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup, HttpsRecordResolver, TargetName,
+    EchConfigList, HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup, HttpsRecordResolver,
+    TargetName,
 };
 use tokio::sync::watch;
 use tracing::{Instrument, debug, instrument::WithSubscriber};
@@ -43,6 +44,9 @@ const MAX_RESULT_TTL: u32 = 24 * 60 * 60;
 
 /// ALPN of HTTP/3 (RFC 9114 section 3.1).
 const H3_ALPN: &[u8] = b"h3";
+/// The HTTPS default protocol a record supports unless it sets
+/// `no-default-alpn` (RFC 9460 section 7.1.2).
+const DEFAULT_ALPN: &[u8] = b"http/1.1";
 /// SvcParamKeys whose meaning Phantom implements, as a `mandatory` entry
 /// requires (RFC 9460 section 8): `alpn` through `ipv6hint`.
 const SUPPORTED_KEYS: std::ops::RangeInclusive<u16> = 1..=6;
@@ -52,6 +56,8 @@ const SUPPORTED_KEYS: std::ops::RangeInclusive<u16> = 1..=6;
 /// Concurrent requests for one origin share one in-flight lookup. Each lookup
 /// runs as its own task, so a request never waits for it unless it chose to,
 /// and a finished lookup fills the cache even after its requests ended.
+/// Clones share the cache.
+#[derive(Clone)]
 pub(crate) struct HttpsRecordDiscovery {
     resolver: HttpsRecordResolver,
     cache: Arc<Cache>,
@@ -69,15 +75,55 @@ struct Entry {
     state: EntryState,
 }
 
+type LookupResult = watch::Receiver<Option<Arc<RecordSummary>>>;
+
 enum EntryState {
     Pending {
         lookup: u64,
-        result: watch::Receiver<Option<bool>>,
+        result: LookupResult,
     },
     Ready {
-        advertises_h3: bool,
+        summary: Arc<RecordSummary>,
         expires_at: Instant,
     },
+}
+
+/// What an origin's HTTPS records say, by Chromium 154's rules.
+#[derive(Debug, Default)]
+struct RecordSummary {
+    advertises_h3: bool,
+    /// The usable ServiceMode records in priority order, each one the
+    /// connection metadata of one Chromium service endpoint.
+    endpoints: Box<[ServiceEndpoint]>,
+}
+
+#[derive(Debug)]
+struct ServiceEndpoint {
+    protocols: Box<[Box<[u8]>]>,
+    ech: Option<EchConfigList>,
+}
+
+impl RecordSummary {
+    /// Returns the `ech` value a TCP connection offering `alpn` uses.
+    ///
+    /// `DnsTaskResultsManager::UpdateEndpoints`
+    /// (`net/dns/dns_task_results_manager.cc` lines 295-339) builds one
+    /// endpoint per record in priority order, all on the origin's addresses,
+    /// and `TcpConnectJob::FindServiceEndpoint`
+    /// (`net/socket/tcp_connect_job.cc` lines 809-854) takes the first one
+    /// whose protocols include an offered TCP protocol. That record's `ech`
+    /// applies, even when it has none and a later record does.
+    fn tcp_ech(&self, alpn: &[Box<[u8]>]) -> Option<EchConfigList> {
+        self.endpoints
+            .iter()
+            .find(|endpoint| {
+                endpoint
+                    .protocols
+                    .iter()
+                    .any(|protocol| alpn.contains(protocol))
+            })
+            .and_then(|endpoint| endpoint.ech.clone())
+    }
 }
 
 /// What the cache knows about an origin's HTTPS records.
@@ -91,19 +137,32 @@ pub(crate) enum Discovery {
 }
 
 /// An in-flight lookup's eventual result.
-pub(crate) struct PendingLookup(watch::Receiver<Option<bool>>);
+pub(crate) struct PendingLookup(LookupResult);
 
 impl PendingLookup {
     /// Waits for the lookup and returns whether the records advertise `h3`.
     ///
     /// A lookup that ends without a result, such as one whose runtime shut
     /// down, counts as no advertisement.
-    pub(crate) async fn advertises_h3(mut self) -> bool {
+    pub(crate) async fn advertises_h3(self) -> bool {
+        self.summary()
+            .await
+            .is_some_and(|summary| summary.advertises_h3)
+    }
+
+    async fn summary(mut self) -> Option<Arc<RecordSummary>> {
         match self.0.wait_for(Option::is_some).await {
-            Ok(result) => result.unwrap_or(false),
-            Err(_) => false,
+            Ok(result) => result.clone(),
+            Err(_) => None,
         }
     }
+}
+
+/// The cache's state for one origin.
+enum State {
+    Ready(Arc<RecordSummary>),
+    Pending(PendingLookup),
+    Unavailable,
 }
 
 impl HttpsRecordDiscovery {
@@ -124,11 +183,41 @@ impl HttpsRecordDiscovery {
     /// An IP-literal host has no DNS name to query. Without a Tokio runtime to
     /// run the lookup on, nothing is started.
     pub(crate) fn discover(&self, origin: &Endpoint) -> Discovery {
+        match self.state(origin) {
+            State::Ready(summary) if summary.advertises_h3 => Discovery::Advertised,
+            State::Ready(_) | State::Unavailable => Discovery::NotAdvertised,
+            State::Pending(pending) => Discovery::Pending(pending),
+        }
+    }
+
+    /// Returns the `ech` value a direct TCP connection to `origin` offering
+    /// `alpn` uses, once the origin's lookup has finished.
+    ///
+    /// A cached result resolves at once. Otherwise the future waits for the
+    /// shared lookup, which it starts when none is running; the caller
+    /// bounds that wait. Without a lookup it resolves to `None`.
+    pub(crate) fn tcp_ech(
+        &self,
+        origin: &Endpoint,
+        alpn: Vec<Box<[u8]>>,
+    ) -> impl Future<Output = Option<EchConfigList>> + Send + 'static {
+        let state = self.state(origin);
+        async move {
+            let summary = match state {
+                State::Ready(summary) => summary,
+                State::Pending(pending) => pending.summary().await?,
+                State::Unavailable => return None,
+            };
+            summary.tcp_ech(&alpn)
+        }
+    }
+
+    fn state(&self, origin: &Endpoint) -> State {
         if origin.host().parse::<IpAddr>().is_ok() {
-            return Discovery::NotAdvertised;
+            return State::Unavailable;
         }
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            return Discovery::NotAdvertised;
+            return State::Unavailable;
         };
         let host = origin.host().to_ascii_lowercase();
         let port = origin.port();
@@ -141,21 +230,17 @@ impl HttpsRecordDiscovery {
         {
             match &entry.state {
                 EntryState::Ready {
-                    advertises_h3,
+                    summary,
                     expires_at,
                 } if *expires_at > now => {
-                    let advertises_h3 = *advertises_h3;
+                    let summary = Arc::clone(summary);
                     entries.push_back(entry);
-                    return if advertises_h3 {
-                        Discovery::Advertised
-                    } else {
-                        Discovery::NotAdvertised
-                    };
+                    return State::Ready(summary);
                 }
                 EntryState::Pending { result, .. } => {
                     let pending = PendingLookup(result.clone());
                     entries.push_back(entry);
-                    return Discovery::Pending(pending);
+                    return State::Pending(pending);
                 }
                 // Expired: dropped here and looked up again below.
                 EntryState::Ready { .. } => {}
@@ -183,33 +268,40 @@ impl HttpsRecordDiscovery {
             runtime.spawn(
                 async move {
                     let result = resolver.lookup(&host, port).await;
-                    let (advertises_h3, ttl) = match &result {
+                    let (summary, ttl) = match &result {
                         Ok(records) => {
                             let answers = records
                                 .answers()
                                 .iter()
                                 .map(|answer| (answer.owner(), answer.record()))
                                 .collect::<Vec<_>>();
-                            (advertises_h3(&answers, &host, port), result_ttl(records))
+                            (summarize(&answers, &host, port), result_ttl(records))
                         }
                         Err(error) => {
                             debug!(outcome = "failed", kind = ?error.kind(), "HTTPS record lookup failed");
-                            (false, UNTIMED_RESULT_TTL)
+                            (RecordSummary::default(), UNTIMED_RESULT_TTL)
                         }
                     };
                     debug!(
-                        advertises_h3,
+                        advertises_h3 = summary.advertises_h3,
+                        endpoints = summary.endpoints.len(),
+                        ech_endpoints = summary
+                            .endpoints
+                            .iter()
+                            .filter(|endpoint| endpoint.ech.is_some())
+                            .count(),
                         ttl_seconds = ttl.as_secs(),
                         "HTTPS record lookup finished"
                     );
-                    cache.complete(&host, port, lookup, advertises_h3, ttl);
-                    let _ = sender.send(Some(advertises_h3));
+                    let summary = Arc::new(summary);
+                    cache.complete(&host, port, lookup, Arc::clone(&summary), ttl);
+                    let _ = sender.send(Some(summary));
                 }
                 .instrument(span)
                 .with_current_subscriber(),
             ),
         );
-        Discovery::Pending(PendingLookup(receiver))
+        State::Pending(PendingLookup(receiver))
     }
 }
 
@@ -226,7 +318,14 @@ impl Cache {
     }
 
     /// Stores a finished lookup unless its entry was evicted or replaced meanwhile.
-    fn complete(&self, host: &str, port: u16, lookup: u64, advertises_h3: bool, ttl: Duration) {
+    fn complete(
+        &self,
+        host: &str,
+        port: u16,
+        lookup: u64,
+        summary: Arc<RecordSummary>,
+        ttl: Duration,
+    ) {
         let mut entries = self.lock_entries();
         let Some(entry) = entries.iter_mut().find(|entry| {
             *entry.host == *host
@@ -237,7 +336,7 @@ impl Cache {
         };
         let now = Instant::now();
         entry.state = EntryState::Ready {
-            advertises_h3,
+            summary,
             expires_at: now.checked_add(ttl).unwrap_or(now),
         };
     }
@@ -257,8 +356,8 @@ fn result_ttl(lookup: &HttpsRecordLookup) -> Duration {
     })
 }
 
-/// Returns whether the records let a request to `host`:`port` use HTTP/3 at
-/// the origin's own location, by Chromium 154's rules.
+/// Returns what the records say about a request to `host`:`port`, by
+/// Chromium 154's rules.
 ///
 /// `ExtractHttpsResults` (`net/dns/dns_response_result_extractor.cc` lines
 /// 479-628) ignores every record when any is in AliasMode, since Chromium
@@ -267,20 +366,21 @@ fn result_ttl(lookup: &HttpsRecordLookup) -> Duration {
 /// origin host, or the record's owner, and its `port`, if any, is the
 /// request's port. A kept record supports `alpn` plus `http/1.1` unless
 /// `no-default-alpn` is set, and one supporting nothing is dropped. When
-/// every kept record sets `no-default-alpn`, all are ignored.
+/// every kept record sets `no-default-alpn`, all are ignored. Kept records
+/// are ordered by priority, ties in response order.
 /// `QuicSessionPool::SelectQuicVersion` (`net/quic/quic_session_pool.cc`
 /// lines 1656-1691) then needs a kept record listing `h3`.
 ///
 /// Each answer is its owner name and record.
-fn advertises_h3(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> bool {
+fn summarize(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> RecordSummary {
     if answers
         .iter()
         .any(|(_, record)| matches!(record, HttpsRecord::Alias(_)))
     {
-        return false;
+        return RecordSummary::default();
     }
     let mut default_alpn = false;
-    let mut h3 = false;
+    let mut kept = Vec::new();
     for (owner, record) in answers {
         let HttpsRecord::Service(service) = record else {
             continue;
@@ -304,9 +404,38 @@ fn advertises_h3(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> boo
             continue;
         }
         default_alpn |= !service.no_default_alpn();
-        h3 |= service.alpn().iter().any(|id| **id == *H3_ALPN);
+        let mut protocols = service.alpn().to_vec();
+        if !service.no_default_alpn() && !protocols.iter().any(|id| **id == *DEFAULT_ALPN) {
+            protocols.push(Box::from(DEFAULT_ALPN));
+        }
+        kept.push((
+            service.priority(),
+            ServiceEndpoint {
+                protocols: protocols.into_boxed_slice(),
+                ech: service.ech().cloned(),
+            },
+        ));
     }
-    default_alpn && h3
+    if !default_alpn {
+        return RecordSummary::default();
+    }
+    // A stable sort keeps response order among equal priorities.
+    kept.sort_by_key(|(priority, _)| *priority);
+    let endpoints = kept
+        .into_iter()
+        .map(|(_, endpoint)| endpoint)
+        .collect::<Box<[_]>>();
+    RecordSummary {
+        advertises_h3: endpoints
+            .iter()
+            .any(|endpoint| endpoint.protocols.iter().any(|id| **id == *H3_ALPN)),
+        endpoints,
+    }
+}
+
+#[cfg(test)]
+fn advertises_h3(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> bool {
+    summarize(answers, host, port).advertises_h3
 }
 
 #[cfg(test)]

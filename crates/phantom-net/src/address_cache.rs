@@ -207,16 +207,29 @@ impl AddressCache {
     /// resolution on, or when it ends without an answer, as when that runtime
     /// drops it while shutting down. An empty answer is returned as `Ok`.
     pub(crate) async fn lookup(&self, host: &str, port: u16) -> io::Result<Vec<SocketAddr>> {
+        self.lookup_noting_cache(host, port)
+            .await
+            .map(|(addresses, _)| addresses)
+    }
+
+    /// Returns what [`Self::lookup`] returns, and whether a stored answer
+    /// supplied it without a resolution.
+    pub(crate) async fn lookup_noting_cache(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> io::Result<(Vec<SocketAddr>, bool)> {
         if let Ok(address) = host.parse::<IpAddr>() {
-            return Ok(vec![SocketAddr::new(address, port)]);
+            return Ok((vec![SocketAddr::new(address, port)], false));
         }
         let mut receiver = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
+        let stored = receiver.borrow().is_some();
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),
             Err(_) => None,
         };
         match outcome {
-            Some(outcome) => outcome.addresses(port),
+            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, stored)),
             None => Err(io::Error::other(
                 "the address lookup ended without an answer",
             )),
@@ -360,6 +373,23 @@ impl fmt::Debug for AddressCache {
             .field("settings", &self.inner.settings)
             .field("entries", &self.len())
             .finish_non_exhaustive()
+    }
+}
+
+/// Resolves `host` as [`resolve`] does, and reports whether a stored answer
+/// supplied the addresses without a resolution.
+#[cfg(feature = "https-records")]
+pub(crate) async fn resolve_noting_cache(
+    cache: Option<&AddressCache>,
+    host: &str,
+    port: u16,
+) -> io::Result<(Vec<SocketAddr>, bool)> {
+    match cache {
+        Some(cache) => cache.lookup_noting_cache(host, port).await,
+        None => Ok((
+            tokio::net::lookup_host((host, port)).await?.collect(),
+            false,
+        )),
     }
 }
 

@@ -205,10 +205,14 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
 }
 ```
 
-- The lookup never delays a request. The first negotiated request to an
-  origin starts it: a sequential client sends that request to the origin,
-  and a racing client starts origin setup at once and H3 setup only if the
-  records list `h3`. Later requests use the cached result.
+- The lookup does not hold back the request: the first negotiated request
+  to an origin starts it, a sequential client sends that request to the
+  origin, and a racing client starts origin setup at once and H3 setup only
+  if the records list `h3`. Later requests use the cached result. With the
+  Chrome 154 recipe, whose `ech_from_https_records` is set, a direct TLS
+  handshake to the origin waits up to 50 ms after address resolution for the
+  lookup and encrypts its ClientHello with the record's `ech`, as Chrome
+  does.
 - Only negotiated requests on the direct route with no stored Alt-Svc
   alternative look up records. Proxy routes and IP-literal origins send no
   query.
@@ -284,11 +288,14 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   system resolves addresses, so an observer sees DNS traffic from two
   sources where Chrome shows one
   ([HTTPS record evidence](../explanation/validation.md#https-dns-record-evidence)).
+- Encrypted Client Hello from a record's `ech` value covers direct
+  negotiated HTTP/1.1 and HTTP/2 connections only, not H3 or exact-protocol
+  requests ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
 - Not implemented: racing more than one alternative (a stored Alt-Svc
-  alternative is used instead of an HTTPS-record one), Encrypted Client
-  Hello from a record's `ech` value, persisting brokenness or clearing it on
-  a network change, an RTT-derived racing delay, proxy-route snapshots,
-  WebSocket over H3, and early data on an Alt-Svc racing attempt.
+  alternative is used instead of an HTTPS-record one), persisting
+  brokenness or clearing it on a network change, an RTT-derived racing
+  delay, proxy-route snapshots, WebSocket over H3, and early data on an
+  Alt-Svc racing attempt.
 
 ## Next
 

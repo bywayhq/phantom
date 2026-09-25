@@ -776,4 +776,4 @@ mod response_head;
 mod tls;
 mod upgrade;
 
-pub use tls::{Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};
+pub use tls::{EchFailure, Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

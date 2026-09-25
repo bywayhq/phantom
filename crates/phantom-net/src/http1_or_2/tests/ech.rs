@@ -1,0 +1,440 @@
+//! Real Encrypted Client Hello on the direct negotiated connect, against a
+//! loopback server that decrypts ECH.
+
+use std::{
+    future::Future,
+    io,
+    net::SocketAddr,
+    pin::Pin,
+    task::{Context, Poll},
+    time::{Duration, Instant},
+};
+
+use btls::{
+    hpke::HpkeKey,
+    ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslEchKeys, select_next_proto},
+};
+use phantom_profile::chromium::{v154_http2, v154_tls};
+use phantom_testkit::tls::{
+    CaptureLimits, ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS,
+    capture_client_hello, ech_config, ech_config_list, is_grease,
+};
+use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
+    net::{TcpListener, TcpStream},
+    task::JoinHandle,
+};
+use tokio_btls::SslStream;
+
+use crate::{
+    direct::https_record_extra_time,
+    dns::EchConfigList,
+    http1_or_2::{EchFailure, Http1Or2Connection, Http1Or2TlsConnector, Http1Or2TlsError},
+    tls::test_support::{TEST_TIMEOUT, TestIdentity, TestResult},
+};
+
+const INNER_NAME: &str = "inner.phantom.test";
+const PUBLIC_NAME: &str = "public.phantom.test";
+const HTTP1_ALPN_WIRE: &[u8] = b"\x08http/1.1";
+
+/// What the server saw on one connection.
+#[derive(Debug)]
+struct Observed {
+    outer_server_name: Option<String>,
+    ech: Option<EchOuterExtension>,
+    extension_types: Vec<u16>,
+    handshake_completed: bool,
+    ech_accepted: bool,
+    inner_server_name: Option<String>,
+}
+
+/// One server key: the configuration the server holds and marks for retry.
+struct ServerKey {
+    config: Vec<u8>,
+    key: EchTestKey,
+}
+
+fn server_key(config_id: u8, key: EchTestKey) -> ServerKey {
+    ServerKey {
+        config: ech_config(config_id, &key, PUBLIC_NAME),
+        key,
+    }
+}
+
+fn published(config_id: u8, key: &EchTestKey) -> EchConfigList {
+    EchConfigList::new(ech_config_list(&[ech_config(config_id, key, PUBLIC_NAME)]))
+}
+
+fn acceptor(identity: &TestIdentity, key: Option<&ServerKey>) -> TestResult<SslAcceptor> {
+    let mut builder = identity.acceptor_builder()?;
+    builder.set_alpn_select_callback(|_, offered| {
+        select_next_proto(HTTP1_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
+    });
+    if let Some(server) = key {
+        let mut keys = SslEchKeys::builder()?;
+        keys.add_key(
+            true,
+            &server.config,
+            HpkeKey::dhkem_p256_sha256(&server.key.private_key)?,
+        )?;
+        builder.set_ech_keys(&keys.build())?;
+    }
+    Ok(builder.build())
+}
+
+/// Serves one connection per acceptor, in order, and reports what each saw.
+async fn serve(
+    acceptors: Vec<SslAcceptor>,
+) -> TestResult<(SocketAddr, JoinHandle<TestResult<Vec<Observed>>>)> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let task = tokio::spawn(async move {
+        let mut observed = Vec::new();
+        for acceptor in acceptors {
+            let (tcp, _) = tokio::time::timeout(TEST_TIMEOUT, listener.accept()).await??;
+            observed.push(observe(tcp, &acceptor).await?);
+        }
+        Ok(observed)
+    });
+    Ok((address, task))
+}
+
+async fn observe(mut tcp: TcpStream, acceptor: &SslAcceptor) -> TestResult<Observed> {
+    let capture = capture_client_hello(
+        &mut tcp,
+        tokio::time::Instant::now() + TEST_TIMEOUT,
+        CaptureLimits::new(64 * 1024, 64 * 1024, 8),
+    )
+    .await?;
+    let summary = capture.summary()?;
+    let prefix = capture
+        .records()
+        .iter()
+        .flat_map(|record| record.wire_bytes().iter().copied())
+        .collect::<Vec<_>>();
+    let mut tls = SslStream::new(
+        Ssl::new(acceptor.context())?,
+        Replayed {
+            prefix,
+            offset: 0,
+            inner: tcp,
+        },
+    )?;
+    let handshake_completed = tokio::time::timeout(TEST_TIMEOUT, Pin::new(&mut tls).accept())
+        .await?
+        .is_ok();
+    Ok(Observed {
+        outer_server_name: summary
+            .server_name()
+            .map(|name| String::from_utf8_lossy(name).into_owned()),
+        ech: summary
+            .encrypted_client_hello()
+            .and_then(EchOuterExtension::parse),
+        extension_types: summary.extension_types().to_vec(),
+        handshake_completed,
+        ech_accepted: handshake_completed && tls.ssl().ech_accepted(),
+        inner_server_name: handshake_completed
+            .then(|| tls.ssl().servername(NameType::HOST_NAME).map(str::to_owned))
+            .flatten(),
+    })
+}
+
+/// Replays the captured ClientHello records before reading the socket.
+struct Replayed {
+    prefix: Vec<u8>,
+    offset: usize,
+    inner: TcpStream,
+}
+
+impl AsyncRead for Replayed {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        if self.offset < self.prefix.len() {
+            let count = (self.prefix.len() - self.offset).min(buffer.remaining());
+            let start = self.offset;
+            buffer.put_slice(&self.prefix[start..start + count]);
+            self.offset += count;
+            return Poll::Ready(Ok(()));
+        }
+        Pin::new(&mut self.inner).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for Replayed {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(context, buffer)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
+}
+
+fn connector(identity: &TestIdentity) -> TestResult<Http1Or2TlsConnector> {
+    let settings = v154_tls();
+    assert!(settings.ech_from_https_records);
+    Ok(Http1Or2TlsConnector::new_with_additional_roots(
+        &settings,
+        &v154_http2(),
+        [identity.root_der()],
+    )?)
+}
+
+async fn connect(
+    identity: &TestIdentity,
+    address: SocketAddr,
+    ech: impl Future<Output = Option<EchConfigList>>,
+) -> TestResult<Result<Http1Or2Connection, Http1Or2TlsError>> {
+    let connector = connector(identity)?;
+    Ok(tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("127.0.0.1", address.port(), INNER_NAME, ech),
+    )
+    .await?)
+}
+
+fn identity() -> TestResult<TestIdentity> {
+    TestIdentity::generate_for_names(&[INNER_NAME, PUBLIC_NAME])
+}
+
+#[tokio::test]
+async fn accepted_ech_sends_the_public_name_outside_and_the_origin_inside() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(1, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
+
+    let connection = connect(&identity, address, async {
+        Some(published(1, &TEST_ECH_KEYS[0]))
+    })
+    .await??;
+
+    assert!(matches!(connection, Http1Or2Connection::Http1(_)));
+    let observed = server.await??;
+    let [only] = &observed[..] else {
+        return Err(format!("expected one connection, saw {observed:?}").into());
+    };
+    assert_eq!(only.outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    let ech = only.ech.as_ref().ok_or("ClientHelloOuter omitted ECH")?;
+    assert_eq!((ech.kdf_id, ech.config_id, ech.enc_length), (1, 1, 32));
+    assert!(only.ech_accepted);
+    assert_eq!(only.inner_server_name.as_deref(), Some(INNER_NAME));
+    Ok(())
+}
+
+#[tokio::test]
+async fn rejection_retries_once_with_the_servers_retry_configurations() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(2, TEST_ECH_KEYS[1]);
+    let (address, server) = serve(vec![
+        acceptor(&identity, Some(&key))?,
+        acceptor(&identity, Some(&key))?,
+    ])
+    .await?;
+
+    connect(&identity, address, async {
+        Some(published(1, &TEST_ECH_KEYS[0]))
+    })
+    .await??;
+
+    let observed = server.await??;
+    let [rejected, retried] = &observed[..] else {
+        return Err(format!("expected two connections, saw {observed:?}").into());
+    };
+    assert_eq!(rejected.outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    assert_eq!(rejected.ech.as_ref().map(|ech| ech.config_id), Some(1));
+    assert!(!rejected.ech_accepted);
+    assert_eq!(retried.outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    assert_eq!(retried.ech.as_ref().map(|ech| ech.config_id), Some(2));
+    assert!(retried.ech_accepted);
+    assert_eq!(retried.inner_server_name.as_deref(), Some(INNER_NAME));
+    Ok(())
+}
+
+#[tokio::test]
+async fn rejection_without_retry_configurations_retries_with_grease() -> TestResult<()> {
+    let identity = identity()?;
+    let (address, server) =
+        serve(vec![acceptor(&identity, None)?, acceptor(&identity, None)?]).await?;
+
+    connect(&identity, address, async {
+        Some(published(1, &TEST_ECH_KEYS[0]))
+    })
+    .await??;
+
+    let observed = server.await??;
+    let [rejected, retried] = &observed[..] else {
+        return Err(format!("expected two connections, saw {observed:?}").into());
+    };
+    assert_eq!(rejected.outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    assert_eq!(retried.outer_server_name.as_deref(), Some(INNER_NAME));
+    // Chrome keeps ECH GREASE on the retry (`net/base/ech_mode.h`).
+    assert!(retried.ech.is_some());
+    assert!(retried.handshake_completed);
+    assert!(!retried.ech_accepted);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_second_rejection_fails_with_a_typed_error() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(2, TEST_ECH_KEYS[1]);
+    // The retry offers configuration 2, which the second server cannot
+    // decrypt either.
+    let other = server_key(3, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![
+        acceptor(&identity, Some(&key))?,
+        acceptor(&identity, Some(&other))?,
+    ])
+    .await?;
+
+    let result = connect(&identity, address, async {
+        Some(published(1, &TEST_ECH_KEYS[0]))
+    })
+    .await?;
+
+    let error = result.err().ok_or("a second rejection was accepted")?;
+    assert_eq!(error.ech_failure(), Some(EchFailure::Rejected));
+    assert_eq!(server.await??.len(), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_malformed_list_fails_before_any_tls_byte() -> TestResult<()> {
+    let identity = identity()?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let server = tokio::spawn(async move {
+        let (mut tcp, _) = listener.accept().await?;
+        let mut byte = [0_u8; 1];
+        let read = tokio::io::AsyncReadExt::read(&mut tcp, &mut byte).await;
+        Ok::<_, io::Error>(read.unwrap_or(0))
+    });
+
+    let result = connect(&identity, address, async {
+        Some(EchConfigList::new(vec![0x00, 0x05, 0xfe, 0x0d, 0x00]))
+    })
+    .await?;
+
+    let error = result.err().ok_or("a malformed list was accepted")?;
+    assert_eq!(error.ech_failure(), Some(EchFailure::InvalidConfigList));
+    assert_eq!(tokio::time::timeout(TEST_TIMEOUT, server).await???, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_lookup_still_running_is_abandoned_after_the_bounded_wait() -> TestResult<()> {
+    let identity = identity()?;
+    let (address, server) = serve(vec![acceptor(&identity, None)?]).await?;
+
+    let started = Instant::now();
+    connect(&identity, address, std::future::pending()).await??;
+    let elapsed = started.elapsed();
+
+    // The wait is at most 50 ms; the rest is loopback TCP and TLS.
+    assert!(elapsed < Duration::from_secs(2), "{elapsed:?}");
+    let observed = server.await??;
+    assert_eq!(observed[0].outer_server_name.as_deref(), Some(INNER_NAME));
+    assert!(observed[0].ech.is_some());
+    Ok(())
+}
+
+#[test]
+fn the_wait_is_a_fifth_of_address_resolution_within_5_to_50_ms() {
+    for (resolution, wait) in [(0, 5), (10, 5), (25, 5), (100, 20), (250, 50), (5_000, 50)] {
+        assert_eq!(
+            https_record_extra_time(Duration::from_millis(resolution)),
+            Duration::from_millis(wait),
+            "{resolution} ms"
+        );
+    }
+}
+
+/// Chrome 154's ClientHelloOuter from `ech-accept.txt`, captured against
+/// the same configuration, public name, and origin name.
+const CHROME_ACCEPT: &str = include_str!(
+    "../../../../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt"
+);
+
+fn fixture_value<'a>(fixture: &'a str, field: &str) -> TestResult<&'a str> {
+    fixture
+        .lines()
+        .find_map(|line| line.strip_prefix(field)?.strip_prefix('='))
+        .ok_or_else(|| format!("fixture lacks {field}").into())
+}
+
+fn decode_hex(text: &str) -> TestResult<Vec<u8>> {
+    (0..text.len())
+        .step_by(2)
+        .map(|index| {
+            Ok(u8::from_str_radix(
+                text.get(index..index + 2).ok_or("odd hex")?,
+                16,
+            )?)
+        })
+        .collect()
+}
+
+/// Extension types with every GREASE value folded into one, sorted: Chrome
+/// permutes the order on each connection.
+fn extension_set(types: &[u16]) -> Vec<u16> {
+    let mut set = types
+        .iter()
+        .map(|&kind| if is_grease(kind) { 0x0a0a } else { kind })
+        .collect::<Vec<_>>();
+    set.sort_unstable();
+    set
+}
+
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
+    let record = decode_hex(fixture_value(CHROME_ACCEPT, "connection_0_record_0_hex")?)?;
+    let chrome = ClientHelloSummary::from_handshake_bytes(record.get(5..).ok_or("short record")?)?;
+    let chrome_ech = chrome
+        .encrypted_client_hello()
+        .and_then(EchOuterExtension::parse)
+        .ok_or("Chrome's ClientHelloOuter lacks ECH")?;
+    let origin = fixture_value(CHROME_ACCEPT, "hostname")?;
+    let public = fixture_value(CHROME_ACCEPT, "public_name")?;
+    let list = decode_hex(fixture_value(CHROME_ACCEPT, "dns_ech_config_list_hex")?)?;
+    let server_config = decode_hex(fixture_value(CHROME_ACCEPT, "server_ech_config_hex")?)?;
+
+    let identity = TestIdentity::generate_for_names(&[origin, public])?;
+    let key = ServerKey {
+        config: server_config,
+        key: TEST_ECH_KEYS[0],
+    };
+    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
+    let connector = connector(&identity)?;
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("127.0.0.1", address.port(), origin, async {
+            Some(EchConfigList::new(list))
+        }),
+    )
+    .await??;
+    let observed = server.await??;
+    let phantom = &observed[0];
+
+    assert!(phantom.ech_accepted);
+    assert_eq!(
+        phantom.outer_server_name.as_deref().map(str::as_bytes),
+        chrome.server_name()
+    );
+    assert_eq!(phantom.ech.as_ref(), Some(&chrome_ech));
+    assert_eq!(
+        extension_set(&phantom.extension_types),
+        extension_set(chrome.extension_types())
+    );
+    Ok(())
+}

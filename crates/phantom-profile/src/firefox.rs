@@ -146,6 +146,7 @@ pub fn v156_tls() -> TlsSettings {
         ech_grease: true,
         ech_grease_payload_length: Some(240),
         ech_grease_aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
+        ech_from_https_records: false,
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

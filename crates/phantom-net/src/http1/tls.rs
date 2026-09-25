@@ -23,7 +23,7 @@ use crate::{
     tls::{TlsConnector, trace_alpn},
 };
 
-pub use crate::tls::{ServerAuthentication, TlsError, TlsErrorKind};
+pub use crate::tls::{EchFailure, ServerAuthentication, TlsError, TlsErrorKind};
 pub use error::Http1TlsError;
 
 /// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.

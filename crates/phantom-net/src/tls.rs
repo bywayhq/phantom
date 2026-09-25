@@ -72,6 +72,7 @@ pub(crate) struct TlsConnector {
     ech_grease: bool,
     ech_grease_payload_length: Option<u16>,
     ech_grease_aeads: Box<[EchGreaseAead]>,
+    ech_from_https_records: bool,
     scoped_sessions_enabled: bool,
     session_cache: Option<TlsSessionCache>,
     #[cfg(feature = "keylog")]
@@ -155,6 +156,9 @@ impl TlsConnector {
         roots: impl IntoIterator<Item = &'a [u8]>,
         mut prepare_sessions: impl FnMut(&mut SslContextBuilder),
     ) -> Result<Self, TlsError> {
+        if settings.ech_from_https_records {
+            return Err(TlsError::unsupported("ech_from_https_records", true));
+        }
         Self::build_with_roots_and_sessions(
             settings,
             ServerAuthentication::WebPki,
@@ -181,6 +185,26 @@ impl TlsConnector {
         let mut connector = self.clone();
         connector.session_cache = self.scoped_sessions_enabled.then(TlsSessionCache::default);
         connector
+    }
+
+    /// Returns whether the profile uses an HTTPS record's `ech` on direct
+    /// TCP connections; see `TlsSettings::ech_from_https_records`.
+    pub(crate) const fn ech_from_https_records(&self) -> bool {
+        self.ech_from_https_records
+    }
+
+    /// Returns the offered ALPN protocols in preference order.
+    pub(crate) fn alpn_protocols(&self) -> Vec<Box<[u8]>> {
+        let mut protocols = Vec::new();
+        let mut remaining = self.alpn_wire.as_ref();
+        while let Some((&length, rest)) = remaining.split_first() {
+            let Some((protocol, tail)) = rest.split_at_checked(usize::from(length)) else {
+                break;
+            };
+            protocols.push(Box::from(protocol));
+            remaining = tail;
+        }
+        protocols
     }
 
     pub(crate) fn offers_alpn(&self, expected: &[u8]) -> bool {
@@ -314,6 +338,7 @@ impl TlsConnector {
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
             ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
+            ech_from_https_records: settings.ech_from_https_records,
             scoped_sessions_enabled,
             session_cache: None,
             #[cfg(feature = "keylog")]
@@ -338,8 +363,31 @@ impl TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        self.connect_with_ech(server_name, stream, None).await
+    }
+
+    /// Performs a TLS client handshake that offers `ech_config_list`, the
+    /// bytes of an `ECHConfigList`, as Chromium's `ConfigureEch` does.
+    ///
+    /// ECH GREASE stays as the profile sets it; BoringSSL replaces it with
+    /// real ECH when the list holds a configuration it supports. A list
+    /// BoringSSL rejects fails with [`EchFailure::InvalidConfigList`] before
+    /// any TLS byte is written. A server that cannot decrypt the inner
+    /// ClientHello and authenticates as the public name fails the handshake
+    /// with [`EchFailure::Rejected`], carrying its retry configurations.
+    pub(crate) async fn connect_with_ech<S>(
+        &self,
+        server_name: &str,
+        stream: S,
+        ech_config_list: Option<&[u8]>,
+    ) -> Result<TlsStream<S>, TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         let span = debug_span!(
             "tls.handshake",
+            ech_offered = ech_config_list.is_some(),
+            ech_accepted = field::Empty,
             alpn_protocol_count = count_alpn(&self.alpn_wire),
             negotiated_alpn = field::Empty,
             alps_negotiated = field::Empty,
@@ -381,6 +429,11 @@ impl TlsConnector {
                 configuration
                     .set_ech_grease_aeads(&aead_ids)
                     .map_err(|error| TlsError::backend("ech_grease_aeads", error))?;
+            }
+            if let Some(list) = ech_config_list {
+                configuration
+                    .set_ech_config_list(list)
+                    .map_err(TlsError::invalid_ech_config_list)?;
             }
             configuration
                 .set_alpn_protos(&self.alpn_wire)
@@ -437,10 +490,22 @@ impl TlsConnector {
             };
             let mut stream = BoringStream::new(ssl, stream)
                 .map_err(|error| TlsError::backend("stream", error))?;
-            Pin::new(&mut stream).connect().await.map_err(|error| {
+            if let Err(error) = Pin::new(&mut stream).connect().await {
                 debug!("TLS handshake failed");
-                TlsError::handshake(error)
-            })?;
+                if is_ech_rejection(&error) {
+                    // BoringSSL releases retry configurations only after
+                    // SSL_R_ECH_REJECTED, which authenticates them.
+                    let retry_configs = stream
+                        .ssl()
+                        .get_ech_retry_configs()
+                        .filter(|configs| !configs.is_empty())
+                        .map(Box::from);
+                    return Err(TlsError::ech_rejected(error, retry_configs));
+                }
+                return Err(TlsError::handshake(error));
+            }
+            let ech_accepted = stream.ssl().ech_accepted();
+            span.record("ech_accepted", ech_accepted);
 
             let negotiated_alpn = stream.ssl().selected_alpn_protocol().map(Box::from);
             let peer_application_settings = stream.ssl().peer_application_settings().map(Box::from);
@@ -479,6 +544,7 @@ impl TlsConnector {
             );
             Ok(TlsStream {
                 inner: stream,
+                ech_accepted,
                 negotiated_alpn,
                 peer_application_settings,
                 negotiated_tls_version,
@@ -549,6 +615,7 @@ impl Drop for HandshakeOutcome {
 /// A connected TLS stream that hides its BoringSSL representation.
 pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
+    ech_accepted: bool,
     negotiated_alpn: Option<Box<[u8]>>,
     peer_application_settings: Option<Box<[u8]>>,
     negotiated_tls_version: Option<TlsVersion>,
@@ -605,6 +672,7 @@ impl<S> fmt::Debug for TlsStream<S> {
             .field("negotiated_tls_version", &self.negotiated_tls_version())
             .field("negotiated_cipher_suite", &self.negotiated_cipher_suite())
             .field("session_reused", &self.session_reused())
+            .field("ech_accepted", &self.ech_accepted)
             .finish_non_exhaustive()
     }
 }
@@ -692,6 +760,33 @@ impl TlsErrorKind {
     }
 }
 
+/// Why a connection that offered Encrypted Client Hello failed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum EchFailure {
+    /// BoringSSL rejected the `ECHConfigList` before the handshake, as
+    /// Chrome's `ERR_INVALID_ECH_CONFIG_LIST`.
+    InvalidConfigList,
+    /// The server could not decrypt the inner ClientHello and completed the
+    /// handshake as the configuration's public name, as Chrome's
+    /// `ERR_ECH_NOT_NEGOTIATED`.
+    Rejected,
+}
+
+/// `ERR_LIB_SSL`, the sixteenth library code in BoringSSL's
+/// `include/openssl/err.h`.
+const ERR_LIB_SSL: i32 = 16;
+/// `SSL_R_ECH_REJECTED` in BoringSSL's `include/openssl/ssl.h`.
+const SSL_R_ECH_REJECTED: i32 = 319;
+
+fn is_ech_rejection(error: &btls::ssl::Error) -> bool {
+    error.ssl_error().is_some_and(|stack| {
+        stack.errors().iter().any(|entry| {
+            entry.library_code() == ERR_LIB_SSL && entry.reason_code() == SSL_R_ECH_REJECTED
+        })
+    })
+}
+
 /// Error returned while constructing or using the TLS connector.
 #[derive(Debug)]
 pub struct TlsError {
@@ -699,43 +794,84 @@ pub struct TlsError {
     field: Option<&'static str>,
     message: Box<str>,
     source: Option<Box<dyn StdError + Send + Sync>>,
+    ech: Option<EchFailure>,
+    ech_retry_configs: Option<Box<[u8]>>,
 }
 
 impl TlsError {
-    fn invalid_configuration(source: InvalidTlsSettings) -> Self {
+    fn new(
+        kind: TlsErrorKind,
+        field: Option<&'static str>,
+        message: Box<str>,
+        source: Option<Box<dyn StdError + Send + Sync>>,
+    ) -> Self {
         Self {
-            kind: TlsErrorKind::InvalidConfiguration,
-            field: None,
-            message: source.to_string().into(),
-            source: Some(Box::new(source)),
+            kind,
+            field,
+            message,
+            source,
+            ech: None,
+            ech_retry_configs: None,
         }
+    }
+
+    fn invalid_configuration(source: InvalidTlsSettings) -> Self {
+        Self::new(
+            TlsErrorKind::InvalidConfiguration,
+            None,
+            source.to_string().into(),
+            Some(Box::new(source)),
+        )
     }
 
     fn configuration(field: &'static str, message: impl Into<Box<str>>) -> Self {
-        Self {
-            kind: TlsErrorKind::InvalidConfiguration,
-            field: Some(field),
-            message: message.into(),
-            source: None,
-        }
+        Self::new(
+            TlsErrorKind::InvalidConfiguration,
+            Some(field),
+            message.into(),
+            None,
+        )
     }
 
     fn backend(field: &'static str, source: ErrorStack) -> Self {
-        Self {
-            kind: TlsErrorKind::BackendConfiguration,
-            field: Some(field),
-            message: "BoringSSL rejected the configured value".into(),
-            source: Some(Box::new(source)),
-        }
+        Self::new(
+            TlsErrorKind::BackendConfiguration,
+            Some(field),
+            "BoringSSL rejected the configured value".into(),
+            Some(Box::new(source)),
+        )
+    }
+
+    pub(crate) fn invalid_ech_config_list(source: impl StdError + Send + Sync + 'static) -> Self {
+        let mut error = Self::new(
+            TlsErrorKind::InvalidConfiguration,
+            Some("ech_config_list"),
+            "the ECHConfigList does not parse".into(),
+            Some(Box::new(source)),
+        );
+        error.ech = Some(EchFailure::InvalidConfigList);
+        error
+    }
+
+    fn ech_rejected(source: btls::ssl::Error, retry_configs: Option<Box<[u8]>>) -> Self {
+        let mut error = Self::new(
+            TlsErrorKind::Handshake,
+            None,
+            "server rejected Encrypted Client Hello".into(),
+            Some(Box::new(source)),
+        );
+        error.ech = Some(EchFailure::Rejected);
+        error.ech_retry_configs = retry_configs;
+        error
     }
 
     fn unsupported(field: &'static str, value: impl fmt::Debug) -> Self {
-        Self {
-            kind: TlsErrorKind::UnsupportedSetting,
-            field: Some(field),
-            message: format!("setting {value:?} is not supported by the BoringSSL adapter").into(),
-            source: None,
-        }
+        Self::new(
+            TlsErrorKind::UnsupportedSetting,
+            Some(field),
+            format!("setting {value:?} is not supported by the BoringSSL adapter").into(),
+            None,
+        )
     }
 
     fn root_certificate(index: usize, source: ErrorStack) -> Self {
@@ -746,26 +882,40 @@ impl TlsError {
     }
 
     fn trust_store(message: impl Into<Box<str>>, source: ErrorStack) -> Self {
-        Self {
-            kind: TlsErrorKind::TrustStore,
-            field: Some("trust store"),
-            message: message.into(),
-            source: Some(Box::new(source)),
-        }
+        Self::new(
+            TlsErrorKind::TrustStore,
+            Some("trust store"),
+            message.into(),
+            Some(Box::new(source)),
+        )
     }
 
     fn handshake(source: btls::ssl::Error) -> Self {
-        Self {
-            kind: TlsErrorKind::Handshake,
-            field: None,
-            message: "TLS handshake failed".into(),
-            source: Some(Box::new(source)),
-        }
+        Self::new(
+            TlsErrorKind::Handshake,
+            None,
+            "TLS handshake failed".into(),
+            Some(Box::new(source)),
+        )
     }
 
     /// Returns the broad failure category without exposing backend types.
     pub fn kind(&self) -> TlsErrorKind {
         self.kind
+    }
+
+    /// Returns why a connection that offered Encrypted Client Hello failed,
+    /// when that is the cause.
+    #[must_use]
+    pub const fn ech_failure(&self) -> Option<EchFailure> {
+        self.ech
+    }
+
+    /// Takes the retry configurations an ECH rejection carried; `None` when
+    /// the server sent none, which asks for a retry without ECH.
+    #[cfg_attr(not(feature = "https-records"), allow(dead_code))]
+    pub(crate) fn take_ech_retry_configs(&mut self) -> Option<Box<[u8]>> {
+        self.ech_retry_configs.take()
     }
 }
 
