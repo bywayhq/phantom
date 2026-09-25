@@ -19,7 +19,7 @@ pub const MAX_PROXY_CREDENTIAL_ENTRIES: usize = 128;
 pub enum ProxyScheme {
     /// Plaintext `http://` proxy.
     Http,
-    /// TLS `https://` proxy, including a CONNECT-UDP proxy.
+    /// TLS `https://` proxy.
     Https,
 }
 
@@ -82,6 +82,11 @@ impl ProxyCredentialCache {
     }
 
     /// Reports whether this proxy accepted `credentials` after a challenge.
+    ///
+    /// Plumbing for the `phantom` facade's forwarding path only. Callers do
+    /// not pre-seed or inspect the record; an entry exists only after a proxy
+    /// accepted a challenged retry.
+    #[doc(hidden)]
     #[must_use]
     pub fn contains(
         &self,
@@ -100,6 +105,11 @@ impl ProxyCredentialCache {
     /// recently used when it is already recorded.
     ///
     /// When the record is full, the least recently used pair is forgotten.
+    ///
+    /// Plumbing for the `phantom` facade's forwarding path only. Callers do
+    /// not pre-seed or inspect the record; an entry exists only after a proxy
+    /// accepted a challenged retry.
+    #[doc(hidden)]
     pub fn insert(
         &self,
         scheme: ProxyScheme,
@@ -138,6 +148,11 @@ impl ProxyCredentialCache {
     }
 
     /// Forgets that this proxy accepted `credentials`.
+    ///
+    /// Plumbing for the `phantom` facade's forwarding path only. Callers do
+    /// not pre-seed or inspect the record; an entry exists only after a proxy
+    /// accepted a challenged retry.
+    #[doc(hidden)]
     pub fn remove(
         &self,
         scheme: ProxyScheme,
