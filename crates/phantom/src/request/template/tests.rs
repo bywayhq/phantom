@@ -111,7 +111,7 @@ fn caller_hints_fill_the_block_in_profile_order() {
 }
 
 #[test]
-fn built_in_templates_pass_with_their_own_client_hints() {
+fn built_in_templates_validate_and_place_their_own_client_hints() {
     let edge_user_agent = [RequestHeader::new("User-Agent", EDGE_153)];
     let cases = [
         (
