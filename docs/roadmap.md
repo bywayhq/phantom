@@ -50,6 +50,10 @@ have shown where the real architectural boundaries are.
 - Named Chrome 154, Edge 153, and Firefox 156 H2 WebSocket recipes with a
   profile connection policy, a per-profile empty-message compression rule, and
   a per-profile `REFUSED_STREAM` reopening.
+- Negotiated HTTP/1.1-or-HTTP/2 requests through an HTTP proxy, over the
+  HTTP/1.1 or HTTP/2 proxy transport: one CONNECT tunnel and one origin TLS
+  handshake per connection, the protocol ALPN selects, and no Alt-Svc upgrade
+  on that route. CONNECT-UDP still rejects negotiated requests before I/O.
 
 ### Remaining
 
@@ -349,6 +353,10 @@ recipe.
     intercepting proxy. It skips server chain verification only; the
     ClientHello and every other wire field stay unchanged.
   - Chrome for Android recipes from Android emulator captures.
+  - Chrome on macOS recipes from a matched browser build on an Apple Silicon
+    capture host. Compare TLS, H2, H3/QUIC, client hints and request templates
+    with the Windows recipe, and retain each observed difference rather than
+    assuming the browser version makes the platforms wire-identical.
   - Brave and Opera recipes from captures on the development host, which
     carries Brave 153.1.95.104 and Opera 135.0.5973.92. A Chromium fork
     cannot be aliased to the Chrome recipe: the retained Edge capture is
