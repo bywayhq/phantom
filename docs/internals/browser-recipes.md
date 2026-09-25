@@ -80,12 +80,11 @@ has the exact Chrome 154 commands and launch arguments to repeat.
   add it to `CHROMIUM_BROWSERS` or `BROWSERS` and to `CLIENT_NAMES`, with a
   case in `scripts/capture/tests/test_browser_launch.py`, or capture with
   `--browser manual`.
-- The raw H2 and QUIC tools serve only the first connection. A browser
-  that abandons its startup connections, as Opera 135 does, sends its
-  request on a later one; start it on `about:blank` and navigate over
-  DevTools, as
-  [Brave 154 and Opera 135 recipes](../explanation/validation.md#brave-154-and-opera-135-recipes)
-  describes.
+- [`startup_capture.py`](../../scripts/capture/README.md#connection-startup-launches)
+  runs the TLS, H2, or QUIC listener and launches the browser with the
+  Chrome 154 arguments for that layer. Those listeners serve only the first
+  connection, so for a browser that abandons its startup connections, as
+  Opera 135 does, pass `--navigate devtools`.
 - Take several fresh processes per layer. The Chrome 154 set used 61 TLS
   processes, 3 for H2 and QUIC, and 2 to 10 runs per scenario elsewhere, and
   Validation reports each count.

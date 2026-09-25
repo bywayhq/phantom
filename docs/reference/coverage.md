@@ -834,9 +834,9 @@ Request templates:
   as in every capture. Chrome's dependency on another open stream of equal or
   higher priority is not reproduced.
 - The Chrome `User-Agent` value comes from the SSE capture, which ran in
-  headful launch mode. The other Chrome captures and every Edge, Brave, and
-  Opera capture ran headless, so the Edge, Brave, and Opera templates leave
-  `User-Agent` to the caller.
+  headful launch mode. The other Chrome captures and every retained Edge,
+  Brave, and Opera capture ran headless, so the Edge, Brave, and Opera
+  templates leave `User-Agent` to the caller.
 - The H1 template captures used plaintext loopback origins. The proxy route
   captures show what the browsers send to a named plaintext origin instead:
   no `Sec-Fetch-*` fields, no client hints, and `Accept-Encoding: gzip,
