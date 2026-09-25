@@ -95,9 +95,12 @@ application data, and rejects oversized incoming records. TLS 1.3 first-flight
 handling defers the decision until EncryptedExtensions establishes whether the
 extension was negotiated, preserving the legal non-echo path.
 
-The upstream delegated-credential patch advertised extension 34 but did not
-verify a credential received from a TLS 1.3 server. It also inherited a test-
-runner field-order bug that could make two non-standard implementations agree.
+The upstream delegated-credential patch advertised extension 34 but could not
+accept a credential. BoringSSL's `tls13_process_certificate` rejects the
+unknown CertificateEntry extension with a fatal `unsupported_extension` alert,
+so a TLS 1.3 server that sends a credential fails the handshake; no
+unverified credential is used. It also inherited a test-runner field-order bug
+that could make two non-standard implementations agree.
 The dependency fork implements RFC 9345 client verification after ordinary
 certificate and hostname verification, checks certificate authorization and
 lifetime, keeps the issuer and delegated signature-scheme namespaces separate,
