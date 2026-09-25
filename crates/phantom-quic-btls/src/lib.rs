@@ -12,8 +12,8 @@
 //! BoringSSL FFI boundary. The rest of the crate denies `unsafe_code`, and
 //! every unsafe block in `backend` carries a `SAFETY` comment required by
 //! `clippy::undocumented_unsafe_blocks`. The optional `keylog` feature emits
-//! NSS key-log lines through a bounded queue for Phantom's capture tooling;
-//! the `phantom-http` facade does not expose it.
+//! NSS key-log lines through a bounded queue. The `phantom-http` facade
+//! exposes it as `ClientBuilder::key_log` behind its `diagnostics` feature.
 
 #![deny(unsafe_code)]
 
