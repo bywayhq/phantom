@@ -380,20 +380,20 @@ pub struct TlsSettings {
     /// non-empty list requires [`Self::ech_grease`] and must not repeat an
     /// AEAD.
     pub ech_grease_aeads: Vec<EchGreaseAead>,
-    /// Whether a direct negotiated HTTP/1.1-or-HTTP/2 connection offers
-    /// Encrypted Client Hello with the `ech` value of the origin's HTTPS
-    /// record, as Chrome 154 does.
+    /// Whether a direct TLS connection over TCP offers Encrypted Client Hello
+    /// with the `ech` value of the origin's HTTPS record, as Chrome 154 does.
     ///
-    /// When set, such a connection on a client that looks up HTTPS records
-    /// holds its ClientHello until the lookup ends, for at most 5-50 ms
-    /// after the address answers, and retries once after an ECH rejection.
-    /// Without a record, or when the record has no usable `ech`, the
-    /// connection sends ECH GREASE. Every other path sends ECH GREASE and
-    /// never waits: exact-protocol HTTP/1.1 and HTTP/2 connectors,
-    /// `Http1Or2TlsConnector::connect_direct`, WebSocket connections, and
-    /// proxy routes. A QUIC connector rejects the field. Requires
-    /// [`Self::ech_grease`], which Chrome always enables beside a
-    /// configuration.
+    /// On a client that looks up HTTPS records, this covers the connections
+    /// of negotiated and exact-protocol HTTP/1.1 and HTTP/2 requests and of
+    /// `wss://` WebSocket openings. Such a connection holds its ClientHello
+    /// until the lookup ends, for at most 5-50 ms after the address answers,
+    /// and retries once after an ECH rejection. The record it uses is the
+    /// first one that supports a protocol in the connection's own ALPN offer.
+    /// Without a record, or when that record has no usable `ech`, the
+    /// connection sends ECH GREASE. Proxy routes, and connector methods
+    /// without `with_ech` in their name, send ECH GREASE and never wait. A
+    /// QUIC connector rejects the field. Requires [`Self::ech_grease`], which
+    /// Chrome always enables beside a configuration.
     pub ech_from_https_records: bool,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,

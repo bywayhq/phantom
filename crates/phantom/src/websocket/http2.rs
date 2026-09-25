@@ -4,7 +4,9 @@
 use std::sync::Arc;
 
 use http::Response;
-use phantom_net::http2::Http2ExtendedConnectOutcome;
+use phantom_net::http2::{
+    Http2ExtendedConnectOutcome, Http2TlsConnector, Http2TlsError, OriginForm, RequestHeader,
+};
 use phantom_profile::WebSocketRefusedStreamRetry;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tracing::Span;
@@ -19,7 +21,41 @@ use super::{
 };
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
-use crate::{HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode};
+use crate::{
+    Client, HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode, authority::Endpoint,
+};
+
+/// Opens the extended CONNECT stream on a new direct TLS connection.
+///
+/// With a profile that takes ECH from HTTPS records, the connection offers
+/// the `ech` value of the origin's record, picked for the connection's own
+/// ALPN offer, as every other direct TLS connection does.
+async fn extended_connect_direct(
+    #[cfg_attr(not(feature = "https-records"), allow(unused_variables))] client: &Client,
+    connector: &Http2TlsConnector,
+    endpoint: &Endpoint,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+    let (host, port, authority) = (
+        endpoint.host(),
+        endpoint.port(),
+        endpoint.authority().as_str(),
+    );
+    #[cfg(feature = "https-records")]
+    if let Some(ech) = client.direct_tcp_ech(endpoint, connector.ech_from_https_records(), || {
+        connector.alpn_protocols()
+    }) {
+        return connector
+            .send_extended_connect_direct_with_ech(
+                host, port, host, authority, target, headers, ech,
+            )
+            .await;
+    }
+    connector
+        .send_extended_connect_direct(host, port, host, authority, target, headers)
+        .await
+}
 
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http2(
@@ -163,16 +199,14 @@ impl WebSocketRequestBuilder {
                 )));
             }
             Route::Direct => {
-                connector
-                    .send_extended_connect_direct(
-                        host,
-                        port,
-                        host,
-                        authority,
-                        request.target.clone(),
-                        prepared.headers,
-                    )
-                    .await
+                extended_connect_direct(
+                    &client,
+                    connector,
+                    &request.endpoint,
+                    request.target.clone(),
+                    prepared.headers,
+                )
+                .await
             }
             Route::HttpProxy(proxy) => {
                 let connect_authority = request.endpoint.tunnel_authority();

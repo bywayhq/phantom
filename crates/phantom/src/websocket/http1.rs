@@ -4,7 +4,9 @@
 use std::sync::Arc;
 
 use http::Response;
-use phantom_net::http1::Http1UpgradeOutcome;
+use phantom_net::http1::{
+    Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome, OriginForm, RequestHeader,
+};
 
 #[cfg(feature = "websocket-deflate")]
 use super::NegotiatedPerMessageDeflate;
@@ -12,7 +14,47 @@ use super::{
     Http1UpgradeConnector, WebSocket, WebSocketError, WebSocketRequestBuilder, WebSocketTransport,
     handshake::{prepare, validate_response},
 };
-use crate::{HttpProtocol, RequestError, ResponseBody, Route};
+use crate::{Client, HttpProtocol, RequestError, ResponseBody, Route, authority::Endpoint};
+
+/// Sends the opening over a new direct TLS connection.
+///
+/// With a profile that takes ECH from HTTPS records, the connection offers
+/// the `ech` value of the origin's record: Chrome 154 opens a `wss://`
+/// connection through the same `SSLConnectJob` as an `https://` one, with
+/// `http/1.1` as its only ALPN protocol (`ClientSocketPool::CreateConnectJob`,
+/// `net/socket/client_socket_pool.cc` lines 244-256 at `154.0.8037.58`).
+async fn upgrade_direct(
+    #[cfg_attr(not(feature = "https-records"), allow(unused_variables))] client: &Client,
+    connector: &Http1TlsConnector,
+    endpoint: &Endpoint,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+    #[cfg(feature = "https-records")]
+    if let Some(ech) = client.direct_tcp_ech(endpoint, connector.ech_from_https_records(), || {
+        connector.alpn_protocols()
+    }) {
+        return connector
+            .upgrade_get_direct_with_ech(
+                endpoint.host(),
+                endpoint.port(),
+                endpoint.host(),
+                target,
+                headers,
+                ech,
+            )
+            .await;
+    }
+    connector
+        .upgrade_get_direct(
+            endpoint.host(),
+            endpoint.port(),
+            endpoint.host(),
+            target,
+            headers,
+        )
+        .await
+}
 
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
@@ -193,15 +235,14 @@ impl WebSocketRequestBuilder {
                     )));
                 }
                 Route::Direct => {
-                    connector
-                        .upgrade_get_direct(
-                            request.endpoint.host(),
-                            request.endpoint.port(),
-                            request.endpoint.host(),
-                            request.target,
-                            prepared.headers,
-                        )
-                        .await
+                    upgrade_direct(
+                        &client,
+                        connector,
+                        &request.endpoint,
+                        request.target,
+                        prepared.headers,
+                    )
+                    .await
                 }
                 Route::HttpProxy(proxy) => {
                     let authority = request.endpoint.tunnel_authority();

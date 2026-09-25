@@ -49,6 +49,8 @@ pub(crate) struct Http1Pool {
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     state: Mutex<PoolState>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http1Pool {
@@ -62,7 +64,19 @@ impl Http1Pool {
             max_active,
             max_pending,
             state: Mutex::new(PoolState::default()),
+            #[cfg(feature = "https-records")]
+            https_records: None,
         }
+    }
+
+    /// Gives direct connections the client's HTTPS record lookups, for
+    /// profiles that offer ECH from HTTPS records.
+    #[cfg(feature = "https-records")]
+    pub(super) fn set_https_records(
+        &mut self,
+        discovery: Option<super::alt_svc::HttpsRecordDiscovery>,
+    ) {
+        self.https_records = discovery;
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
@@ -307,7 +321,15 @@ impl Http1Pool {
         let admission = state
             .admissions
             .get(&key, self.max_active, self.max_pending);
-        let entry = Arc::new(PoolEntry::new(admission, self.max_active));
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut entry = PoolEntry::new(admission, self.max_active);
+        // HTTPS records are looked up on the direct route only: Chromium sends
+        // no HTTPS query for a proxied request.
+        #[cfg(feature = "https-records")]
+        if key.route == Route::Direct {
+            entry.https_records = self.https_records.clone();
+        }
+        let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -436,6 +458,8 @@ struct PoolEntry {
     admission: Arc<Admission>,
     connector: OnceLock<Http1TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl PoolEntry {
@@ -448,11 +472,34 @@ impl PoolEntry {
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
+            #[cfg(feature = "https-records")]
+            https_records: None,
         }
     }
 
     async fn admit(&self) -> Result<AdmissionPermit, RequestError> {
         Arc::clone(&self.admission).admit(HttpProtocol::Http1).await
+    }
+
+    /// Opens a direct TLS connection, offering the `ech` value of the
+    /// origin's HTTPS record when the profile does, as Chrome 154 does.
+    async fn connect_direct(
+        &self,
+        connector: &Http1TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        #[cfg(feature = "https-records")]
+        if connector.ech_from_https_records()
+            && let Some(discovery) = &self.https_records
+        {
+            let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
+            return connector
+                .connect_direct_with_ech(endpoint.host(), endpoint.port(), endpoint.host(), ech)
+                .await;
+        }
+        connector
+            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+            .await
     }
 
     async fn acquire(
@@ -544,8 +591,8 @@ impl PoolEntry {
                     Route::ConnectUdp(_) => {
                         return Err(RequestError::unsupported_route(HttpProtocol::Http1));
                     }
-                    Route::Direct => connector
-                        .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+                    Route::Direct => self
+                        .connect_direct(connector, endpoint)
                         .await
                         .map_err(RequestError::http1_connection_setup)?,
                     Route::HttpProxy(proxy) => {
