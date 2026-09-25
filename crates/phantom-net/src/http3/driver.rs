@@ -18,6 +18,22 @@ use tracing::{
 use crate::shutdown_timer;
 
 type DriverResult = Result<(), h3::error::ConnectionError>;
+pub(super) type ClientDriver = h3::client::Connection<h3_quinn::Connection, Bytes>;
+
+/// The server's answer to a connection's early data, which the driver reads
+/// before it polls HTTP/3.
+///
+/// Quinn discards every stream opened before a rejection and settles
+/// `accepted` under the same connection lock (RFC 9001, section 4.6.2), so a
+/// driver that checks `accepted` first never polls a discarded stream. After
+/// a rejection the driver stops polling the discarded HTTP/3 session, which
+/// would otherwise close the QUIC connection, and waits for its
+/// `replacement`, built on the same connection.
+pub(super) struct EarlyAnswer {
+    pub(super) accepted: quinn::ZeroRttAccepted,
+    pub(super) answer: oneshot::Sender<bool>,
+    pub(super) replacement: oneshot::Receiver<ClientDriver>,
+}
 
 /// Peer ALPS that reached an early-data connection after its HTTP/3 driver
 /// started, and the channel that reports whether the driver applied it.
@@ -32,9 +48,10 @@ pub(super) struct DriverTask {
 
 impl DriverTask {
     pub(super) fn spawn(
-        driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
+        driver: ClientDriver,
         endpoint: quinn::Endpoint,
         connection: quinn::Connection,
+        early: Option<EarlyAnswer>,
         late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
         application_state: Option<ApplicationState>,
         round_trip: Option<super::RoundTripRecorder>,
@@ -43,7 +60,7 @@ impl DriverTask {
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http3.connection_driver", outcome = field::Empty);
         let handle = runtime.spawn(
-            drive(driver, late_settings, application_state)
+            drive(driver, early, late_settings, application_state)
                 .instrument(span.clone())
                 .with_subscriber(dispatch.clone()),
         );
@@ -112,37 +129,71 @@ impl DriverSignal {
     }
 }
 
+enum DriveStep {
+    Closed(h3::error::ConnectionError),
+    Rejected(oneshot::Receiver<ClientDriver>),
+}
+
 async fn drive(
-    mut driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
+    mut driver: ClientDriver,
+    mut early: Option<EarlyAnswer>,
     mut late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
     mut application_state: Option<ApplicationState>,
 ) -> DriverResult {
-    let error = poll_fn(|context| {
-        // The driver owns the HTTP/3 connection state, so peer ALPS that
-        // arrives after it started is applied here, between polls.
-        if let Some(receiver) = late_settings.as_mut()
-            && let Poll::Ready(received) = Pin::new(receiver).poll(context)
-        {
-            late_settings = None;
-            if let Ok(LateApplicationSettings { payload, applied }) = received {
-                let _ = applied.send(driver.apply_peer_application_settings(&payload));
+    let error = loop {
+        let step = poll_fn(|context| {
+            if let Some(pending) = early.as_mut()
+                && let Poll::Ready(accepted) = Pin::new(&mut pending.accepted).poll(context)
+                && let Some(EarlyAnswer {
+                    answer,
+                    replacement,
+                    ..
+                }) = early.take()
+            {
+                let _ = answer.send(accepted);
+                if !accepted {
+                    return Poll::Ready(DriveStep::Rejected(replacement));
+                }
+            }
+            // The driver owns the HTTP/3 connection state, so peer ALPS that
+            // arrives after it started is applied here, between polls.
+            if let Some(receiver) = late_settings.as_mut()
+                && let Poll::Ready(received) = Pin::new(receiver).poll(context)
+            {
+                late_settings = None;
+                if let Ok(LateApplicationSettings { payload, applied }) = received {
+                    let _ = applied.send(driver.apply_peer_application_settings(&payload));
+                }
+            }
+            let closed = driver.poll_close(context);
+            // The server's control-stream SETTINGS, once received and applied,
+            // go with the session tickets this connection receives, and the
+            // tickets held until now are stored.
+            if let Some(state) = application_state.as_ref()
+                && let Some(settings) = driver.peer_settings_to_remember()
+            {
+                if state.store(&settings) {
+                    debug!("HTTP/3 SETTINGS stored for session resumption");
+                }
+                application_state = None;
+            }
+            closed.map(DriveStep::Closed)
+        })
+        .await;
+        match step {
+            DriveStep::Closed(error) => break error,
+            DriveStep::Rejected(replacement) => {
+                // A replacement starts from the completed handshake, so it
+                // needs no late ALPS. Without one the connection is already
+                // closing, and the discarded session reports how.
+                late_settings = None;
+                if let Ok(replacement) = replacement.await {
+                    debug!("HTTP/3 restarted on the connection after rejected early data");
+                    driver = replacement;
+                }
             }
         }
-        let closed = driver.poll_close(context);
-        // The server's control-stream SETTINGS, once received and applied,
-        // go with the session tickets this connection receives, and the
-        // tickets held until now are stored.
-        if let Some(state) = application_state.as_ref()
-            && let Some(settings) = driver.peer_settings_to_remember()
-        {
-            if state.store(&settings) {
-                debug!("HTTP/3 SETTINGS stored for session resumption");
-            }
-            application_state = None;
-        }
-        closed
-    })
-    .await;
+    };
     if error.is_h3_no_error() {
         Ok(())
     } else {

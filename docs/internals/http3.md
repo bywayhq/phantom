@@ -525,13 +525,13 @@ their own. Every request on such a connection follows one rule
   then. It is then sent with the client hints the handshake's ALPS
   delivered.
 - If the server accepted, the request is sent on the connection.
-- If the server rejected the early data, the first request to see it
-  invalidates the pooled connection, and each request is sent again after a
-  handshake over the same route and protocol, through the origin connector.
-  A replay-safe request that went out early first fails inside the pool as
-  unprocessed (`Http3Unprocessed::EarlyDataRejected`). Chromium resends on
-  the same connection instead; see [QUIC resumption
-  evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
+- If the server rejected the early data, Quinn has discarded every stream
+  opened before the handshake (RFC 9001, section 4.6.2). The connection
+  starts HTTP/3 again on the same QUIC connection, and stays pooled; see
+  [Rejected early data](#rejected-early-data). A replay-safe request that
+  went out early fails inside the pool as unprocessed
+  (`Http3Unprocessed::EarlyDataRejected`) and is sent again on the
+  connection, and the waiting requests are sent on it for the first time.
 - If the handshake failed or its metadata was invalid, the connection is
   invalidated and every waiting request fails with that error; none is sent
   again, and no second connection is opened.
@@ -583,9 +583,44 @@ cites the Chromium source.
   connection with `H3_INTERNAL_ERROR` and fails the request with a protocol
   error. It is not a handshake failure, so the pool does not repeat the
   attempt with a full handshake.
-- If the server rejects the early data, the connection is not reused, so its
-  remembered SETTINGS go with it; the request is sent again on a connection
-  without early data, which starts from nothing remembered.
+- If the server rejects the early data, the HTTP/3 session that started
+  from the remembered SETTINGS is discarded with them, and the session that
+  replaces it starts from nothing remembered.
+
+#### Rejected early data
+
+Chromium resends on the connection whose early data was rejected, and the
+captures show the same stream numbers again in 1-RTT packets; see
+[QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
+Quinn cannot resend discarded streams, so Phantom starts a second HTTP/3
+session on the connection instead.
+
+- The connection driver checks the server's answer before each poll of
+  HTTP/3. Quinn settles the answer and discards the streams in one step
+  under its connection lock, so the driver never polls the discarded
+  session, whose critical-stream errors would otherwise close the QUIC
+  connection.
+- `restart_after_rejected_early_data` in
+  `crates/phantom-net/src/http3/mod.rs` checks the handshake metadata as a
+  connection without early data does (the `h3` ALPN, the ALPS `ACCEPT_CH`
+  entries, and the ALPS SETTINGS), builds a new session from the same
+  profile, hands its driver to the connection's driver task, and swaps the
+  connection's sender before it publishes the answer. The new session opens
+  its control stream as client stream 2 and its QPACK streams as 6 and 10
+  again.
+- The new session starts without the remembered SETTINGS, so under dynamic
+  QPACK it waits for the server's SETTINGS, which usually arrive with the
+  handshake's last flight. Chromium keeps the remembered values after a
+  rejection, retransmits the same encoder-stream bytes, and closes the
+  connection with the transport error `INTERNAL_ERROR` if the server's new
+  SETTINGS lower a remembered limit (quiche
+  `http/quic_spdy_session.cc`, lines 1224-1289, and
+  `quic_error_codes.cc`, lines 710-711). Phantom uses the server's new
+  SETTINGS instead and does not close; Quinn offers no way to send that
+  transport close.
+- A request that takes the sender after the TLS handshake completed but
+  before the answer is published waits for the answer, so it never opens a
+  stream on the discarded session.
 
 A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as

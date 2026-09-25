@@ -265,8 +265,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Changed. Requests to a resumed origin
   share the connection while its early data is unanswered; any request that
   is not sent early waits for the answer and keeps its body. A rejection
-  sends it again on a new connection; a failed handshake or invalid
-  handshake metadata is an error. `ClientBuilder::http3_early_data` now
+  sends it again (see the entry on rejected early data); a failed handshake
+  or invalid handshake metadata is an error. `ClientBuilder::http3_early_data` now
   takes a `bool` that overrides the profile.
   `phantom_quic_btls::QuicClientConfig::with_transport_profile` now offers
   early data when the profile's `early_data` is set, so a
@@ -306,6 +306,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `qpack_stream_order: Http3QpackStreamOrder::EncoderFirst` to each
   `Http3Settings` struct literal to keep the previous streams, or fill them
   from `chromium::v154_http3()` with struct update syntax.
+
+- Wire change for HTTP/3 connections whose early data the server rejects.
+  The request is now sent again on the same connection once the handshake
+  completes, as Chrome 154 and Edge 153 resend, instead of on a new
+  connection that offers no early data. The connection starts a second
+  HTTP/3 session, whose control and QPACK streams are client streams 2, 6,
+  and 10 again, from the completed handshake's metadata and without the
+  SETTINGS remembered with the ticket, so a server whose new SETTINGS lower
+  a remembered limit is no longer closed. Chromium closes such a connection
+  with the transport error `INTERNAL_ERROR`. In `phantom-net`,
+  `Http3Connection::early_data_settled` and
+  `Http3Connector::early_data_settled_on` now return `Ok` for such a
+  connection, which stays reusable; only a request that went out as early
+  data still fails with `Http3Unprocessed::EarlyDataRejected`.
+  Migrate: code that opened a new connection when `early_data_settled`
+  returned `EarlyDataRejected` can send the request on the same connection
+  once `early_data_settled` returns `Ok`.
 
 ### Added
 

@@ -2487,6 +2487,15 @@ pins quiche `80bf9559d3a4c08dde4b85abc46d190a88ffef64`; paths below are under
   49-80, also rejects omitting a remembered non-default limit when the early
   data was accepted. The close is `QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH`,
   sent as `H3_SETTINGS_ERROR` (`quic_error_codes.cc`, lines 708-711).
+- `tls_client_handshaker.cc`, lines 711-720, and `quic_session.cc`, lines
+  2038-2049: when the server rejects early data, the client marks its 0-RTT
+  packets for retransmission on the same connection. The remembered
+  SETTINGS stay in force: `http/quic_spdy_session.cc`, lines 1224-1289,
+  closes a connection whose server SETTINGS then lower a remembered limit
+  with `QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH`, sent as the
+  transport error `INTERNAL_ERROR` (`quic_error_codes.cc`, lines 710-711),
+  and `http/quic_spdy_client_session_base.cc`, lines 49-80, skips the
+  omitted-setting checks after a rejection.
 - `http/quic_spdy_session.cc`, lines 1629-1676: the client opens its control
   stream, then its QPACK decoder stream, then its encoder stream, so they are
   client streams 2, 6, and 10. `qpack/qpack_send_stream.cc`, lines 32-51,
@@ -2530,9 +2539,12 @@ Replay against Phantom:
   sends `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE` at once to a
   resumed origin with the Chrome 154 recipes, and the server sees one new
   connection, as Chrome 154 put its six concurrent fetches on one resumed
-  connection. Other tests there show a rejected `POST` resent with its whole
-  body, a failed handshake failing the request without a second connection,
-  and the connect timeout bounding the wait for the early-data answer.
+  connection. `rejected_early_data_is_sent_again_on_the_same_connection`
+  shows a `GET` sent early and rejected reaching the server on the same
+  connection, with no second connection. Other tests there show a rejected
+  connection sending a waiting `POST` once with its whole body, a failed
+  handshake failing the request without a second connection, and the
+  connect timeout bounding the wait for the early-data answer.
 - `dynamic_qpack_sends_a_replay_safe_request_early_from_remembered_settings`,
   in `crates/phantom-net/src/http3/tests/early_data.rs`, shows the recipe's
   `GET` opening its stream before the handshake on a connection that started
@@ -2541,6 +2553,12 @@ Replay against Phantom:
   resumes against a server that lowers the field-section limit it advertised
   on the ticket's connection, and the server sees the connection closed with
   `H3_SETTINGS_ERROR` (0x109).
+  `rejected_early_data_restarts_http3_on_the_same_connection` resumes
+  against a server that rejects early data: the `GET` sent early fails as
+  unprocessed, the connection stays reusable, and a `GET` and a `POST` sent
+  on it after the handshake reach the server on the same connection.
+  `rejected_early_data_discards_the_remembered_settings` shows that a server
+  that rejects early data and lowers a remembered limit is not closed.
   `remembered_settings_stay_with_their_ticket_cache_and_server_name` shows
   that neither another pool entry's cache nor another server name starts
   from them.
@@ -2618,14 +2636,14 @@ Limits:
   nonzero QPACK table capacity, Phantom closes with `H3_SETTINGS_ERROR`, as
   quiche does, where RFC 9204 section 3.2.3 names
   `QPACK_DECODER_STREAM_ERROR`.
-- When the server rejects early data and then sends SETTINGS incompatible
-  with the remembered ones, Chromium closes the connection with the
-  transport error `INTERNAL_ERROR` and skips the check for omitted settings;
-  Phantom applies every check and closes with `H3_SETTINGS_ERROR`. Phantom
-  does not reuse a rejected connection either way.
-- When the server rejects early data, the captured browsers send the request
-  again on the same connection. Phantom does not reuse the rejected
-  connection: it sends the request on a new one, which offers no early data.
+- When the server rejects early data and then sends SETTINGS that lower a
+  remembered limit, Chromium closes the connection with the transport error
+  `INTERNAL_ERROR`. Phantom drops the remembered SETTINGS with the rejected
+  session, uses the server's new SETTINGS, and keeps the connection open.
+- After rejected early data, Chromium retransmits its encoder-stream and
+  request bytes, encoded from the remembered SETTINGS. Phantom's new session
+  encodes from the server's SETTINGS once they arrive, so its encoder-stream
+  bytes match only when the server's QPACK settings did not change.
 - A connection opened by an Alt-Svc racing attempt offers no early data.
 - Headless launches on one Windows build; no TCP TLS resumption capture.
 - Chromium ran with `--disable-field-trial-config`; the retained Chrome 154

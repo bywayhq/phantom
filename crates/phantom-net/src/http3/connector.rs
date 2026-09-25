@@ -207,9 +207,11 @@ impl Http3Connector {
     /// method (`GET`, `HEAD`, `OPTIONS`, or `TRACE`) with no body and no
     /// trailers, is sent before the handshake; every other request, including
     /// extended CONNECT and CONNECT-UDP, waits for it. If the server rejects
-    /// the early data, requests on the connection fail with
+    /// the early data, the requests sent early fail with
     /// [`Http3Unprocessed::EarlyDataRejected`](super::Http3Unprocessed): the
-    /// server processed none of them, and the connection is not reused.
+    /// server processed none of them. The connection then starts HTTP/3 again
+    /// after the handshake, without the SETTINGS remembered with the ticket,
+    /// and carries later requests, including those sent again.
     ///
     /// The clone shares this connector's ticket cache and identity.
     #[must_use]
@@ -234,8 +236,9 @@ impl Http3Connector {
     /// Waits until the server has answered `connection`'s early data.
     ///
     /// The result follows [`Http3Connection::early_data_settled`]: `Ok` for a
-    /// connection that sent none or whose early data was accepted, and
-    /// otherwise the error that stops the connection from carrying a request.
+    /// connection that sent none, whose early data was accepted, or that
+    /// started HTTP/3 again after a rejection, and otherwise the error that
+    /// stops the connection from carrying a request.
     pub async fn early_data_settled_on(
         &self,
         connection: &Http3Connection,

@@ -472,42 +472,172 @@ async fn a_request_that_is_not_replay_safe_waits_for_the_handshake() -> TestResu
     Ok(())
 }
 
+/// Paths served by [`spawn_counting_server`], each with its connection's index.
+type ServedOn = Arc<Mutex<Vec<(usize, String)>>>;
+
+/// Serves `200` on one connection per entry of `field_section_limits`, each
+/// advertising that `SETTINGS_MAX_FIELD_SECTION_SIZE`, and records every
+/// served path with the index of its connection.
+fn spawn_counting_server(
+    endpoint: quinn::Endpoint,
+    field_section_limits: Vec<u64>,
+) -> (JoinHandle<()>, ServedOn) {
+    let served = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&served);
+    let task = tokio::spawn(async move {
+        for (index, limit) in field_section_limits.into_iter().enumerate() {
+            let Some(incoming) = endpoint.accept().await else {
+                return;
+            };
+            let served = Arc::clone(&served);
+            tokio::spawn(async move {
+                let Ok(quic) = incoming.await else {
+                    return;
+                };
+                let Ok(mut connection) = h3::server::builder()
+                    .max_field_section_size(limit)
+                    .build::<_, Bytes>(h3_quinn::Connection::new(quic))
+                    .await
+                else {
+                    return;
+                };
+                while let Ok(Some(resolver)) = connection.accept().await {
+                    let Ok((request, mut stream)) = resolver.resolve_request().await else {
+                        return;
+                    };
+                    while let Ok(Some(mut data)) = stream.recv_data().await {
+                        data.advance(data.remaining());
+                    }
+                    if let Ok(mut served) = served.lock() {
+                        served.push((index, request.uri().path().to_owned()));
+                    }
+                    let Ok(response) = Response::builder().status(StatusCode::OK).body(()) else {
+                        return;
+                    };
+                    if stream.send_response(response).await.is_err()
+                        || stream.finish().await.is_err()
+                    {
+                        return;
+                    }
+                }
+            });
+        }
+    });
+    (task, recorded)
+}
+
+fn unprocessed(error: &(dyn std::error::Error + 'static)) -> Option<Http3Unprocessed> {
+    error
+        .downcast_ref::<Http3ConnectorError>()
+        .and_then(std::error::Error::source)
+        .and_then(|source| source.downcast_ref::<Http3Error>())
+        .and_then(Http3Error::unprocessed)
+}
+
+/// When the server rejects early data, the request that went out early is
+/// reported as unprocessed, and the same connection then carries requests
+/// on a new HTTP/3 session, as Chromium resends on the connection whose
+/// early data was rejected. The server sees no second connection.
 #[tokio::test(flavor = "current_thread")]
-async fn rejected_early_data_fails_the_request_as_unprocessed() -> TestResult<()> {
+async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let served = Served::default();
-    let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
-    let early = isolated.with_early_data();
-    let (address, endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
     // The server now declines early data, as after a key rotation.
     endpoint.set_server_config(Some(server_config(&identity, false)?));
 
     let (relay, relay_task) = delaying_relay(address).await?;
     let connection = connect(&early, relay).await?;
     assert!(connection.sent_early_data());
-    let error = match send(&early, &connection, Method::GET, "/rejected", None).await {
+    assert!(connection.started_from_remembered_settings());
+    let error = match send(&early, &connection, Method::GET, "/early", None).await {
         Ok(_) => return Err("rejected early data produced a response".into()),
         Err(error) => error,
     };
-    let unprocessed = error
-        .downcast_ref::<Http3ConnectorError>()
-        .and_then(std::error::Error::source)
-        .and_then(|source| source.downcast_ref::<Http3Error>())
-        .and_then(Http3Error::unprocessed);
-    assert_eq!(unprocessed, Some(Http3Unprocessed::EarlyDataRejected));
-    assert_eq!(connection.early_data_accepted().await, Some(false));
-    assert!(!connection.early_data_pending());
-    let settled = connection.early_data_settled().await;
     assert_eq!(
-        settled.err().and_then(|error| error.unprocessed()),
+        unprocessed(error.as_ref()),
         Some(Http3Unprocessed::EarlyDataRejected)
     );
-    assert!(!early.can_reuse(&connection).await);
-    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
-    assert!(!served.contains(&"/rejected".to_owned()));
+    assert_eq!(connection.early_data_accepted().await, Some(false));
+    assert!(!connection.early_data_pending());
+    connection.early_data_settled().await?;
+    assert!(early.can_reuse(&connection).await);
 
-    drop(connection);
+    let again = send(&early, &connection, Method::GET, "/early", None).await?;
+    assert_eq!(again.status(), StatusCode::OK);
+    let post = send(
+        &early,
+        &connection,
+        Method::POST,
+        "/post",
+        Some(Bytes::from_static(b"body")),
+    )
+    .await?;
+    assert_eq!(post.status(), StatusCode::OK);
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(
+        served,
+        [(1, "/early".to_owned()), (1, "/post".to_owned())],
+        "both requests reached the resumed connection, and nothing else did"
+    );
+
+    drop((connection, again, post));
     relay_task.abort();
+    server.abort();
+    Ok(())
+}
+
+/// After rejected early data the new HTTP/3 session starts without the
+/// SETTINGS remembered with the ticket, so a server that lowers a remembered
+/// limit is not closed, where an accepting server is closed with
+/// `H3_SETTINGS_ERROR`. Chromium keeps the remembered values after a
+/// rejection and closes such a connection with the transport error
+/// `INTERNAL_ERROR`.
+#[tokio::test(flavor = "current_thread")]
+async fn rejected_early_data_discards_the_remembered_settings() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 8_192]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    endpoint.set_server_config(Some(server_config(&identity, false)?));
+
+    let connection = connect(&early, address).await?;
+    assert!(connection.started_from_remembered_settings());
+    assert_eq!(connection.early_data_accepted().await, Some(false));
+    let response = send(&early, &connection, Method::GET, "/lowered", None).await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    drop(response);
+    // The server sends no ALPS, so this waits for its control-stream
+    // SETTINGS, which lower the remembered field-section limit.
+    timeout(TEST_TIMEOUT, connection.peer_extensions())
+        .await
+        .map_err(|_| "the server's SETTINGS never arrived")??;
+    let response = send(&early, &connection, Method::GET, "/again", None).await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(connection.quinn().close_reason().is_none());
+    assert!(early.can_reuse(&connection).await);
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(
+        served,
+        [(1, "/lowered".to_owned()), (1, "/again".to_owned())]
+    );
+
+    drop((connection, response));
     server.abort();
     Ok(())
 }

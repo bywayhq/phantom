@@ -31,6 +31,9 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   recipes: the encoder stream is client stream 10, and its type is written
   with its first instructions
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
+- Requests sent again on the same connection after a server rejects early
+  data, as the Chrome 154 and Edge 153 captures show
+  ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
@@ -132,9 +135,6 @@ anything does.
   concurrent streams until its first SETTINGS arrive (source reading); the
   vendored `http2` crate allows any number until then. Blocker: a vendored
   `http2` seam for the first stream id and the initial stream limit.
-- Resend on the same connection after a server rejects early data. Evidence:
-  the Chrome 154, Edge 153, and Firefox 156 captures resend every request in
-  1-RTT on that connection; Phantom opens a new one. Status: in progress.
 - Early data over TCP for the Firefox recipe. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where Firefox 156 offers `early_data` on every resumption whose ticket

@@ -10,7 +10,10 @@ use std::{
 use bytes::Bytes;
 use h3::{ConnectionState, client::PeerSettings};
 use http::{Request, Response};
-use tokio::{runtime::Handle, sync::Mutex};
+use tokio::{
+    runtime::Handle,
+    sync::{Mutex, MutexGuard},
+};
 use tracing::{Instrument, debug, debug_span, field};
 
 use crate::accept_ch::AcceptCh;
@@ -40,13 +43,50 @@ pub struct Http3Connection {
     inner: Arc<ConnectionInner>,
 }
 
-struct ConnectionInner {
+/// The HTTP/3 session a connection sends its requests on.
+///
+/// A connection whose early data was rejected replaces its session once, with
+/// one started on the same QUIC connection after the handshake.
+pub(super) struct Session {
     // Serializes `send_request` so stream IDs, QPACK encoder instructions, and
     // datagram monitor registration follow call order. Health checks must not
     // take this lock: `send_request` can wait for peer SETTINGS, QPACK
     // admission, or MAX_STREAMS credit while holding it.
     sender: Mutex<Option<RequestSender>>,
-    state: PeerSettings,
+    state: std::sync::Mutex<PeerSettings>,
+}
+
+impl Session {
+    pub(super) fn new(sender: RequestSender) -> Arc<Self> {
+        Arc::new(Self {
+            state: std::sync::Mutex::new(sender.peer_settings()),
+            sender: Mutex::new(Some(sender)),
+        })
+    }
+
+    /// Sends later requests on `sender`, dropping the session it replaces.
+    pub(super) async fn replace(&self, sender: RequestSender) {
+        let state = sender.peer_settings();
+        let mut current = self.sender.lock().await;
+        *lock_state(&self.state) = state;
+        *current = Some(sender);
+    }
+
+    fn is_healthy(&self) -> bool {
+        let state = lock_state(&self.state);
+        !state.is_closing() && state.get_conn_error().is_none()
+    }
+}
+
+fn lock_state(state: &std::sync::Mutex<PeerSettings>) -> std::sync::MutexGuard<'_, PeerSettings> {
+    match state.lock() {
+        Ok(state) => state,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+struct ConnectionInner {
+    session: Arc<Session>,
     driver: DriverTask,
     datagrams: Option<DatagramRouter>,
     quinn: quinn::Connection,
@@ -63,7 +103,7 @@ struct ConnectionInner {
 impl Http3Connection {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        sender: RequestSender,
+        session: Arc<Session>,
         driver: DriverTask,
         datagrams: Option<DatagramRouter>,
         quinn: quinn::Connection,
@@ -74,8 +114,7 @@ impl Http3Connection {
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
-                state: sender.peer_settings(),
-                sender: Mutex::new(Some(sender)),
+                session,
                 driver,
                 datagrams,
                 quinn,
@@ -94,9 +133,8 @@ impl Http3Connection {
     /// The lookup is an exact byte match against the origin serialized in the
     /// peer's HTTP/3 `ACCEPT_CH` frame. The metadata is immutable and remains
     /// scoped to this connection. A connection that sent early data learns it
-    /// when its handshake completes with the early data accepted; before
-    /// then, and on a connection whose early data was rejected, this returns
-    /// `None`.
+    /// when the server answers the early data and the handshake metadata
+    /// passes its checks; before then this returns `None`.
     #[must_use]
     pub fn accept_ch_for_origin(&self, origin: &str) -> Option<&[u8]> {
         self.inner.accept_ch.get()?.for_origin(origin)
@@ -156,25 +194,23 @@ impl Http3Connection {
     /// Waits until the server has answered this connection's early data.
     ///
     /// Returns `Ok` at once for a connection that sent none, and after the
-    /// handshake when the server accepted it and the handshake metadata
-    /// passed the checks a normal connection applies. Otherwise the error
-    /// says why the connection cannot carry a request:
+    /// handshake when the handshake metadata passed the checks a normal
+    /// connection applies. When the server rejected the early data, the
+    /// connection first starts HTTP/3 again after the handshake, without the
+    /// SETTINGS remembered with the ticket, as Chromium resends on the
+    /// connection; requests sent from then on use the new session. Otherwise
+    /// the error says why the connection cannot carry a request:
     ///
-    /// - the server rejected the early data: an error whose
-    ///   [`Http3Error::unprocessed`] is
-    ///   [`Http3Unprocessed::EarlyDataRejected`](super::Http3Unprocessed), so
-    ///   the request can be sent on another connection;
     /// - the handshake metadata was invalid: the error a full handshake
     ///   reports for it;
-    /// - the connection closed before its handshake completed: the connection
-    ///   error.
+    /// - the connection closed before its handshake completed, or before
+    ///   HTTP/3 started again: the connection error.
     pub async fn early_data_settled(&self) -> Result<(), Http3Error> {
         let Some(early_data) = &self.inner.early_data else {
             return Ok(());
         };
         match early_data.outcome().await {
-            EarlyDataOutcome::Accepted => Ok(()),
-            EarlyDataOutcome::Rejected => Err(Http3Error::early_data_rejected()),
+            EarlyDataOutcome::Accepted | EarlyDataOutcome::Rejected => Ok(()),
             EarlyDataOutcome::Invalid(invalid) => Err(invalid.error()),
             EarlyDataOutcome::Failed => Err(match self.inner.quinn.close_reason() {
                 Some(reason) => super::connection_error(reason),
@@ -224,14 +260,17 @@ impl Http3Connection {
             // for the peer's SETTINGS can hold it until the handshake ends.
             Some(_) => None,
         };
-        let result = self.send_prepared_request_now(prepared, early_data).await;
+        let (result, sent_before_answer) =
+            self.send_prepared_request_now(prepared, early_data).await;
         let Some(early_data) = &self.inner.early_data else {
             return result;
         };
         // A response head arrives only after the handshake completed, so the
         // outcome settles without waiting on the network.
         match (result, early_data.outcome().await) {
-            (Err(_), EarlyDataOutcome::Rejected) => {
+            // Only the discarded session's requests are unprocessed; the
+            // server saw none of them (RFC 9001, section 4.6.2).
+            (Err(_), EarlyDataOutcome::Rejected) if sent_before_answer => {
                 debug!("HTTP/3 early data rejected; the request was not processed");
                 Err(Http3Error::early_data_rejected())
             }
@@ -243,16 +282,40 @@ impl Http3Connection {
         }
     }
 
+    /// Locks the sender for one request and returns whether the server had
+    /// not answered the early data yet.
+    ///
+    /// Quinn discards the streams of rejected early data in the same step
+    /// that completes the TLS handshake. So while the answer is unpublished
+    /// but the handshake has completed, the request waits for the answer and
+    /// then uses the session that follows it.
+    async fn lock_sender(&self) -> (MutexGuard<'_, Option<RequestSender>>, bool) {
+        loop {
+            let sender = self.inner.session.sender.lock().await;
+            let pending = self.early_data_pending();
+            if !pending || self.inner.quinn.handshake_data().is_none() {
+                return (sender, pending);
+            }
+            drop(sender);
+            if let Some(early_data) = &self.inner.early_data {
+                early_data.outcome().await;
+            }
+        }
+    }
+
     /// Sends one request; `early_data` names how it relates to the
     /// connection's early data for the trace: `none` on a connection that
     /// sent none, `sent` when its stream opened before the handshake
     /// completed, or `after_handshake`. `None` records `sent` or
     /// `after_handshake` once the stream opens.
+    ///
+    /// Also returns whether the request took the sender before the server
+    /// answered the early data, so used the session a rejection discards.
     async fn send_prepared_request_now(
         &self,
         prepared: PreparedRequest,
         early_data: Option<&'static str>,
-    ) -> Result<Response<Http3Body>, Http3Error> {
+    ) -> (Result<Response<Http3Body>, Http3Error>, bool) {
         let method = prepared.method().clone();
         let body_bytes = prepared.body_len();
         let has_body = prepared.has_body();
@@ -267,10 +330,12 @@ impl Http3Connection {
             status = field::Empty,
             outcome = field::Empty,
         );
+        let mut sent_before_answer = false;
         let result = async {
             let (request, body, trailers) = prepared.into_parts();
             let (stream, mut datagrams) = {
-                let mut sender = self.inner.sender.lock().await;
+                let (mut sender, pending) = self.lock_sender().await;
+                sent_before_answer = pending;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
                 let stream = sender
                     .send_request(request)
@@ -350,7 +415,7 @@ impl Http3Connection {
         .instrument(span.clone())
         .await;
         span.record("outcome", if result.is_ok() { "ok" } else { "error" });
-        result
+        (result, sent_before_answer)
     }
 
     /// Opens one extended CONNECT stream after the peer enables it.
@@ -374,7 +439,7 @@ impl Http3Connection {
         let result = async {
             self.early_data_settled().await?;
             let mut peer_settings = {
-                let sender = self.inner.sender.lock().await;
+                let sender = self.inner.session.sender.lock().await;
                 sender
                     .as_ref()
                     .ok_or_else(driver_unavailable)?
@@ -387,7 +452,7 @@ impl Http3Connection {
                 ));
             }
             let (stream, mut datagrams) = {
-                let mut sender = self.inner.sender.lock().await;
+                let mut sender = self.inner.session.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
                 let stream = sender.send_request(request).await?;
                 // Registering under the send lock keeps datagram monitors in
@@ -482,7 +547,7 @@ impl Http3Connection {
     /// reports the extension capabilities they enable.
     pub(super) async fn peer_extensions(&self) -> Result<PeerExtensions, Http3Error> {
         let mut peer_settings = {
-            let sender = self.inner.sender.lock().await;
+            let sender = self.inner.session.sender.lock().await;
             sender
                 .as_ref()
                 .ok_or_else(driver_unavailable)?
@@ -523,7 +588,7 @@ impl Http3Connection {
             )
         })?;
         let (stream, flow) = {
-            let mut sender = self.inner.sender.lock().await;
+            let mut sender = self.inner.session.sender.lock().await;
             let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
             let stream = sender.send_request(request).await?;
             let flow = router.flow(stream.id());
@@ -591,7 +656,12 @@ impl Http3Connection {
             .early_data
             .as_ref()
             .and_then(EarlyData::settled)
-            .is_some_and(|outcome| outcome != EarlyDataOutcome::Accepted)
+            .is_some_and(|outcome| {
+                !matches!(
+                    outcome,
+                    EarlyDataOutcome::Accepted | EarlyDataOutcome::Rejected
+                )
+            })
         {
             return false;
         }
@@ -603,7 +673,7 @@ impl Http3Connection {
         {
             return false;
         }
-        !self.inner.state.is_closing() && self.inner.state.get_conn_error().is_none()
+        self.inner.session.is_healthy()
     }
 
     pub(super) fn belongs_to(&self, identity: &Arc<()>) -> bool {
@@ -691,7 +761,11 @@ impl std::fmt::Debug for Http3Connection {
 
 impl Drop for ConnectionInner {
     fn drop(&mut self) {
-        self.sender.get_mut().take();
+        // Dropping the last sender lets the driver close HTTP/3. A restart
+        // that holds the lock at this moment drops its sender when it ends.
+        if let Ok(mut sender) = self.session.sender.try_lock() {
+            sender.take();
+        }
         let signal = DriverSignal::from_rank(self.signal.load(Ordering::Acquire));
         self.driver.finish(signal);
     }

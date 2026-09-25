@@ -281,11 +281,12 @@ Supported:
   request's first new connection offers early data when it presents a ticket
   that permits it, but only a request with a safe method, no body, and no
   trailers is sent before the handshake completes; any other request waits
-  for it. If the
-  server rejects the early data, the request is sent again after a handshake
-  over the same route; a failed handshake or invalid handshake metadata
-  fails the waiting requests. Concurrent requests to a resumed origin share
-  one connection while its early data is unanswered.
+  for it. If the server rejects the early data, HTTP/3 starts again on the
+  same connection after the handshake, without the remembered SETTINGS, and
+  the request is sent on it, as Chrome 154 and Edge 153 resend; a failed
+  handshake or invalid handshake metadata fails the waiting requests.
+  Concurrent requests to a resumed origin share one connection while its
+  early data is unanswered.
 - Server SETTINGS remembered with each session ticket, as Chromium keeps
   them, in the same cache and under the same isolation as the ticket. A
   connection that offers early data starts from them, so under the recipes'
@@ -309,9 +310,11 @@ Supported:
 
 Known gaps:
 
-- After a server rejects early data, the captured browsers send the request
-  again on the same connection; Phantom sends it on a new connection, which
-  offers no early data. An Alt-Svc racing attempt offers no early data.
+- After a server rejects early data, Chrome 154 and Edge 153 retransmit the
+  same encoder-stream and request bytes, encoded from the remembered
+  SETTINGS. Phantom's new session encodes from the server's SETTINGS, and
+  keeps a connection open whose server lowered a remembered limit, which
+  Chromium closes. An Alt-Svc racing attempt offers no early data.
 - No H3 recipe exists for Firefox, whose resumed connections switch to QUIC
   v2, which Phantom does not implement.
 

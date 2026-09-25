@@ -17,8 +17,9 @@ use phantom_profile::{Http3RequestSettings, Http3Settings};
 use phantom_quic_btls::{ApplicationState, HandshakeData, QuicClientConfig, StatelessResetKey};
 use tracing::{debug, debug_span, field};
 
+use connection::Session;
 use datagram::{DatagramMonitor, DatagramRouter};
-use driver::{DriverSignal, DriverTask, LateApplicationSettings};
+use driver::{DriverSignal, DriverTask, EarlyAnswer, LateApplicationSettings};
 use early_data::{EarlyData, EarlyDataOutcome, InvalidHandshake};
 #[cfg(test)]
 use request::prepare_request;
@@ -51,6 +52,8 @@ const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 const H3_GENERAL_PROTOCOL_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0101);
 /// `H3_INTERNAL_ERROR` (RFC 9114, section 8.1).
 const H3_INTERNAL_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0102);
+/// `H3_SETTINGS_ERROR` (RFC 9114, section 8.1).
+const H3_SETTINGS_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0109);
 /// Matches the HTTP CONNECT proxy's bound on interim responses per request.
 const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
@@ -467,6 +470,9 @@ async fn connect(
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
     let sends_early_data = crypto.sends_early_data();
+    // A connection whose early data is rejected starts HTTP/3 again from
+    // the same profile once its handshake completes.
+    let restart_profile = sends_early_data.then(|| (settings.clone(), Arc::clone(&crypto)));
     // The server's SETTINGS are kept with each ticket this connection
     // receives, and read back when a ticket is presented with early data.
     let application_state = crypto.resumes_sessions().then(ApplicationState::new);
@@ -567,39 +573,65 @@ async fn connect(
     let datagrams = settings
         .receives_datagrams()
         .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
-    let (late_settings, late_settings_receiver) = match zero_rtt {
-        Some(_) => {
-            let (sender, receiver) = oneshot::channel();
-            (Some(sender), Some(receiver))
+    let session = Session::new(sender);
+    let early = zero_rtt.map(|accepted| {
+        let (answer, answer_receiver) = oneshot::channel();
+        let (replacement, replacement_receiver) = oneshot::channel();
+        let (late_settings, late_settings_receiver) = oneshot::channel();
+        (
+            EarlyAnswer {
+                accepted,
+                answer,
+                replacement: replacement_receiver,
+            },
+            late_settings_receiver,
+            (answer_receiver, replacement, late_settings),
+        )
+    });
+    let (early_answer, late_settings_receiver, early_handles) = match early {
+        Some((answer, late_settings, handles)) => {
+            (Some(answer), Some(late_settings), Some(handles))
         }
-        None => (None, None),
+        None => (None, None, None),
     };
     let driver = DriverTask::spawn(
         h3_driver,
         endpoint,
         connection.clone(),
+        early_answer,
         late_settings_receiver,
         application_state,
         round_trip.clone(),
     );
-    let early_data = zero_rtt
-        .zip(late_settings)
-        .map(|(accepted, late_settings)| {
-            let quinn = connection.clone();
-            let accept_ch = Arc::clone(&accept_ch);
-            EarlyData::spawn(connection.clone(), accepted, move || {
-                complete_early_handshake(
-                    quinn,
-                    accept_ch,
-                    late_settings,
-                    round_trip,
-                    #[cfg(test)]
-                    peer_alps_override,
-                )
-            })
-        });
+    let early_data = early_handles.zip(restart_profile).map(
+        |((answer, replacement, late_settings), (settings, crypto))| {
+            let accepted = EarlyHandshake {
+                connection: connection.clone(),
+                accept_ch: Arc::clone(&accept_ch),
+                round_trip: round_trip.clone(),
+                #[cfg(test)]
+                peer_alps_override: peer_alps_override.clone(),
+            };
+            let rejected = accepted.clone();
+            let session = Arc::downgrade(&session);
+            EarlyData::spawn(
+                connection.clone(),
+                answer,
+                move || complete_early_handshake(accepted, late_settings),
+                move || {
+                    restart_after_rejected_early_data(
+                        rejected,
+                        settings,
+                        crypto,
+                        replacement,
+                        session,
+                    )
+                },
+            )
+        },
+    );
     Ok(Http3Connection::new(
-        sender,
+        session,
         driver,
         datagrams,
         connection,
@@ -610,6 +642,61 @@ async fn connect(
     ))
 }
 
+/// What an early-data connection checks once its handshake completes.
+#[derive(Clone)]
+struct EarlyHandshake {
+    connection: quinn::Connection,
+    accept_ch: Arc<OnceLock<AcceptCh>>,
+    round_trip: Option<RoundTripRecorder>,
+    #[cfg(test)]
+    peer_alps_override: Option<Arc<[u8]>>,
+}
+
+impl EarlyHandshake {
+    /// Checks the exact `h3` ALPN and decodes the peer's ALPS, returning the
+    /// ALPS payload and its `ACCEPT_CH` entries. Invalid metadata closes the
+    /// connection, as a normal connection refuses it before its first
+    /// request.
+    fn check(&self) -> Result<Option<(Vec<u8>, AcceptCh)>, EarlyDataOutcome> {
+        let handshake = match require_h3(&self.connection) {
+            Ok(handshake) => handshake,
+            Err(error) => {
+                debug!(error = %error, "early-data handshake metadata is invalid");
+                self.connection
+                    .close(H3_GENERAL_PROTOCOL_ERROR, b"invalid handshake metadata");
+                return Err(EarlyDataOutcome::Invalid(InvalidHandshake::Alpn));
+            }
+        };
+        #[cfg(test)]
+        let peer_settings = self
+            .peer_alps_override
+            .as_deref()
+            .or(handshake.peer_application_settings());
+        #[cfg(not(test))]
+        let peer_settings = handshake.peer_application_settings();
+        let Some(peer_settings) = peer_settings else {
+            return Ok(None);
+        };
+        match decode_accept_ch(peer_settings) {
+            Ok(decoded) => Ok(Some((peer_settings.to_vec(), decoded))),
+            Err(error) => {
+                debug!(error = %error, "early-data handshake metadata is invalid");
+                self.connection
+                    .close(H3_GENERAL_PROTOCOL_ERROR, b"invalid ALPS metadata");
+                Err(EarlyDataOutcome::Invalid(InvalidHandshake::Alps))
+            }
+        }
+    }
+
+    /// Publishes the checked metadata to the connection's requests.
+    fn finish(&self, accept_ch: AcceptCh) {
+        let _ = self.accept_ch.set(accept_ch);
+        if let Some(round_trip) = &self.round_trip {
+            round_trip.after_handshake(&self.connection);
+        }
+    }
+}
+
 /// Checks and applies the TLS metadata of an early-data connection whose
 /// handshake completed with its early data accepted.
 ///
@@ -618,41 +705,18 @@ async fn connect(
 /// the HTTP/3 driver accepts, reconciled with any control-stream SETTINGS
 /// that arrived first. A connection that fails them is closed.
 async fn complete_early_handshake(
-    connection: quinn::Connection,
-    accept_ch: Arc<OnceLock<AcceptCh>>,
+    handshake: EarlyHandshake,
     late_settings: oneshot::Sender<LateApplicationSettings>,
-    round_trip: Option<RoundTripRecorder>,
-    #[cfg(test)] peer_alps_override: Option<Arc<[u8]>>,
 ) -> EarlyDataOutcome {
-    let handshake = match require_h3(&connection) {
-        Ok(handshake) => handshake,
-        Err(error) => {
-            debug!(error = %error, "early-data handshake metadata is invalid");
-            connection.close(H3_GENERAL_PROTOCOL_ERROR, b"invalid handshake metadata");
-            return EarlyDataOutcome::Invalid(InvalidHandshake::Alpn);
-        }
+    let alps = match handshake.check() {
+        Ok(alps) => alps,
+        Err(outcome) => return outcome,
     };
-    #[cfg(test)]
-    let peer_settings = peer_alps_override
-        .as_deref()
-        .or(handshake.peer_application_settings());
-    #[cfg(not(test))]
-    let peer_settings = handshake.peer_application_settings();
     let mut decoded = AcceptCh::default();
-    if let Some(peer_settings) = peer_settings {
-        decoded = match decode_accept_ch(peer_settings) {
-            Ok(decoded) => decoded,
-            Err(error) => {
-                debug!(error = %error, "early-data handshake metadata is invalid");
-                connection.close(H3_GENERAL_PROTOCOL_ERROR, b"invalid ALPS metadata");
-                return EarlyDataOutcome::Invalid(InvalidHandshake::Alps);
-            }
-        };
+    if let Some((payload, accept_ch)) = alps {
+        decoded = accept_ch;
         let (applied, result) = oneshot::channel();
-        let delivered = late_settings.send(LateApplicationSettings {
-            payload: peer_settings.to_vec(),
-            applied,
-        });
+        let delivered = late_settings.send(LateApplicationSettings { payload, applied });
         if delivered.is_err() {
             // The driver ended, so the connection is already closing.
             return EarlyDataOutcome::Failed;
@@ -668,15 +732,73 @@ async fn complete_early_handshake(
             Err(_) => return EarlyDataOutcome::Failed,
         }
     }
-    let _ = accept_ch.set(decoded);
-    if let Some(round_trip) = &round_trip {
-        round_trip.after_handshake(&connection);
-    }
-    debug!(
-        session_resumed = handshake.session_resumed(),
-        "QUIC early-data handshake completed with exact h3 ALPN"
-    );
+    handshake.finish(decoded);
+    debug!("QUIC early-data handshake completed with exact h3 ALPN");
     EarlyDataOutcome::Accepted
+}
+
+/// Starts HTTP/3 again on a connection whose early data the server rejected.
+///
+/// The server processed none of the early data, and Quinn discarded every
+/// stream opened before the handshake (RFC 9001, section 4.6.2), so the new
+/// session opens its control and QPACK streams and resends its requests on
+/// the same connection, as Chromium does. It starts from the completed
+/// handshake's metadata, with the checks a normal connection applies, and
+/// without the SETTINGS remembered with the ticket. `replacement` hands the
+/// new driver to the connection's driver task; `session` receives the new
+/// sender before the outcome is published.
+async fn restart_after_rejected_early_data(
+    handshake: EarlyHandshake,
+    settings: Http3Settings,
+    crypto: Arc<QuicClientConfig>,
+    replacement: oneshot::Sender<driver::ClientDriver>,
+    session: std::sync::Weak<Session>,
+) -> EarlyDataOutcome {
+    let alps = match handshake.check() {
+        Ok(alps) => alps,
+        Err(outcome) => return outcome,
+    };
+    let Ok(mut builder) = settings::builder(&settings, &crypto) else {
+        handshake
+            .connection
+            .close(H3_INTERNAL_ERROR, b"HTTP/3 profile unavailable");
+        return EarlyDataOutcome::Failed;
+    };
+    let mut decoded = AcceptCh::default();
+    if let Some((payload, accept_ch)) = alps {
+        decoded = accept_ch;
+        if let Err(error) = builder.peer_application_settings(&payload) {
+            debug!(error = %error, "early-data peer application settings are invalid");
+            handshake
+                .connection
+                .close(H3_SETTINGS_ERROR, b"invalid peer application settings");
+            return EarlyDataOutcome::Invalid(InvalidHandshake::AlpsSettings);
+        }
+    }
+    let (driver, sender) = match builder
+        .build(h3_quinn::Connection::new(handshake.connection.clone()))
+        .await
+    {
+        Ok(started) => started,
+        Err(error) => {
+            debug!(error = %error, "HTTP/3 did not start again after rejected early data");
+            return EarlyDataOutcome::Failed;
+        }
+    };
+    // The driver task drops the discarded session when it takes this one,
+    // which fails any request still waiting on it.
+    if replacement.send(driver).is_err() {
+        return EarlyDataOutcome::Failed;
+    }
+    match session.upgrade() {
+        Some(session) => session.replace(sender).await,
+        // The connection handle is gone; dropping the sender lets the new
+        // driver close HTTP/3.
+        None => return EarlyDataOutcome::Failed,
+    }
+    handshake.finish(decoded);
+    debug!("QUIC handshake completed with rejected early data; HTTP/3 restarted");
+    EarlyDataOutcome::Rejected
 }
 
 /// Feeds one connection's round-trip time to its connector's ticket cache,

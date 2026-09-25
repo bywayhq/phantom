@@ -86,9 +86,9 @@ fn client_without_early_data(profile: ClientProfile) -> Result<Client, BuildErro
   early data is unanswered.
 - The server must have issued a ticket that permits early data. If it
   rejects the early data, it processed none of it. Phantom sends the request
-  again after a handshake, over the same route and protocol, on a new
-  connection. A handshake that fails after the connection sent early data
-  fails the waiting requests; it is not retried.
+  again on the same connection once the handshake completes, as Chrome does.
+  A handshake that fails after the connection sent early data fails the
+  waiting requests; it is not retried.
 
 ## Upgrade to HTTP/3 when the server advertises it
 

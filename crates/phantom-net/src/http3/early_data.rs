@@ -2,7 +2,7 @@
 
 use std::future::Future;
 
-use tokio::sync::watch;
+use tokio::sync::{oneshot, watch};
 
 use super::{Http3Error, Http3ErrorKind};
 
@@ -13,8 +13,11 @@ pub(super) enum EarlyDataOutcome {
     /// handshake metadata passed the checks a normal connection applies.
     Accepted,
     /// The handshake completed without the early data. The server processed
-    /// none of it (RFC 9001, section 4.6.2), and Quinn reset every stream
-    /// opened before the handshake.
+    /// none of it (RFC 9001, section 4.6.2), and Quinn discarded every stream
+    /// opened before the handshake. HTTP/3 then started again on the same
+    /// connection, from the completed handshake's metadata and without the
+    /// remembered SETTINGS, so requests can be sent on it again, as Chromium
+    /// sends them.
     Rejected,
     /// The server accepted the early data, but the completed handshake
     /// carried metadata a normal connection would have refused before its
@@ -65,28 +68,33 @@ pub(super) struct EarlyData {
 }
 
 impl EarlyData {
-    /// Records the server's answer once `accepted` resolves at handshake end.
+    /// Records the server's answer once the connection driver reports it at
+    /// handshake end.
     ///
     /// When the server accepted the early data, `complete` checks and applies
     /// the handshake metadata before the answer is published, so a request
-    /// that sees an accepted outcome also sees the peer's ALPS.
-    pub(super) fn spawn<F, C>(
+    /// that sees an accepted outcome also sees the peer's ALPS. When it
+    /// rejected the early data, `restart` checks the same metadata and starts
+    /// HTTP/3 again on the connection before the answer is published, so a
+    /// request that sees a rejected outcome sends on the new session.
+    pub(super) fn spawn<F, C, R, S>(
         connection: quinn::Connection,
-        accepted: quinn::ZeroRttAccepted,
+        answer: oneshot::Receiver<bool>,
         complete: F,
+        restart: R,
     ) -> Self
     where
         F: FnOnce() -> C + Send + 'static,
         C: Future<Output = EarlyDataOutcome> + Send,
+        R: FnOnce() -> S + Send + 'static,
+        S: Future<Output = EarlyDataOutcome> + Send,
     {
         let (sender, outcome) = watch::channel(None);
         tokio::spawn(async move {
-            let outcome = if accepted.await {
-                complete().await
-            } else if connection.close_reason().is_none() {
-                EarlyDataOutcome::Rejected
-            } else {
-                EarlyDataOutcome::Failed
+            let outcome = match answer.await {
+                Ok(true) => complete().await,
+                Ok(false) if connection.close_reason().is_none() => restart().await,
+                Ok(false) | Err(_) => EarlyDataOutcome::Failed,
             };
             let _ = sender.send(Some(outcome));
         });

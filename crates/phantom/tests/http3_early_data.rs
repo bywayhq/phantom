@@ -41,8 +41,11 @@ use tracing_support::OutcomeSubscriber;
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 const RELAY_DELAY: Duration = Duration::from_millis(150);
 
+/// A `GET` sent as early data that the server rejects is sent again on the
+/// same connection after the handshake, as Chromium does, and the server
+/// sees no other connection.
 #[tokio::test]
-async fn rejected_early_data_is_sent_again_after_a_handshake() -> TestResult<()> {
+async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let endpoint = quinn::Endpoint::server(
@@ -63,26 +66,11 @@ async fn rejected_early_data_is_sent_again_after_a_handshake() -> TestResult<()>
             // The server now declines early data, as after a key rotation.
             endpoint.set_server_config(Some(declining));
             let _ = served_tx.send(String::new());
-            // The rejected connection carries no processed request.
-            let rejected = endpoint.accept().await.ok_or("endpoint closed")?;
-            let rejected = tokio::spawn(async move {
-                let connection = rejected.await?;
-                let mut connection =
-                    h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection))
-                        .await?;
-                let unexpected = connection.accept().await.ok().flatten().is_some();
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(unexpected)
-            });
+            // The connection whose early data was rejected carries the
+            // request, and no other connection follows.
             let path = serve_then_close(&endpoint, &mut read).await?;
             let _ = served_tx.send(path);
-            let unexpected = match timeout(Duration::from_secs(1), rejected).await {
-                Ok(joined) => joined?.unwrap_or(false),
-                Err(_) => false,
-            };
-            if unexpected {
-                return Err("the rejected connection delivered a request".into());
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            expect_no_connection(&endpoint).await
         });
 
         let session = early_data_client(&identity)?.session();
@@ -504,7 +492,7 @@ async fn forward_gated(
 
 /// A `POST` that opens a resumed connection offers early data but waits for
 /// the handshake. When the server rejects the early data, the `POST` is sent
-/// on a new connection with its whole body.
+/// once, with its whole body, on the same connection.
 #[tokio::test]
 async fn rejected_early_data_resends_a_post_with_its_body() -> TestResult<()> {
     bounded(async {
@@ -522,25 +510,9 @@ async fn rejected_early_data_resends_a_post_with_its_body() -> TestResult<()> {
             let _ = served_tx.send(first);
             // The server now declines early data, as after a key rotation.
             endpoint.set_server_config(Some(declining));
-            let rejected = endpoint.accept().await.ok_or("endpoint closed")?;
-            let rejected = tokio::spawn(async move {
-                let connection = rejected.await?;
-                let mut connection =
-                    h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection))
-                        .await?;
-                let unexpected = connection.accept().await.ok().flatten().is_some();
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(unexpected)
-            });
             let resent = serve_body_then_close(&endpoint, &mut read).await?;
             let _ = served_tx.send(resent);
-            let unexpected = match timeout(Duration::from_secs(1), rejected).await {
-                Ok(joined) => joined?.unwrap_or(false),
-                Err(_) => false,
-            };
-            if unexpected {
-                return Err("the rejected connection delivered a request".into());
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            expect_no_connection(&endpoint).await
         });
 
         let client = Client::builder(chrome_profile())
@@ -818,6 +790,16 @@ async fn serve_body_then_close(
     drop(connection);
     endpoint.wait_idle().await;
     Ok((request.uri().path().to_owned(), body))
+}
+
+/// Fails if the client opens another connection within one second.
+async fn expect_no_connection(
+    endpoint: &quinn::Endpoint,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    match timeout(Duration::from_secs(1), endpoint.accept()).await {
+        Ok(Some(_)) => Err("the client opened a second connection".into()),
+        Ok(None) | Err(_) => Ok(()),
+    }
 }
 
 async fn bounded<F>(future: F) -> TestResult<()>
