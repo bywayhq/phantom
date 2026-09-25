@@ -4,7 +4,9 @@
 use std::{path::PathBuf, time::Duration};
 
 use phantom_profile::{
-    Http2RejectedConnect, Http2Setting, Http2Settings, chromium::v154_http2, firefox::v156_http2,
+    Http2RejectedConnect, Http2Setting, Http2Settings,
+    chromium::{v154_http2, v154_proxy_connect},
+    firefox::v156_http2,
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -98,8 +100,9 @@ async fn challenged_stream_ends_before_the_replay_on_a_multi_thread_runtime() ->
 
 /// Each profile sends, between the `407` and the replay, the frames its
 /// browser sends on the challenged stream in the
-/// `https-proxy-auth-secure-hostname` capture: Chrome 154 and Edge 153 an
-/// empty END_STREAM DATA frame, Firefox 156 nothing. Firefox's stream stays
+/// `https-proxy-auth-secure-hostname` capture: Chrome 154, Edge 153, Brave
+/// 154, and Opera 135 an empty END_STREAM DATA frame, Firefox 156 nothing.
+/// Brave and Opera take the Chromium CONNECT and HTTP/2 recipes. Firefox's stream stays
 /// quiet while the tunnel runs.
 #[tokio::test]
 async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
@@ -112,6 +115,16 @@ async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
         (
             "edge/153.0.4234.48",
             Http2RejectedConnect::EndStream,
+            v154_http2(),
+        ),
+        (
+            "brave/154.1.96.59",
+            v154_proxy_connect().http2_rejected,
+            v154_http2(),
+        ),
+        (
+            "opera/135.0.5973.92",
+            v154_proxy_connect().http2_rejected,
             v154_http2(),
         ),
         (

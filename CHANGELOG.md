@@ -255,7 +255,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the navigation `Accept`, and require the caller's `User-Agent` and
   `Accept-Language`; Opera's require the caller's `User-Agent`. Neither
   browser has a TCP, HTTP/1.1 connection, address cache, or cookie placement
-  recipe.
+  recipe. Through the Chromium recipes both split `cookie` into crumbs on
+  H2 and H3, which no Brave or Opera capture checks, and end a rejected
+  HTTP/2 CONNECT stream with an empty END_STREAM DATA frame, as their proxy
+  captures show. Brave's ECH from HTTPS records covers exact-protocol
+  requests and `wss://` openings, as the Chrome recipe's does.
 - The capture tools launch `--browser brave` and `--browser opera`, and
   `chrome_http3.py --output` writes its startup fixture with LF line endings.
   `startup_capture.py` launches a browser against the TLS, HTTP/2, or HTTP/3

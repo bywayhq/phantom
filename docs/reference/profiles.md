@@ -290,6 +290,9 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
   supply them, before the split.
 - Firefox 156 does not split `cookie` over HTTP/3; Phantom has no Firefox
   HTTP/3 recipe.
+- Edge, Brave, and Opera use `chromium::v154_http2` and
+  `chromium::v154_http3_request`, so they send crumbs as Chrome does. The
+  Edge captures show it; no Brave or Opera capture carries a cookie.
 
 ### Client hints in templates
 
