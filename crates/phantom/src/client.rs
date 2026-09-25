@@ -576,7 +576,8 @@ impl ClientBuilder {
     /// Up to `capacity` lines wait in a queue until
     /// [`KeyLog::write_pending`](crate::KeyLog::write_pending) drains it.
     /// Handshakes never wait for the queue: a line that does not fit is
-    /// dropped and counted. Each TLS 1.3 handshake adds five lines. TLS 1.2
+    /// dropped and counted. Each TLS 1.3 handshake adds five lines, or six
+    /// when it offers early data (`CLIENT_EARLY_TRAFFIC_SECRET`). TLS 1.2
     /// handshakes are not logged.
     #[cfg(feature = "diagnostics")]
     #[must_use]
@@ -590,9 +591,11 @@ impl ClientBuilder {
     /// Each file holds one connection's QUIC events as JSON-SEQ, without
     /// request fields or payloads, and is named
     /// `phantom-<process>-<milliseconds>-<counter>.sqlog`. The directory must
-    /// exist. A connection whose file cannot be created fails before its
+    /// exist. The file is created synchronously while the connection is set
+    /// up, and a connection whose file cannot be created fails before its
     /// handshake with
-    /// [`RequestErrorKind::Http3`](crate::RequestErrorKind::Http3).
+    /// [`RequestErrorKind::Http3`](crate::RequestErrorKind::Http3). Writes are
+    /// buffered, so the file is complete only after the connection closes.
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {

@@ -76,7 +76,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   root; it is hidden plumbing for request templates. This affects only
   commits from `d7907cb` up to `31a3be0`. (`31a3be0`)
   Migrate: remove the import and use `RequestTemplate`.
-
 - Request templates no longer check a caller's `User-Agent` or `sec-ch-ua`
   against the template's browser. `RequestIdentity`, `ProductVersion`, the
   `RequestTemplate::identity` field, and `RequestErrorKind::IdentityMismatch`
@@ -205,9 +204,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   route still rejects it before I/O with `RequestErrorKind::UnsupportedRoute`.
   A negotiated redirect to an `http://` target follows the same rule.
   (`e05234b`, `2335c85`)
-
-- The `diagnostics` feature of `phantom-http` writes a TLS key log and QUIC
-  qlog files for your own connections. `ClientBuilder::key_log(capacity)`
+- The `diagnostics` feature of `phantom-http` queues a TLS key log and writes
+  QUIC qlog files for your own connections. `ClientBuilder::key_log(capacity)`
   queues the TLS 1.3 secrets of every TCP and QUIC handshake in NSS key log
   format, and `Client::key_log` returns the `KeyLog` whose `write_pending`
   drains the queue. `ClientBuilder::qlog_dir(dir)` writes one JSON-SEQ qlog
@@ -256,7 +254,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   first request can authenticate without a `407` round trip. The field still
   fails with `RequestErrorKind::InvalidHeader` before I/O on any other route
   and on a proxy with `with_basic_auth`. (`2f9d072`)
-
 - A templated request no longer clones the template or validates it again
   on every `send`. `PreparedRequestTemplate` keeps the validated form and
   its client-hint placement behind an `Arc`, and the request path parses the

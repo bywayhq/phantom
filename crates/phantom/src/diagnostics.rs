@@ -45,8 +45,11 @@ impl KeyLog {
             .write_pending_nss(writer)
     }
 
-    /// Returns how many lines were dropped: lines that found the queue full,
-    /// and TLS 1.2 secrets, which are not logged.
+    /// Returns how many lines could not be queued.
+    ///
+    /// A line is dropped when the queue is full, or when it is not a
+    /// well-formed TLS 1.3 secret line. TLS 1.2 `CLIENT_RANDOM` lines fall in
+    /// the second group.
     #[must_use]
     pub fn dropped_line_count(&self) -> usize {
         self.receiver
