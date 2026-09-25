@@ -14,6 +14,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings` gained the public field `ech_from_https_records`, so struct
+  literals that name every field no longer compile. `chromium::v154_tls`
+  sets it, which changes the Chrome 154 recipe's wire behavior on a client
+  with HTTPS record discovery: a direct negotiated HTTP/1.1 or HTTP/2
+  connection to an origin whose HTTPS record carries `ech` sends a real
+  Encrypted Client Hello, with the record's public name as the outer server
+  name, and its TLS handshake waits for the lookup for at most 50 ms after
+  address resolution. A QUIC connector rejects the field. (`e6e5076`)
+  Migrate: add `ech_from_https_records: false` to a struct literal to keep
+  the previous behavior, or fill the rest from a recipe with struct update
+  syntax, such as `..chromium::v154_tls()`. To keep ECH GREASE with the
+  Chrome recipe, set `settings.ech_from_https_records = false` on the value
+  `chromium::v154_tls` returns.
 - Phantom's patched dependencies are renamed `phantom-*` forks that Phantom's
   manifests reference by exact version and path, and the root `[patch]`
   tables are gone. A downstream crate now depends on Phantom with one line.
@@ -242,6 +255,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Proxy-Authorization` field on a forwarded request, for every attempt or
   separately for a first attempt with remembered credentials and for the
   replay after a `407`.
+- Encrypted Client Hello from HTTPS DNS records, as Chrome 154.0.8037.58
+  does: `Http1Or2TlsConnector::connect_direct_with_ech` offers an
+  `ECHConfigList` on a direct connection, retries once to the same address
+  after a rejection with the server's retry configurations, or with ECH
+  GREASE and the true server name when it sent none, and reports failures
+  through `TlsError::ech_failure` and `EchFailure`. `EchConfigList::parse`
+  and `EchConfig` decode a record's `ech` value by the TLS client's rules,
+  and the `ech_config_list` fuzz target drives the parser. Chrome and its
+  retry path were captured in `fixtures/tls/chrome/154.0.8037.58/`.
+  (`124c1f7`, `e6e5076`)
+- `scripts/capture/chrome_ech.py` and the `capture_ech_client_hello`
+  example record a Chromium browser's ClientHellos against a loopback origin
+  that decrypts ECH, with the HTTPS record served over DNS over HTTPS.
+  `phantom_testkit::tls` gains fixed ECH test keys, `ECHConfig` encoding, and
+  a decoder for the outer `encrypted_client_hello` extension. (`1f268a5`)
 - `ClientBuilder::preemptive_proxy_authentication`, on by default, and the
   `phantom_net::proxy::ProxyCredentialCache` it uses:
   after an HTTP proxy accepts `HttpProxy::with_basic_auth` credentials on the
@@ -467,7 +495,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   that selected HTTP/2, beyond the life of their pool entries. Waiting for
   another request's handshake counts against the connect timeout. A
   profile without `Http1Settings` keeps one connection, as before.
-
+- The `phantom-btls` and `phantom-tokio-btls` forks move to
+  `0.5.6-phantom.3`: `btls::ssl` exports `SslEchKeys` and
+  `SslEchKeysBuilder`, so a server can be given ECH keys. A downstream
+  lockfile changes only those two versions. (`41c32d8`)
 - Wire and performance change for HTTP proxies with Basic credentials. A
   tunnel or forwarded request to a proxy that already accepted the
   credentials now carries `Proxy-Authorization` on its first attempt, as
