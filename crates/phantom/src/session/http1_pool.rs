@@ -4,6 +4,7 @@ use std::{
     num::NonZeroUsize,
     pin::Pin,
     sync::{Arc, MutexGuard, OnceLock, PoisonError},
+    time::Duration,
 };
 
 use http::{
@@ -213,17 +214,27 @@ impl Http1Pool {
                     && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
                 {
                     let (parts, mut body) = response.into_parts();
-                    if let Some(slot) = challenged {
+                    if let Some(slot) = challenged.filter(|slot| !slot.replayed) {
+                        // The drain belongs to the response-head phase, and
+                        // each body frame to the read-idle timeout. Without
+                        // configured timeouts only the size bounds it.
                         let drained = timeout_budget
                             .run(
                                 TimeoutPhase::ResponseHead,
                                 Some(HttpProtocol::Http1),
-                                async { Ok(drain_challenge(&mut body).await) },
+                                drain_challenge(&mut body, timeout_budget.read_idle()),
                             )
                             .await;
-                        if drained.is_ok_and(|drained| drained)
+                        let drained = match drained {
+                            Ok(drained) => drained,
+                            Err(error) => {
+                                lease.retire();
+                                return Err(error);
+                            }
+                        };
+                        if drained
                             && !has_close_token(&parts.headers)
-                            && lease.connection.is_reusable()
+                            && connection_is_idle(&lease.connection).await
                         {
                             // The replay takes this connection and admission, so
                             // no other request can use the connection in between.
@@ -311,12 +322,19 @@ impl Http1Pool {
 #[derive(Default)]
 pub(crate) struct ChallengedConnection {
     held: Option<HeldConnection>,
+    replayed: bool,
 }
 
 impl ChallengedConnection {
     /// Whether a challenged connection waits for the replay.
     pub(crate) const fn is_held(&self) -> bool {
         self.held.is_some()
+    }
+
+    /// Marks the next attempt as the proxy-authentication replay, whose `407`
+    /// is final, so the pool keeps no connection for it.
+    pub(crate) fn begin_replay(&mut self) {
+        self.replayed = true;
     }
 }
 
@@ -332,23 +350,47 @@ struct HeldConnection {
 ///
 /// A body that ends leaves its connection at the start of the next response,
 /// as Chromium's `HttpNetworkTransaction::PrepareForAuthRestart` requires
-/// before it reuses the connection for the replay.
-async fn drain_challenge(body: &mut Http1Body) -> bool {
+/// before it reuses the connection for the replay. A frame that takes longer
+/// than `read_idle` fails the request with a read-idle timeout.
+async fn drain_challenge(
+    body: &mut Http1Body,
+    read_idle: Option<Duration>,
+) -> Result<bool, RequestError> {
     let mut received = 0_usize;
     loop {
-        match poll_fn(|context| Pin::new(&mut *body).poll_frame(context)).await {
-            None => return true,
-            Some(Err(_)) => return false,
+        let frame = poll_fn(|context| Pin::new(&mut *body).poll_frame(context));
+        let frame = match read_idle {
+            Some(read_idle) => tokio::time::timeout(read_idle, frame).await.map_err(|_| {
+                RequestError::timeout(TimeoutPhase::ReadIdle, Some(HttpProtocol::Http1))
+            })?,
+            None => frame.await,
+        };
+        match frame {
+            None => return Ok(true),
+            Some(Err(_)) => return Ok(false),
             Some(Ok(frame)) => {
                 if let Some(data) = frame.data_ref() {
                     received = received.saturating_add(data.len());
                     if received > MAX_CHALLENGE_BODY_BYTES {
-                        return false;
+                        return Ok(false);
                     }
                 }
             }
         }
     }
+}
+
+/// Reports whether `connection` can carry the replay after its `407`.
+///
+/// The connection driver runs as its own task and closes the connection when
+/// it reads the proxy's end of stream. Yielding once lets it act on an end of
+/// stream that arrived with the `407`, the check Chromium makes with
+/// `IsConnectedAndIdle` before it reuses the socket. A close that arrives
+/// later fails the replay before any response byte, and the replay moves to
+/// a new connection then.
+async fn connection_is_idle(connection: &Http1Connection) -> bool {
+    tokio::task::yield_now().await;
+    connection.is_reusable()
 }
 
 /// Reports a `close` token in `Connection` or `Proxy-Connection`.

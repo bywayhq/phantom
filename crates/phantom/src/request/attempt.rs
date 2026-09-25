@@ -158,6 +158,9 @@ async fn send_once_exact(
         }
         let replays_on_challenged =
             challenged && challenged_connection.is_held() && !fresh_connection;
+        if challenged {
+            challenged_connection.begin_replay();
+        }
         let dispatched = dispatch_attempt(
             client,
             request,
@@ -187,18 +190,22 @@ async fn send_once_exact(
             Ok(dispatched) => dispatched,
             Err(error) => {
                 // A proxy that closes the challenged connection before it
-                // answers the replay gets the replay once on a new connection,
-                // as Chromium's `HttpNetworkTransaction` sends it. This belongs
-                // to the authentication replay and needs no retry policy.
-                if replays_on_challenged
-                    && error.is_reused_connection_close()
-                    && matches!(
-                        body,
-                        RequestBodySource::Absent | RequestBodySource::Bytes(_)
-                    )
-                {
-                    fresh_connection = true;
-                    continue;
+                // answers the replay gets an idempotent replay once more on a
+                // new connection. This belongs to the authentication replay
+                // and needs no retry policy. Chromium resends any method; a
+                // close before the response does not show that the proxy did
+                // not forward a POST, so its error is returned instead.
+                if replays_on_challenged && error.is_reused_connection_close() {
+                    if method.is_idempotent()
+                        && matches!(
+                            body,
+                            RequestBodySource::Absent | RequestBodySource::Bytes(_)
+                        )
+                    {
+                        fresh_connection = true;
+                        continue;
+                    }
+                    return Err(error);
                 }
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_connection = true;

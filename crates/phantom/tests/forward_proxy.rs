@@ -23,6 +23,7 @@ use http::{Method, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTimeouts, Route,
+    TimeoutPhase,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile},
 };
 use tokio::{
@@ -1717,6 +1718,193 @@ async fn forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_chal
                 vec![FORWARD_ANONYMOUS.to_vec(), FORWARD_AUTHENTICATED.to_vec()],
                 vec![FORWARD_AUTHENTICATED.to_vec()]
             ],
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// A POST whose replay reached the challenged connection may already have
+/// been forwarded when the proxy closes it, so the error is returned and the
+/// body is not sent again.
+#[tokio::test]
+async fn post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connection()
+-> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut challenged, _) = listener.accept().await?;
+            let anonymous = read_head(&mut challenged).await?;
+            let mut body = [0_u8; 7];
+            challenged.read_exact(&mut body).await?;
+            challenged
+                .write_all(&forward_challenge(b"Content-Length: 0\r\n\r\n"))
+                .await?;
+            let replay = read_head(&mut challenged).await?;
+            challenged.read_exact(&mut body).await?;
+            drop(challenged);
+            let second_connection = timeout(Duration::from_millis(300), listener.accept())
+                .await
+                .is_ok();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((
+                anonymous,
+                replay,
+                second_connection,
+            ))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let result = client_builder(&identity, false)
+            .route(route)
+            .build()?
+            .request(HttpProtocol::Http1, Method::POST, "http://origin.test/post")?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await;
+        assert!(
+            result.is_err(),
+            "the closed POST replay returned a response"
+        );
+
+        let (anonymous, replay, second_connection) = proxy.await??;
+        assert!(anonymous.starts_with(b"POST http://origin.test/post HTTP/1.1\r\n"));
+        assert!(!contains_ascii_case_insensitive(
+            &anonymous,
+            b"proxy-authorization"
+        ));
+        assert!(contains_ascii_case_insensitive(
+            &replay,
+            b"proxy-authorization: basic ywxpy2u6c2vjcmv0"
+        ));
+        assert!(
+            !second_connection,
+            "the POST was sent on a second connection"
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// A `407` body that stalls ends the request with the configured timeout; the
+/// replay is never sent.
+#[tokio::test]
+async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult<()> {
+    for (timeouts, phase) in [
+        (
+            RequestTimeouts::new().read_idle(Duration::from_millis(200)),
+            TimeoutPhase::ReadIdle,
+        ),
+        (
+            RequestTimeouts::new().total(Duration::from_millis(500)),
+            TimeoutPhase::Total,
+        ),
+        (
+            RequestTimeouts::new().response_head(Duration::from_millis(500)),
+            TimeoutPhase::ResponseHead,
+        ),
+    ] {
+        bounded(async {
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let address = listener.local_addr()?;
+            let proxy = tokio::spawn(async move {
+                let (mut challenged, _) = listener.accept().await?;
+                read_head(&mut challenged).await?;
+                challenged
+                    .write_all(&forward_challenge(b"Content-Length: 10\r\n\r\nabc"))
+                    .await?;
+                let second_connection = timeout(Duration::from_millis(1_500), listener.accept())
+                    .await
+                    .is_ok();
+                let mut rest = Vec::new();
+                let _ = timeout(
+                    Duration::from_millis(100),
+                    challenged.read_to_end(&mut rest),
+                )
+                .await;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>((second_connection, rest))
+            });
+
+            let identity = TestIdentity::generate()?;
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+            );
+            let error = client_builder(&identity, false)
+                .route(route)
+                .build()?
+                .get(HttpProtocol::Http1, "http://origin.test/stalled")?
+                .timeouts(timeouts)
+                .send()
+                .await
+                .err()
+                .ok_or("a stalled challenge body produced a response")?;
+            assert_eq!(error.kind(), RequestErrorKind::Timeout, "{phase:?}");
+            assert_eq!(error.timeout_phase(), Some(phase));
+
+            let (second_connection, rest) = proxy.await??;
+            assert!(
+                !second_connection,
+                "{phase:?}: the replay opened a connection"
+            );
+            assert!(rest.is_empty(), "{phase:?}: the replay reached the proxy");
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+/// A proxy that shuts its side of the connection right after a keep-alive
+/// `407` gets the replay on a new connection, and nothing more on the old one.
+#[tokio::test]
+async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_connection()
+-> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut challenged, _) = listener.accept().await?;
+            let anonymous = read_head(&mut challenged).await?;
+            challenged
+                .write_all(&forward_challenge(b"Content-Length: 0\r\n\r\n"))
+                .await?;
+            challenged.shutdown().await?;
+            let leftover = tokio::spawn(async move {
+                let mut rest = Vec::new();
+                let _ = challenged.read_to_end(&mut rest).await;
+                rest
+            });
+            let (mut second, _) = listener.accept().await?;
+            let replay = read_head(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((anonymous, replay, leftover))
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+        let response = client
+            .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        drop(client);
+
+        let (anonymous, replay, leftover) = proxy.await??;
+        assert_eq!(anonymous, FORWARD_ANONYMOUS);
+        assert_eq!(replay, FORWARD_AUTHENTICATED);
+        let leftover = timeout(Duration::from_secs(2), leftover).await??;
+        assert!(
+            leftover.is_empty(),
+            "the replay was written to the closed connection"
         );
         Ok(())
     })

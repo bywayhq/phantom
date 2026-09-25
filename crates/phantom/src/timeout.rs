@@ -244,6 +244,11 @@ impl TimeoutBudget {
         ResponseTimeouts::new(self.policy.read_idle, self.total_deadline, protocol).map(Some)
     }
 
+    /// Returns the longest wait for one response-body frame, if any.
+    pub(crate) const fn read_idle(self) -> Option<Duration> {
+        self.policy.read_idle
+    }
+
     /// Returns the time left before the total deadline, or `None` when the
     /// operation has no total limit. An expired deadline returns zero.
     pub(crate) fn remaining_total(self) -> Option<Duration> {
