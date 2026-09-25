@@ -1027,14 +1027,15 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
             .await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
     });
-    let error = client
+    let sent = client
         .get_negotiated(&url)?
         .template(&template)
         .route(Route::http_proxy(HttpProxy::new(&format!(
             "http://127.0.0.1:{port}"
         ))?))
-        .send()
-        .await
+        .send();
+    let error = timeout(TEST_TIMEOUT, sent)
+        .await?
         .err()
         .ok_or("the proxy refused the tunnel but the request succeeded")?;
     assert_eq!(error.kind(), RequestErrorKind::Proxy);
