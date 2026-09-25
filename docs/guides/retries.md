@@ -86,9 +86,10 @@ over the same route when all of these hold:
 - the body is absent or owned bytes.
 
 Chrome 154 restarts such a request once on a new connection
-([evidence](../explanation/validation.md#sse-browser-reconnect-evidence)). The
-request may already have reached the origin, which is why this replay is
-opt-in.
+([evidence](../explanation/validation.md#sse-browser-reconnect-evidence)); it
+may already have reached the origin, so this replay is opt-in. A [proxy
+authentication replay](../explanation/design.md#proxy-authentication) needs
+no policy but keeps the method rule; Chromium resends any method.
 
 ## Replay a request the server did not process
 

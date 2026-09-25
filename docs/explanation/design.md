@@ -461,12 +461,23 @@ coding, and its body ends within
 64 KiB, with no bytes after it. Phantom reads that body and discards it.
 Browsers read a `407` body of any length; the bound keeps a proxy from
 holding the replay on an endless body, and a longer body costs only the new
-connection. A forwarded replay holds the connection and its pool slot until
-it is sent, so no other request takes the connection first. When the proxy
-closes the kept connection before it answers the replay, the replay is sent
-once more on a new connection, as Chromium does. This is part of the
+connection. On a forwarded request the read counts toward the response-head
+timeout and each body frame toward the read-idle timeout, and an expired
+timeout, the total deadline included, fails the request. A CONNECT counts
+it toward the connect timeout. Without configured timeouts, only the size
+bound limits it, so a proxy that sends part of a `407` body and stalls
+holds the request until the caller's own deadline.
+
+A forwarded replay holds the connection and its pool slot until it is
+sent, so no other request takes the connection first. Before the replay,
+Phantom checks that the proxy has not closed the connection since the
+`407`. When the proxy closes the kept connection before it answers the
+replay, a CONNECT, or a forwarded request with an idempotent method and a
+replayable body, is sent once more on a new connection. This is part of the
 authentication replay and needs no
 [retry policy](../guides/retries.md#replay-a-request-after-a-reused-connection-closes).
+Any other forwarded request fails with the reused-connection error, because
+the proxy may already have forwarded it; Chromium resends it.
 
 When the replay succeeds, the client records the proxy's scheme, host, and
 port together with those credentials. Later tunnels, WebSocket tunnels, and

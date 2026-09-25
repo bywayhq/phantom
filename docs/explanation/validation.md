@@ -2099,6 +2099,12 @@ Firefox tag `FIREFOX_156_0_RELEASE`, agrees and explains the mechanism:
   `close` token in `Connection` and then `Proxy-Connection` says so, and
   otherwise unless it is HTTP/1.0 (`net/http/http_response_headers.cc` lines
   1523 to 1551).
+- When a reused connection closes before any response byte, Chromium
+  resends the request whatever its method
+  (`HttpNetworkTransaction::ShouldResendRequest`,
+  `net/http/http_network_transaction.cc` lines 2126 and 2319 to 2326).
+  Phantom resends a forwarded replay only for an idempotent method, and
+  returns the error for a POST, which the proxy may already have forwarded.
 - Firefox decides keep-alive from the same two fields, but any `close`
   token wins over `keep-alive`, and HTTP/1.0 needs `keep-alive`
   (`netwerk/protocol/http/nsHttpConnection.cpp` lines 1072 to 1107). A
@@ -2138,9 +2144,15 @@ Against Phantom:
   connections after `Connection: close`, `Proxy-Connection: close`, a body
   without a length, conflicting framing, bytes after the body, or a body over
   the bound; and a replay moved to a new connection when the proxy closes the
-  challenged one. `forward_proxy.rs` checks the same for H1 forwarding,
-  including a request queued behind the challenged one, which never takes
-  the connection before the replay.
+  challenged one. It also checks the strict chunk-size line and that an
+  HTTP/1.0 `407` with `Transfer-Encoding` closes the connection.
+  `forward_proxy.rs` checks the same for H1 forwarding, including a request
+  queued behind the challenged one, which never takes the connection before
+  the replay; a proxy that shuts its side after the `407`, whose replay goes
+  on a new connection with nothing written to the old one; a POST whose
+  replay the proxy closes, which fails with no second connection; and a
+  stalled `407` body, which fails with the read-idle, response-head, or total
+  timeout and sends no replay.
 - `crates/phantom-net/src/proxy/tests/credential_cache.rs` covers the record:
   a pair is added only after the proxy accepts the replay; a `407` or an
   unusable challenge to remembered credentials forgets them and permits one
@@ -2203,7 +2215,8 @@ Remaining differences:
   tunnel owns its proxy connection; both browsers open a new stream on the
   challenged H2 connection.
 - A `407` body over 64 KiB closes the connection, where browsers read any
-  length. A forwarded `407` in HTTP/1.0 closes it even with `keep-alive`,
+  length. A forwarded POST whose replay the proxy closes before answering
+  fails, where Chromium sends it again. A forwarded `407` in HTTP/1.0 closes it even with `keep-alive`,
   because Phantom's HTTP/1.1 transport never reuses an HTTP/1.0 response's
   connection; a CONNECT `407` follows the browsers. When a `407` names both
   `keep-alive` and `close`, Phantom closes, as Firefox does; Chromium follows

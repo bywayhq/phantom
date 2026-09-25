@@ -197,6 +197,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest
+  `407` body Phantom reads so the replay can use the challenged HTTP/1.1
+  proxy connection.
 - `ClientBuilder::max_http2_connections_per_origin`: lets exact HTTP/2 and
   negotiated requests that select HTTP/2 open up to that many connections per
   origin and route. A request opens another only when every connection
@@ -465,7 +468,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `https://` proxy, per challenge. A `407` with `Connection: close` or
   `Proxy-Connection: close`, without a stated length, or with a body over
   `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB) still gets a new
-  connection, and so does a replay whose kept connection the proxy closes.
+  connection. When the proxy closes the kept connection before answering, a
+  CONNECT or an idempotent forwarded request is sent once more on a new
+  connection; a POST or other non-idempotent forwarded request fails with
+  the reused-connection error, where Chromium resends it. Reading the `407`
+  body counts toward the response-head, read-idle, and total timeouts.
 
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`

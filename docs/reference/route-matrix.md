@@ -90,8 +90,9 @@ Notes:
   connection. An HTTP/1.1 CONNECT or H1 forwarded request replays on the
   challenged connection when the `407` leaves it open, and on a new
   connection otherwise
-  ([Proxy authentication](../explanation/design.md#proxy-authentication)). Without configured credentials, a caller's own
-  `proxy-authorization` field is sent to the proxy.
+  ([Proxy authentication](../explanation/design.md#proxy-authentication)).
+  Without configured credentials, a caller's own `proxy-authorization`
+  field is sent to the proxy.
 - After a proxy accepts configured Basic credentials, later CONNECT requests
   on either transport and later forwarded requests to it carry them first
   ([Proxy authentication](../explanation/design.md#proxy-authentication)).
