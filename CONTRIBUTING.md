@@ -127,6 +127,12 @@ normally needs a deterministic local test or capture fixture. Reduce an
 adversarial or fuzz failure to a minimal input and keep it as an ordinary
 regression test.
 
+Integration tests for `phantom-http` build as five test binaries by area, and
+those for `phantom-profile` as one. Add a new test area as a module of one of
+them, not as a top-level `tests/*.rs` file, which would link a binary of its
+own; see
+[Integration test binaries](scripts/dev/README.md#integration-test-binaries).
+
 | Change | Minimum proof |
 | --- | --- |
 | Public API or policy | Focused tests, rustdoc, and the relevant guide or coverage update |

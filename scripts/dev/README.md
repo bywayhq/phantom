@@ -118,7 +118,7 @@ When more than one worktree is active, run each Cargo command through
 worktree of this repository shares:
 
 ```sh
-scripts/dev/with-cargo-lock.sh cargo test -p phantom --test http3_retries --locked
+scripts/dev/with-cargo-lock.sh \n  cargo test -p phantom-http --test http3 --locked http3_retries::
 RUSTDOCFLAGS="-D warnings" scripts/dev/with-cargo-lock.sh \
   cargo doc --workspace --all-features --no-deps --locked
 ```
@@ -160,3 +160,64 @@ the directory:
 cat "$(git rev-parse --path-format=absolute --git-common-dir)/phantom-cargo-lock/owner"
 rm -r "$(git rev-parse --path-format=absolute --git-common-dir)/phantom-cargo-lock"
 ```
+
+## Integration test binaries
+
+`phantom-http` builds its integration tests as five test binaries, one
+directory each under `crates/phantom/tests/`:
+
+| Binary | Covers |
+| --- | --- |
+| `requests` | One request through the public client: fields, bodies, redirects, retries, and timeouts |
+| `sessions` | Name resolution, connection reuse, pooling, and negotiation across requests |
+| `http3` | HTTP/3, Alt-Svc upgrades, HTTPS records, and CONNECT-UDP |
+| `proxies` | HTTP CONNECT, forwarding, and SOCKS5 proxy routes |
+| `streams` | WebSocket and server-sent event streams |
+
+`phantom-profile` has one, `public_api`. Each `main.rs` declares one module
+per test area, and `crates/phantom/tests/support/` holds the loopback servers
+and helpers that every binary loads.
+
+Add a test area as a module of the binary it belongs to, with a `mod` line in
+that binary's `main.rs`, gated with `#[cfg(feature = "...")]` when it needs a
+feature. Do not add a top-level `tests/*.rs` file: it links a binary of its
+own, with its own copy of the dependency graph and its own PDB on Windows.
+
+Run one module by its path:
+
+```sh
+scripts/dev/with-cargo-lock.sh \
+  cargo test -p phantom-http --all-features --test http3 --locked http3_retries::
+```
+
+`consolidate_integration_tests.py` moved the tests into this layout, and its
+`GROUPS` table assigns each module to a binary. A branch that started before
+the move and adds or edits a top-level test file can run it again from the
+repository root; it moves only the files still at the top level:
+
+```sh
+python scripts/dev/consolidate_integration_tests.py
+git diff -M --stat HEAD
+```
+
+The script:
+
+- moves each top-level `tests/*.rs` file, and each directory it includes,
+  into its binary's directory with `git mv`;
+- turns each `#[path = "support/<file>.rs"] mod <name>;` into
+  `use crate::support::<file> as <name>;`, drops the imports that only served
+  another support file, and rewrites `crate::` paths for the new module;
+- moves a file-level `#![cfg(feature = ...)]` onto the module's `mod` line
+  and regenerates each `main.rs` and `tests/support/mod.rs`;
+- removes the file's `[[test]]` table from the crate's `Cargo.toml`, turning
+  its `required-features` into a `cfg` on the `mod` line, and stops on any
+  other setting, such as `harness = false`, that a module cannot keep;
+- rewrites `crates/<crate>/tests/<name>.rs` paths in tracked files and lists
+  each `--test <name>` use, which needs a `--test <binary> <name>::` filter
+  by hand.
+
+A new file needs an entry in `GROUPS` first. Build the tests with
+`--all-features` and with no features afterwards: a merged file can leave an
+import unused or a support module ungated. The script's own tests run with
+`python -m unittest discover -s scripts/dev/tests -p 'test_*.py'`; one of
+them fails while a grouped crate has a top-level test file.
