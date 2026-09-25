@@ -382,7 +382,7 @@ pub struct TlsSettings {
     pub ech_grease_aeads: Vec<EchGreaseAead>,
     /// Whether a direct negotiated HTTP/1.1-or-HTTP/2 connection offers
     /// Encrypted Client Hello with the `ech` value of the origin's HTTPS
-    /// record, as Chrome 154 does.
+    /// record, as Chrome 154 and Edge 153 do.
     ///
     /// When set, such a connection on a client that looks up HTTPS records
     /// holds its ClientHello until the lookup ends, for at most 5-50 ms

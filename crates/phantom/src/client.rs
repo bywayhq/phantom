@@ -1110,8 +1110,8 @@ impl ClientBuilder {
     ///
     /// A profile that sets
     /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
-    /// as the Chrome 154 recipe does, also uses the records for Encrypted
-    /// Client Hello on direct negotiated connections: the TLS handshake
+    /// as the Chrome 154 and Edge 153 recipes do, also uses the records for
+    /// Encrypted Client Hello on direct negotiated connections: the TLS handshake
     /// waits for the lookup at most 20% of the address resolution time,
     /// clamped to 5-50 ms, and then offers the record's `ech`.
     ///

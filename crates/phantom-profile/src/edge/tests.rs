@@ -57,8 +57,8 @@ fn edge_153_recipes_keep_the_backend_ech_grease_aead_policy() {
     }
 }
 
-/// Edge keeps ECH GREASE because no capture shows it using an HTTPS
-/// record's `ech`; on the wire the two differ only in the trust-anchor IDs.
+/// On the wire the Edge and Chrome ClientHellos differ only in the
+/// trust-anchor IDs, with or without an HTTPS record's `ech`.
 #[test]
 fn edge_153_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -70,7 +70,6 @@ fn edge_153_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
         assert!(chrome.requested_trust_anchor_ids.is_some());
         let mut expected = chrome;
         expected.requested_trust_anchor_ids = None;
-        expected.ech_from_https_records = false;
         assert_eq!(edge, expected);
     }
     Ok(())

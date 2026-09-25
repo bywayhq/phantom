@@ -28,14 +28,17 @@ use crate::{
 /// ClientHello without the trust-anchor IDs extension, across 20 fresh
 /// processes. The Chrome 153 and Chrome 154 ClientHellos differ only in that
 /// extension, so this reuses [`chromium::v154_tls`] and removes the ID list;
-/// the retained Edge ClientHello is replayed against the result. It leaves
-/// [`TlsSettings::ech_from_https_records`] unset: no capture shows Edge
-/// using an HTTPS record's `ech`.
+/// the retained Edge ClientHello is replayed against the result.
+///
+/// It keeps [`TlsSettings::ech_from_https_records`] from that recipe. Given
+/// an HTTPS record with `ech`, Edge 153.0.4234.48 encrypted its ClientHello
+/// with the record's configuration and retried a rejection with the
+/// server's retry configurations, with the same outer fields and extension
+/// set as Chrome 154, in three runs of each scenario.
 #[must_use]
 pub fn v153_tls() -> TlsSettings {
     let mut settings = chromium::v154_tls();
     settings.requested_trust_anchor_ids = None;
-    settings.ech_from_https_records = false;
     settings
 }
 
