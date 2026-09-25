@@ -621,13 +621,15 @@ session on the connection instead.
 - The early session opens request streams through `early_streams::Opener`
   in `crates/phantom-net/src/http3/early_streams.rs`. It opens a stream
   while the TLS handshake is running, when Quinn marks it a 0-RTT stream,
-  and after the server accepted the early data. After the handshake it
-  waits for the answer that Quinn gives the connection driver, not the one
-  published to requests: a request waiting here holds the send lock, which
-  the restart needs before it publishes. A request waiting for stream
-  credit is woken by that answer too. After a rejection the opener fails
-  without allocating a stream, so no request of the discarded session
-  reaches the server in 1-RTT.
+  and after the published answer is an acceptance, which follows the
+  handshake metadata checks and the late ALPS SETTINGS. It refuses as soon
+  as the connection driver has Quinn's rejection, without waiting for the
+  published answer: a request waiting here holds the send lock, which the
+  restart needs before it publishes. A request waiting for stream credit
+  registers on both answers each time it waits, so an answer that arrives
+  between two polls wakes it. After a rejection the opener fails without
+  allocating a stream, so no request of the discarded session reaches the
+  server in 1-RTT.
 - A stream whose open raced the handshake's completion is held until the
   answer and reset, unused, if the early data was rejected or the request
   is dropped. The server then sees a reset of an empty stream, and that
@@ -692,10 +694,11 @@ job does, unless QUIC to the origin's own host and port failed a race and has
 not connected since. A setup that resumes with early data returns its
 connection before the handshake completes, as any early-data connection does
 (see [Session tickets](#session-tickets)), so it can win at once, and a
-replay-safe request on it goes out as early data. A response confirms the
-alternative at once, since it arrives only after the handshake completed. If
-the request fails instead, the pool waits for the early-data answer, within
-the request's connect and total deadlines. A failed handshake follows
+replay-safe request on it goes out as early data. The alternative is
+confirmed once the early-data answer shows a completed handshake: at once for
+a response, which arrives only after the answer is settled, and after a
+failed request within the request's connect and total deadlines. A failed
+handshake follows
 Chromium: QUIC to the origin is marked recently broken, and a request with no
 body or an owned body is raced again once, without early data; a failed
 alternative then loses to the origin and is marked broken as in any race. The

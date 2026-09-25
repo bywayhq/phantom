@@ -2606,6 +2606,16 @@ Replay against Phantom:
   `a_request_between_the_handshake_and_a_rejection_is_sent_once` holds the
   restart after a rejection, sends a request in that interval, and the server
   sees it once, on the new session.
+  The gate tests are in `crates/phantom-net/src/http3/tests/early_streams.rs`.
+  `a_parked_request_does_not_open_before_invalid_metadata_is_found` parks a
+  request on stream credit through an accepted handshake whose ALPS then
+  fails its checks, and the server never sees it.
+  `a_rejection_between_two_polls_of_a_request_waiting_for_credit_refuses_it`
+  shows the rejection waking such a request.
+  `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
+  credit-wait and handshake-window rejections on a four-worker runtime with
+  a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations
+  of each passed.
   `a_request_waiting_for_stream_credit_does_not_block_a_rejection` holds
   the send lock in a request waiting for 0-RTT stream credit when the
   rejection arrives; both requests fail as unprocessed and the connection
