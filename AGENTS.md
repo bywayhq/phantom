@@ -139,8 +139,8 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
-uvx ruff@0.16.7 check scripts/capture scripts/conformance scripts/docs
-uvx ruff@0.16.7 format --check scripts/capture scripts/conformance scripts/docs
+uvx ruff@0.16.8 check scripts/capture scripts/conformance scripts/docs
+uvx ruff@0.16.8 format --check scripts/capture scripts/conformance scripts/docs
 uv run --no-project --python 3.10 --with aioquic==1.3.0 \
   --with h2==4.4.1 --with hpack==4.2.0 \
   python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
