@@ -519,23 +519,23 @@ pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> 
         .map(|_| request.url.origin().ascii_serialization())
 }
 
-/// Returns the value `request` sends in the field `name`: the caller's field,
-/// or else its template's value for the URL.
+/// Returns the field `name` that `request` sends: the caller's field, with
+/// its sensitive marking, or else its template's value for the URL.
 fn request_field_value(
     request: &ResolvedRequest,
     caller: &[RequestHeader],
     name: &str,
-) -> Option<Vec<u8>> {
+) -> Option<RequestHeader> {
     caller
         .iter()
         .find(|header| header.name().eq_ignore_ascii_case(name))
-        .map(|header| header.value().to_vec())
+        .cloned()
         .or_else(|| {
             request
                 .template
                 .as_ref()?
                 .default_field_value(name, is_potentially_trustworthy(&request.url))
-                .map(|value| value.as_bytes().to_vec())
+                .map(|value| RequestHeader::new(name, value.as_bytes()))
         })
 }
 

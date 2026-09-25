@@ -32,8 +32,11 @@ pub enum ProxyConnectField {
     /// The value of the field with this name in the request that opens the
     /// tunnel, such as its `User-Agent`.
     ///
-    /// The request's own field wins over its template's captured value. When
-    /// the request sends no such field, the CONNECT request sends none either.
+    /// The request's own field wins over its template's captured value, and
+    /// keeps its sensitive marking. When the request sends no such field, the
+    /// CONNECT request sends none either. `Authorization`, `Cookie`, and
+    /// `Cookie2` are refused, because the proxy must not receive the origin's
+    /// credentials.
     FromRequest {
         /// Exact field-name spelling emitted with the request's value.
         name: Box<str>,
@@ -105,7 +108,8 @@ impl ProxyConnectTemplate {
     /// Returns [`InvalidProxyConnectTemplate`] when a name is not a token or
     /// repeats, a placeholder's name is not a case variant of its field, a
     /// literal is `Host`, `Proxy-Authorization`, or a framing field, a
-    /// literal value is invalid, or a list lacks exactly one
+    /// request-copied field names one of those or `Authorization`, `Cookie`,
+    /// or `Cookie2`, a literal value is invalid, or a list lacks exactly one
     /// `Proxy-Authorization` placeholder. The HTTP/1.1 list must have exactly
     /// one authority placeholder; the HTTP/2 list must have none, use
     /// lowercase names, and carry no connection-specific field.
@@ -151,6 +155,10 @@ impl fmt::Display for InvalidProxyConnectTemplate {
 }
 
 impl Error for InvalidProxyConnectTemplate {}
+
+/// Fields that carry the origin's credentials or cookies. Copying one into
+/// a CONNECT request would hand it to the proxy.
+const CREDENTIAL_FIELDS: [&str; 3] = ["authorization", "cookie", "cookie2"];
 
 /// Connection-specific fields that HTTP/2 forbids (RFC 9113 section 8.2.2).
 const CONNECTION_SPECIFIC: [&str; 5] = [
@@ -237,6 +245,12 @@ fn validate_fields(
                     return Err(InvalidProxyConnectTemplate::new(
                         list,
                         "Host, Proxy-Authorization, and framing fields are placeholders or generated",
+                    ));
+                }
+                if CREDENTIAL_FIELDS.contains(&lower.as_str()) {
+                    return Err(InvalidProxyConnectTemplate::new(
+                        list,
+                        "a CONNECT request must not copy the origin's credentials or cookies",
                     ));
                 }
             }

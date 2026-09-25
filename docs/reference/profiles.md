@@ -258,7 +258,10 @@ replace it.
   credentials, after a challenge or once the proxy has accepted them.
 - `User-Agent` is a `ProxyConnectField::FromRequest` entry: the CONNECT
   copies the value of the request or WebSocket opening that opens the
-  tunnel, your field or else its template's. Without one it sends none.
+  tunnel, your field or else its template's, and keeps your field's
+  sensitive marking. Without one it sends none. Validation refuses a
+  `FromRequest` entry for `Authorization`, `Cookie`, `Cookie2`, or
+  `Proxy-Authorization`, so the origin's credentials never reach the proxy.
 - A tunnel opened for one request serves later requests on the same route,
   so its CONNECT carries the first request's `User-Agent`.
 - The captures cover `ws://`, `https://`, and `wss://` tunnels through both

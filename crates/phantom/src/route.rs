@@ -201,12 +201,12 @@ impl Route {
     /// Returns this route with the profile's CONNECT fields, for an HTTP
     /// proxy whose CONNECT fields the caller has not set.
     ///
-    /// `request_value` returns the value the request that opens the tunnel
-    /// sends in a field of the given name.
+    /// `request_value` returns the field of the given name that the request
+    /// opening the tunnel sends.
     pub(crate) fn with_profile_connect(
         &self,
         template: Option<&ProxyConnectTemplate>,
-        request_value: impl Fn(&str) -> Option<Vec<u8>>,
+        request_value: impl Fn(&str) -> Option<RequestHeader>,
     ) -> Option<Self> {
         match (self, template) {
             (Self::HttpProxy(proxy), Some(template)) => proxy
@@ -479,12 +479,13 @@ impl HttpProxy {
     ///
     /// The HTTP/2 list starts with the authority placeholder, which HTTP/2
     /// sends as `:authority`. A [`ProxyConnectField::FromRequest`] entry takes
-    /// `request_value` for its name and is left out when that is `None`; the
+    /// the value and sensitivity of `request_value` for its name, and is left
+    /// out when that is `None`; the
     /// credentials placeholder is left out without credentials.
     fn with_profile_connect(
         &self,
         template: &ProxyConnectTemplate,
-        request_value: impl Fn(&str) -> Option<Vec<u8>>,
+        request_value: impl Fn(&str) -> Option<RequestHeader>,
     ) -> Option<Self> {
         if self.connect_headers_set {
             return None;
@@ -510,8 +511,15 @@ impl HttpProxy {
                     )));
                 }
                 ProxyConnectField::FromRequest { name } => {
-                    if let Some(value) = request_value(name) {
-                        headers.push(HttpConnectHeader::field(RequestHeader::new(&**name, value)));
+                    if let Some(field) = request_value(name) {
+                        // The template's spelling, the request's value, and
+                        // its sensitive marking.
+                        let copied = RequestHeader::new(&**name, field.value());
+                        headers.push(HttpConnectHeader::field(if field.is_sensitive() {
+                            copied.sensitive()
+                        } else {
+                            copied
+                        }));
                     }
                 }
                 ProxyConnectField::ProxyAuthorization { name } if self.credentials.is_some() => {
@@ -908,8 +916,9 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let template = phantom_profile::chromium::v154_proxy_connect();
         let user_agent = |name: &str| {
-            name.eq_ignore_ascii_case("user-agent")
-                .then(|| b"agent".to_vec())
+            name.eq_ignore_ascii_case("user-agent").then(|| {
+                phantom_net::request::RequestHeader::new("user-agent", "agent").sensitive()
+            })
         };
         let proxy = HttpProxy::new("http://proxy.example")?;
         let profiled = proxy
@@ -923,6 +932,13 @@ mod tests {
             .collect();
         assert_eq!(names.len(), 3, "{names:?}");
         assert!(names[1].contains("Proxy-Connection") && names[2].contains("User-Agent"));
+        // The copied field keeps the template's spelling and the request's
+        // sensitive marking.
+        assert!(matches!(
+            &profiled.ordered_connect_headers()[2],
+            HttpConnectHeader::Field(field)
+                if field.name() == "User-Agent" && field.value() == b"agent" && field.is_sensitive()
+        ));
 
         let credentials = proxy.clone().with_basic_auth("user", "secret")?;
         let profiled = credentials

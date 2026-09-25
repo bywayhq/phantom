@@ -437,14 +437,14 @@ impl WebSocketRequestBuilder {
     }
 }
 
-/// Returns the value of the opening field `name`, from the caller or the
-/// profile recipe.
-fn opening_field_value(headers: &[WebSocketHeader], name: &str) -> Option<Vec<u8>> {
+/// Returns the opening field `name`, from the caller or the profile recipe,
+/// with its sensitive marking.
+fn opening_field_value(headers: &[WebSocketHeader], name: &str) -> Option<RequestHeader> {
     headers.iter().find_map(|header| match header {
         WebSocketHeader::Field(field) | WebSocketHeader::DefaultField(field)
             if field.name().eq_ignore_ascii_case(name) =>
         {
-            Some(field.value().to_vec())
+            Some(field.clone())
         }
         _ => None,
     })

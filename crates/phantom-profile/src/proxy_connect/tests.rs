@@ -125,3 +125,48 @@ fn validation_rejects_missing_or_misplaced_placeholders() {
         assert!(template.validate().is_err(), "case {index}");
     }
 }
+
+#[test]
+fn validation_refuses_to_copy_origin_credentials_into_connect() {
+    let valid = || ProxyConnectTemplate {
+        http1_fields: vec![
+            ProxyConnectField::authority("Host"),
+            ProxyConnectField::proxy_authorization("Proxy-Authorization"),
+        ],
+        http2_fields: vec![ProxyConnectField::proxy_authorization(
+            "proxy-authorization",
+        )],
+    };
+    for name in [
+        "Authorization",
+        "authorization",
+        "Cookie",
+        "cookie2",
+        "Proxy-Authorization",
+    ] {
+        let mut template = valid();
+        template
+            .http1_fields
+            .push(ProxyConnectField::from_request(name));
+        assert_eq!(
+            template.validate().map_err(|error| error.field()),
+            Err("http1_fields"),
+            "{name}"
+        );
+        let mut template = valid();
+        template.http2_fields.insert(
+            0,
+            ProxyConnectField::from_request(name.to_ascii_lowercase()),
+        );
+        assert_eq!(
+            template.validate().map_err(|error| error.field()),
+            Err("http2_fields"),
+            "{name}"
+        );
+    }
+    let mut template = valid();
+    template
+        .http1_fields
+        .push(ProxyConnectField::from_request("User-Agent"));
+    assert_eq!(template.validate(), Ok(()));
+}

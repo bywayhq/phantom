@@ -194,7 +194,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   that opens an HTTP proxy tunnel, per proxy transport, for a route that sets
   none of its own. `chromium::v154_proxy_connect` (Chrome 154 and Edge 153)
   and `firefox::v156_proxy_connect` carry the captured fields, with the
-  tunnelled request's `User-Agent`.
+  tunnelled request's `User-Agent`. A `ProxyConnectField::FromRequest`
+  entry keeps the copied field's sensitive marking and cannot name
+  `Authorization`, `Cookie`, `Cookie2`, or `Proxy-Authorization`.
 - `RequestField::ProxyAuthorization`, with the
   `RequestField::proxy_authorization` constructor, and
   `ProxyAuthorizationAttempt`: the position of the generated
