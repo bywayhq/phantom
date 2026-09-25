@@ -54,6 +54,12 @@ have shown where the real architectural boundaries are.
   HTTP/1.1 or HTTP/2 proxy transport: one CONNECT tunnel and one origin TLS
   handshake per connection, the protocol ALPN selects, and no Alt-Svc upgrade
   on that route. CONNECT-UDP still rejects negotiated requests before I/O.
+- Parallel HTTP/1.1 connections per origin and route, bounded by the
+  profile's `Http1Settings` (6 in the Chrome 154 and Firefox 156 recipes,
+  from browser source) and recorded in `limits.md`. Exact requests and
+  negotiated requests that select HTTP/1.1 share the rule; negotiated
+  handshakes to a server not yet seen speaking HTTP/2 start in parallel, as
+  in both browsers.
 
 ### Remaining
 
@@ -78,13 +84,6 @@ have shown where the real architectural boundaries are.
   - Keep every native patch. Two of them have no upstream equivalent, and
     dropping any of them changes what goes on the wire, which is a
     fidelity regression rather than a packaging tradeoff.
-- Open more than one HTTP/1.1 connection per origin and route. Phantom
-  opens exactly one and serializes every request on it, while a browser
-  opens up to six per host, so a caller issuing concurrent requests is
-  distinguishable within one session. The bound is hardcoded rather than
-  configured, and `limits.md` carries active bounds for HTTP/2 and HTTP/3
-  with no HTTP/1.1 row. Model the browser's parallel connection policy in
-  the profile, and record the bound where the others are recorded.
 - Per-profile HPACK indexing for WebSockets. The per-message compression
   policy and the `REFUSED_STREAM` reopening are complete; indexing is blocked
   on the vendored `http2` encoder, which chooses every representation
