@@ -341,6 +341,13 @@ fn keep_alive_follows_both_connection_fields_and_the_version() {
             ],
         ),
         (0, &[("Content-Length", "0")]),
+        (
+            0,
+            &[
+                ("Connection", "keep-alive"),
+                ("Transfer-Encoding", "chunked"),
+            ],
+        ),
         (1, &[("Content-Length", "-1")]),
         (1, &[("Content-Length", "")]),
         (1, &[("Content-Length", "+1")]),
@@ -428,5 +435,43 @@ async fn replay_on_the_challenged_connection_is_remembered_by_the_credential_rec
     assert_eq!(heads, [ANONYMOUS, AUTHENTICATED, AUTHENTICATED]);
     assert!(!third, "the client opened a third proxy connection");
     assert!(cache.contains(ProxyScheme::Http, "127.0.0.1", address.port(), &credentials));
+    Ok(())
+}
+
+#[tokio::test]
+async fn drain_accepts_only_whitespace_before_chunk_extensions() -> TestResult {
+    for body in [
+        &b"5;name=value\r\nhello\r\n0\r\n\r\n"[..],
+        b"5 ;name\r\nhello\r\n0\r\n\r\n",
+        b"5\t ;a=\"b;c\"\r\nhello\r\n0;last\r\n\r\n",
+        b"5  \r\nhello\r\n0\r\n\r\n",
+        b"5\r\nhello\r\n0\r\nX-One: 1\r\nX-Two: two words\r\n\r\n",
+        b"0000000000000005\r\nhello\r\n0\r\n\r\n",
+    ] {
+        let (mut client, _proxy) = duplex(1024);
+        assert!(
+            drain(&mut client, ChallengeBody::Chunked, body).await,
+            "{}",
+            String::from_utf8_lossy(body)
+        );
+    }
+    for body in [
+        &b"5 x\r\nhello\r\n0\r\n\r\n"[..],
+        b"5x\r\nhello\r\n0\r\n\r\n",
+        b"5 5\r\nhello\r\n0\r\n\r\n",
+        b";5\r\nhello\r\n0\r\n\r\n",
+        b"00000000000000005\r\nhello\r\n0\r\n\r\n",
+        b"5\r\nhello\r\n0\r\nX-Bad\n\r\n",
+        // A 16-digit size parses; this body then ends early.
+        b"FFFFFFFFFFFFFFFF\r\nhello",
+    ] {
+        let (mut client, proxy) = duplex(1024);
+        drop(proxy);
+        assert!(
+            !drain(&mut client, ChallengeBody::Chunked, body).await,
+            "{}",
+            String::from_utf8_lossy(body)
+        );
+    }
     Ok(())
 }

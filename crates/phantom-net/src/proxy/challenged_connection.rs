@@ -20,6 +20,12 @@ use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf};
 /// read further: the connection is closed and the replay opens a new one.
 /// Chromium and Firefox read the whole body without a limit; typical proxy
 /// challenge pages are a few kilobytes.
+///
+/// This bounds the size only. The time spent reading is bounded by the
+/// caller's deadline: the `phantom` client's connect, response-head,
+/// read-idle, and total timeouts. The functions of this crate have none of
+/// their own, so a proxy that sends part of a body and stalls holds them
+/// until the caller gives up.
 pub const MAX_CHALLENGE_BODY_BYTES: usize = 64 * 1024;
 
 const READ_CHUNK_BYTES: usize = 4096;
@@ -41,8 +47,9 @@ impl ChallengeBody {
     /// connection, as in Firefox, which prefers `close` when both tokens are
     /// present. HTTP/1.0 keeps the connection only with a `keep-alive` token.
     /// A body delimited by the connection close, conflicting or invalid
-    /// `Content-Length` values, and `Transfer-Encoding` beside
-    /// `Content-Length` also close it.
+    /// `Content-Length` values, `Transfer-Encoding` beside `Content-Length`,
+    /// and `Transfer-Encoding` in HTTP/1.0, which RFC 9112 section 6.1 says
+    /// to treat as faulty framing, also close it.
     pub(super) fn from_head(version: u8, headers: &[httparse::Header<'_>]) -> Option<Self> {
         let mut keep_alive = false;
         let mut content_length = None;
@@ -72,6 +79,7 @@ impl ChallengeBody {
             return None;
         }
         match (transfer_encoding, content_length) {
+            (Some(_), _) if version == 0 => None,
             (Some(_), Some(_)) => None,
             (Some(coding), None) => coding
                 .eq_ignore_ascii_case(b"chunked")
@@ -193,6 +201,7 @@ impl Decoder {
 /// RFC 9112 section 7.1 chunked body parser that keeps no data.
 enum Chunked {
     Size { size: u64, digits: u8 },
+    SizeWhitespace { size: u64 },
     Extension { size: u64 },
     SizeLineFeed { size: u64 },
     Data { remaining: u64 },
@@ -231,9 +240,19 @@ impl Chunked {
                         digits: digits + 1,
                     }
                 }
-                (Self::Size { size, digits }, b';' | b' ' | b'\t') if *digits > 0 => {
+                (Self::Size { size, digits }, b';') if *digits > 0 => {
                     Self::Extension { size: *size }
                 }
+                (Self::Size { size, digits }, b' ' | b'\t') if *digits > 0 => {
+                    Self::SizeWhitespace { size: *size }
+                }
+                // RFC 9112 section 7.1.1 allows only whitespace between the
+                // size and its extensions.
+                (Self::SizeWhitespace { size }, b' ' | b'\t') => {
+                    Self::SizeWhitespace { size: *size }
+                }
+                (Self::SizeWhitespace { size }, b';') => Self::Extension { size: *size },
+                (Self::SizeWhitespace { size }, b'\r') => Self::SizeLineFeed { size: *size },
                 (Self::Size { size, digits }, b'\r') if *digits > 0 => {
                     Self::SizeLineFeed { size: *size }
                 }
