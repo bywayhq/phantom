@@ -465,6 +465,21 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
                 ("/second", vec![credentials]),
             ]
         );
+        // The replay and the remembered request carry `proxy-authorization`
+        // as a never-indexed literal (0x10 prefix) naming static entry 49,
+        // so the credentials never enter either HPACK dynamic table.
+        let blocks = header_blocks(&record.client_wire)?;
+        assert_eq!(blocks.len(), 3);
+        assert!(!hpack_representations(blocks[0])?.contains(&(Representation::NeverIndexed, 49)));
+        for block in &blocks[1..] {
+            let representations = hpack_representations(block)?;
+            assert!(representations.contains(&(Representation::NeverIndexed, 49)));
+            assert!(
+                representations
+                    .iter()
+                    .all(|&(kind, index)| index != 49 || kind == Representation::NeverIndexed)
+            );
+        }
         Ok(())
     })
     .await
@@ -781,11 +796,18 @@ async fn serve_forwarded_statuses(
 /// The block is the connection's first, so its HPACK dynamic table is empty
 /// and every pseudo-field name comes from a static index.
 fn first_pseudo_order(wire: &[u8]) -> TestResult<Vec<&'static str>> {
+    let blocks = header_blocks(wire)?;
+    pseudo_names(blocks.first().ok_or("client sent no HEADERS")?)
+}
+
+/// Returns every client HEADERS block, in order.
+fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
     const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-    let mut offset = PREFACE.len();
     if !wire.starts_with(PREFACE) {
         return Err("client omitted the HTTP/2 preface".into());
     }
+    let mut offset = PREFACE.len();
+    let mut blocks = Vec::new();
     while let Some(head) = wire.get(offset..offset + 9) {
         let length =
             (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
@@ -800,14 +822,58 @@ fn first_pseudo_order(wire: &[u8]) -> TestResult<Vec<&'static str>> {
         if flags & 0x08 != 0 || flags & 0x04 == 0 {
             return Err("test decoder supports only unpadded single-frame HEADERS".into());
         }
-        let block = if flags & 0x20 != 0 {
+        blocks.push(if flags & 0x20 != 0 {
             &payload[5..]
         } else {
             payload
-        };
-        return pseudo_names(block);
+        });
     }
-    Err("client sent no HEADERS".into())
+    Ok(blocks)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Representation {
+    Indexed,
+    IncrementalIndexing,
+    WithoutIndexing,
+    NeverIndexed,
+}
+
+/// Returns each field representation of an HPACK block with its name index
+/// (0 for a literal name); a table size update is skipped.
+fn hpack_representations(block: &[u8]) -> TestResult<Vec<(Representation, usize)>> {
+    let mut cursor = 0;
+    let mut fields = Vec::new();
+    while let Some(&first) = block.get(cursor) {
+        let (kind, prefix) = match first {
+            byte if byte & 0x80 != 0 => (Representation::Indexed, 7),
+            byte if byte & 0xc0 == 0x40 => (Representation::IncrementalIndexing, 6),
+            byte if byte & 0xe0 == 0x20 => {
+                hpack_integer(block, &mut cursor, 5)?;
+                continue;
+            }
+            byte if byte & 0xf0 == 0x10 => (Representation::NeverIndexed, 4),
+            _ => (Representation::WithoutIndexing, 4),
+        };
+        let index = hpack_integer(block, &mut cursor, prefix)?;
+        if kind != Representation::Indexed {
+            if index == 0 {
+                skip_hpack_string(block, &mut cursor)?;
+            }
+            skip_hpack_string(block, &mut cursor)?;
+        }
+        fields.push((kind, index));
+    }
+    Ok(fields)
+}
+
+fn skip_hpack_string(block: &[u8], cursor: &mut usize) -> TestResult<()> {
+    let length = hpack_integer(block, cursor, 7)?;
+    *cursor += length;
+    if *cursor > block.len() {
+        return Err("HPACK string is truncated".into());
+    }
+    Ok(())
 }
 
 fn pseudo_names(block: &[u8]) -> TestResult<Vec<&'static str>> {
