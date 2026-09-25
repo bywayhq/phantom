@@ -13,12 +13,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-CHROMIUM_BROWSERS = ("chrome", "edge")
+CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
 BROWSERS = (*CHROMIUM_BROWSERS, "firefox")
 PROFILE_PLACEHOLDER = "<temporary-profile>"
 CLIENT_NAMES = {
     "chrome": "Google Chrome",
     "edge": "Microsoft Edge",
+    "brave": "Brave",
+    "opera": "Opera",
     "firefox": "Mozilla Firefox",
     "manual": "manual",
 }
