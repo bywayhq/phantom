@@ -210,12 +210,16 @@ have shown where the real architectural boundaries are.
   4. Prove that a resumed ClientHello keeps the captured shape. A test
      compares a resumed Phantom QUIC ClientHello with the retained Chrome 154
      captures, which are all fresh connections, and requires every field to
-     match except the added `pre_shared_key`. Resumed Chrome 154 and Edge 153
-     connections differ from Phantom's in two ways: their ClientHello carries
-     `early_data`, which the recipes send only when the caller opts in, and
-     they add QUIC transport parameter `0x3127` (`initial_rtt_us`), which
-     Phantom never sends. Align both, and test against resumed captures. A
-     resumed TCP ClientHello has no such test yet.
+     match except the added `pre_shared_key`. The browser side of QUIC
+     resumption is now captured
+     ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)):
+     resumed Chrome 154 and Edge 153 connections add `early_data` at a
+     permuted position, `pre_shared_key` last, and QUIC transport parameter
+     `0x3127` (`initial_rtt_us`) carrying the previous connection's RTT, and
+     keep every other extension and parameter. Phantom's recipes send
+     `early_data` only when the caller opts in and never send `0x3127`.
+     Align both, test against the resumed captures, and capture TLS
+     resumption over TCP, which has no evidence or test yet.
 - Close the behaviour gaps that no fingerprint field reveals but a session
   does. A survey of client APIs does not surface these, because they are
   browser behaviour rather than caller surface:
