@@ -13,6 +13,7 @@ use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
 use super::AddressCache;
+use crate::host_resolver::AddressResolver;
 
 mod routes;
 
@@ -534,5 +535,81 @@ async fn the_system_resolver_answers_through_the_cache() -> TestResult {
     assert!(!addresses.is_empty());
     assert!(addresses.iter().all(|address| address.ip().is_loopback()));
     assert_eq!(cache.len(), 1);
+    Ok(())
+}
+
+/// A caller's resolver whose first lookup never answers and whose later
+/// lookups answer with the loopback address.
+fn first_lookup_hangs(calls: &Arc<AtomicUsize>) -> AddressResolver {
+    let calls = Arc::clone(calls);
+    AddressResolver::from_fn(move |_| {
+        let call = calls.fetch_add(1, Ordering::SeqCst);
+        async move {
+            if call == 0 {
+                std::future::pending::<()>().await;
+            }
+            Ok(vec![V4])
+        }
+    })
+}
+
+#[test]
+fn a_lookup_on_another_runtime_does_not_wait_on_a_stopped_one() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(long_lived(), first_lookup_hangs(&calls));
+    let first = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let second = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+
+    // The first runtime starts the shared resolution, then is no longer
+    // driven, so its task never runs again.
+    let abandoned = first.block_on(async {
+        tokio::time::timeout(
+            Duration::from_millis(20),
+            cache.lookup("origin.phantom.test", 443),
+        )
+        .await
+    });
+    let answered = second.block_on(async {
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            cache.lookup("origin.phantom.test", 443),
+        )
+        .await
+    })??;
+
+    assert!(abandoned.is_err());
+    assert_eq!(answered, [SocketAddr::new(V4, 443)]);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    drop(first);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn lookups_past_the_shared_bound_run_inline_and_are_stored() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), None),
+        first_lookup_hangs(&calls),
+    );
+    let hung = tokio::spawn({
+        let cache = cache.clone();
+        async move { cache.lookup("hung.phantom.test", 443).await }
+    });
+    while calls.load(Ordering::SeqCst) == 0 {
+        tokio::task::yield_now().await;
+    }
+
+    let answered = cache.lookup("origin.phantom.test", 443).await?;
+
+    assert_eq!(answered, [SocketAddr::new(V4, 443)]);
+    assert_eq!(cache.lock().pending.len(), 1, "the bound holds");
+    assert_eq!(cache.len(), 1, "the inline answer is stored");
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    hung.abort();
     Ok(())
 }

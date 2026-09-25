@@ -20,10 +20,10 @@ type ResolveFuture = Pin<Box<dyn Future<Output = io::Result<Vec<IpAddr>>> + Send
 /// Resolves host names to addresses with a caller-supplied async function,
 /// in place of the operating system resolver.
 ///
-/// The function receives the host name in ASCII lowercase, never an IP
-/// literal, and returns the addresses in the order connections should try
-/// them. Address racing starts from that order as it does from the
-/// operating system's. An error is reported as a failed system lookup would
+/// The function receives the host name as the connection names it, in ASCII
+/// lowercase (for a URL host, with IDNA A-labels), never an IP literal, and
+/// returns the addresses in the order connections should try them. Address
+/// racing starts from that order as it does from the operating system's. An error is reported as a failed system lookup would
 /// be on the same path; an empty list is reported as a system answer with
 /// no addresses.
 ///
@@ -147,12 +147,10 @@ impl HostResolver {
     }
 
     /// Uses `cache` as the address cache, whatever resolver it looks names
-    /// up with.
-    ///
-    /// Test plumbing for caches built with [`AddressCache::with_lookup`].
-    #[doc(hidden)]
+    /// up with, for tests that count blocking lookups.
+    #[cfg(test)]
     #[must_use]
-    pub fn with_address_cache(mut self, cache: AddressCache) -> Self {
+    pub(crate) fn with_address_cache(mut self, cache: AddressCache) -> Self {
         self.cache = Some(cache);
         self
     }
@@ -187,6 +185,10 @@ impl HostResolver {
 
     /// Returns `host`'s addresses with `port`, and whether a stored answer
     /// supplied them without a lookup.
+    ///
+    /// An override reports `false`: it took no resolution time, so a
+    /// handshake that waits for an HTTPS record after the addresses waits
+    /// only that wait's minimum, as for any other near-instant resolution.
     async fn lookup(&self, host: &str, port: u16) -> io::Result<(Vec<SocketAddr>, bool)> {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok((vec![SocketAddr::new(address, port)], false));
