@@ -82,10 +82,12 @@ Notes:
   its proxy connection.
 - In HTTP/2 mode, `http://` requests to one origin share one pooled proxy
   connection with the profile's HTTP/2 settings, separate from tunnels.
-- H2 forwarding has no Basic retry: a proxy with `with_basic_auth` fails with
-  `RequestErrorKind::UnsupportedRoute` before I/O. Without configured
-  credentials, a caller's own `proxy-authorization` field is sent to the
-  proxy.
+- H2 forwarding answers a Basic `407` with one replay on the same proxy
+  connection. Without configured credentials, a caller's own
+  `proxy-authorization` field is sent to the proxy.
+- After a proxy accepts configured Basic credentials, later CONNECT requests
+  on either transport and later forwarded requests to it carry them first
+  ([Proxy authentication](../explanation/design.md#proxy-authentication)).
 
 ## SOCKS5 rules
 
@@ -124,7 +126,8 @@ Notes:
 - A caller field named `Host`, `Connection`, `Upgrade`, `Capsule-Protocol`,
   `Content-Length`, or `Transfer-Encoding` fails before I/O.
 - A second `407`, or a malformed or non-Basic challenge, fails. Without
-  credentials, a `407` is an ordinary rejection.
+  credentials, a `407` is an ordinary rejection. Every tunnel starts without
+  credentials; the client does not remember a CONNECT-UDP proxy's challenge.
 - Only failures to resolve or connect to the proxy are retried, each on a
   fresh proxy connection with the same route and leg. Every other failure is
   final.

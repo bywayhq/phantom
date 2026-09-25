@@ -51,7 +51,7 @@ scheme, protocol, and route.
 ## Send a request through an HTTP proxy
 
 Reach HTTPS origins through a CONNECT tunnel and `http://` origins by
-forwarding, with Basic credentials sent only when the proxy asks.
+forwarding, with Basic credentials sent once the proxy has asked for them.
 
 ```rust
 use phantom::{HttpProxy, Route};
@@ -78,10 +78,15 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 - With an `https://` proxy, Phantom verifies the proxy's certificate under
   the proxy trust settings. Basic credentials sent to an `http://` proxy
   travel unencrypted.
-- A valid Basic `407` challenge allows exactly one replay on a fresh
-  connection over the same route. The next logical request starts without
-  credentials again ([Design](../explanation/design.md#forward-proxy-authentication)).
-- To send credentials on the first request instead, leave out
+- The first request to a proxy carries no credentials. A valid Basic `407`
+  challenge allows exactly one replay with them over the same route. Once the
+  proxy accepts them, later tunnels, WebSocket tunnels, and forwarded
+  requests through it send `Proxy-Authorization` on the first attempt, as
+  Chrome, Edge, and Firefox do. A `407` to such a request allows the same
+  single replay. `ClientBuilder::preemptive_proxy_authentication(false)`
+  makes every request wait for a challenge
+  ([Design](../explanation/design.md#proxy-authentication)).
+- To send credentials on the very first request, leave out
   `with_basic_auth` and add your own `Proxy-Authorization` field: on an
   `http://` request it goes to the forward proxy, and for an HTTPS origin you
   add it to the CONNECT request with `HttpProxy::header`. On an `http://`
@@ -109,8 +114,9 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
   Phantom does not speak h2c.
 - `http://` requests go to the proxy as H2 requests with `:scheme` `http`,
   as browsers send them. Use `HttpProtocol::Http2` or `get_negotiated`; exact
-  `HttpProtocol::Http1` fails before I/O, and so does `with_basic_auth`,
-  which has no H2 forwarding retry.
+  `HttpProtocol::Http1` fails before I/O. With `with_basic_auth`, a
+  challenged request is replayed once on a new stream of the same proxy
+  connection.
 - A proxy that selects any ALPN protocol but `h2` fails with a typed proxy
   error. The default mode accepts `http/1.1` or no ALPN.
 - A profile that does not offer `h2` or carry HTTP/2 settings fails before
@@ -177,7 +183,8 @@ fn masque_route() -> Result<Route, Box<dyn std::error::Error>> {
   connection inside it uses the origin trust roots.
 - Routes that differ only in leg never share connections.
 - `with_basic_auth` sends credentials once, after a valid `407`, on a fresh
-  proxy connection.
+  proxy connection. Every CONNECT-UDP tunnel starts without credentials,
+  because no captured browser authenticates one.
 - [CONNECT-UDP rules](../reference/route-matrix.md#connect-udp-rules) lists
   every check and failure.
 
@@ -217,7 +224,7 @@ fn private_roots(
 
 - A second `407`, a malformed or unsupported challenge, or a one-shot
   streaming body fails an HTTP proxy request with a typed error; see
-  [Forward-proxy authentication](../explanation/design.md#forward-proxy-authentication).
+  [Proxy authentication](../explanation/design.md#proxy-authentication).
 - A SOCKS5 failure never tries another address
   ([SOCKS5 rules](../reference/route-matrix.md#socks5-rules)).
 - Exact H3 through an HTTP proxy fails before I/O. WebSocket over H3 is not

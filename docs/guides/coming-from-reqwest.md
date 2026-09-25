@@ -190,8 +190,8 @@ async fn text(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
 - Phantom adds no browser fields and keeps the order of yours
   ([Order is part of the fingerprint](../explanation/design.md#order-is-part-of-the-fingerprint)).
 - No proxy comes from the environment ([Routes and proxies](routes-and-proxies.md)).
-- Proxy credentials go out only after a `407`
-  ([Forward-proxy authentication](../explanation/design.md#forward-proxy-authentication)).
+- Proxy credentials go out after the proxy's first `407`, then on every later
+  request ([Proxy authentication](../explanation/design.md#proxy-authentication)).
 
 ## Next
 

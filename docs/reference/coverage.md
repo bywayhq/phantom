@@ -606,13 +606,16 @@ Supported HTTP proxies:
 
 - HTTP/1.1 absolute-form forwarding for `http://` origins over plaintext or
   TLS-encrypted proxies. Basic authentication is challenge-driven: the first
-  request is anonymous, and exactly one replay follows on a fresh connection
-  over the same route. A caller's own `Proxy-Authorization` field is forwarded
+  request to a proxy is anonymous, and exactly one replay follows on a fresh
+  connection over the same route. After the proxy accepts the credentials,
+  later requests through it send them first. A caller's own
+  `Proxy-Authorization` field is forwarded
   when the proxy has no configured credentials. A negotiated `http://` request
   is forwarded as H1. Forwarding never switches to CONNECT or another
   protocol.
 - HTTP/1.1 CONNECT over plaintext proxies or TLS proxies verified with
-  their own trust settings, including one bounded Basic retry after a challenge.
+  their own trust settings, including one bounded Basic retry after a challenge
+  and credentials on the first CONNECT once the proxy has accepted them.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
   profile's ALPN is offered unchanged, and a selection mismatch is a typed
@@ -620,8 +623,8 @@ Supported HTTP proxies:
 - `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
   `http`, in the profile's pseudo-header order, as Chrome 154, Edge 153, and
   Firefox 156 send them. Requests to one origin share one proxy connection.
-  Exact H2 and negotiated requests use it; exact H1 and configured Basic
-  credentials fail before I/O.
+  Exact H2 and negotiated requests use it, and a Basic `407` is answered with
+  one replay on it; exact H1 fails before I/O.
 - Negotiated HTTPS through either CONNECT transport, with the same CONNECT
   request and Basic retry as exact requests. One origin TLS handshake runs in
   the tunnel and ALPN selects H1 or H2; a failed handshake is not retried with

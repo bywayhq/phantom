@@ -436,22 +436,52 @@ because an SSE stream is meant to outlive an ordinary request. Input, policy,
 route, and runtime failures end the source at once and do not draw on the
 reconnect budget, because the same request would fail the same way.
 
-### Forward-proxy authentication
+### Proxy authentication
 
-Forward-proxy Basic authentication is request-scoped; the client learns no
-state from it. Every logical forwarding request starts without
-credentials. A strict, valid Basic `407` challenge permits one replay on a
-fresh connection with the same complete route. A second `407`, or a challenge
-Phantom cannot use, is a typed proxy failure. A proxy without configured
-credentials forwards a caller's own `Proxy-Authorization` field unchanged, so
-a caller can authenticate the first request; with configured credentials that
-field is refused before I/O, because it would conflict with the generated one.
+HTTP proxy Basic authentication starts from a challenge and is then
+remembered, as Chrome, Edge, and Firefox remember it
+([evidence](validation.md#proxy-authentication-evidence)). The first CONNECT
+or forwarded request to a proxy carries no credentials. A strict, valid Basic
+`407` challenge permits one replay with the route's credentials: a CONNECT
+replay and an H1 forwarding replay open a fresh proxy connection, and an H2
+forwarding replay uses a new stream on the same pooled proxy connection. A
+second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
 
-The generated `Proxy-Authorization` field is marked sensitive and placed after
-the caller's fields and before generated framing. Owned bodies and static
-trailers can be replayed; a one-shot streaming body fails before Phantom opens
-a retry connection. This lifecycle never changes the selected protocol or
-route, and never falls back to a direct connection.
+When the replay succeeds, the client records the proxy's scheme, host, and
+port together with those credentials. Later tunnels, WebSocket tunnels, and
+forwarded requests through the same proxy with the same credentials send
+`Proxy-Authorization` on the first attempt and skip the `407` round trip and
+its extra proxy connection. A forwarded request that sends remembered
+credentials uses a pooled proxy connection like any other request. A `407` to such a request forgets
+the pair and permits the same single replay, so a proxy that stops accepting
+the credentials costs one failed request at most, never a loop.
+
+The record stores only which configured credentials a proxy accepted; it
+never supplies credentials to a route. A route sends its own credentials, and
+only to its own proxy, so a proxy never receives another route's credentials
+and an origin never receives a proxy's. The record belongs to one client,
+holds at most 128 pairs, and forgets the least recently used pair first.
+Browsers add an entry when credentials are supplied, before the proxy has
+accepted them; Phantom adds one only after the proxy accepts, so a rejected
+credential is never sent first. Browsers key their entries by realm as well;
+Phantom keys them by credentials instead, because the realm is unknown before
+the first request and the configured credentials do not depend on it.
+`ClientBuilder::preemptive_proxy_authentication(false)` turns the record off.
+CONNECT-UDP tunnels always start without credentials, because neither
+Chromium nor Firefox sends `Proxy-Authorization` on a CONNECT-UDP request.
+
+A proxy without configured credentials forwards a caller's own
+`Proxy-Authorization` field unchanged, so a caller can authenticate the first
+request; with configured credentials that field is refused before I/O,
+because it would conflict with the generated one.
+
+The generated `Proxy-Authorization` field is marked sensitive. On a CONNECT
+request it takes the position of the route's authorization placeholder, last
+by default; on a forwarded request it follows the caller's fields and
+precedes generated framing. Owned bodies and static trailers can be replayed;
+a one-shot streaming body fails before Phantom opens a retry connection. This
+lifecycle never changes the selected protocol or route, and never falls back
+to a direct connection.
 
 ## Next
 

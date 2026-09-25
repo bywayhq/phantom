@@ -188,6 +188,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientBuilder::preemptive_proxy_authentication`, on by default, and the
+  `phantom_net::proxy::ProxyCredentialCache` it uses:
+  after an HTTP proxy accepts `HttpProxy::with_basic_auth` credentials on the
+  replay after a `407`, the client remembers the proxy's scheme, host, and
+  port with those credentials, up to 128 pairs, and sends
+  `Proxy-Authorization` on the first attempt of later CONNECT tunnels
+  (HTTP/1.1 and HTTP/2 proxy transports, WebSocket tunnels included) and
+  forwarded `http://` requests through it. The origin connectors and
+  `HttpsProxyConnector` take the record with `with_proxy_credential_cache`.
+- HTTP/2 forwarding of `http://` requests accepts `HttpProxy::with_basic_auth`:
+  a Basic `407` is answered with one replay on the same proxy connection.
+  Before, such a request failed with `RequestErrorKind::UnsupportedRoute`
+  before I/O.
+- Proxy authentication captures of Chrome 154, Edge 153, and Firefox 156 in
+  `fixtures/proxy/`, and `scripts/capture/proxy_route.py` scenarios that
+  answer a Basic challenge through the DevTools protocol or WebDriver BiDi.
+
 - `RequestField::ByTrust`, with the `RequestField::trustworthy_only` and
   `RequestField::by_trust` constructors, and `RequestField::default_value`:
   a template field whose value depends on whether the request URL is
@@ -355,6 +372,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HttpConnectError::ForwardingRequiresHttp2`. (`e99940b`)
 
 ### Changed
+
+- Wire and performance change for HTTP proxies with Basic credentials. A
+  tunnel or forwarded request to a proxy that already accepted the
+  credentials now carries `Proxy-Authorization` on its first attempt, as
+  Chrome, Edge, and Firefox do, instead of waiting for a `407` each time.
+  After the first challenge, each tunnel saves one proxy round trip and one
+  proxy connection. A `407` to remembered credentials forgets them and
+  allows the usual single replay. To keep the old behavior, call
+  `ClientBuilder::preemptive_proxy_authentication(false)`. CONNECT-UDP
+  tunnels still start without credentials.
 
 - Wire change for plaintext `http://` requests. To an origin that is not
   potentially trustworthy (not HTTPS, loopback, `localhost`, or

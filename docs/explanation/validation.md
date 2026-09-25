@@ -33,7 +33,8 @@ Phantom's claims rest on four kinds of evidence:
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, with the Chromium ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
-| [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins, proxy authentication, or SOCKS |
+| [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins or SOCKS |
+| [Proxy authentication](#proxy-authentication-evidence) | Chrome 154, Edge 153, and Firefox 156 captures and browser source, plus loopback tests of Phantom | One realm; no `407` to a CONNECT captured; forwarded field position and H2 indexing differ |
 | [Connection and status retries](#connection-retry-evidence) | Loopback tests | Not browser retry policy; some paths have no recovery test |
 | [Content decoding](#content-decoding-evidence) | Unit and loopback tests; browser source for documented divergences | No browser-parity claim |
 | [Response-body limits](#response-body-limit-evidence) | Unit tests and an H1 loopback test | No H2 or H3 test exceeds a limit |
@@ -1394,18 +1395,21 @@ handshake with no CONNECT exchange, and returns the proxied response through
 the normal streaming body path. Negative cases cover missing proxy trust,
 non-H1 selections, and proxy failure without fallback to a direct route.
 
-Authentication regressions prove that every logical request is first sent
+Authentication regressions prove that the first request to a proxy is sent
 without credentials, and that only a strict, valid Basic `407` challenge
 triggers one replay on a fresh connection over the same route. They assert
 the position of the generated sensitive `Proxy-Authorization` field, after the
 caller's fields and before framing; exact replay of owned bodies and static
 trailers, and failure before a retry connection opens for a one-shot
-streaming body; typed proxy errors, without direct or protocol fallback, for a
-second `407` and for malformed or unsupported challenges; and an anonymous
-start for the next logical request, which proves that no challenge state is
-learned. Without configured credentials, a caller's own `Proxy-Authorization`
-field reaches the proxy unchanged on the first request; on a direct route or
-a proxy with configured credentials, it fails before any network I/O.
+streaming body; and typed proxy errors, without direct or protocol fallback,
+for a second `407` and for malformed or unsupported challenges. Once the proxy
+accepts the replay, later logical requests carry the credentials on their
+first attempt over the pooled connection; with
+`preemptive_proxy_authentication(false)` each starts without them
+([Proxy authentication evidence](#proxy-authentication-evidence)). Without
+configured credentials, a caller's own `Proxy-Authorization` field reaches
+the proxy unchanged on the first request; on a direct route or a proxy with
+configured credentials, it fails before any network I/O.
 
 Lifecycle cases also cover a nonempty challenge body; a queued request that
 installs an intervening pooled connection without capturing the
@@ -1417,8 +1421,9 @@ The HTTP/2 proxy transport has separate CONNECT regressions for H1 and H2
 origins in `crates/phantom/tests/proxy_h2.rs`. The same file forwards an
 exact H2 and a negotiated `http://` request over one HTTP/2 proxy
 connection, and asserts `:scheme` `http`, the origin in `:authority`, the
-fields, and an H2 `ResponseInfo::protocol`; it rejects exact H1 and
-configured Basic credentials before I/O. H3 over SOCKS5 has its own
+fields, and an H2 `ResponseInfo::protocol`; it rejects exact H1 before
+I/O, and answers a Basic `407` to a forwarded request with one replay on the
+same proxy connection. H3 over SOCKS5 has its own
 [evidence](#h3-socks5-udp-evidence).
 
 Negotiated requests through plaintext, TLS, and HTTP/2 proxy transports have
@@ -1444,8 +1449,10 @@ inside the tunnel with the caller-selected field order and no origin TLS,
 no direct-origin traffic, independent proxy trust, and Ping/Pong traffic.
 Authentication cases prove an anonymous first CONNECT; one replay of the
 CONNECT on a fresh connection with generated credentials, which never reach
-the opening; no learned state; and terminal behavior for malformed or
-repeated challenges and for a `407` without credentials. An origin that
+the opening; credentials on the first CONNECT of a later WebSocket to the
+same proxy, or a fresh challenge for each when the record is disabled; and
+terminal behavior for malformed or repeated challenges and for a `407`
+without credentials. An origin that
 refuses the opening inside the tunnel is returned with its body. A
 caller-supplied `Proxy-Authorization` is rejected before any proxy or origin
 I/O. `websocket_http2_proxy.rs` opens `ws://` in a CONNECT stream on the
@@ -1562,8 +1569,9 @@ Limits:
 
 - Plaintext origins only. `https://` and `wss://` origins through a proxy are
   not captured.
-- No proxy authentication, `407` challenge, PAC-selected plaintext proxy, or
-  SOCKS proxy.
+- No PAC-selected plaintext proxy or SOCKS proxy. Proxy authentication has
+  its own scenarios; see
+  [Proxy authentication evidence](#proxy-authentication-evidence).
 - Firefox reaches the TLS proxy through a PAC result, because its manual
   settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
 - Chromium was launched with `--disable-field-trial-config`; field trials in
@@ -1572,6 +1580,130 @@ Limits:
   H2 forwarding are compared with a fixture. The `ws://` opening is compared
   for both origins; see
   [Plaintext origin trust evidence](#plaintext-origin-trust-evidence).
+
+### Proxy authentication evidence
+
+What is claimed: after an HTTP proxy challenges one request with a Basic
+`407` and accepts the credentials, Chrome 154, Edge 153, and Firefox 156 send
+`Proxy-Authorization` on the first attempt of every later CONNECT tunnel and
+forwarded request to that proxy. Phantom does the same by default for CONNECT
+tunnels on both proxy transports, including WebSocket tunnels, and for H1 and
+H2 forwarding. The differences that remain are listed at the end of this
+section.
+
+Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains four
+authentication scenarios per browser, `http-proxy-auth-*` and
+`https-proxy-auth-*`, with loopback and named origins, from the same headless
+Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 builds on Windows
+11 (10.0.26200). Each ran three times on a fresh profile, and the three runs
+agree on the sequence of proxy requests, connection reuse, and field order.
+The proxy answers any request for the test origin that lacks the expected
+credentials with `407` and `Proxy-Authenticate: Basic realm="phantom-capture"`.
+One page load makes a navigation, two `ws://` openings one after the other,
+and a `fetch()`. The capture tool supplies the credentials through the
+DevTools protocol (`Fetch.continueWithAuth`) for Chrome and Edge and through
+WebDriver BiDi (`network.continueWithAuth`) for Firefox. The fixtures keep
+the position of each `Proxy-Authorization` field and replace its value with a
+marker.
+
+| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
+| --- | --- | --- |
+| `407` responses per page load | One, to the first navigation request | Same |
+| Replay after that `407` | Same plaintext proxy connection; new stream on the same H2 proxy connection | Same |
+| Later `ws://` CONNECTs and the `fetch()` | Carry `Proxy-Authorization` with no `407` | Same, including on a second H2 proxy connection opened for the WebSockets |
+| H1 CONNECT fields | `Host`, `Proxy-Connection`, `User-Agent`, `Proxy-Authorization` | `User-Agent`, `Proxy-Connection`, `Connection`, `Host`, `Proxy-Authorization` |
+| H2 CONNECT fields | `:method`, `:authority`, `user-agent`, `proxy-authorization` | Same |
+| `Proxy-Authorization` in an H1 forwarded request | Third, after `Host` and `Proxy-Connection`, on the replay and on later requests | Last on the replay; before `Connection` on later requests |
+| `proxy-authorization` in an H2 forwarded request | First field after the pseudo-fields | Before `te` on the replay; before `priority` on later requests |
+| HPACK representation of `proxy-authorization` | Literal with incremental indexing (static name 49) on first use on a connection, then indexed | Same |
+
+Browser source, checked on 2026-09-24 at Chromium tag 154.0.8037.58 and
+Firefox tag `FIREFOX_156_0_RELEASE`, agrees and explains the mechanism:
+
+- Chromium keys an entry by proxy origin (scheme, host, port), target,
+  realm, and scheme, and looks proxy entries up by the path `/`
+  (`net/http/http_auth_cache.cc` lines 376 to 427,
+  `net/http/http_auth_controller.cc` line 102).
+  `HttpAuthController::MaybeGenerateAuthToken` sends a cached identity before
+  any challenge (`http_auth_controller.cc` lines 126 to 195) for CONNECT
+  (`net/http/http_proxy_client_socket.cc` lines 339 to 367), H2 CONNECT
+  (`net/spdy/spdy_proxy_client_socket.cc` lines 397 to 422), and forwarded
+  requests (`net/http/http_network_transaction.cc` lines 1336 to 1347).
+- Chromium adds the entry when credentials are supplied, before the retry
+  (`http_auth_controller.cc` lines 365 to 389), removes it when the proxy
+  rejects it (lines 428 to 438), and keeps at most 20 entries, evicting the
+  least recently used (`net/http/http_auth_cache.h` line 124,
+  `http_auth_cache.cc` lines 429 to 446).
+- Firefox keys proxy entries by `host:port` and realm with an empty path
+  (`netwerk/protocol/http/nsHttpAuthCache.cpp` lines 21 to 32,
+  `nsHttpChannelAuthProvider.cpp` lines 214 to 217), also adds the entry
+  before the credentials are validated (`nsHttpChannelAuthProvider.cpp` lines
+  381 to 390), copies the transaction's `Proxy-Authorization` into each
+  CONNECT (`nsHttpConnection.cpp` lines 2092 to 2099), and clears the entry
+  when the proxy rejects it (`nsHttpChannelAuthProvider.cpp` lines 889 to
+  899). Its cache has no size limit.
+- Neither browser authenticates a CONNECT-UDP request to a proxy: Chromium
+  leaves it as a TODO (`net/quic/quic_proxy_datagram_client_socket.cc` line
+  367), and Firefox copies the value into `Authorization`
+  (`netwerk/protocol/http/HttpConnectionUDP.cpp` lines 586 to 592).
+- Credentials supplied through `Fetch.continueWithAuth` and
+  `network.continueWithAuth` reach the same caches as a prompt's
+  (`content/browser/devtools/devtools_url_loader_interceptor.cc` lines 1433 to
+  1446; `nsHttpChannelAuthProvider.cpp` lines 1363 to 1425).
+
+Against Phantom:
+
+- `sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel` in
+  `crates/phantom/tests/proxy_credential_cache.rs` opens four tunnels one
+  after the other through a plaintext proxy that challenges every request
+  without credentials. With the record the proxy sees five connections and
+  one `407`; with `preemptive_proxy_authentication(false)` it sees eight
+  connections and four `407` responses. The same file proves that another
+  proxy port, other credentials, and the origin never receive remembered
+  credentials.
+- `crates/phantom-net/src/proxy/tests/credential_cache.rs` covers the record:
+  a pair is added only after the proxy accepts the replay; a `407` or an
+  unusable challenge to remembered credentials forgets them and permits one
+  replay; a proxy that never challenges is not recorded; entries are separate
+  by scheme, host, port, and credentials; and a full record evicts the least
+  recently used pair.
+- `proxy_h2.rs` covers H2 CONNECT tunnels and H2 forwarding, including the
+  replay on the same H2 proxy connection and a second `407`.
+  `forward_proxy.rs` covers H1 forwarding on the pooled proxy connection and
+  a `407` to remembered credentials. `websocket/routing.rs` covers two
+  `ws://` tunnels after one challenge.
+- A CONNECT request places the field at the route's placeholder, last by
+  default, as both browsers do when the route's CONNECT fields are the
+  captured ones.
+
+Remaining differences:
+
+- A forwarded request carries the field after every other field, which
+  matches Firefox's replay only. Chromium sends it third, and Firefox sends
+  it before `Connection` once the credentials are remembered.
+- H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
+  literal, where both browsers index it.
+- The replay after a challenge to a CONNECT or H1 forwarded request opens a
+  new proxy connection, where both browsers reuse a connection that the `407`
+  left open. The record limits this cost to the first challenge for each
+  proxy and credentials.
+- Phantom records a pair only after the proxy accepts it; browsers record it
+  when the credentials are supplied.
+- The record holds 128 pairs; Chromium holds 20 and Firefox has no limit.
+
+How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
+--scenario http-proxy-auth-hostname https-proxy-auth-hostname
+http-proxy-auth-loopback https-proxy-auth-loopback --repeat 3`; see
+[Proxy routes](../../scripts/capture/README.md#proxy-routes).
+
+Limits:
+
+- Plaintext origins only, one realm, and no CONNECT request that received a
+  `407`, because each page's first request was a forwarded navigation.
+  Connection reuse after a `407` to CONNECT comes from source reading only.
+- The credentials come from browser automation, not a prompt. Firefox ran
+  with `remote.prefs.recommended=false`, so its automation defaults did not
+  change connection behavior.
 
 ### H3 SOCKS5 UDP evidence
 
