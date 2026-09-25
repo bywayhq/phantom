@@ -572,19 +572,6 @@ where
     acquire_with_retries_for(Some(protocol), timeout_budget, retries, attempt).await
 }
 
-/// Retries setup whose HTTP protocol is chosen later by ALPN.
-pub(crate) async fn acquire_unselected_with_retries<Output, Attempt, AttemptFuture>(
-    timeout_budget: TimeoutBudget,
-    retries: &mut ConnectionSetupRetryState,
-    attempt: Attempt,
-) -> Result<Output, RequestError>
-where
-    Attempt: FnMut() -> AttemptFuture,
-    AttemptFuture: Future<Output = Result<Output, RequestError>>,
-{
-    acquire_with_retries_for(None, timeout_budget, retries, attempt).await
-}
-
 async fn acquire_with_retries_for<Output, Attempt, AttemptFuture>(
     protocol: Option<HttpProtocol>,
     timeout_budget: TimeoutBudget,

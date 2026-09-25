@@ -181,6 +181,8 @@ impl ClientOptions {
             ),
             http1_or_2: http1_or_2_pool::Http1Or2Pool::new(
                 self.max_retained_http1_connections,
+                self.max_concurrent_http1_requests_per_origin
+                    .unwrap_or(inner.http1_connections_per_origin),
                 self.max_pending_http1_requests_per_origin,
                 self.max_retained_http2_connections,
                 self.max_concurrent_http2_requests_per_origin,

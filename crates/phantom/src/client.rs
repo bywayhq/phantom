@@ -772,8 +772,10 @@ impl ClientBuilder {
     ///
     /// Each active HTTP/1.1 request holds its own connection, so this is also
     /// the most connections open at once to the pool key, idle ones included.
-    /// It replaces the profile's [`Http1Settings`] bound. Without either, the
-    /// bound is one connection.
+    /// Negotiated requests use the same bound for connections that selected
+    /// HTTP/1.1 or are still in their TLS handshake. It replaces the
+    /// profile's [`Http1Settings`] bound. Without either, the bound is one
+    /// connection.
     ///
     /// [`Http1Settings`]: crate::profile::Http1Settings
     #[must_use]

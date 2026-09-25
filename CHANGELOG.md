@@ -411,6 +411,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   which is still the position without a template. On a route without
   configured credentials, a caller's own `Proxy-Authorization` on a forwarded
   request takes the template's position for remembered credentials.
+
+- Wire and performance change for negotiated requests (`get_negotiated`,
+  `request_negotiated`) from a profile with `Http1Settings`, such as
+  `chromium::v154_http1` or `firefox::v156_http1`. When ALPN selects
+  HTTP/1.1, concurrent requests to one origin and route now open up to the
+  profile's bound of connections, each with its own TLS handshake (and its
+  own CONNECT tunnel on an HTTP proxy route), instead of waiting for one
+  connection. `ClientBuilder::max_concurrent_http1_requests_per_origin`
+  replaces that bound too. Until a connection to the origin and route has
+  selected HTTP/2, concurrent requests start their handshakes in parallel,
+  as Chromium 154 and Firefox 156 do; after that, a request waits for a
+  handshake in progress, and HTTP/2 requests share one connection. A
+  profile without `Http1Settings` keeps one connection, as before.
+
 - Wire and performance change for HTTP proxies with Basic credentials. A
   tunnel or forwarded request to a proxy that already accepted the
   credentials now carries `Proxy-Authorization` on its first attempt, as
