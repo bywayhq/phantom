@@ -117,6 +117,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add an `Http3Unprocessed::EarlyDataRejected` arm. The server did
   not process the request, so handle it as you handle `RequestRejected` and
   `GoAway`.
+- `chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, set
+  `session_tickets`. `phantom_quic_btls::QuicClientConfig::with_tls_profile`
+  rejects a profile that sets it with `QuicTlsProfileErrorKind::InvalidProfile`
+  unless the context was prepared for session resumption, so code that builds
+  a `QuicClientConfig` directly from either recipe now fails. The `phantom`
+  client and `phantom_net::http3::Http3Connector` prepare their contexts and
+  are not affected. The commit that changed the recipes, `278645f`, lacks the
+  `!` breaking marker; the check it trips came from `f084850`.
+  Migrate: call `QuicClientConfig::enable_session_resumption(&mut builder)?`
+  on the `SslContextBuilder` before building the context you pass to
+  `QuicClientConfig::new`. To keep full handshakes instead, set
+  `session_tickets = false` on the recipe's `TlsSettings` before calling
+  `with_tls_profile`.
 
 ### Added
 
@@ -226,7 +239,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   that presented a ticket and failed is repeated once with a full handshake
   over the same route. `phantom_net::http3::Http3Connector` gains
   `with_isolated_session_cache`, `without_ticket_offers`, `resumes_sessions`,
-  and `has_ticket_for`. (`f084850`, `278645f`)
+  and `has_ticket_for`. `phantom_net::http3::Http3Connection` gains
+  `session_resumed`, and `phantom_quic_btls::HandshakeData` gains
+  `session_resumed`. `phantom_quic_btls::QuicClientConfig` gains
+  `enable_session_resumption`, `with_isolated_session_cache`,
+  `without_ticket_offers`, `has_ticket_for`, and `resumes_sessions`.
+  (`f084850`, `278645f`)
 - `ClientBuilder::http3_early_data` lets a new resumed HTTP/3 connection send
   a replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE` with no body and
   no trailers) as early (0-RTT) data. Early data is replayable, so the option
@@ -234,8 +252,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `BuildErrorKind::InvalidPolicy` unless the H3 TLS settings enable
   `session_tickets`. If the server rejects the early data, the request is
   sent again after the handshake over the same route and protocol.
-  `Http3Connector` gains `with_early_data`, `without_early_data`, and
-  `sends_early_data`. (`31da936`, `550e6f6`)
+  `Http3Connector` and `phantom_quic_btls::QuicClientConfig` gain
+  `with_early_data`, `without_early_data`, and `sends_early_data`.
+  `Http3Connection` gains `sent_early_data` and `early_data_accepted`.
+  (`31da936`, `550e6f6`)
 
 ### Changed
 
