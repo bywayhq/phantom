@@ -268,8 +268,10 @@ capacity this departs from RFC 9204 section 3.2.3, which names
 so the close looks the same on the wire. Chromium's quiche
 checks the first three and not the extension settings. The engine does not
 know whether the server accepted the early data, so it applies these checks
-either way; its caller does not reuse a connection whose early data was
-rejected.
+either way. Phantom discards the session whose early data was rejected and
+starts a new session on the same QUIC connection without remembered
+SETTINGS, so in practice the checks bind only a session whose early data was
+accepted.
 
 `patches/remembered-settings.patch` contains this delta and its regression
 tests.
