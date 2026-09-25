@@ -3,6 +3,8 @@
 #[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;
+#[path = "support/reserved_port.rs"]
+mod reserved_port;
 #[allow(dead_code)]
 #[path = "support/socks5_udp.rs"]
 mod socks5_udp_support;
@@ -14,7 +16,7 @@ mod tracing_support;
 
 use std::{
     future::Future,
-    net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener},
+    net::{Ipv4Addr, TcpListener as StdTcpListener},
     num::NonZeroUsize,
     time::Duration,
 };
@@ -34,6 +36,7 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h3_support::{client_settings, server_endpoint};
+use reserved_port::ReservedPort;
 use socks5_udp_support::{ObservedSocks5UdpRelay, forward_one_socks5_udp_associate};
 use tls_support::{TestIdentity, TestResult, tls_settings};
 use tracing_support::OutcomeSubscriber;
@@ -109,7 +112,8 @@ async fn socks5_http3_retries_a_refused_proxy_connect_before_association() -> Te
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, endpoint) = server_endpoint(&identity)?;
-        let proxy_address = unused_loopback_address()?;
+        let reserved_proxy = ReservedPort::bind()?;
+        let proxy_address = reserved_proxy.address();
         let (client_done, wait_for_client) = oneshot::channel();
         let server = tokio::spawn(async move {
             let (paths, connection) = serve_http3_requests(&endpoint, 1).await?;
@@ -141,7 +145,7 @@ async fn socks5_http3_retries_a_refused_proxy_connect_before_association() -> Te
         // The proxy starts listening only after the refused TCP connect has
         // been classified, so the successful attempt is a new association.
         wait_for_retry_reason(&subscriber).await?;
-        let proxy_listener = TcpListener::bind(proxy_address).await?;
+        let proxy_listener = reserved_proxy.listen()?;
         let proxy = tokio::spawn(forward_one_socks5_udp_associate(
             proxy_listener,
             origin_address,
@@ -305,13 +309,6 @@ fn response_info<B>(response: &Response<B>) -> TestResult<&ResponseInfo> {
         .extensions()
         .get::<ResponseInfo>()
         .ok_or("response omitted ResponseInfo")?)
-}
-
-fn unused_loopback_address() -> TestResult<SocketAddr> {
-    let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-    let address = listener.local_addr()?;
-    drop(listener);
-    Ok(address)
 }
 
 async fn wait_for_retry_reason(subscriber: &OutcomeSubscriber) -> TestResult<()> {

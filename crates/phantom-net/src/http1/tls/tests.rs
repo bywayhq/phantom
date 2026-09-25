@@ -2,6 +2,7 @@ use std::{
     error::Error,
     future::Future,
     io,
+    net::{Ipv4Addr, SocketAddr},
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -15,7 +16,7 @@ use phantom_profile::{
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt, duplex},
-    net::TcpStream,
+    net::{TcpSocket, TcpStream},
     sync::oneshot,
     time::timeout,
 };
@@ -437,8 +438,11 @@ async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<(
     let identity = TestIdentity::generate()?;
     let connector = test_connector(&identity)?;
     let subscriber = OutcomeSubscriber::default();
-    let (address, listener) = loopback_listener().await?;
-    drop(listener);
+    // Bound but never listening: connects are refused, and the port stays
+    // ours, so no other socket can take it while the test runs.
+    let reserved = TcpSocket::new_v4()?;
+    reserved.bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
+    let address = reserved.local_addr()?;
 
     let result = connector
         .connect_plaintext_direct("127.0.0.1", address.port())

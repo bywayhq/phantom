@@ -16,6 +16,7 @@ use tokio_btls::SslStream;
 
 use super::{
     TestResult,
+    reserved_port::ReservedPort,
     tls_support::{H1_ALPN, TestIdentity, read_head, test_client},
 };
 
@@ -323,10 +324,8 @@ fn reconnect_delay_without_runtime_timers_returns_request_error() -> TestResult<
         .build()?;
     runtime.block_on(async {
         let identity = TestIdentity::generate()?;
-        let address = {
-            let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-            listener.local_addr()?
-        };
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
 
         let error = test_client(&identity, false)?
             .session()

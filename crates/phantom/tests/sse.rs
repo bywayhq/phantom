@@ -10,6 +10,8 @@ mod idle;
 mod reconnect;
 #[path = "sse/request.rs"]
 mod request;
+#[path = "support/reserved_port.rs"]
+mod reserved_port;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;

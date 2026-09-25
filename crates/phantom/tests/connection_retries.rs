@@ -1,5 +1,7 @@
 //! Public connection retry and negotiated pre-selection admission behavior.
 
+#[path = "support/reserved_port.rs"]
+mod reserved_port;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
@@ -9,7 +11,7 @@ mod tracing_support;
 use std::{
     error::Error,
     future::{Future, poll_fn},
-    net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener},
+    net::Ipv4Addr,
     num::NonZeroUsize,
     pin::Pin,
     sync::{
@@ -36,6 +38,7 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use reserved_port::ReservedPort;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
@@ -57,7 +60,8 @@ type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispatch() -> TestResult
 {
     bounded(async {
-        let address = unused_loopback_address()?;
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .retry_policy(RetryPolicy::none())
             .build()?;
@@ -83,7 +87,7 @@ async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispa
         let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
 
         wait_for_retry_reason(&subscriber).await?;
-        let listener = TcpListener::bind(address).await?;
+        let listener = reserved.listen()?;
         let server = tokio::spawn(serve_one_chunked_request(listener));
 
         let response = request_task.await??;
@@ -180,7 +184,8 @@ async fn negotiated_connection_refusal_is_retried_before_alpn_selection() -> Tes
     bounded(async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let address = unused_loopback_address()?;
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
         let client = client_builder(&identity, true).build()?;
         let subscriber = OutcomeSubscriber::default();
         let request = client
@@ -198,7 +203,7 @@ async fn negotiated_connection_refusal_is_retried_before_alpn_selection() -> Tes
                 .selected_protocols_for("client.request")
                 .is_empty()
         );
-        let listener = TcpListener::bind(address).await?;
+        let listener = reserved.listen()?;
         let server = tokio::spawn(serve_h2_requests(listener, acceptor, 1));
 
         let response = request_task.await??;
@@ -293,7 +298,8 @@ async fn negotiated_retry_delay_releases_connection_lock_for_queued_request() ->
     bounded_within(LONG_TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let address = unused_loopback_address()?;
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
         let client = client_builder(&identity, true).build()?;
         let subscriber = OutcomeSubscriber::default();
         let delayed = client
@@ -306,7 +312,7 @@ async fn negotiated_retry_delay_releases_connection_lock_for_queued_request() ->
 
         // The retry reason is recorded when the delay starts.
         wait_for_retry_reason(&subscriber).await?;
-        let listener = TcpListener::bind(address).await?;
+        let listener = reserved.listen()?;
         let server = tokio::spawn(serve_h2_requests(listener, acceptor, 2));
 
         // A lock held across the delay would let the delayed request connect
@@ -347,8 +353,10 @@ async fn negotiated_retry_budget_is_shared_across_redirect_hops() -> TestResult 
     bounded_within(LONG_TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = unused_loopback_address()?;
-        let target = unused_loopback_address()?;
+        let origin = ReservedPort::bind()?;
+        // The redirect target stays reserved and never listens.
+        let target = ReservedPort::bind()?;
+        let target_address = target.address();
         let client = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .retry_policy(RetryPolicy::connection_failures(
@@ -357,11 +365,11 @@ async fn negotiated_retry_budget_is_shared_across_redirect_hops() -> TestResult 
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client.get_negotiated(&format!("https://{origin}/start"))?;
+        let request = client.get_negotiated(&format!("https://{}/start", origin.address()))?;
         let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
 
         wait_for_retry_reason(&subscriber).await?;
-        let listener = TcpListener::bind(origin).await?;
+        let listener = origin.listen()?;
         let server = tokio::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let mut stream = accept_tls_stream(tcp, acceptor).await?;
@@ -369,7 +377,7 @@ async fn negotiated_retry_budget_is_shared_across_redirect_hops() -> TestResult 
             stream
                 .write_all(
                     format!(
-                        "HTTP/1.1 307 Temporary Redirect\r\nLocation: https://{target}/next\r\nContent-Length: 0\r\n\r\n"
+                        "HTTP/1.1 307 Temporary Redirect\r\nLocation: https://{target_address}/next\r\nContent-Length: 0\r\n\r\n"
                     )
                     .as_bytes(),
                 )
@@ -378,8 +386,8 @@ async fn negotiated_retry_budget_is_shared_across_redirect_hops() -> TestResult 
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
         });
 
-        // The redirect target is never bound. With the one retry already
-        // spent on the first hop, its refusal is terminal.
+        // With the one retry already spent on the first hop, the target's
+        // refusal is terminal.
         let error = match request_task.await? {
             Ok(_) => return Err("redirect target unexpectedly answered".into()),
             Err(error) => error,
@@ -405,7 +413,8 @@ async fn negotiated_one_shot_body_is_not_polled_before_retry() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let address = unused_loopback_address()?;
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
         let client = client_builder(&identity, true).build()?;
         let subscriber = OutcomeSubscriber::default();
         let polls = Arc::new(AtomicUsize::new(0));
@@ -427,7 +436,7 @@ async fn negotiated_one_shot_body_is_not_polled_before_retry() -> TestResult {
             0,
             "one-shot body was polled before the retried connection"
         );
-        let listener = TcpListener::bind(address).await?;
+        let listener = reserved.listen()?;
         let server = tokio::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let mut stream = accept_tls_stream(tcp, acceptor).await?;
@@ -468,7 +477,8 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let address = unused_loopback_address()?;
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
         let client = client_builder(&identity, true)
             .retry_policy(RetryPolicy::none())
             .build()?;
@@ -485,7 +495,7 @@ async fn exact_http2_retries_connection_setup_before_dispatch() -> TestResult {
         let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
 
         wait_for_retry_reason(&subscriber).await?;
-        let listener = TcpListener::bind(address).await?;
+        let listener = reserved.listen()?;
         let server = tokio::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let stream = accept_tls_stream(tcp, acceptor).await?;
@@ -581,13 +591,6 @@ async fn negotiated_pre_selection_admission_is_bounded() -> TestResult {
         Ok(())
     })
     .await
-}
-
-fn unused_loopback_address() -> TestResult<SocketAddr> {
-    let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
-    let address = listener.local_addr()?;
-    drop(listener);
-    Ok(address)
 }
 
 async fn wait_for_retry_reason(subscriber: &OutcomeSubscriber) -> TestResult {

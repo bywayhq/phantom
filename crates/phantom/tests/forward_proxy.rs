@@ -3,6 +3,8 @@
 #[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;
+#[path = "support/reserved_port.rs"]
+mod reserved_port;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
@@ -27,6 +29,7 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h3_support::client_settings;
+use reserved_port::ReservedPort;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
     read_head, tls_settings,
@@ -1268,9 +1271,8 @@ async fn caller_proxy_authorization_is_refused_directly_and_with_configured_cred
 #[tokio::test]
 async fn forward_proxy_connection_failure_has_proxy_category() -> TestResult<()> {
     bounded(async {
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        drop(listener);
+        let reserved = ReservedPort::bind()?;
+        let address = reserved.address();
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
