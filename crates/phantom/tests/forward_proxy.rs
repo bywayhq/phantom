@@ -11,7 +11,12 @@ mod tls_support;
 #[path = "support/tracing.rs"]
 mod tracing_support;
 
-use std::{future::Future, net::Ipv4Addr, time::Duration};
+use std::{
+    future::Future,
+    net::Ipv4Addr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use bytes::Bytes;
 use http::{Method, StatusCode};
@@ -22,7 +27,7 @@ use phantom::{
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
     sync::oneshot,
     time::{Instant, sleep, timeout},
 };
@@ -120,7 +125,7 @@ async fn forward_proxy_status_is_returned_without_direct_fallback() -> TestResul
 }
 
 #[tokio::test]
-async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_connection()
+async fn basic_challenge_replays_owned_body_and_trailers_on_the_challenged_connection()
 -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -138,9 +143,9 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_co
                 )
                 .await?;
 
-            // Keep the challenged connection open so accepting this stream proves
-            // that authentication retried on a fresh proxy connection.
-            let (mut authenticated_stream, _) = listener.accept().await?;
+            // The 407 body is drained and the connection kept open, so the
+            // replay arrives on the challenged connection.
+            let mut authenticated_stream = anonymous_stream;
             let authenticated_head = read_head(&mut authenticated_stream).await?;
             let authenticated_body = read_chunked_message(&mut authenticated_stream).await?;
             authenticated_stream
@@ -215,17 +220,17 @@ async fn basic_challenge_replays_owned_body_and_trailers_on_a_fresh_plaintext_co
 }
 
 #[tokio::test]
-async fn basic_challenge_retries_over_a_fresh_verified_tls_proxy_connection() -> TestResult<()> {
+async fn basic_challenge_retries_on_the_challenged_verified_tls_proxy_connection() -> TestResult<()>
+{
     bounded(async {
         let origin_identity = TestIdentity::generate()?;
         let proxy_identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let anonymous_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let authenticated_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let proxy = tokio::spawn(async move {
             let (anonymous_tcp, _) = listener.accept().await?;
-            let mut anonymous = accept_tls_stream(anonymous_tcp, anonymous_acceptor).await?;
+            let mut anonymous = accept_tls_stream(anonymous_tcp, acceptor).await?;
             let anonymous_alpn = anonymous
                 .ssl()
                 .selected_alpn_protocol()
@@ -239,22 +244,19 @@ async fn basic_challenge_retries_over_a_fresh_verified_tls_proxy_connection() ->
                 )
                 .await?;
 
-            let (authenticated_tcp, _) = listener.accept().await?;
-            let mut authenticated =
-                accept_tls_stream(authenticated_tcp, authenticated_acceptor).await?;
-            let authenticated_alpn = authenticated
-                .ssl()
-                .selected_alpn_protocol()
-                .map(<[u8]>::to_vec);
-            let authenticated_head = read_head(&mut authenticated).await?;
-            authenticated
+            // The replay reuses the TLS connection that carried the challenge.
+            let authenticated_head = read_head(&mut anonymous).await?;
+            anonymous
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
+            let second_connection = timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_ok();
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((
                 anonymous_alpn,
                 anonymous_head,
-                authenticated_alpn,
                 authenticated_head,
+                second_connection,
             ))
         });
 
@@ -271,10 +273,10 @@ async fn basic_challenge_retries_over_a_fresh_verified_tls_proxy_connection() ->
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
-        let (anonymous_alpn, anonymous_head, authenticated_alpn, authenticated_head) =
+        let (anonymous_alpn, anonymous_head, authenticated_head, second_connection) =
             proxy.await??;
         assert_eq!(anonymous_alpn.as_deref(), Some(b"http/1.1".as_slice()));
-        assert_eq!(authenticated_alpn.as_deref(), Some(b"http/1.1".as_slice()));
+        assert!(!second_connection);
         assert_eq!(
             anonymous_head,
             b"GET http://origin.test/secure HTTP/1.1\r\nHost: origin.test\r\n\r\n"
@@ -303,7 +305,8 @@ async fn second_basic_challenge_is_proxy_error_redacted_and_bounded() -> TestRes
                       Content-Length: 0\r\n\r\n",
                 )
                 .await?;
-            let (mut authenticated, _) = listener.accept().await?;
+            // The 407 kept the connection open, so the replay arrives on it.
+            let mut authenticated = anonymous;
             let authenticated_head = read_head(&mut authenticated).await?;
             authenticated
                 .write_all(
@@ -528,7 +531,8 @@ async fn disabled_preemptive_authentication_starts_every_forwarded_request_witho
                 )
                 .await?;
 
-            let (mut authenticated, _) = listener.accept().await?;
+            // The 407 kept the connection open, so the replay arrives on it.
+            let mut authenticated = anonymous;
             let first_authenticated = read_head(&mut authenticated).await?;
             authenticated
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
@@ -605,7 +609,8 @@ async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() 
                 )
                 .await?;
 
-            let (mut authenticated, _) = listener.accept().await?;
+            // The 407 kept the connection open, so the replay arrives on it.
+            let mut authenticated = anonymous;
             let mut heads = vec![first_anonymous];
             for _ in 0..3 {
                 heads.push(read_head(&mut authenticated).await?);
@@ -650,7 +655,7 @@ async fn accepted_forward_credentials_are_sent_first_on_the_pooled_connection() 
                 .as_bytes()
             );
         }
-        // Two requests saved a 407 and a proxy connection each.
+        // Two requests saved a 407 each, and the replay the proxy connection.
         assert!(!third_connection);
         assert_eq!(
             subscriber.proxy_authentication_retries_for("client.request"),
@@ -680,13 +685,13 @@ async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns
             let (mut first, _) = listener.accept().await?;
             heads.push(read_head(&mut first).await?);
             first.write_all(challenge).await?;
-            let (mut second, _) = listener.accept().await?;
+            let mut second = first;
             heads.push(read_head(&mut second).await?);
             second.write_all(no_content).await?;
             // The proxy now rejects the remembered credentials once.
             heads.push(read_head(&mut second).await?);
             second.write_all(challenge).await?;
-            let (mut third, _) = listener.accept().await?;
+            let mut third = second;
             heads.push(read_head(&mut third).await?);
             third.write_all(no_content).await?;
             heads.push(read_head(&mut third).await?);
@@ -724,45 +729,47 @@ async fn a_challenge_to_remembered_forward_credentials_retries_once_and_relearns
     .await
 }
 
+/// A request queued behind a challenged one never takes the challenged
+/// connection before the replay: the replay is the next request on it.
 #[tokio::test]
-async fn authenticated_retry_opens_fresh_connection_after_queued_replacement() -> TestResult<()> {
+async fn queued_request_does_not_take_the_challenged_connection_from_the_replay() -> TestResult<()>
+{
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_seen_tx, first_seen_rx) = oneshot::channel();
         let (release_challenge_tx, release_challenge_rx) = oneshot::channel();
-        let proxy = tokio::spawn(async move {
-            let (mut challenged, _) = listener.accept().await?;
-            let challenged_head = read_head(&mut challenged).await?;
-            first_seen_tx
-                .send(())
-                .map_err(|()| "first-request signal receiver dropped")?;
-            release_challenge_rx.await?;
-            challenged
-                .write_all(
-                    b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                      Proxy-Authenticate: Basic realm=forward\r\n\
-                      Content-Length: 0\r\n\r\n",
-                )
-                .await?;
-
-            let (mut replacement, _) = listener.accept().await?;
-            let sibling_head = read_head(&mut replacement).await?;
-            replacement
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-
-            let (mut authenticated, _) =
-                timeout(Duration::from_secs(1), listener.accept()).await??;
-            let authenticated_head = read_head(&mut authenticated).await?;
-            authenticated
-                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((
-                challenged_head,
-                sibling_head,
-                authenticated_head,
-            ))
+        let heads = Arc::new(Mutex::new(Vec::new()));
+        let proxy = tokio::spawn({
+            let heads = Arc::clone(&heads);
+            async move {
+                let (mut challenged, _) = listener.accept().await?;
+                let challenged_head = read_head(&mut challenged).await?;
+                first_seen_tx
+                    .send(())
+                    .map_err(|()| "first-request signal receiver dropped")?;
+                release_challenge_rx.await?;
+                challenged
+                    .write_all(
+                        b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                          Proxy-Authenticate: Basic realm=forward\r\n\
+                          Content-Length: 0\r\n\r\n",
+                    )
+                    .await?;
+                // Answer every later request with 204, recording the
+                // connection that carried it; the sibling may queue for the
+                // challenged connection or open its own.
+                tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
+                let mut connections = 1;
+                while let Ok(accepted) =
+                    timeout(Duration::from_millis(300), listener.accept()).await
+                {
+                    let (stream, _) = accepted?;
+                    tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
+                    connections += 1;
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(challenged_head)
+            }
         });
 
         let identity = TestIdentity::generate()?;
@@ -796,26 +803,58 @@ async fn authenticated_retry_opens_fresh_connection_after_queued_replacement() -
 
         first.await??;
         sibling.await??;
-        let (challenged_head, sibling_head, authenticated_head) = proxy.await??;
+        let challenged_head = proxy.await??;
         assert!(
             challenged_head
                 .starts_with(b"GET http://origin.test/first HTTP/1.1\r\nHost: origin.test\r\n")
         );
-        assert!(
-            sibling_head
-                .starts_with(b"GET http://origin.test/sibling HTTP/1.1\r\nHost: origin.test\r\n")
-        );
-        assert!(!contains_ascii_case_insensitive(
-            &sibling_head,
-            b"proxy-authorization"
-        ));
-        assert!(authenticated_head.starts_with(
+        let heads = heads
+            .lock()
+            .map_err(|_| "proxy head lock was poisoned")?
+            .clone();
+        let on_challenged: Vec<&Vec<u8>> = heads
+            .iter()
+            .filter(|(connection, _)| *connection == 0)
+            .map(|(_, head)| head)
+            .collect();
+        assert!(on_challenged[0].starts_with(
             b"GET http://origin.test/first HTTP/1.1\r\nHost: origin.test\r\n\
               Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n"
         ));
+        let sibling_head = heads
+            .iter()
+            .map(|(_, head)| head)
+            .find(|head| head.starts_with(b"GET http://origin.test/sibling HTTP/1.1\r\n"))
+            .ok_or("the sibling request did not reach the proxy")?;
+        assert!(!contains_ascii_case_insensitive(
+            sibling_head,
+            b"proxy-authorization"
+        ));
+        assert_eq!(heads.len(), 2);
         Ok(())
     })
     .await
+}
+
+/// Request heads a test proxy saw, with the index of the connection that
+/// carried each.
+type ConnectionHeads = Arc<Mutex<Vec<(usize, Vec<u8>)>>>;
+
+/// Answers each request on `stream` with `204`, recording its head.
+async fn answer_no_content(
+    mut stream: TcpStream,
+    connection: usize,
+    heads: ConnectionHeads,
+) -> std::io::Result<()> {
+    loop {
+        let head = read_head(&mut stream).await?;
+        if let Ok(mut heads) = heads.lock() {
+            heads.push((connection, head));
+        }
+        stream
+            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+            .await?;
+    }
 }
 
 #[tokio::test]
@@ -837,7 +876,8 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
                 )
                 .await?;
 
-            let (mut authenticated, _) = listener.accept().await?;
+            // The 407 kept the connection open, so the replay arrives on it.
+            let mut authenticated = anonymous;
             let authenticated_head = read_head(&mut authenticated).await?;
             // Never answer the replay: only the client's deadline ends it.
             let mut rest = Vec::new();
@@ -900,7 +940,8 @@ async fn intermediate_proxy_challenge_does_not_poison_origin_cookies() -> TestRe
                 )
                 .await?;
 
-            let (mut authenticated, _) = listener.accept().await?;
+            // The 407 kept the connection open, so the replay arrives on it.
+            let mut authenticated = anonymous;
             let authenticated_head = read_head(&mut authenticated).await?;
             authenticated
                 .write_all(
@@ -1517,4 +1558,167 @@ fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
     haystack
         .windows(needle.len())
         .any(|window| window.eq_ignore_ascii_case(needle))
+}
+
+/// Sends one forwarded request through a plaintext proxy that answers its
+/// first request with `challenge`, and returns the request heads the proxy
+/// saw on each connection, in accept order.
+///
+/// With `close_after_challenge`, the proxy reads the next request on the
+/// challenged connection and closes it without an answer.
+async fn forward_challenge_connections(
+    challenge: Vec<u8>,
+    close_after_challenge: bool,
+) -> TestResult<Vec<Vec<Vec<u8>>>> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let heads = Arc::new(Mutex::new(Vec::new()));
+    let proxy = tokio::spawn({
+        let heads = Arc::clone(&heads);
+        async move {
+            let (mut challenged, _) = listener.accept().await?;
+            let head = read_head(&mut challenged).await?;
+            if let Ok(mut heads) = heads.lock() {
+                heads.push((0, head));
+            }
+            challenged.write_all(&challenge).await?;
+            challenged.flush().await?;
+            if close_after_challenge {
+                let head = read_head(&mut challenged).await?;
+                if let Ok(mut heads) = heads.lock() {
+                    heads.push((0, head));
+                }
+                drop(challenged);
+            } else {
+                tokio::spawn(answer_no_content(challenged, 0, Arc::clone(&heads)));
+            }
+            let mut connections = 1;
+            while let Ok(accepted) = timeout(Duration::from_millis(300), listener.accept()).await {
+                let (stream, _) = accepted?;
+                tokio::spawn(answer_no_content(stream, connections, Arc::clone(&heads)));
+                connections += 1;
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connections)
+        }
+    });
+
+    let identity = TestIdentity::generate()?;
+    let route = Route::http_proxy(
+        HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+    );
+    let response = client_builder(&identity, false)
+        .route(route)
+        .build()?
+        .get(HttpProtocol::Http1, "http://origin.test/challenged")?
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    response.into_body().collect().await?;
+    let connections = proxy.await??;
+    let heads = heads
+        .lock()
+        .map_err(|_| "proxy head lock was poisoned")?
+        .clone();
+    Ok((0..connections)
+        .map(|connection| {
+            heads
+                .iter()
+                .filter(|(index, _)| *index == connection)
+                .map(|(_, head)| head.clone())
+                .collect()
+        })
+        .collect())
+}
+
+const FORWARD_ANONYMOUS: &[u8] =
+    b"GET http://origin.test/challenged HTTP/1.1\r\nHost: origin.test\r\n\r\n";
+const FORWARD_AUTHENTICATED: &[u8] = b"GET http://origin.test/challenged HTTP/1.1\r\n\
+    Host: origin.test\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n\r\n";
+
+fn forward_challenge(fields_and_body: &[u8]) -> Vec<u8> {
+    [
+        &b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+           Proxy-Authenticate: Basic realm=forward\r\n"[..],
+        fields_and_body,
+    ]
+    .concat()
+}
+
+#[tokio::test]
+async fn keep_alive_forward_challenge_costs_one_proxy_connection() -> TestResult<()> {
+    bounded(async {
+        for fields_and_body in [
+            &b"Content-Length: 0\r\n\r\n"[..],
+            b"Content-Type: text/html\r\nContent-Length: 11\r\n\r\n<p>deny</p>",
+            b"Transfer-Encoding: chunked\r\n\r\n4\r\ndeny\r\n0\r\n\r\n",
+        ] {
+            let connections =
+                forward_challenge_connections(forward_challenge(fields_and_body), false).await?;
+            assert_eq!(
+                connections,
+                [vec![
+                    FORWARD_ANONYMOUS.to_vec(),
+                    FORWARD_AUTHENTICATED.to_vec()
+                ]],
+                "{}",
+                String::from_utf8_lossy(fields_and_body)
+            );
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn closing_or_oversized_forward_challenge_costs_a_second_proxy_connection() -> TestResult<()>
+{
+    bounded(async {
+        let mut oversized = format!(
+            "Content-Length: {}\r\n\r\n",
+            phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES + 1
+        )
+        .into_bytes();
+        oversized.resize(
+            oversized.len() + phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES + 1,
+            b'x',
+        );
+        for fields_and_body in [
+            &b"Connection: close\r\nContent-Length: 0\r\n\r\n"[..],
+            b"Proxy-Connection: close\r\nContent-Length: 0\r\n\r\n",
+            &oversized,
+        ] {
+            let connections =
+                forward_challenge_connections(forward_challenge(fields_and_body), false).await?;
+            assert_eq!(
+                connections,
+                [
+                    vec![FORWARD_ANONYMOUS.to_vec()],
+                    vec![FORWARD_AUTHENTICATED.to_vec()]
+                ],
+            );
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn forward_replay_moves_to_a_new_connection_when_the_proxy_closes_the_challenged_one()
+-> TestResult<()> {
+    bounded(async {
+        let connections =
+            forward_challenge_connections(forward_challenge(b"Content-Length: 0\r\n\r\n"), true)
+                .await?;
+        // The replay reached the challenged connection, which the proxy
+        // closed; it is sent once more on a new one without a retry policy.
+        assert_eq!(
+            connections,
+            [
+                vec![FORWARD_ANONYMOUS.to_vec(), FORWARD_AUTHENTICATED.to_vec()],
+                vec![FORWARD_AUTHENTICATED.to_vec()]
+            ],
+        );
+        Ok(())
+    })
+    .await
 }

@@ -272,23 +272,31 @@ fn head_names(head: &str) -> TestResult<(String, Vec<String>)> {
     Ok((request_line, names))
 }
 
-/// Answers the first forwarded request with a Basic `407` on one proxy
-/// connection, then the replay and one more request with `204` on a second.
+/// Answers the first forwarded request with a Basic `407`, then the replay and
+/// one more request with `204`, all on one proxy connection, as in the
+/// captures.
 async fn challenge_then_accept(listener: TcpListener) -> TestResult<Vec<String>> {
     let mut heads = Vec::new();
-    let (mut first, _) = listener.accept().await?;
-    heads.push(String::from_utf8(read_head(&mut first).await?)?);
-    first
+    let (mut stream, _) = listener.accept().await?;
+    heads.push(String::from_utf8(read_head(&mut stream).await?)?);
+    stream
         .write_all(
-            b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-Proxy-Authenticate: Basic realm=\"phantom-capture\"\r\nContent-Length: 0\r\n\r\n",
+            b"HTTP/1.1 407 Proxy Authentication Required
+Proxy-Authenticate: Basic realm=\"phantom-capture\"
+Content-Length: 0
+
+",
         )
         .await?;
-    let (mut second, _) = listener.accept().await?;
     for _ in 0..2 {
-        heads.push(String::from_utf8(read_head(&mut second).await?)?);
-        second
-            .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+        heads.push(String::from_utf8(read_head(&mut stream).await?)?);
+        stream
+            .write_all(
+                b"HTTP/1.1 204 No Content
+Content-Length: 0
+
+",
+            )
             .await?;
     }
     Ok(heads)

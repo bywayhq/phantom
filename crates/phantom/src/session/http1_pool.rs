@@ -1,15 +1,22 @@
 use std::{
     collections::VecDeque,
+    future::poll_fn,
     num::NonZeroUsize,
+    pin::Pin,
     sync::{Arc, MutexGuard, OnceLock, PoisonError},
 };
 
-use http::Method;
-use phantom_net::http1::{
-    AbsoluteForm, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm, RequestHeader,
-    validate_forward_request_body_source_with_trailers, validate_request_body_source_with_trailers,
+use http::{
+    HeaderMap, Method,
+    header::{CONNECTION, HeaderName},
 };
-use phantom_net::proxy::HttpsProxyConnector;
+use http_body::Body as _;
+use phantom_net::http1::{
+    AbsoluteForm, Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm,
+    RequestHeader, validate_forward_request_body_source_with_trailers,
+    validate_request_body_source_with_trailers,
+};
+use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -85,6 +92,7 @@ impl Http1Pool {
         body: Option<RequestBody>,
         forward_authorization: bool,
         fresh_connection: bool,
+        mut challenged: Option<&mut ChallengedConnection>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
@@ -132,29 +140,42 @@ impl Http1Pool {
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }
-        let key = PoolKey::new(endpoint, route, mode);
-        let entry = self.entry(key).await;
-        let permit = timeout_budget
-            .run(
-                TimeoutPhase::PoolAdmission,
-                Some(HttpProtocol::Http1),
-                entry.admit(),
-            )
-            .await?;
-        let mut lease =
-            acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
-                entry
-                    .acquire(
-                        connector,
-                        https_proxy,
-                        endpoint,
-                        route,
-                        mode,
-                        fresh_connection,
-                    )
-                    .await
-            })
-            .await?;
+        let held = challenged
+            .as_mut()
+            .and_then(|slot| slot.held.take())
+            .filter(|_| !fresh_connection);
+        let (mut lease, permit) = if let Some(held) = held {
+            debug!(
+                outcome = "authentication_retry",
+                "HTTP/1 challenged proxy connection reused"
+            );
+            (held.lease, held.permit)
+        } else {
+            let key = PoolKey::new(endpoint, route, mode);
+            let entry = self.entry(key).await;
+            let permit = timeout_budget
+                .run(
+                    TimeoutPhase::PoolAdmission,
+                    Some(HttpProtocol::Http1),
+                    entry.admit(),
+                )
+                .await?;
+            let lease =
+                acquire_with_retries(HttpProtocol::Http1, timeout_budget, retries, || async {
+                    entry
+                        .acquire(
+                            connector,
+                            https_proxy,
+                            endpoint,
+                            route,
+                            mode,
+                            fresh_connection,
+                        )
+                        .await
+                })
+                .await?;
+            (lease, permit)
+        };
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,
@@ -191,10 +212,42 @@ impl Http1Pool {
                         .is_some()
                     && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
                 {
+                    let (parts, mut body) = response.into_parts();
+                    if let Some(slot) = challenged {
+                        let drained = timeout_budget
+                            .run(
+                                TimeoutPhase::ResponseHead,
+                                Some(HttpProtocol::Http1),
+                                async { Ok(drain_challenge(&mut body).await) },
+                            )
+                            .await;
+                        if drained.is_ok_and(|drained| drained)
+                            && !has_close_token(&parts.headers)
+                            && lease.connection.is_reusable()
+                        {
+                            // The replay takes this connection and admission, so
+                            // no other request can use the connection in between.
+                            slot.held = Some(HeldConnection { lease, permit });
+                            return Ok(http::Response::from_parts(
+                                parts,
+                                ResponseBody::http1(body),
+                            ));
+                        }
+                    }
                     // A zero-length 407 may already have released its transport
                     // lease as reusable. Retire the generation before exposing
                     // the response so an authentication retry must reconnect.
                     lease.retire();
+                    return Ok(http::Response::from_parts(
+                        parts,
+                        ResponseBody::http1_with_guard(
+                            body,
+                            RequestGuard {
+                                _lease: lease,
+                                _permit: permit,
+                            },
+                        ),
+                    ));
                 }
                 let (parts, body) = response.into_parts();
                 Ok(http::Response::from_parts(
@@ -247,6 +300,68 @@ impl Http1Pool {
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
+}
+
+/// A forward-proxy connection kept after a `407`, for the credentialed replay
+/// of the same request.
+///
+/// The connection keeps its admission permit while it waits, so the replay
+/// neither queues again nor finds the connection taken by another request.
+/// Dropping the slot returns a reusable connection to the idle list.
+#[derive(Default)]
+pub(crate) struct ChallengedConnection {
+    held: Option<HeldConnection>,
+}
+
+impl ChallengedConnection {
+    /// Whether a challenged connection waits for the replay.
+    pub(crate) const fn is_held(&self) -> bool {
+        self.held.is_some()
+    }
+}
+
+/// Fields drop in declaration order, so the connection returns to the idle
+/// list before the admission permit lets the next request in.
+struct HeldConnection {
+    lease: ConnectionLease,
+    permit: AdmissionPermit,
+}
+
+/// Reads a `407` body to its end, up to [`MAX_CHALLENGE_BODY_BYTES`], and
+/// reports whether it ended.
+///
+/// A body that ends leaves its connection at the start of the next response,
+/// as Chromium's `HttpNetworkTransaction::PrepareForAuthRestart` requires
+/// before it reuses the connection for the replay.
+async fn drain_challenge(body: &mut Http1Body) -> bool {
+    let mut received = 0_usize;
+    loop {
+        match poll_fn(|context| Pin::new(&mut *body).poll_frame(context)).await {
+            None => return true,
+            Some(Err(_)) => return false,
+            Some(Ok(frame)) => {
+                if let Some(data) = frame.data_ref() {
+                    received = received.saturating_add(data.len());
+                    if received > MAX_CHALLENGE_BODY_BYTES {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Reports a `close` token in `Connection` or `Proxy-Connection`.
+///
+/// Both browsers close a connection whose response names `close` in either
+/// field; the transport checks only `Connection`.
+fn has_close_token(headers: &HeaderMap) -> bool {
+    [CONNECTION, HeaderName::from_static("proxy-connection")]
+        .iter()
+        .flat_map(|name| headers.get_all(name))
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .any(|token| token.trim().eq_ignore_ascii_case("close"))
 }
 
 #[derive(Default)]

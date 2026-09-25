@@ -26,8 +26,10 @@ use super::{
     template::{ForwardedCredentials, Forwarding},
 };
 use crate::session::{
-    client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
-    http1_pool::Http1ConnectionMode, http2_pool::Http2ConnectionMode,
+    client_hints::ClientHintContext,
+    http1_or_2_pool::NegotiatedLease,
+    http1_pool::{ChallengedConnection, Http1ConnectionMode},
+    http2_pool::Http2ConnectionMode,
     http3_pool::Http3TransportTarget,
 };
 
@@ -118,6 +120,9 @@ async fn send_once_exact(
     }
     let client_hint_origin = client_hint_origin(client, request);
     let mut fresh_connection = false;
+    // An H1 forwarding `407` that leaves its proxy connection open parks the
+    // connection here for the credentialed replay.
+    let mut challenged_connection = ChallengedConnection::default();
     let forwarded = route.forwards(&request.uri);
     let credentials_field = forward_authentication
         .as_ref()
@@ -151,6 +156,8 @@ async fn send_once_exact(
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
         }
+        let replays_on_challenged =
+            challenged && challenged_connection.is_held() && !fresh_connection;
         let dispatched = dispatch_attempt(
             client,
             request,
@@ -164,10 +171,13 @@ async fn send_once_exact(
             None,
             Http1Connect {
                 forward_authorization: sends_forward_credentials,
-                // The single retry after an H1 forwarding challenge opens a
-                // new proxy connection; a request that sends remembered
+                // The single retry after an H1 forwarding challenge uses the
+                // challenged proxy connection when the `407` left it open,
+                // and a new one otherwise; a request that sends remembered
                 // credentials first reuses a pooled one.
-                fresh_connection: std::mem::take(&mut fresh_connection) || challenged,
+                fresh_connection: std::mem::take(&mut fresh_connection)
+                    || (challenged && !challenged_connection.is_held()),
+                challenged: Some(&mut challenged_connection),
             },
             timeout_budget,
             retries,
@@ -176,6 +186,20 @@ async fn send_once_exact(
         let dispatched = match dispatched {
             Ok(dispatched) => dispatched,
             Err(error) => {
+                // A proxy that closes the challenged connection before it
+                // answers the replay gets the replay once on a new connection,
+                // as Chromium's `HttpNetworkTransaction` sends it. This belongs
+                // to the authentication replay and needs no retry policy.
+                if replays_on_challenged
+                    && error.is_reused_connection_close()
+                    && matches!(
+                        body,
+                        RequestBodySource::Absent | RequestBodySource::Bytes(_)
+                    )
+                {
+                    fresh_connection = true;
+                    continue;
+                }
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_connection = true;
                     continue;
@@ -732,6 +756,7 @@ pub(super) async fn dispatch(
         Http1Connect {
             forward_authorization,
             fresh_connection: false,
+            challenged: None,
         },
         timeout_budget,
         retries,
@@ -740,13 +765,15 @@ pub(super) async fn dispatch(
 }
 
 /// HTTP/1 pool connection choices for one attempt; H3 ignores them.
-#[derive(Clone, Copy)]
-struct Http1Connect {
+struct Http1Connect<'a> {
     /// Whether the forwarded fields already carry the route's credentials;
     /// otherwise the pool checks the authenticated replay before I/O.
     forward_authorization: bool,
     /// Retires the pooled connection and opens a new one.
     fresh_connection: bool,
+    /// Holds a forwarding connection challenged with `407` for the replay,
+    /// when the caller can replay the request.
+    challenged: Option<&'a mut ChallengedConnection>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -761,7 +788,7 @@ async fn dispatch_attempt(
     body: Option<RequestBody>,
     route: &Route,
     http3_transport: Option<Http3TransportTarget<'_>>,
-    http1_connect: Http1Connect,
+    http1_connect: Http1Connect<'_>,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
 ) -> Result<DispatchOutcome, RequestError> {
@@ -806,6 +833,7 @@ async fn dispatch_attempt(
                     body,
                     http1_connect.forward_authorization,
                     http1_connect.fresh_connection,
+                    http1_connect.challenged,
                     timeout_budget,
                     retries,
                 )
