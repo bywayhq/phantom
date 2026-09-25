@@ -87,9 +87,8 @@ over the same route when all of these hold:
 
 Chrome 154 restarts such a request once on a new connection
 ([evidence](../explanation/validation.md#sse-browser-reconnect-evidence)); it
-may already have reached the origin, so this replay is opt-in. A [proxy
-authentication replay](../explanation/design.md#proxy-authentication) needs
-no policy but keeps the method rule; Chromium resends any method.
+may already have reached the origin, so this replay is opt-in. A [proxy auth
+replay](../explanation/design.md#proxy-authentication) keeps the method rule.
 
 ## Replay a request the server did not process
 
