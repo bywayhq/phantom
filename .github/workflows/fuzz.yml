@@ -84,6 +84,8 @@ jobs:
             max_len: 65536
           - target: cookie_jar
             max_len: 16384
+          - target: cookie_snapshot
+            max_len: 16384
           # 16 KiB, not the 64 KiB the other peer-facing targets use: the
           # response-head observer and the protocol engine each reparse their
           # buffered head on every read, bounded by MAX_RESPONSE_HEAD_BYTES
@@ -97,6 +99,9 @@ jobs:
             max_len: 65536
           - target: http2_frame
             max_len: 262144
+          # A DNS message over TCP is at most 65,535 bytes.
+          - target: https_record
+            max_len: 65536
           - target: proxy_basic_challenge
             max_len: 16384
           - target: quic_transport_parameters

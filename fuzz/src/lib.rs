@@ -8,5 +8,7 @@
 
 pub mod alt_svc_snapshot;
 pub mod cookie_jar;
+pub mod cookie_snapshot;
 pub mod http1_response;
+pub mod https_record;
 pub mod seed;

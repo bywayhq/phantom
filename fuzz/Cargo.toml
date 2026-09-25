@@ -13,7 +13,7 @@ http = "1.4.0"
 http-body = "1.0.1"
 libfuzzer-sys = "=0.4.13"
 phantom = { package = "phantom-http", version = "=0.1.0", path = "../crates/phantom", features = ["cookies"] }
-phantom-net = { path = "../crates/phantom-net" }
+phantom-net = { path = "../crates/phantom-net", features = ["https-records"] }
 phantom-testkit = { path = "../crates/phantom-testkit" }
 quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.1", path = "../vendor/quinn-proto", default-features = false }
 tokio = { version = "1.53.1", default-features = false, features = ["rt", "time"] }
@@ -68,8 +68,22 @@ doc = false
 bench = false
 
 [[bin]]
+name = "cookie_snapshot"
+path = "fuzz_targets/cookie_snapshot.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "alt_svc_snapshot"
 path = "fuzz_targets/alt_svc_snapshot.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "https_record"
+path = "fuzz_targets/https_record.rs"
 test = false
 doc = false
 bench = false

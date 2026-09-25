@@ -1151,7 +1151,17 @@ in `crates/phantom/src/session/alt_svc/https_records/tests.rs` cover the
 record selection rules, one shared lookup for concurrent requests, expiry,
 the capacity bound, remembered failures, and IP-literal origins. Unit tests in
 `crates/phantom-net/src/dns/tests.rs` cover the RFC 9460 RDATA parser,
-including malformed records, and the shape of each query.
+including malformed records, the shape of each query, and the owner check
+below. The `https_record` fuzz target feeds arbitrary DNS responses and RDATA
+through the same extraction and parser.
+
+A response whose HTTPS answers are not all owned by the end of the query
+name's CNAME chain fails the lookup, as Chromium's `ValidateNamesAndAliases`
+(`net/dns/dns_response_result_extractor.cc` lines 152-195) fails it. hickory
+returns the whole answer section once any record in it answers the question,
+so without this check a record for another name could decide whether `h3`
+is advertised. A test with a raw loopback responder shows hickory passing
+such a record through.
 
 The selection rules follow Chromium's source at 154.0.8037.58:
 `ExtractHttpsResults` (`net/dns/dns_response_result_extractor.cc` lines
@@ -1569,8 +1579,11 @@ HTTP/2 receive bounds have raw-peer regressions in
 
 The [parser fuzzing workflow](../../.github/workflows/fuzz.yml) runs each
 target under AddressSanitizer. The targets are the test-kit ClientHello and
-H2 frame decoders, Quinn transport parameters, and the production HTTP
-CONNECT response and proxy Basic challenge parsers. The workflow runs for 15
+H2 frame decoders, Quinn transport parameters, and these production paths:
+HTTP/1.1 responses, HTTP CONNECT responses, proxy Basic challenges, cookie
+storage, cookie and Alt-Svc snapshot import, and HTTPS DNS record
+extraction. [`fuzz/README.md`](../../fuzz/README.md) lists each target's
+entry point and the invariants it asserts. The workflow runs for 15
 seconds on relevant pull requests and pushes, and for 300 seconds on its
 weekly schedule or a manual dispatch. Every run starts from the newest
 per-target corpus in the GitHub Actions cache, and only scheduled runs save a

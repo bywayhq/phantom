@@ -16,7 +16,9 @@ WebSocket engines.
 | `http_connect_response` | HTTP CONNECT proxy response heads (production) | `connect_http_tunnel` over an in-memory stream |
 | `proxy_basic_challenge` | `Proxy-Authenticate` challenge lists (production) | `validate_basic_proxy_challenge` |
 | `cookie_jar` | `Set-Cookie` storage and `Cookie` construction (production) | `CookieJar::set_cookie` and `CookieJar::request_value` |
+| `cookie_snapshot` | Caller-persisted cookie entries (production) | `Client::import_cookies` |
 | `alt_svc_snapshot` | Caller-persisted Alt-Svc entries (production) | `Client::import_alt_svc` |
+| `https_record` | DNS responses and HTTPS record RDATA (production) | `dns::https_answers_from_message` and `HttpsRecord::from_rdata` |
 
 `client_hello` and `http2_frame` decode test-kit captures, not the bytes a
 peer sends Phantom; they check the evidence tooling, not a peer-facing parser.
@@ -33,9 +35,11 @@ cd fuzz
 cargo +nightly fuzz run alt_svc_snapshot -- -max_len=16384
 cargo +nightly fuzz run client_hello -- -max_len=65536
 cargo +nightly fuzz run cookie_jar -- -max_len=16384
+cargo +nightly fuzz run cookie_snapshot -- -max_len=16384
 cargo +nightly fuzz run http1_response -- -max_len=16384
 cargo +nightly fuzz run http_connect_response -- -max_len=65536
 cargo +nightly fuzz run http2_frame -- -max_len=262144
+cargo +nightly fuzz run https_record -- -max_len=65536
 cargo +nightly fuzz run proxy_basic_challenge -- -max_len=16384
 cargo +nightly fuzz run quic_transport_parameters -- -max_len=65536
 ```
@@ -111,11 +115,28 @@ Each jar is read back over the scheme it was filled from, because a
 `Partitioned` cookie's key is schemeful; the seed carries a `Partitioned`
 field so the fuzzer reaches that path.
 
+`cookie_snapshot` covers the import path `cookie_jar` does not: entries a
+caller persisted and hands back through `Client::import_cookies`. It asserts
+that a rejected snapshot leaves the jar empty, that no stored `Secure` cookie
+has an `http` source scheme unless its host is loopback or `localhost`, and
+that an exported snapshot imports again to the same number of cookies.
+
+`https_record` decodes its input as a DNS response with hickory's parser and
+runs the answer extraction that `HttpsRecordResolver::lookup` runs: the
+CNAME-chain owner check, hickory's RDATA re-encoding, and Phantom's RFC 9460
+parser. It also parses the raw input as one record's RDATA. Every record that
+parses must keep the RFC 9460 rules the parser promises, such as strictly
+increasing keys and every `mandatory` key present, and all answers of one
+lookup must share one owner. `dns::https_answers_from_message` is a hidden
+fuzzing seam, not supported API. The facade's choice of `h3` from the records
+and its one-day TTL cap are private to `phantom` and not reached; nor is the
+resolver's own response handling, such as ID matching and follow-up queries.
+
 ## Where a check belongs
 
-`alt_svc_snapshot`, `cookie_jar`, and `http1_response` keep their harness,
-their seeds, and their fixed-threshold checks in `src/`, and their
-`fuzz_targets/` binaries are wrappers. A seed that stops parsing then fails
+`alt_svc_snapshot`, `cookie_jar`, `cookie_snapshot`, `http1_response`, and
+`https_record` keep their harness, their seeds, and their fixed-threshold
+checks in `src/`, and their `fuzz_targets/` binaries are wrappers. A seed that stops parsing then fails
 `cargo test --manifest-path fuzz/Cargo.toml`, which the lint job runs on the
 project toolchain, rather than silently weakening every fuzz iteration. A
 check that only ever sees one fixed input belongs there and not in the fuzz
