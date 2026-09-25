@@ -830,9 +830,16 @@ Request templates:
   H1 fields on each side of it agree with the `set-cookie-then-close`
   EventSource reconnect captures: last for the Chrome templates, and after
   `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch` template.
-  Those captured requests are EventSource reconnects, and no H2 or H3 capture
-  carries a cookie. The navigation, H2, and H3 positions come from browser
-  source.
+  The [cookie crumb captures](../explanation/validation.md#cookie-crumb-evidence)
+  show the same neighbors on a navigation and a `fetch()` over H1, H2, and
+  H3: last or before `priority` for Chrome and Edge, and after `Referer` for
+  Firefox, before `Upgrade-Insecure-Requests` on a navigation and
+  `Sec-Fetch-Dest` on a `fetch()`.
+- On H2, the Chromium and Firefox recipes split the `cookie` field into one
+  field per cookie and encode each crumb as the captured browser does, apart
+  from Firefox's choice of name index once a crumb is in the dynamic table.
+  On H3, the Chromium recipe splits it and its QPACK bytes equal Chrome's and
+  Edge's ([Cookie crumbs](profiles.md#cookie-crumbs)).
 
 Randomized fields:
 

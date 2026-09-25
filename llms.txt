@@ -18,6 +18,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - Requests need a Tokio runtime with I/O and time enabled.
 - Cargo features `cookies`, `https-records` (HTTP/3 discovery from HTTPS DNS records, and for the Chrome 154 recipe Encrypted Client Hello from them, which can hold a direct TLS handshake up to 50 ms), `sse`, `websocket`, `websocket-deflate`, and `serde` (cookie-jar snapshots, with `cookies`) are off by default; `full` enables all of them. `diagnostics` (TLS key log and QUIC qlog files) is also off by default and not part of `full`, because a key log decrypts the client's traffic.
 - A cookie snapshot from `Client::export_cookies` holds cookie values, which are credentials. `Client::import_cookies` rejects the whole snapshot if one entry is invalid, and never replaces a cookie the jar already holds.
+- The Chromium HTTP/2 and HTTP/3 recipes and the Firefox HTTP/2 recipe split every `cookie` field, yours included, into one field per cookie and choose how each is compressed. `RequestHeader::sensitive` on a `cookie` field then only hides it from `Debug` output.
 - Read a response body to the end, or with `collect_with_limit`, when you want the connection reused.
 
 ## Start

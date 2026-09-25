@@ -240,6 +240,42 @@ template and caller fields, not client hints, which are added afterward.
 | `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/1.1 | Last |
 | `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/2 and HTTP/3 | Before the final `priority` |
 
+### Cookie crumbs
+
+On HTTP/2 and HTTP/3 a browser may split the `cookie` field into one field
+per cookie, called crumbs (RFC 9113 section 8.2.3, RFC 9114 section 4.2.1).
+The crumbs stay at the field's position, in the field's order. The HTTP/2
+rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
+`Http3RequestSettings::cookie_crumbs`. Both default to `Whole`, one field.
+
+| Recipe | Protocol | Split | Each crumb |
+| --- | --- | --- | --- |
+| `chromium::v154_http2` | HTTP/2 | At `;`, skipping one space (`IndexAll`) | Inserted into the HPACK table, then sent as an index |
+| `firefox::v156_http2` | HTTP/2 | At `"; "` (`NeverIndexShort`) | Under 20 bytes: never-indexed literal; otherwise inserted, then an index |
+| `chromium::v154_http3_request` | HTTP/3 | At `;`, skipping one space (`Split`) | Encoded like any other field; under the recipe's dynamic QPACK policy, inserted and then referenced |
+
+- The rule applies to every `cookie` field on the connection: the jar's, one
+  you supply, and, on HTTP/2, one in a WebSocket opening.
+- While crumbs are sent, the rule chooses each crumb's representation.
+  `RequestHeader::sensitive` on a `cookie` field then only hides its value
+  from `Debug` output. With `Whole`, a sensitive field is a never-indexed
+  literal, as the jar's field always is.
+- Indexed crumbs are exposed to the HPACK and QPACK compression side
+  channel; `Whole` avoids it at the cost of browser parity. See
+  [Design](../explanation/design.md#cookie-crumbs-and-compression).
+- On HTTP/2 a crumb whose table entry (name, value, and 32 bytes) exceeds
+  three quarters of the table, 3,072 bytes with the default 4,096, is sent
+  as a literal without indexing. Chromium inserts it anyway, evicting older
+  entries or, when it exceeds the whole table, emptying it. Firefox stops
+  indexing at half the table.
+- HTTP/3 crumbs are not marked sensitive inside Phantom, so a crumb's
+  internal `http::HeaderValue` would print in `Debug` output. The prepared
+  request never leaves `phantom-net`, and Phantom logs no field values.
+- The count and size limits on request fields apply to the fields as you
+  supply them, before the split.
+- Firefox 156 does not split `cookie` over HTTP/3; Phantom has no Firefox
+  HTTP/3 recipe.
+
 ### Client hints in templates
 
 A template sends only the hints the profile would send anyway: the default

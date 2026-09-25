@@ -94,14 +94,13 @@ anything does.
 - Resend on the same connection after a server rejects early data. Evidence:
   the Chrome 154, Edge 153, and Firefox 156 captures resend every request in
   1-RTT on that connection; Phantom opens a new one. Status: in progress.
-- Cookie crumbling: one `cookie` field per cookie on HTTP/2 and HTTP/3.
-  Evidence: browser source (quiche `HpackEncoder::CookieToCrumbs`, Firefox
-  `Http2Compressor`). Blocker: a vendored encoder patch and a two-cookie
-  capture.
 - TLS resumption over TCP. Evidence: none; the QUIC side is proved.
   Blocker: a capture of a resumed TCP ClientHello.
 - Per-profile HPACK indexing for WebSocket openings and ordinary requests.
-  Evidence: the [WebSocket captures](explanation/validation.md#websocket-browser-evidence).
+  Evidence: the [WebSocket captures](explanation/validation.md#websocket-browser-evidence),
+  and the [cookie crumb captures](explanation/validation.md#cookie-crumb-evidence),
+  where Firefox names a crumb with the oldest dynamic `cookie` entry and
+  Phantom names static entry 32 or the newest dynamic entry.
   Blocker: the vendored `http2` encoder chooses every representation itself
   and keeps one dynamic table per connection.
 - HPACK indexing of `proxy-authorization`. Evidence: the
