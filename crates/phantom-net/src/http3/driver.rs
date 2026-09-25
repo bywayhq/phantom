@@ -36,6 +36,8 @@ pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Tran
 pub(super) struct EarlyAnswer {
     pub(super) accepted: quinn::ZeroRttAccepted,
     pub(super) gate: watch::Sender<Option<bool>>,
+    #[cfg(test)]
+    pub(super) gate_delay: Option<super::GateDelay>,
     pub(super) answer: oneshot::Sender<bool>,
     pub(super) replacement: oneshot::Receiver<ClientDriver>,
 }
@@ -151,12 +153,30 @@ async fn drive(
                 && let Poll::Ready(accepted) = Pin::new(&mut pending.accepted).poll(context)
                 && let Some(EarlyAnswer {
                     gate,
+                    #[cfg(test)]
+                    gate_delay,
                     answer,
                     replacement,
                     ..
                 }) = early.take()
             {
-                gate.send_replace(Some(accepted));
+                #[cfg(test)]
+                let gate = match gate_delay {
+                    Some(delay) => {
+                        let delay = delay.next();
+                        drop(tokio::spawn(async move {
+                            tokio::time::sleep(delay).await;
+                            gate.send_replace(Some(accepted));
+                        }));
+                        None
+                    }
+                    None => Some(gate),
+                };
+                #[cfg(not(test))]
+                let gate = Some(gate);
+                if let Some(gate) = gate {
+                    gate.send_replace(Some(accepted));
+                }
                 let _ = answer.send(accepted);
                 if !accepted {
                     return Poll::Ready(DriveStep::Rejected(replacement));

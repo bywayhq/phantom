@@ -26,7 +26,7 @@ const RELAY_DELAY: Duration = Duration::from_millis(150);
 
 pub(super) type Served = Arc<Mutex<Vec<String>>>;
 
-fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
+pub(super) fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     trusting_connector_with(identity, &chromium::v154_http3())
 }
 
@@ -112,7 +112,7 @@ pub(super) fn spawn_h3_server(endpoint: quinn::Endpoint, served: Served) -> Join
 
 /// Forwards one client's datagrams to `server` at once and the server's
 /// replies after [`RELAY_DELAY`].
-async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+pub(super) async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
     let front = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
     let back = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     back.connect(server).await?;
@@ -144,7 +144,10 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
     Ok((address, task))
 }
 
-async fn connect(connector: &Http3Connector, address: SocketAddr) -> TestResult<Http3Connection> {
+pub(super) async fn connect(
+    connector: &Http3Connector,
+    address: SocketAddr,
+) -> TestResult<Http3Connection> {
     Ok(timeout(
         TEST_TIMEOUT,
         connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
@@ -153,7 +156,7 @@ async fn connect(connector: &Http3Connector, address: SocketAddr) -> TestResult<
     .map_err(|_| "HTTP/3 connection timed out")??)
 }
 
-async fn wait_for_ticket(connector: &Http3Connector) -> TestResult<()> {
+pub(super) async fn wait_for_ticket(connector: &Http3Connector) -> TestResult<()> {
     timeout(TEST_TIMEOUT, async {
         while !connector.has_ticket_for(TEST_SERVER_NAME) {
             tokio::time::sleep(Duration::from_millis(5)).await;
@@ -163,7 +166,7 @@ async fn wait_for_ticket(connector: &Http3Connector) -> TestResult<()> {
     .map_err(|_| "no session ticket arrived".into())
 }
 
-async fn send(
+pub(super) async fn send(
     connector: &Http3Connector,
     connection: &Http3Connection,
     method: Method,
@@ -473,12 +476,12 @@ async fn a_request_that_is_not_replay_safe_waits_for_the_handshake() -> TestResu
 }
 
 /// Paths served by [`spawn_counting_server`], each with its connection's index.
-type ServedOn = Arc<Mutex<Vec<(usize, String)>>>;
+pub(super) type ServedOn = Arc<Mutex<Vec<(usize, String)>>>;
 
 /// Serves `200` on one connection per entry of `field_section_limits`, each
 /// advertising that `SETTINGS_MAX_FIELD_SECTION_SIZE`, and records every
 /// served path with the index of its connection.
-fn spawn_counting_server(
+pub(super) fn spawn_counting_server(
     endpoint: quinn::Endpoint,
     field_section_limits: Vec<u64>,
 ) -> (JoinHandle<()>, ServedOn) {
@@ -526,7 +529,7 @@ fn spawn_counting_server(
     (task, recorded)
 }
 
-fn unprocessed(error: &(dyn std::error::Error + 'static)) -> Option<Http3Unprocessed> {
+pub(super) fn unprocessed(error: &(dyn std::error::Error + 'static)) -> Option<Http3Unprocessed> {
     error
         .downcast_ref::<Http3ConnectorError>()
         .and_then(std::error::Error::source)
@@ -591,291 +594,6 @@ async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResu
 
     drop((connection, again, post));
     relay_task.abort();
-    server.abort();
-    Ok(())
-}
-
-/// A request stream is opened on an early session only while the handshake
-/// runs or after the server accepted the early data. Between the completed
-/// handshake and the published answer, opening waits; after a rejection it
-/// fails without allocating a stream, so the session that replaces it
-/// numbers its streams from 0.
-#[tokio::test(flavor = "current_thread")]
-async fn an_early_session_opens_no_stream_between_the_handshake_and_the_answer() -> TestResult<()> {
-    use std::future::poll_fn;
-
-    use h3::quic::{OpenStreams as _, SendStream as _};
-
-    use super::super::early_streams::Transport;
-
-    let identity = TestIdentity::generate()?;
-    let served = Served::default();
-    let connector = trusting_connector(&identity)?;
-    let endpoint = quinn::Endpoint::server(
-        server_config(&identity, false)?,
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?;
-    let address = endpoint.local_addr()?;
-    let server = spawn_h3_server(endpoint, served);
-    let connection = connect(&connector, address).await?;
-    let quinn = connection.quinn().clone();
-    assert!(quinn.handshake_data().is_some());
-
-    let (answer, outcome) = tokio::sync::watch::channel(None);
-    let transport = Transport::early(quinn.clone(), outcome.clone());
-    let mut rejected = quic_opener(&transport);
-    let waiting = timeout(
-        Duration::from_millis(100),
-        poll_fn(|cx| rejected.poll_open_bidi(cx)),
-    )
-    .await;
-    assert!(waiting.is_err(), "a stream opened before the answer");
-    answer.send_replace(Some(false));
-    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| rejected.poll_open_bidi(cx))).await?;
-    assert!(refused.is_err(), "the discarded session opened a stream");
-    let (_send, _recv) = quinn.open_bi().await?;
-    assert_eq!(
-        u64::from(_send.id()),
-        0,
-        "the refused open allocated a stream"
-    );
-
-    let (answer, outcome) = tokio::sync::watch::channel(None);
-    let transport = Transport::early(quinn.clone(), outcome);
-    let mut accepted = quic_opener(&transport);
-    answer.send_replace(Some(true));
-    let stream = timeout(TEST_TIMEOUT, poll_fn(|cx| accepted.poll_open_bidi(cx))).await??;
-    assert_eq!(stream.send_id().into_inner(), 4);
-
-    // An answer channel that closes unanswered refuses at once.
-    let (answer, outcome) = tokio::sync::watch::channel(None);
-    let transport = Transport::early(quinn.clone(), outcome);
-    let mut closed = quic_opener(&transport);
-    drop(answer);
-    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| closed.poll_open_bidi(cx))).await?;
-    assert!(refused.is_err(), "a closed answer channel opened a stream");
-
-    drop((stream, connection));
-    server.abort();
-    Ok(())
-}
-
-/// A stream whose open raced the handshake's completion is held until the
-/// answer. A rejection resets it unused, and so does dropping the opener
-/// that holds it. Its stream number stays taken: the next stream is the
-/// one after it.
-#[tokio::test(flavor = "current_thread")]
-async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
-    use std::future::poll_fn;
-
-    use h3::quic::{OpenStreams as _, SendStream as _};
-
-    use super::super::early_streams::Transport;
-
-    let identity = TestIdentity::generate()?;
-    let connector = trusting_connector(&identity)?;
-    let endpoint = quinn::Endpoint::server(
-        server_config(&identity, false)?,
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?;
-    let address = endpoint.local_addr()?;
-    // A QUIC server that only holds its connections: an HTTP/3 server would
-    // close the connection over a reset request stream.
-    let server = tokio::spawn(async move {
-        let mut held = Vec::new();
-        while let Some(incoming) = endpoint.accept().await {
-            if let Ok(connection) = incoming.await {
-                held.push(connection);
-            }
-        }
-    });
-    let connection = connect(&connector, address).await?;
-    let quinn = connection.quinn().clone();
-    let plain = Transport::new(quinn.clone());
-    let resets = || quinn.stats().frame_tx.reset_stream;
-    let wait_for_resets = |count: u64| {
-        let quinn = quinn.clone();
-        timeout(TEST_TIMEOUT, async move {
-            while quinn.stats().frame_tx.reset_stream < count {
-                tokio::time::sleep(Duration::from_millis(5)).await;
-            }
-        })
-    };
-
-    let (answer, outcome) = tokio::sync::watch::channel(None);
-    let transport = Transport::early(quinn.clone(), outcome);
-    let mut gated = quic_opener(&transport);
-    let held = timeout(
-        TEST_TIMEOUT,
-        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
-    )
-    .await??;
-    assert_eq!(held.send_id().into_inner(), 0);
-    gated.hold_for_test(held);
-    let before = resets();
-    answer.send_replace(Some(false));
-    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| gated.poll_open_bidi(cx))).await?;
-    assert!(refused.is_err(), "a held stream was used after a rejection");
-    wait_for_resets(before + 1)
-        .await
-        .map_err(|_| "the held stream was not reset")?;
-
-    let (answer, outcome) = tokio::sync::watch::channel(None);
-    let transport = Transport::early(quinn.clone(), outcome);
-    let mut dropped = quic_opener(&transport);
-    let held = timeout(
-        TEST_TIMEOUT,
-        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
-    )
-    .await??;
-    assert_eq!(held.send_id().into_inner(), 4);
-    dropped.hold_for_test(held);
-    drop(dropped);
-    drop(answer);
-    wait_for_resets(before + 2)
-        .await
-        .map_err(|_| "dropping the opener did not reset its stream")?;
-
-    let next = timeout(
-        TEST_TIMEOUT,
-        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
-    )
-    .await??;
-    assert_eq!(next.send_id().into_inner(), 8);
-
-    drop((next, connection));
-    server.abort();
-    Ok(())
-}
-
-/// A request that holds the send lock while it waits for stream credit on
-/// the early session is released by a rejection. It fails as unprocessed
-/// instead of blocking the restart, which needs that lock, and the
-/// connection then carries requests on its new session.
-#[tokio::test(flavor = "current_thread")]
-async fn a_request_waiting_for_stream_credit_does_not_block_a_rejection() -> TestResult<()> {
-    let identity = TestIdentity::generate()?;
-    let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let one_stream = || -> TestResult<quinn::ServerConfig> {
-        let mut config = server_config(&identity, true)?;
-        let mut transport = quinn::TransportConfig::default();
-        transport.max_concurrent_bidi_streams(1_u32.into());
-        config.transport_config(Arc::new(transport));
-        Ok(config)
-    };
-    let endpoint = quinn::Endpoint::server(one_stream()?, (Ipv4Addr::LOCALHOST, 0).into())?;
-    let address = endpoint.local_addr()?;
-    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
-    let learning = connect(&early, address).await?;
-    wait_for_ticket(&early).await?;
-    drop(learning);
-    endpoint.set_server_config(Some(server_config(&identity, false)?));
-
-    let (relay, relay_task) = delaying_relay(address).await?;
-    let connection = connect(&early, relay).await?;
-    assert!(connection.sent_early_data());
-    // The remembered limit of one stream lets the first request open its
-    // stream in 0-RTT; the second holds the send lock while it waits for
-    // credit that only the handshake can bring.
-    let (first, second) = timeout(TEST_TIMEOUT, async {
-        tokio::join!(
-            send(&early, &connection, Method::GET, "/first", None),
-            send(&early, &connection, Method::GET, "/second", None),
-        )
-    })
-    .await
-    .map_err(|_| "the rejection was blocked by a request waiting for stream credit")?;
-    for result in [first, second] {
-        let error = match result {
-            Ok(_) => return Err("rejected early data produced a response".into()),
-            Err(error) => error,
-        };
-        assert_eq!(
-            unprocessed(error.as_ref()),
-            Some(Http3Unprocessed::EarlyDataRejected)
-        );
-    }
-    let again = send(&early, &connection, Method::GET, "/again", None).await?;
-    assert_eq!(again.status(), StatusCode::OK);
-    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
-    assert_eq!(served, [(1, "/again".to_owned())]);
-
-    drop((again, connection));
-    relay_task.abort();
-    server.abort();
-    Ok(())
-}
-
-fn quic_opener(
-    transport: &super::super::early_streams::Transport,
-) -> super::super::early_streams::Opener<Bytes> {
-    h3::quic::Connection::<Bytes>::opener(transport)
-}
-
-/// A request that takes the sender after the TLS handshake completed but
-/// before the answer to rejected early data is published waits for the
-/// answer and is sent once, on the new session.
-#[tokio::test(flavor = "current_thread")]
-async fn a_request_between_the_handshake_and_a_rejection_is_sent_once() -> TestResult<()> {
-    let identity = TestIdentity::generate()?;
-    let hold = Arc::new(tokio::sync::Semaphore::new(0));
-    let early = Arc::new(
-        trusting_connector(&identity)?
-            .with_isolated_session_cache()
-            .with_test_restart_hold(Arc::clone(&hold)),
-    );
-    let endpoint = quinn::Endpoint::server(
-        server_config(&identity, true)?,
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?;
-    let address = endpoint.local_addr()?;
-    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
-    let learning = connect(&early, address).await?;
-    wait_for_ticket(&early).await?;
-    drop(learning);
-    endpoint.set_server_config(Some(server_config(&identity, false)?));
-
-    let connection = connect(&early, address).await?;
-    assert!(connection.sent_early_data());
-    timeout(TEST_TIMEOUT, async {
-        while connection.quinn().handshake_data().is_none() {
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-    })
-    .await
-    .map_err(|_| "the handshake did not complete")?;
-    assert!(connection.early_data_pending());
-
-    let request = tokio::spawn({
-        let early = Arc::clone(&early);
-        let connection = connection.clone();
-        async move {
-            send(&early, &connection, Method::GET, "/between", None)
-                .await
-                .map(|response| response.status())
-                .map_err(|error| error.to_string())
-        }
-    });
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert!(
-        !request.is_finished(),
-        "the request did not wait for the answer"
-    );
-    assert!(
-        served
-            .lock()
-            .map_err(|_| "served paths poisoned")?
-            .is_empty()
-    );
-
-    hold.add_permits(1);
-    let status = timeout(TEST_TIMEOUT, request).await???;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(connection.early_data_accepted().await, Some(false));
-    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
-    assert_eq!(served, [(1, "/between".to_owned())]);
-
-    drop(connection);
     server.abort();
     Ok(())
 }
@@ -955,7 +673,7 @@ async fn early_data_client_hello_adds_only_early_data_and_pre_shared_key() -> Te
 
 /// Encodes one HTTP/3 frame whose type and length fit one varint byte each,
 /// or a two-byte type for `ACCEPT_CH` (0x89).
-fn alps_frame(frame_type: u64, payload: &[u8]) -> Vec<u8> {
+pub(super) fn alps_frame(frame_type: u64, payload: &[u8]) -> Vec<u8> {
     let mut frame = match u8::try_from(frame_type) {
         Ok(frame_type) if frame_type < 0x40 => vec![frame_type],
         _ => vec![0x40 | ((frame_type >> 8) as u8), frame_type as u8],
@@ -966,7 +684,9 @@ fn alps_frame(frame_type: u64, payload: &[u8]) -> Vec<u8> {
 }
 
 /// Extracts the HTTP/3 error behind a connector request failure.
-fn http3_error<'a>(error: &'a (dyn std::error::Error + 'static)) -> Option<&'a Http3Error> {
+pub(super) fn http3_error<'a>(
+    error: &'a (dyn std::error::Error + 'static),
+) -> Option<&'a Http3Error> {
     error
         .downcast_ref::<Http3ConnectorError>()
         .and_then(std::error::Error::source)

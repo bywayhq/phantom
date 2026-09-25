@@ -59,7 +59,9 @@ pub struct Http3Connector {
     #[cfg(test)]
     remembered_settings: Option<Arc<[u8]>>,
     #[cfg(test)]
-    restart_hold: Option<Arc<tokio::sync::Semaphore>>,
+    answer_hold: Option<Arc<tokio::sync::Semaphore>>,
+    #[cfg(test)]
+    gate_delay: Option<super::GateDelay>,
 }
 
 impl Http3Connector {
@@ -151,7 +153,9 @@ impl Http3Connector {
             #[cfg(test)]
             remembered_settings: None,
             #[cfg(test)]
-            restart_hold: None,
+            answer_hold: None,
+            #[cfg(test)]
+            gate_delay: None,
         })
     }
 
@@ -291,7 +295,9 @@ impl Http3Connector {
             #[cfg(test)]
             remembered_settings: self.remembered_settings.clone(),
             #[cfg(test)]
-            restart_hold: self.restart_hold.clone(),
+            answer_hold: self.answer_hold.clone(),
+            #[cfg(test)]
+            gate_delay: self.gate_delay.clone(),
         }
     }
 
@@ -395,7 +401,9 @@ impl Http3Connector {
             #[cfg(test)]
             remembered_settings: self.remembered_settings.clone(),
             #[cfg(test)]
-            restart_hold: self.restart_hold.clone(),
+            answer_hold: self.answer_hold.clone(),
+            #[cfg(test)]
+            gate_delay: self.gate_delay.clone(),
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -408,12 +416,22 @@ impl Http3Connector {
         self
     }
 
-    /// Makes each connection whose early data is rejected take a permit from
-    /// `hold` after its new HTTP/3 session is built and before the answer
-    /// is published.
+    /// Makes each early-data connection take a permit from `hold` before it
+    /// publishes the server's answer: before its handshake metadata is
+    /// checked on an acceptance, and after its new HTTP/3 session is built
+    /// on a rejection.
     #[cfg(test)]
-    pub(super) fn with_test_restart_hold(mut self, hold: Arc<tokio::sync::Semaphore>) -> Self {
-        self.restart_hold = Some(hold);
+    pub(super) fn with_test_answer_hold(mut self, hold: Arc<tokio::sync::Semaphore>) -> Self {
+        self.answer_hold = Some(hold);
+        self
+    }
+
+    /// Makes each early-data connection's driver pass Quinn's answer to the
+    /// stream gate after the delay `delay` returns, for stress tests of the
+    /// interval between the two.
+    #[cfg(test)]
+    pub(super) fn with_test_gate_delay(mut self, delay: super::GateDelay) -> Self {
+        self.gate_delay = Some(delay);
         self
     }
 

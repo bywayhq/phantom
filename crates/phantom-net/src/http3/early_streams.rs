@@ -9,10 +9,12 @@
 //! while the handshake is still running, when the stream is certainly a
 //! 0-RTT stream, or once the server accepted the early data.
 //!
-//! The gate reads the answer the connection driver receives from Quinn, not
-//! the answer published to requests. A request that waits here holds the
-//! connection's send lock, and a rejection publishes its answer only after
-//! it has taken that lock to install the new session.
+//! A request that waits here holds the connection's send lock. A rejection
+//! publishes its answer only after it has taken that lock to install the new
+//! session, so the gate refuses on the answer the connection driver receives
+//! from Quinn. An acceptance is published without the lock, once the
+//! handshake metadata passed its checks, so the gate opens only on that
+//! published answer.
 
 use std::{
     error::Error,
@@ -26,6 +28,8 @@ use bytes::Buf;
 use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use h3_datagram::quic_traits::DatagramConnectionExt;
 use tokio::sync::watch;
+
+use super::early_data::EarlyDataOutcome;
 
 /// `H3_REQUEST_CANCELLED` (RFC 9114, section 8.1).
 const H3_REQUEST_CANCELLED: u64 = 0x010c;
@@ -48,18 +52,20 @@ impl Transport {
         }
     }
 
-    /// A session started in early data. `answer` receives whether the
-    /// server accepted the early data, and closes unanswered when the
-    /// connection ends first.
+    /// A session started in early data. `answer` receives whether Quinn
+    /// saw the server accept the early data, and closes unanswered when the
+    /// connection ends first; `outcome` receives the published answer.
     pub(super) fn early(
         connection: quinn::Connection,
         answer: watch::Receiver<Option<bool>>,
+        outcome: watch::Receiver<Option<EarlyDataOutcome>>,
     ) -> Self {
         Self {
             inner: h3_quinn::Connection::new(connection.clone()),
             gate: Some(OpenGate {
                 quinn: connection,
                 answer,
+                outcome,
             }),
         }
     }
@@ -196,7 +202,7 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                     ))));
                 }
                 Permit::Wait => {
-                    let answered = self.answered.get_or_insert_with(|| gate.answered());
+                    let answered = self.answered.get_or_insert_with(|| gate.next_change());
                     ready!(answered.as_mut().poll(cx));
                     self.answered = None;
                 }
@@ -211,8 +217,12 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                             // Waiting for stream credit: the answer must wake
                             // the request too, since Quinn does not wake
                             // waiting openers when it discards early streams.
-                            if gate.unanswered() {
-                                let answered = self.answered.get_or_insert_with(|| gate.answered());
+                            // The registration checks the answer as it is
+                            // now, so one that arrived since the permit was
+                            // read wakes the request at once.
+                            if !gate.accepted() {
+                                let answered =
+                                    self.answered.get_or_insert_with(|| gate.next_change());
                                 if answered.as_mut().poll(cx).is_ready() {
                                     self.answered = None;
                                     continue;
@@ -249,9 +259,14 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
 #[derive(Clone)]
 struct OpenGate {
     quinn: quinn::Connection,
+    /// Quinn's answer, as the connection driver received it.
     answer: watch::Receiver<Option<bool>>,
+    /// The answer published to requests after the handshake metadata was
+    /// checked, or after HTTP/3 started again on a rejection.
+    outcome: watch::Receiver<Option<EarlyDataOutcome>>,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Permit {
     Open,
     Wait,
@@ -260,11 +275,21 @@ enum Permit {
 
 impl OpenGate {
     fn permit(&self) -> Permit {
+        match *self.outcome.borrow() {
+            Some(EarlyDataOutcome::Accepted) => return Permit::Open,
+            Some(_) => return Permit::Refuse,
+            None => {}
+        }
+        if self.outcome.has_changed().is_err() {
+            return Permit::Refuse;
+        }
         match *self.answer.borrow() {
-            Some(true) => Permit::Open,
             Some(false) => Permit::Refuse,
             // The driver ended without an answer: the connection is gone.
             None if self.answer.has_changed().is_err() => Permit::Refuse,
+            // Accepted by the server, but the handshake metadata is not
+            // checked yet.
+            Some(true) => Permit::Wait,
             // The TLS handshake data appears when the handshake completes,
             // no later than Quinn decides whether the early data was
             // rejected, so a stream opened before it is a 0-RTT stream.
@@ -273,15 +298,44 @@ impl OpenGate {
         }
     }
 
-    fn unanswered(&self) -> bool {
-        self.answer.borrow().is_none()
+    /// Returns whether the published answer lets this session open streams
+    /// for good.
+    fn accepted(&self) -> bool {
+        *self.outcome.borrow() == Some(EarlyDataOutcome::Accepted)
     }
 
-    /// Resolves when the answer arrives or its channel closes.
-    fn answered(&self) -> Answered {
+    /// Resolves when the permit may have changed: at once when Quinn's
+    /// answer is a rejection or its channel closed, when Quinn's answer or
+    /// the published answer arrives, or, once Quinn's answer is known, when
+    /// the published answer arrives.
+    fn next_change(&self) -> Answered {
         let mut answer = self.answer.clone();
+        let mut outcome = self.outcome.clone();
         Box::pin(async move {
-            let _ = answer.wait_for(Option::is_some).await;
+            let known = match *answer.borrow() {
+                Some(false) => return,
+                Some(true) => true,
+                None if answer.has_changed().is_err() => return,
+                None => false,
+            };
+            if known {
+                let _ = outcome.wait_for(Option::is_some).await;
+                return;
+            }
+            let quinn_answered = answer.wait_for(Option::is_some);
+            let published = outcome.wait_for(Option::is_some);
+            let mut quinn_answered = std::pin::pin!(quinn_answered);
+            let mut published = std::pin::pin!(published);
+            std::future::poll_fn(|cx| {
+                if quinn_answered.as_mut().poll(cx).is_ready()
+                    || published.as_mut().poll(cx).is_ready()
+                {
+                    Poll::Ready(())
+                } else {
+                    Poll::Pending
+                }
+            })
+            .await;
         })
     }
 }

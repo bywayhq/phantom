@@ -488,7 +488,9 @@ async fn connect(
     #[cfg(test)]
     let remembered_override = diagnostics.remembered_settings.clone();
     #[cfg(test)]
-    let restart_hold = diagnostics.restart_hold.clone();
+    let answer_hold = diagnostics.answer_hold.clone();
+    #[cfg(test)]
+    let gate_delay = diagnostics.gate_delay.clone();
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -568,11 +570,15 @@ async fn connect(
     // streams or once the server accepted the early data; see
     // `early_streams`.
     let early_channel = zero_rtt.as_ref().map(|_| EarlyData::channel());
-    let (gate, transport) = if zero_rtt.is_some() {
-        let (gate, answer) = tokio::sync::watch::channel(None);
-        (Some(gate), Transport::early(connection.clone(), answer))
-    } else {
-        (None, Transport::new(connection.clone()))
+    let (gate, transport) = match &early_channel {
+        Some((_, early_data)) => {
+            let (gate, answer) = tokio::sync::watch::channel(None);
+            (
+                Some(gate),
+                Transport::early(connection.clone(), answer, early_data.subscribe()),
+            )
+        }
+        None => (None, Transport::new(connection.clone())),
     };
     let (h3_driver, sender) = builder.build(transport).await.map_err(|error| {
         Http3Error::with_source(
@@ -593,6 +599,8 @@ async fn connect(
             EarlyAnswer {
                 accepted,
                 gate,
+                #[cfg(test)]
+                gate_delay: gate_delay.clone(),
                 answer,
                 replacement: replacement_receiver,
             },
@@ -624,7 +632,7 @@ async fn connect(
                 #[cfg(test)]
                 peer_alps_override: peer_alps_override.clone(),
                 #[cfg(test)]
-                restart_hold: restart_hold.clone(),
+                answer_hold: answer_hold.clone(),
             };
             let rejected = accepted.clone();
             let session = Arc::downgrade(&session);
@@ -668,7 +676,7 @@ struct EarlyHandshake {
     #[cfg(test)]
     peer_alps_override: Option<Arc<[u8]>>,
     #[cfg(test)]
-    restart_hold: Option<Arc<tokio::sync::Semaphore>>,
+    answer_hold: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl EarlyHandshake {
@@ -727,6 +735,10 @@ async fn complete_early_handshake(
     handshake: EarlyHandshake,
     late_settings: oneshot::Sender<LateApplicationSettings>,
 ) -> EarlyDataOutcome {
+    #[cfg(test)]
+    if let Some(hold) = &handshake.answer_hold {
+        let _ = hold.acquire().await;
+    }
     let alps = match handshake.check() {
         Ok(alps) => alps,
         Err(outcome) => return outcome,
@@ -810,7 +822,7 @@ async fn restart_after_rejected_early_data(
         }
     };
     #[cfg(test)]
-    if let Some(hold) = &handshake.restart_hold {
+    if let Some(hold) = &handshake.answer_hold {
         let _ = hold.acquire().await;
     }
     // The driver task drops the discarded session when it takes this one,
@@ -1120,7 +1132,30 @@ pub(super) struct ConnectionDiagnostics {
     /// Holds a restart after rejected early data before its answer is
     /// published, for tests of requests sent in between.
     #[cfg(test)]
-    pub(super) restart_hold: Option<Arc<tokio::sync::Semaphore>>,
+    pub(super) answer_hold: Option<Arc<tokio::sync::Semaphore>>,
+    /// Delays the driver's answer to the stream gate, for stress tests.
+    #[cfg(test)]
+    pub(super) gate_delay: Option<GateDelay>,
+}
+
+/// Returns how long a driver waits before it passes Quinn's early-data
+/// answer to the stream gate.
+#[cfg(test)]
+#[derive(Clone)]
+pub(super) struct GateDelay(pub(super) Arc<dyn Fn() -> std::time::Duration + Send + Sync>);
+
+#[cfg(test)]
+impl GateDelay {
+    fn next(&self) -> std::time::Duration {
+        (self.0)()
+    }
+}
+
+#[cfg(test)]
+impl std::fmt::Debug for GateDelay {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("GateDelay")
+    }
 }
 
 impl PendingRequest {

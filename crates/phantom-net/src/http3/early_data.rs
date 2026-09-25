@@ -79,6 +79,11 @@ impl EarlyData {
         (EarlyDataAnswer { sender }, Self { outcome })
     }
 
+    /// Returns a receiver of the published answer, `None` until it settles.
+    pub(super) fn subscribe(&self) -> watch::Receiver<Option<EarlyDataOutcome>> {
+        self.outcome.clone()
+    }
+
     /// Returns the answer if the handshake has ended.
     pub(super) fn settled(&self) -> Option<EarlyDataOutcome> {
         *self.outcome.borrow()
