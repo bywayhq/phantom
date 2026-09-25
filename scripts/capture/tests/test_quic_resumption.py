@@ -281,6 +281,16 @@ class LoopbackTests(unittest.TestCase):
         self.assertEqual(spaces["/late"], ["1rtt"])
         late = next(request for request in run.requests if request.path == "/late")
         self.assertEqual((late.method, late.body_bytes), ("POST", 7))
+        # aioquic opens its control, QPACK encoder, and QPACK decoder streams
+        # when the connection starts and writes each type byte at once.
+        streams = resumed.unidirectional_streams
+        self.assertEqual(list(streams), [2, 6, 10])
+        self.assertEqual(
+            {stream_id: stream.stream_type for stream_id, stream in streams.items()},
+            {2: 0x00, 6: 0x02, 10: 0x03},
+        )
+        self.assertEqual(streams[10].first_frame_bytes, 1)
+        self.assertGreater(streams[2].first_frame_bytes, 1)
 
         fixture = render_fixture(
             SCENARIOS["accept"],
@@ -299,6 +309,16 @@ class LoopbackTests(unittest.TestCase):
         self.assertIn(
             "run_0_connection_1_versus_connection_0_added_extensions=002a,0029",
             lines,
+        )
+        self.assertIn("run_0_connection_1_unidirectional_streams=2,6,10", lines)
+        self.assertTrue(
+            any(
+                line.startswith(
+                    "run_0_connection_1_unidirectional_stream_10="
+                    "type:0x03,space:1rtt,first_frame_bytes:1,first_ms:"
+                )
+                for line in lines
+            )
         )
         self.assertTrue(fixture.endswith("\n"))
         self.assertNotIn("\r", fixture)

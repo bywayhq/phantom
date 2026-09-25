@@ -6,7 +6,9 @@ TLS 1.3 NewSessionTicket per connection, with `max_early_data_size`
 0xffffffff, and closes a connection after answering `/retire`. For every
 connection the fixture keeps the raw ClientHello, the ticket it resumed, the
 client packet types, the packet-number space each request stream arrived in,
-and each request's method, path, field names, and body length.
+each client unidirectional stream's type and the packet-number space and
+time of its first byte, and each request's method, path, field names, and
+body length.
 
 The `reject` scenario resumes the PSK but ignores the client's `early_data`
 offer, so every 0-RTT packet is undecryptable and the browser must resend.
@@ -394,6 +396,16 @@ class RequestRecord:
 
 
 @dataclass
+class UnidirectionalStream:
+    """The STREAM frame that carried offset 0 of a client unidirectional stream."""
+
+    stream_type: int
+    space: str
+    first_frame_bytes: int
+    first_ms: float
+
+
+@dataclass
 class ConnectionRecord:
     index: int
     first_datagram_ms: float
@@ -410,6 +422,10 @@ class ConnectionRecord:
     closed_ms: float | None = None
     closed_by: str | None = None
     stream_spaces: dict[int, list[str]] = field(default_factory=dict)
+    # Client unidirectional streams in the order their first byte arrived.
+    unidirectional_streams: dict[int, UnidirectionalStream] = field(
+        default_factory=dict
+    )
 
 
 @dataclass
@@ -469,6 +485,31 @@ def count_packets(data: bytes, host_cid_length: int) -> list[str]:
     return names
 
 
+def record_stream_start(
+    connection: QuicConnection,
+    streams: dict[int, UnidirectionalStream],
+    context,
+    frame_type: int,
+    buf: Buffer,
+) -> None:
+    """Record a client unidirectional stream's type when offset 0 arrives.
+
+    `buf` is positioned at the STREAM frame's stream ID (RFC 9000, section
+    19.8): the OFF bit (0x04) adds an offset and the LEN bit (0x02) a length.
+    """
+    stream_id = buf.pull_uint_var()
+    offset = buf.pull_uint_var() if frame_type & 0x04 else 0
+    length = buf.pull_uint_var() if frame_type & 0x02 else buf.capacity - buf.tell()
+    if offset != 0 or length == 0:
+        return
+    streams[stream_id] = UnidirectionalStream(
+        stream_type=buf.pull_uint_var(),
+        space=EPOCH_NAMES[context.epoch],
+        first_frame_bytes=length,
+        first_ms=connection._phantom_clock(),
+    )
+
+
 def install_hooks(accept_early_data: bool) -> Callable[[], None]:
     """Tap aioquic's server ClientHello and STREAM handling for one run."""
     original_hello = tls.Context._server_handle_hello
@@ -498,6 +539,10 @@ def install_hooks(accept_early_data: bool) -> Callable[[], None]:
             name = EPOCH_NAMES[context.epoch]
             if name not in names:
                 names.append(name)
+        streams = getattr(self, "_phantom_unidirectional_streams", None)
+        if streams is not None and stream_id % 4 == 2 and stream_id not in streams:
+            record_stream_start(self, streams, context, frame_type, buf)
+            buf.seek(start)
         return original_stream(self, context, frame_type, buf)
 
     tls.Context._server_handle_hello = server_handle_hello
@@ -523,6 +568,8 @@ class ResumptionProtocol(QuicConnectionProtocol):
         self.held: list[tuple[bytes, object]] | None = None
         self.record = run.new_connection()
         self._quic._phantom_stream_spaces = self.record.stream_spaces
+        self._quic._phantom_unidirectional_streams = self.record.unidirectional_streams
+        self._quic._phantom_clock = run.now
         self.http: H3Connection | None = None
         self.requests: dict[int, RequestRecord] = {}
         self.responded: set[int] = set()
@@ -951,6 +998,18 @@ def connection_lines(
             or "none",
         )
     )
+    streams = record.unidirectional_streams
+    lines.append(
+        "{}_unidirectional_streams={}".format(
+            prefix, ",".join(str(stream_id) for stream_id in streams) or "none"
+        )
+    )
+    lines.extend(
+        f"{prefix}_unidirectional_stream_{stream_id}="
+        f"type:0x{stream.stream_type:02x},space:{stream.space},"
+        f"first_frame_bytes:{stream.first_frame_bytes},first_ms:{stream.first_ms}"
+        for stream_id, stream in streams.items()
+    )
     return lines
 
 
@@ -1103,6 +1162,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="write a diagnostic Chromium NetLog per run; not a fixture input",
     )
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument(
+        "--fixture-prefix",
+        default="resumption",
+        help="write <prefix>-<scenario>.txt instead of resumption-<scenario>.txt",
+    )
     args = parser.parse_args(argv)
     if aioquic.__version__ != SUPPORTED_AIOQUIC:
         parser.error(
@@ -1160,7 +1224,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             print(fixture, end="")
         else:
             args.output_dir.mkdir(parents=True, exist_ok=True)
-            write_text_fixture(args.output_dir / f"resumption-{name}.txt", fixture)
+            write_text_fixture(
+                args.output_dir / f"{args.fixture_prefix}-{name}.txt", fixture
+            )
 
 
 if __name__ == "__main__":

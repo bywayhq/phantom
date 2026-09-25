@@ -333,7 +333,11 @@ Capture Chrome on Windows:
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.quic_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept --repeat 5   --output-dir fixtures/http3/chrome/154.0.8037.58/windows-11-26200
 ```
 
-The retained `accept-delayed` and `reject` fixtures used `--repeat 3`. For
+The retained `accept-delayed` and `reject` fixtures used `--repeat 3`.
+The `resumption-streams-accept.txt` and `resumption-streams-reject.txt`
+fixtures, the first to record unidirectional stream types, were written with
+`--scenario accept reject --repeat 3 --fixture-prefix resumption-streams`
+for Chrome and Edge. For
 Edge, use
 `--browser edge --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`,
 and for Firefox,
@@ -369,7 +373,10 @@ For each connection the fixture keeps:
   identity and binder lengths, transport-parameter order,
   `version_information`, and Chromium's `initial_rtt_us` parameter;
 - how the ClientHello differs from the run's first, fresh ClientHello;
-- the packet-number spaces each client stream arrived in.
+- the packet-number spaces each client stream arrived in;
+- for each client unidirectional stream, in the order its first byte
+  arrived: its stream type, and the packet-number space, length, and arrival
+  time of the STREAM frame that carried its first byte.
 
 For each request it keeps the method, path, body length, and the spaces its
 stream arrived in. Run 0 also keeps each raw ClientHello and each request's
