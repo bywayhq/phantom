@@ -14,7 +14,11 @@ use btls::{
     hpke::HpkeKey,
     ssl::{AlpnError, NameType, Ssl, SslAcceptor, SslEchKeys, select_next_proto},
 };
-use phantom_profile::chromium::{v154_http2, v154_tls};
+use phantom_profile::{
+    TlsSettings,
+    chromium::{v154_http2, v154_tls},
+    edge,
+};
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS,
     capture_client_hello, ech_config, ech_config_list, is_grease,
@@ -185,10 +189,16 @@ impl AsyncWrite for Replayed {
 }
 
 fn connector(identity: &TestIdentity) -> TestResult<Http1Or2TlsConnector> {
-    let settings = v154_tls();
+    connector_with(&v154_tls(), identity)
+}
+
+fn connector_with(
+    settings: &TlsSettings,
+    identity: &TestIdentity,
+) -> TestResult<Http1Or2TlsConnector> {
     assert!(settings.ech_from_https_records);
     Ok(Http1Or2TlsConnector::new_with_additional_roots(
-        &settings,
+        settings,
         &v154_http2(),
         [identity.root_der()],
     )?)
@@ -368,6 +378,11 @@ fn the_wait_is_a_fifth_of_address_resolution_within_5_to_50_ms() {
 const CHROME_ACCEPT: &str = include_str!(
     "../../../../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt"
 );
+/// Edge 153's captures of the same two scenarios.
+const EDGE_ACCEPT: &str =
+    include_str!("../../../../../fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-accept.txt");
+const EDGE_REJECT: &str =
+    include_str!("../../../../../fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-reject.txt");
 
 fn fixture_value<'a>(fixture: &'a str, field: &str) -> TestResult<&'a str> {
     fixture
@@ -399,26 +414,27 @@ fn extension_set(types: &[u16]) -> Vec<u16> {
     set
 }
 
-#[tokio::test]
-async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
-    let record = decode_hex(fixture_value(CHROME_ACCEPT, "connection_0_record_0_hex")?)?;
-    let chrome = ClientHelloSummary::from_handshake_bytes(record.get(5..).ok_or("short record")?)?;
-    let chrome_ech = chrome
-        .encrypted_client_hello()
-        .and_then(EchOuterExtension::parse)
-        .ok_or("Chrome's ClientHelloOuter lacks ECH")?;
-    let origin = fixture_value(CHROME_ACCEPT, "hostname")?;
-    let public = fixture_value(CHROME_ACCEPT, "public_name")?;
-    let list = decode_hex(fixture_value(CHROME_ACCEPT, "dns_ech_config_list_hex")?)?;
-    let server_config = decode_hex(fixture_value(CHROME_ACCEPT, "server_ech_config_hex")?)?;
-
-    let identity = TestIdentity::generate_for_names(&[origin, public])?;
+/// Connects with `settings` to origins that hold the key of `fixture`'s
+/// scenario, once per origin, and returns what each saw.
+async fn replay(
+    fixture: &str,
+    settings: &TlsSettings,
+    server_key: EchTestKey,
+    connections: usize,
+) -> TestResult<Vec<Observed>> {
+    let origin = fixture_value(fixture, "hostname")?;
+    let public = fixture_value(fixture, "public_name")?;
+    let list = decode_hex(fixture_value(fixture, "dns_ech_config_list_hex")?)?;
     let key = ServerKey {
-        config: server_config,
-        key: TEST_ECH_KEYS[0],
+        config: decode_hex(fixture_value(fixture, "server_ech_config_hex")?)?,
+        key: server_key,
     };
-    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
-    let connector = connector(&identity)?;
+    let identity = TestIdentity::generate_for_names(&[origin, public])?;
+    let acceptors = (0..connections)
+        .map(|_| acceptor(&identity, Some(&key)))
+        .collect::<TestResult<Vec<_>>>()?;
+    let (address, server) = serve(acceptors).await?;
+    let connector = connector_with(settings, &identity)?;
     tokio::time::timeout(
         TEST_TIMEOUT,
         connector.connect_direct_with_ech("127.0.0.1", address.port(), origin, async {
@@ -426,19 +442,78 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
         }),
     )
     .await??;
-    let observed = server.await??;
+    server.await?
+}
+
+/// Checks the first connection of an `accept` capture against Phantom's.
+async fn assert_accept_replays(fixture: &str, settings: &TlsSettings) -> TestResult<()> {
+    let record = decode_hex(fixture_value(fixture, "connection_0_record_0_hex")?)?;
+    let browser = ClientHelloSummary::from_handshake_bytes(record.get(5..).ok_or("short record")?)?;
+    let browser_ech = browser
+        .encrypted_client_hello()
+        .and_then(EchOuterExtension::parse)
+        .ok_or("the captured ClientHelloOuter lacks ECH")?;
+    let observed = replay(fixture, settings, TEST_ECH_KEYS[0], 1).await?;
     let phantom = &observed[0];
 
     assert!(phantom.ech_accepted);
     assert_eq!(
         phantom.outer_server_name.as_deref().map(str::as_bytes),
-        chrome.server_name()
+        browser.server_name()
     );
-    assert_eq!(phantom.ech.as_ref(), Some(&chrome_ech));
+    assert_eq!(phantom.ech.as_ref(), Some(&browser_ech));
     assert_eq!(
         extension_set(&phantom.extension_types),
-        extension_set(chrome.extension_types())
+        extension_set(browser.extension_types())
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
+    assert_accept_replays(CHROME_ACCEPT, &v154_tls()).await
+}
+
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
+    assert_accept_replays(EDGE_ACCEPT, &edge::v153_tls()).await
+}
+
+/// The fixture's `ech_outer` line for one observed connection.
+fn ech_outer_line(observed: &Observed) -> String {
+    observed.ech.as_ref().map_or_else(
+        || "absent".to_owned(),
+        |ech| {
+            format!(
+                "kdf={:#06x},aead={:#06x},config_id={},enc_length={},payload_length={}",
+                ech.kdf_id, ech.aead_id, ech.config_id, ech.enc_length, ech.payload_length
+            )
+        },
+    )
+}
+
+#[tokio::test]
+async fn edge_153_rejection_is_retried_as_edge_retried_it() -> TestResult<()> {
+    // Edge's first two connections, the navigation and a preconnect, were
+    // rejected and the next two were their retries. Each pair is identical,
+    // so the first of each stands for both.
+    let observed = replay(EDGE_REJECT, &edge::v153_tls(), TEST_ECH_KEYS[1], 2).await?;
+    let [rejected, retried] = &observed[..] else {
+        return Err(format!("expected two connections, saw {observed:?}").into());
+    };
+    for (phantom, edge) in [(rejected, 0), (retried, 2)] {
+        let field = |name: &str| fixture_value(EDGE_REJECT, &format!("connection_{edge}_{name}"));
+        assert_eq!(
+            phantom.outer_server_name.as_deref(),
+            Some(field("outer_server_name")?)
+        );
+        assert_eq!(ech_outer_line(phantom), field("ech_outer")?);
+        assert_eq!(phantom.ech_accepted.to_string(), field("ech_accepted")?);
+        assert_eq!(
+            phantom.inner_server_name.as_deref(),
+            Some(field("inner_server_name")?)
+        );
+    }
     Ok(())
 }
 

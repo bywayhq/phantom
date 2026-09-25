@@ -191,10 +191,10 @@ fn ech_from_https_records_requires_ech_grease() {
 }
 
 #[test]
-fn only_the_chrome_154_tcp_recipe_uses_ech_from_https_records() {
+fn only_the_chrome_154_and_edge_153_tcp_recipes_use_ech_from_https_records() {
     assert!(crate::chromium::v154_tls().ech_from_https_records);
     assert!(!crate::chromium::v154_http3_tls().ech_from_https_records);
-    assert!(!crate::edge::v153_tls().ech_from_https_records);
+    assert!(crate::edge::v153_tls().ech_from_https_records);
     assert!(!crate::edge::v153_http3_tls().ech_from_https_records);
     assert!(!crate::firefox::v156_tls().ech_from_https_records);
 }

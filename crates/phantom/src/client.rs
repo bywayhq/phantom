@@ -1261,8 +1261,8 @@ impl ClientBuilder {
     ///
     /// A profile that sets
     /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
-    /// as the Chrome 154 recipe does, also uses the records for Encrypted
-    /// Client Hello on every direct TLS connection over TCP: those of
+    /// as the Chrome 154 and Edge 153 recipes do, also uses the records for
+    /// Encrypted Client Hello on every direct TLS connection over TCP: those of
     /// negotiated and exact-protocol HTTP/1.1 and HTTP/2 requests and of
     /// `wss://` WebSocket openings. Each such connection starts the origin's
     /// lookup when none is cached, and its TLS handshake waits for it at most

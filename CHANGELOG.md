@@ -497,6 +497,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Edge 153 recipe on a client with HTTPS record
+  discovery: `edge::v153_tls` now keeps `ech_from_https_records` from
+  `chromium::v154_tls`, so a direct TLS connection over TCP to an origin
+  whose HTTPS record carries `ech` sends a real Encrypted Client Hello instead
+  of ECH GREASE, and its TLS handshake waits for the lookup for at most 50 ms
+  after address resolution. As with the Chrome recipe, that covers negotiated
+  and exact-protocol HTTP/1.1 and HTTP/2 requests and `wss://` WebSocket
+  openings. Captures of Edge 153.0.4234.48 navigations show it doing the
+  same. To keep GREASE, set
+  `settings.ech_from_https_records = false` on the value `edge::v153_tls`
+  returns.
 - Wire and performance change for HTTP proxies with
   `HttpProxy::with_basic_auth`. After a `407` to an HTTP/1.1 CONNECT
   (plaintext or TLS proxy, WebSocket tunnels included) or to a forwarded

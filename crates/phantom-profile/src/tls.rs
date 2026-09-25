@@ -381,7 +381,8 @@ pub struct TlsSettings {
     /// AEAD.
     pub ech_grease_aeads: Vec<EchGreaseAead>,
     /// Whether a direct TLS connection over TCP offers Encrypted Client Hello
-    /// with the `ech` value of the origin's HTTPS record, as Chrome 154 does.
+    /// with the `ech` value of the origin's HTTPS record, as Chrome 154 and
+    /// Edge 153 do.
     ///
     /// On a client that looks up HTTPS records, this covers the connections
     /// of negotiated and exact-protocol HTTP/1.1 and HTTP/2 requests and of
