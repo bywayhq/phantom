@@ -283,6 +283,7 @@ impl Client {
     pub(crate) fn learn_client_hints_and_should_retry(
         &self,
         endpoint: &crate::authority::Endpoint,
+        https: bool,
         settings: &phantom_profile::ClientHintSettings,
         response: &http::HeaderMap,
         sent: &[phantom_net::request::RequestHeader],
@@ -291,7 +292,7 @@ impl Client {
             .client_hints
             .as_ref()
             .is_some_and(|client_hints| {
-                client_hints.learn_and_should_retry(endpoint, settings, response, sent)
+                client_hints.learn_and_should_retry(endpoint, https, settings, response, sent)
             })
     }
 

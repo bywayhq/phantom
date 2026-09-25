@@ -4,7 +4,10 @@
 //! request, such as a top-level navigation, in the exact order observed for
 //! each protocol. Values that describe the page or persona, such as `Referer`,
 //! are caller slots; client hints are slots filled from the profile's
-//! [`ClientHintSettings`](crate::ClientHintSettings).
+//! [`ClientHintSettings`](crate::ClientHintSettings). Fields whose value
+//! depends on whether the request URL is potentially trustworthy, such as
+//! `Accept-Encoding` and the `Sec-Fetch-*` fields, are
+//! [`RequestField::ByTrust`] entries.
 
 use std::{collections::HashSet, error::Error, fmt};
 
@@ -44,6 +47,23 @@ pub enum RequestField {
     /// The position of every sent client hint without its own
     /// [`Self::ClientHint`] slot, in profile order.
     ClientHints,
+    /// A field whose captured value depends on whether the request URL is
+    /// potentially trustworthy, as W3C Secure Contexts defines it.
+    ///
+    /// A URL is potentially trustworthy when its scheme is `https`, or its
+    /// host is a loopback address (`127.0.0.0/8` or `::1`), `localhost`, or a
+    /// name under `.localhost`. Browsers send some fields only to such URLs,
+    /// and some with another value. A caller field with this name takes this
+    /// position in either case, as it does for [`Self::Literal`].
+    ByTrust {
+        /// Exact field-name spelling.
+        name: Box<str>,
+        /// Value sent to a potentially trustworthy URL, or `None` to send
+        /// nothing there.
+        trustworthy: Option<Box<str>>,
+        /// Value sent to any other URL, or `None` to send nothing there.
+        untrustworthy: Option<Box<str>>,
+    },
 }
 
 impl RequestField {
@@ -80,14 +100,57 @@ impl RequestField {
         Self::ClientHint { name: name.into() }
     }
 
-    /// Returns the field name of a literal, caller, or single-hint slot.
+    /// Creates a field sent only to a potentially trustworthy URL.
+    #[must_use]
+    pub fn trustworthy_only(name: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        Self::ByTrust {
+            name: name.into(),
+            trustworthy: Some(value.into()),
+            untrustworthy: None,
+        }
+    }
+
+    /// Creates a field with one value for a potentially trustworthy URL and
+    /// another for any other URL.
+    #[must_use]
+    pub fn by_trust(
+        name: impl Into<Box<str>>,
+        trustworthy: impl Into<Box<str>>,
+        untrustworthy: impl Into<Box<str>>,
+    ) -> Self {
+        Self::ByTrust {
+            name: name.into(),
+            trustworthy: Some(trustworthy.into()),
+            untrustworthy: Some(untrustworthy.into()),
+        }
+    }
+
+    /// Returns the field name of a literal, caller, single-hint, or
+    /// trust-dependent entry.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
-            Self::Literal { name, .. } | Self::Caller { name, .. } | Self::ClientHint { name } => {
-                Some(name)
-            }
+            Self::Literal { name, .. }
+            | Self::Caller { name, .. }
+            | Self::ClientHint { name }
+            | Self::ByTrust { name, .. } => Some(name),
             Self::ClientHints => None,
+        }
+    }
+
+    /// Returns the value this entry sends when the caller supplies no field
+    /// of its name: a literal's value, or a trust-dependent entry's value
+    /// for `trustworthy`. Slots return `None`.
+    #[must_use]
+    pub fn default_value(&self, trustworthy: bool) -> Option<&str> {
+        match self {
+            Self::Literal { value, .. } => Some(value),
+            Self::ByTrust {
+                trustworthy: secure,
+                untrustworthy: other,
+                ..
+            } => if trustworthy { secure } else { other }.as_deref(),
+            Self::Caller { .. } | Self::ClientHint { .. } | Self::ClientHints => None,
         }
     }
 
@@ -308,9 +371,28 @@ fn validate_fields(
                 }
             }
             RequestField::Literal { value, .. } => {
-                if !value
-                    .bytes()
-                    .all(|byte| matches!(byte, b'\t' | b' '..=b'~'))
+                if !is_field_value(value) {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "literal values must contain only visible ASCII, spaces, or tabs",
+                    ));
+                }
+            }
+            RequestField::ByTrust {
+                trustworthy,
+                untrustworthy,
+                ..
+            } => {
+                if trustworthy.is_none() && untrustworthy.is_none() {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "a trust-dependent field needs a value for at least one kind of URL",
+                    ));
+                }
+                if ![trustworthy, untrustworthy]
+                    .into_iter()
+                    .flatten()
+                    .all(|value| is_field_value(value))
                 {
                     return Err(InvalidRequestTemplate::new(
                         field,
@@ -372,6 +454,12 @@ fn validate_fields(
         ));
     }
     Ok(())
+}
+
+fn is_field_value(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|byte| matches!(byte, b'\t' | b' '..=b'~'))
 }
 
 /// Returns whether `field`, named `lower`, is forbidden on HTTP/2 and HTTP/3.

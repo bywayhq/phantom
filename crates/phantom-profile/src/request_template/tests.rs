@@ -150,6 +150,25 @@ fn assert_matches(
                     "{label}: {name} was {seen_value:?}"
                 );
             }
+            // Every retained capture read here loaded a `127.0.0.1` page,
+            // which browsers treat as potentially trustworthy.
+            RequestField::ByTrust {
+                name,
+                trustworthy: Some(value),
+                ..
+            } => {
+                let (seen_name, seen_value) = observed
+                    .next()
+                    .unwrap_or_else(|| panic!("{label}: missing {name}"));
+                assert_eq!(seen_name, &**name, "{label}");
+                assert_eq!(seen_value, &**value, "{label}: {name}");
+            }
+            RequestField::ByTrust { name, .. } => {
+                assert!(
+                    observed.peek().is_none_or(|(seen, _)| seen != &**name),
+                    "{label}: {name} is sent only to other URLs"
+                );
+            }
             RequestField::Caller { name, .. } => {
                 if observed.peek().is_some_and(|(seen, _)| seen == &**name) {
                     observed.next();
@@ -722,4 +741,214 @@ fn comparison_rejects_another_browsers_request() -> CaptureResult<()> {
     });
     assert!(outcome.is_err());
     Ok(())
+}
+
+/// Returns the fields a template list sends when the caller supplies none
+/// and no client hint is sent.
+fn emitted(fields: &[RequestField], trustworthy: bool) -> Vec<(&str, &str)> {
+    fields
+        .iter()
+        .filter_map(|field| Some((field.name()?, field.default_value(trustworthy)?)))
+        .collect()
+}
+
+fn names<'a>(fields: &[(&'a str, &str)]) -> Vec<&'a str> {
+    fields.iter().map(|(name, _)| *name).collect()
+}
+
+fn value<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|(field, _)| field.eq_ignore_ascii_case(name))
+        .map(|(_, value)| *value)
+}
+
+// Field names, after `Host` and the pseudo-header fields, of the page and
+// `fetch()` requests in the proxy route captures of Chrome 154.0.8037.58,
+// Edge 153.0.4234.48, and Firefox 156.0 on Windows 11 build 26200:
+// `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-hostname.txt`
+// for HTTP/1.1 and `https-proxy-hostname.txt` for HTTP/2, each three runs
+// that agree, to the plaintext origin `origin.phantom.test`. Chrome and Edge
+// send the same names. Client hints and caller slots are left out; the
+// captured `fetch()` used the default cache mode, so the no-store `Pragma`
+// and `Cache-Control` fields are added where the templates place them.
+const CHROMIUM_NAMED_NAVIGATION_H1: &[&str] = &[
+    "Connection",
+    "Upgrade-Insecure-Requests",
+    "User-Agent",
+    "Accept",
+    "Accept-Encoding",
+    "Accept-Language",
+];
+const CHROMIUM_NAMED_NAVIGATION_H2: &[&str] = &[
+    "upgrade-insecure-requests",
+    "user-agent",
+    "accept",
+    "accept-encoding",
+    "accept-language",
+    "priority",
+];
+const CHROMIUM_NAMED_FETCH_H1: &[&str] = &[
+    "Connection",
+    "Pragma",
+    "Cache-Control",
+    "User-Agent",
+    "Accept",
+    "Accept-Encoding",
+    "Accept-Language",
+];
+const CHROMIUM_NAMED_FETCH_H2: &[&str] = &[
+    "pragma",
+    "cache-control",
+    "user-agent",
+    "accept",
+    "accept-encoding",
+    "accept-language",
+    "priority",
+];
+const FIREFOX_NAMED_NAVIGATION_H1: &[&str] = &[
+    "User-Agent",
+    "Accept",
+    "Accept-Language",
+    "Accept-Encoding",
+    "Connection",
+    "Upgrade-Insecure-Requests",
+    "Priority",
+];
+const FIREFOX_NAMED_NAVIGATION_H2: &[&str] = &[
+    "user-agent",
+    "accept",
+    "accept-language",
+    "accept-encoding",
+    "upgrade-insecure-requests",
+    "priority",
+    "te",
+];
+const FIREFOX_NAMED_FETCH_H1: &[&str] = &[
+    "User-Agent",
+    "Accept",
+    "Accept-Language",
+    "Accept-Encoding",
+    "Connection",
+    "Priority",
+    "Pragma",
+    "Cache-Control",
+];
+const FIREFOX_NAMED_FETCH_H2: &[&str] = &[
+    "user-agent",
+    "accept",
+    "accept-language",
+    "accept-encoding",
+    "priority",
+    "pragma",
+    "cache-control",
+    "te",
+];
+
+#[test]
+fn templates_send_the_captured_plaintext_named_origin_fields() {
+    let without = |list: &[&'static str], name: &str| -> Vec<&'static str> {
+        list.iter()
+            .copied()
+            .filter(|field| !field.eq_ignore_ascii_case(name))
+            .collect()
+    };
+    let cases = [
+        (
+            "chrome navigation",
+            chromium::v154_windows_navigation_template(),
+            CHROMIUM_NAMED_NAVIGATION_H1.to_vec(),
+            CHROMIUM_NAMED_NAVIGATION_H2.to_vec(),
+        ),
+        (
+            "chrome fetch",
+            chromium::v154_windows_fetch_no_store_template(),
+            CHROMIUM_NAMED_FETCH_H1.to_vec(),
+            CHROMIUM_NAMED_FETCH_H2.to_vec(),
+        ),
+        // Edge leaves `User-Agent` to the caller, so it is absent here.
+        (
+            "edge navigation",
+            edge::v153_windows_navigation_template(),
+            without(CHROMIUM_NAMED_NAVIGATION_H1, "user-agent"),
+            without(CHROMIUM_NAMED_NAVIGATION_H2, "user-agent"),
+        ),
+        (
+            "edge fetch",
+            edge::v153_windows_fetch_no_store_template(),
+            without(CHROMIUM_NAMED_FETCH_H1, "user-agent"),
+            without(CHROMIUM_NAMED_FETCH_H2, "user-agent"),
+        ),
+        (
+            "firefox navigation",
+            firefox::v156_windows_navigation_template(),
+            FIREFOX_NAMED_NAVIGATION_H1.to_vec(),
+            FIREFOX_NAMED_NAVIGATION_H2.to_vec(),
+        ),
+        (
+            "firefox fetch",
+            firefox::v156_windows_fetch_no_store_template(),
+            FIREFOX_NAMED_FETCH_H1.to_vec(),
+            FIREFOX_NAMED_FETCH_H2.to_vec(),
+        ),
+    ];
+    for (label, template, http1, http2) in cases {
+        for (protocol, expected) in [(Protocol::Http1, http1), (Protocol::Http2, http2)] {
+            let plaintext = emitted(fields(&template, protocol), false);
+            assert_eq!(names(&plaintext), expected, "{label} {protocol:?}");
+            assert_eq!(
+                value(&plaintext, "accept-encoding"),
+                Some("gzip, deflate"),
+                "{label} {protocol:?}"
+            );
+
+            // A trustworthy URL gets the loopback shape the replay tests
+            // above compare with the retained captures.
+            let trustworthy = emitted(fields(&template, protocol), true);
+            assert_eq!(
+                value(&trustworthy, "accept-encoding"),
+                Some("gzip, deflate, br, zstd"),
+                "{label} {protocol:?}"
+            );
+            let fetch_metadata: Vec<&str> = names(&trustworthy)
+                .into_iter()
+                .filter(|name| !expected.contains(name))
+                .collect();
+            assert!(
+                !fetch_metadata.is_empty()
+                    && fetch_metadata
+                        .iter()
+                        .all(|name| name.to_ascii_lowercase().starts_with("sec-fetch-")),
+                "{label} {protocol:?}: {fetch_metadata:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn validation_rejects_a_trust_dependent_field_without_values() {
+    let mut template = firefox::v156_windows_navigation_template();
+    template.http1_fields.push(RequestField::ByTrust {
+        name: "X-Probe".into(),
+        trustworthy: None,
+        untrustworthy: None,
+    });
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http1_fields")
+    );
+
+    let mut template = firefox::v156_windows_navigation_template();
+    template
+        .http1_fields
+        .push(RequestField::by_trust("X-Probe", "a", "b\r\n"));
+    assert!(template.validate().is_err());
+
+    // A trust-dependent entry does not end a client-hint slot's neighbours.
+    let mut template = firefox::v156_windows_navigation_template();
+    template.http1_fields.push(RequestField::ClientHints);
+    template
+        .http1_fields
+        .push(RequestField::trustworthy_only("Sec-Fetch-Probe", "?1"));
+    assert!(template.validate().is_err());
 }

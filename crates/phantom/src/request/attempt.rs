@@ -18,6 +18,7 @@ use super::{
     PreparedRequestTemplate, ProtocolSelection, RequestBodySource, ResolvedRequest,
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
     replay::{ReplayClass, ReplayState},
+    secure_context::is_potentially_trustworthy,
 };
 use crate::session::{
     client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
@@ -443,7 +444,7 @@ impl AttemptPath {
         matches!(self, Self::Negotiated | Self::Alternative)
     }
 
-    const fn requires_https_for_client_hints(self) -> bool {
+    const fn requires_trustworthy_origin_for_client_hints(self) -> bool {
         matches!(self, Self::Exact | Self::Negotiated)
     }
 }
@@ -453,12 +454,21 @@ pub(super) struct PreparedAttempt<'a> {
     pub(super) body: Option<RequestBody>,
 }
 
+/// Returns the client-hint origin of `request`, or `None` when the client
+/// sends no automatic hints to it.
+///
+/// Chromium sends and learns client hints only for a potentially
+/// trustworthy origin: `IsValidURLForClientHints` gates both
+/// `ShouldAddClientHints` and `ParseAndPersistAcceptCHForNavigation`
+/// (`content/browser/client_hints/client_hints.cc` lines 501-503, 787-804,
+/// and 1004 at tag `154.0.8037.58`). The retained Chrome and Edge captures
+/// carry hints to `http://127.0.0.1` and none to `http://origin.phantom.test`.
 pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> Option<String> {
     client
         .inner
         .client_hints
         .as_ref()
-        .filter(|_| request.uri.scheme_str() == Some("https"))
+        .filter(|_| is_potentially_trustworthy(&request.url))
         .map(|_| request.url.origin().ascii_serialization())
 }
 
@@ -475,9 +485,12 @@ pub(super) fn attempt_headers(
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
     let mut headers = match fields {
-        Some(fields) => {
-            super::template::expand(fields, request_headers, client.inner.client_hints.as_ref())
-        }
+        Some(fields) => super::template::expand(
+            fields,
+            request_headers,
+            client.inner.client_hints.as_ref(),
+            is_potentially_trustworthy(&request.url),
+        ),
         None => request_headers.to_vec(),
     };
     inject_cookie(client, request, protocol, &mut headers);
@@ -530,10 +543,12 @@ pub(super) fn observe_response(
     if path.learns_alt_svc() {
         client.learn_alt_svc(&request.endpoint, route, response);
     }
-    (!path.requires_https_for_client_hints() || request.uri.scheme_str() == Some("https"))
+    (!path.requires_trustworthy_origin_for_client_hints()
+        || is_potentially_trustworthy(&request.url))
         && client.inner.client_hints.as_ref().is_some_and(|settings| {
             client.learn_client_hints_and_should_retry(
                 &request.endpoint,
+                request.uri.scheme_str() == Some("https"),
                 settings,
                 response.headers(),
                 sent_headers,

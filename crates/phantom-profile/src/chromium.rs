@@ -413,9 +413,23 @@ pub fn v154_websocket() -> WebSocketSettings {
 const V154_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
 image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
 const V154_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
+const V154_PLAINTEXT_ACCEPT_ENCODING: &str = "gzip, deflate";
 const V154_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
 const V154_WINDOWS_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+
+/// Returns Chromium 154's `Accept-Encoding` entry: `br` and `zstd` are
+/// offered only to a potentially trustworthy URL.
+///
+/// `HttpRequestHeaders::SetAcceptEncodingIfMissing` adds them only when the
+/// URL is cryptographic or `net::IsLocalhost`
+/// (`net/http/http_request_headers.cc` lines 261-275 at Chromium tag
+/// `154.0.8037.58`). The retained proxy route captures show `gzip, deflate`
+/// to `origin.phantom.test` and the full list to `127.0.0.1`, direct and
+/// through both proxies.
+fn accept_encoding(name: &str) -> RequestField {
+    RequestField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
+}
 
 /// Returns navigation request fields observed from Chrome 154.0.8037.58 on Windows 11.
 ///
@@ -438,6 +452,19 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 /// captures ran headless and sent `HeadlessChrome`. `Accept-Language` is the
 /// capture machine's `en-US` locale. A caller field with the same name replaces
 /// a captured value in place.
+///
+/// Chrome sends the `Sec-Fetch-*` fields, and `br` and `zstd` in
+/// `Accept-Encoding`, only to a potentially trustworthy URL, so those entries
+/// are [`RequestField::ByTrust`]: `network::SetFetchMetadataHeaders` returns
+/// before adding any `Sec-Fetch-*` field when `IsUrlPotentiallyTrustworthy`
+/// is false (`services/network/sec_header_helpers.cc` lines 288-292 at tag
+/// `154.0.8037.58`); `HttpRequestHeaders::SetAcceptEncodingIfMissing` adds
+/// `br` and `zstd` only for a cryptographic or `net::IsLocalhost` URL
+/// (`net/http/http_request_headers.cc` lines 261-275). The retained proxy
+/// route captures show the
+/// navigation to the plaintext name `origin.phantom.test` without them, with
+/// `Accept-Encoding: gzip, deflate`, and with the remaining fields in the same
+/// order on HTTP/1.1 and HTTP/2; Chrome sends no client hints there either.
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     v154_navigation_template(Some(V154_WINDOWS_USER_AGENT))
@@ -469,6 +496,12 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// `phantom` client refuses to send a requested hint with this template.
 /// `Referer` is a caller slot because its value is the page URL. The
 /// `User-Agent` value matches [`v154_windows_navigation_template`].
+///
+/// As on the navigation, the `Sec-Fetch-*` fields and the `br` and `zstd`
+/// codings are sent only to a potentially trustworthy URL. The proxy route
+/// captures back that shape with a same-origin `fetch()` in the default cache
+/// mode; that `Pragma` and `Cache-Control` keep their positions on a plaintext
+/// named origin is inferred, not captured.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
@@ -486,11 +519,11 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
         RequestField::literal("upgrade-insecure-requests", "1"),
         user_agent("user-agent"),
         RequestField::literal("accept", V154_NAVIGATION_ACCEPT),
-        RequestField::literal("sec-fetch-site", "none"),
-        RequestField::literal("sec-fetch-mode", "navigate"),
-        RequestField::literal("sec-fetch-user", "?1"),
-        RequestField::literal("sec-fetch-dest", "document"),
-        RequestField::literal("accept-encoding", V154_ACCEPT_ENCODING),
+        RequestField::trustworthy_only("sec-fetch-site", "none"),
+        RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
+        RequestField::trustworthy_only("sec-fetch-user", "?1"),
+        RequestField::trustworthy_only("sec-fetch-dest", "document"),
+        accept_encoding("accept-encoding"),
         RequestField::literal("accept-language", V154_ACCEPT_LANGUAGE),
         RequestField::literal("priority", "u=0, i"),
     ];
@@ -501,11 +534,11 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
             user_agent("User-Agent"),
             RequestField::literal("Accept", V154_NAVIGATION_ACCEPT),
-            RequestField::literal("Sec-Fetch-Site", "none"),
-            RequestField::literal("Sec-Fetch-Mode", "navigate"),
-            RequestField::literal("Sec-Fetch-User", "?1"),
-            RequestField::literal("Sec-Fetch-Dest", "document"),
-            RequestField::literal("Accept-Encoding", V154_ACCEPT_ENCODING),
+            RequestField::trustworthy_only("Sec-Fetch-Site", "none"),
+            RequestField::trustworthy_only("Sec-Fetch-Mode", "navigate"),
+            RequestField::trustworthy_only("Sec-Fetch-User", "?1"),
+            RequestField::trustworthy_only("Sec-Fetch-Dest", "document"),
+            accept_encoding("Accept-Encoding"),
             RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
         ],
         http3_fields: Some(http2_fields.clone()),
@@ -537,11 +570,11 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
             RequestField::client_hint("sec-ch-ua-mobile"),
             RequestField::ClientHints,
             RequestField::literal("Accept", "*/*"),
-            RequestField::literal("Sec-Fetch-Site", "same-origin"),
-            RequestField::literal("Sec-Fetch-Mode", "cors"),
-            RequestField::literal("Sec-Fetch-Dest", "empty"),
+            RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
+            RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
+            RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
             RequestField::caller("Referer"),
-            RequestField::literal("Accept-Encoding", V154_ACCEPT_ENCODING),
+            accept_encoding("Accept-Encoding"),
             RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
         ],
         http2_fields: vec![
@@ -553,11 +586,11 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
             RequestField::client_hint("sec-ch-ua-mobile"),
             RequestField::ClientHints,
             RequestField::literal("accept", "*/*"),
-            RequestField::literal("sec-fetch-site", "same-origin"),
-            RequestField::literal("sec-fetch-mode", "cors"),
-            RequestField::literal("sec-fetch-dest", "empty"),
+            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
+            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
             RequestField::caller("referer"),
-            RequestField::literal("accept-encoding", V154_ACCEPT_ENCODING),
+            accept_encoding("accept-encoding"),
             RequestField::literal("accept-language", V154_ACCEPT_LANGUAGE),
             RequestField::literal("priority", "u=1, i"),
         ],

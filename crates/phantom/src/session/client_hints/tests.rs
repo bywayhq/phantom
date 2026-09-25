@@ -65,7 +65,7 @@ fn valid_replacement_empty_clearing_and_malformed_preservation_are_distinct() {
         "accept-ch",
         HeaderValue::from_static("Sec-CH-UA-Platform-Version, Sec-CH-UA-Arch"),
     );
-    assert!(!store.learn_and_should_retry(&endpoint, &settings, &learned, &sent));
+    assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &learned, &sent));
     let prepared = store.prepare(&endpoint, &settings, Vec::new());
     assert_eq!(
         prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
@@ -74,12 +74,12 @@ fn valid_replacement_empty_clearing_and_malformed_preservation_are_distinct() {
 
     let mut malformed = HeaderMap::new();
     malformed.insert("accept-ch", HeaderValue::from_static("\"not-a-token\""));
-    assert!(!store.learn_and_should_retry(&endpoint, &settings, &malformed, &prepared));
+    assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &malformed, &prepared));
     assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 3);
 
     let mut empty = HeaderMap::new();
     empty.insert("accept-ch", HeaderValue::from_static(""));
-    assert!(!store.learn_and_should_retry(&endpoint, &settings, &empty, &prepared));
+    assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &empty, &prepared));
     assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 1);
 }
 
@@ -93,9 +93,34 @@ fn critical_retry_requires_a_supported_missing_requested_hint() {
     response.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
     response.insert("critical-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
 
-    assert!(store.learn_and_should_retry(&endpoint, &settings, &response, &sent));
+    assert!(store.learn_and_should_retry(&endpoint, true, &settings, &response, &sent));
     let retry = store.prepare(&endpoint, &settings, Vec::new());
-    assert!(!store.learn_and_should_retry(&endpoint, &settings, &response, &retry));
+    assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &response, &retry));
+}
+
+#[test]
+fn http_and_https_origins_on_one_host_and_port_are_distinct() {
+    let store = ClientHintStore::new(NonZeroUsize::new(2).unwrap_or(NonZeroUsize::MIN));
+    let endpoint = endpoint("127.0.0.1:8443");
+    let settings = settings();
+    let sent = prepare_default_fields(&settings, Vec::new());
+    let mut response = HeaderMap::new();
+    response.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
+
+    store.learn_and_should_retry(&endpoint, false, &settings, &response, &sent);
+    let https =
+        ClientHintContext::new(&endpoint, "https://127.0.0.1:8443", &settings, Some(&store));
+    let http = ClientHintContext::new(&endpoint, "http://127.0.0.1:8443", &settings, Some(&store));
+    let names = |context: ClientHintContext<'_>| -> Vec<String> {
+        context
+            .prepare(Vec::new(), None)
+            .unwrap_or_default()
+            .iter()
+            .map(|field| field.name().to_owned())
+            .collect()
+    };
+    assert_eq!(names(https), ["sec-ch-ua"]);
+    assert_eq!(names(http), ["sec-ch-ua", "sec-ch-ua-arch"]);
 }
 
 #[test]
@@ -108,12 +133,12 @@ fn origin_capacity_is_lru_and_ports_are_distinct() {
     let first = endpoint("example.test:443");
     let second = endpoint("example.test:8443");
 
-    store.learn_and_should_retry(&first, &settings, &response, &sent);
-    store.learn_and_should_retry(&second, &settings, &response, &sent);
+    store.learn_and_should_retry(&first, true, &settings, &response, &sent);
+    store.learn_and_should_retry(&second, true, &settings, &response, &sent);
 
     assert_eq!(store.prepare(&first, &settings, Vec::new()).len(), 1);
     assert_eq!(store.prepare(&second, &settings, Vec::new()).len(), 2);
-    assert_ne!(OriginKey::new(&first), OriginKey::new(&second));
+    assert_ne!(OriginKey::new(&first, true), OriginKey::new(&second, true));
 }
 
 #[test]
@@ -139,7 +164,7 @@ fn repeated_fields_are_combined_and_malformed_critical_ch_does_not_retry() {
     );
     response.insert("critical-ch", HeaderValue::from_static("\"not-a-token\""));
 
-    assert!(!store.learn_and_should_retry(&endpoint, &settings, &response, &sent));
+    assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &response, &sent));
     assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 3);
 }
 
@@ -151,11 +176,11 @@ fn unknown_only_replacement_clears_previous_preferences() {
     let sent = prepare_default_fields(&settings, Vec::new());
     let mut learned = HeaderMap::new();
     learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
-    store.learn_and_should_retry(&endpoint, &settings, &learned, &sent);
+    store.learn_and_should_retry(&endpoint, true, &settings, &learned, &sent);
 
     let mut unknown = HeaderMap::new();
     unknown.insert("accept-ch", HeaderValue::from_static("Sec-CH-Unknown"));
-    store.learn_and_should_retry(&endpoint, &settings, &unknown, &sent);
+    store.learn_and_should_retry(&endpoint, true, &settings, &unknown, &sent);
 
     assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 1);
 }
@@ -168,7 +193,7 @@ fn connection_preferences_augment_session_state_without_persisting() -> Result<(
     let sent = prepare_default_fields(&settings, Vec::new());
     let mut learned = HeaderMap::new();
     learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
-    store.learn_and_should_retry(&endpoint, &settings, &learned, &sent);
+    store.learn_and_should_retry(&endpoint, true, &settings, &learned, &sent);
     let context =
         ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
 
@@ -204,7 +229,7 @@ fn empty_or_malformed_connection_value_does_not_clear_session_state() -> Result<
     let sent = prepare_default_fields(&settings, Vec::new());
     let mut learned = HeaderMap::new();
     learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
-    store.learn_and_should_retry(&endpoint, &settings, &learned, &sent);
+    store.learn_and_should_retry(&endpoint, true, &settings, &learned, &sent);
     let context =
         ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
 
@@ -244,7 +269,7 @@ mod template_slots {
         } else {
             &template.http2_fields
         };
-        let expanded = expand(fields, caller, Some(hints));
+        let expanded = expand(fields, caller, Some(hints), true);
         prepare_fields(hints, stored, None, expanded, Some(&prepare(template)))
             .iter()
             .map(|header| header.name().to_owned())
@@ -339,7 +364,7 @@ mod template_slots {
         };
         let prepared_fetch = prepare(&fetch);
         let prepared_navigation = prepare(&navigation);
-        let fields = expand(&fetch.http2_fields, &[], Some(&hints));
+        let fields = expand(&fetch.http2_fields, &[], Some(&hints), true);
 
         // Default hints alone are the captured fetch shape.
         assert_eq!(
@@ -353,7 +378,7 @@ mod template_slots {
             Some(RequestErrorKind::RequestTemplate)
         );
         let caller = [RequestHeader::new("sec-ch-ua-arch", "\"x86\"")];
-        let with_caller = expand(&fetch.http2_fields, &caller, Some(&hints));
+        let with_caller = expand(&fetch.http2_fields, &caller, Some(&hints), true);
         assert_eq!(
             kind(context(&prepared_fetch).prepare(with_caller, None)),
             Some(RequestErrorKind::RequestTemplate)
@@ -362,14 +387,14 @@ mod template_slots {
         // A hint the origin requested through a response `Accept-CH`.
         let mut learned = HeaderMap::new();
         learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
-        store.learn_and_should_retry(&endpoint, &hints, &learned, &[]);
+        store.learn_and_should_retry(&endpoint, true, &hints, &learned, &[]);
         assert_eq!(
             kind(context(&prepared_fetch).prepare(fields, None)),
             Some(RequestErrorKind::RequestTemplate)
         );
 
         // The navigation capture shows where requested hints go.
-        let navigation_fields = expand(&navigation.http2_fields, &[], Some(&hints));
+        let navigation_fields = expand(&navigation.http2_fields, &[], Some(&hints), true);
         assert_eq!(
             kind(
                 context(&prepared_navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))
@@ -381,7 +406,7 @@ mod template_slots {
         // requested-hint flag claims.
         let mut slotless = crate::profile::firefox::v156_windows_navigation_template();
         slotless.requested_client_hint_placement = true;
-        let slotless_fields = expand(&slotless.http2_fields, &[], None);
+        let slotless_fields = expand(&slotless.http2_fields, &[], None, true);
         assert_eq!(
             kind(context(&prepare(&slotless)).prepare(slotless_fields, Some(b"Sec-CH-UA-Arch"))),
             Some(RequestErrorKind::RequestTemplate)
@@ -396,7 +421,7 @@ mod template_slots {
             RequestHeader::new("x-first", "1"),
             RequestHeader::new("SEC-CH-UA-MOBILE", "?1"),
         ];
-        let expanded = expand(&template.http2_fields, &caller, Some(&hints));
+        let expanded = expand(&template.http2_fields, &caller, Some(&hints), true);
         let prepared = prepare_fields(&hints, None, None, expanded, Some(&prepare(&template)));
         let mobile = prepared
             .iter()

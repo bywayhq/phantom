@@ -42,7 +42,7 @@ fn caller_fields_take_template_positions_and_spelling() {
         RequestHeader::new("referer", "https://example.test/page"),
         RequestHeader::new("accept-language", "de-DE,de;q=0.9").sensitive(),
     ];
-    let expanded = expand(&template.http1_fields, &caller, None);
+    let expanded = expand(&template.http1_fields, &caller, None, true);
 
     assert_eq!(
         names(&expanded),
@@ -74,6 +74,7 @@ fn unfilled_caller_slots_emit_nothing_and_hint_values_wait_for_the_connection() 
         &template.http2_fields,
         &[],
         Some(&edge::v153_windows_client_hints()),
+        true,
     );
     assert_eq!(
         names(&expanded),
@@ -99,7 +100,7 @@ fn caller_hints_fill_the_block_in_profile_order() {
         RequestHeader::new("sec-ch-ua", "\"Chromium\";v=\"154\""),
     ];
     let hints = chromium::v154_windows_client_hints();
-    let expanded = expand(&template.http2_fields, &caller, Some(&hints));
+    let expanded = expand(&template.http2_fields, &caller, Some(&hints), true);
     assert_eq!(
         names(&expanded)[..3],
         [
@@ -213,7 +214,7 @@ fn a_referer_on_a_navigation_template_goes_after_every_template_field() {
             "te",
         ),
     ] {
-        let expanded = expand(&fields, &caller, None);
+        let expanded = expand(&fields, &caller, None, true);
         assert_eq!(names(&expanded).last(), Some(&"referer"), "{last}");
         assert_eq!(names(&expanded)[expanded.len() - 2], last);
     }
@@ -355,4 +356,107 @@ fn invalid_templates_fail_to_prepare_and_disagreeing_accept_encoding_is_rejected
         Some(RequestErrorKind::RequestTemplate)
     );
     assert_eq!(kind(&template, exact(HttpProtocol::Http2), &[], None), None);
+}
+
+#[test]
+fn an_untrustworthy_url_drops_fetch_metadata_and_advanced_codings() {
+    let template = firefox::v156_windows_navigation_template();
+    let plaintext = expand(&template.http1_fields, &[], None, false);
+    assert_eq!(
+        names(&plaintext),
+        [
+            "User-Agent",
+            "Accept",
+            "Accept-Language",
+            "Accept-Encoding",
+            "Connection",
+            "Upgrade-Insecure-Requests",
+            "Priority",
+        ]
+    );
+    assert_eq!(plaintext[3].value(), b"gzip, deflate");
+
+    let loopback = expand(&template.http1_fields, &[], None, true);
+    assert_eq!(
+        names(&loopback)[5..],
+        [
+            "Upgrade-Insecure-Requests",
+            "Sec-Fetch-Dest",
+            "Sec-Fetch-Mode",
+            "Sec-Fetch-Site",
+            "Sec-Fetch-User",
+            "Priority",
+        ]
+    );
+    assert_eq!(loopback[3].value(), b"gzip, deflate, br, zstd");
+}
+
+#[test]
+fn caller_fields_keep_trust_dependent_positions_on_either_url() {
+    let template = chromium::v154_windows_navigation_template();
+    let caller = [
+        RequestHeader::new("accept-encoding", "br"),
+        RequestHeader::new("sec-fetch-site", "cross-site"),
+    ];
+    for trustworthy in [false, true] {
+        let expanded = expand(&template.http1_fields, &caller, None, trustworthy);
+        let site = names(&expanded)
+            .iter()
+            .position(|name| *name == "Sec-Fetch-Site");
+        assert_eq!(site, Some(4), "{trustworthy}");
+        let encoding = expanded
+            .iter()
+            .find(|field| field.name() == "Accept-Encoding")
+            .map(RequestHeader::value);
+        assert_eq!(encoding, Some(&b"br"[..]), "{trustworthy}");
+    }
+}
+
+#[test]
+fn prepared_templates_report_the_accept_encoding_for_each_trust() {
+    for template in [
+        chromium::v154_windows_navigation_template(),
+        chromium::v154_windows_fetch_no_store_template(),
+        edge::v153_windows_navigation_template(),
+        edge::v153_windows_fetch_no_store_template(),
+        firefox::v156_windows_navigation_template(),
+        firefox::v156_windows_fetch_no_store_template(),
+    ] {
+        let prepared = PreparedRequestTemplate::new(template)
+            .unwrap_or_else(|error| panic!("template is invalid: {error}"));
+        assert_eq!(prepared.accept_encoding(false), Some("gzip, deflate"));
+        assert_eq!(
+            prepared.accept_encoding(true),
+            Some("gzip, deflate, br, zstd")
+        );
+        let decoding = ProtocolScope {
+            content_decoding: true,
+            ..exact(HttpProtocol::Http2)
+        };
+        assert_eq!(
+            // Edge templates leave `User-Agent` to the caller.
+            check(
+                &prepared,
+                decoding,
+                &[RequestHeader::new("user-agent", EDGE_153)],
+                None
+            )
+            .err()
+            .map(|e| e.kind()),
+            None
+        );
+    }
+
+    // The lists must agree for each kind of URL, not only for one.
+    let mut template = firefox::v156_windows_navigation_template();
+    template.http2_fields[3] =
+        RequestField::by_trust("accept-encoding", "gzip, deflate, br, zstd", "gzip");
+    let decoding = ProtocolScope {
+        content_decoding: true,
+        ..exact(HttpProtocol::Http2)
+    };
+    assert_eq!(
+        kind(&template, decoding, &[], None),
+        Some(RequestErrorKind::RequestTemplate)
+    );
 }

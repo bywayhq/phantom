@@ -21,6 +21,7 @@ use crate::{
 mod alt_svc_attempt;
 mod attempt;
 mod replay;
+pub(crate) mod secure_context;
 pub(crate) mod template;
 
 pub use template::PreparedRequestTemplate;
@@ -184,7 +185,11 @@ impl RequestBuilder {
     /// fill the template's client-hint slots. On HTTP/2, the template's
     /// [`http2_priority`](crate::profile::RequestTemplate::http2_priority)
     /// replaces the connection's HEADERS priority for this request's stream.
-    /// Every redirect hop uses the same template.
+    /// Every redirect hop uses the same template. A
+    /// [`RequestField::ByTrust`](crate::profile::RequestField::ByTrust) entry
+    /// sends the value for whether each hop's URL is potentially trustworthy:
+    /// `https`, or `http` to a loopback address, `localhost`, or a
+    /// `.localhost` name. Automatic client hints go only to such URLs.
     ///
     /// The template was validated when it was prepared. Sending fails before
     /// I/O with
@@ -340,8 +345,10 @@ impl RequestBuilder {
     /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader)
     /// for a malformed `Accept-Encoding` field, and with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// when the template's per-protocol lists carry different literal
-    /// `Accept-Encoding` values.
+    /// when the template's per-protocol lists carry different
+    /// `Accept-Encoding` values. With a template and no `Accept-Encoding` of
+    /// your own, the template's value for the final hop's URL decides which
+    /// codings are decoded.
     pub fn content_decoding(mut self, policy: ContentDecoding) -> Self {
         self.content_decoding = policy;
         self
@@ -508,12 +515,25 @@ impl RequestBuilder {
                 self.client.inner.client_hints.as_ref(),
             )?;
         }
-        // Redirects never change `Accept-Encoding`, so the codings the first
-        // request advertises decide how the final response is decoded.
+        // A template's `Accept-Encoding` depends on whether the URL is
+        // potentially trustworthy, which a redirect can change, so the final
+        // hop's URL picks the codings that decide how its response is decoded.
+        // Both are parsed here so that a bad caller field fails before I/O.
         let advertised = if content_decoding.is_enabled() {
-            advertised_codings(self.request.template.as_ref(), &self.headers)?
+            AdvertisedByTrust {
+                untrustworthy: advertised_codings(
+                    self.request.template.as_ref(),
+                    &self.headers,
+                    false,
+                )?,
+                trustworthy: advertised_codings(
+                    self.request.template.as_ref(),
+                    &self.headers,
+                    true,
+                )?,
+            }
         } else {
-            AdvertisedContentCodings::default()
+            AdvertisedByTrust::default()
         };
 
         let Self {
@@ -553,7 +573,8 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
-            let decoding = FinalDecoding::new(content_decoding, advertised, &method);
+            let decoding =
+                FinalDecoding::new(content_decoding, advertised.for_url(&request.url), &method);
             let outcome = send_once(
                 &client,
                 &request,
@@ -629,9 +650,12 @@ impl RequestBuilder {
                             .body_mut()
                             .apply_timeouts(timeout_budget, outcome.protocol)?;
                     }
-                    let decoded_content_codings =
-                        FinalDecoding::new(content_decoding, advertised, redirect.method())
-                            .apply(&mut response, outcome.protocol);
+                    let decoded_content_codings = FinalDecoding::new(
+                        content_decoding,
+                        advertised.for_url(&resolved.url),
+                        redirect.method(),
+                    )
+                    .apply(&mut response, outcome.protocol);
                     response.extensions_mut().insert(ResponseInfo::new(
                         resolved.uri.clone(),
                         redirect.followed(),
@@ -661,18 +685,37 @@ impl RequestBuilder {
     }
 }
 
-/// Returns the content codings the request advertises.
+/// The content codings a request advertises to each kind of URL.
+#[derive(Clone, Copy, Default)]
+struct AdvertisedByTrust {
+    untrustworthy: AdvertisedContentCodings,
+    trustworthy: AdvertisedContentCodings,
+}
+
+impl AdvertisedByTrust {
+    fn for_url(self, url: &url::Url) -> AdvertisedContentCodings {
+        if secure_context::is_potentially_trustworthy(url) {
+            self.trustworthy
+        } else {
+            self.untrustworthy
+        }
+    }
+}
+
+/// Returns the content codings the request advertises to a URL of this
+/// trust.
 ///
-/// A template's literal `Accept-Encoding` is sent when the caller supplies
-/// none, so it is advertised too.
+/// A template's `Accept-Encoding` for that trust is sent when the caller
+/// supplies none, so it is advertised too.
 fn advertised_codings(
     template: Option<&PreparedRequestTemplate>,
     headers: &[RequestHeader],
+    trustworthy: bool,
 ) -> Result<AdvertisedContentCodings, RequestError> {
     let caller_supplied = headers
         .iter()
         .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
-    match template.and_then(PreparedRequestTemplate::accept_encoding) {
+    match template.and_then(|template| template.accept_encoding(trustworthy)) {
         Some(value) if !caller_supplied => {
             AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
                 "accept-encoding",

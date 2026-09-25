@@ -50,6 +50,10 @@ impl<'a> ClientHintContext<'a> {
         self.origin
     }
 
+    fn is_https(self) -> bool {
+        self.origin.starts_with("https://")
+    }
+
     /// Adds the enabled client hints to `caller`.
     ///
     /// # Errors
@@ -63,9 +67,9 @@ impl<'a> ClientHintContext<'a> {
         caller: Vec<RequestHeader>,
         connection_accept_ch: Option<&[u8]>,
     ) -> Result<Vec<RequestHeader>, RequestError> {
-        let stored = self
-            .store
-            .and_then(|store| store.active_indices(&OriginKey::new(self.endpoint)));
+        let stored = self.store.and_then(|store| {
+            store.active_indices(&OriginKey::new(self.endpoint, self.is_https()))
+        });
         let connection = connection_accept_ch.and_then(|value| match std::str::from_utf8(value) {
             Ok(value) => match parse_token_list(value) {
                 Ok(tokens) => Some(requested_indices(self.settings, &tokens)),
@@ -136,7 +140,7 @@ impl ClientHintStore {
         settings: &ClientHintSettings,
         caller: Vec<RequestHeader>,
     ) -> Vec<RequestHeader> {
-        let origin = OriginKey::new(endpoint);
+        let origin = OriginKey::new(endpoint, true);
         let active = self.active_indices(&origin);
         prepare_fields(settings, active.as_deref(), None, caller, None)
     }
@@ -144,6 +148,7 @@ impl ClientHintStore {
     pub(super) fn learn_and_should_retry(
         &self,
         endpoint: &Endpoint,
+        https: bool,
         settings: &ClientHintSettings,
         response: &HeaderMap,
         sent: &[RequestHeader],
@@ -166,7 +171,7 @@ impl ClientHintStore {
                 && !contains_field(sent, settings.hints()[*index].name())
         });
 
-        self.replace(OriginKey::new(endpoint), requested);
+        self.replace(OriginKey::new(endpoint, https), requested);
         should_retry
     }
 
@@ -377,14 +382,19 @@ fn parse_token_list(value: &str) -> Result<HashSet<Box<str>>, ()> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// An origin's scheme, host, and port. Loopback and `localhost` origins
+/// learn hints over `http://` too, so the scheme separates them from the
+/// HTTPS origin on the same host and port.
 struct OriginKey {
+    https: bool,
     host: Box<str>,
     port: u16,
 }
 
 impl OriginKey {
-    fn new(endpoint: &Endpoint) -> Self {
+    fn new(endpoint: &Endpoint, https: bool) -> Self {
         Self {
+            https,
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
         }

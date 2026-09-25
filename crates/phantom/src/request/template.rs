@@ -24,9 +24,11 @@ struct Prepared {
     template: RequestTemplate,
     /// Client-hint placement, the same on every protocol list.
     client_hint_slots: Vec<ClientHintSlot>,
-    /// The HTTP/1.1 list's literal `Accept-Encoding`.
-    accept_encoding: Option<Box<str>>,
-    /// Whether every protocol list has the same literal `Accept-Encoding`.
+    /// The HTTP/1.1 list's `Accept-Encoding` value for a URL that is not
+    /// potentially trustworthy, then for one that is.
+    accept_encoding: [Option<Box<str>>; 2],
+    /// Whether every protocol list sends the same `Accept-Encoding` value to
+    /// both kinds of URL.
     accept_encoding_agrees: bool,
     /// Names of required caller slots on any protocol list.
     required_fields: Vec<Box<str>>,
@@ -42,12 +44,15 @@ impl PreparedRequestTemplate {
     pub fn new(template: RequestTemplate) -> Result<Self, InvalidRequestTemplate> {
         template.validate()?;
         let client_hint_slots = client_hint_placement(&template.http2_fields);
-        let (accept_encoding, accept_encoding_agrees) = {
-            let mut codings = lists(&template).map(|fields| literal(fields, "accept-encoding"));
+        let mut accept_encoding: [Option<Box<str>>; 2] = [None, None];
+        let mut accept_encoding_agrees = true;
+        for trustworthy in [false, true] {
+            let mut codings = lists(&template)
+                .map(|fields| default_value(fields, "accept-encoding", trustworthy));
             let first = codings.next().flatten();
-            let agrees = codings.all(|coding| coding == first);
-            (first.map(Box::from), agrees)
-        };
+            accept_encoding_agrees &= codings.all(|coding| coding == first);
+            accept_encoding[usize::from(trustworthy)] = first.map(Box::from);
+        }
         let mut required_fields: Vec<Box<str>> = Vec::new();
         for field in lists(&template).flatten() {
             if let RequestField::Caller {
@@ -93,18 +98,19 @@ impl PreparedRequestTemplate {
         self.0.template.http2_priority
     }
 
-    /// Returns the template's literal `Accept-Encoding`, for decoding
-    /// decisions made before the protocol is chosen.
-    pub(crate) fn accept_encoding(&self) -> Option<&str> {
-        self.0.accept_encoding.as_deref()
+    /// Returns the `Accept-Encoding` value the template sends to a URL of
+    /// this trust, for decoding decisions made before the protocol is chosen.
+    pub(crate) fn accept_encoding(&self, trustworthy: bool) -> Option<&str> {
+        self.0.accept_encoding[usize::from(trustworthy)].as_deref()
     }
 }
 
 /// Emits the template's fields in order with the caller's fields in place.
 ///
-/// A caller field whose name matches a literal, caller, or client-hint slot
-/// takes that slot's position and spelling, keeping its value and
-/// sensitivity; a literal with no caller field emits its captured value.
+/// A caller field whose name matches a literal, trust-dependent, caller, or
+/// client-hint slot takes that slot's position and spelling, keeping its
+/// value and sensitivity; a literal with no caller field emits its captured
+/// value, and a trust-dependent entry the value for `trustworthy`, if any.
 /// Caller fields for profile client hints fill the client-hints slot in
 /// profile order. Automatic client hints are added later, once the
 /// connection is chosen. Every other caller field follows the template in
@@ -113,6 +119,7 @@ pub(crate) fn expand(
     fields: &[RequestField],
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
+    trustworthy: bool,
 ) -> Vec<RequestHeader> {
     let mut used = vec![false; caller.len()];
     let mut expanded = Vec::with_capacity(fields.len() + caller.len());
@@ -136,8 +143,10 @@ pub(crate) fn expand(
     };
     for field in fields {
         match field {
-            RequestField::Literal { name, value } => {
-                if !place(name, &mut expanded) {
+            RequestField::Literal { name, .. } | RequestField::ByTrust { name, .. } => {
+                if !place(name, &mut expanded)
+                    && let Some(value) = field.default_value(trustworthy)
+                {
                     expanded.push(RequestHeader::new(&**name, value.as_bytes()));
                 }
             }
@@ -189,9 +198,9 @@ pub(crate) struct ProtocolScope {
 /// # Errors
 ///
 /// Returns a request-template error for a protocol the template has no
-/// field order for, differing `Accept-Encoding` values when the response
-/// will be decoded, a required caller slot the caller leaves empty, profile
-/// hints sent by default when the template has no client-hint slot, or a
+/// field order for, `Accept-Encoding` values that differ between protocol
+/// lists when the response will be decoded, a required caller slot the
+/// caller leaves empty, profile hints sent by default when the template has no client-hint slot, or a
 /// caller field carrying a hint the profile sends only on request when the
 /// template does not capture where such hints go.
 pub(crate) fn check(
@@ -219,8 +228,8 @@ pub(crate) fn check(
         return Err(RequestError::request_template_required_field());
     }
     // A caller hint is sent even where automatic hints are not, such as to
-    // an `http://` origin, so it is refused here rather than only when the
-    // profile's hints are prepared.
+    // an origin that is not potentially trustworthy, so it is refused here
+    // rather than only when the profile's hints are prepared.
     let requested_by_caller = hints.is_some_and(|settings| {
         caller.iter().any(|header| {
             settings.hints().iter().any(|hint| {
@@ -258,14 +267,17 @@ fn lists(template: &RequestTemplate) -> impl Iterator<Item = &[RequestField]> {
     .flatten()
 }
 
-fn literal<'a>(fields: &'a [RequestField], name: &str) -> Option<&'a str> {
-    fields.iter().find_map(|field| match field {
-        RequestField::Literal {
-            name: field_name,
-            value,
-        } if field_name.eq_ignore_ascii_case(name) => Some(&**value),
-        _ => None,
-    })
+/// Returns the value the first entry named `name` sends to a URL of this
+/// trust when the caller supplies no such field.
+fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|field| {
+            field
+                .name()
+                .is_some_and(|field_name| field_name.eq_ignore_ascii_case(name))
+        })
+        .and_then(|field| field.default_value(trustworthy))
 }
 
 #[cfg(test)]

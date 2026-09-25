@@ -283,8 +283,12 @@ async fn direct_http1_reuses_same_origin_connection() -> TestResult<()> {
     .await
 }
 
+// A loopback `http://` origin is potentially trustworthy, so Chromium sends
+// and learns client hints there, as the retained Chrome 154 client-hint
+// capture on `http://127.0.0.1` shows. A named plaintext origin gets none;
+// `forward_proxy.rs` covers it through a proxy.
 #[tokio::test]
-async fn direct_plaintext_omits_client_hints() -> TestResult<()> {
+async fn direct_plaintext_loopback_sends_and_learns_client_hints() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -293,7 +297,7 @@ async fn direct_plaintext_omits_client_hints() -> TestResult<()> {
             let first = read_head(&mut stream).await?;
             stream
                 .write_all(
-                    b"HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\nCritical-CH: Sec-CH-UA-Arch\r\nContent-Length: 0\r\n\r\n",
+                    b"HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\nContent-Length: 0\r\n\r\n",
                 )
                 .await?;
             let second = read_head(&mut stream).await?;
@@ -326,10 +330,12 @@ async fn direct_plaintext_omits_client_hints() -> TestResult<()> {
         }
 
         let (first, second) = server.await??;
-        for request in [first, second] {
-            let request = std::str::from_utf8(&request)?.to_ascii_lowercase();
-            assert!(!request.contains("\r\nsec-ch-"));
-        }
+        let first = std::str::from_utf8(&first)?.to_ascii_lowercase();
+        let second = std::str::from_utf8(&second)?.to_ascii_lowercase();
+        assert!(first.contains("\r\nsec-ch-ua: profile\r\n"));
+        assert!(!first.contains("sec-ch-ua-arch"));
+        assert!(second.contains("\r\nsec-ch-ua: profile\r\n"));
+        assert!(second.contains("\r\nsec-ch-ua-arch: \"arm\"\r\n"));
         Ok(())
     })
     .await

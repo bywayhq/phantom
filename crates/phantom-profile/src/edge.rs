@@ -93,6 +93,10 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
 /// headful Edge capture backs a literal value. The `phantom` client fails a
 /// request without a caller `User-Agent` instead of sending Edge brand hints
 /// with no `User-Agent`.
+///
+/// The retained Edge proxy route captures show the Chromium change for a URL
+/// that is not potentially trustworthy too: to `origin.phantom.test` Edge
+/// sends no `Sec-Fetch-*` field and `Accept-Encoding: gzip, deflate`.
 #[must_use]
 pub fn v153_windows_navigation_template() -> RequestTemplate {
     chromium::v154_navigation_template(None)

@@ -347,11 +347,26 @@ pub fn v156_websocket() -> WebSocketSettings {
 }
 
 const V156_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
+const V156_PLAINTEXT_ACCEPT_ENCODING: &str = "gzip, deflate";
 const V156_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
 const V156_NAVIGATION_ACCEPT: &str =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const V156_WINDOWS_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+
+/// Returns Firefox 156's `Accept-Encoding` entry: `br` and `zstd` are offered
+/// only to a potentially trustworthy URL.
+///
+/// `HttpBaseChannel::Init` passes `isSecureOrTrustworthyURL` (an `https`
+/// scheme, or a loopback URL while `network.http.encoding.trustworthy_is_https`
+/// is true, its default) to `nsHttpHandler::AddStandardRequestHeaders`, which
+/// then sends `network.http.accept-encoding.secure` instead of
+/// `network.http.accept-encoding` (`netwerk/protocol/http/HttpBaseChannel.cpp`
+/// lines 325-329 and 351, `nsHttpHandler.cpp` lines 806-812, and
+/// `modules/libpref/init/all.js` lines 1187-1188 at `FIREFOX_156_0_RELEASE`).
+fn accept_encoding(name: &str) -> RequestField {
+    RequestField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
+}
 
 /// Returns navigation request fields observed from Firefox 156.0 on Windows 11.
 ///
@@ -372,6 +387,15 @@ const V156_WINDOWS_USER_AGENT: &str =
 /// Firefox sends no client hints, so the template has no client-hint slot,
 /// and the `phantom` client refuses it with a profile that sends default
 /// client hints.
+///
+/// Firefox sends the `Sec-Fetch-*` fields, and `br` and `zstd` in
+/// `Accept-Encoding`, only to a potentially trustworthy URL, so those entries
+/// are [`RequestField::ByTrust`]. `SecFetch::AddSecFetchHeader` returns early
+/// unless `nsMixedContentBlocker::IsPotentiallyTrustworthyOrigin` holds
+/// (`dom/security/SecFetch.cpp` lines 383-387 at `FIREFOX_156_0_RELEASE`). The
+/// retained proxy route captures show the navigation to the plaintext name
+/// `origin.phantom.test` without them, with `Accept-Encoding: gzip, deflate`,
+/// and with the remaining fields in the same order on HTTP/1.1 and HTTP/2.
 #[must_use]
 pub fn v156_windows_navigation_template() -> RequestTemplate {
     RequestTemplate {
@@ -379,25 +403,25 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
-            RequestField::literal("Accept-Encoding", V156_ACCEPT_ENCODING),
+            accept_encoding("Accept-Encoding"),
             RequestField::literal("Connection", "keep-alive"),
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
-            RequestField::literal("Sec-Fetch-Dest", "document"),
-            RequestField::literal("Sec-Fetch-Mode", "navigate"),
-            RequestField::literal("Sec-Fetch-Site", "none"),
-            RequestField::literal("Sec-Fetch-User", "?1"),
+            RequestField::trustworthy_only("Sec-Fetch-Dest", "document"),
+            RequestField::trustworthy_only("Sec-Fetch-Mode", "navigate"),
+            RequestField::trustworthy_only("Sec-Fetch-Site", "none"),
+            RequestField::trustworthy_only("Sec-Fetch-User", "?1"),
             RequestField::literal("Priority", "u=0, i"),
         ],
         http2_fields: vec![
             RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
-            RequestField::literal("accept-encoding", V156_ACCEPT_ENCODING),
+            accept_encoding("accept-encoding"),
             RequestField::literal("upgrade-insecure-requests", "1"),
-            RequestField::literal("sec-fetch-dest", "document"),
-            RequestField::literal("sec-fetch-mode", "navigate"),
-            RequestField::literal("sec-fetch-site", "none"),
-            RequestField::literal("sec-fetch-user", "?1"),
+            RequestField::trustworthy_only("sec-fetch-dest", "document"),
+            RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
+            RequestField::trustworthy_only("sec-fetch-site", "none"),
+            RequestField::trustworthy_only("sec-fetch-user", "?1"),
             RequestField::literal("priority", "u=0, i"),
             RequestField::literal("te", "trailers"),
         ],
@@ -425,6 +449,12 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 /// `User-Agent` value matches [`v156_windows_navigation_template`]. Like it,
 /// this template has no client-hint slot, and the `phantom` client refuses
 /// it with a profile that sends default client hints.
+///
+/// As on the navigation, the `Sec-Fetch-*` fields and the `br` and `zstd`
+/// codings are sent only to a potentially trustworthy URL. The proxy route
+/// captures back that shape with a same-origin `fetch()` in the default cache
+/// mode; that `Pragma` and `Cache-Control` keep their positions on a plaintext
+/// named origin is inferred, not captured.
 #[must_use]
 pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
     RequestTemplate {
@@ -432,12 +462,12 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("Accept", "*/*"),
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
-            RequestField::literal("Accept-Encoding", V156_ACCEPT_ENCODING),
+            accept_encoding("Accept-Encoding"),
             RequestField::caller("Referer"),
             RequestField::literal("Connection", "keep-alive"),
-            RequestField::literal("Sec-Fetch-Dest", "empty"),
-            RequestField::literal("Sec-Fetch-Mode", "cors"),
-            RequestField::literal("Sec-Fetch-Site", "same-origin"),
+            RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
+            RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
+            RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
             RequestField::literal("Priority", "u=4"),
             RequestField::literal("Pragma", "no-cache"),
             RequestField::literal("Cache-Control", "no-cache"),
@@ -446,11 +476,11 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("accept", "*/*"),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
-            RequestField::literal("accept-encoding", V156_ACCEPT_ENCODING),
+            accept_encoding("accept-encoding"),
             RequestField::caller("referer"),
-            RequestField::literal("sec-fetch-dest", "empty"),
-            RequestField::literal("sec-fetch-mode", "cors"),
-            RequestField::literal("sec-fetch-site", "same-origin"),
+            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
+            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
             RequestField::literal("priority", "u=4"),
             RequestField::literal("pragma", "no-cache"),
             RequestField::literal("cache-control", "no-cache"),

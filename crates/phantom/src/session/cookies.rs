@@ -7,6 +7,13 @@ use psl::Psl;
 use tracing::debug;
 use url::{Host, Url};
 
+// Chromium decides `Secure` cookie access with
+// `cookie_util::ProvisionalAccessScheme` (153.0.8010.48,
+// `net/cookies/cookie_util.cc` lines 709-714): a cryptographic scheme or
+// `net::IsLocalhost`, the same answer `is_potentially_trustworthy` gives for
+// the `http` and `https` URLs the jar receives.
+use crate::request::secure_context::is_potentially_trustworthy;
+
 mod snapshot;
 mod types;
 
@@ -640,35 +647,6 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
     Ok(())
 }
 
-/// Returns whether `url` is a potentially trustworthy origin, which may set
-/// and receive `Secure` cookies.
-///
-/// This is Chromium's `cookie_util::ProvisionalAccessScheme` (153.0.8010.48,
-/// `net/cookies/cookie_util.cc` lines 709-714): a cryptographic scheme, or
-/// `net::IsLocalhost` (`net/base/url_util.cc` lines 468-477 and 582-589),
-/// which accepts a loopback IP literal (`127.0.0.0/8` or exactly `::1`, per
-/// `net/base/ip_address.cc` lines 267-282) and the host `localhost` or any
-/// `.localhost` subdomain, ignoring one trailing dot and ASCII case.
-///
-/// The network service reaches the same answer for an HTTP or HTTPS URL
-/// through `CookieAccessDelegateImpl::ShouldTreatUrlAsTrustworthy` and
-/// `IsUrlPotentiallyTrustworthy`
-/// (`services/network/public/cpp/is_potentially_trustworthy.cc` lines
-/// 281-356), whose W3C Secure Contexts steps 1, 2, 6, 7, and 8 cover schemes
-/// and a command-line allowlist that `parse_url` and Phantom's
-/// configuration do not admit.
-fn is_potentially_trustworthy(url: &Url) -> bool {
-    if url.scheme() == "https" {
-        return true;
-    }
-    match url.host() {
-        Some(Host::Ipv4(address)) => address.is_loopback(),
-        Some(Host::Ipv6(address)) => address.is_loopback(),
-        Some(Host::Domain(host)) => is_localhost_name(host),
-        None => false,
-    }
-}
-
 /// Returns the URL to match cookies against, made cryptographic when `url` is
 /// a trustworthy origin.
 ///
@@ -706,23 +684,10 @@ fn secure_context_url(url: &Url) -> Cow<'_, Url> {
     }
 }
 
-fn is_localhost_name(host: &str) -> bool {
-    let host = host.strip_suffix('.').unwrap_or(host);
-    host.eq_ignore_ascii_case("localhost") || has_ascii_suffix(host, ".localhost")
-}
-
 fn has_ascii_prefix(value: &str, prefix: &str) -> bool {
     value
         .get(..prefix.len())
         .is_some_and(|candidate| candidate.eq_ignore_ascii_case(prefix))
-}
-
-fn has_ascii_suffix(value: &str, suffix: &str) -> bool {
-    value
-        .len()
-        .checked_sub(suffix.len())
-        .and_then(|start| value.get(start..))
-        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(suffix))
 }
 
 fn overlays_secure_cookie(cookie: &Cookie<'_>, store: &CookieStore) -> bool {
