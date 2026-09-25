@@ -10,6 +10,14 @@ const EDGE_153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
 ));
+const BRAVE_154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
+));
+const OPERA_135_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
+));
 const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
@@ -28,6 +36,36 @@ client_version=153.0.4234.48
 "
     ));
     assert_quic_settings_match_startup(EDGE_153_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+}
+
+#[test]
+fn brave_154_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert!(BRAVE_154_WINDOWS_HTTP3_FIXTURE.contains(
+        "
+client=Brave
+"
+    ));
+    assert!(BRAVE_154_WINDOWS_HTTP3_FIXTURE.contains(
+        "
+client_version=154.1.96.59
+"
+    ));
+    assert_quic_settings_match_startup(BRAVE_154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+}
+
+#[test]
+fn opera_135_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert!(OPERA_135_WINDOWS_HTTP3_FIXTURE.contains(
+        "
+client=Opera
+"
+    ));
+    assert!(OPERA_135_WINDOWS_HTTP3_FIXTURE.contains(
+        "
+client_version=135.0.5973.92
+"
+    ));
+    assert_quic_settings_match_startup(OPERA_135_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
 fn assert_quic_settings_match_startup(
@@ -362,7 +400,7 @@ fn chrome_154_quic_recipe_matches_windows_capture() -> Result<(), Box<dyn std::e
     assert_quic_settings_match_startup(V154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
-const RESUMPTION_FIXTURES: [&str; 6] = [
+const RESUMPTION_FIXTURES: [&str; 12] = [
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept.txt"
@@ -386,6 +424,30 @@ const RESUMPTION_FIXTURES: [&str; 6] = [
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-reject.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-reject.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-reject.txt"
     )),
 ];
 

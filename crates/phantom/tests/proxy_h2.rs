@@ -22,7 +22,9 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, ProxyConfigErrorKind,
     RequestErrorKind, RequestHeader, ResponseInfo, Route,
-    profile::{ClientProfile, Http2Settings, RequestTemplate, chromium, edge, firefox},
+    profile::{
+        ClientProfile, Http2Settings, RequestTemplate, brave, chromium, edge, firefox, opera,
+    },
 };
 use phantom_net::proxy::HttpConnectError;
 use tokio::{
@@ -740,8 +742,21 @@ fn captured_connect(fixture: &str, port: &str, credential: bool) -> TestResult<V
         .ok_or_else(|| format!("capture has no CONNECT to port {port}").into())
 }
 
+/// One browser's label, H2 settings, navigation and fetch templates, two
+/// proxy route captures, and the caller fields its templates need.
+type ForwardingCase = (
+    &'static str,
+    Http2Settings,
+    RequestTemplate,
+    RequestTemplate,
+    &'static str,
+    &'static str,
+    &'static [(&'static str, &'static str)],
+);
+
 /// A navigation challenged by an HTTP/2 proxy and its replay place
-/// `proxy-authorization` where Chrome 154, Edge 153, and Firefox 156 do in
+/// `proxy-authorization` where Chrome 154, Edge 153, Brave 154, Opera 135,
+/// and Firefox 156 do in
 /// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
 /// sends remembered credentials first places it where they do in the
 /// `https-proxy-auth-nostore-hostname` captures. Every run of each agrees.
@@ -749,15 +764,9 @@ fn captured_connect(fixture: &str, port: &str, credential: bool) -> TestResult<V
 #[tokio::test]
 async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
-    let cases: [(
-        &str,
-        Http2Settings,
-        RequestTemplate,
-        RequestTemplate,
-        &str,
-        &str,
-        bool,
-    ); 3] = [
+    const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+    const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+    let cases: [ForwardingCase; 5] = [
         (
             "chrome",
             chromium::v154_http2(),
@@ -765,7 +774,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             chromium::v154_windows_fetch_no_store_template(),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-nostore-hostname"),
-            false,
+            &[],
         ),
         (
             "edge",
@@ -774,7 +783,28 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             edge::v153_windows_fetch_no_store_template(),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
-            true,
+            &[("user-agent", EDGE_UA)],
+        ),
+        (
+            "brave",
+            chromium::v154_http2(),
+            brave::v154_windows_navigation_template(),
+            brave::v154_windows_fetch_no_store_template(),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-hostname"),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-nostore-hostname"),
+            &[
+                ("user-agent", BRAVE_UA),
+                ("accept-language", "en-US,en;q=0.7"),
+            ],
+        ),
+        (
+            "opera",
+            chromium::v154_http2(),
+            opera::v135_windows_navigation_template(),
+            opera::v135_windows_fetch_no_store_template(),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-hostname"),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-nostore-hostname"),
+            &[("user-agent", OPERA_UA)],
         ),
         (
             "firefox",
@@ -783,10 +813,10 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             firefox::v156_windows_fetch_no_store_template(),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
-            false,
+            &[],
         ),
     ];
-    for (label, http2, navigation, fetch, fixture, nostore, caller_ua) in cases {
+    for (label, http2, navigation, fetch, fixture, nostore, caller_fields) in cases {
         let captured = captured_forwarded_blocks(fixture)?;
         let [challenged, replay, _] = captured.as_slice() else {
             return Err(format!("{label}: expected three forwarded requests").into());
@@ -821,10 +851,10 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
                 ("/page", navigation, None),
                 ("/done", fetch, Some("http://origin.test:8080/page")),
             ] {
-                let mut caller = Vec::new();
-                if caller_ua {
-                    caller.push(RequestHeader::new("user-agent", EDGE_UA));
-                }
+                let mut caller: Vec<RequestHeader> = caller_fields
+                    .iter()
+                    .map(|(name, value)| RequestHeader::new(*name, *value))
+                    .collect();
                 caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
                 let response = client
                     .get(
@@ -880,8 +910,8 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
 /// The profile's CONNECT fields on an HTTP/2 proxy for an `https://`
 /// tunnel: anonymous, challenged, and on the replay after a `407`, compared
 /// with the `https://` CONNECTs of the `https-proxy-secure-hostname` and
-/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 153, and
-/// Firefox 156.
+/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 153,
+/// Brave 154, Opera 135, and Firefox 156.
 #[tokio::test]
 async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
@@ -898,6 +928,20 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             chromium::v154_windows_navigation_template(),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-secure-hostname"),
+        ),
+        (
+            "brave",
+            chromium::v154_proxy_connect(),
+            chromium::v154_windows_navigation_template(),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-secure-hostname"),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-secure-hostname"),
+        ),
+        (
+            "opera",
+            chromium::v154_proxy_connect(),
+            chromium::v154_windows_navigation_template(),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-secure-hostname"),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-secure-hostname"),
         ),
         (
             "firefox",
@@ -998,6 +1042,14 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
         ),
         (
+            chromium::v154_proxy_connect(),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-secure-hostname"),
+        ),
+        (
+            chromium::v154_proxy_connect(),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-secure-hostname"),
+        ),
+        (
             firefox::v156_proxy_connect(),
             proxy_fixture!("firefox/156.0", "https-proxy-secure-hostname"),
         ),
@@ -1049,7 +1101,11 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
 {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
-    let cases = [
+    const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
+    const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+    let cases: [ForwardingCase; 5] = [
         (
             "chrome",
             chromium::v154_http2(),
@@ -1060,7 +1116,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                 "https-proxy-auth-remembered-hostname"
             ),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-nostore-hostname"),
-            false,
+            &[],
         ),
         (
             "edge",
@@ -1069,7 +1125,31 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             edge::v153_windows_fetch_no_store_template(),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-remembered-hostname"),
             proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
-            true,
+            &[("user-agent", EDGE_UA)],
+        ),
+        (
+            "brave",
+            chromium::v154_http2(),
+            brave::v154_windows_navigation_template(),
+            brave::v154_windows_fetch_no_store_template(),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-nostore-hostname"),
+            &[
+                ("user-agent", BRAVE_UA),
+                ("accept-language", "en-US,en;q=0.7"),
+            ],
+        ),
+        (
+            "opera",
+            chromium::v154_http2(),
+            opera::v135_windows_navigation_template(),
+            opera::v135_windows_fetch_no_store_template(),
+            proxy_fixture!(
+                "opera/135.0.5973.92",
+                "https-proxy-auth-remembered-hostname"
+            ),
+            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-nostore-hostname"),
+            &[("user-agent", OPERA_UA)],
         ),
         (
             "firefox",
@@ -1078,10 +1158,10 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             firefox::v156_windows_fetch_no_store_template(),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-remembered-hostname"),
             proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
-            false,
+            &[],
         ),
     ];
-    for (label, http2, navigation, fetch, fixture, nostore, caller_ua) in cases {
+    for (label, http2, navigation, fetch, fixture, nostore, caller_fields) in cases {
         let blocks = captured_h2_blocks(fixture)?;
         let nostore = captured_h2_blocks(nostore)?;
         let find = |path: &str, credential: bool| -> TestResult<Vec<String>> {
@@ -1124,10 +1204,10 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
                 ("/probe", fetch, Some("http://origin.test:8080/page")),
                 ("/page", navigation, None),
             ] {
-                let mut caller = Vec::new();
-                if caller_ua {
-                    caller.push(RequestHeader::new("user-agent", EDGE_UA));
-                }
+                let mut caller: Vec<RequestHeader> = caller_fields
+                    .iter()
+                    .map(|(name, value)| RequestHeader::new(*name, *value))
+                    .collect();
                 caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
                 let response = client
                     .get(

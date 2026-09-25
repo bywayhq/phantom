@@ -405,7 +405,8 @@ pub fn v154_http2() -> Http2Settings {
 /// the cookie placeholder's final position is not observed. The
 /// compression offer is `permessage-deflate; client_max_window_bits`; Chrome
 /// always sends it, while Phantom sends it only when the caller enables
-/// compression. Edge 153.0.4234.48 matches this recipe on every compared field.
+/// compression. Edge 153.0.4234.48, Brave 154.1.96.59, and Opera
+/// 135.0.5973.92 match this recipe on every compared field.
 ///
 /// `Accept-Encoding` is a [`WebSocketField::ByTrust`] entry, as on
 /// ordinary requests: Chrome offers `br` and `zstd` only to a potentially
@@ -475,7 +476,8 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// `*-secure-hostname` captures show the same fields on the CONNECT for an
 /// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
 /// replay after a `407`, and with remembered credentials. Edge
-/// 153.0.4234.48 sends the same fields in the same order.
+/// 153.0.4234.48, Brave 154.1.96.59, and Opera 135.0.5973.92 send the same
+/// fields in the same order.
 ///
 /// Chrome's `User-Agent` there is its own, which the captures show equal to
 /// the page request's. The recipe copies the `User-Agent` of the request

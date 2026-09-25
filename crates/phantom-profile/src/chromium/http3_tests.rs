@@ -8,6 +8,12 @@ use super::{v154_http3, v154_http3_request};
 const EDGE_153_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
 );
+const BRAVE_154_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
+);
+const OPERA_135_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
+);
 const V154_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 );
@@ -43,6 +49,40 @@ fn edge_153_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::
         v154_http3_request(),
     )?;
     assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, EDGE_153_WINDOWS_FIXTURE)
+}
+
+/// Brave 154 shares the Chromium H3 control stream and pseudo-header order;
+/// its request fields differ and are compared with the Brave navigation
+/// template in the request-template tests.
+#[test]
+fn brave_154_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(fixture_field(BRAVE_154_WINDOWS_FIXTURE, "client")?, "Brave");
+    assert_eq!(
+        fixture_field(BRAVE_154_WINDOWS_FIXTURE, "client_version")?,
+        "154.1.96.59"
+    );
+    assert_settings_match_control_stream(
+        BRAVE_154_WINDOWS_FIXTURE,
+        v154_http3(),
+        v154_http3_request(),
+    )
+}
+
+/// Opera 135 shares the Chromium H3 control stream and request order; only
+/// persona values differ.
+#[test]
+fn opera_135_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(fixture_field(OPERA_135_WINDOWS_FIXTURE, "client")?, "Opera");
+    assert_eq!(
+        fixture_field(OPERA_135_WINDOWS_FIXTURE, "client_version")?,
+        "135.0.5973.92"
+    );
+    assert_settings_match_control_stream(
+        OPERA_135_WINDOWS_FIXTURE,
+        v154_http3(),
+        v154_http3_request(),
+    )?;
+    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, OPERA_135_WINDOWS_FIXTURE)
 }
 
 fn fixture_field<'a>(fixture: &'a str, key: &str) -> Result<&'a str, Box<dyn std::error::Error>> {

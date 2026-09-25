@@ -1,6 +1,6 @@
-//! Chromium-family (Chrome and Edge) TLS differential tests.
+//! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
-use phantom_profile::{TlsSettings, chromium::v154_tls, edge};
+use phantom_profile::{TlsSettings, brave, chromium::v154_tls, edge, opera};
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
 use super::{capture_client_hello_from, capture_client_hellos_from, client_hello_fixture};
@@ -16,6 +16,14 @@ const CHROME_154_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
 ));
 const EDGE_153_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/edge/153.0.4234.48/",
+    "windows-11-26200/client-hello.txt"
+));
+const BRAVE_154_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/brave/154.1.96.59/",
+    "windows-11-26200/client-hello.txt"
+));
+const OPERA_135_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/opera/135.0.5973.92/",
     "windows-11-26200/client-hello.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;
@@ -69,12 +77,31 @@ async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(EDGE_153_FIXTURE, &edge::v153_tls(), None).await
 }
 
+/// Brave 154 sends the Chrome 154 ClientHello without trust-anchor IDs.
+#[tokio::test]
+async fn brave_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(BRAVE_154_FIXTURE, &brave::v154_tls(), None).await
+}
+
+/// Opera 135 sends the Chrome 154 ClientHello without trust-anchor IDs and
+/// without a GREASE signature algorithm; the replay compares the signature
+/// algorithm list with its GREASE entries in place.
+#[tokio::test]
+async fn opera_135_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(OPERA_135_FIXTURE, &opera::v135_tls(), None).await
+}
+
 /// Chromium-family browsers advertise HKDF-SHA256 with AES-128-GCM on every
 /// connection; their recipes keep the backend default AEAD policy.
 #[tokio::test]
 async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> TestResult<()> {
     const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
-    for settings in [v154_tls(), edge::v153_tls()] {
+    for settings in [
+        v154_tls(),
+        edge::v153_tls(),
+        brave::v154_tls(),
+        opera::v135_tls(),
+    ] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
             assert_eq!(

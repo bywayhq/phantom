@@ -55,3 +55,41 @@ async fn chromium_http2_recipe_matches_windows_edge_capture() -> TestResult<()> 
     assert_raw_startup(&fixture).await?;
     assert_public_startup_matches_fixture(&fixture, v154_http2()).await
 }
+
+const BRAVE_154_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/brave/154.1.96.59/",
+    "windows-11-26200/client-startup.txt"
+));
+const OPERA_135_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/opera/135.0.5973.92/",
+    "windows-11-26200/client-startup.txt"
+));
+/// Opera abandons the connection its startup preconnect opens, so it was
+/// started on `about:blank` and navigated over the DevTools protocol.
+const OPERA_LAUNCH_ARGUMENTS: &str = "--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --remote-debugging-port=0 about:blank";
+
+/// Brave 154 has no separate HTTP/2 recipe: its startup equals the Chromium
+/// recipe's, byte for byte.
+#[tokio::test]
+async fn chromium_http2_recipe_matches_windows_brave_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(BRAVE_154_FIXTURE_TEXT)?;
+    assert_eq!(fixture.browser, "Brave");
+    assert_eq!(fixture.browser_version, "154.1.96.59");
+    assert_eq!(fixture.launch_mode, "command-line");
+    assert_eq!(fixture.launch_arguments, EXPECTED_LAUNCH_ARGUMENTS);
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, v154_http2()).await
+}
+
+/// Opera 135 has no separate HTTP/2 recipe: its startup equals the Chromium
+/// recipe's, byte for byte.
+#[tokio::test]
+async fn chromium_http2_recipe_matches_windows_opera_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(OPERA_135_FIXTURE_TEXT)?;
+    assert_eq!(fixture.browser, "Opera");
+    assert_eq!(fixture.browser_version, "135.0.5973.92");
+    assert_eq!(fixture.launch_mode, "devtools-navigate");
+    assert_eq!(fixture.launch_arguments, OPERA_LAUNCH_ARGUMENTS);
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, v154_http2()).await
+}

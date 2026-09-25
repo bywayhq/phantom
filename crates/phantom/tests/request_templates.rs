@@ -32,8 +32,8 @@ use phantom::{
     Client, ClientBuilder, ContentCoding, ContentDecoding, HttpProtocol, PreparedRequestTemplate,
     RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
     profile::{
-        ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate,
-        chromium, edge, firefox,
+        ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate, brave,
+        chromium, edge, firefox, opera,
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -63,6 +63,12 @@ const CHROME_H3: &str = fixture!("http3/chrome/154.0.8037.58/windows-11-26200/cl
 const EDGE_H1: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/h1-accept.txt");
 const EDGE_H2: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/accept.txt");
 const EDGE_H3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
+const BRAVE_H1: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/h1-accept.txt");
+const BRAVE_H2: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/accept.txt");
+const BRAVE_H3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
+const OPERA_H1: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/h1-accept.txt");
+const OPERA_H2: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt");
+const OPERA_H3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
 const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0/windows-11-26200/h1-accept.txt");
 const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0/windows-11-26200/accept.txt");
 
@@ -92,6 +98,26 @@ fn edge() -> Browser {
         http1_capture: EDGE_H1,
         http2_capture: EDGE_H2,
         http3_capture: Some(EDGE_H3),
+    }
+}
+
+fn brave() -> Browser {
+    Browser {
+        http2: chromium::v154_http2(),
+        hints: Some(brave::v154_windows_client_hints()),
+        http1_capture: BRAVE_H1,
+        http2_capture: BRAVE_H2,
+        http3_capture: Some(BRAVE_H3),
+    }
+}
+
+fn opera() -> Browser {
+    Browser {
+        http2: chromium::v154_http2(),
+        hints: Some(opera::v135_windows_client_hints()),
+        http1_capture: OPERA_H1,
+        http2_capture: OPERA_H2,
+        http3_capture: Some(OPERA_H3),
     }
 }
 
@@ -408,6 +434,28 @@ async fn edge_navigation_sends_the_captured_page_request() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn brave_navigation_sends_the_captured_page_request() -> TestResult<()> {
+    assert_reproduces(
+        brave(),
+        brave::v154_windows_navigation_template,
+        Kind::Navigation,
+        ALL,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn opera_navigation_sends_the_captured_page_request() -> TestResult<()> {
+    assert_reproduces(
+        opera(),
+        opera::v135_windows_navigation_template,
+        Kind::Navigation,
+        ALL,
+    )
+    .await
+}
+
+#[tokio::test]
 async fn firefox_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         firefox(),
@@ -434,6 +482,28 @@ async fn edge_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         edge(),
         edge::v153_windows_fetch_no_store_template,
+        Kind::Fetch,
+        TCP,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn brave_fetch_sends_the_captured_report_request() -> TestResult<()> {
+    assert_reproduces(
+        brave(),
+        brave::v154_windows_fetch_no_store_template,
+        Kind::Fetch,
+        TCP,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn opera_fetch_sends_the_captured_report_request() -> TestResult<()> {
+    assert_reproduces(
+        opera(),
+        opera::v135_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -790,25 +860,82 @@ async fn redirect_hop() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn edge_template_without_a_user_agent_fails_before_any_connection() -> TestResult<()> {
+async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> TestResult<()> {
+    // Brave's templates also leave `Accept-Language` to the caller, so its
+    // requests carry one here and fail only for the missing `User-Agent`.
+    for (hints, templates, language) in [
+        (
+            edge::v153_windows_client_hints(),
+            [
+                edge::v153_windows_navigation_template(),
+                edge::v153_windows_fetch_no_store_template(),
+            ],
+            None,
+        ),
+        (
+            brave::v154_windows_client_hints(),
+            [
+                brave::v154_windows_navigation_template(),
+                brave::v154_windows_fetch_no_store_template(),
+            ],
+            Some("en-US,en;q=0.9"),
+        ),
+        (
+            opera::v135_windows_client_hints(),
+            [
+                opera::v135_windows_navigation_template(),
+                opera::v135_windows_fetch_no_store_template(),
+            ],
+            None,
+        ),
+    ] {
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_client_hints(hints);
+        let client = Client::builder(profile).build()?;
+        // Nothing listens here; an attempted connection would fail differently.
+        let url = "https://127.0.0.1:9/";
+        for template in templates {
+            let mut builder = client
+                .get(HttpProtocol::Http2, url)?
+                .template(&PreparedRequestTemplate::new(template)?)
+                .header(RequestHeader::new("referer", "https://127.0.0.1:9/"));
+            if let Some(language) = language {
+                builder = builder.header(RequestHeader::new("accept-language", language));
+            }
+            let error = builder
+                .send()
+                .await
+                .err()
+                .ok_or("brand hints were sent without a User-Agent")?;
+            assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+        }
+    }
+    Ok(())
+}
+
+/// Brave's templates leave `Accept-Language` to the caller: Brave draws its
+/// `q` value per session, so no literal would match every Brave request.
+#[tokio::test]
+async fn brave_template_without_an_accept_language_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_client_hints(edge::v153_windows_client_hints());
+        .with_client_hints(brave::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
-    // Nothing listens here; an attempted connection would fail differently.
     let url = "https://127.0.0.1:9/";
     for template in [
-        edge::v153_windows_navigation_template(),
-        edge::v153_windows_fetch_no_store_template(),
+        brave::v154_windows_navigation_template(),
+        brave::v154_windows_fetch_no_store_template(),
     ] {
         let error = client
             .get(HttpProtocol::Http2, url)?
             .template(&PreparedRequestTemplate::new(template)?)
             .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
+            .header(RequestHeader::new("user-agent", "Mozilla/5.0"))
             .send()
             .await
             .err()
-            .ok_or("Edge brand hints were sent without a User-Agent")?;
+            .ok_or("a Brave request was sent without Accept-Language")?;
         assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
     }
     Ok(())

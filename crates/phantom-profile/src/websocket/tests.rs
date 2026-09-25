@@ -53,17 +53,24 @@ macro_rules! fixture_set {
 const CHROME: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "153.0.4234.48");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
+const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
+const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
 
 #[test]
-fn chromium_154_websocket_recipe_matches_chrome_and_edge_captures() -> TestResult {
+fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResult {
     let recipe = chromium::v154_websocket();
     let http2 = chromium::v154_http2();
     let tls = chromium::v154_tls();
-    // Every `refused-stream` run of both browsers opened over the page's H2
-    // session, so each carries a refusal to compare.
+    // Every `refused-stream` run of Chrome, Edge, and Brave opened over the
+    // page's H2 session, so each carries a refusal to compare. In two Opera
+    // runs Opera had already closed that session, as it closes its early
+    // connections when its certificate verifier changes, so the socket went
+    // over a new HTTP/1.1 Upgrade connection and no stream was refused.
     for (fixtures, client, reused, http1, refused) in [
         (CHROME, "Google Chrome", 15, 6, 3),
         (EDGE, "Microsoft Edge", 15, 6, 3),
+        (BRAVE, "Brave", 15, 6, 3),
+        (OPERA, "Opera", 13, 8, 1),
     ] {
         let summary = assert_recipe_matches(&fixtures, client, &recipe, &http2, &tls)?;
         assert_eq!(summary.reused_sessions, reused, "{client}");
@@ -676,6 +683,16 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
         (
             proxy_fixture_set!("edge", "153.0.4234.48"),
             "Microsoft Edge",
+            &chromium,
+        ),
+        (
+            proxy_fixture_set!("brave", "154.1.96.59"),
+            "Brave",
+            &chromium,
+        ),
+        (
+            proxy_fixture_set!("opera", "135.0.5973.92"),
+            "Opera",
             &chromium,
         ),
         (

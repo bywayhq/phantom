@@ -185,10 +185,16 @@ impl AsyncWrite for Replayed {
 }
 
 fn connector(identity: &TestIdentity) -> TestResult<Http1Or2TlsConnector> {
-    let settings = v154_tls();
+    connector_with(identity, &v154_tls())
+}
+
+fn connector_with(
+    identity: &TestIdentity,
+    settings: &phantom_profile::TlsSettings,
+) -> TestResult<Http1Or2TlsConnector> {
     assert!(settings.ech_from_https_records);
     Ok(Http1Or2TlsConnector::new_with_additional_roots(
-        &settings,
+        settings,
         &v154_http2(),
         [identity.root_der()],
     )?)
@@ -368,6 +374,9 @@ fn the_wait_is_a_fifth_of_address_resolution_within_5_to_50_ms() {
 const CHROME_ACCEPT: &str = include_str!(
     "../../../../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt"
 );
+/// Brave 154's ClientHelloOuter from `ech-accept.txt`, captured the same way.
+const BRAVE_ACCEPT: &str =
+    include_str!("../../../../../fixtures/tls/brave/154.1.96.59/windows-11-26200/ech-accept.txt");
 
 fn fixture_value<'a>(fixture: &'a str, field: &str) -> TestResult<&'a str> {
     fixture
@@ -401,16 +410,30 @@ fn extension_set(types: &[u16]) -> Vec<u16> {
 
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
-    let record = decode_hex(fixture_value(CHROME_ACCEPT, "connection_0_record_0_hex")?)?;
-    let chrome = ClientHelloSummary::from_handshake_bytes(record.get(5..).ok_or("short record")?)?;
-    let chrome_ech = chrome
+    assert_outer_client_hello_matches(CHROME_ACCEPT, &v154_tls()).await
+}
+
+/// Brave sends Chrome's outer shape without the trust-anchor IDs extension,
+/// which its recipe also omits.
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()> {
+    assert_outer_client_hello_matches(BRAVE_ACCEPT, &phantom_profile::brave::v154_tls()).await
+}
+
+async fn assert_outer_client_hello_matches(
+    fixture: &str,
+    settings: &phantom_profile::TlsSettings,
+) -> TestResult<()> {
+    let record = decode_hex(fixture_value(fixture, "connection_0_record_0_hex")?)?;
+    let browser = ClientHelloSummary::from_handshake_bytes(record.get(5..).ok_or("short record")?)?;
+    let browser_ech = browser
         .encrypted_client_hello()
         .and_then(EchOuterExtension::parse)
-        .ok_or("Chrome's ClientHelloOuter lacks ECH")?;
-    let origin = fixture_value(CHROME_ACCEPT, "hostname")?;
-    let public = fixture_value(CHROME_ACCEPT, "public_name")?;
-    let list = decode_hex(fixture_value(CHROME_ACCEPT, "dns_ech_config_list_hex")?)?;
-    let server_config = decode_hex(fixture_value(CHROME_ACCEPT, "server_ech_config_hex")?)?;
+        .ok_or("the captured ClientHelloOuter lacks ECH")?;
+    let origin = fixture_value(fixture, "hostname")?;
+    let public = fixture_value(fixture, "public_name")?;
+    let list = decode_hex(fixture_value(fixture, "dns_ech_config_list_hex")?)?;
+    let server_config = decode_hex(fixture_value(fixture, "server_ech_config_hex")?)?;
 
     let identity = TestIdentity::generate_for_names(&[origin, public])?;
     let key = ServerKey {
@@ -418,7 +441,7 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
         key: TEST_ECH_KEYS[0],
     };
     let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
-    let connector = connector(&identity)?;
+    let connector = connector_with(&identity, settings)?;
     tokio::time::timeout(
         TEST_TIMEOUT,
         connector.connect_direct_with_ech("127.0.0.1", address.port(), origin, async {
@@ -432,12 +455,12 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
     assert!(phantom.ech_accepted);
     assert_eq!(
         phantom.outer_server_name.as_deref().map(str::as_bytes),
-        chrome.server_name()
+        browser.server_name()
     );
-    assert_eq!(phantom.ech.as_ref(), Some(&chrome_ech));
+    assert_eq!(phantom.ech.as_ref(), Some(&browser_ech));
     assert_eq!(
         extension_set(&phantom.extension_types),
-        extension_set(chrome.extension_types())
+        extension_set(browser.extension_types())
     );
     Ok(())
 }

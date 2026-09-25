@@ -257,6 +257,30 @@ pub mod profile {
         };
     }
 
+    /// Brave recipes implemented by the public facade.
+    ///
+    /// Brave 154 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
+    /// CONNECT recipes; its TLS ClientHellos, client hints, and request
+    /// fields differ.
+    pub mod brave {
+        pub use phantom_profile::brave::{
+            v154_http3_tls, v154_tls, v154_windows_client_hints,
+            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
+        };
+    }
+
+    /// Opera recipes implemented by the public facade.
+    ///
+    /// Opera 135 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
+    /// CONNECT recipes; only its TLS ClientHellos, client hints, and request
+    /// identity differ.
+    pub mod opera {
+        pub use phantom_profile::opera::{
+            v135_http3_tls, v135_tls, v135_windows_client_hints,
+            v135_windows_fetch_no_store_template, v135_windows_navigation_template,
+        };
+    }
+
     /// Microsoft Edge recipes implemented by the public facade.
     ///
     /// Edge 153 shares the Chromium H2, QUIC, H3, WebSocket, and proxy

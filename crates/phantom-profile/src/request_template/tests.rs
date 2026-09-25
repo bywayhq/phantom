@@ -4,8 +4,8 @@ use super::{
     client_hint_placement,
 };
 use crate::{
-    ClientHintSettings, chromium, client_hints::navigation_capture::NavigationCapture, edge,
-    firefox,
+    ClientHintSettings, brave, chromium, client_hints::navigation_capture::NavigationCapture, edge,
+    firefox, opera,
 };
 
 macro_rules! fixture {
@@ -69,6 +69,8 @@ const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/153.0.4234.48");
 const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0");
+const BRAVE_WEBSOCKET: [&str; 9] = websocket_set!("brave/154.1.96.59");
+const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
 const CHROME_HEADFUL_SSE: &str =
     fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
 const CHROME_HEADLESS_SSE: &str =
@@ -76,10 +78,14 @@ const CHROME_HEADLESS_SSE: &str =
 const CHROME_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
 const EDGE_HTTP3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
+const BRAVE_HTTP3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
+const OPERA_HTTP3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
 const CHROME_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
     fixture!("client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt");
+const OPERA_CLIENT_HINTS: &str =
+    fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
 /// Which protocol list of a template a capture is compared with.
 #[derive(Clone, Copy, Debug)]
 enum Protocol {
@@ -246,6 +252,10 @@ fn every_template_recipe_is_valid() {
         chromium::v154_windows_fetch_no_store_template(),
         edge::v153_windows_navigation_template(),
         edge::v153_windows_fetch_no_store_template(),
+        brave::v154_windows_navigation_template(),
+        brave::v154_windows_fetch_no_store_template(),
+        opera::v135_windows_navigation_template(),
+        opera::v135_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
     ] {
@@ -354,6 +364,114 @@ fn edge_153_navigation_matches_every_captured_page_request() -> CaptureResult<()
 }
 
 #[test]
+fn brave_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = brave::v154_windows_navigation_template();
+    let hints = brave::v154_windows_client_hints();
+    let (http1, http2) = observed(&[&BRAVE_WEBSOCKET], "page", "document")?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        6,
+        "brave h1",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "brave h2",
+    );
+    let http3 = [Capture::parse(BRAVE_HTTP3)?.http3_request()?];
+    assert_all_match(
+        &template,
+        Protocol::Http3,
+        Some(&hints),
+        &http3,
+        1,
+        "brave h3",
+    );
+    Ok(())
+}
+
+#[test]
+fn opera_135_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = opera::v135_windows_navigation_template();
+    let hints = opera::v135_windows_client_hints();
+    let (http1, http2) = observed(&[&OPERA_WEBSOCKET], "page", "document")?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        6,
+        "opera h1",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "opera h2",
+    );
+    let http3 = [Capture::parse(OPERA_HTTP3)?.http3_request()?];
+    assert_all_match(
+        &template,
+        Protocol::Http3,
+        Some(&hints),
+        &http3,
+        1,
+        "opera h3",
+    );
+    Ok(())
+}
+
+/// Brave draws the `q` value of its second `Accept-Language` entry per
+/// browser session, so its templates leave the field to the caller. Every
+/// request of one capture run carries one value, drawn from five.
+#[test]
+fn brave_154_accept_language_is_one_drawn_value_per_session() -> CaptureResult<()> {
+    use std::collections::BTreeSet;
+
+    let allowed: BTreeSet<String> = ["0.5", "0.6", "0.7", "0.8", "0.9"]
+        .iter()
+        .map(|q| format!("en-US,en;q={q}"))
+        .collect();
+    let mut seen = BTreeSet::new();
+    for fixture in BRAVE_WEBSOCKET {
+        for run in Capture::parse(fixture)?.accept_language_by_run()? {
+            assert!(run.len() <= 1, "{run:?}");
+            seen.extend(run);
+        }
+    }
+    assert!(seen.len() > 1 && seen.is_subset(&allowed), "{seen:?}");
+    for template in [
+        brave::v154_windows_navigation_template(),
+        brave::v154_windows_fetch_no_store_template(),
+    ] {
+        let slots: Vec<&RequestField> = template
+            .http1_fields
+            .iter()
+            .chain(&template.http2_fields)
+            .chain(template.http3_fields.iter().flatten())
+            .filter(|field| {
+                field
+                    .name()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("accept-language"))
+            })
+            .collect();
+        assert!(!slots.is_empty());
+        for field in slots {
+            assert!(matches!(field, RequestField::Caller { required: true, .. }));
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     let template = firefox::v156_windows_navigation_template();
     let (http1, http2) = observed(&[&FIREFOX_SSE, &FIREFOX_WEBSOCKET], "page", "document")?;
@@ -364,7 +482,7 @@ fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult
 }
 
 #[test]
-fn chromium_154_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
+fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
     for (template, hints, set, label) in [
         (
             chromium::v154_windows_fetch_no_store_template(),
@@ -377,6 +495,18 @@ fn chromium_154_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<(
             edge::v153_windows_client_hints(),
             &EDGE_WEBSOCKET,
             "edge",
+        ),
+        (
+            brave::v154_windows_fetch_no_store_template(),
+            brave::v154_windows_client_hints(),
+            &BRAVE_WEBSOCKET,
+            "brave",
+        ),
+        (
+            opera::v135_windows_fetch_no_store_template(),
+            opera::v135_windows_client_hints(),
+            &OPERA_WEBSOCKET,
+            "opera",
         ),
     ] {
         let (http1, http2) = observed(&[set], "done", "empty")?;
@@ -410,6 +540,10 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
         (edge::v153_windows_navigation_template(), true),
         (chromium::v154_windows_fetch_no_store_template(), false),
         (edge::v153_windows_fetch_no_store_template(), false),
+        (brave::v154_windows_navigation_template(), true),
+        (brave::v154_windows_fetch_no_store_template(), false),
+        (opera::v135_windows_navigation_template(), true),
+        (opera::v135_windows_fetch_no_store_template(), false),
         (firefox::v156_windows_navigation_template(), false),
         (firefox::v156_windows_fetch_no_store_template(), false),
     ] {
@@ -419,7 +553,7 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 
 #[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
-    let cases: [(RequestTemplate, &[&str], &str, u16); 6] = [
+    let cases: [(RequestTemplate, &[&str], &str, u16); 10] = [
         (
             chromium::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
@@ -441,6 +575,30 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
         (
             edge::v153_windows_fetch_no_store_template(),
             &EDGE_WEBSOCKET,
+            "empty",
+            220,
+        ),
+        (
+            brave::v154_windows_navigation_template(),
+            &BRAVE_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            brave::v154_windows_fetch_no_store_template(),
+            &BRAVE_WEBSOCKET,
+            "empty",
+            220,
+        ),
+        (
+            opera::v135_windows_navigation_template(),
+            &OPERA_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            opera::v135_windows_fetch_no_store_template(),
+            &OPERA_WEBSOCKET,
             "empty",
             220,
         ),
@@ -491,6 +649,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
     for (fixture, hints) in [
         (CHROME_CLIENT_HINTS, chromium::v154_windows_client_hints()),
         (EDGE_CLIENT_HINTS, edge::v153_windows_client_hints()),
+        (OPERA_CLIENT_HINTS, opera::v135_windows_client_hints()),
     ] {
         use crate::ClientHintDelivery::Default;
 
