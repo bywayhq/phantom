@@ -231,10 +231,10 @@ impl<'a> BasicAuthPlan<'a> {
     }
 
     /// Runs one challenge-driven exchange: a first request, and at most one
-    /// retry with the credential on a fresh proxy connection after a `407`.
+    /// retry with the credential after a `407`.
     ///
-    /// `attempt` opens a proxy connection and sends one request of the given
-    /// kind. A first request reports a valid Basic `407` as
+    /// `attempt` sends one request of the given kind, on a proxy connection
+    /// it opens or on the one a challenge left open. A first request reports a valid Basic `407` as
     /// [`AuthStep::Challenged`]; a retry reports a `407` as an error.
     /// `is_challenge` recognizes the errors a first request returns for an
     /// unusable `407` challenge. A retry that reports

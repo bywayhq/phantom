@@ -35,11 +35,12 @@ pub(crate) async fn http1_connect(
     Ok(request)
 }
 
-/// Challenges the first plaintext HTTP/1.1 CONNECT with Basic, then tunnels
-/// the second connection's CONNECT to `origin`.
+/// Challenges the first plaintext HTTP/1.1 CONNECT with a keep-alive Basic
+/// `407`, then tunnels the replay to `origin`, on the challenged connection
+/// or on a new one.
 ///
-/// Returns the anonymous head, the authorized head, and whether the
-/// challenged connection carried a second request.
+/// Returns the anonymous head, the authorized head, and whether the replay
+/// used the challenged connection.
 pub(crate) async fn http1_challenge_then_connect(
     listener: TcpListener,
     origin: SocketAddr,
@@ -48,17 +49,23 @@ pub(crate) async fn http1_challenge_then_connect(
     let anonymous = read_head(&mut first).await?;
     first.write_all(BASIC_CHALLENGE).await?;
     first.flush().await?;
-    let challenged = tokio::spawn(async move {
-        let mut rest = Vec::new();
-        // A reset after the challenge is a hang-up, not a second request.
-        let _ = first.read_to_end(&mut rest).await;
-        !rest.is_empty()
-    });
-
+    let replay = tokio::select! {
+        head = read_head(&mut first) => head.ok(),
+        accepted = listener.accept() => {
+            let (mut second, _) = accepted?;
+            let authorized = read_head(&mut second).await?;
+            establish_relay(second, origin).await?;
+            return Ok((anonymous, authorized, false));
+        }
+    };
+    if let Some(authorized) = replay {
+        establish_relay(first, origin).await?;
+        return Ok((anonymous, authorized, true));
+    }
     let (mut second, _) = listener.accept().await?;
     let authorized = read_head(&mut second).await?;
     establish_relay(second, origin).await?;
-    Ok((anonymous, authorized, challenged.await?))
+    Ok((anonymous, authorized, false))
 }
 
 /// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`.
@@ -88,11 +95,12 @@ pub(crate) async fn http1_connect_status(
     Ok(request)
 }
 
-/// Challenges the first TLS HTTP/1.1 CONNECT with Basic, then tunnels the
-/// second connection's CONNECT to `origin`.
+/// Challenges the first TLS HTTP/1.1 CONNECT with a keep-alive Basic `407`,
+/// then tunnels the replay to `origin`, on the challenged connection or on a
+/// new one.
 ///
-/// Returns the anonymous head, the authorized head, and whether the
-/// challenged connection carried a second request.
+/// Returns the anonymous head, the authorized head, and whether the replay
+/// used the challenged connection.
 pub(crate) async fn https1_challenge_then_connect(
     listener: TcpListener,
     acceptor: SslAcceptor,
@@ -103,18 +111,25 @@ pub(crate) async fn https1_challenge_then_connect(
     let anonymous = read_head(&mut first).await?;
     first.write_all(BASIC_CHALLENGE).await?;
     first.flush().await?;
-    let challenged = tokio::spawn(async move {
-        let mut rest = Vec::new();
-        // A reset after the challenge is a hang-up, not a second request.
-        let _ = first.read_to_end(&mut rest).await;
-        !rest.is_empty()
-    });
-
+    let replay = tokio::select! {
+        head = read_head(&mut first) => head.ok(),
+        accepted = listener.accept() => {
+            let (second, _) = accepted?;
+            let mut second = accept_tls_stream(second, acceptor).await?;
+            let authorized = read_head(&mut second).await?;
+            establish_relay(second, origin).await?;
+            return Ok((anonymous, authorized, false));
+        }
+    };
+    if let Some(authorized) = replay {
+        establish_relay(first, origin).await?;
+        return Ok((anonymous, authorized, true));
+    }
     let (second, _) = listener.accept().await?;
     let mut second = accept_tls_stream(second, acceptor).await?;
     let authorized = read_head(&mut second).await?;
     establish_relay(second, origin).await?;
-    Ok((anonymous, authorized, challenged.await?))
+    Ok((anonymous, authorized, false))
 }
 
 /// The CONNECT request observed by an HTTP/2 proxy.

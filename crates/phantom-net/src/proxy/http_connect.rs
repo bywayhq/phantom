@@ -1,4 +1,8 @@
-use std::{fmt, future::Future};
+use std::{
+    fmt,
+    future::Future,
+    sync::{Mutex, PoisonError},
+};
 
 use bytes::Bytes;
 use http::{
@@ -11,7 +15,9 @@ use tracing::{Instrument, Span, debug_span, field};
 
 use super::{
     AuthAttempt, AuthStep, BasicAuthPlan, HttpBasicCredentials, HttpConnectError,
-    ProxyCredentialCache, ProxyScheme, TunnelStream, authentication::has_valid_basic_challenge,
+    ProxyCredentialCache, ProxyScheme, TunnelStream,
+    authentication::has_valid_basic_challenge,
+    challenged_connection::{self, ChallengeBody},
 };
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
@@ -157,7 +163,10 @@ pub(crate) async fn http_connect_tunnel(
 ///
 /// Both request forms are validated before DNS resolution or TCP I/O. The
 /// first request omits the authorization placeholder. A valid Basic challenge
-/// causes exactly one retry on a fresh connection to the same proxy.
+/// causes exactly one retry to the same proxy. The retry uses the challenged
+/// connection when the `407` keeps it open and its body ends within
+/// [`MAX_CHALLENGE_BODY_BYTES`](super::MAX_CHALLENGE_BODY_BYTES), and a new
+/// connection otherwise.
 ///
 /// # Errors
 ///
@@ -216,7 +225,10 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
 
 /// Runs one challenge-driven CONNECT exchange on connections from `connect`.
 ///
-/// Each request, including the retry, uses a fresh proxy connection.
+/// The retry after a `407` reuses the challenged connection when the
+/// response allows it. When the proxy closes that connection before it
+/// answers the retry, the retry is sent once more on a new connection, as
+/// Chromium's `HttpProxyConnectJob` does.
 pub(super) async fn basic_auth_exchange<S, C, F>(
     plan: &BasicAuthPlan<'_>,
     requests: &PreparedBasicConnect,
@@ -227,17 +239,30 @@ where
     C: Fn() -> F,
     F: Future<Output = Result<S, HttpConnectError>>,
 {
+    let challenged = Mutex::new(None);
     plan.run(
         |attempt| {
             let connect = &connect;
+            let challenged = &challenged;
             async move {
                 record_authentication_attempts(attempt, plan.preemptive());
-                let stream = connect().await?;
                 if attempt.is_retry() {
+                    let held = challenged
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .take();
+                    if let Some(stream) = held {
+                        match replay_on_challenged(stream, &requests.authenticated).await {
+                            Replay::Answered(result) => return result.map(AuthStep::Done),
+                            Replay::Closed => {}
+                        }
+                    }
+                    let stream = connect().await?;
                     return establish_authenticated(stream, &requests.authenticated)
                         .await
                         .map(AuthStep::Done);
                 }
+                let stream = connect().await?;
                 let request = if attempt.sends_credentials() {
                     &requests.authenticated
                 } else {
@@ -245,7 +270,10 @@ where
                 };
                 Ok(match establish_challenge(stream, request).await? {
                     ChallengeOutcome::Tunnel(tunnel) => AuthStep::Done(tunnel),
-                    ChallengeOutcome::Retry => AuthStep::Challenged,
+                    ChallengeOutcome::Retry(reusable) => {
+                        *challenged.lock().unwrap_or_else(PoisonError::into_inner) = reusable;
+                        AuthStep::Challenged
+                    }
                 })
             }
         },
@@ -277,7 +305,7 @@ where
 {
     match exchange(stream, &request, false).await? {
         ExchangeOutcome::Tunnel(tunnel) => Ok(tunnel),
-        ExchangeOutcome::Retry => Err(HttpConnectError::InvalidResponse),
+        ExchangeOutcome::Retry(_) => Err(HttpConnectError::InvalidResponse),
     }
 }
 
@@ -290,7 +318,7 @@ where
 {
     match exchange(stream, request, true).await? {
         ExchangeOutcome::Tunnel(tunnel) => Ok(ChallengeOutcome::Tunnel(tunnel)),
-        ExchangeOutcome::Retry => Ok(ChallengeOutcome::Retry),
+        ExchangeOutcome::Retry(reusable) => Ok(ChallengeOutcome::Retry(reusable)),
     }
 }
 
@@ -301,14 +329,56 @@ pub(super) async fn establish_authenticated<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    match exchange(stream, request, false).await {
+    authenticated_outcome(exchange(stream, request, false).await)
+}
+
+fn authenticated_outcome<S>(
+    outcome: Result<ExchangeOutcome<S>, HttpConnectError>,
+) -> Result<TunnelStream<S>, HttpConnectError> {
+    match outcome {
         Err(HttpConnectError::Rejected { status: 407 }) => {
             Err(HttpConnectError::AuthenticationRejected)
         }
         Ok(ExchangeOutcome::Tunnel(tunnel)) => Ok(tunnel),
-        Ok(ExchangeOutcome::Retry) => Err(HttpConnectError::InvalidResponse),
+        Ok(ExchangeOutcome::Retry(_)) => Err(HttpConnectError::InvalidResponse),
         Err(error) => Err(error),
     }
+}
+
+/// Outcome of the credentialed CONNECT on the connection that was challenged.
+enum Replay<S> {
+    /// The proxy answered, or failed in a way a new connection cannot fix.
+    Answered(Result<TunnelStream<S>, HttpConnectError>),
+    /// The proxy closed the connection before any response byte.
+    Closed,
+}
+
+async fn replay_on_challenged<S>(mut stream: S, request: &PreparedConnect) -> Replay<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let written = async {
+        stream.write_all(&request.bytes).await?;
+        stream.flush().await
+    }
+    .await;
+    match written {
+        Ok(()) => {}
+        Err(error) if challenged_connection::is_connection_close(&error) => return Replay::Closed,
+        Err(error) => return Replay::Answered(Err(HttpConnectError::Write(error))),
+    }
+    let mut chunk = [0_u8; 4096];
+    let read = match stream.read(&mut chunk).await {
+        Ok(0) => return Replay::Closed,
+        Err(error) if challenged_connection::is_connection_close(&error) => return Replay::Closed,
+        Err(error) => return Replay::Answered(Err(HttpConnectError::Read(error))),
+        Ok(read) => read,
+    };
+    let mut response = Vec::with_capacity(1024);
+    response.extend_from_slice(&chunk[..read]);
+    Replay::Answered(authenticated_outcome(
+        read_outcome(stream, false, response).await,
+    ))
 }
 
 async fn exchange<S>(
@@ -324,8 +394,19 @@ where
         .await
         .map_err(HttpConnectError::Write)?;
     stream.flush().await.map_err(HttpConnectError::Write)?;
+    read_outcome(stream, inspect_challenge, Vec::with_capacity(1024)).await
+}
 
-    let mut response = Vec::with_capacity(1024);
+/// Reads the final CONNECT response, starting with bytes already read into
+/// `response`.
+async fn read_outcome<S>(
+    mut stream: S,
+    inspect_challenge: bool,
+    mut response: Vec<u8>,
+) -> Result<ExchangeOutcome<S>, HttpConnectError>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut informational_count = 0;
     loop {
         let head_end = read_response_head(&mut stream, &mut response).await?;
@@ -349,7 +430,13 @@ where
             parsed
                 .authentication
                 .ok_or(HttpConnectError::InvalidResponse)??;
-            return Ok(ExchangeOutcome::Retry);
+            let reusable = match parsed.challenge_body {
+                Some(body) => {
+                    challenged_connection::drain(&mut stream, body, &response[head_end..]).await
+                }
+                None => false,
+            };
+            return Ok(ExchangeOutcome::Retry(reusable.then_some(stream)));
         }
         return Err(HttpConnectError::Rejected {
             status: parsed.status,
@@ -400,11 +487,20 @@ fn parse_response(
         }
     }
     let status = response.code.ok_or(HttpConnectError::InvalidResponse)?;
-    let authentication =
-        (inspect_challenge && status == 407).then(|| has_valid_basic_challenge(response.headers));
+    let challenged = inspect_challenge && status == 407;
+    let authentication = challenged.then(|| has_valid_basic_challenge(response.headers));
+    let challenge_body = if challenged {
+        ChallengeBody::from_head(
+            response.version.ok_or(HttpConnectError::InvalidResponse)?,
+            response.headers,
+        )
+    } else {
+        None
+    };
     Ok(ParsedResponse {
         status,
         authentication,
+        challenge_body,
     })
 }
 
@@ -630,17 +726,20 @@ impl PreparedBasicConnect {
 
 pub(super) enum ChallengeOutcome<S> {
     Tunnel(TunnelStream<S>),
-    Retry,
+    /// A valid challenge, with the connection when the replay may reuse it.
+    Retry(Option<S>),
 }
 
 enum ExchangeOutcome<S> {
     Tunnel(TunnelStream<S>),
-    Retry,
+    Retry(Option<S>),
 }
 
 struct ParsedResponse {
     status: u16,
     authentication: Option<Result<(), HttpConnectError>>,
+    /// How a `407` body ends, when the connection outlives it.
+    challenge_body: Option<ChallengeBody>,
 }
 
 #[derive(Clone, Copy)]

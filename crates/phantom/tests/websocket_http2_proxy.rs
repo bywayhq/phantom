@@ -113,7 +113,10 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
             header_value(&authorized, "proxy-authorization"),
             Some("Basic YWxpY2U6c2VjcmV0")
         );
-        assert!(!challenged_reused, "challenged proxy connection was reused");
+        assert!(
+            challenged_reused,
+            "the replay opened a new proxy connection"
+        );
         let record = origin.await??;
         assert_eq!(record.path.as_deref(), Some("/authenticated"));
         assert_eq!(record.message, text_frame("hello"));

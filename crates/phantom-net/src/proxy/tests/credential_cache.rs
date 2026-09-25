@@ -8,8 +8,11 @@ use crate::proxy::{
     ProxyCredentialCache, ProxyScheme, http_connect_tunnel_with_basic_auth,
 };
 
+// The challenge closes its connection, so every request of the scripted proxy
+// arrives on a connection of its own.
 const CHALLENGE: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
     Proxy-Authenticate: Basic realm=\"cache\"\r\n\
+    Connection: close\r\n\
     Content-Length: 0\r\n\r\n";
 const MALFORMED_CHALLENGE: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
     Proxy-Authenticate: Basic realm=\"unterminated\r\n\

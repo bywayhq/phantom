@@ -486,7 +486,10 @@ async fn basic_challenge_matches_exact(leg: ProxyLeg) -> TestResult<()> {
             response.into_body().collect().await?;
 
             let (anonymous, authorized, challenged_reused) = proxy.await??;
-            assert!(!challenged_reused, "challenged proxy connection was reused");
+            assert!(
+                challenged_reused,
+                "the replay opened a new proxy connection"
+            );
             heads.push((anonymous, authorized));
         }
 

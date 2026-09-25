@@ -14,6 +14,7 @@ use crate::{
 };
 
 mod authentication;
+mod challenged_connection;
 mod credential_cache;
 mod http2_connect;
 mod https_connect;

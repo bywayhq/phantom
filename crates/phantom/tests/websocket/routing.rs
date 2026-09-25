@@ -193,20 +193,19 @@ async fn verified_https_proxy_tunnels_ws_without_origin_tls() -> TestResult<()> 
 }
 
 #[tokio::test]
-async fn https_proxy_basic_challenge_reconnects_before_the_ws_tunnel() -> TestResult<()> {
+async fn https_proxy_basic_challenge_replays_on_the_challenged_connection_before_the_ws_tunnel()
+-> TestResult<()> {
     bounded(async {
         let origin = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
         origin.set_nonblocking(true)?;
         let origin_address = origin.local_addr()?;
         let proxy_identity = TestIdentity::generate()?;
-        let anonymous_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let authorized_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+        let acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(async move {
             let (anonymous_tcp, _) = proxy_listener.accept().await?;
-            let mut anonymous =
-                tls_support::accept_tls_stream(anonymous_tcp, anonymous_acceptor).await?;
+            let mut anonymous = tls_support::accept_tls_stream(anonymous_tcp, acceptor).await?;
             let anonymous_connect = read_head(&mut anonymous).await?;
             challenge(
                 &mut anonymous,
@@ -214,15 +213,25 @@ async fn https_proxy_basic_challenge_reconnects_before_the_ws_tunnel() -> TestRe
             )
             .await?;
 
-            let (authorized_tcp, _) = proxy_listener.accept().await?;
-            let mut authorized =
-                tls_support::accept_tls_stream(authorized_tcp, authorized_acceptor).await?;
+            // The keep-alive 407 leaves the TLS connection open for the replay.
+            let mut authorized = anonymous;
             let authorized_connect = read_head(&mut authorized).await?;
             authorized
                 .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                 .await?;
             let opening = accept_opening(&mut authorized).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous_connect, authorized_connect, opening))
+            let second_connection = tokio::time::timeout(
+                std::time::Duration::from_millis(100),
+                proxy_listener.accept(),
+            )
+            .await
+            .is_ok();
+            Ok::<_, Box<dyn Error + Send + Sync>>((
+                anonymous_connect,
+                authorized_connect,
+                opening,
+                second_connection,
+            ))
         });
 
         let unrelated_origin_identity = TestIdentity::generate()?;
@@ -239,7 +248,8 @@ async fn https_proxy_basic_challenge_reconnects_before_the_ws_tunnel() -> TestRe
             .await?;
         drop(socket);
 
-        let (anonymous, authorized, opening) = proxy.await??;
+        let (anonymous, authorized, opening, second_connection) = proxy.await??;
+        assert!(!second_connection);
         let connect_line = format!("CONNECT {origin_address} HTTP/1.1\r\n");
         assert!(anonymous.starts_with(connect_line.as_bytes()));
         assert!(authorized.starts_with(connect_line.as_bytes()));
@@ -273,8 +283,14 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
             )
             .await?;
             let mut tunnels = Vec::new();
+            // The replay reuses the challenged connection; the second tunnel
+            // opens its own.
+            let mut challenged = Some(anonymous_stream);
             for _ in 0..2 {
-                let (mut stream, _) = proxy_listener.accept().await?;
+                let mut stream = match challenged.take() {
+                    Some(stream) => stream,
+                    None => proxy_listener.accept().await?.0,
+                };
                 let connect = read_head(&mut stream).await?;
                 stream
                     .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -282,12 +298,12 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
                 let opening = accept_opening(&mut stream).await?;
                 tunnels.push((connect, opening));
             }
-            let fourth = tokio::time::timeout(
+            let third = tokio::time::timeout(
                 std::time::Duration::from_millis(100),
                 proxy_listener.accept(),
             )
             .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, tunnels, fourth.is_err()))
+            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, tunnels, third.is_err()))
         });
 
         let identity = TestIdentity::generate()?;
@@ -304,7 +320,7 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
             drop(socket);
         }
 
-        let (anonymous, tunnels, no_fourth_connection) = proxy.await??;
+        let (anonymous, tunnels, no_third_connection) = proxy.await??;
         assert!(header_value(&anonymous, "proxy-authorization").is_none());
         let authorized = format!(
             "CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\
@@ -315,7 +331,7 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
             assert!(opening.starts_with(format!("GET /{path} HTTP/1.1\r\n").as_bytes()));
             assert!(header_value(opening, "proxy-authorization").is_none());
         }
-        assert!(no_fourth_connection);
+        assert!(no_third_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
     })
@@ -342,9 +358,8 @@ async fn proxy_basic_authentication_is_fresh_per_logical_websocket_when_not_reme
                 )
                 .await?;
 
-                // Keep the challenged transport alive while accepting the retry,
-                // proving authentication opens a fresh proxy connection.
-                let (mut authorized_stream, _) = proxy_listener.accept().await?;
+                // The keep-alive 407 leaves the connection open for the replay.
+                let mut authorized_stream = anonymous_stream;
                 let authorized = read_head(&mut authorized_stream).await?;
                 authorized_stream
                     .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -626,19 +641,19 @@ async fn second_proxy_basic_challenge_is_terminal_without_fallback() -> TestResu
             )
             .await?;
 
-            let (mut authorized_stream, _) = proxy_listener.accept().await?;
+            let mut authorized_stream = anonymous_stream;
             let authorized = read_head(&mut authorized_stream).await?;
             challenge(
                 &mut authorized_stream,
                 b"Proxy-Authenticate: Basic realm=second-private-realm\r\n",
             )
             .await?;
-            let third = tokio::time::timeout(
+            let second = tokio::time::timeout(
                 std::time::Duration::from_millis(100),
                 proxy_listener.accept(),
             )
             .await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, authorized, third.is_err()))
+            Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, authorized, second.is_err()))
         });
 
         let identity = TestIdentity::generate()?;
@@ -673,13 +688,13 @@ async fn second_proxy_basic_challenge_is_terminal_without_fallback() -> TestResu
             assert!(!diagnostic.contains(secret));
         }
 
-        let (anonymous, authorized, had_no_third_proxy_connection) = proxy.await??;
+        let (anonymous, authorized, had_no_second_proxy_connection) = proxy.await??;
         assert!(header_value(&anonymous, "proxy-authorization").is_none());
         assert_eq!(
             header_value(&authorized, "proxy-authorization"),
             Some("Basic bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk")
         );
-        assert!(had_no_third_proxy_connection);
+        assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
         Ok(())
     })

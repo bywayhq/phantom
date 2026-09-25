@@ -33,13 +33,14 @@ const TUNNELS: usize = 4;
 /// Opens `TUNNELS` sequential CONNECT tunnels and counts what the proxy saw.
 ///
 /// The origin closes every connection after one response, so each request
-/// needs a new tunnel. Without the credential record, every tunnel costs a
-/// `407` and a second proxy connection; with it, only the first does.
+/// needs a new tunnel. The proxy closes each challenged connection. Without
+/// the credential record, every tunnel costs a `407` and a second proxy
+/// connection; with it, only the first does.
 #[tokio::test]
 async fn sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel() -> TestResult<()> {
     bounded(async {
-        let remembered = tunnel_counts(true).await?;
-        let forgotten = tunnel_counts(false).await?;
+        let remembered = tunnel_counts(true, Challenge::Close).await?;
+        let forgotten = tunnel_counts(false, Challenge::Close).await?;
 
         assert_eq!(
             remembered,
@@ -53,6 +54,36 @@ async fn sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel() ->
             forgotten,
             ProxyCounts {
                 connections: 2 * TUNNELS,
+                challenges: TUNNELS,
+                with_credentials: TUNNELS,
+            }
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// The same tunnels through a proxy whose `407` keeps the connection open:
+/// each replay goes on the challenged connection, so every tunnel costs one
+/// proxy connection whether or not the credentials are remembered.
+#[tokio::test]
+async fn keep_alive_challenges_cost_no_extra_proxy_connection() -> TestResult<()> {
+    bounded(async {
+        let remembered = tunnel_counts(true, Challenge::KeepAlive).await?;
+        let forgotten = tunnel_counts(false, Challenge::KeepAlive).await?;
+
+        assert_eq!(
+            remembered,
+            ProxyCounts {
+                connections: TUNNELS,
+                challenges: 1,
+                with_credentials: TUNNELS,
+            }
+        );
+        assert_eq!(
+            forgotten,
+            ProxyCounts {
+                connections: TUNNELS,
                 challenges: TUNNELS,
                 with_credentials: TUNNELS,
             }
@@ -167,10 +198,10 @@ async fn send_one(client: &Client, url: &str) -> TestResult<()> {
     Ok(())
 }
 
-async fn tunnel_counts(preemptive: bool) -> TestResult<ProxyCounts> {
+async fn tunnel_counts(preemptive: bool, challenge: Challenge) -> TestResult<ProxyCounts> {
     let identity = TestIdentity::generate()?;
     let origin = Origin::start(&identity).await?;
-    let proxy = CountingProxy::start(origin.address).await?;
+    let proxy = CountingProxy::start_with(origin.address, challenge).await?;
     let client = client_builder(&identity, false)
         .route(proxy_route(proxy.address, "alice", "secret")?)
         .preemptive_proxy_authentication(preemptive)
@@ -211,8 +242,17 @@ struct ProxyCounts {
     with_credentials: usize,
 }
 
+/// How the counting proxy's `407` treats its connection.
+#[derive(Clone, Copy)]
+enum Challenge {
+    /// `Connection: close`, then the proxy closes the connection.
+    Close,
+    /// A keep-alive `407`; the next CONNECT may follow on the connection.
+    KeepAlive,
+}
+
 /// A CONNECT proxy that challenges any request without `Proxy-Authorization`
-/// and closes that connection, and tunnels any request with it to the origin.
+/// and tunnels any request with it to the origin.
 struct CountingProxy {
     address: SocketAddr,
     connections: Arc<AtomicUsize>,
@@ -222,6 +262,10 @@ struct CountingProxy {
 
 impl CountingProxy {
     async fn start(origin: SocketAddr) -> TestResult<Self> {
+        Self::start_with(origin, Challenge::Close).await
+    }
+
+    async fn start_with(origin: SocketAddr, challenge: Challenge) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let connections = Arc::new(AtomicUsize::new(0));
@@ -232,7 +276,7 @@ impl CountingProxy {
             async move {
                 while let Ok((stream, _)) = listener.accept().await {
                     connections.fetch_add(1, Ordering::SeqCst);
-                    tokio::spawn(serve_connect(stream, origin, Arc::clone(&heads)));
+                    tokio::spawn(serve_connect(stream, origin, challenge, Arc::clone(&heads)));
                 }
             }
         });
@@ -275,22 +319,40 @@ impl Drop for CountingProxy {
 async fn serve_connect(
     mut stream: TcpStream,
     origin: SocketAddr,
+    challenge: Challenge,
     heads: Arc<Mutex<Vec<Vec<u8>>>>,
 ) -> std::io::Result<()> {
-    let head = read_head(&mut stream).await?;
-    let authorized = authorization(&head).is_some();
-    if let Ok(mut heads) = heads.lock() {
-        heads.push(head);
-    }
-    if !authorized {
-        stream
-            .write_all(
-                b"HTTP/1.1 407 Proxy Authentication Required\r\n\
-                  Proxy-Authenticate: Basic realm=\"counting\"\r\n\
-                  Content-Length: 0\r\n\r\n",
-            )
-            .await?;
-        return stream.shutdown().await;
+    loop {
+        let head = read_head(&mut stream).await?;
+        let authorized = authorization(&head).is_some();
+        if let Ok(mut heads) = heads.lock() {
+            heads.push(head);
+        }
+        if authorized {
+            break;
+        }
+        match challenge {
+            Challenge::Close => {
+                stream
+                    .write_all(
+                        b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                          Proxy-Authenticate: Basic realm=\"counting\"\r\n\
+                          Connection: close\r\n\
+                          Content-Length: 0\r\n\r\n",
+                    )
+                    .await?;
+                return stream.shutdown().await;
+            }
+            Challenge::KeepAlive => {
+                stream
+                    .write_all(
+                        b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                          Proxy-Authenticate: Basic realm=\"counting\"\r\n\
+                          Content-Length: 0\r\n\r\n",
+                    )
+                    .await?;
+            }
+        }
     }
     let mut upstream = TcpStream::connect(origin).await?;
     stream
