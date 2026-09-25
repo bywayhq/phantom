@@ -6,6 +6,8 @@
 #[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;
+#[path = "support/http3_upgrade.rs"]
+mod http3_upgrade_support;
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
 mod tls_support;
@@ -149,6 +151,7 @@ async fn serve_then_close(
         .await?;
     stream.finish().await?;
     read.recv().await.ok_or("client stopped")?;
+    expect_no_second_request(&mut connection).await?;
     quic.close(0u32.into(), b"served");
     drop(connection);
     // Once drained, the client has seen the close and cannot reuse it.
@@ -458,6 +461,133 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
         server.await??;
         drop((client, origin));
         relay_task.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// A raced alternative that won on early data and then fails its handshake
+/// does not fail the request. As Chromium restarts a transaction that failed
+/// with `ERR_QUIC_HANDSHAKE_FAILED` and marks QUIC to the origin recently
+/// broken, the request is raced again without early data; the alternative's
+/// full handshake fails too, so the origin carries the request and the
+/// alternative is marked broken.
+#[tokio::test]
+async fn a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin() -> TestResult<()>
+{
+    use http3_upgrade_support::{AlternativeBehavior, Http3UpgradeFixture, PlannedResponse};
+
+    bounded(async {
+        let identity =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
+        let untrusted = TestIdentity::generate()?;
+        let origin = Http3UpgradeFixture::spawn(
+            &identity,
+            "localhost",
+            http3_upgrade_support::UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("origin"),
+                    PlannedResponse::new(StatusCode::OK).body("origin"),
+                ],
+                AlternativeBehavior::responses(Vec::<PlannedResponse>::new()),
+            ),
+        )
+        .await?;
+        let endpoint = quinn::Endpoint::server(
+            server_config(&identity, true)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let alternative_port = endpoint.local_addr()?.port();
+        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+        let (closed_tx, closed) = tokio::sync::oneshot::channel::<()>();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&attempts);
+        let untrusted_config = server_config(&untrusted, true)?;
+        let server = tokio::spawn(async move {
+            // The first raced connection makes a full handshake and issues a
+            // ticket; every later one presents a certificate the client does
+            // not trust, so its handshake fails.
+            serve_then_close(&endpoint, &mut read).await?;
+            endpoint.set_server_config(Some(untrusted_config));
+            let _ = closed_tx.send(());
+            while let Some(connecting) = endpoint.accept().await {
+                counted.fetch_add(1, Ordering::SeqCst);
+                tokio::spawn(async move {
+                    let _ = connecting.await;
+                });
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_http3(Http3ClientSettings::new(
+                chromium::v154_http3_tls(),
+                chromium::v154_quic(),
+                chromium::v154_http3(),
+                chromium::v154_http3_request(),
+            ));
+        let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(NonZeroUsize::new(8).ok_or("zero Alt-Svc capacity")?)
+            .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
+                Duration::from_secs(10),
+                backoff,
+            )))
+            .build()?;
+        client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+            format!("https://localhost:{}", origin.origin_address().port()),
+            "127.0.0.1",
+            alternative_port,
+            SystemTime::now() + Duration::from_secs(3600),
+        )]))?;
+        let subscriber = OutcomeSubscriber::default();
+
+        let get = |path: &'static str| {
+            let client = client.clone();
+            let url = origin.origin_url(path);
+            async move {
+                let response = client.get_negotiated(&url)?.send().await?;
+                let protocol = response
+                    .extensions()
+                    .get::<ResponseInfo>()
+                    .map(ResponseInfo::protocol);
+                let body = response.into_body().collect().await?.to_bytes();
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>((protocol, body))
+            }
+        };
+        let (protocol, _) = get("/first").with_subscriber(subscriber.dispatch()).await?;
+        assert_eq!(protocol, Some(HttpProtocol::Http3));
+        read_tx.send(())?;
+        // The server closes the connection once the ticket and the SETTINGS
+        // stored with it have arrived.
+        closed.await?;
+
+        let (protocol, body) = get("/raced").with_subscriber(subscriber.dispatch()).await?;
+        assert_ne!(protocol, Some(HttpProtocol::Http3));
+        assert_eq!(body, "origin");
+        // The resumed attempt sent its request as early data. The raced
+        // setup that followed offered none: it presented the server's
+        // second ticket, failed, and repeated once with a full handshake,
+        // which failed too.
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+        assert_eq!(
+            subscriber.early_data_for("http3.response_head"),
+            ["none", "sent"]
+        );
+
+        // The alternative is broken now, so the next request goes to the
+        // origin without another QUIC attempt.
+        let (protocol, body) = get("/after").await?;
+        assert_ne!(protocol, Some(HttpProtocol::Http3));
+        assert_eq!(body, "origin");
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+
+        drop(client);
+        let observed = origin.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        server.abort();
         Ok(())
     })
     .await
@@ -904,10 +1034,22 @@ async fn serve_body_then_close(
         .await?;
     stream.finish().await?;
     read.recv().await.ok_or("client stopped")?;
+    expect_no_second_request(&mut connection).await?;
     quic.close(0u32.into(), b"served");
     drop(connection);
     endpoint.wait_idle().await;
     Ok((request.uri().path().to_owned(), body))
+}
+
+/// Fails if another request stream arrives on `connection` within 300 ms,
+/// such as the same request sent twice on the connection.
+async fn expect_no_second_request(
+    connection: &mut h3::server::Connection<h3_quinn::Connection, Bytes>,
+) -> TestResult<()> {
+    match timeout(Duration::from_millis(300), connection.accept()).await {
+        Ok(Ok(Some(_))) => Err("a second request arrived on the connection".into()),
+        Ok(_) | Err(_) => Ok(()),
+    }
 }
 
 /// Fails if the client opens another connection within one second.

@@ -409,7 +409,9 @@ Supported lifecycle:
   - A raced setup offers early data when the client does, unless QUIC to the
     origin's own host and port failed a race and has not connected since,
     as in Chromium 154. A resumed alternative can then win before its
-    handshake completes and carry a replay-safe request as early data.
+    handshake completes and carry a replay-safe request as early data. If
+    that handshake fails, the request is raced again without early data, as
+    Chromium restarts it.
   - Broken alternatives back off as in Chromium 153: 300 seconds, doubling,
     capped at two days.
 

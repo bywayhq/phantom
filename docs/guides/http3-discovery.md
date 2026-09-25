@@ -43,7 +43,9 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 - A raced alternative offers early data when the client does, as Chrome's
   does, so a resumed alternative can win at once and send a replay-safe
   request as early data. It does not after QUIC to the origin's own host and
-  port failed a race, until that location connects again.
+  port failed a race or a handshake, until that location connects again. A
+  request whose early handshake fails is raced once more without early data
+  when it has no body or an owned body.
 - Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
 
 ## Find HTTP/3 through HTTPS DNS records

@@ -893,6 +893,18 @@ impl Client {
         }
     }
 
+    /// Records that a raced alternative that sent early data then failed its
+    /// handshake, so later raced setups for the origin send no early data.
+    pub(crate) fn mark_origin_quic_recently_broken(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+    ) {
+        if let Some(store) = &self.state.alt_svc {
+            store.mark_origin_quic_recently_broken(endpoint, route);
+        }
+    }
+
     pub(crate) fn confirm_alt_svc(
         &self,
         endpoint: &crate::authority::Endpoint,

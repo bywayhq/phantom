@@ -885,6 +885,11 @@ pub(crate) struct Http3Lease {
 }
 
 impl Http3Lease {
+    /// Returns the leased connection.
+    pub(crate) fn connection(&self) -> &Http3Connection {
+        &self.lease.connection
+    }
+
     /// Admits another request to a connection whose rejected early data
     /// carried the previous one, within the pool-admission phase.
     async fn readmit(

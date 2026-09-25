@@ -705,3 +705,22 @@ fn early_data_waits_until_quic_to_the_origin_connects_again() -> TestResult {
     assert!(allows_early_data(&store, &origin, later)?);
     Ok(())
 }
+
+#[test]
+fn a_failed_early_handshake_disallows_early_data_without_breaking_the_alternative() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\"alt.example:8443\"", now);
+
+    store.mark_origin_quic_recently_broken(&origin, &DIRECT);
+    let later = std::time::Instant::now();
+    assert!(!allows_early_data(&store, &origin, later)?);
+    assert!(!broken_at(&store, &origin, later)?);
+
+    // A completed handshake to the alternative confirms QUIC to the origin.
+    let alternative = location(&store, &origin, later)?;
+    store.confirm(&origin, &DIRECT, &alternative);
+    assert!(allows_early_data(&store, &origin, later)?);
+    Ok(())
+}

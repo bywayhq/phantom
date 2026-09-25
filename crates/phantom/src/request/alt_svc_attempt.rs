@@ -227,16 +227,97 @@ pub(super) async fn send_once_raced(
                 outcome = "alternative",
                 "Alt-Svc race chose the alternative"
             );
-            client.confirm_alt_svc(&request.endpoint, route, &alternative);
-            send_on_alternative(
+            let connection = leased.connection().clone();
+            // A setup that resumed with early data wins before its handshake
+            // completes, so it is confirmed only once the handshake has.
+            if !connection.early_data_pending() {
+                client.confirm_alt_svc(&request.endpoint, route, &alternative);
+                return send_on_alternative(
+                    client,
+                    request,
+                    attempt,
+                    route,
+                    lifecycle,
+                    &alternative,
+                    Some(leased),
+                )
+                .await;
+            }
+            let AttemptRequest {
+                method,
+                headers,
+                trailers,
+                body,
+            } = attempt;
+            let AttemptLifecycle {
+                request_span,
+                timeout_budget,
+                retries,
+                replays,
+            } = lifecycle;
+            let result = send_on_alternative(
                 client,
                 request,
-                attempt,
+                AttemptRequest {
+                    method: method.clone(),
+                    headers: headers.clone(),
+                    trailers: trailers.clone(),
+                    body: &mut *body,
+                },
                 route,
-                lifecycle,
+                AttemptLifecycle {
+                    request_span,
+                    timeout_budget,
+                    retries: &mut *retries,
+                    replays: &mut *replays,
+                },
                 &alternative,
                 Some(leased),
             )
+            .await;
+            if !connection.early_data_handshake_failed().await {
+                client.confirm_alt_svc(&request.endpoint, route, &alternative);
+                return result;
+            }
+            // Chromium fails the requests of a session whose handshake failed
+            // with ERR_QUIC_HANDSHAKE_FAILED and marks QUIC to the origin
+            // recently broken; HttpNetworkTransaction::HandleIOError then
+            // restarts the transaction, which races again without early data
+            // (`RetryReason::kQuicHandshakeFailed`,
+            // `net/http/http_network_transaction.cc` lines 2077-2078 and
+            // 2222-2233 at 154.0.8037.58).
+            client.mark_origin_quic_recently_broken(&request.endpoint, route);
+            let replayable = matches!(
+                &*body,
+                RequestBodySource::Absent | RequestBodySource::Bytes(_)
+            );
+            if result.is_ok() || !replayable {
+                return result;
+            }
+            tracing::debug!(
+                outcome = "handshake_failed",
+                "raced alternative failed its handshake after early data; racing again"
+            );
+            Box::pin(send_once_raced(
+                client,
+                request,
+                AttemptRequest {
+                    method,
+                    headers,
+                    trailers,
+                    body,
+                },
+                route,
+                AttemptLifecycle {
+                    request_span,
+                    timeout_budget,
+                    retries,
+                    replays,
+                },
+                alternative.without_early_data(),
+                race,
+                None,
+            ))
             .await
         }
         RaceOutcome::Origin { leased, loser } => {
@@ -359,7 +440,20 @@ fn continue_alternative<F>(
             async move {
                 match setup.await {
                     Ok(leased) => {
+                        let connection = leased.connection().clone();
                         drop(leased);
+                        // A setup that resumed with early data connected
+                        // before its handshake completed.
+                        if connection.early_data_handshake_failed().await {
+                            tracing::debug!(outcome = "failed", "orphaned alternative failed");
+                            client.mark_alt_svc_broken(
+                                &endpoint,
+                                &route,
+                                &alternative,
+                                race.broken_backoff(),
+                            );
+                            return;
+                        }
                         client.confirm_alt_svc(&endpoint, &route, &alternative);
                         tracing::debug!(outcome = "connected", "orphaned alternative connected");
                     }

@@ -127,6 +127,13 @@ impl AlternativeTarget {
         self.broken
     }
 
+    /// Returns this alternative with early data disallowed, after QUIC to
+    /// the origin failed a handshake that had sent early data.
+    pub(crate) fn without_early_data(mut self) -> Self {
+        self.origin_quic_recently_broken = true;
+        self
+    }
+
     /// Returns whether a raced setup to this alternative may offer early
     /// (0-RTT) data.
     ///
@@ -348,6 +355,40 @@ impl AltSvcStore {
         broken.push_back(record);
     }
 
+    /// Records that QUIC to `origin`'s own host and port failed its handshake
+    /// after a connection there was already in use, without a broken period.
+    ///
+    /// Chromium marks QUIC to the session's server recently broken when a
+    /// session that carried a request closes before its handshake completes
+    /// (`QuicSessionPool::ProcessGoingAwaySession`,
+    /// `net/quic/quic_session_pool.cc` lines 2714-2731 at 154.0.8037.58):
+    /// the alternative is still raced, but its attempts send no early data
+    /// until QUIC to the origin connects again.
+    pub(super) fn mark_origin_quic_recently_broken(&self, origin: &Endpoint, route: &Route) {
+        let key = StoreKey::new(origin, route);
+        let location = AltSvcLocation::origin(origin);
+        let mut broken = self.lock_broken();
+        if broken
+            .iter()
+            .any(|record| record.key == key && record.location == location)
+        {
+            return;
+        }
+        if broken.len() == self.capacity.get() {
+            broken.pop_front();
+        }
+        broken.push_back(BrokenRecord {
+            key,
+            location,
+            failures: 0,
+            until: Instant::now(),
+        });
+        debug!(
+            outcome = "recently_broken",
+            "marked QUIC to the origin recently broken"
+        );
+    }
+
     /// Clears the failure history of `location` after it connected.
     pub(super) fn confirm(&self, origin: &Endpoint, route: &Route, location: &AltSvcLocation) {
         let key = StoreKey::new(origin, route);
@@ -358,6 +399,17 @@ impl AltSvcStore {
         {
             broken.remove(position);
             debug!(outcome = "confirmed", "cleared Alt-Svc broken state");
+        }
+        // A completed QUIC handshake for the origin also confirms QUIC to the
+        // origin's own host and port, as Chromium keys it, unless that
+        // location is in a broken period of its own.
+        let own = AltSvcLocation::origin(origin);
+        let now = Instant::now();
+        if let Some(position) = broken
+            .iter()
+            .position(|record| record.key == key && record.location == own && record.until <= now)
+        {
+            broken.remove(position);
         }
     }
 

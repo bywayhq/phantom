@@ -838,7 +838,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   QUIC to the origin's own host and port failed a race and has not connected
   since, as Chromium's QUIC job does. A resumed alternative can win the race
   before its handshake completes, and a replay-safe request on it is sent as
-  early data.
+  early data. The alternative is confirmed only once its handshake completes;
+  if the handshake fails, QUIC to the origin is marked recently broken and a
+  request with no body or an owned body is raced again without early data.
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,
