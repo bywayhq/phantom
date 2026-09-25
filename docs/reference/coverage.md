@@ -662,7 +662,9 @@ Supported HTTP proxies:
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
   profile's ALPN is offered unchanged, and a selection mismatch is a typed
-  error with no fallback.
+  error with no fallback. A Basic `407` is answered with one replay on a new
+  stream of the challenged connection, as Chrome 154, Edge 153, and Firefox
+  156 do.
 - `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
   `http`, in the profile's pseudo-header order, as Chrome 154, Edge 153, and
   Firefox 156 send them. Requests to one origin share one proxy connection.

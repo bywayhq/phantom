@@ -124,9 +124,10 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
   Phantom does not speak h2c.
 - `http://` requests go to the proxy as H2 requests with `:scheme` `http`,
   as browsers send them. Use `HttpProtocol::Http2` or `get_negotiated`; exact
-  `HttpProtocol::Http1` fails before I/O. With `with_basic_auth`, a
-  challenged request is replayed once on a new stream of the same proxy
-  connection.
+  `HttpProtocol::Http1` fails before I/O.
+- Each CONNECT tunnel opens its own proxy connection.
+- With `with_basic_auth`, a challenged request or CONNECT is replayed once
+  on a new stream of the proxy connection that carried the `407`.
 - A proxy that selects any ALPN protocol but `h2` fails with a typed proxy
   error. The default mode accepts `http/1.1` or no ALPN.
 - A profile that does not offer `h2` or carry HTTP/2 settings fails before

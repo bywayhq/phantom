@@ -37,7 +37,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
   A `407` on an HTTP/1.1 proxy connection is replayed on that connection
-  when the proxy keeps it open, as the captured browsers do.
+  when the proxy keeps it open, and a `407` on an HTTP/2 proxy connection
+  on a new stream of it, as the captured browsers do.
 - SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
@@ -135,14 +136,23 @@ anything does.
 
 #### Routes and proxies
 
-- Replay a challenged HTTP/2 CONNECT on the challenged proxy connection.
-  Evidence: in the `https-proxy-auth-secure-hostname`
+- Several CONNECT tunnels on one HTTP/2 proxy connection. Evidence: in the
+  `https-proxy-auth-secure-hostname` and `https-proxy-auth-hostname`
   [captures](explanation/validation.md#proxy-authentication-evidence),
-  Chromium and Firefox open the replay as a new stream on the HTTP/2 proxy
-  connection that carried the `407`. Phantom gives each HTTP/2 tunnel its own
-  proxy connection and opens a new one for the replay. HTTP/1.1 CONNECT,
-  HTTP/1.1 forwarding, and HTTP/2 forwarding already replay on the
-  challenged connection. Blocker: none recorded.
+  Chromium opens a page's CONNECTs and forwarded requests as streams of one
+  HTTP/2 proxy connection, and Firefox opens several CONNECT streams on one
+  connection. Phantom gives each HTTP/2 tunnel its own proxy connection,
+  which costs a TLS handshake per tunnel and shows the proxy more
+  connections than a browser opens. Blocker: a pool for tunnel connections
+  that shares the connection flow-control window between tunnels, respects
+  the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, and keeps a connection
+  while any tunnel on it is open.
+- End a challenged HTTP/2 CONNECT stream before the replay's HEADERS on any
+  runtime. Evidence: Chrome 154 and Edge 153 send the empty END_STREAM DATA
+  frame first; Phantom yields once to the connection driver, which fixes the
+  order only on a current-thread runtime. Blocker: the vendored `http2`
+  encoder writes a new stream's HEADERS ahead of queued DATA and reports no
+  flush.
 
 #### Caller options, off by default
 

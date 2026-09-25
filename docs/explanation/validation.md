@@ -2192,6 +2192,14 @@ Firefox tag `FIREFOX_156_0_RELEASE`, agrees and explains the mechanism:
   challenged connection. The capture proxy's `407` is keep-alive with
   `Content-Length: 0`; no capture covers a closing or body-bearing `407`, so
   those cases rest on the source above.
+- The `https-proxy-auth-secure-hostname` captures do the same through the
+  TLS proxy that offers `h2`. In all three runs, each browser sends the
+  replay as the next stream on the HTTP/2 connection that carried the `407`:
+  Chrome and Edge on stream 5 after the `407` on stream 3, Firefox on stream
+  7 after stream 5. The `407` ends its stream. Chrome and Edge then end
+  their side of it with an empty DATA frame that carries END_STREAM; Firefox
+  sends nothing more on it. Both browsers also open other CONNECT streams on
+  the same connection, so a browser's tunnels share proxy connections.
 - Credentials supplied through `Fetch.continueWithAuth` and
   `network.continueWithAuth` reach the same caches as a prompt's
   (`content/browser/devtools/devtools_url_loader_interceptor.cc` lines 1433 to
@@ -2235,6 +2243,22 @@ Against Phantom:
 - `proxy_h2.rs` covers H2 CONNECT tunnels and H2 forwarding, including the
   replay on the same H2 proxy connection, a second `407`, and the
   never-indexed HPACK form of the forwarded `proxy-authorization` field.
+  `h2_proxy_basic_challenge_replays_once_on_the_challenged_connection` checks
+  that a challenged H2 CONNECT and its replay arrive as streams 1 and 3 of one
+  proxy connection.
+- `crates/phantom-net/src/proxy/tests/http2_challenge.rs` checks the frames
+  of that exchange on a current-thread runtime: an empty END_STREAM DATA
+  frame ends stream 1 before the replay's HEADERS on stream 3, stream 1 is
+  not reset, and the replay carries
+  `proxy-authorization` as a never-indexed literal on static name 49. It also
+  checks that remembered credentials go on stream 1 of a new connection, that
+  a `407` to them brings one replay on stream 3 of that connection, that a
+  second `407` fails with no other connection, and that a replay the proxy
+  refuses with `REFUSED_STREAM` moves to a new connection.
+  `plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection`
+  and `h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connection`
+  in `websocket_http2_proxy.rs` check the same one connection for `ws://`
+  and HTTP/2 WebSocket openings.
   `forward_proxy.rs` covers H1 forwarding on the pooled proxy connection and
   a `407` to remembered credentials. `websocket/routing.rs` covers two
   `ws://` tunnels after one challenge.
@@ -2284,9 +2308,15 @@ Remaining differences:
   `http2` frame `Debug` output leaves out every field, and Phantom never
   prints the connection whose HPACK table would hold the value, but the
   request fields pass through Phantom's own types first.
-- An H2 CONNECT replay opens a new proxy connection, because each H2
-  tunnel owns its proxy connection; both browsers open a new stream on the
-  challenged H2 connection.
+- Each H2 tunnel keeps its proxy connection to itself; browsers open several
+  CONNECT streams on one connection. The replay therefore uses streams 1 and
+  3 of a new connection, where a browser uses the next free streams of a
+  connection it already has open. Phantom ends the challenged stream with an
+  empty END_STREAM DATA frame, as Chrome and Edge do; Firefox sends nothing
+  more on it. The vendored `http2` encoder writes a new stream's HEADERS
+  ahead of queued DATA, so Phantom yields once to the connection driver
+  before the replay. On a multi-thread runtime the driver can run later,
+  and the DATA frame can then follow the replay's HEADERS.
 - A `407` body over 64 KiB closes the connection, where browsers read any
   length. A forwarded POST whose replay the proxy closes before answering
   fails, where Chromium sends it again. A forwarded `407` in HTTP/1.0 closes it even with `keep-alive`,
@@ -2309,9 +2339,10 @@ http-proxy-auth-loopback https-proxy-auth-loopback --repeat 3`; see
 
 Limits:
 
-- Plaintext origins only, one realm, and no CONNECT request that received a
-  `407`, because each page's first request was a forwarded navigation.
-  Connection reuse after a `407` to CONNECT comes from source reading only.
+- One realm. Only the `*-secure-hostname` scenarios challenge a CONNECT;
+  the others challenge a forwarded navigation first. Every captured `407` is
+  keep-alive with an empty body, so reuse after a closing or body-bearing
+  `407` comes from source reading only.
 - The credentials come from browser automation, not a prompt. Firefox ran
   with `remote.prefs.recommended=false`, so its automation defaults did not
   change connection behavior.
