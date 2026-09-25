@@ -40,7 +40,7 @@
 //! | Feature | Adds |
 //! | --- | --- |
 //! | `cookies` | `CookieJar` and client-owned cookie handling |
-//! | `https-records` | The `dns` module and HTTP/3 discovery from HTTPS DNS records |
+//! | `https-records` | The `dns` module, HTTP/3 discovery from HTTPS DNS records, and Encrypted Client Hello from them for profiles that set `ech_from_https_records`, whose direct handshakes wait up to 50 ms for the lookup |
 //! | `sse` | Server-sent event decoding and bounded reconnects |
 //! | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |

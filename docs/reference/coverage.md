@@ -319,15 +319,17 @@ Supported requests and routes:
   154.0.8037.58's rules, sends the negotiated request over H3 to the origin,
   without `Alt-Used`. Phantom sends the query itself over UDP, with a TCP
   retry on truncation, to the host's or the caller's nameservers. The lookup
-  runs beside the request and does not hold it back; results are cached per client
+  runs beside the request and does not hold it back, except for the TLS
+  handshake described below; results are cached per client
   for the record TTL (at most one day, 60 seconds without one) in at most the
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
   and `ech` kept as raw bytes), and a malformed record is a typed error.
   With the Chrome 154 recipe, a direct negotiated HTTP/1.1 or HTTP/2
   connection encrypts its ClientHello with the record's `ech`, waiting up to
-  50 ms after address resolution for the lookup and retrying once after a
-  rejection, as Chrome 154 does
+  50 ms after address resolution for the lookup, not at all when the address
+  comes from the client's address cache, and retrying once after a rejection
+  whose server authenticates as the public name, as Chrome 154 does
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
   Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3.md#find-http3-through-https-dns-records).

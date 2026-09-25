@@ -380,16 +380,20 @@ pub struct TlsSettings {
     /// non-empty list requires [`Self::ech_grease`] and must not repeat an
     /// AEAD.
     pub ech_grease_aeads: Vec<EchGreaseAead>,
-    /// Whether a direct TCP connection offers Encrypted Client Hello with
-    /// the `ech` value of the origin's HTTPS record, as Chrome 154 does.
+    /// Whether a direct negotiated HTTP/1.1-or-HTTP/2 connection offers
+    /// Encrypted Client Hello with the `ech` value of the origin's HTTPS
+    /// record, as Chrome 154 does.
     ///
-    /// When set, a direct connection on a client that looks up HTTPS records
+    /// When set, such a connection on a client that looks up HTTPS records
     /// holds its ClientHello until the lookup ends, for at most 5-50 ms
     /// after the address answers, and retries once after an ECH rejection.
     /// Without a record, or when the record has no usable `ech`, the
-    /// connection sends ECH GREASE. Proxy routes and QUIC never use it, and
-    /// a QUIC connector rejects it. Requires [`Self::ech_grease`], which
-    /// Chrome always enables beside a configuration.
+    /// connection sends ECH GREASE. Every other path sends ECH GREASE and
+    /// never waits: exact-protocol HTTP/1.1 and HTTP/2 connectors,
+    /// `Http1Or2TlsConnector::connect_direct`, WebSocket connections, and
+    /// proxy routes. A QUIC connector rejects the field. Requires
+    /// [`Self::ech_grease`], which Chrome always enables beside a
+    /// configuration.
     pub ech_from_https_records: bool,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,

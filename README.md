@@ -96,7 +96,7 @@ No Cargo feature is enabled by default:
 | Feature | Adds |
 | --- | --- |
 | `cookies` | A cookie jar owned by the client, with size limits |
-| `https-records` | HTTP/3 discovery from HTTPS DNS records; adds the `hickory-resolver` dependency |
+| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the Chrome 154 recipe, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; adds the `hickory-resolver` dependency |
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 | `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |
