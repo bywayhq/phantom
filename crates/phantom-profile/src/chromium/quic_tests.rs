@@ -14,6 +14,10 @@ const BRAVE_154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
 ));
+const BRAVE_154_DEVTOOLS_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
+));
 const OPERA_135_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
@@ -50,7 +54,9 @@ client=Brave
 client_version=154.1.96.59
 "
     ));
-    assert_quic_settings_match_startup(BRAVE_154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+    assert_quic_settings_match_startup(BRAVE_154_WINDOWS_HTTP3_FIXTURE, &v154_quic())?;
+    // A DevTools-launched startup carries the same parameters.
+    assert_quic_settings_match_startup(BRAVE_154_DEVTOOLS_HTTP3_FIXTURE, &v154_quic())
 }
 
 #[test]

@@ -110,7 +110,12 @@ fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
     for client_hello in [BRAVE_154_H3_CLIENT_HELLO_1, BRAVE_154_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, BRAVE_154_H3_STARTUP, client_hello)?;
     }
-    Ok(())
+    // The DevTools-launched run, retained to compare launch modes.
+    assert_connector_matches_quic_client_hello(
+        &connector,
+        BRAVE_154_H3_DEVTOOLS_STARTUP,
+        BRAVE_154_H3_DEVTOOLS_CLIENT_HELLO,
+    )
 }
 
 /// Opera 135 offers the Chromium QUIC ClientHello without trust-anchor IDs.
@@ -537,6 +542,14 @@ const EDGE_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
 pub(super) const BRAVE_154_H3_STARTUP: &str = include_str!(concat!(
     "../../../../../fixtures/http3/brave/154.1.96.59/",
     "windows-11-26200/client-startup.txt"
+));
+const BRAVE_154_H3_DEVTOOLS_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave/154.1.96.59/",
+    "windows-11-26200/launch-mode/client-startup-devtools.txt"
+));
+const BRAVE_154_H3_DEVTOOLS_CLIENT_HELLO: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave/154.1.96.59/",
+    "windows-11-26200/launch-mode/quic-client-hello-devtools.txt"
 ));
 const BRAVE_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
     "../../../../../fixtures/http3/brave/154.1.96.59/",

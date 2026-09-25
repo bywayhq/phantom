@@ -11,6 +11,9 @@ const EDGE_153_WINDOWS_FIXTURE: &str = include_str!(
 const BRAVE_154_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
 );
+const BRAVE_154_DEVTOOLS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
+);
 const OPERA_135_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
 );
@@ -66,6 +69,34 @@ fn brave_154_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std:
         v154_http3(),
         v154_http3_request(),
     )
+}
+
+/// A Brave H3 startup opened by a DevTools navigation, the launch Opera's
+/// H3 fixture needed, sends the same control stream and request fields as a
+/// command-line launch, apart from `:authority`.
+#[test]
+fn brave_154_devtools_launch_sends_the_command_line_h3_startup()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        fixture_field(BRAVE_154_DEVTOOLS_FIXTURE, "launch_mode")?,
+        "devtools-navigate"
+    );
+    assert_settings_match_control_stream(
+        BRAVE_154_DEVTOOLS_FIXTURE,
+        v154_http3(),
+        v154_http3_request(),
+    )?;
+    let without_authority = |fixture| -> Result<Vec<_>, Box<dyn std::error::Error>> {
+        Ok(request_fields(fixture)?
+            .into_iter()
+            .filter(|(name, _)| name != ":authority")
+            .collect())
+    };
+    assert_eq!(
+        without_authority(BRAVE_154_DEVTOOLS_FIXTURE)?,
+        without_authority(BRAVE_154_WINDOWS_FIXTURE)?
+    );
+    Ok(())
 }
 
 /// Opera 135 shares the Chromium H3 control stream and request order; only
