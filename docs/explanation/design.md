@@ -449,13 +449,17 @@ or forwarded request to a proxy carries no credentials. A strict, valid Basic
 `407` challenge permits one replay with the route's credentials. An H2
 forwarding replay uses a new stream on the same pooled proxy connection. An
 H2 CONNECT replay uses a new stream on the HTTP/2 connection that carried the
-`407`, as Chromium and Firefox do, after ending the challenged stream with an
-empty END_STREAM DATA frame, as Chromium does. The tunnel then holds that
-connection alone, as every H2 tunnel does. An HTTP/1.1 CONNECT replay and an
-H1 forwarding replay use the HTTP/1.1 connection that carried the `407` when
-the response leaves it open, as Chromium and Firefox do, and open a new proxy
-connection otherwise. A second `407`, or a challenge Phantom cannot use, is a
-typed proxy failure.
+`407`, as Chromium and Firefox do. Before it, the profile's CONNECT recipe
+decides what the challenged stream gets: the Chromium recipe ends it with an
+empty END_STREAM DATA frame, as Chromium does, and the Firefox recipe sends
+nothing, as Firefox does. Phantom waits until the driver has written that
+frame before it opens the replay, so the order holds on any runtime; the wait
+ends after about 50 ms if the proxy stops reading, and the replay's HEADERS
+can then come first. The tunnel then holds that connection alone, as every
+H2 tunnel does. An HTTP/1.1 CONNECT replay and an H1 forwarding replay use
+the HTTP/1.1 connection that carried the `407` when the response leaves it
+open, as Chromium and Firefox do, and open a new proxy connection otherwise.
+A second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
 
 The `407` leaves the connection open when it names no `close` token in
 `Connection` or `Proxy-Connection` (an HTTP/1.0 response needs
@@ -474,8 +478,9 @@ holds the request until the caller's own deadline.
 
 On an HTTP/2 CONNECT these rules do not apply, because a `407` ends only its
 stream. Phantom does not read the body of such a `407`: a body still
-arriving is reset with `CANCEL`, and the replay goes on the same connection.
-No capture has a body-bearing `407` on HTTP/2.
+arriving is reset with `CANCEL`, with no END_STREAM before it, its data
+returns to the connection window, and the replay goes on the same
+connection. No capture has a body-bearing `407` on HTTP/2.
 
 A forwarded replay holds the connection and its pool slot until it is
 sent, so no other request takes the connection first. Before the replay,
@@ -484,8 +489,8 @@ Phantom checks that the proxy has not closed the connection since the
 replay, a CONNECT, or a forwarded request with an idempotent method and a
 replayable body, is sent once more on a new connection. On HTTP/2, a
 `GOAWAY` or a `REFUSED_STREAM` reset that shows the proxy did not process the
-CONNECT replay counts as a close. This is part of the
-authentication replay and needs no
+CONNECT replay counts as a close. This is part of the authentication replay
+and needs no
 [retry policy](../guides/retries.md#replay-a-request-after-a-reused-connection-closes).
 Any other forwarded request fails with the reused-connection error, because
 the proxy may already have forwarded it; Chromium resends it.
@@ -494,11 +499,11 @@ When the replay succeeds, the client records the proxy's scheme, host, and
 port together with those credentials. Later tunnels, WebSocket tunnels, and
 forwarded requests through the same proxy with the same credentials send
 `Proxy-Authorization` on the first attempt and skip the `407` round trip,
-and the new proxy connection that a closing `407` needs. A forwarded request that sends remembered
-credentials uses a pooled proxy connection like any other request. A `407`
-to such a request forgets the pair and permits the same single replay, so a
-proxy that stops accepting the credentials costs one failed request at most,
-never a loop.
+and the new proxy connection that a closing `407` needs. A forwarded request
+that sends remembered credentials uses a pooled proxy connection like any
+other request. A `407` to such a request forgets the pair and permits the
+same single replay, so a proxy that stops accepting the credentials costs
+one failed request at most, never a loop.
 
 The record stores only which configured credentials a proxy accepted; it
 never supplies credentials to a route. A route sends its own credentials, and

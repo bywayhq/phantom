@@ -148,12 +148,6 @@ anything does.
   that shares the connection flow-control window between tunnels, respects
   the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, and keeps a connection
   while any tunnel on it is open.
-- End a challenged HTTP/2 CONNECT stream before the replay's HEADERS on any
-  runtime. Evidence: Chrome 154 and Edge 153 send the empty END_STREAM DATA
-  frame first; Phantom yields once to the connection driver, which fixes the
-  order only on a current-thread runtime. Blocker: the vendored `http2`
-  encoder writes a new stream's HEADERS ahead of queued DATA and reports no
-  flush.
 
 #### Caller options, off by default
 

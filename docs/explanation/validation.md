@@ -2174,14 +2174,28 @@ Against Phantom:
   that a challenged H2 CONNECT and its replay arrive as streams 1 and 3 of one
   proxy connection.
 - `crates/phantom-net/src/proxy/tests/http2_challenge.rs` checks the frames
-  of that exchange on a current-thread runtime: an empty END_STREAM DATA
-  frame ends stream 1 before the replay's HEADERS on stream 3, stream 1 is
-  not reset, and the replay carries
+  of that exchange: an empty END_STREAM DATA frame ends stream 1 before the
+  replay's HEADERS on stream 3, stream 1 is not reset, and the replay carries
   `proxy-authorization` as a never-indexed literal on static name 49. It also
   checks that remembered credentials go on stream 1 of a new connection, that
   a `407` to them brings one replay on stream 3 of that connection, that a
   second `407` fails with no other connection, and that a replay the proxy
   refuses with `REFUSED_STREAM` moves to a new connection.
+- `http2_challenge_frames.rs` in the same directory drives the client
+  against a frame-level proxy. `challenged_stream_frames_match_the_captures`
+  compares the client frames on the challenged stream, between the `407` and
+  the replay, with the same span of each browser's
+  `https-proxy-auth-secure-hostname` capture: one empty END_STREAM DATA
+  frame for the Chromium recipe, none for the Firefox recipe, whose stream
+  also stays quiet while the tunnel runs. The file also checks the DATA
+  frame before the replay 20 times on a multi-thread runtime, the replay on
+  a proxy that allows one concurrent stream, a move to a new connection
+  after a `GOAWAY` sent with the `407` or after the replay's HEADERS and
+  after a close during the replay, a `407` whose body is still arriving
+  (reset with `CANCEL`, its connection window returned, and the replay on
+  the same connection), and a `502` that ends its stream with END_STREAM.
+  `h2_connect_closes_the_challenged_stream_as_the_profile_does` in
+  `proxy_h2.rs` checks that a client built with each recipe applies it.
   `plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection`
   and `h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connection`
   in `websocket_http2_proxy.rs` check the same one connection for `ws://`
@@ -2238,12 +2252,13 @@ Remaining differences:
 - Each H2 tunnel keeps its proxy connection to itself; browsers open several
   CONNECT streams on one connection. The replay therefore uses streams 1 and
   3 of a new connection, where a browser uses the next free streams of a
-  connection it already has open. Phantom ends the challenged stream with an
-  empty END_STREAM DATA frame, as Chrome and Edge do; Firefox sends nothing
-  more on it. The vendored `http2` encoder writes a new stream's HEADERS
-  ahead of queued DATA, so Phantom yields once to the connection driver
-  before the replay. On a multi-thread runtime the driver can run later,
-  and the DATA frame can then follow the replay's HEADERS.
+  connection it already has open.
+- With the Firefox recipe, a proxy that allows only one concurrent stream
+  gets an END_STREAM on the challenged stream, so the replay can open; no
+  capture shows what Firefox does there. The vendored `http2` encoder writes
+  a new stream's HEADERS ahead of queued DATA, so Phantom waits for the
+  challenged stream's END_STREAM to be written; if the proxy stops reading
+  for about 50 ms, the replay's HEADERS can come first.
 - A `407` body over 64 KiB closes the connection, where browsers read any
   length. A forwarded POST whose replay the proxy closes before answering
   fails, where Chromium sends it again. A forwarded `407` in HTTP/1.0 closes it even with `keep-alive`,
