@@ -9,7 +9,7 @@ use crate::{
         Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
         Http2Settings, Http2StaticNameIndex,
     },
-    request_template::{RequestField, RequestTemplate},
+    request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -387,6 +387,28 @@ fn websocket_accept_encoding(name: &str) -> WebSocketField {
     WebSocketField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
 }
 
+/// Returns Firefox 156's position of forwarded proxy credentials it
+/// remembers from an earlier challenge: before `Connection` on HTTP/1.1, and
+/// where `Connection` would be on HTTP/2.
+///
+/// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
+/// captures show it after `Referer` on the `fetch()` that follows the
+/// challenged navigation. No capture shows a navigation sent with remembered
+/// credentials; its slot is at the same place relative to `Connection`.
+fn preemptive_proxy_authorization(name: &str) -> RequestField {
+    RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Preemptive)
+}
+
+/// Returns Firefox 156's position of forwarded proxy credentials on the
+/// replay after a `407`: after every template field on HTTP/1.1, and before
+/// `te` on HTTP/2.
+///
+/// The same captures show it there on the replayed navigation. No capture
+/// shows a replayed `fetch()`; its slot is last too.
+fn replay_proxy_authorization(name: &str) -> RequestField {
+    RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Replay)
+}
+
 /// Returns navigation request fields observed from Firefox 156.0 on Windows 11.
 ///
 /// A top-level navigation the user starts from the address bar: an HTML
@@ -423,6 +445,7 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
+            preemptive_proxy_authorization("Proxy-Authorization"),
             RequestField::literal("Connection", "keep-alive"),
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
             RequestField::trustworthy_only("Sec-Fetch-Dest", "document"),
@@ -430,18 +453,21 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             RequestField::trustworthy_only("Sec-Fetch-Site", "none"),
             RequestField::trustworthy_only("Sec-Fetch-User", "?1"),
             RequestField::literal("Priority", "u=0, i"),
+            replay_proxy_authorization("Proxy-Authorization"),
         ],
         http2_fields: vec![
             RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
             RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
+            preemptive_proxy_authorization("proxy-authorization"),
             RequestField::literal("upgrade-insecure-requests", "1"),
             RequestField::trustworthy_only("sec-fetch-dest", "document"),
             RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
             RequestField::trustworthy_only("sec-fetch-site", "none"),
             RequestField::trustworthy_only("sec-fetch-user", "?1"),
             RequestField::literal("priority", "u=0, i"),
+            replay_proxy_authorization("proxy-authorization"),
             RequestField::literal("te", "trailers"),
         ],
         http3_fields: None,
@@ -483,6 +509,7 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
             RequestField::caller("Referer"),
+            preemptive_proxy_authorization("Proxy-Authorization"),
             RequestField::literal("Connection", "keep-alive"),
             RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
             RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
@@ -490,6 +517,7 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("Priority", "u=4"),
             RequestField::literal("Pragma", "no-cache"),
             RequestField::literal("Cache-Control", "no-cache"),
+            replay_proxy_authorization("Proxy-Authorization"),
         ],
         http2_fields: vec![
             RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
@@ -497,12 +525,14 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
             RequestField::caller("referer"),
+            preemptive_proxy_authorization("proxy-authorization"),
             RequestField::trustworthy_only("sec-fetch-dest", "empty"),
             RequestField::trustworthy_only("sec-fetch-mode", "cors"),
             RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
             RequestField::literal("priority", "u=4"),
             RequestField::literal("pragma", "no-cache"),
             RequestField::literal("cache-control", "no-cache"),
+            replay_proxy_authorization("proxy-authorization"),
             RequestField::literal("te", "trailers"),
         ],
         http3_fields: None,

@@ -20,9 +20,9 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, ProxyConfigErrorKind, RequestErrorKind, RequestHeader,
-    ResponseInfo, Route,
-    profile::{ClientProfile, Http2Settings, chromium, firefox},
+    Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, ProxyConfigErrorKind,
+    RequestErrorKind, RequestHeader, ResponseInfo, Route,
+    profile::{ClientProfile, Http2Settings, RequestTemplate, chromium, edge, firefox},
 };
 use phantom_net::proxy::HttpConnectError;
 use tokio::{
@@ -617,6 +617,161 @@ async fn firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() ->
         &[":method", ":path", ":authority", ":scheme"],
     )
     .await
+}
+
+macro_rules! proxy_fixture {
+    ($browser:literal, $scenario:literal) => {
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/proxy/",
+            $browser,
+            "/windows-11-26200/",
+            $scenario,
+            ".txt"
+        ))
+    };
+}
+
+/// Returns the ordinary field names of every client HEADERS block of run 0
+/// that carries `:scheme`, which leaves out CONNECT, ordered by proxy
+/// connection and then by block.
+fn captured_forwarded_blocks(fixture: &str) -> TestResult<Vec<Vec<String>>> {
+    let mut blocks = Vec::new();
+    for line in fixture.lines() {
+        let Some((key, order)) = line.split_once('=') else {
+            continue;
+        };
+        let Some(rest) = key
+            .strip_prefix("run_0_connection_")
+            .and_then(|rest| rest.strip_suffix("_field_order"))
+        else {
+            continue;
+        };
+        let (connection, block) = rest
+            .split_once("_headers_")
+            .ok_or("unexpected field-order key")?;
+        let names: Vec<&str> = order.split(',').collect();
+        if names.contains(&":scheme") {
+            blocks.push((
+                connection.parse::<usize>()?,
+                block.parse::<usize>()?,
+                names
+                    .into_iter()
+                    .filter(|name| !name.starts_with(':'))
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>(),
+            ));
+        }
+    }
+    blocks.sort();
+    Ok(blocks.into_iter().map(|(_, _, names)| names).collect())
+}
+
+/// A navigation challenged by an HTTP/2 proxy, its replay, and a `fetch()`
+/// that sends remembered credentials first place `proxy-authorization`
+/// where Chrome 154, Edge 153, and Firefox 156 do in the
+/// `https-proxy-auth-hostname` captures, whose three runs agree. The
+/// captured `fetch()` used the default cache mode, so the no-store
+/// template's `pragma` and `cache-control` are left out of the comparison.
+#[tokio::test]
+async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
+    const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+    let cases: [(
+        &str,
+        Http2Settings,
+        RequestTemplate,
+        RequestTemplate,
+        &str,
+        bool,
+    ); 3] = [
+        (
+            "chrome",
+            chromium::v154_http2(),
+            chromium::v154_windows_navigation_template(),
+            chromium::v154_windows_fetch_no_store_template(),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
+            false,
+        ),
+        (
+            "edge",
+            chromium::v154_http2(),
+            edge::v153_windows_navigation_template(),
+            edge::v153_windows_fetch_no_store_template(),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
+            true,
+        ),
+        (
+            "firefox",
+            firefox::v156_http2(),
+            firefox::v156_windows_navigation_template(),
+            firefox::v156_windows_fetch_no_store_template(),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
+            false,
+        ),
+    ];
+    for (label, http2, navigation, fetch, fixture, caller_ua) in cases {
+        let captured = captured_forwarded_blocks(fixture)?;
+        let [challenged, replay, remembered] = captured.as_slice() else {
+            return Err(format!("{label}: expected three forwarded requests").into());
+        };
+        bounded(async {
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            let proxy_task = tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
+            });
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            );
+            let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+            for (path, template, referer) in [
+                ("/page", navigation, None),
+                ("/done", fetch, Some("http://origin.test:8080/page")),
+            ] {
+                let mut caller = Vec::new();
+                if caller_ua {
+                    caller.push(RequestHeader::new("user-agent", EDGE_UA));
+                }
+                caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
+                let response = client
+                    .get(
+                        HttpProtocol::Http2,
+                        &format!("http://origin.test:8080{path}"),
+                    )?
+                    .template(&PreparedRequestTemplate::new(template)?)
+                    .headers(caller)
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 200, "{label} {path}");
+                response.into_body().collect().await?;
+            }
+            let record = proxy_task.await??;
+            let names: Vec<Vec<String>> = record
+                .requests
+                .iter()
+                .map(|request| {
+                    request
+                        .fields
+                        .iter()
+                        .map(|(name, _)| name.clone())
+                        .filter(|name| name != "pragma" && name != "cache-control")
+                        .collect()
+                })
+                .collect();
+            assert_eq!(names[0], *challenged, "{label} challenged");
+            assert_eq!(names[1], *replay, "{label} replay");
+            assert_eq!(names[2], *remembered, "{label} remembered");
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 /// Sends an exact H2 and a negotiated `http://` request through an HTTP/2

@@ -115,34 +115,12 @@ impl Http2Pool {
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         priority: Option<Http2Priority>,
-        forward_authorization: bool,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        // Forwarded requests carry the route's Basic credentials after every
-        // other field, as HTTP/1.1 forwarding does, under the lowercase name
-        // HTTP/2 requires.
-        let proxy_authorization = if forward_authorization && mode == Http2ConnectionMode::Forward {
-            let generated = route
-                .as_http_proxy()
-                .and_then(crate::HttpProxy::basic_credentials)
-                .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?
-                .proxy_authorization_header();
-            Some(RequestHeader::new("proxy-authorization", generated.value()).sensitive())
-        } else {
-            None
-        };
-        let with_proxy_authorization = |mut fields: Vec<RequestHeader>| {
-            fields.extend(proxy_authorization.clone());
-            fields
-        };
-        let prepared_validation_headers = match (client_hints, &proxy_authorization) {
-            (None, None) => None,
-            (Some(context), _) => Some(with_proxy_authorization(
-                context.prepare(headers.clone(), None)?,
-            )),
-            (None, Some(_)) => Some(with_proxy_authorization(headers.clone())),
-        };
+        let prepared_validation_headers = client_hints
+            .map(|context| context.prepare(headers.clone(), None))
+            .transpose()?;
         let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
         validate_request_body_source_with_trailers(
             &method,
@@ -190,7 +168,6 @@ impl Http2Pool {
                 )?,
                 None => headers.clone(),
             };
-            let sent_headers = with_proxy_authorization(sent_headers);
             let result = response_timeout
                 .run(async {
                     Ok::<_, RequestError>(match mode {

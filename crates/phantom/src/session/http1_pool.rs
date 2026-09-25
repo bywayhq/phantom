@@ -88,7 +88,6 @@ impl Http1Pool {
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<http::Response<ResponseBody>, RequestError> {
-        let mut authenticated_headers = None;
         let validation: Result<(), phantom_net::http1::Http1Error> = (|| {
             if mode != Http1ConnectionMode::Forward {
                 return validate_request_body_source_with_trailers(
@@ -106,9 +105,14 @@ impl Http1Pool {
                 body.as_ref(),
                 &trailers,
             )?;
-            if let Some(credentials) = route
-                .as_http_proxy()
-                .and_then(crate::HttpProxy::basic_credentials)
+            // An anonymous attempt may be replayed with the route's
+            // credentials after a challenge; that request is checked now,
+            // before any proxy I/O. The field's position does not change
+            // the outcome.
+            if !forward_authorization
+                && let Some(credentials) = route
+                    .as_http_proxy()
+                    .and_then(crate::HttpProxy::basic_credentials)
             {
                 let mut candidate = headers.clone();
                 candidate.push(credentials.proxy_authorization_header());
@@ -119,19 +123,12 @@ impl Http1Pool {
                     body.as_ref(),
                     &trailers,
                 )?;
-                authenticated_headers = Some(candidate);
             }
             Ok(())
         })();
         validation
             .map_err(Http1TlsError::from)
             .map_err(RequestError::http1)?;
-        let headers = if forward_authorization {
-            authenticated_headers
-                .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?
-        } else {
-            headers
-        };
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }

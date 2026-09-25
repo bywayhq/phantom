@@ -199,9 +199,9 @@ pub mod profile {
         Http3QpackEncoding, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
         InvalidClientHintSettings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
         InvalidHttp3Settings, InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings,
-        InvalidWebSocketSettings, NamedGroup, RequestField, RequestTemplate, SignatureScheme,
-        TcpAddressRacing, TcpKeepalive, TcpSettings, TlsSettings, TlsVersion,
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        InvalidWebSocketSettings, NamedGroup, ProxyAuthorizationAttempt, RequestField,
+        RequestTemplate, SignatureScheme, TcpAddressRacing, TcpKeepalive, TcpSettings, TlsSettings,
+        TlsVersion, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
         WebSocketNewConnection, WebSocketSettings,
     };
 

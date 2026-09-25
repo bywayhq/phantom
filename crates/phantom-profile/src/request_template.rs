@@ -86,6 +86,47 @@ pub enum RequestField {
         /// send nothing then.
         forwarded: Option<Box<str>>,
     },
+    /// The position of the generated `Proxy-Authorization` field on a
+    /// request that an HTTP proxy forwards with the route's Basic
+    /// credentials.
+    ///
+    /// A list holds either one slot for [`ProxyAuthorizationAttempt::Every`]
+    /// or at most one slot for each of the other attempts. When no slot
+    /// matches the attempt, the field follows every other field. A request
+    /// that is not forwarded, or carries no generated credentials, emits
+    /// nothing here.
+    ProxyAuthorization {
+        /// Field-name spelling, an ASCII case variant of
+        /// `Proxy-Authorization`.
+        name: Box<str>,
+        /// Which forwarded attempts place the field here.
+        attempt: ProxyAuthorizationAttempt,
+    },
+}
+
+/// Forwarded attempts that carry generated proxy credentials.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ProxyAuthorizationAttempt {
+    /// Every attempt that carries the credentials.
+    Every,
+    /// A first attempt that carries credentials the proxy accepted before,
+    /// without waiting for a challenge.
+    Preemptive,
+    /// The single replay after the proxy's `407` challenge.
+    Replay,
+}
+
+impl ProxyAuthorizationAttempt {
+    /// Returns whether a slot for `self` places the field on `attempt`,
+    /// which is [`Self::Preemptive`] or [`Self::Replay`].
+    #[must_use]
+    pub const fn covers(self, attempt: Self) -> bool {
+        matches!(
+            (self, attempt),
+            (Self::Every, _) | (Self::Preemptive, Self::Preemptive) | (Self::Replay, Self::Replay)
+        )
+    }
 }
 
 impl RequestField {
@@ -168,8 +209,20 @@ impl RequestField {
         }
     }
 
-    /// Returns the field name of a literal, caller, single-hint,
-    /// trust-dependent, or forwarding-dependent entry.
+    /// Creates the position of the generated `Proxy-Authorization` field for
+    /// `attempt`.
+    #[must_use]
+    pub fn proxy_authorization(
+        name: impl Into<Box<str>>,
+        attempt: ProxyAuthorizationAttempt,
+    ) -> Self {
+        Self::ProxyAuthorization {
+            name: name.into(),
+            attempt,
+        }
+    }
+
+    /// Returns the field name of every entry except the client-hints slot.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
@@ -177,7 +230,8 @@ impl RequestField {
             | Self::Caller { name, .. }
             | Self::ClientHint { name }
             | Self::ByTrust { name, .. }
-            | Self::ByForwarding { name, .. } => Some(name),
+            | Self::ByForwarding { name, .. }
+            | Self::ProxyAuthorization { name, .. } => Some(name),
             Self::ClientHints => None,
         }
     }
@@ -196,7 +250,10 @@ impl RequestField {
                 ..
             } => if trustworthy { secure } else { other }.as_deref(),
             Self::ByForwarding { unforwarded, .. } => unforwarded.as_deref(),
-            Self::Caller { .. } | Self::ClientHint { .. } | Self::ClientHints => None,
+            Self::Caller { .. }
+            | Self::ClientHint { .. }
+            | Self::ClientHints
+            | Self::ProxyAuthorization { .. } => None,
         }
     }
 
@@ -251,7 +308,9 @@ impl RequestTemplate {
     /// repeated name, a generated field such as `Host` or `Cookie`, an
     /// uppercase HTTP/2 or HTTP/3 name, a connection-specific field such as
     /// `Connection` in an HTTP/2 or HTTP/3 list, an invalid literal value, a
-    /// client-hint slot without a later literal field, when the lists place
+    /// client-hint slot without a later literal field, a `Proxy-Authorization`
+    /// slot with another name, in an HTTP/3 list, or overlapping another
+    /// slot's attempts, when the lists place
     /// client hints differently, or when the HTTP/2 priority depends on a
     /// stream other than 0 or has a weight outside 1..=256.
     pub fn validate(&self) -> Result<(), InvalidRequestTemplate> {
@@ -404,8 +463,39 @@ fn validate_fields(
     let mut names = HashSet::with_capacity(fields.len());
     let mut hint_blocks = 0_usize;
     let mut single_hints = 0_usize;
+    let mut authorization_slots: Vec<ProxyAuthorizationAttempt> = Vec::new();
     for (index, template) in fields.iter().enumerate() {
         match template {
+            RequestField::ProxyAuthorization { name, attempt } => {
+                if !name.eq_ignore_ascii_case("proxy-authorization") {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "a credentials slot must be named Proxy-Authorization",
+                    ));
+                }
+                if field == "http3_fields" {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "an HTTP proxy never forwards HTTP/3, so its list has no credentials slot",
+                    ));
+                }
+                if authorization_slots.iter().any(|seen| {
+                    *seen == *attempt
+                        || *seen == ProxyAuthorizationAttempt::Every
+                        || *attempt == ProxyAuthorizationAttempt::Every
+                }) {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "credentials slots must cover different attempts",
+                    ));
+                }
+                let first = authorization_slots.is_empty();
+                authorization_slots.push(*attempt);
+                if !first {
+                    // The first slot entered the name; its checks apply here.
+                    continue;
+                }
+            }
             RequestField::ClientHints => hint_blocks += 1,
             RequestField::ClientHint { name } => {
                 single_hints += 1;

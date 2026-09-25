@@ -187,6 +187,13 @@ fn assert_matches(
                     "{label}: {name} is sent only through a forwarding proxy"
                 );
             }
+            // Nor did any carry proxy credentials.
+            RequestField::ProxyAuthorization { name, .. } => {
+                assert!(
+                    observed.peek().is_none_or(|(seen, _)| seen != &**name),
+                    "{label}: {name} is sent only to an HTTP proxy"
+                );
+            }
             RequestField::Caller { name, .. } => {
                 if observed.peek().is_some_and(|(seen, _)| seen == &**name) {
                     observed.next();
@@ -514,7 +521,8 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
                 template
                     .http1_fields
                     .iter()
-                    .skip(2)
+                    .skip_while(|field| **field != RequestField::ClientHints)
+                    .skip(1)
                     .filter_map(RequestField::name),
             );
             assert_eq!(first, expected);
@@ -536,7 +544,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
 #[test]
 fn validation_rejects_generated_repeated_and_misplaced_fields() {
     let mut template = chromium::v154_windows_navigation_template();
-    template.http2_fields[1] = RequestField::literal("Upgrade-Insecure-Requests", "1");
+    template.http2_fields[2] = RequestField::literal("Upgrade-Insecure-Requests", "1");
     assert_eq!(
         template.validate().map_err(|error| error.field()),
         Err("http2_fields")
@@ -589,7 +597,12 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     assert!(template.validate().is_err(), "single slots need a block");
 
     let mut template = chromium::v154_windows_navigation_template();
-    template.http1_fields.swap(1, 2);
+    let block = template
+        .http1_fields
+        .iter()
+        .position(|field| *field == RequestField::ClientHints)
+        .unwrap_or_default();
+    template.http1_fields.swap(block, block + 1);
     assert_eq!(
         template.validate().map_err(|error| error.field()),
         Err("http1_fields"),
@@ -1066,4 +1079,66 @@ fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded()
             direct(&template.http1_fields)
         );
     }
+}
+
+#[test]
+fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
+    use super::ProxyAuthorizationAttempt::{Every, Preemptive, Replay};
+
+    let with = |slots: &[(&str, super::ProxyAuthorizationAttempt)]| {
+        let mut template = firefox::v156_windows_navigation_template();
+        template
+            .http1_fields
+            .retain(|field| !matches!(field, RequestField::ProxyAuthorization { .. }));
+        for (name, attempt) in slots {
+            template
+                .http1_fields
+                .push(RequestField::proxy_authorization(*name, *attempt));
+        }
+        template.validate().map_err(|error| error.field())
+    };
+    assert_eq!(with(&[("Proxy-Authorization", Every)]), Ok(()));
+    assert_eq!(
+        with(&[
+            ("Proxy-Authorization", Preemptive),
+            ("Proxy-Authorization", Replay)
+        ]),
+        Ok(())
+    );
+    for slots in [
+        &[
+            ("Proxy-Authorization", Every),
+            ("Proxy-Authorization", Replay),
+        ][..],
+        &[
+            ("Proxy-Authorization", Replay),
+            ("Proxy-Authorization", Replay),
+        ],
+        &[("Authorization", Every)],
+    ] {
+        assert_eq!(with(slots), Err("http1_fields"), "{slots:?}");
+    }
+
+    // A literal of the same name repeats the slot's field.
+    let mut template = chromium::v154_windows_navigation_template();
+    template
+        .http1_fields
+        .push(RequestField::literal("Proxy-Authorization", "Basic x"));
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http1_fields")
+    );
+
+    // HTTP/3 is never forwarded.
+    let mut template = chromium::v154_windows_navigation_template();
+    if let Some(fields) = &mut template.http3_fields {
+        fields.insert(
+            0,
+            RequestField::proxy_authorization("proxy-authorization", Every),
+        );
+    }
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http3_fields")
+    );
 }

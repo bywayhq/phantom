@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate, RequestField,
-    RequestTemplate,
+    ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate,
+    ProxyAuthorizationAttempt, RequestField, RequestTemplate,
     request_template::{ClientHintSlot, client_hint_placement},
 };
 
@@ -107,10 +107,22 @@ impl PreparedRequestTemplate {
 
 /// How the request reaches its origin, for route-dependent template entries.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct Forwarding {
+pub(crate) struct Forwarding<'a> {
     /// Whether an HTTP proxy forwards the request: absolute form on HTTP/1.1,
     /// `:scheme` `http` on an HTTP/2 proxy connection.
     pub(crate) forwarded: bool,
+    /// The generated `Proxy-Authorization` field this forwarded attempt
+    /// carries, if any.
+    pub(crate) credentials: Option<ForwardedCredentials<'a>>,
+}
+
+/// The generated `Proxy-Authorization` field of one forwarded attempt.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ForwardedCredentials<'a> {
+    pub(crate) field: &'a RequestHeader,
+    /// [`ProxyAuthorizationAttempt::Preemptive`] or
+    /// [`ProxyAuthorizationAttempt::Replay`].
+    pub(crate) attempt: ProxyAuthorizationAttempt,
 }
 
 /// Emits the template's fields in order with the caller's fields in place,
@@ -122,7 +134,7 @@ pub(crate) fn expand(
     hints: Option<&ClientHintSettings>,
     trustworthy: bool,
 ) -> Vec<RequestHeader> {
-    expand_on_route(fields, caller, hints, trustworthy, Forwarding::default())
+    expand_on_route(fields, caller, hints, trustworthy, Forwarding::default()).0
 }
 
 /// Emits the template's fields in order with the caller's fields in place.
@@ -136,13 +148,19 @@ pub(crate) fn expand(
 /// client-hints slot in profile order. Automatic client hints are added
 /// later, once the connection is chosen. Every other caller field follows
 /// the template in the caller's order.
+///
+/// The generated credentials in `route` take the first
+/// [`RequestField::ProxyAuthorization`] slot whose attempts cover theirs,
+/// with the slot's spelling and the field's sensitivity. The returned flag
+/// tells whether a slot placed them; the caller appends them otherwise.
 pub(crate) fn expand_on_route(
     fields: &[RequestField],
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
     trustworthy: bool,
-    route: Forwarding,
-) -> Vec<RequestHeader> {
+    route: Forwarding<'_>,
+) -> (Vec<RequestHeader>, bool) {
+    let mut credentials = route.credentials;
     let mut used = vec![false; caller.len()];
     let mut expanded = Vec::with_capacity(fields.len() + caller.len());
     let slotted: Vec<&str> = fields
@@ -188,6 +206,13 @@ pub(crate) fn expand_on_route(
                     expanded.push(RequestHeader::new(&**name, value.as_bytes()));
                 }
             }
+            RequestField::ProxyAuthorization { name, attempt } => {
+                if let Some(generated) =
+                    credentials.take_if(|generated| attempt.covers(generated.attempt))
+                {
+                    expanded.push(respelled(name, generated.field));
+                }
+            }
             RequestField::Caller { name, .. } | RequestField::ClientHint { name } => {
                 place(name, &mut expanded);
             }
@@ -208,7 +233,8 @@ pub(crate) fn expand_on_route(
             .filter(|(_, used)| !used)
             .map(|(header, _)| header.clone()),
     );
-    expanded
+    let placed = route.credentials.is_some() && credentials.is_none();
+    (expanded, placed)
 }
 
 fn respelled(name: &str, header: &RequestHeader) -> RequestHeader {

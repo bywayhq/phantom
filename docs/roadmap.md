@@ -104,21 +104,12 @@ have shown where the real architectural boundaries are.
      Phantom's default CONNECT carries only `Host`; `HttpProxy::headers` and
      `HttpProxy::connect_headers` can set the captured fields, but no recipe
      supplies them.
-  2. `Proxy-Authorization` in forwarded requests. The
-     [proxy authentication captures](explanation/validation.md#proxy-authentication-evidence)
-     show Chromium sending it third, after `Host` and `Proxy-Connection`, and
-     Firefox sending it before `Connection` once the credentials are
-     remembered and last on the replay after a `407`. Phantom appends it
-     after every field. A template slot would place it, like the
-     `RequestField::ByForwarding` entries that give Chromium's forwarded
-     `Proxy-Connection`; the slot needs a replay position and a
-     remembered-credentials position.
-  3. HPACK indexing of `proxy-authorization`. Both browsers send it as a
+  2. HPACK indexing of `proxy-authorization`. Both browsers send it as a
      literal with incremental indexing and then as an indexed field on the
      same H2 proxy connection; Phantom marks it sensitive, so it is always a
      never-indexed literal. Changing this needs a way to index a field
      without printing its value in diagnostics.
-  4. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
+  3. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
      browsers replay a challenged HTTP/1.1 forwarded request on the same
      proxy connection when the `407` leaves it open, and Chromium does the
      same for CONNECT. Phantom opens a new proxy connection for these

@@ -10,7 +10,7 @@ use phantom_net::{
     },
     request::{RequestBody, RequestHeader},
 };
-use phantom_profile::Http2Priority;
+use phantom_profile::{Http2Priority, ProxyAuthorizationAttempt};
 use tracing::Span;
 
 use crate::timeout::TimeoutBudget;
@@ -23,7 +23,7 @@ use super::{
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
     replay::{ReplayClass, ReplayState},
     secure_context::is_potentially_trustworthy,
-    template::Forwarding,
+    template::{ForwardedCredentials, Forwarding},
 };
 use crate::session::{
     client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
@@ -110,24 +110,39 @@ async fn send_once_exact(
     }
     let client_hint_origin = client_hint_origin(client, request);
     let mut fresh_connection = false;
-    let forwarding = Forwarding {
-        forwarded: route.forwards(&request.uri),
-    };
+    let forwarded = route.forwards(&request.uri);
+    let credentials_field = forward_authentication
+        .as_ref()
+        .map(|authentication| authentication.field(protocol));
 
     loop {
-        let prepared_headers =
-            route_attempt_headers(client, request, protocol, &request_headers, forwarding);
-        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
-        if challenged {
-            request_span.record("proxy_authentication_retry", true);
-            request_span.record("proxy_attempts", 2_u64);
-        }
         // The retry after a challenge carries the credentials, and so does
         // every request to a proxy that accepted them before.
         let sends_forward_credentials = forward_authentication
             .as_ref()
             .is_some_and(|authentication| challenged || authentication.remembered());
+        let forwarding = Forwarding {
+            forwarded,
+            credentials: credentials_field
+                .as_ref()
+                .filter(|_| sends_forward_credentials)
+                .map(|field| ForwardedCredentials {
+                    field,
+                    attempt: if challenged {
+                        ProxyAuthorizationAttempt::Replay
+                    } else {
+                        ProxyAuthorizationAttempt::Preemptive
+                    },
+                }),
+        };
+        let prepared_headers =
+            route_attempt_headers(client, request, protocol, &request_headers, forwarding);
+        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        if challenged {
+            request_span.record("proxy_authentication_retry", true);
+            request_span.record("proxy_attempts", 2_u64);
+        }
         let dispatched = dispatch_attempt(
             client,
             request,
@@ -514,12 +529,15 @@ pub(super) fn attempt_headers(
 
 /// Returns the fields of one attempt, with the template's route-dependent
 /// entries chosen for `forwarding`.
+///
+/// Generated proxy credentials take the template's slot for the attempt, or
+/// follow every other field, cookies included, when it has none.
 fn route_attempt_headers(
     client: &Client,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
     request_headers: &[RequestHeader],
-    forwarding: Forwarding,
+    forwarding: Forwarding<'_>,
 ) -> Vec<RequestHeader> {
     let fields = request
         .template
@@ -527,7 +545,7 @@ fn route_attempt_headers(
         .and_then(|template| template.fields_for(protocol));
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
-    let mut headers = match fields {
+    let (mut headers, placed) = match fields {
         Some(fields) => super::template::expand_on_route(
             fields,
             request_headers,
@@ -535,9 +553,12 @@ fn route_attempt_headers(
             is_potentially_trustworthy(&request.url),
             forwarding,
         ),
-        None => request_headers.to_vec(),
+        None => (request_headers.to_vec(), false),
     };
     inject_cookie(client, request, protocol, &mut headers);
+    if !placed && let Some(credentials) = forwarding.credentials {
+        headers.push(credentials.field.clone());
+    }
     headers
 }
 
@@ -693,8 +714,8 @@ pub(super) async fn dispatch(
 /// HTTP/1 pool connection choices for one attempt; H3 ignores them.
 #[derive(Clone, Copy)]
 struct Http1Connect {
-    /// Selects the authenticated forward-proxy fields. HTTP/2 forwarding
-    /// reads it too.
+    /// Whether the forwarded fields already carry the route's credentials;
+    /// otherwise the pool checks the authenticated replay before I/O.
     forward_authorization: bool,
     /// Retires the pooled connection and opens a new one.
     fresh_connection: bool,
@@ -793,7 +814,6 @@ async fn dispatch_attempt(
                     client_hints,
                     body,
                     http2_priority(request),
-                    http1_connect.forward_authorization,
                     timeout_budget,
                     retries,
                 )
@@ -886,6 +906,18 @@ impl<'a> ForwardAuthentication<'a> {
             credentials: proxy.basic_credentials()?,
             cache: client.inner.proxy_credentials.as_ref(),
         })
+    }
+
+    /// Returns the generated field under the name `protocol` sends.
+    fn field(&self, protocol: HttpProtocol) -> RequestHeader {
+        let generated = self.credentials.proxy_authorization_header();
+        match protocol {
+            HttpProtocol::Http1 => generated,
+            // HTTP/2 requires lowercase names.
+            HttpProtocol::Http2 | HttpProtocol::Http3 => {
+                RequestHeader::new("proxy-authorization", generated.value()).sensitive()
+            }
+        }
     }
 
     fn scheme(&self) -> ProxyScheme {

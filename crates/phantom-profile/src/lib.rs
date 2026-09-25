@@ -31,7 +31,9 @@ pub use http3::{
     Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings,
     InvalidHttp3Settings,
 };
-pub use request_template::{InvalidRequestTemplate, RequestField, RequestTemplate};
+pub use request_template::{
+    InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
+};
 pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

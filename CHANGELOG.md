@@ -188,6 +188,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `RequestField::when_forwarded` constructors: a template field whose value
   depends on whether an HTTP proxy forwards the request (absolute form on
   HTTP/1.1, `:scheme` `http` on an HTTP/2 proxy connection).
+- `RequestField::ProxyAuthorization`, with the
+  `RequestField::proxy_authorization` constructor, and
+  `ProxyAuthorizationAttempt`: the position of the generated
+  `Proxy-Authorization` field on a forwarded request, for every attempt or
+  separately for a first attempt with remembered credentials and for the
+  replay after a `407`.
 - `ClientBuilder::preemptive_proxy_authentication`, on by default, and the
   `phantom_net::proxy::ProxyCredentialCache` it uses:
   after an HTTP proxy accepts `HttpProxy::with_basic_auth` credentials on the
@@ -380,6 +386,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   as Chrome 154 and Edge 153 do. Firefox's templates are unchanged. A caller
   field named `Connection` or `Proxy-Connection` keeps its value at the
   template's position.
+- Wire change for forwarded `http://` requests with `HttpProxy::with_basic_auth`
+  credentials and a built-in request template. The generated
+  `Proxy-Authorization` field takes the position Chrome 154, Edge 153, and
+  Firefox 156 give it, on HTTP/1.1 and HTTP/2 proxies: after
+  `Proxy-Connection`, or first on HTTP/2, for Chrome and Edge; before
+  `Connection` with remembered credentials, and last or before `te` on the
+  replay after a `407`, for Firefox. It used to follow every other field,
+  which is still the position without a template.
 - Wire and performance change for HTTP proxies with Basic credentials. A
   tunnel or forwarded request to a proxy that already accepted the
   credentials now carries `Proxy-Authorization` on its first attempt, as

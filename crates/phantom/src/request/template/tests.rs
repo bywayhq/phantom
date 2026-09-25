@@ -183,10 +183,15 @@ fn a_required_caller_slot_left_empty_is_rejected() {
 
     // An optional caller slot may stay empty.
     let mut template = chromium::v154_windows_navigation_template();
-    template.http2_fields[2] = RequestField::caller("user-agent");
+    let user_agent = template
+        .http2_fields
+        .iter()
+        .position(|field| field.name() == Some("user-agent"))
+        .unwrap_or_default();
+    template.http2_fields[user_agent] = RequestField::caller("user-agent");
     assert_eq!(kind(&template, exact(HttpProtocol::Http2), &[], None), None);
     // A required slot on one protocol list is required on every request.
-    template.http2_fields[2] = RequestField::required_caller("user-agent");
+    template.http2_fields[user_agent] = RequestField::required_caller("user-agent");
     assert_eq!(
         kind(&template, exact(HttpProtocol::Http1), &[], None),
         Some(RequestErrorKind::RequestTemplate)

@@ -1755,12 +1755,25 @@ Against Phantom:
 - A CONNECT request places the field at the route's placeholder, last by
   default, as both browsers do when the route's CONNECT fields are the
   captured ones.
+- A forwarded request with a built-in request template places the field at
+  the template's `RequestField::ProxyAuthorization` slot for the attempt.
+  `forwarded_requests_place_proxy_credentials_as_captured` in
+  `crates/phantom/tests/proxy_field_order.rs` reads the
+  `http-proxy-auth-hostname` and `http-proxy-auth-loopback` captures of each
+  browser and compares the field names of Phantom's challenged navigation,
+  its replay, and a `fetch()` with remembered credentials with the captured
+  ones, `Host` included. `h2_forwarding_places_proxy_credentials_as_captured`
+  in `proxy_h2.rs` does the same with the `https-proxy-auth-hostname`
+  captures on an HTTP/2 proxy. Without a template, or with a template that
+  has no slot for the attempt, the field follows every other field.
 
 Remaining differences:
 
-- A forwarded request carries the field after every other field, which
-  matches Firefox's replay only. Chromium sends it third, and Firefox sends
-  it before `Connection` once the credentials are remembered.
+- No capture shows Firefox sending remembered credentials on a navigation
+  or replaying a challenged `fetch()`. Its templates place the field before
+  `Connection` (HTTP/1.1) or where `Connection` would be (HTTP/2) for the
+  first, and last or before `te` for the second, as on the captured requests
+  of the other kind.
 - H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
   literal, where both browsers index it.
 - The replay after a challenge to a CONNECT or H1 forwarded request opens a

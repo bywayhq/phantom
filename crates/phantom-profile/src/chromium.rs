@@ -14,7 +14,7 @@ use crate::{
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
         Http3Setting, Http3SettingOrder, Http3Settings,
     },
-    request_template::{RequestField, RequestTemplate},
+    request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SignatureScheme, TlsSettings, TlsVersion,
@@ -529,6 +529,18 @@ pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
+/// Returns Chromium 154's position of forwarded proxy credentials: after
+/// `Proxy-Connection` on HTTP/1.1 and first after the pseudo-header fields
+/// on HTTP/2, on the replay after a `407` and on later requests alike.
+///
+/// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
+/// captures of Chrome 154 and Edge 153 show this on the replayed navigation
+/// and on the `fetch()` that follows it, to loopback and named origins; the
+/// client hints of a loopback origin come after it.
+fn chromium_proxy_authorization(name: &str) -> RequestField {
+    RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Every)
+}
+
 /// Builds the Chromium 154 navigation lists with a literal or required caller
 /// `User-Agent`.
 pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTemplate {
@@ -537,6 +549,7 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
         None => RequestField::required_caller(name),
     };
     let http2_fields = vec![
+        chromium_proxy_authorization("proxy-authorization"),
         RequestField::ClientHints,
         RequestField::literal("upgrade-insecure-requests", "1"),
         user_agent("user-agent"),
@@ -553,6 +566,7 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
         http1_fields: vec![
             RequestField::unless_forwarded("Connection", "keep-alive"),
             RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
+            chromium_proxy_authorization("Proxy-Authorization"),
             RequestField::ClientHints,
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
             user_agent("User-Agent"),
@@ -564,7 +578,9 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
             accept_encoding("Accept-Encoding"),
             RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
         ],
-        http3_fields: Some(http2_fields.clone()),
+        // An HTTP proxy never forwards HTTP/3, so that list has no
+        // credentials slot.
+        http3_fields: Some(http2_fields[1..].to_vec()),
         http2_fields,
         http2_priority: Some(Http2Priority {
             dependency_stream_id: 0,
@@ -586,6 +602,7 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
         http1_fields: vec![
             RequestField::unless_forwarded("Connection", "keep-alive"),
             RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
+            chromium_proxy_authorization("Proxy-Authorization"),
             RequestField::literal("Pragma", "no-cache"),
             RequestField::literal("Cache-Control", "no-cache"),
             RequestField::client_hint("sec-ch-ua-platform"),
@@ -602,6 +619,7 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
             RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
         ],
         http2_fields: vec![
+            chromium_proxy_authorization("proxy-authorization"),
             RequestField::literal("pragma", "no-cache"),
             RequestField::literal("cache-control", "no-cache"),
             RequestField::client_hint("sec-ch-ua-platform"),
