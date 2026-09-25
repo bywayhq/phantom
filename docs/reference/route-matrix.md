@@ -86,9 +86,10 @@ Notes:
   its proxy connection.
 - In HTTP/2 mode, `http://` requests to one origin share one pooled proxy
   connection with the profile's HTTP/2 settings, separate from tunnels.
-- H2 forwarding answers a Basic `407` with one replay on the same proxy
-  connection. An HTTP/1.1 CONNECT or H1 forwarded request replays on the
-  challenged connection when the `407` leaves it open, and on a new
+- H2 forwarding and H2 CONNECT answer a Basic `407` with one replay on a
+  new stream of the same proxy connection; a CONNECT tunnel then holds that
+  connection alone. An HTTP/1.1 CONNECT or H1 forwarded request replays on
+  the challenged connection when the `407` leaves it open, and on a new
   connection otherwise
   ([Proxy authentication](../explanation/design.md#proxy-authentication)).
   Without configured credentials, a caller's own `proxy-authorization`
