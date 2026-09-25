@@ -152,6 +152,28 @@ impl Http3Settings {
     }
 }
 
+/// How each `cookie` request field is split before QPACK encoding.
+///
+/// RFC 9114 section 4.2.1 lets a client split `cookie` into one field per
+/// cookie, called crumbs, so that each can be indexed on its own. The rule
+/// applies to every `cookie` field, whether the cookie jar or the caller
+/// supplied it.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3CookieCrumbs {
+    /// Send each `cookie` field whole, encoded like any other field.
+    #[default]
+    Whole,
+    /// Split at every `;`, skipping one space after it, and encode each crumb
+    /// like any other field (Chromium's `ValueSplittingHeaderList`).
+    ///
+    /// Under [`Http3QpackEncoding::Dynamic`] each crumb enters the dynamic
+    /// table. Crumbs are never sent as never-indexed literals: marking the
+    /// `cookie` field with `RequestHeader::sensitive` then only hides its
+    /// value from `Debug` output.
+    Split,
+}
+
 /// Ordered HTTP/3 request construction independent of the concrete backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3RequestSettings {
@@ -164,6 +186,8 @@ pub struct Http3RequestSettings {
     /// extended CONNECT protocol. `None` means that the profile does not claim
     /// an observed extended CONNECT pseudo-header order.
     pub extended_connect_pseudo_header_order: Option<Vec<Http3PseudoHeader>>,
+    /// How each `cookie` field is split.
+    pub cookie_crumbs: Http3CookieCrumbs,
 }
 
 impl Http3RequestSettings {

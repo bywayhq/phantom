@@ -111,6 +111,34 @@ pub enum Http2HuffmanCoding {
     WhenNotLonger,
 }
 
+/// How the HPACK encoder sends each `cookie` field.
+///
+/// RFC 9113 section 8.2.3 lets a client split `cookie` into one field per
+/// cookie, called crumbs, so that each can be indexed on its own. Browsers do,
+/// and the split and each crumb's representation are on the wire. The rule
+/// applies to every `cookie` field on the connection, whether the cookie jar
+/// or the caller supplied it. While crumbs are sent, the rule alone chooses
+/// each crumb's representation: `RequestHeader::sensitive` on a `cookie` field
+/// then only hides its value from `Debug` output.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2CookieCrumbs {
+    /// Send each `cookie` field whole, as a literal that never enters the
+    /// dynamic table: never-indexed when the field is sensitive, otherwise
+    /// without indexing.
+    #[default]
+    Whole,
+    /// Split at every `;` and insert each crumb into the dynamic table, then
+    /// send it as an index on later requests.
+    ///
+    /// Spaces and tabs at both ends of the value are removed first, and one
+    /// space after each `;` is skipped (Chromium).
+    IndexAll,
+    /// Split at every `"; "`. A crumb shorter than 20 bytes is a never-indexed
+    /// literal; a longer one is inserted into the dynamic table (Firefox).
+    NeverIndexShort,
+}
+
 /// HPACK encoder choices that RFC 7541 leaves to the encoder.
 ///
 /// A peer decodes the same fields whichever choice is made, so these describe
@@ -128,6 +156,8 @@ pub struct Http2HpackSettings {
     pub static_name_index: Http2StaticNameIndex,
     /// When a literal name or value is Huffman-coded.
     pub huffman_coding: Http2HuffmanCoding,
+    /// How each `cookie` field is split and indexed.
+    pub cookie_crumbs: Http2CookieCrumbs,
 }
 
 /// Priority information carried by each outgoing request HEADERS frame.

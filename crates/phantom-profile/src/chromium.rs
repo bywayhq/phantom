@@ -8,12 +8,12 @@ use crate::{
     dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
-        Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http2StaticNameIndex,
+        Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority,
+        Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
     },
     http3::{
-        Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding, Http3RequestSettings,
-        Http3Setting, Http3SettingOrder, Http3Settings,
+        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoding,
+        Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
     },
     proxy_connect::{ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
@@ -346,6 +346,12 @@ pub fn v154_http1() -> Http1Settings {
 /// 774 coding decisions in the retained Chrome and Edge captures follow that
 /// rule, and the 105 ties among them, such as `CONNECT` and `13`, are raw.
 ///
+/// Each `cookie` field is split into one field per cookie, and each crumb is
+/// inserted into the dynamic table and sent as an index on later requests
+/// ([`Http2CookieCrumbs::IndexAll`]). The retained two-request cookie
+/// captures (`fixtures/cookies/`) show this for five cookies on every run;
+/// quiche's `HpackEncoder::CookieToCrumbs` is the split rule.
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -385,6 +391,7 @@ pub fn v154_http2() -> Http2Settings {
             literal_pseudo_headers: vec![Http2PseudoHeader::Method, Http2PseudoHeader::Protocol],
             static_name_index: Http2StaticNameIndex::Lowest,
             huffman_coding: Http2HuffmanCoding::WhenShorter,
+            cookie_crumbs: Http2CookieCrumbs::IndexAll,
         },
     }
 }
@@ -821,6 +828,12 @@ pub fn v154_http3_tls() -> TlsSettings {
 /// `:scheme`, and `:path` in that order ahead of the ordinary request fields.
 /// No capture backs an HTTP/3 extended CONNECT, so
 /// [`Http3RequestSettings::extended_connect_pseudo_header_order`] is `None`.
+///
+/// Each `cookie` field is split into one field per cookie
+/// ([`Http3CookieCrumbs::Split`]). The retained cookie captures
+/// (`fixtures/cookies/`) show Chrome 154 and Edge 153 inserting each crumb
+/// into the QPACK dynamic table with a static name reference and sending it
+/// as an indexed field line, at the position of the joined field.
 #[must_use]
 pub fn v154_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {
@@ -831,6 +844,7 @@ pub fn v154_http3_request() -> Http3RequestSettings {
             Http3PseudoHeader::Path,
         ],
         extended_connect_pseudo_header_order: None,
+        cookie_crumbs: Http3CookieCrumbs::Split,
     }
 }
 

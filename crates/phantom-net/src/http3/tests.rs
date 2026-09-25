@@ -687,6 +687,7 @@ mod adversarial;
 mod connect_udp;
 mod connection;
 mod connector;
+mod cookie_crumbs;
 mod datagram;
 mod early_data;
 mod extended_connect;

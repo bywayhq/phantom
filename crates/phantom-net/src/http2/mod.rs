@@ -5,14 +5,16 @@
 
 use ::http2::{
     client,
-    ext::{HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, StaticNameIndex},
+    ext::{
+        CookieCrumbs, HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, StaticNameIndex,
+    },
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
 use bytes::Bytes;
 use http::{Method, Request, Response};
 use phantom_profile::{
-    Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
-    Http2Settings, Http2StaticNameIndex,
+    Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader,
+    Http2Setting, Http2Settings, Http2StaticNameIndex,
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
@@ -575,10 +577,17 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         Http2HuffmanCoding::WhenNotLonger => HuffmanCoding::WhenNotLonger,
         _ => return Err(Http2Error::UnsupportedSetting),
     };
+    let cookie_crumbs = match hpack.cookie_crumbs {
+        Http2CookieCrumbs::Whole => CookieCrumbs::Whole,
+        Http2CookieCrumbs::IndexAll => CookieCrumbs::IndexAll,
+        Http2CookieCrumbs::NeverIndexShort => CookieCrumbs::NeverIndexShort,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
     Ok(HpackEncoderProfile::new()
         .literal_pseudo_headers(literal)
         .static_name_index(static_name_index)
-        .huffman_coding(huffman_coding))
+        .huffman_coding(huffman_coding)
+        .cookie_crumbs(cookie_crumbs))
 }
 
 fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {

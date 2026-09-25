@@ -545,6 +545,12 @@ impl RequestHeader {
     ///
     /// HTTP/2 and HTTP/3 emit sensitive fields as never-indexed literals.
     /// HTTP/1 wire bytes are unchanged. Debug output redacts the value.
+    ///
+    /// A `cookie` field is the exception when the profile splits it into
+    /// crumbs: [`Http2CookieCrumbs`](phantom_profile::Http2CookieCrumbs) and
+    /// [`Http3CookieCrumbs`](phantom_profile::Http3CookieCrumbs) then choose
+    /// each crumb's representation, and the mark only redacts `Debug` output
+    /// of this value. Use `Whole` to keep a sensitive `cookie` never-indexed.
     #[must_use]
     pub fn sensitive(mut self) -> Self {
         self.sensitive = true;

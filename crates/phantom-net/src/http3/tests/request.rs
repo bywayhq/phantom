@@ -357,12 +357,12 @@ fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> 
         &chromium::v154_http3_request(),
         "server.phantom.test",
         OriginForm::parse("/sensitive")?,
-        vec![RequestHeader::new("cookie", "secret=value").sensitive()],
+        vec![RequestHeader::new("authorization", "secret=value").sensitive()],
     )?;
     let semantic = request
         .headers()
-        .get("cookie")
-        .ok_or("prepared HTTP/3 GET omitted semantic cookie")?;
+        .get("authorization")
+        .ok_or("prepared HTTP/3 GET omitted semantic authorization")?;
     let ordered = request
         .extensions()
         .get::<OrderedHeaders>()
@@ -370,6 +370,70 @@ fn sensitive_fields_reach_semantic_and_ordered_qpack_inputs() -> TestResult<()> 
 
     assert!(semantic.is_sensitive());
     assert!(ordered.as_slice()[0].1.is_sensitive());
+    Ok(())
+}
+
+#[test]
+fn split_cookie_crumbs_keep_their_position_and_drop_sensitivity() -> TestResult<()> {
+    let request = crate::http3::request::prepare_get(
+        &chromium::v154_http3_request(),
+        "server.phantom.test",
+        OriginForm::parse("/crumbs")?,
+        vec![
+            RequestHeader::new("x-before", "1"),
+            RequestHeader::new("cookie", "a=1; b=2;c=3").sensitive(),
+            RequestHeader::new("x-after", "2"),
+        ],
+    )?;
+    let ordered = request
+        .extensions()
+        .get::<OrderedHeaders>()
+        .ok_or("prepared HTTP/3 GET omitted ordered headers")?
+        .as_slice()
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_bytes(), value.is_sensitive()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ordered,
+        [
+            ("x-before", b"1".as_slice(), false),
+            ("cookie", b"a=1".as_slice(), false),
+            ("cookie", b"b=2".as_slice(), false),
+            ("cookie", b"c=3".as_slice(), false),
+            ("x-after", b"2".as_slice(), false),
+        ]
+    );
+    assert_eq!(request.headers().get_all("cookie").iter().count(), 3);
+    Ok(())
+}
+
+#[test]
+fn split_cookie_keeps_empty_crumbs_and_untrimmed_edges() -> TestResult<()> {
+    // Chromium's `ValueSplittingHeaderList` splits at every `;`, skips one
+    // space after it, and trims nothing else.
+    for (joined, expected) in [
+        ("a=1;;b=2", vec!["a=1", "", "b=2"]),
+        ("a=1;", vec!["a=1", ""]),
+        ("a=1; ", vec!["a=1", ""]),
+        (" a=1; b=2", vec![" a=1", "b=2"]),
+        ("a=1;  b=2", vec!["a=1", " b=2"]),
+    ] {
+        let request = crate::http3::request::prepare_get(
+            &chromium::v154_http3_request(),
+            "server.phantom.test",
+            OriginForm::parse("/crumbs")?,
+            vec![RequestHeader::new("cookie", joined)],
+        )?;
+        let crumbs = request
+            .extensions()
+            .get::<OrderedHeaders>()
+            .ok_or("prepared HTTP/3 GET omitted ordered headers")?
+            .as_slice()
+            .iter()
+            .map(|(_, value)| value.to_str())
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(crumbs, expected, "{joined:?}");
+    }
     Ok(())
 }
 
