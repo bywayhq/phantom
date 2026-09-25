@@ -787,3 +787,21 @@ fn recently_broken_records_are_bounded_by_the_store_capacity() -> TestResult {
     assert!(failed(&origins[2]));
     Ok(())
 }
+
+#[test]
+fn the_race_that_follows_a_failed_early_handshake_offers_no_early_data() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::new(4).ok_or("zero capacity")?);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\"alt.example:8443\"", now);
+    let selection = store
+        .get_at(&origin, &DIRECT, now)
+        .ok_or("alternative not learned")?;
+    let target = AlternativeTarget::new(&selection);
+    assert!(target.allows_early_data());
+    // The retry races this target, so it is not raced again.
+    let retry = target.without_early_data();
+    assert!(!retry.allows_early_data());
+    assert!(!retry.is_broken());
+    Ok(())
+}

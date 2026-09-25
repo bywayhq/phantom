@@ -359,7 +359,7 @@ async fn cancelling_raced_request_cancels_both_attempts() -> TestResult {
 }
 
 #[test]
-fn a_failed_early_handshake_is_raced_again_at_most_once() {
+fn the_retry_rule_needs_a_race_that_allowed_early_data_and_a_replayable_body() {
     use super::races_again;
 
     // The first race allowed early data; its retry allows none.
@@ -370,7 +370,7 @@ fn a_failed_early_handshake_is_raced_again_at_most_once() {
 }
 
 #[test]
-fn an_orphaned_setup_that_failed_its_early_handshake_marks_and_confirms_nothing() {
+fn the_orphan_rule_confirms_only_after_a_completed_handshake() {
     use super::confirms_orphan;
 
     assert!(confirms_orphan(false));

@@ -275,27 +275,27 @@ pub(super) async fn send_once_raced(
                 Some(leased),
             )
             .await;
-            // A response is returned only after the handshake completed and
-            // its metadata passed its checks, so it confirms the alternative
-            // without waiting.
-            if result.is_ok() {
-                client.confirm_alt_svc(&request.endpoint, route, &alternative);
-                return result;
-            }
-            // The answer is usually settled by now; the wait for it stays
-            // within the request's deadlines, and an unknown answer is not a
-            // failed handshake.
+            // A response head arrives only after the handshake completed, so
+            // the answer is settled for a response; after a failure it is
+            // usually settled too. The wait stays within the request's
+            // deadlines, and an unknown answer is not a failed handshake.
             let handshake_failed = timeout_budget
                 .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
                     Ok(connection.early_data_handshake_failed().await)
                 })
                 .await;
             match handshake_failed {
-                Ok(true) => {}
                 Ok(false) => {
                     client.confirm_alt_svc(&request.endpoint, route, &alternative);
                     return result;
                 }
+                Ok(true) if result.is_ok() => {
+                    // The connection closed after the response: nothing to
+                    // send again, but QUIC to the origin failed its handshake.
+                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
+                    return result;
+                }
+                Ok(true) => {}
                 Err(_) => return result,
             }
             // Chromium fails the requests of a session whose handshake failed
