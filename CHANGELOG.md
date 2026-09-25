@@ -24,7 +24,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: replace `connector.with_address_cache(AddressCache::new(settings))`
   with `connector.with_host_resolver(HostResolver::new().with_cache(settings))`,
   and `connector.address_cache()` with
-  `connector.host_resolver().and_then(HostResolver::cache)`.
+  `connector.host_resolver().and_then(HostResolver::cache)`. To share one
+  cache between connectors, as a cloned `AddressCache` did, build one
+  `HostResolver` and pass a clone of it to each connector; each
+  `with_cache` call creates a separate cache.
 - `TlsSettings` gained the public field `ech_from_https_records`, so struct
   literals that name every field no longer compile. `chromium::v154_tls`
   sets it, which changes the Chrome 154 recipe's wire behavior on a client
@@ -230,11 +233,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Host-to-address overrides and a caller-supplied address resolver, like
   reqwest's `resolve` and `dns_resolver`. `ClientBuilder::resolve(host, ips)`
-  sends a name to fixed addresses, tried in the given order, while the TLS
-  server name, `Host` or `:authority`, cookies, and pool keys keep the name;
-  the port always comes from the URL. `ClientBuilder::dns_resolver` takes a
-  `phantom::AddressResolver` built with `AddressResolver::from_fn` from an
-  async function that returns `io::Result<Vec<IpAddr>>`; it replaces the
+  sends a name, normalized as a URL host, to fixed addresses, tried in the
+  given order, while the TLS server name, `Host` or `:authority`, cookies,
+  and pool keys keep the name; the port always comes from the URL.
+  `ClientBuilder::dns_resolver` takes a `phantom::AddressResolver` built
+  with `AddressResolver::from_fn` from an async function that returns
+  `io::Result<Vec<IpAddr>>`; it replaces the
   operating system resolver, and its answers go through the address cache
   when there is one, one lookup per name per cache lifetime. Both cover the
   names a client resolves itself: origin hosts on a direct route, proxy
