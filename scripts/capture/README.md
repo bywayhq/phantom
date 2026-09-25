@@ -616,6 +616,31 @@ tool writes into the disposable profile's `Local State` file. Nothing outside
 that profile changes. `--host-resolver-rules` is not used: it cannot produce
 an HTTPS record.
 
+Edge 153 ignores those preferences and sent no DNS-over-HTTPS query with
+them. For Edge, pass `--dns-from-policy` and `--doh-port`: the tool writes no
+preferences, the DNS-over-HTTPS server listens on the given loopback port,
+and the browser must already have the `DnsOverHttpsMode` and
+`DnsOverHttpsTemplates` machine policies naming that port. Before it starts
+anything, the tool reads `HKLM\SOFTWARE\Policies\Microsoft\Edge` with
+`reg query` and stops if either value is missing or different. It never
+writes the registry. Setting the policy needs an administrator shell, and while
+it is set every Edge window on the machine sends its lookups to the capture
+server, so remove it as soon as the captures finish:
+
+```sh
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v DnsOverHttpsMode /t REG_SZ /d secure /f /reg:64
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v DnsOverHttpsTemplates /t REG_SZ /d https://127.0.0.1:65355/dns-query /f /reg:64
+# capture, then:
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v DnsOverHttpsMode /f /reg:64
+reg delete "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v DnsOverHttpsTemplates /f /reg:64
+```
+
+The DNS-over-HTTPS server uses the origin's self-signed certificate.
+`--ignore-certificate-errors` covers it: Chromium applies the switch to the
+network context's HTTP session, and DNS-over-HTTPS requests go through that
+session. An Edge window started without the switch fails those handshakes,
+and the example logs each failed connection on standard error.
+
 Build the example, then capture both scenarios:
 
 ```sh
@@ -628,6 +653,7 @@ uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
   --scenario accept \
   --capture-binary target/debug/examples/capture_ech_client_hello.exe \
   --output fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt
+uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech   --browser edge   --browser-path "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"   --client-version 153.0.4234.48   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario accept   --doh-port 65355 --dns-from-policy   --capture-binary target/debug/examples/capture_ech_client_hello.exe   --output fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-accept.txt
 ```
 
 | Scenario | Question |
@@ -639,8 +665,7 @@ Each connection records its ClientHello records, extension order, outer
 server name, the outer extension's fields, whether the origin decrypted the
 inner ClientHello, and the inner server name. Queries for names other than
 the origin are counted, not listed; they are the fresh profile's background
-requests. Edge 153 sent no DNS-over-HTTPS query with these preferences, so
-it has no fixture.
+requests.
 
 ## Next
 

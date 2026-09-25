@@ -10,8 +10,13 @@
 //! holds the published key; in `reject` it holds another key, so the browser
 //! sees a rejection with retry configurations and connects again.
 //!
+//! The DNS-over-HTTPS server listens on the origin's address, on the port
+//! `--doh-port` names or on an ephemeral one. A fixed port lets a browser
+//! policy name the template before the capture starts.
+//!
 //! Standard error gets one `ready doh_template=<url> origin=<address>` line
-//! once both listeners are bound. Standard output gets the fixture after the
+//! once both listeners are bound, and one line for each DNS-over-HTTPS
+//! connection that fails. Standard output gets the fixture after the
 //! page request has been answered and no connection has arrived for the
 //! grace period.
 
@@ -80,7 +85,7 @@ async fn main() -> CaptureResult<()> {
     require_loopback(arguments.origin.ip(), "origin listener")?;
     let origin = TcpListener::bind(arguments.origin).await?;
     let origin_address = origin.local_addr()?;
-    let doh = TcpListener::bind((origin_address.ip(), 0)).await?;
+    let doh = TcpListener::bind((origin_address.ip(), arguments.doh_port)).await?;
     let doh_address = doh.local_addr()?;
     let doh_template = format!("https://{doh_address}/dns-query");
 
@@ -187,6 +192,7 @@ impl Scenario {
 }
 
 struct Arguments {
+    doh_port: u16,
     scenario: Scenario,
     origin: SocketAddr,
     browser: String,
@@ -200,11 +206,18 @@ struct Arguments {
 impl Arguments {
     fn parse(mut values: impl Iterator<Item = String>) -> CaptureResult<Self> {
         let usage = concat!(
-            "usage: capture_ech_client_hello <accept|reject> <loopback-address:port> ",
+            "usage: capture_ech_client_hello [--doh-port <port>] <accept|reject> ",
+            "<loopback-address:port> ",
             "<browser> <browser-version> <operating-system> <dns-configuration> <launch-mode> ",
             "<launch-arguments>"
         );
-        let scenario = match values.next().ok_or(usage)?.as_str() {
+        let mut first = values.next().ok_or(usage)?;
+        let mut doh_port = 0;
+        if first == "--doh-port" {
+            doh_port = values.next().ok_or(usage)?.parse::<u16>()?;
+            first = values.next().ok_or(usage)?;
+        }
+        let scenario = match first.as_str() {
             "accept" => Scenario::Accept,
             "reject" => Scenario::Reject,
             _ => return Err(usage.into()),
@@ -212,6 +225,7 @@ impl Arguments {
         let origin = values.next().ok_or(usage)?.parse::<SocketAddr>()?;
         let mut text = || values.next().ok_or(usage);
         let parsed = Self {
+            doh_port,
             scenario,
             origin,
             browser: text()?,
@@ -488,7 +502,9 @@ async fn serve_doh(
         let queries = Arc::clone(&queries);
         let answers = answers.clone();
         tokio::spawn(async move {
-            let _ = serve_doh_connection(tcp, &acceptor, &queries, &answers).await;
+            if let Err(error) = serve_doh_connection(tcp, &acceptor, &queries, &answers).await {
+                eprintln!("doh connection from {peer} failed: {error}");
+            }
         });
     }
 }
