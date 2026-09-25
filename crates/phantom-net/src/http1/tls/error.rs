@@ -1,6 +1,6 @@
 use std::{error::Error as StdError, fmt};
 
-use super::{Http1Error, TlsError, trace_alpn};
+use super::{EchFailure, Http1Error, TlsError, trace_alpn};
 use crate::proxy::{HttpConnectError, Socks5Error};
 
 /// Error returned before an HTTP/1 response is available.
@@ -70,9 +70,36 @@ impl StdError for Http1TlsError {
     }
 }
 
+impl Http1TlsError {
+    /// Returns why a connection that offered Encrypted Client Hello failed,
+    /// when that is the cause.
+    #[must_use]
+    pub fn ech_failure(&self) -> Option<EchFailure> {
+        match self {
+            Self::Tls(error) => error.ech_failure(),
+            _ => None,
+        }
+    }
+}
+
 impl From<TlsError> for Http1TlsError {
     fn from(error: TlsError) -> Self {
         Self::Tls(error)
+    }
+}
+
+#[cfg(feature = "https-records")]
+impl From<crate::direct::DirectTlsError> for Http1TlsError {
+    fn from(error: crate::direct::DirectTlsError) -> Self {
+        use crate::direct::{DirectConnectError, DirectTlsError};
+
+        match error {
+            DirectTlsError::Direct(DirectConnectError::RuntimeUnavailable) => {
+                Self::RuntimeUnavailable
+            }
+            DirectTlsError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
+            DirectTlsError::Tls(error) => Self::Tls(error),
+        }
     }
 }
 

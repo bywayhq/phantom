@@ -195,6 +195,20 @@ impl Http2TlsConnector {
         }
     }
 
+    /// Returns whether the TLS settings offer Encrypted Client Hello from
+    /// HTTPS records on direct connections
+    /// ([`TlsSettings::ech_from_https_records`]).
+    #[must_use]
+    pub fn ech_from_https_records(&self) -> bool {
+        self.tls.ech_from_https_records()
+    }
+
+    /// Returns the ALPN protocols the TLS settings offer, in order.
+    #[must_use]
+    pub fn alpn_protocols(&self) -> Vec<Box<[u8]>> {
+        self.tls.alpn_protocols()
+    }
+
     /// Queues the TLS secrets of this connector's connections to `sender`.
     ///
     /// Clones share the TLS context and its key log. The first sender
@@ -265,6 +279,44 @@ impl Http2TlsConnector {
         .await
     }
 
+    /// Establishes HTTP/2 over a new direct TCP and TLS connection that
+    /// offers Encrypted Client Hello with the `ECHConfigList` that `ech`
+    /// yields, as Chrome 154 does for an origin's HTTPS record.
+    ///
+    /// The bounded wait for `ech`, the check of the list, and the one retry
+    /// after a rejection are those of
+    /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
+    /// With `None` the handshake is the one [`Self::connect_direct`] makes.
+    /// This method never falls back to another HTTP protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when connection setup, TLS negotiation, ECH,
+    /// ALPS decoding, or the HTTP/2 handshake fails.
+    #[cfg(feature = "https-records")]
+    pub async fn connect_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        self.trace_connect(async {
+            let client = translate_settings(&self.http2)?;
+            let stream = crate::direct::connect_tls_with_ech(
+                &self.tls,
+                self.dialer(),
+                host,
+                port,
+                server_name,
+                ech,
+            )
+            .await?;
+            connect_over_tls(stream, client, false).await
+        })
+        .await
+    }
+
     /// Opens one direct WebSocket extended CONNECT stream over exact HTTP/2.
     ///
     /// Settings and the complete ordered request fields are validated before
@@ -295,6 +347,48 @@ impl Http2TlsConnector {
             })?;
         self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
             .await
+    }
+
+    /// Opens one direct WebSocket extended CONNECT stream over exact HTTP/2
+    /// on a connection that offers Encrypted Client Hello with the
+    /// `ECHConfigList` that `ech` yields.
+    ///
+    /// The connection is set up as [`Self::connect_direct_with_ech`] sets it
+    /// up, and the stream is opened as [`Self::send_extended_connect_direct`]
+    /// opens it. Settings and the complete ordered request fields are
+    /// validated before DNS or TCP I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_direct`]
+    /// does, or an ECH failure from the handshake.
+    #[cfg(feature = "https-records")]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_extended_connect_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = crate::direct::connect_tls_with_ech(
+            &self.tls,
+            self.dialer(),
+            host,
+            port,
+            server_name,
+            ech,
+        )
+        .await?;
+        let connection = connect_over_tls(stream, client, true).await?;
+        connection
+            .send_extended_connect_with_settings(&self.http2, authority, target, headers)
+            .await
+            .map_err(Into::into)
     }
 
     /// Opens one WebSocket extended CONNECT stream through a plaintext HTTP
@@ -1369,23 +1463,7 @@ impl Http2TlsConnector {
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let stream = self.tls.connect(server_name, stream).await?;
-        let negotiated = stream.negotiated_alpn();
-        Span::current().record("negotiated_alpn", trace_alpn(negotiated));
-        match negotiated {
-            Some(b"h2") => {}
-            None => {
-                debug!("TLS completed without the required HTTP/2 ALPN protocol");
-                return Err(Http2TlsError::MissingNegotiatedAlpn);
-            }
-            Some(selected) => {
-                debug!("TLS selected an unsupported HTTP/2 ALPN protocol");
-                return Err(Http2TlsError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
-        }
-
-        connect_selected_kind(stream, client, extended_connect).await
+        connect_over_tls(stream, client, extended_connect).await
     }
 
     async fn trace_connect<F>(&self, operation: F) -> Result<Http2Connection, Http2TlsError>
@@ -1526,6 +1604,37 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
     }
 }
 
+/// Starts HTTP/2 over an established TLS stream that selected exact `h2`.
+///
+/// Missing ALPN and every other selected protocol are rejected before the
+/// connection preface is written.
+async fn connect_over_tls<S>(
+    stream: TlsStream<S>,
+    client: ::http2::client::Builder,
+    extended_connect: bool,
+) -> Result<Http2Connection, Http2TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let negotiated = stream.negotiated_alpn();
+    Span::current().record("negotiated_alpn", trace_alpn(negotiated));
+    match negotiated {
+        Some(b"h2") => {}
+        None => {
+            debug!("TLS completed without the required HTTP/2 ALPN protocol");
+            return Err(Http2TlsError::MissingNegotiatedAlpn);
+        }
+        Some(selected) => {
+            debug!("TLS selected an unsupported HTTP/2 ALPN protocol");
+            return Err(Http2TlsError::UnsupportedAlpn {
+                selected: selected.into(),
+            });
+        }
+    }
+
+    connect_selected_kind(stream, client, extended_connect).await
+}
+
 /// Error returned while establishing HTTP/2 over TLS or opening a request.
 #[derive(Debug)]
 pub enum Http2TlsError {
@@ -1612,9 +1721,36 @@ impl StdError for Http2TlsError {
     }
 }
 
+impl Http2TlsError {
+    /// Returns why a connection that offered Encrypted Client Hello failed,
+    /// when that is the cause.
+    #[must_use]
+    pub fn ech_failure(&self) -> Option<EchFailure> {
+        match self {
+            Self::Tls(error) => error.ech_failure(),
+            _ => None,
+        }
+    }
+}
+
 impl From<TlsError> for Http2TlsError {
     fn from(error: TlsError) -> Self {
         Self::Tls(error)
+    }
+}
+
+#[cfg(feature = "https-records")]
+impl From<crate::direct::DirectTlsError> for Http2TlsError {
+    fn from(error: crate::direct::DirectTlsError) -> Self {
+        use crate::direct::DirectTlsError;
+
+        match error {
+            DirectTlsError::Direct(DirectConnectError::RuntimeUnavailable) => {
+                Self::RuntimeUnavailable
+            }
+            DirectTlsError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
+            DirectTlsError::Tls(error) => Self::Tls(error),
+        }
     }
 }
 

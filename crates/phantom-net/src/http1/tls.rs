@@ -20,7 +20,7 @@ use crate::{
         Socks5Auth, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
         socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
-    tls::{TlsConnector, trace_alpn},
+    tls::{TlsConnector, TlsStream, trace_alpn},
 };
 
 pub use crate::tls::{EchFailure, ServerAuthentication, TlsError, TlsErrorKind};
@@ -176,6 +176,20 @@ impl Http1TlsConnector {
             tcp: self.tcp,
             addresses: self.address_cache.as_ref(),
         }
+    }
+
+    /// Returns whether the TLS settings offer Encrypted Client Hello from
+    /// HTTPS records on direct connections
+    /// ([`TlsSettings::ech_from_https_records`]).
+    #[must_use]
+    pub fn ech_from_https_records(&self) -> bool {
+        self.tls.ech_from_https_records()
+    }
+
+    /// Returns the ALPN protocols the TLS settings offer, in order.
+    #[must_use]
+    pub fn alpn_protocols(&self) -> Vec<Box<[u8]>> {
+        self.tls.alpn_protocols()
     }
 
     /// Queues the TLS secrets of this connector's connections to `sender`.
@@ -717,6 +731,42 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Opens one direct TLS connection for sequential HTTP/1.1 requests,
+    /// offering Encrypted Client Hello with the `ECHConfigList` that `ech`
+    /// yields, as Chrome 154 does for an origin's HTTPS record.
+    ///
+    /// The bounded wait for `ech`, the check of the list, and the one retry
+    /// after a rejection are those of
+    /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
+    /// With `None` the handshake is the one [`Self::connect_direct`] makes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ECH, ALPN
+    /// selection, or the HTTP/1.1 handshake fails.
+    #[cfg(feature = "https-records")]
+    pub async fn connect_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        self.trace_connect(async {
+            let stream = crate::direct::connect_tls_with_ech(
+                &self.tls,
+                self.dialer(),
+                host,
+                port,
+                server_name,
+                ech,
+            )
+            .await?;
+            connect_over_tls(stream).await
+        })
+        .await
+    }
+
     /// Opens one direct plaintext TCP connection for sequential HTTP/1.1 requests.
     ///
     /// This method performs no TLS handshake and never routes through a proxy.
@@ -1134,6 +1184,46 @@ impl Http1TlsConnector {
                     })?;
             self.send_prepared_upgrade(stream, server_name, prepared)
                 .await
+        })
+        .await
+    }
+
+    /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS
+    /// connection that offers Encrypted Client Hello with the
+    /// `ECHConfigList` that `ech` yields, as Chrome 154 does when it opens a
+    /// `wss://` connection to an origin with an HTTPS record.
+    ///
+    /// The connection is set up as [`Self::connect_direct_with_ech`] sets it
+    /// up, and the request is sent as [`Self::upgrade_get_direct`] sends it.
+    /// The complete request is validated before DNS resolution or TCP I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when request validation, TCP setup, TLS
+    /// negotiation, ECH, ALPN selection, or the HTTP/1.1 exchange fails.
+    #[cfg(feature = "https-records")]
+    pub async fn upgrade_get_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            debug!("HTTP/1 Upgrade request prepared");
+            let stream = crate::direct::connect_tls_with_ech(
+                &self.tls,
+                self.dialer(),
+                host,
+                port,
+                server_name,
+                ech,
+            )
+            .await?;
+            upgrade_over_tls(stream, prepared).await
         })
         .await
     }
@@ -1789,18 +1879,7 @@ impl Http1TlsConnector {
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let stream = self.tls.connect(server_name, stream).await?;
-        let negotiated_alpn = stream.negotiated_alpn();
-        Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
-        if let Some(selected) = negotiated_alpn
-            && selected != b"http/1.1"
-        {
-            debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
-            return Err(Http1TlsError::UnsupportedAlpn {
-                selected: selected.into(),
-            });
-        }
-
-        Http1Connection::connect(stream).await.map_err(Into::into)
+        connect_over_tls(stream).await
     }
 
     async fn trace_connect<F>(&self, operation: F) -> Result<Http1Connection, Http1TlsError>
@@ -1842,24 +1921,7 @@ impl Http1TlsConnector {
         debug!("HTTP/1 Upgrade request prepared");
 
         let stream = self.tls.connect(server_name, stream).await?;
-        let negotiated_alpn = stream.negotiated_alpn();
-        Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
-        if let Some(selected) = negotiated_alpn
-            && selected != b"http/1.1"
-        {
-            debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
-            return Err(Http1TlsError::UnsupportedAlpn {
-                selected: selected.into(),
-            });
-        }
-
-        let outcome = send_prepared_upgrade(stream, prepared).await?;
-        let status = match &outcome {
-            Http1UpgradeOutcome::Upgraded(response) => response.status(),
-            Http1UpgradeOutcome::Rejected(response) => response.status(),
-        };
-        Span::current().record("status", status.as_u16());
-        Ok(outcome)
+        upgrade_over_tls(stream, prepared).await
     }
 
     async fn trace_response_head<F>(
@@ -2063,6 +2125,49 @@ fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'stat
         Err(Http1TlsError::UnsupportedAlpn { .. }) => "unsupported_alpn",
         Err(Http1TlsError::MissingHttp1Alpn) => "invalid_configuration",
     }
+}
+
+/// Starts HTTP/1.1 over an established TLS stream.
+async fn connect_over_tls<S>(stream: TlsStream<S>) -> Result<Http1Connection, Http1TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    require_http1_selected(&stream)?;
+    Http1Connection::connect(stream).await.map_err(Into::into)
+}
+
+/// Sends a prepared Upgrade GET over an established TLS stream.
+async fn upgrade_over_tls<S>(
+    stream: TlsStream<S>,
+    prepared: PreparedGet,
+) -> Result<Http1UpgradeOutcome, Http1TlsError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    require_http1_selected(&stream)?;
+    let outcome = send_prepared_upgrade(stream, prepared).await?;
+    let status = match &outcome {
+        Http1UpgradeOutcome::Upgraded(response) => response.status(),
+        Http1UpgradeOutcome::Rejected(response) => response.status(),
+    };
+    Span::current().record("status", status.as_u16());
+    Ok(outcome)
+}
+
+/// Rejects a selected ALPN protocol other than `http/1.1` before any HTTP
+/// byte is written. No selection is accepted: HTTP/1.1 is the TLS default.
+fn require_http1_selected<S>(stream: &TlsStream<S>) -> Result<(), Http1TlsError> {
+    let negotiated_alpn = stream.negotiated_alpn();
+    Span::current().record("negotiated_alpn", trace_alpn(negotiated_alpn));
+    if let Some(selected) = negotiated_alpn
+        && selected != b"http/1.1"
+    {
+        debug!("TLS selected an unsupported HTTP/1 ALPN protocol");
+        return Err(Http1TlsError::UnsupportedAlpn {
+            selected: selected.into(),
+        });
+    }
+    Ok(())
 }
 
 fn require_http1_alpn(settings: &TlsSettings) -> Result<(), Http1TlsError> {
