@@ -82,6 +82,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "ech_config_list"
+path = "fuzz_targets/ech_config_list.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "https_record"
 path = "fuzz_targets/https_record.rs"
 test = false

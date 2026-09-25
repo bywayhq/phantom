@@ -86,6 +86,9 @@ jobs:
             max_len: 16384
           - target: cookie_snapshot
             max_len: 16384
+          # A two-byte list length and at most 65,535 bytes of configurations.
+          - target: ech_config_list
+            max_len: 65537
           # 16 KiB, not the 64 KiB the other peer-facing targets use: the
           # response-head observer and the protocol engine each reparse their
           # buffered head on every read, bounded by MAX_RESPONSE_HEAD_BYTES

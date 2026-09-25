@@ -7,6 +7,8 @@ use std::{
     num::NonZeroU16,
 };
 
+use super::ech_config::{EchConfig, EchConfigListError};
+
 /// `mandatory` (RFC 9460 section 8).
 const KEY_MANDATORY: u16 = 0;
 /// `alpn` (RFC 9460 section 7.1).
@@ -290,18 +292,36 @@ impl TargetName {
     }
 }
 
-/// The raw `ech` SvcParam value, an `ECHConfigList`.
+/// The raw `ech` SvcParam value, an `ECHConfigList` (RFC 9849 section 4).
 ///
-/// Phantom retains these bytes without interpreting them; ECH is not yet
-/// implemented.
+/// The record parser keeps these bytes unchecked, as Chromium does: a list
+/// that does not parse fails the TLS connection that would use it, not the
+/// lookup. [`Self::parse`] applies the TLS client's rules.
 #[derive(Clone, Eq, PartialEq)]
 pub struct EchConfigList(Box<[u8]>);
 
 impl EchConfigList {
+    /// Wraps `ECHConfigList` bytes, for a resolver built with
+    /// [`HttpsRecordResolver::from_fn`](super::HttpsRecordResolver::from_fn).
+    #[must_use]
+    pub fn new(bytes: impl Into<Box<[u8]>>) -> Self {
+        Self(bytes.into())
+    }
+
     /// Returns the value bytes exactly as they appeared in the record.
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    /// Parses the list into its configurations, in list order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EchConfigListError`] when the TLS client would reject the
+    /// list.
+    pub fn parse(&self) -> Result<Box<[EchConfig]>, EchConfigListError> {
+        super::ech_config::parse(&self.0)
     }
 }
 

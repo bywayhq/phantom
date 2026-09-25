@@ -19,6 +19,7 @@ WebSocket engines.
 | `cookie_snapshot` | Caller-persisted cookie entries (production) | `Client::import_cookies` |
 | `alt_svc_snapshot` | Caller-persisted Alt-Svc entries (production) | `Client::import_alt_svc` |
 | `https_record` | DNS responses and HTTPS record RDATA (production) | `dns::https_answers_from_message` and `HttpsRecord::from_rdata` |
+| `ech_config_list` | An HTTPS record's `ECHConfigList` (production) | `dns::EchConfigList::parse` |
 
 `client_hello` and `http2_frame` decode test-kit captures, not the bytes a
 peer sends Phantom; they check the evidence tooling, not a peer-facing parser.
@@ -36,6 +37,7 @@ cargo +nightly fuzz run alt_svc_snapshot -- -max_len=16384
 cargo +nightly fuzz run client_hello -- -max_len=65536
 cargo +nightly fuzz run cookie_jar -- -max_len=16384
 cargo +nightly fuzz run cookie_snapshot -- -max_len=16384
+cargo +nightly fuzz run ech_config_list -- -max_len=65537
 cargo +nightly fuzz run http1_response -- -max_len=16384
 cargo +nightly fuzz run http_connect_response -- -max_len=65536
 cargo +nightly fuzz run http2_frame -- -max_len=262144
@@ -132,10 +134,17 @@ fuzzing seam, not supported API. The facade's choice of `h3` from the records
 and its one-day TTL cap are private to `phantom` and not reached; nor is the
 resolver's own response handling, such as ID matching and follow-up queries.
 
+`ech_config_list` parses its input, and a structural seed it perturbs, as
+the `ECHConfigList` a direct connection checks before it offers a record's
+`ech` to the TLS client. Every list that parses must hold a configuration,
+and every configuration the client would use must have version `0xfe0d`, a
+public key, a public name, and a cipher suite. The 65,537-byte limit is the
+largest list: a two-byte length and 65,535 bytes of configurations.
+
 ## Where a check belongs
 
-`alt_svc_snapshot`, `cookie_jar`, `cookie_snapshot`, `http1_response`, and
-`https_record` keep their harness, their seeds, and their fixed-threshold
+`alt_svc_snapshot`, `cookie_jar`, `cookie_snapshot`, `ech_config_list`,
+`http1_response`, and `https_record` keep their harness, their seeds, and their fixed-threshold
 checks in `src/`, and their `fuzz_targets/` binaries are wrappers. A seed that stops parsing then fails
 `cargo test --manifest-path fuzz/Cargo.toml`, which the lint job runs on the
 project toolchain, rather than silently weakening every fuzz iteration. A

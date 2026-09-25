@@ -35,8 +35,12 @@ use hickory_resolver::{
     },
 };
 
+mod ech_config;
 mod https_record;
 
+pub use ech_config::{
+    EchCipherSuite, EchConfig, EchConfigExtension, EchConfigListError, EchConfigListErrorKind,
+};
 pub use https_record::{
     AliasRecord, EchConfigList, HttpsRecord, HttpsRecordError, HttpsRecordErrorKind, ServiceRecord,
     SvcParam, TargetName,
