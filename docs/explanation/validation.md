@@ -1660,7 +1660,7 @@ Against Phantom:
   one `407`; with `preemptive_proxy_authentication(false)` it sees eight
   connections and four `407` responses. The same file proves that another
   proxy port, other credentials, and the origin never receive remembered
-  credentials.
+  credentials, and that each session starts with an empty record.
 - `crates/phantom-net/src/proxy/tests/credential_cache.rs` covers the record:
   a pair is added only after the proxy accepts the replay; a `407` or an
   unusable challenge to remembered credentials forgets them and permits one
@@ -1668,7 +1668,8 @@ Against Phantom:
   by scheme, host, port, and credentials; and a full record evicts the least
   recently used pair.
 - `proxy_h2.rs` covers H2 CONNECT tunnels and H2 forwarding, including the
-  replay on the same H2 proxy connection and a second `407`.
+  replay on the same H2 proxy connection, a second `407`, and the
+  never-indexed HPACK form of the forwarded `proxy-authorization` field.
   `forward_proxy.rs` covers H1 forwarding on the pooled proxy connection and
   a `407` to remembered credentials. `websocket/routing.rs` covers two
   `ws://` tunnels after one challenge.

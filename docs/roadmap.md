@@ -129,10 +129,11 @@ have shown where the real architectural boundaries are.
      same H2 proxy connection; Phantom marks it sensitive, so it is always a
      never-indexed literal. Changing this needs a way to index a field
      without printing its value in diagnostics.
-  5. Connection reuse after a `407`. Both browsers replay a challenged
-     forwarded request on the same proxy connection when the `407` leaves it
-     open, and Chromium does the same for CONNECT. Phantom opens a new proxy
-     connection for these replays.
+  5. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
+     browsers replay a challenged HTTP/1.1 forwarded request on the same
+     proxy connection when the `407` leaves it open, and Chromium does the
+     same for CONNECT. Phantom opens a new proxy connection for these
+     replays. HTTP/2 forwarding already replays on the same connection.
 
 ### Rules for this phase
 

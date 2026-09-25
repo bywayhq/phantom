@@ -195,7 +195,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   port with those credentials, up to 128 pairs, and sends
   `Proxy-Authorization` on the first attempt of later CONNECT tunnels
   (HTTP/1.1 and HTTP/2 proxy transports, WebSocket tunnels included) and
-  forwarded `http://` requests through it. The origin connectors and
+  forwarded `http://` requests through it. Each session built from a client
+  starts with an empty record. The origin connectors and
   `HttpsProxyConnector` take the record with `with_proxy_credential_cache`.
 - HTTP/2 forwarding of `http://` requests accepts `HttpProxy::with_basic_auth`:
   a Basic `407` is answered with one replay on the same proxy connection.

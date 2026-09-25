@@ -452,15 +452,18 @@ port together with those credentials. Later tunnels, WebSocket tunnels, and
 forwarded requests through the same proxy with the same credentials send
 `Proxy-Authorization` on the first attempt and skip the `407` round trip and
 its extra proxy connection. A forwarded request that sends remembered
-credentials uses a pooled proxy connection like any other request. A `407` to such a request forgets
-the pair and permits the same single replay, so a proxy that stops accepting
-the credentials costs one failed request at most, never a loop.
+credentials uses a pooled proxy connection like any other request. A `407`
+to such a request forgets the pair and permits the same single replay, so a
+proxy that stops accepting the credentials costs one failed request at most,
+never a loop.
 
 The record stores only which configured credentials a proxy accepted; it
 never supplies credentials to a route. A route sends its own credentials, and
-only to its own proxy, so a proxy never receives another route's credentials
-and an origin never receives a proxy's. The record belongs to one client,
-holds at most 128 pairs, and forgets the least recently used pair first.
+only to its own proxy, so a proxy never receives another route's credentials,
+and Phantom never sends a proxy's credentials to an origin. The record
+belongs to one client, holds at most 128 pairs, and forgets the least
+recently used pair first. Clones of a client share it; each session starts
+with an empty record, as it does with cookies, Alt-Svc, and pools.
 Browsers add an entry when credentials are supplied, before the proxy has
 accepted them; Phantom adds one only after the proxy accepts, so a rejected
 credential is never sent first. Browsers key their entries by realm as well;
