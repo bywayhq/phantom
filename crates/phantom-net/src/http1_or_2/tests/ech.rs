@@ -438,3 +438,85 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
     );
     Ok(())
 }
+
+fn slow_cache(delay: Duration) -> crate::address_cache::AddressCache {
+    let settings = phantom_profile::DnsCacheSettings {
+        max_entries: std::num::NonZeroUsize::MIN,
+        ttl: Duration::from_secs(60),
+        negative_ttl: None,
+    };
+    crate::address_cache::AddressCache::with_lookup(settings, move |_| {
+        // The lookup runs on a thread of its own without a timer driver.
+        Box::pin(async move {
+            std::thread::sleep(delay);
+            Ok(vec![SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0))])
+        })
+    })
+}
+
+/// A lookup that finishes within the bounded wait after a slow address
+/// resolution is used.
+#[tokio::test]
+async fn a_resolved_address_waits_for_a_lookup_within_the_bound() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(1, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
+    let connector =
+        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+
+    // 250 ms of resolution allows 50 ms more; the record arrives after 20.
+    // Started now, as the client's lookup starts with the request.
+    let lookup = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_millis(270)).await;
+        published(1, &TEST_ECH_KEYS[0])
+    });
+    let ech = async { lookup.await.ok() };
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+    )
+    .await??;
+
+    let observed = server.await??;
+    assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    assert!(observed[0].ech_accepted);
+    Ok(())
+}
+
+/// Addresses from the cache give the lookup no extra time, as Chromium's
+/// cache hit finalizes its request at once.
+#[tokio::test]
+async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(1, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![
+        acceptor(&identity, Some(&key))?,
+        acceptor(&identity, Some(&key))?,
+    ])
+    .await?;
+    let connector =
+        connector(&identity)?.with_address_cache(slow_cache(Duration::from_millis(250)));
+
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector
+            .connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async { None }),
+    )
+    .await??;
+    // Started now, as the client's lookup starts with the request.
+    let lookup = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        published(1, &TEST_ECH_KEYS[0])
+    });
+    let ech = async { lookup.await.ok() };
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+    )
+    .await??;
+
+    let observed = server.await??;
+    assert_eq!(observed[1].outer_server_name.as_deref(), Some(INNER_NAME));
+    assert!(!observed[1].ech_accepted);
+    Ok(())
+}

@@ -1446,6 +1446,22 @@ resolution time, since its addresses come from the operating system. It
 applies only when the field is set, which replaces, for that profile, the
 rule that HTTPS record discovery never delays a request.
 
+- When the client's address cache supplies the addresses, the handshake does
+  not wait: the record is used only if its lookup has already finished. A
+  Chromium cache hit finalizes the request at once with the HTTPS state
+  stored beside the addresses, so its handshake does not wait either
+  (`ServiceEndpointRequestImpl::DoResolveLocally`,
+  `net/dns/host_resolver_manager_service_endpoint_request_impl.cc` lines
+  366-369 and 433-445, and `EndpointsCryptoReady`, lines 161-167).
+- Each parallel HTTP/1.1 connection of the negotiated pool offers the record's
+  `ech` and waits on its own. All of them join the origin's one shared lookup,
+  so the waits overlap rather than add up, and once the lookup is cached no
+  connection waits.
+  `crates/phantom/tests/https_record_ech.rs` proves three parallel
+  connections each have ECH accepted, and
+  `crates/phantom-net/src/http1_or_2/tests/ech.rs` proves the no-wait rule on
+  a cached address and the wait after a slow resolution.
+
 Firefox 156, at tag `FIREFOX_156_0_RELEASE`, does not follow these rules, and
 its recipe keeps GREASE:
 
@@ -1478,6 +1494,10 @@ Limits:
   lines 1765-1780).
 - Chrome's wait timer starts when its own DNS client has both address
   answers; Phantom starts it when the operating system's resolver returns.
+  Each Phantom connection times its own wait from its own resolution.
+- Phantom keeps addresses and HTTPS records in two caches with their own
+  lifetimes, where Chromium keeps one entry for both. An address cache hit
+  while the record's lookup is running therefore sends GREASE.
 - Edge 153 is not covered. With the same `Local State` preferences it sent no
   DNS-over-HTTPS query, and its policy could not be set without elevation, so
   its default is unknown and `edge::v153_tls` keeps GREASE.
