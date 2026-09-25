@@ -34,7 +34,8 @@ async fn fetch(client: &Client) -> Result<bytes::Bytes, RequestError> {
   `zstd`, and accepts only codings the request advertised: by name with a
   nonzero weight, or through `*` with a nonzero weight. `q=0` withdraws a
   coding. With a template and no `Accept-Encoding` of your own, the template's
-  value counts.
+  value for the final URL counts: after a redirect to a named `http://`
+  origin that is `gzip, deflate`, so a `br` or `zstd` response fails there.
 - `max` is an inclusive limit on decoded bytes. Going over it fails the body
   with `RequestErrorKind::ResponseBodyLimit`.
 

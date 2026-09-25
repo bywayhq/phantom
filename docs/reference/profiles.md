@@ -161,8 +161,9 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | Extra fields | Fields the template does not name follow its last field, in your order. They are sent, not rejected. |
 | Cookies | Templates cannot contain `Cookie`. The profile's `CookiePlacement` inserts the jar's field; a `Cookie` field of your own replaces it. |
 | Client hints | The profile's client hints fill the template's hint slots. |
+| Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order. |
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
-| Redirects | Every hop uses the same template. Values such as `Sec-Fetch-Site` are not adjusted. |
+| Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |
 | `Referer` on a navigation | Navigation templates have no `Referer` slot, so an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's. No capture shows that position. |
 
 ### Cookie placement in templates
@@ -201,7 +202,7 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 | When | Fails |
 | --- | --- |
 | The template has no hint slots and the profile sends hints by default | Before any I/O |
-| One of your fields carries a hint the profile sends only on request, including on `http://` origins | Before any I/O |
+| One of your fields carries a hint the profile sends only on request, including to an origin that gets no automatic hints | Before any I/O |
 | The origin asked for such a hint through `Accept-CH` or ALPS `ACCEPT_CH`, including the retry a `Critical-CH` response asks for | Before the request is sent on the connection |
 
 ### Template limits
@@ -210,9 +211,14 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
   captured. There are no templates for link or script navigations,
   subresources such as images, scripts, and stylesheets, `XMLHttpRequest`,
   cross-origin `fetch`, or requests with a body.
-- The HTTP/1.1 captures used plaintext loopback origins, which Chrome treats
-  as secure. Fields sent to a plaintext origin that is not loopback were not
-  captured.
+- The template captures used plaintext loopback origins, which browsers
+  treat as potentially trustworthy. The fields for a named plaintext origin
+  come from the proxy route captures of a page load and a default-mode
+  `fetch()`; that the no-store fetch keeps `Pragma` and `Cache-Control` in the
+  same positions there is inferred.
+- Firefox 156 source adds `dcb` and `dcz` to `Accept-Encoding` on a secure
+  request when it holds a compression dictionary for the URL. No capture
+  shows it, and the templates never send them.
 - The templates always depend on stream 0, as every capture did. Chrome can
   depend on another open stream of equal or higher priority; Phantom does not
   reproduce that.
@@ -255,7 +261,11 @@ Chromium client hints to a Firefox profile based on the browser name.
 
 ### Learning from `Accept-CH`
 
-For H1, H2, and H3 responses from an HTTPS origin:
+Phantom sends automatic client hints only to a
+[potentially trustworthy](glossary.md#potentially-trustworthy) origin, as
+Chromium does: an `https` origin, or an `http` origin on a loopback address,
+`localhost`, or a `.localhost` name. For H1, H2, and H3 responses from such an
+origin:
 
 | Response `Accept-CH` | Effect on the origin's requested hints |
 | --- | --- |

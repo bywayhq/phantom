@@ -89,6 +89,26 @@ have shown where the real architectural boundaries are.
   policy and the `REFUSED_STREAM` reopening are complete; indexing is blocked
   on the vendored `http2` encoder, which chooses every representation
   internally and keeps one dynamic table per connection.
+- Apply origin trust to `ws://` openings, as the request templates already
+  do for `http://`. The proxy route captures (`fixtures/proxy/`) show every
+  browser's HTTP/1.1 Upgrade to `ws://origin.phantom.test` differing from
+  the one to `ws://127.0.0.1`:
+  1. Firefox 156 sends `Sec-Fetch-Dest: empty`, `Sec-Fetch-Mode:
+     websocket`, and `Sec-Fetch-Site` only to loopback. Named origin, after
+     `Host`: `User-Agent`, `Accept`, `Accept-Language`, `Accept-Encoding`,
+     `Sec-WebSocket-Version`, `Origin`, `Sec-WebSocket-Extensions`,
+     `Sec-WebSocket-Key`, `Connection`, `Pragma`, `Cache-Control`,
+     `Upgrade`. Loopback adds the three `Sec-Fetch-*` fields between
+     `Connection` and `Pragma`. `firefox::v156_websocket` sends the two
+     literals to every origin.
+  2. Chrome 154 and Edge 153 send the same fields to both origins, in the
+     order of `chromium::v154_websocket`. Only `Accept-Encoding` differs.
+  3. All three send `Accept-Encoding: gzip, deflate` to the named origin and
+     `gzip, deflate, br, zstd` to loopback. The WebSocket recipes leave
+     `Accept-Encoding` to the caller, so the caller must choose today.
+
+  This needs a trust-dependent `WebSocketField`, like `RequestField::ByTrust`,
+  and its expansion in `crates/phantom/src/websocket/`.
 - Offer a caller-configurable RFC 9220 WebSocket over HTTP/3, on the HTTP/3
   extended CONNECT foundation that already carries CONNECT-UDP. No named
   browser recipe may reach it, because no shipping browser opens one by

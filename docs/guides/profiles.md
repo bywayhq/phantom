@@ -143,6 +143,10 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
   compare your `User-Agent` or `sec-ch-ua` with the template, so use the
   template, client hints, and `User-Agent` of one browser and version
   ([required caller fields](../reference/profiles.md#required-caller-fields)).
+- To a named `http://` origin, such as `http://example.com/`, the templates
+  leave out the `Sec-Fetch-*` fields and send `Accept-Encoding: gzip,
+  deflate`, as the browsers do. HTTPS, loopback, and `localhost` URLs get the
+  full captured list ([origin trust](../reference/profiles.md#template-assembly)).
 
 ## Send client hints
 
@@ -172,8 +176,12 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 
 - `ClientHintSettings` fixes the hint names, their order, their values, and
   whether each is sent by default or only on request.
-- An HTTPS response's `Accept-CH` sets the hints requested for its exact
-  origin. On H2 and H3, a server can also request hints during the TLS
+- Hints go only to a
+  [potentially trustworthy](../reference/glossary.md#potentially-trustworthy)
+  origin: HTTPS, or `http://` to a loopback address or `localhost`. A named
+  `http://` origin gets none, as in Chrome.
+- Such an origin's `Accept-CH` response sets the hints requested for its
+  exact origin. On H2 and H3, a server can also request hints during the TLS
   handshake with ALPS `ACCEPT_CH`, for that connection only.
 - If a `Critical-CH` response names a missing supported hint and the method
   is safe, Phantom retries once, on the same protocol and route. A streaming

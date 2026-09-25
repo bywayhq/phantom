@@ -10,7 +10,8 @@ header or trailer line, as RFC 9110 does.
 
 ## Accept-CH
 
-A response field in which an HTTPS origin asks for more
+A response field in which a
+[potentially trustworthy](#potentially-trustworthy) origin asks for more
 [client hints](#client-hints) on later requests. Phantom keeps bounded
 `Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make the
 same request for a whole connection with an `ACCEPT_CH` setting sent through
@@ -199,6 +200,15 @@ form.
 The [origin](#origin) plus the complete [route](#route). Connections,
 admission, and learned state are never shared across pool keys. See
 [Defaults and limits](limits.md#connection-pools).
+
+## Potentially trustworthy
+
+An [origin](#origin) that W3C Secure Contexts lets browsers treat as secure:
+an `https` origin, or an `http` origin whose host is a loopback address
+(`127.0.0.0/8` or `::1`), `localhost`, or a name under `.localhost`. Browsers
+send client hints, `Sec-Fetch-*` fields, and the `br` and `zstd` codings only
+to such origins, and allow `Secure` cookies from them. See
+[Template assembly](profiles.md#template-assembly).
 
 ## Profile
 

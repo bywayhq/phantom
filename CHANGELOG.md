@@ -150,6 +150,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestField::ByTrust`, with the `RequestField::trustworthy_only` and
+  `RequestField::by_trust` constructors, and `RequestField::default_value`:
+  a template field whose value depends on whether the request URL is
+  potentially trustworthy.
+
 - Chrome 154, Edge 153, and Firefox 156 recipes for TLS, HTTP/2, HTTP/3, QUIC,
   TCP, WebSocket, cookie placement, client hints, and request templates.
   Edge has TLS, HTTP/3 TLS, client-hint, and template recipes only, and
@@ -305,6 +310,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HttpConnectError::ForwardingRequiresHttp2`. (`e99940b`)
 
 ### Changed
+
+- Wire change for plaintext `http://` requests. To an origin that is not
+  potentially trustworthy (not HTTPS, loopback, `localhost`, or
+  `.localhost`), the built-in request templates leave out the `Sec-Fetch-*`
+  fields and send `Accept-Encoding: gzip, deflate` instead of
+  `gzip, deflate, br, zstd`, as Chrome 154, Edge 153, and Firefox 156 do.
+  Automatic client hints now go to `http://` loopback and `localhost` origins,
+  and `Accept-CH` from them is learned, where before only HTTPS origins got
+  them. Content decoding follows the `Accept-Encoding` of the final redirect
+  hop.
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
   cookies, treating every request as a top-level navigation, and evicts least

@@ -755,9 +755,13 @@ Request templates:
 - The Chrome `User-Agent` value comes from the SSE capture, which ran in
   headful launch mode. The other Chrome and Edge captures ran headless. Edge
   templates leave `User-Agent` to the caller.
-- The H1 captures used plaintext loopback origins. No capture shows where a
-  `fetch` places hints requested through `Accept-CH`, so the fetch templates
-  refuse to send them. Where navigation templates place requested hints is
+- The H1 template captures used plaintext loopback origins. The proxy route
+  captures show what the browsers send to a named plaintext origin instead:
+  no `Sec-Fetch-*` fields, no client hints, and `Accept-Encoding: gzip,
+  deflate`. The templates follow them for any URL that is not
+  [potentially trustworthy](glossary.md#potentially-trustworthy). No capture
+  shows where a `fetch` places hints requested through `Accept-CH`, so the
+  fetch templates refuse to send them. Where navigation templates place requested hints is
   captured on H1 only and inferred for H2 and H3.
 - The profile's `CookiePlacement` decides where the jar's `Cookie` field goes
   in the expanded template. With the Chrome 154 and Firefox 156 presets, the

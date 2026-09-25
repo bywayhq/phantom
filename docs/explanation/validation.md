@@ -26,6 +26,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
+| [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 153, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
@@ -615,6 +616,73 @@ Limits:
 - No capture confirms the limit or the reuse order.
 - The source was read at one tag per browser, so field-trial changes would
   not be seen.
+
+### Plaintext origin trust evidence
+
+What is claimed: for a URL that is not
+[potentially trustworthy](../reference/glossary.md#potentially-trustworthy),
+such as `http://origin.phantom.test/`, the built-in request templates send
+the fields Chrome 154, Edge 153, and Firefox 156 send there, in the same
+order: no `Sec-Fetch-*` fields and `Accept-Encoding: gzip, deflate`. Phantom
+sends automatic client hints to an `http://` loopback or `localhost` origin
+and learns `Accept-CH` from it, and sends none to a named `http://` origin.
+
+Evidence: the proxy route captures under `fixtures/proxy/` load the same page
+from `http://127.0.0.1` and from `http://origin.phantom.test`, directly and
+through a plaintext and a TLS proxy, three runs per scenario. On all 27
+named-origin runs the page request and the `fetch()` carry `gzip, deflate`,
+no `Sec-Fetch-*` field, and no client hint; on all 27 loopback runs they carry
+`gzip, deflate, br, zstd`, the fetch metadata, and (Chrome and Edge) the
+default client hints. Every other field keeps its order. The H2 requests
+through the TLS proxy show the same differences, in the H2 lists' order.
+
+Browser source at the captured tags gives the rule behind the captures:
+
+| Behavior | Chromium `154.0.8037.58` | Firefox `FIREFOX_156_0_RELEASE` |
+| --- | --- | --- |
+| Trust test | `net::IsOriginPotentiallyTrustworthy`, `net/base/is_potentially_trustworthy.cc` lines 294-346 | `nsMixedContentBlocker::IsPotentiallyTrustworthyOrigin`, `dom/security/nsMixedContentBlocker.cpp` lines 294-362 |
+| `br` and `zstd` | `HttpRequestHeaders::SetAcceptEncodingIfMissing`, `net/http/http_request_headers.cc` lines 261-275: cryptographic scheme or `net::IsLocalhost` | `isSecureOrTrustworthyURL`, `netwerk/protocol/http/HttpBaseChannel.cpp` lines 325-329, selects `network.http.accept-encoding.secure` |
+| `Sec-Fetch-*` | `SetFetchMetadataHeaders`, `services/network/sec_header_helpers.cc` lines 288-292 | `SecFetch::AddSecFetchHeader`, `dom/security/SecFetch.cpp` lines 383-387 |
+| Client hints | `IsValidURLForClientHints`, `content/browser/client_hints/client_hints.cc` lines 501-503, for sending and for `Accept-CH` | Not sent |
+
+Phantom's test is `is_potentially_trustworthy` in
+`crates/phantom/src/request/secure_context.rs`, the same one the cookie jar
+uses for `Secure` cookies. The templates carry the per-browser data as
+`RequestField::ByTrust` entries, so the transport has no browser branch.
+
+Tests:
+
+- `templates_send_the_captured_plaintext_named_origin_fields` in
+  `phantom-profile` compares each template's HTTP/1.1 and HTTP/2 lists, for
+  both kinds of URL, with the captured field names and codings.
+- `crates/phantom/tests/plaintext_templates.rs` sends each built-in template
+  to `http://127.0.0.1` directly and to `http://origin.phantom.test` through a
+  loopback forward proxy, and compares every received field and value with
+  the captured request. It also checks that `Accept-CH` is learned from the
+  loopback origin only, and that after a redirect from loopback to the named
+  origin the second hop advertises `gzip, deflate` and a `br` response fails
+  to decode while `gzip` decodes.
+- `direct_plaintext_loopback_sends_and_learns_client_hints` in
+  `direct_http.rs` covers a profile without a template.
+
+How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
+--scenario all --repeat 3`, then
+`cargo test -p phantom-http --all-features --test plaintext_templates` and
+`cargo test -p phantom-profile plaintext_named_origin`.
+
+Limits:
+
+- The tests hold the captured field lists as data; they do not read the
+  fixtures.
+- The captured `fetch()` used the default cache mode. That the no-store
+  template's `Pragma` and `Cache-Control` keep their positions on a named
+  plaintext origin is inferred.
+- Through an HTTP proxy, Chromium sends `Proxy-Connection: keep-alive` where
+  the template has `Connection: keep-alive`. Phantom sends the template's
+  field.
+- `ws://` openings are not adjusted: Firefox's WebSocket recipe sends
+  `Sec-Fetch-Dest` and `Sec-Fetch-Mode` to a named `ws://` origin, where
+  Firefox sends neither. The [roadmap](../roadmap.md) queues the fix.
 
 ### Recorded coverage losses
 
