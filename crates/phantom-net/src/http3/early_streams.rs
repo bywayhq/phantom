@@ -8,6 +8,11 @@
 //! the new session. The early session therefore opens a request stream only
 //! while the handshake is still running, when the stream is certainly a
 //! 0-RTT stream, or once the server accepted the early data.
+//!
+//! The gate reads the answer the connection driver receives from Quinn, not
+//! the answer published to requests. A request that waits here holds the
+//! connection's send lock, and a rejection publishes its answer only after
+//! it has taken that lock to install the new session.
 
 use std::{
     error::Error,
@@ -21,8 +26,6 @@ use bytes::Buf;
 use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use h3_datagram::quic_traits::DatagramConnectionExt;
 use tokio::sync::watch;
-
-use super::early_data::EarlyDataOutcome;
 
 /// `H3_REQUEST_CANCELLED` (RFC 9114, section 8.1).
 const H3_REQUEST_CANCELLED: u64 = 0x010c;
@@ -45,17 +48,18 @@ impl Transport {
         }
     }
 
-    /// A session started in early data, whose server's answer arrives on
-    /// `outcome`.
+    /// A session started in early data. `answer` receives whether the
+    /// server accepted the early data, and closes unanswered when the
+    /// connection ends first.
     pub(super) fn early(
         connection: quinn::Connection,
-        outcome: watch::Receiver<Option<EarlyDataOutcome>>,
+        answer: watch::Receiver<Option<bool>>,
     ) -> Self {
         Self {
             inner: h3_quinn::Connection::new(connection.clone()),
             gate: Some(OpenGate {
                 quinn: connection,
-                outcome,
+                answer,
             }),
         }
     }
@@ -136,6 +140,28 @@ pub(super) struct Opener<B: Buf> {
     held: Option<h3_quinn::BidiStream<B>>,
 }
 
+impl<B: Buf> Opener<B> {
+    /// Holds `stream` as if its open had raced the handshake's completion.
+    #[cfg(test)]
+    pub(super) fn hold_for_test(&mut self, stream: h3_quinn::BidiStream<B>) {
+        self.held = Some(stream);
+    }
+}
+
+/// A held stream was never used, so resetting it leaves the server only a
+/// reset of an unused stream.
+fn reset_unused<B: Buf>(stream: &mut h3_quinn::BidiStream<B>) {
+    quic::SendStream::<B>::reset(stream, H3_REQUEST_CANCELLED);
+}
+
+impl<B: Buf> Drop for Opener<B> {
+    fn drop(&mut self) {
+        if let Some(mut stream) = self.held.take() {
+            reset_unused(&mut stream);
+        }
+    }
+}
+
 impl<B: Buf> Clone for Opener<B> {
     fn clone(&self) -> Self {
         Self {
@@ -163,9 +189,7 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                 Permit::Refuse => {
                     self.answered = None;
                     if let Some(mut stream) = self.held.take() {
-                        // Nothing was written on it, so the server sees only
-                        // a reset of an unused stream.
-                        quic::SendStream::<B>::reset(&mut stream, H3_REQUEST_CANCELLED);
+                        reset_unused(&mut stream);
                     }
                     return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                         DiscardedSession,
@@ -181,8 +205,22 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                         return Poll::Ready(Ok(stream));
                     }
                     let during_handshake = gate.quinn.handshake_data().is_none();
-                    let stream =
-                        ready!(quic::OpenStreams::<B>::poll_open_bidi(&mut self.inner, cx))?;
+                    let stream = match quic::OpenStreams::<B>::poll_open_bidi(&mut self.inner, cx) {
+                        Poll::Ready(stream) => stream?,
+                        Poll::Pending => {
+                            // Waiting for stream credit: the answer must wake
+                            // the request too, since Quinn does not wake
+                            // waiting openers when it discards early streams.
+                            if gate.unanswered() {
+                                let answered = self.answered.get_or_insert_with(|| gate.answered());
+                                if answered.as_mut().poll(cx).is_ready() {
+                                    self.answered = None;
+                                    continue;
+                                }
+                            }
+                            return Poll::Pending;
+                        }
+                    };
                     // The handshake completed between the check and the open,
                     // so the stream may be a 1-RTT one; keep it until the
                     // server's answer says whether the session may use it.
@@ -211,7 +249,7 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
 #[derive(Clone)]
 struct OpenGate {
     quinn: quinn::Connection,
-    outcome: watch::Receiver<Option<EarlyDataOutcome>>,
+    answer: watch::Receiver<Option<bool>>,
 }
 
 enum Permit {
@@ -222,9 +260,11 @@ enum Permit {
 
 impl OpenGate {
     fn permit(&self) -> Permit {
-        match *self.outcome.borrow() {
-            Some(EarlyDataOutcome::Accepted) => Permit::Open,
-            Some(_) => Permit::Refuse,
+        match *self.answer.borrow() {
+            Some(true) => Permit::Open,
+            Some(false) => Permit::Refuse,
+            // The driver ended without an answer: the connection is gone.
+            None if self.answer.has_changed().is_err() => Permit::Refuse,
             // The TLS handshake data appears when the handshake completes,
             // no later than Quinn decides whether the early data was
             // rejected, so a stream opened before it is a 0-RTT stream.
@@ -233,10 +273,15 @@ impl OpenGate {
         }
     }
 
+    fn unanswered(&self) -> bool {
+        self.answer.borrow().is_none()
+    }
+
+    /// Resolves when the answer arrives or its channel closes.
     fn answered(&self) -> Answered {
-        let mut outcome = self.outcome.clone();
+        let mut answer = self.answer.clone();
         Box::pin(async move {
-            let _ = outcome.wait_for(Option::is_some).await;
+            let _ = answer.wait_for(Option::is_some).await;
         })
     }
 }

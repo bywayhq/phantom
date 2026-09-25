@@ -606,7 +606,7 @@ async fn an_early_session_opens_no_stream_between_the_handshake_and_the_answer()
 
     use h3::quic::{OpenStreams as _, SendStream as _};
 
-    use super::super::{early_data::EarlyDataOutcome, early_streams::Transport};
+    use super::super::early_streams::Transport;
 
     let identity = TestIdentity::generate()?;
     let served = Served::default();
@@ -630,7 +630,7 @@ async fn an_early_session_opens_no_stream_between_the_handshake_and_the_answer()
     )
     .await;
     assert!(waiting.is_err(), "a stream opened before the answer");
-    answer.send_replace(Some(EarlyDataOutcome::Rejected));
+    answer.send_replace(Some(false));
     let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| rejected.poll_open_bidi(cx))).await?;
     assert!(refused.is_err(), "the discarded session opened a stream");
     let (_send, _recv) = quinn.open_bi().await?;
@@ -643,11 +643,165 @@ async fn an_early_session_opens_no_stream_between_the_handshake_and_the_answer()
     let (answer, outcome) = tokio::sync::watch::channel(None);
     let transport = Transport::early(quinn.clone(), outcome);
     let mut accepted = quic_opener(&transport);
-    answer.send_replace(Some(EarlyDataOutcome::Accepted));
+    answer.send_replace(Some(true));
     let stream = timeout(TEST_TIMEOUT, poll_fn(|cx| accepted.poll_open_bidi(cx))).await??;
     assert_eq!(stream.send_id().into_inner(), 4);
 
+    // An answer channel that closes unanswered refuses at once.
+    let (answer, outcome) = tokio::sync::watch::channel(None);
+    let transport = Transport::early(quinn.clone(), outcome);
+    let mut closed = quic_opener(&transport);
+    drop(answer);
+    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| closed.poll_open_bidi(cx))).await?;
+    assert!(refused.is_err(), "a closed answer channel opened a stream");
+
     drop((stream, connection));
+    server.abort();
+    Ok(())
+}
+
+/// A stream whose open raced the handshake's completion is held until the
+/// answer. A rejection resets it unused, and so does dropping the opener
+/// that holds it. Its stream number stays taken: the next stream is the
+/// one after it.
+#[tokio::test(flavor = "current_thread")]
+async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
+    use std::future::poll_fn;
+
+    use h3::quic::{OpenStreams as _, SendStream as _};
+
+    use super::super::early_streams::Transport;
+
+    let identity = TestIdentity::generate()?;
+    let connector = trusting_connector(&identity)?;
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, false)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    // A QUIC server that only holds its connections: an HTTP/3 server would
+    // close the connection over a reset request stream.
+    let server = tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Some(incoming) = endpoint.accept().await {
+            if let Ok(connection) = incoming.await {
+                held.push(connection);
+            }
+        }
+    });
+    let connection = connect(&connector, address).await?;
+    let quinn = connection.quinn().clone();
+    let plain = Transport::new(quinn.clone());
+    let resets = || quinn.stats().frame_tx.reset_stream;
+    let wait_for_resets = |count: u64| {
+        let quinn = quinn.clone();
+        timeout(TEST_TIMEOUT, async move {
+            while quinn.stats().frame_tx.reset_stream < count {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+    };
+
+    let (answer, outcome) = tokio::sync::watch::channel(None);
+    let transport = Transport::early(quinn.clone(), outcome);
+    let mut gated = quic_opener(&transport);
+    let held = timeout(
+        TEST_TIMEOUT,
+        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
+    )
+    .await??;
+    assert_eq!(held.send_id().into_inner(), 0);
+    gated.hold_for_test(held);
+    let before = resets();
+    answer.send_replace(Some(false));
+    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| gated.poll_open_bidi(cx))).await?;
+    assert!(refused.is_err(), "a held stream was used after a rejection");
+    wait_for_resets(before + 1)
+        .await
+        .map_err(|_| "the held stream was not reset")?;
+
+    let (answer, outcome) = tokio::sync::watch::channel(None);
+    let transport = Transport::early(quinn.clone(), outcome);
+    let mut dropped = quic_opener(&transport);
+    let held = timeout(
+        TEST_TIMEOUT,
+        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
+    )
+    .await??;
+    assert_eq!(held.send_id().into_inner(), 4);
+    dropped.hold_for_test(held);
+    drop(dropped);
+    drop(answer);
+    wait_for_resets(before + 2)
+        .await
+        .map_err(|_| "dropping the opener did not reset its stream")?;
+
+    let next = timeout(
+        TEST_TIMEOUT,
+        poll_fn(|cx| quic_opener(&plain).poll_open_bidi(cx)),
+    )
+    .await??;
+    assert_eq!(next.send_id().into_inner(), 8);
+
+    drop((next, connection));
+    server.abort();
+    Ok(())
+}
+
+/// A request that holds the send lock while it waits for stream credit on
+/// the early session is released by a rejection. It fails as unprocessed
+/// instead of blocking the restart, which needs that lock, and the
+/// connection then carries requests on its new session.
+#[tokio::test(flavor = "current_thread")]
+async fn a_request_waiting_for_stream_credit_does_not_block_a_rejection() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let one_stream = || -> TestResult<quinn::ServerConfig> {
+        let mut config = server_config(&identity, true)?;
+        let mut transport = quinn::TransportConfig::default();
+        transport.max_concurrent_bidi_streams(1_u32.into());
+        config.transport_config(Arc::new(transport));
+        Ok(config)
+    };
+    let endpoint = quinn::Endpoint::server(one_stream()?, (Ipv4Addr::LOCALHOST, 0).into())?;
+    let address = endpoint.local_addr()?;
+    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    endpoint.set_server_config(Some(server_config(&identity, false)?));
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let connection = connect(&early, relay).await?;
+    assert!(connection.sent_early_data());
+    // The remembered limit of one stream lets the first request open its
+    // stream in 0-RTT; the second holds the send lock while it waits for
+    // credit that only the handshake can bring.
+    let (first, second) = timeout(TEST_TIMEOUT, async {
+        tokio::join!(
+            send(&early, &connection, Method::GET, "/first", None),
+            send(&early, &connection, Method::GET, "/second", None),
+        )
+    })
+    .await
+    .map_err(|_| "the rejection was blocked by a request waiting for stream credit")?;
+    for result in [first, second] {
+        let error = match result {
+            Ok(_) => return Err("rejected early data produced a response".into()),
+            Err(error) => error,
+        };
+        assert_eq!(
+            unprocessed(error.as_ref()),
+            Some(Http3Unprocessed::EarlyDataRejected)
+        );
+    }
+    let again = send(&early, &connection, Method::GET, "/again", None).await?;
+    assert_eq!(again.status(), StatusCode::OK);
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(served, [(1, "/again".to_owned())]);
+
+    drop((again, connection));
+    relay_task.abort();
     server.abort();
     Ok(())
 }

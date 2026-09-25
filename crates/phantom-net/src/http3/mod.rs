@@ -568,9 +568,11 @@ async fn connect(
     // streams or once the server accepted the early data; see
     // `early_streams`.
     let early_channel = zero_rtt.as_ref().map(|_| EarlyData::channel());
-    let transport = match &early_channel {
-        Some((_, early_data)) => Transport::early(connection.clone(), early_data.subscribe()),
-        None => Transport::new(connection.clone()),
+    let (gate, transport) = if zero_rtt.is_some() {
+        let (gate, answer) = tokio::sync::watch::channel(None);
+        (Some(gate), Transport::early(connection.clone(), answer))
+    } else {
+        (None, Transport::new(connection.clone()))
     };
     let (h3_driver, sender) = builder.build(transport).await.map_err(|error| {
         Http3Error::with_source(
@@ -583,13 +585,14 @@ async fn connect(
         .receives_datagrams()
         .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
     let session = Session::new(sender);
-    let early = zero_rtt.map(|accepted| {
+    let early = zero_rtt.zip(gate).map(|(accepted, gate)| {
         let (answer, answer_receiver) = oneshot::channel();
         let (replacement, replacement_receiver) = oneshot::channel();
         let (late_settings, late_settings_receiver) = oneshot::channel();
         (
             EarlyAnswer {
                 accepted,
+                gate,
                 answer,
                 replacement: replacement_receiver,
             },

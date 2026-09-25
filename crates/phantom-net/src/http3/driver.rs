@@ -8,7 +8,7 @@ use bytes::Bytes;
 use phantom_quic_btls::ApplicationState;
 use tokio::{
     runtime::Handle,
-    sync::oneshot,
+    sync::{oneshot, watch},
     task::{JoinError, JoinHandle},
 };
 use tracing::{
@@ -29,8 +29,13 @@ pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Tran
 /// a rejection the driver stops polling the discarded HTTP/3 session, which
 /// would otherwise close the QUIC connection, and waits for its
 /// `replacement`, built on the same connection.
+///
+/// `gate` receives the raw answer at once, so the discarded session stops
+/// opening request streams before the answer is checked and published; see
+/// `early_streams`. Dropping it unanswered closes the gate.
 pub(super) struct EarlyAnswer {
     pub(super) accepted: quinn::ZeroRttAccepted,
+    pub(super) gate: watch::Sender<Option<bool>>,
     pub(super) answer: oneshot::Sender<bool>,
     pub(super) replacement: oneshot::Receiver<ClientDriver>,
 }
@@ -145,11 +150,13 @@ async fn drive(
             if let Some(pending) = early.as_mut()
                 && let Poll::Ready(accepted) = Pin::new(&mut pending.accepted).poll(context)
                 && let Some(EarlyAnswer {
+                    gate,
                     answer,
                     replacement,
                     ..
                 }) = early.take()
             {
+                gate.send_replace(Some(accepted));
                 let _ = answer.send(accepted);
                 if !accepted {
                     return Poll::Ready(DriveStep::Rejected(replacement));

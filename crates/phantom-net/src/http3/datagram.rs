@@ -101,9 +101,10 @@ impl DatagramRouter {
 
     /// Forgets the stream order of a discarded HTTP/3 session.
     ///
-    /// A session that replaces one discarded with rejected early data opens
-    /// its request streams from stream 0 again. Must be called under the
-    /// request-send lock, before the new session registers a stream.
+    /// A session that replaces one discarded with rejected early data
+    /// numbers its request streams again from the first unused one, usually
+    /// stream 0. Must be called under the request-send lock, before the new
+    /// session registers a stream.
     pub(super) fn restart(&self) {
         let mut state = lock(&self.state);
         state.highest_registered = None;

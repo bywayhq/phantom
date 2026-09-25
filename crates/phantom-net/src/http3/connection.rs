@@ -66,9 +66,10 @@ impl Session {
 
     /// Sends later requests on `sender`, dropping the session it replaces.
     ///
-    /// The new session numbers its request streams from 0 again, so the
-    /// datagram router forgets the old session's stream order under the
-    /// same lock.
+    /// The new session numbers its request streams again from the first
+    /// unused one: 0, or the stream after one the early session reset
+    /// unused. The datagram router therefore forgets the old session's
+    /// stream order under the same lock.
     pub(super) async fn replace(&self, sender: RequestSender, datagrams: Option<&DatagramRouter>) {
         let state = sender.peer_settings();
         let mut current = self.sender.lock().await;
