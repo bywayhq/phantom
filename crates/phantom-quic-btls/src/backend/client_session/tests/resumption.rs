@@ -462,9 +462,9 @@ fn held_tickets_are_bounded_and_dropped_with_oversized_state() {
     assert_eq!(cache.len(), 0);
 
     let state = ApplicationState::new();
-    state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    let generation = state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
     for ticket in tickets.iter().cloned() {
-        state.receive(ticket);
+        state.receive(generation, ticket);
     }
     assert_eq!(state.held_len(), MAX_HELD_TICKETS);
     assert!(state.store(b"settings"));
@@ -473,11 +473,60 @@ fn held_tickets_are_bounded_and_dropped_with_oversized_state() {
     assert_eq!(stored.application_state.as_deref(), Some(&b"settings"[..]));
 
     let refused = ApplicationState::new();
-    refused.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
-    refused.receive(tickets[0].clone());
+    let generation = refused.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    refused.receive(generation, tickets[0].clone());
     assert!(!refused.store(&[0; MAX_APPLICATION_STATE_LEN + 1]));
     assert_eq!(refused.held_len(), 0);
-    refused.receive(tickets[1].clone());
+    refused.receive(generation, tickets[1].clone());
     assert_eq!(refused.held_len(), 0);
     assert_eq!(cache.len(), MAX_HELD_TICKETS - 1);
+}
+
+#[test]
+fn a_reused_application_state_handle_starts_empty_for_each_connection() {
+    let server_context = server_context();
+    let early = resuming_config()
+        .with_isolated_session_cache()
+        .with_early_data();
+    let state = ApplicationState::new();
+    let config = Arc::new(early.with_application_state(&state));
+
+    // The first connection records its state, and a leftover held ticket
+    // would otherwise follow the handle.
+    accepting_handshake(&config, &server_context);
+    assert!(state.store(b"first"));
+    assert_eq!(cache_len(&early), 1);
+
+    // The second connection resumes with the first one's ticket. Starting it
+    // clears the recorded state, so its own ticket waits for new state.
+    let second = start(&config);
+    assert!(second.early_crypto().is_some());
+    assert_eq!(state.remembered().as_deref(), Some(&b"first"[..]));
+    assert_eq!(state.held_len(), 0);
+    let second = handshake_with(
+        second,
+        test_ok(
+            RawServer::new_accepting_early_data(&server_context),
+            "server accepting early data",
+        ),
+    );
+    assert_eq!(second.early_data_accepted(), Some(true));
+    assert_eq!(cache_len(&early), 0);
+    assert_eq!(state.held_len(), 1);
+    assert!(state.store(b"second"));
+    assert_eq!(cache_len(&early), 1);
+
+    // A third connection without a ticket to present remembers nothing, and
+    // a ticket the second connection receives afterwards is dropped.
+    let cache = test_some(early.session_cache(), "isolated session cache");
+    let ticket = test_some(cache.take(SERVER_NAME), "second connection's ticket");
+    assert_eq!(ticket.application_state.as_deref(), Some(&b"second"[..]));
+    let third = start(&config);
+    assert!(third.early_crypto().is_none());
+    assert_eq!(state.remembered(), None);
+    let stale_generation = 2;
+    state.receive(stale_generation, ticket);
+    assert_eq!(state.held_len(), 0);
+    assert!(state.store(b"third"));
+    assert_eq!(cache_len(&early), 0);
 }

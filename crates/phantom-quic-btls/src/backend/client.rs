@@ -513,13 +513,13 @@ impl crypto::ClientConfig for QuicClientConfig {
             server_name: server_name.into(),
         });
         if let Some(application_state) = &self.application_state {
-            application_state.start(
+            let generation = application_state.start(
                 self.sessions
                     .clone()
                     .map(|sessions| (sessions, Box::from(server_name))),
                 remembered_state.filter(|_| early_data),
             );
-            state.application_state = Some(application_state.clone());
+            state.application_state = Some((application_state.clone(), generation));
         }
         #[cfg(test)]
         if let Some(failure) = self.derivation_failure {
@@ -756,8 +756,9 @@ struct SessionState {
     peer_identity: Option<PeerIdentity>,
     peer_transport_parameters: Option<Vec<u8>>,
     ticket_sink: Option<TicketSink>,
-    /// Holds received tickets until their application state is known.
-    application_state: Option<ApplicationState>,
+    /// Holds received tickets until their application state is known, with
+    /// this connection's generation on the handle.
+    application_state: Option<(ApplicationState, u64)>,
     /// The client's 0-RTT write secret, present only while offering early data.
     early_secret: Option<(u16, TrafficSecret)>,
     /// The ticket issuer's transport parameters, applied to 0-RTT data until
@@ -857,7 +858,9 @@ impl SessionState {
                     application_state: None,
                 };
                 match &self.application_state {
-                    Some(application_state) => application_state.receive(ticket),
+                    Some((application_state, generation)) => {
+                        application_state.receive(*generation, ticket);
+                    }
                     None => sink.sessions.insert(&sink.server_name, ticket),
                 }
             }

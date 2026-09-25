@@ -83,8 +83,11 @@ pub(crate) struct ResumptionTicket {
 /// One connection's application state for session resumption.
 ///
 /// HTTP/3 uses it to remember the server's SETTINGS with each session ticket
-/// (RFC 9114, section 7.2.4.2), as Chromium does. Give each connection its
-/// own handle through [`crate::QuicClientConfig::with_application_state`]:
+/// (RFC 9114, section 7.2.4.2), as Chromium does. Give each connection a
+/// handle through [`crate::QuicClientConfig::with_application_state`]. A
+/// handle serves the connection started most recently with it: starting
+/// another resets it, and tickets an earlier connection still receives are
+/// dropped rather than stored with the later connection's state.
 ///
 /// - When the connection presents a ticket and offers early data,
 ///   [`Self::remembered`] returns the state stored with that ticket.
@@ -111,6 +114,9 @@ struct ApplicationStateInner {
     refused: bool,
     held: VecDeque<ResumptionTicket>,
     cache: Option<(SessionCache, Box<str>)>,
+    /// Counts connections started with this handle; only the latest one's
+    /// tickets are kept.
+    generation: u64,
 }
 
 impl ApplicationState {
@@ -156,21 +162,34 @@ impl ApplicationState {
     }
 
     /// Binds the handle to the connection that `start_session` begins.
+    ///
+    /// Everything left from an earlier connection is dropped, so a reused
+    /// handle never stores that connection's state or tickets with the new
+    /// connection's.
+    /// Returns the generation that the connection passes to
+    /// [`Self::receive`].
     pub(crate) fn start(
         &self,
         cache: Option<(SessionCache, Box<str>)>,
         remembered: Option<Arc<[u8]>>,
-    ) {
+    ) -> u64 {
         let mut inner = self.lock();
-        inner.cache = cache;
-        inner.remembered = remembered;
+        let generation = inner.generation.wrapping_add(1);
+        *inner = ApplicationStateInner {
+            remembered,
+            cache,
+            generation,
+            ..ApplicationStateInner::default()
+        };
+        generation
     }
 
     /// Stores `ticket` with the recorded state, or holds it until the state
-    /// is recorded.
-    pub(crate) fn receive(&self, mut ticket: ResumptionTicket) {
+    /// is recorded. A ticket from a connection other than the latest one
+    /// started with this handle is dropped.
+    pub(crate) fn receive(&self, generation: u64, mut ticket: ResumptionTicket) {
         let mut inner = self.lock();
-        if inner.refused {
+        if inner.refused || inner.generation != generation {
             return;
         }
         if let Some(state) = inner.stored.clone() {
