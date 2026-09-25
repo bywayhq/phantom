@@ -1,7 +1,7 @@
 use std::{
     fmt,
     fs::File,
-    io,
+    io::{self, BufWriter},
     num::NonZeroUsize,
     path::Path,
     sync::{
@@ -31,7 +31,10 @@ pub(super) fn file_stream(dir: &Path) -> io::Result<quinn::QlogStream> {
     );
     let file = File::create_new(dir.join(name))?;
     let mut config = quinn::QlogConfig::default();
-    config.writer(Box::new(file));
+    // Quinn's streamer flushes this writer when the connection drops it and
+    // ignores a flush error, so a failed final write truncates the file
+    // without failing the connection.
+    config.writer(Box::new(BufWriter::new(file)));
     config
         .into_stream()
         .ok_or_else(|| io::Error::other("qlog stream initialization failed"))
