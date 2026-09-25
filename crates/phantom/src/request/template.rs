@@ -105,21 +105,43 @@ impl PreparedRequestTemplate {
     }
 }
 
-/// Emits the template's fields in order with the caller's fields in place.
-///
-/// A caller field whose name matches a literal, trust-dependent, caller, or
-/// client-hint slot takes that slot's position and spelling, keeping its
-/// value and sensitivity; a literal with no caller field emits its captured
-/// value, and a trust-dependent entry the value for `trustworthy`, if any.
-/// Caller fields for profile client hints fill the client-hints slot in
-/// profile order. Automatic client hints are added later, once the
-/// connection is chosen. Every other caller field follows the template in
-/// the caller's order.
+/// How the request reaches its origin, for route-dependent template entries.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Forwarding {
+    /// Whether an HTTP proxy forwards the request: absolute form on HTTP/1.1,
+    /// `:scheme` `http` on an HTTP/2 proxy connection.
+    pub(crate) forwarded: bool,
+}
+
+/// Emits the template's fields in order with the caller's fields in place,
+/// for a request that no HTTP proxy forwards.
+#[cfg(test)]
 pub(crate) fn expand(
     fields: &[RequestField],
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
     trustworthy: bool,
+) -> Vec<RequestHeader> {
+    expand_on_route(fields, caller, hints, trustworthy, Forwarding::default())
+}
+
+/// Emits the template's fields in order with the caller's fields in place.
+///
+/// A caller field whose name matches a literal, trust-dependent,
+/// forwarding-dependent, caller, or client-hint slot takes that slot's
+/// position and spelling, keeping its value and sensitivity; a literal with
+/// no caller field emits its captured value, a trust-dependent entry the
+/// value for `trustworthy`, and a forwarding-dependent entry the value for
+/// `route.forwarded`, if any. Caller fields for profile client hints fill the
+/// client-hints slot in profile order. Automatic client hints are added
+/// later, once the connection is chosen. Every other caller field follows
+/// the template in the caller's order.
+pub(crate) fn expand_on_route(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    trustworthy: bool,
+    route: Forwarding,
 ) -> Vec<RequestHeader> {
     let mut used = vec![false; caller.len()];
     let mut expanded = Vec::with_capacity(fields.len() + caller.len());
@@ -146,6 +168,22 @@ pub(crate) fn expand(
             RequestField::Literal { name, .. } | RequestField::ByTrust { name, .. } => {
                 if !place(name, &mut expanded)
                     && let Some(value) = field.default_value(trustworthy)
+                {
+                    expanded.push(RequestHeader::new(&**name, value.as_bytes()));
+                }
+            }
+            RequestField::ByForwarding {
+                name,
+                unforwarded,
+                forwarded,
+            } => {
+                let value = if route.forwarded {
+                    forwarded
+                } else {
+                    unforwarded
+                };
+                if !place(name, &mut expanded)
+                    && let Some(value) = value
                 {
                     expanded.push(RequestHeader::new(&**name, value.as_bytes()));
                 }

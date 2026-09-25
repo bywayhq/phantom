@@ -161,6 +161,7 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | Extra fields | Fields the template does not name follow its last field, in your order. They are sent, not rejected. |
 | Cookies | Templates cannot contain `Cookie`. The profile's `CookiePlacement` inserts the jar's field; a `Cookie` field of your own replaces it. |
 | Client hints | The profile's client hints fill the template's hint slots. |
+| Forwarding | When an HTTP/1.1 proxy forwards the request in absolute form, the Chrome and Edge templates send `Proxy-Connection: keep-alive` in the position of `Connection: keep-alive`, as those browsers do. Firefox's templates send the same fields on every route. A field of yours named `Connection` or `Proxy-Connection` keeps its value at that entry's position. |
 | Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order. |
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
 | Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |

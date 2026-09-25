@@ -184,6 +184,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestField::ByForwarding`, with the `RequestField::unless_forwarded` and
+  `RequestField::when_forwarded` constructors: a template field whose value
+  depends on whether an HTTP proxy forwards the request (absolute form on
+  HTTP/1.1, `:scheme` `http` on an HTTP/2 proxy connection).
 - `ClientBuilder::preemptive_proxy_authentication`, on by default, and the
   `phantom_net::proxy::ProxyCredentialCache` it uses:
   after an HTTP proxy accepts `HttpProxy::with_basic_auth` credentials on the
@@ -370,6 +374,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
+  The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
+  where a direct request has `Connection: keep-alive`, in the same position,
+  as Chrome 154 and Edge 153 do. Firefox's templates are unchanged. A caller
+  field named `Connection` or `Proxy-Connection` keeps its value at the
+  template's position.
 - Wire and performance change for HTTP proxies with Basic credentials. A
   tunnel or forwarded request to a proxy that already accepted the
   credentials now carries `Proxy-Authorization` on its first attempt, as

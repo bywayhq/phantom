@@ -23,6 +23,7 @@ use super::{
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
     replay::{ReplayClass, ReplayState},
     secure_context::is_potentially_trustworthy,
+    template::Forwarding,
 };
 use crate::session::{
     client_hints::ClientHintContext, http1_or_2_pool::NegotiatedLease,
@@ -109,9 +110,13 @@ async fn send_once_exact(
     }
     let client_hint_origin = client_hint_origin(client, request);
     let mut fresh_connection = false;
+    let forwarding = Forwarding {
+        forwarded: route.forwards(&request.uri),
+    };
 
     loop {
-        let prepared_headers = attempt_headers(client, request, protocol, &request_headers);
+        let prepared_headers =
+            route_attempt_headers(client, request, protocol, &request_headers, forwarding);
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
         if challenged {
@@ -491,11 +496,30 @@ pub(super) fn client_hint_origin(client: &Client, request: &ResolvedRequest) -> 
         .map(|_| request.url.origin().ascii_serialization())
 }
 
+/// Returns the fields of one attempt that no HTTP proxy forwards.
 pub(super) fn attempt_headers(
     client: &Client,
     request: &ResolvedRequest,
     protocol: HttpProtocol,
     request_headers: &[RequestHeader],
+) -> Vec<RequestHeader> {
+    route_attempt_headers(
+        client,
+        request,
+        protocol,
+        request_headers,
+        Forwarding::default(),
+    )
+}
+
+/// Returns the fields of one attempt, with the template's route-dependent
+/// entries chosen for `forwarding`.
+fn route_attempt_headers(
+    client: &Client,
+    request: &ResolvedRequest,
+    protocol: HttpProtocol,
+    request_headers: &[RequestHeader],
+    forwarding: Forwarding,
 ) -> Vec<RequestHeader> {
     let fields = request
         .template
@@ -504,11 +528,12 @@ pub(super) fn attempt_headers(
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
     let mut headers = match fields {
-        Some(fields) => super::template::expand(
+        Some(fields) => super::template::expand_on_route(
             fields,
             request_headers,
             client.inner.client_hints.as_ref(),
             is_potentially_trustworthy(&request.url),
+            forwarding,
         ),
         None => request_headers.to_vec(),
     };

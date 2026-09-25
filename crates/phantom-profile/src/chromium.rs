@@ -456,8 +456,8 @@ fn websocket_accept_encoding(name: &str) -> WebSocketField {
 /// HEADERS priority weight 256, exclusive, on stream 0, which is also
 /// [`v154_http2`]'s connection priority.
 ///
-/// The client hints form one block in profile order after `Connection` (on
-/// HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
+/// The client hints form one block in profile order after `Connection` or
+/// `Proxy-Connection` (on HTTP/1.1) and before `Upgrade-Insecure-Requests`; after `Accept-CH` the
 /// requested hints join that block, as the HTTP/1.1 client-hint capture shows.
 /// No capture records an HTTP/2 or HTTP/3 navigation after `Accept-CH`; the
 /// same placement on those protocols is inferred from the default block, which
@@ -479,6 +479,13 @@ fn websocket_accept_encoding(name: &str) -> WebSocketField {
 /// navigation to the plaintext name `origin.phantom.test` without them, with
 /// `Accept-Encoding: gzip, deflate`, and with the remaining fields in the same
 /// order on HTTP/1.1 and HTTP/2; Chrome sends no client hints there either.
+///
+/// When an HTTP/1.1 proxy forwards the request, Chrome sends
+/// `Proxy-Connection: keep-alive` where a direct request has
+/// `Connection: keep-alive`, so both are [`RequestField::ByForwarding`]
+/// entries. The retained `http-proxy-*` proxy route captures show this on
+/// every forwarded page request and `fetch()`, with the other fields
+/// unchanged.
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     v154_navigation_template(Some(V154_WINDOWS_USER_AGENT))
@@ -515,7 +522,8 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// codings are sent only to a potentially trustworthy URL. The proxy route
 /// captures back that shape with a same-origin `fetch()` in the default cache
 /// mode; that `Pragma` and `Cache-Control` keep their positions on a plaintext
-/// named origin is inferred, not captured.
+/// named origin is inferred, not captured. Forwarded through an HTTP/1.1
+/// proxy, `Connection` becomes `Proxy-Connection`, as on the navigation.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
@@ -543,7 +551,8 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
     ];
     RequestTemplate {
         http1_fields: vec![
-            RequestField::literal("Connection", "keep-alive"),
+            RequestField::unless_forwarded("Connection", "keep-alive"),
+            RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
             RequestField::ClientHints,
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
             user_agent("User-Agent"),
@@ -575,7 +584,8 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
     };
     RequestTemplate {
         http1_fields: vec![
-            RequestField::literal("Connection", "keep-alive"),
+            RequestField::unless_forwarded("Connection", "keep-alive"),
+            RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
             RequestField::literal("Pragma", "no-cache"),
             RequestField::literal("Cache-Control", "no-cache"),
             RequestField::client_hint("sec-ch-ua-platform"),

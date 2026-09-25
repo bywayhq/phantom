@@ -189,6 +189,14 @@ impl Route {
         matches!(self, Self::HttpProxy(proxy) if proxy.uses_http2())
     }
 
+    /// Returns whether this route forwards a request for `uri` through an
+    /// HTTP proxy instead of tunneling it: an `http://` request on an HTTP
+    /// proxy route, in absolute form on HTTP/1.1 or with `:scheme` `http`
+    /// on an HTTP/2 proxy connection.
+    pub(crate) fn forwards(&self, uri: &http::Uri) -> bool {
+        uri.scheme_str() == Some("http") && matches!(self, Self::HttpProxy(_))
+    }
+
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
             Self::HttpProxy(proxy) => Some(proxy),

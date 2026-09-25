@@ -169,6 +169,24 @@ fn assert_matches(
                     "{label}: {name} is sent only to other URLs"
                 );
             }
+            // No capture read here went through an HTTP proxy.
+            RequestField::ByForwarding {
+                name,
+                unforwarded: Some(value),
+                ..
+            } => {
+                let (seen_name, seen_value) = observed
+                    .next()
+                    .unwrap_or_else(|| panic!("{label}: missing {name}"));
+                assert_eq!(seen_name, &**name, "{label}");
+                assert_eq!(seen_value, &**value, "{label}: {name}");
+            }
+            RequestField::ByForwarding { name, .. } => {
+                assert!(
+                    observed.peek().is_none_or(|(seen, _)| seen != &**name),
+                    "{label}: {name} is sent only through a forwarding proxy"
+                );
+            }
             RequestField::Caller { name, .. } => {
                 if observed.peek().is_some_and(|(seen, _)| seen == &**name) {
                     observed.next();
@@ -685,9 +703,16 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
     }
     assert!(template.validate().is_err(), "a caller te value is unknown");
 
-    // HTTP/1.1 lists keep `Connection: keep-alive`.
+    // HTTP/1.1 lists keep `Connection: keep-alive`, and Chromium's also
+    // `Proxy-Connection: keep-alive` for a forwarded request.
+    let http1 = chromium::v154_windows_navigation_template().http1_fields;
+    assert!(http1.contains(&RequestField::unless_forwarded("Connection", "keep-alive")));
+    assert!(http1.contains(&RequestField::when_forwarded(
+        "Proxy-Connection",
+        "keep-alive"
+    )));
     assert!(
-        chromium::v154_windows_navigation_template()
+        firefox::v156_windows_navigation_template()
             .http1_fields
             .contains(&RequestField::literal("Connection", "keep-alive"))
     );
@@ -951,4 +976,94 @@ fn validation_rejects_a_trust_dependent_field_without_values() {
         .http1_fields
         .push(RequestField::trustworthy_only("Sec-Fetch-Probe", "?1"));
     assert!(template.validate().is_err());
+}
+
+#[test]
+fn validation_rejects_a_forwarding_dependent_field_without_values() {
+    let mut template = chromium::v154_windows_navigation_template();
+    template.http1_fields.push(RequestField::ByForwarding {
+        name: "X-Probe".into(),
+        unforwarded: None,
+        forwarded: None,
+    });
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http1_fields")
+    );
+
+    let mut template = chromium::v154_windows_navigation_template();
+    template
+        .http1_fields
+        .push(RequestField::when_forwarded("X-Probe", "a\r\n"));
+    assert!(template.validate().is_err());
+
+    // `Proxy-Connection` is connection-specific, so HTTP/2 refuses it.
+    let mut template = chromium::v154_windows_navigation_template();
+    template.http2_fields.push(RequestField::when_forwarded(
+        "proxy-connection",
+        "keep-alive",
+    ));
+    assert_eq!(
+        template.validate().map_err(|error| error.field()),
+        Err("http2_fields")
+    );
+}
+
+// Field names after `Host` of the forwarded navigation and `fetch()` in
+// `fixtures/proxy/{chrome,edge}/*/windows-11-26200/http-proxy-hostname.txt`,
+// three agreeing runs each: Chromium replaces `Connection: keep-alive` with
+// `Proxy-Connection: keep-alive` in the same position and changes nothing
+// else. Firefox's `http-proxy-hostname.txt` requests match its direct ones.
+#[test]
+fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded() {
+    let forwarded = |fields: &[RequestField]| -> Vec<(String, String)> {
+        fields
+            .iter()
+            .filter_map(|field| {
+                let value = match field {
+                    RequestField::ByForwarding { forwarded, .. } => forwarded.as_deref(),
+                    other => other.default_value(false),
+                }?;
+                Some((field.name()?.to_owned(), value.to_owned()))
+            })
+            .collect()
+    };
+    let direct = |fields: &[RequestField]| -> Vec<(String, String)> {
+        emitted(fields, false)
+            .into_iter()
+            .map(|(name, value)| (name.to_owned(), value.to_owned()))
+            .collect()
+    };
+    for template in [
+        chromium::v154_windows_navigation_template(),
+        chromium::v154_windows_fetch_no_store_template(),
+        edge::v153_windows_navigation_template(),
+        edge::v153_windows_fetch_no_store_template(),
+    ] {
+        let mut expected = direct(&template.http1_fields);
+        let connection = expected
+            .iter_mut()
+            .find(|(name, _)| name == "Connection")
+            .unwrap_or_else(|| panic!("Chromium sends Connection directly"));
+        connection.0 = "Proxy-Connection".to_owned();
+        assert_eq!(forwarded(&template.http1_fields), expected);
+        assert_eq!(
+            expected[0],
+            ("Proxy-Connection".to_owned(), "keep-alive".to_owned())
+        );
+        // HTTP/2 has no connection field to swap.
+        assert_eq!(
+            forwarded(&template.http2_fields),
+            direct(&template.http2_fields)
+        );
+    }
+    for template in [
+        firefox::v156_windows_navigation_template(),
+        firefox::v156_windows_fetch_no_store_template(),
+    ] {
+        assert_eq!(
+            forwarded(&template.http1_fields),
+            direct(&template.http1_fields)
+        );
+    }
 }

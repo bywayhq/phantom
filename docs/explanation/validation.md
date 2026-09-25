@@ -701,9 +701,10 @@ Limits:
 - The captured `fetch()` used the default cache mode. That the no-store
   template's `Pragma` and `Cache-Control` keep their positions on a named
   plaintext origin is inferred.
-- Through an HTTP proxy, Chromium sends `Proxy-Connection: keep-alive` where
-  the template has `Connection: keep-alive`. Phantom sends the template's
-  field; the [roadmap](../roadmap.md) queues a route-dependent field.
+- Through an HTTP/1.1 proxy, Chromium sends `Proxy-Connection: keep-alive`
+  where a direct request has `Connection: keep-alive`. The Chrome and Edge
+  templates carry both as `RequestField::ByForwarding` entries; see
+  [Proxy route browser evidence](#proxy-route-browser-evidence).
 - Every captured WebSocket page is same-origin with its socket, except the
   `fresh-origin` scenario in `fixtures/websocket/`, whose Firefox socket
   sends `Sec-Fetch-Site: cross-site`. The recipe's `same-origin` default fits
@@ -1606,6 +1607,17 @@ Further observations:
 
 Against the route matrix:
 
+- `http://` H1 through an H1 proxy: Phantom forwards in absolute form with
+  the request template's fields. The Chrome and Edge templates send
+  `Proxy-Connection: keep-alive` where a direct request has
+  `Connection: keep-alive`, and Firefox's send their direct fields.
+  `built_in_templates_send_the_captured_named_plaintext_fields` and
+  `built_in_templates_forward_the_captured_loopback_plaintext_fields` in
+  `crates/phantom/tests/plaintext_templates.rs` compare every forwarded field
+  and value with the `http-proxy-hostname` and `http-proxy-loopback`
+  requests, and
+  `chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded`
+  in `phantom-profile` checks the template data.
 - `ws://` H1 through an H1 proxy: Phantom tunnels with CONNECT and sends
   the direct Upgrade inside, as every captured browser does.
   `plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening`
@@ -1643,9 +1655,9 @@ Limits:
   settings cannot name a TLS proxy. Chromium uses `--proxy-server`.
 - Chromium was launched with `--disable-field-trial-config`; field trials in
   a normal profile may change these results.
-- Only the `ws://` opening inside the tunnel and the pseudo-field order of
-  H2 forwarding are compared with a fixture. The `ws://` opening is compared
-  for both origins; see
+- The `ws://` opening inside the tunnel, the fields of H1 forwarding, and
+  the pseudo-field order of H2 forwarding are compared with a fixture. The
+  `ws://` opening is compared for both origins; see
   [Plaintext origin trust evidence](#plaintext-origin-trust-evidence).
 
 ### Proxy authentication evidence

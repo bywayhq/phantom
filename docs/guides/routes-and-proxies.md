@@ -75,6 +75,8 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 - `http://` origins use absolute-form forwarding over HTTP/1.1.
   A negotiated `http://` request is forwarded as H1, because cleartext has no
   ALPN. Forwarding never switches to CONNECT, H2, H3, or a direct route.
+  The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
+  on a forwarded request where a direct one has `Connection: keep-alive`.
 - With an `https://` proxy, Phantom verifies the proxy's certificate under
   the proxy trust settings. Basic credentials sent to an `http://` proxy
   travel unencrypted.

@@ -15,7 +15,8 @@
 //! through a loopback HTTP forward proxy, which receives the absolute-form
 //! request. The captures show that the field set depends on the origin, not
 //! on the route; only Chromium's `Connection` becomes `Proxy-Connection` on
-//! that route, which the expected lists below do not model.
+//! that route (`http-proxy-loopback.txt` and `http-proxy-hostname.txt`),
+//! which [`forwarded`] applies to the direct lists.
 
 #[allow(dead_code)]
 #[path = "support/tls.rs"]
@@ -76,10 +77,6 @@ struct Chromium {
     brands: &'static str,
 }
 
-// The named origin is reached through a forward proxy, where Chromium sends
-// `Proxy-Connection: keep-alive` in place of `Connection`. Phantom sends the
-// template's `Connection`; the Proxy-Connection item in docs/roadmap.md
-// tracks the gap.
 impl Chromium {
     fn navigation(&self, loopback: bool) -> Fields {
         let mut list = vec![("Connection", "keep-alive")];
@@ -184,10 +181,27 @@ fn firefox_fetch(loopback: bool) -> Fields {
     fields(&list)
 }
 
+/// Returns the fields of a direct request as a browser forwards them through
+/// an HTTP/1.1 proxy: Chromium sends `Proxy-Connection` where a direct
+/// request has `Connection`, and Firefox changes nothing.
+fn forwarded(case: &Case, direct: &Fields) -> Fields {
+    direct
+        .iter()
+        .map(|(name, value)| {
+            if case.chromium && name == "Connection" {
+                ("Proxy-Connection".to_owned(), value.clone())
+            } else {
+                (name.clone(), value.clone())
+            }
+        })
+        .collect()
+}
+
 /// One built-in profile, template, caller fields, and the fields a browser
-/// sends to a loopback and to a named plaintext origin.
+/// sends directly to a loopback and to a named plaintext origin.
 struct Case {
     label: &'static str,
+    chromium: bool,
     hints: Option<ClientHintSettings>,
     template: RequestTemplate,
     caller: Vec<RequestHeader>,
@@ -209,6 +223,7 @@ fn cases() -> Vec<Case> {
     vec![
         Case {
             label: "chrome navigation",
+            chromium: true,
             hints: Some(chromium::v154_windows_client_hints()),
             template: chromium::v154_windows_navigation_template(),
             caller: Vec::new(),
@@ -217,6 +232,7 @@ fn cases() -> Vec<Case> {
         },
         Case {
             label: "chrome fetch",
+            chromium: true,
             hints: Some(chromium::v154_windows_client_hints()),
             template: chromium::v154_windows_fetch_no_store_template(),
             caller: vec![referer()],
@@ -225,6 +241,7 @@ fn cases() -> Vec<Case> {
         },
         Case {
             label: "edge navigation",
+            chromium: true,
             hints: Some(edge::v153_windows_client_hints()),
             template: edge::v153_windows_navigation_template(),
             caller: vec![edge_ua()],
@@ -233,6 +250,7 @@ fn cases() -> Vec<Case> {
         },
         Case {
             label: "edge fetch",
+            chromium: true,
             hints: Some(edge::v153_windows_client_hints()),
             template: edge::v153_windows_fetch_no_store_template(),
             caller: vec![edge_ua(), referer()],
@@ -241,6 +259,7 @@ fn cases() -> Vec<Case> {
         },
         Case {
             label: "firefox navigation",
+            chromium: false,
             hints: None,
             template: firefox::v156_windows_navigation_template(),
             caller: Vec::new(),
@@ -249,6 +268,7 @@ fn cases() -> Vec<Case> {
         },
         Case {
             label: "firefox fetch",
+            chromium: false,
             hints: None,
             template: firefox::v156_windows_fetch_no_store_template(),
             caller: vec![referer()],
@@ -370,7 +390,81 @@ async fn built_in_templates_send_the_captured_named_plaintext_fields() -> TestRe
                 "{}",
                 case.label
             );
-            assert_eq!(fields, case.named, "{}", case.label);
+            assert_eq!(fields, forwarded(&case, &case.named), "{}", case.label);
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn built_in_templates_forward_the_captured_loopback_plaintext_fields() -> TestResult<()> {
+    bounded(async {
+        for case in cases() {
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+            let head = send(
+                &case,
+                "http://127.0.0.1:9/page",
+                Some(Route::http_proxy(proxy)),
+                listener,
+            )
+            .await?;
+            let (request_line, fields) = parse_head(&head)?;
+            assert_eq!(
+                request_line, "GET http://127.0.0.1:9/page HTTP/1.1",
+                "{}",
+                case.label
+            );
+            assert_eq!(fields, forwarded(&case, &case.loopback), "{}", case.label);
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// A caller field keeps its value at the template's position on a
+/// forwarded request, for either connection field.
+#[tokio::test]
+async fn caller_connection_fields_override_the_forwarded_template_value() -> TestResult<()> {
+    bounded(async {
+        for (caller, expected) in [
+            (
+                RequestHeader::new("proxy-connection", "close"),
+                vec![("Proxy-Connection", "close")],
+            ),
+            (
+                RequestHeader::new("connection", "close"),
+                vec![("Connection", "close"), ("Proxy-Connection", "keep-alive")],
+            ),
+        ] {
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+            let case = Case {
+                caller: vec![caller],
+                ..cases().swap_remove(0)
+            };
+            let head = send(
+                &case,
+                "http://origin.phantom.test/page",
+                Some(Route::http_proxy(proxy)),
+                listener,
+            )
+            .await?;
+            let (_, fields) = parse_head(&head)?;
+            let leading: Vec<(&str, &str)> = fields
+                .iter()
+                .take(expected.len())
+                .map(|(name, value)| (name.as_str(), value.as_str()))
+                .collect();
+            assert_eq!(leading, expected);
+            assert!(
+                fields
+                    .iter()
+                    .skip(expected.len())
+                    .all(|(name, _)| !name.eq_ignore_ascii_case("connection")
+                        && !name.eq_ignore_ascii_case("proxy-connection"))
+            );
         }
         Ok(())
     })

@@ -7,7 +7,9 @@
 //! [`ClientHintSettings`](crate::ClientHintSettings). Fields whose value
 //! depends on whether the request URL is potentially trustworthy, such as
 //! `Accept-Encoding` and the `Sec-Fetch-*` fields, are
-//! [`RequestField::ByTrust`] entries.
+//! [`RequestField::ByTrust`] entries. Fields whose presence depends on whether
+//! an HTTP proxy forwards the request, such as Chromium's `Proxy-Connection`,
+//! are [`RequestField::ByForwarding`] entries.
 
 use std::{collections::HashSet, error::Error, fmt};
 
@@ -63,6 +65,26 @@ pub enum RequestField {
         trustworthy: Option<Box<str>>,
         /// Value sent to any other URL, or `None` to send nothing there.
         untrustworthy: Option<Box<str>>,
+    },
+    /// A field whose captured value depends on whether an HTTP proxy
+    /// forwards the request.
+    ///
+    /// A request is forwarded when an HTTP proxy route carries an `http://`
+    /// request itself: in absolute form on HTTP/1.1, or with `:scheme` `http`
+    /// on an HTTP/2 proxy connection. A request inside a CONNECT or SOCKS5
+    /// tunnel, or on a direct route, is not forwarded. Chromium sends
+    /// `Proxy-Connection: keep-alive` in place of `Connection: keep-alive` on
+    /// a forwarded HTTP/1.1 request. A caller field with this name takes this
+    /// position in either case, as it does for [`Self::Literal`].
+    ByForwarding {
+        /// Exact field-name spelling.
+        name: Box<str>,
+        /// Value sent when the request is not forwarded, or `None` to send
+        /// nothing then.
+        unforwarded: Option<Box<str>>,
+        /// Value sent when an HTTP proxy forwards the request, or `None` to
+        /// send nothing then.
+        forwarded: Option<Box<str>>,
     },
 }
 
@@ -125,22 +147,45 @@ impl RequestField {
         }
     }
 
-    /// Returns the field name of a literal, caller, single-hint, or
-    /// trust-dependent entry.
+    /// Creates a field sent only when an HTTP proxy does not forward the
+    /// request.
+    #[must_use]
+    pub fn unless_forwarded(name: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        Self::ByForwarding {
+            name: name.into(),
+            unforwarded: Some(value.into()),
+            forwarded: None,
+        }
+    }
+
+    /// Creates a field sent only when an HTTP proxy forwards the request.
+    #[must_use]
+    pub fn when_forwarded(name: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        Self::ByForwarding {
+            name: name.into(),
+            unforwarded: None,
+            forwarded: Some(value.into()),
+        }
+    }
+
+    /// Returns the field name of a literal, caller, single-hint,
+    /// trust-dependent, or forwarding-dependent entry.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
             Self::Literal { name, .. }
             | Self::Caller { name, .. }
             | Self::ClientHint { name }
-            | Self::ByTrust { name, .. } => Some(name),
+            | Self::ByTrust { name, .. }
+            | Self::ByForwarding { name, .. } => Some(name),
             Self::ClientHints => None,
         }
     }
 
     /// Returns the value this entry sends when the caller supplies no field
-    /// of its name: a literal's value, or a trust-dependent entry's value
-    /// for `trustworthy`. Slots return `None`.
+    /// of its name and no HTTP proxy forwards the request: a literal's value,
+    /// a trust-dependent entry's value for `trustworthy`, or a
+    /// forwarding-dependent entry's unforwarded value. Slots return `None`.
     #[must_use]
     pub fn default_value(&self, trustworthy: bool) -> Option<&str> {
         match self {
@@ -150,6 +195,7 @@ impl RequestField {
                 untrustworthy: other,
                 ..
             } => if trustworthy { secure } else { other }.as_deref(),
+            Self::ByForwarding { unforwarded, .. } => unforwarded.as_deref(),
             Self::Caller { .. } | Self::ClientHint { .. } | Self::ClientHints => None,
         }
     }
@@ -390,6 +436,28 @@ fn validate_fields(
                     ));
                 }
                 if ![trustworthy, untrustworthy]
+                    .into_iter()
+                    .flatten()
+                    .all(|value| is_field_value(value))
+                {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "literal values must contain only visible ASCII, spaces, or tabs",
+                    ));
+                }
+            }
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded,
+                ..
+            } => {
+                if unforwarded.is_none() && forwarded.is_none() {
+                    return Err(InvalidRequestTemplate::new(
+                        field,
+                        "a forwarding-dependent field needs a value for at least one route",
+                    ));
+                }
+                if ![unforwarded, forwarded]
                     .into_iter()
                     .flatten()
                     .all(|value| is_field_value(value))
