@@ -46,9 +46,9 @@ type CaptureResult<T> = Result<T, Box<dyn Error>>;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> CaptureResult<()> {
     let arguments = Arguments::parse(env::args().skip(1))?;
+    require_loopback(arguments.listen_address, "listener")?;
     let listener = TcpListener::bind(arguments.listen_address).await?;
     let listen_address = listener.local_addr()?;
-    require_loopback(listen_address, "listener")?;
 
     eprintln!(
         "listening on {listen_address}; capture requires initial SETTINGS and a connection WINDOW_UPDATE"
