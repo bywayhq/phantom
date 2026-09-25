@@ -101,8 +101,11 @@ have shown where the real architectural boundaries are.
   1. HPACK indexing of `proxy-authorization`. Both browsers send it as a
      literal with incremental indexing and then as an indexed field on the
      same H2 proxy connection; Phantom marks it sensitive, so it is always a
-     never-indexed literal. Changing this needs a way to index a field
-     without printing its value in diagnostics.
+     never-indexed literal. Only the proxy sees the difference, and
+     [Validation](explanation/validation.md#proxy-authentication-evidence)
+     gives the reasons Phantom keeps it for now. Matching the browsers would
+     need a profile setting and a `RequestHeader` marker that hides a value
+     from `Debug` output without choosing the never-indexed form.
   2. Connection reuse after a `407` to CONNECT or HTTP/1.1 forwarding. Both
      browsers replay a challenged HTTP/1.1 forwarded request on the same
      proxy connection when the `407` leaves it open, and Chromium does the

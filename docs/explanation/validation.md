@@ -1791,7 +1791,19 @@ Remaining differences:
   first, and last or before `te` for the second, as on the captured requests
   of the other kind.
 - H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
-  literal, where both browsers index it.
+  literal, where both browsers index it. Phantom keeps this on purpose, as of
+  2026-09-25. The HPACK block goes only to the proxy, which already holds the
+  credentials and re-encodes the request toward the origin, so the
+  difference is visible to the proxy and not to an origin. RFC 7541 section
+  7.1.3 recommends never indexing credentials, because a peer that can add
+  chosen fields to requests on the same connection and observe their size
+  can guess an indexed value. Indexing would also need a new marker:
+  `RequestHeader::sensitive` both selects the never-indexed form and hides
+  the value from `Debug` output, and a field without it prints its value in
+  `RequestHeader` and `http::HeaderValue` `Debug` output. The vendored
+  `http2` frame `Debug` output leaves out every field, and Phantom never
+  prints the connection whose HPACK table would hold the value, but the
+  request fields pass through Phantom's own types first.
 - The replay after a challenge to a CONNECT or H1 forwarded request opens a
   new proxy connection, where both browsers reuse a connection that the `407`
   left open. The record limits this cost to the first challenge for each
