@@ -240,9 +240,12 @@ impl Http3Connector {
     /// Returns whether a request waits for the peer's HTTP/3 SETTINGS before
     /// its HEADERS are encoded, as under dynamic QPACK encoding.
     ///
-    /// On a connection that sent early data, the SETTINGS arrive with the
-    /// server's first flight, which also completes the handshake, so such a
-    /// request never leaves in 0-RTT packets.
+    /// A connection that sent early data and
+    /// [started from remembered SETTINGS](Http3Connection::started_from_remembered_settings)
+    /// already has them, so its requests do not wait. On any other connection
+    /// that sent early data, the SETTINGS arrive with the server's first
+    /// flight, which also completes the handshake, so such a request never
+    /// leaves in 0-RTT packets.
     #[must_use]
     pub fn requests_wait_for_peer_settings(&self) -> bool {
         self.settings.qpack_encoding == phantom_profile::Http3QpackEncoding::Dynamic

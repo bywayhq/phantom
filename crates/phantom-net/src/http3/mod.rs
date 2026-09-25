@@ -14,7 +14,7 @@ use bytes::Bytes;
 use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Method, Response};
 use phantom_profile::{Http3RequestSettings, Http3Settings};
-use phantom_quic_btls::{HandshakeData, QuicClientConfig, StatelessResetKey};
+use phantom_quic_btls::{ApplicationState, HandshakeData, QuicClientConfig, StatelessResetKey};
 use tracing::{debug, debug_span, field};
 
 use datagram::{DatagramMonitor, DatagramRouter};
@@ -465,6 +465,13 @@ async fn connect(
 ) -> Result<Http3Connection, Http3Error> {
     let mut builder = settings::builder(settings, &crypto)?;
     let sends_early_data = crypto.sends_early_data();
+    // The server's SETTINGS are kept with each ticket this connection
+    // receives, and read back when a ticket is presented with early data.
+    let application_state = crypto.resumes_sessions().then(ApplicationState::new);
+    let crypto = match &application_state {
+        Some(state) => Arc::new(crypto.with_application_state(state)),
+        None => crypto,
+    };
     let round_trip = RoundTripRecorder::new(&crypto, server_name);
     #[cfg(test)]
     let peer_alps_override = diagnostics.early_peer_alps.clone();
@@ -492,6 +499,25 @@ async fn connect(
     } else {
         (connecting.await.map_err(connection_error)?, None)
     };
+    // Early data starts from the SETTINGS of the connection that issued the
+    // ticket, as RFC 9114 section 7.2.4.2 permits and Chromium does, so a
+    // request can be encoded before the server's SETTINGS arrive.
+    let remembered_settings = zero_rtt
+        .as_ref()
+        .and(application_state.as_ref())
+        .and_then(ApplicationState::remembered);
+    if let Some(remembered) = &remembered_settings {
+        builder
+            .remembered_peer_settings(remembered)
+            .map_err(|error| {
+                Http3Error::with_source(
+                    Http3ErrorKind::Protocol,
+                    "remembered HTTP/3 SETTINGS are invalid",
+                    error,
+                )
+            })?;
+        debug!("HTTP/3 connection starting from remembered SETTINGS");
+    }
     let accept_ch = Arc::new(OnceLock::new());
     if zero_rtt.is_none() {
         let handshake = require_h3(&connection)?;
@@ -543,6 +569,7 @@ async fn connect(
         endpoint,
         connection.clone(),
         late_settings_receiver,
+        application_state,
         round_trip.clone(),
     );
     let early_data = zero_rtt
@@ -569,6 +596,7 @@ async fn connect(
         connector_identity,
         accept_ch,
         early_data,
+        remembered_settings.is_some(),
     ))
 }
 

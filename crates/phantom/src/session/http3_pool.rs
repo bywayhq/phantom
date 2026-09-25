@@ -143,7 +143,8 @@ impl Http3Pool {
         if sends_before_handshake(
             is_replay_safe(&method, body.as_ref(), &trailers),
             leased.lease.connection.early_data_pending(),
-            connector.requests_wait_for_peer_settings(),
+            connector.requests_wait_for_peer_settings()
+                && !leased.lease.connection.started_from_remembered_settings(),
         ) {
             // A replay-safe request on a connection whose early data is still
             // unanswered goes out as early data, with the client hints known
@@ -894,7 +895,8 @@ impl Http3Lease {
 /// Returns whether a request goes out before its connection's handshake
 /// completes: a replay-safe request on a connection whose early data is
 /// unanswered, unless the QPACK policy holds every request until the peer's
-/// SETTINGS, which arrive only with the completed handshake. Such a request
+/// SETTINGS and the connection has neither those nor remembered ones. The
+/// server's SETTINGS arrive only with the completed handshake. Such a request
 /// uses the client hints known before the handshake; every other request
 /// waits for the answer and uses the hints the handshake delivered.
 const fn sends_before_handshake(
@@ -1174,9 +1176,10 @@ mod tests {
     }
 
     /// Only a replay-safe request on a connection whose early data is
-    /// unanswered, under a QPACK policy that does not wait for the peer's
-    /// SETTINGS, goes out before the handshake with the pre-handshake client
-    /// hints; every other request waits and uses the handshake's hints.
+    /// unanswered, where the QPACK policy does not wait for the peer's
+    /// SETTINGS or remembered SETTINGS stand in for them, goes out before the
+    /// handshake with the pre-handshake client hints; every other request
+    /// waits and uses the handshake's hints.
     #[test]
     fn only_an_unheld_replay_safe_request_goes_out_before_the_handshake() {
         use super::sends_before_handshake;

@@ -17,12 +17,19 @@ fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     )?)
 }
 
-/// Accepts QUIC connections and holds each until the client closes it.
+/// Accepts QUIC connections, sends each an empty SETTINGS frame, and holds
+/// it until the client closes it.
+///
+/// A client stores a connection's tickets only once the server's SETTINGS
+/// arrive, to keep them with the tickets.
 fn spawn_server(endpoint: quinn::Endpoint) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         while let Some(incoming) = endpoint.accept().await {
             tokio::spawn(async move {
-                if let Ok(connection) = incoming.await {
+                if let Ok(connection) = incoming.await
+                    && let Ok(mut control) = connection.open_uni().await
+                {
+                    let _ = control.write_all(&[0x00, 0x04, 0x00]).await;
                     connection.closed().await;
                 }
             });

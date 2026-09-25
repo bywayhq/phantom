@@ -248,10 +248,12 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
 }
 
 /// Under the recipe's dynamic QPACK policy a request waits for the peer's
-/// SETTINGS, which arrive with the completed handshake, so its stream opens
-/// after the handshake although the connection sent early data.
+/// SETTINGS. A resumed connection starts from the SETTINGS remembered with its
+/// ticket, so a replay-safe request's stream opens before the handshake, as
+/// Chromium sends it in 0-RTT.
 #[tokio::test(flavor = "current_thread")]
-async fn dynamic_qpack_holds_a_replay_safe_request_until_the_handshake() -> TestResult<()> {
+async fn dynamic_qpack_sends_a_replay_safe_request_early_from_remembered_settings() -> TestResult<()>
+{
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let identity = TestIdentity::generate()?;
     let served = Served::default();
@@ -263,20 +265,126 @@ async fn dynamic_qpack_holds_a_replay_safe_request_until_the_handshake() -> Test
     let subscriber = OutcomeSubscriber::default();
     let (connection, response) = async {
         let connection = connect(&early, relay).await?;
-        let response = send(&early, &connection, Method::GET, "/held", None).await?;
+        let response = send(&early, &connection, Method::GET, "/early", None).await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((connection, response))
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
     assert!(connection.sent_early_data());
+    assert!(connection.started_from_remembered_settings());
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(connection.early_data_accepted().await, Some(true));
     assert_eq!(
         subscriber.field_values_for("http3.response_head", "early_data"),
-        ["after_handshake"]
+        ["sent"]
     );
 
     drop((connection, response));
     relay_task.abort();
+    server.abort();
+    Ok(())
+}
+
+/// A server that accepts early data and then lowers a limit the remembered
+/// SETTINGS promised is closed with `H3_SETTINGS_ERROR` (RFC 9114, section
+/// 7.2.4.2).
+#[tokio::test(flavor = "current_thread")]
+async fn a_server_that_reduces_a_remembered_setting_is_closed_with_settings_error() -> TestResult<()>
+{
+    const H3_SETTINGS_ERROR: u32 = 0x109;
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (closed_tx, mut closed) = tokio::sync::mpsc::unbounded_channel();
+    let server = tokio::spawn(async move {
+        // The resumed connection lowers the field-section limit that the
+        // ticket's connection advertised.
+        for limit in [16_384, 8_192] {
+            let Some(incoming) = endpoint.accept().await else {
+                return;
+            };
+            let closed_tx = closed_tx.clone();
+            tokio::spawn(async move {
+                let Ok(quic) = incoming.await else {
+                    return;
+                };
+                let Ok(mut connection) = h3::server::builder()
+                    .max_field_section_size(limit)
+                    .build::<_, Bytes>(h3_quinn::Connection::new(quic.clone()))
+                    .await
+                else {
+                    return;
+                };
+                while let Ok(Some(_resolver)) = connection.accept().await {}
+                let _ = closed_tx.send((limit, quic.closed().await));
+            });
+        }
+    });
+
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    let resumed = connect(&early, address).await?;
+    assert!(resumed.started_from_remembered_settings());
+    let reason = timeout(TEST_TIMEOUT, async {
+        while let Some((limit, reason)) = closed.recv().await {
+            if limit == 8_192 {
+                return Some(reason);
+            }
+        }
+        None
+    })
+    .await
+    .map_err(|_| "the resumed connection stayed open")?
+    .ok_or("the server stopped")?;
+    match reason {
+        quinn::ConnectionError::ApplicationClosed(close) => {
+            assert_eq!(close.error_code, quinn::VarInt::from_u32(H3_SETTINGS_ERROR));
+        }
+        other => return Err(format!("unexpected close: {other}").into()),
+    }
+    assert!(!early.can_reuse(&resumed).await);
+
+    drop(resumed);
+    server.abort();
+    Ok(())
+}
+
+/// Remembered SETTINGS are read back only with a ticket from the same cache,
+/// meaning the same origin and route, for the same verified server name.
+#[tokio::test(flavor = "current_thread")]
+async fn remembered_settings_stay_with_their_ticket_cache_and_server_name() -> TestResult<()> {
+    const OTHER_NAME: &str = "other.phantom.test";
+    let identity = TestIdentity::generate_for_names(&[TEST_SERVER_NAME, OTHER_NAME])?;
+    let served = Served::default();
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let (address, _endpoint, server) = learn_ticket(&identity, &early, &served).await?;
+
+    // Another cache, as for another route to the same origin.
+    let sibling = trusting_connector(&identity)?.with_isolated_session_cache();
+    let other_route = connect(&sibling, address).await?;
+    assert!(!other_route.session_resumed());
+    assert!(!other_route.started_from_remembered_settings());
+
+    // The same cache, for another server name.
+    let other_name = timeout(
+        TEST_TIMEOUT,
+        early.connect_direct(&address.ip().to_string(), address.port(), OTHER_NAME),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    assert!(!other_name.sent_early_data());
+    assert!(!other_name.started_from_remembered_settings());
+
+    let resumed = connect(&early, address).await?;
+    assert!(resumed.sent_early_data());
+    assert!(resumed.started_from_remembered_settings());
+
+    drop((other_route, other_name, resumed));
     server.abort();
     Ok(())
 }
@@ -416,9 +524,13 @@ async fn accepted_early_data_applies_peer_alps_once_the_handshake_completes() ->
     let identity = TestIdentity::generate()?;
     let served = Served::default();
     let isolated = trusting_connector(&identity)?.with_isolated_session_cache();
-    // A SETTINGS frame the server's control stream agrees with, then an
+    // A SETTINGS frame the server's control stream and the remembered
+    // SETTINGS agree with, the largest field-section limit, then an
     // ACCEPT_CH entry for the origin.
-    let mut alps = alps_frame(0x04, &[0x06, 0x60, 0x00]);
+    let mut alps = alps_frame(
+        0x04,
+        &[0x06, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+    );
     let mut entry = vec![u8::try_from(ORIGIN.len())?];
     entry.extend_from_slice(ORIGIN.as_bytes());
     entry.push(14);

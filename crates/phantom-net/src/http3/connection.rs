@@ -57,9 +57,11 @@ struct ConnectionInner {
     /// early data, when its accepted handshake completes.
     accept_ch: Arc<OnceLock<AcceptCh>>,
     early_data: Option<EarlyData>,
+    remembered_settings: bool,
 }
 
 impl Http3Connection {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         sender: RequestSender,
         driver: DriverTask,
@@ -68,6 +70,7 @@ impl Http3Connection {
         connector_identity: Option<Arc<()>>,
         accept_ch: Arc<OnceLock<AcceptCh>>,
         early_data: Option<EarlyData>,
+        remembered_settings: bool,
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
@@ -81,6 +84,7 @@ impl Http3Connection {
                 runtime: Handle::current(),
                 accept_ch,
                 early_data,
+                remembered_settings,
             }),
         }
     }
@@ -123,6 +127,20 @@ impl Http3Connection {
     pub async fn early_data_accepted(&self) -> Option<bool> {
         let early_data = self.inner.early_data.as_ref()?;
         Some(early_data.outcome().await == EarlyDataOutcome::Accepted)
+    }
+
+    /// Returns whether this connection started from the server's HTTP/3
+    /// SETTINGS remembered with the session ticket it presented.
+    ///
+    /// Only a connection that sends early data does. Until the server's own
+    /// SETTINGS arrive, its requests use the remembered values, so a request
+    /// under a dynamic QPACK policy can be encoded without waiting for them
+    /// (RFC 9114, section 7.2.4.2). The server's SETTINGS must then stay
+    /// compatible with the remembered ones; otherwise the connection closes
+    /// with `H3_SETTINGS_ERROR`.
+    #[must_use]
+    pub fn started_from_remembered_settings(&self) -> bool {
+        self.inner.remembered_settings
     }
 
     /// Returns whether this connection sent early data that the server has

@@ -5,6 +5,7 @@ use std::{
 };
 
 use bytes::Bytes;
+use phantom_quic_btls::ApplicationState;
 use tokio::{
     runtime::Handle,
     sync::oneshot,
@@ -35,13 +36,14 @@ impl DriverTask {
         endpoint: quinn::Endpoint,
         connection: quinn::Connection,
         late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
+        application_state: Option<ApplicationState>,
         round_trip: Option<super::RoundTripRecorder>,
     ) -> Self {
         let runtime = Handle::current();
         let dispatch = dispatcher::get_default(Clone::clone);
         let span = debug_span!("http3.connection_driver", outcome = field::Empty);
         let handle = runtime.spawn(
-            drive(driver, late_settings)
+            drive(driver, late_settings, application_state)
                 .instrument(span.clone())
                 .with_subscriber(dispatch.clone()),
         );
@@ -113,6 +115,7 @@ impl DriverSignal {
 async fn drive(
     mut driver: h3::client::Connection<h3_quinn::Connection, Bytes>,
     mut late_settings: Option<oneshot::Receiver<LateApplicationSettings>>,
+    mut application_state: Option<ApplicationState>,
 ) -> DriverResult {
     let error = poll_fn(|context| {
         // The driver owns the HTTP/3 connection state, so peer ALPS that
@@ -125,7 +128,19 @@ async fn drive(
                 let _ = applied.send(driver.apply_peer_application_settings(&payload));
             }
         }
-        driver.poll_close(context)
+        let closed = driver.poll_close(context);
+        // The server's control-stream SETTINGS, once received and applied,
+        // go with the session tickets this connection receives, and the
+        // tickets held until now are stored.
+        if let Some(state) = application_state.as_ref()
+            && let Some(settings) = driver.peer_settings_to_remember()
+        {
+            if state.store(&settings) {
+                debug!("HTTP/3 SETTINGS stored for session resumption");
+            }
+            application_state = None;
+        }
+        closed
     })
     .await;
     if error.is_h3_no_error() {

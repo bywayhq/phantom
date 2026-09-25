@@ -918,12 +918,13 @@ impl ClientBuilder {
     /// permitting early data; a request that finds a pooled connection uses
     /// it as usual. Any other request that opens a new connection offers
     /// early data in its ClientHello, as the captured browsers do, but is
-    /// sent only after the handshake. A profile with dynamic QPACK encoding,
-    /// as in the Chrome 154 recipe, also holds each request until the
-    /// server's SETTINGS arrive, which on a resumed connection is when the
-    /// handshake completes. If the server rejects the early data, it
-    /// processed none of it, and Phantom sends the request again after a
-    /// handshake over the same route and protocol.
+    /// sent only after the handshake. Under a profile with dynamic QPACK
+    /// encoding, as in the Chrome 154 recipe, the connection encodes early
+    /// requests with the server's SETTINGS remembered with the ticket, as
+    /// Chromium does, and closes with `H3_SETTINGS_ERROR` if the server's own
+    /// SETTINGS then lower a remembered limit. If the server rejects the
+    /// early data, it processed none of it, and Phantom sends the request
+    /// again after a handshake over the same route and protocol.
     ///
     /// Building with `true` fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)

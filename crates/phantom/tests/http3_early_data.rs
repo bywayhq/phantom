@@ -28,7 +28,7 @@ use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase,
-    profile::{ClientProfile, Http3ClientSettings, Http3QpackEncoding, chromium},
+    profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{net::UdpSocket, sync::mpsc, task::JoinHandle, time::timeout};
@@ -247,13 +247,12 @@ fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
 /// resumed connection waits for the handshake, as the captured browsers do.
 ///
 /// A gate holds every server datagram, so no handshake can complete while it
-/// is closed. The `GET` must reach the server through the closed gate; the
-/// `POST` must not. The recipe's dynamic QPACK policy makes every request
-/// wait for the server's SETTINGS, which the gate also holds, so this client
-/// encodes requests statelessly; see `stateless_chrome_profile`.
+/// is closed. The `GET` must reach the server through the closed gate, so it
+/// left in 0-RTT packets; the `POST` must not. The gate also holds the
+/// server's SETTINGS, which the recipe's dynamic QPACK policy waits for: the
+/// `GET` is encoded with the SETTINGS remembered with the ticket.
 #[tokio::test]
-async fn resumed_connection_sends_get_early_and_holds_post_with_stateless_qpack() -> TestResult<()>
-{
+async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let endpoint = quinn::Endpoint::server(
@@ -306,7 +305,7 @@ async fn resumed_connection_sends_get_early_and_holds_post_with_stateless_qpack(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = Client::builder(stateless_chrome_profile())
+        let client = Client::builder(chrome_profile())
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
         let subscriber = OutcomeSubscriber::default();
@@ -410,24 +409,6 @@ fn chrome_profile() -> ClientProfile {
         chromium::v154_http3_tls(),
         chromium::v154_quic(),
         chromium::v154_http3(),
-        chromium::v154_http3_request(),
-    ))
-}
-
-/// The Chrome 154 recipes with stateless QPACK request encoding.
-///
-/// The recipe's dynamic policy waits for the server's SETTINGS before it
-/// encodes a request. On a resumed connection those arrive with the server's
-/// first flight, which completes the handshake, so the request leaves in
-/// 1-RTT packets. Phantom does not yet reuse the previous connection's
-/// SETTINGS for early data, as RFC 9114 section 7.2.4.2 allows.
-fn stateless_chrome_profile() -> ClientProfile {
-    let mut http3 = chromium::v154_http3();
-    http3.qpack_encoding = Http3QpackEncoding::Stateless;
-    ClientProfile::new(chromium::v154_tls()).with_http3(Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        http3,
         chromium::v154_http3_request(),
     ))
 }
