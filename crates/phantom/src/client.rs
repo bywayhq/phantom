@@ -1071,7 +1071,10 @@ impl ClientBuilder {
                     settings.request(),
                     self.proxy_additional_roots.iter().map(AsRef::as_ref),
                 )
-                .map(|connector| self.with_qlog(connector))
+                // The outer connection carries only extended CONNECT, which is
+                // never sent early, and no capture shows a browser's
+                // CONNECT-UDP connection, so it offers no early data.
+                .map(|connector| self.with_qlog(connector).without_early_data())
             })
             .transpose()
             .map_err(BuildError::http3)?;
