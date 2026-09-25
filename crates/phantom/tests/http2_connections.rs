@@ -58,6 +58,16 @@ struct Origin {
 impl Origin {
     /// `stalled` names a connection whose TLS handshake waits 3 seconds.
     async fn start(identity: &TestIdentity, stalled: Option<usize>) -> TestResult<Self> {
+        Self::with(identity, stalled, None).await
+    }
+
+    /// Like [`Origin::start`], and closes the `dropped` connection before
+    /// its TLS handshake.
+    async fn with(
+        identity: &TestIdentity,
+        stalled: Option<usize>,
+        dropped: Option<usize>,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
@@ -78,6 +88,10 @@ impl Origin {
                     released.clone(),
                     goaway_requested.clone(),
                 );
+                if dropped == Some(index) {
+                    drop(tcp);
+                    continue;
+                }
                 tokio::spawn(async move {
                     if stalled == Some(index) {
                         sleep(Duration::from_secs(3)).await;
@@ -566,7 +580,90 @@ async fn a_connection_with_room_serves_while_another_is_being_set_up() -> TestRe
         finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
         assert!(started.elapsed() < Duration::from_secs(2));
         assert_eq!(origin.next_request().await?, 0);
+
+        // Cancelling the stalled request frees its setup: once connection 0
+        // is full again, the next request opens a connection of its own.
         stalled.abort();
+        origin.hold();
+        let held = spawn_held(&client, &origin, &["held-4", "held-5", "held-6"]);
+        assert_eq!(origin.next_accepted().await?, 2);
+        origin.release();
+        join(held).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn concurrent_requests_to_a_cold_origin_open_one_connection_by_default() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mut origin = Origin::start(&identity, None).await?;
+        let client = client_builder(&identity, true).build()?;
+        let tasks = spawn_held(&client, &origin, &["warm"; REQUESTS]);
+        // All five share the one connection, two streams at a time.
+        assert_eq!(origin.settle(REQUESTS).await?, (1, REQUESTS));
+        join(tasks).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_failed_setup_lets_a_waiting_request_make_its_own_attempt() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        // Connection 0 closes before its TLS handshake.
+        let mut origin = Origin::with(&identity, None, Some(0)).await?;
+        let client = client_builder(&identity, true).build()?;
+        let first = {
+            let (client, uri) = (client.clone(), origin.uri("warm"));
+            tokio::spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })
+        };
+        let second = {
+            let (client, uri) = (client.clone(), origin.uri("warm"));
+            tokio::spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })
+        };
+        let results = [
+            timeout(TEST_TIMEOUT, first).await??,
+            timeout(TEST_TIMEOUT, second).await??,
+        ];
+        // One request owned the failed setup; the other woke and connected.
+        assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+        assert_eq!(origin.next_accepted().await?, 0);
+        assert_eq!(origin.next_accepted().await?, 1);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        // Connection 1's TLS handshake stalls for 3 seconds.
+        let mut origin = Origin::start(&identity, Some(1)).await?;
+        let client = client_builder(&identity, true)
+            .max_http2_connections_per_origin(bound(2)?)
+            .build()?;
+        finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
+
+        // Two streams fill connection 0 and a third starts connection 1.
+        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        assert_eq!(origin.settle(3).await?, (2, 3));
+        // This request waits: connection 0 is full and a setup is in flight.
+        let waiting = spawn_held(&client, &origin, &["held-4"]);
+        sleep(QUIET_WINDOW).await;
+        assert!(!waiting.iter().any(JoinHandle::is_finished));
+
+        // Connection 0's streams end, which wakes the waiting request before
+        // the stalled setup finishes.
+        let started = std::time::Instant::now();
+        origin.release();
+        assert_eq!(origin.next_request().await?, 0);
+        join(waiting).await?;
+        assert!(started.elapsed() < Duration::from_secs(2));
+        for task in held {
+            task.abort();
+        }
         Ok(())
     })
     .await
