@@ -793,6 +793,22 @@ fn racing_requires_an_alt_svc_store_and_a_valid_backoff() -> TestResult<()> {
 }
 
 #[test]
+fn an_unrepresentable_alternative_setup_limit_is_rejected_at_build() -> TestResult<()> {
+    let identity = identity()?;
+    let race = race_policy(Duration::ZERO)?
+        .race_settings()
+        .ok_or("the race policy has no race settings")?
+        .with_alternative_setup_limit(Duration::MAX);
+    let error = client_builder(&identity)?
+        .alt_svc_policy(AltSvcPolicy::race(race))
+        .build()
+        .err()
+        .ok_or("a setup limit beyond the runtime clock must be rejected")?;
+    assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    Ok(())
+}
+
+#[test]
 fn chromium_broken_backoff_matches_captured_and_sourced_values() {
     let backoff = AltSvcBrokenBackoff::CHROMIUM_153;
     assert_eq!(backoff.period(0), Duration::from_secs(300));

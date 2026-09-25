@@ -45,11 +45,13 @@ enum Event {
 }
 
 /// A loopback HTTP/2 origin that allows two streams per connection and holds
-/// every response except `/warm` until [`Origin::release`].
+/// every response except `/warm` until [`Origin::release`]. A `/head-*`
+/// response sends its head at once and holds only its body.
 struct Origin {
     address: SocketAddr,
     events: mpsc::UnboundedReceiver<Event>,
     release: watch::Sender<bool>,
+    goaway: watch::Sender<Option<usize>>,
     task: JoinHandle<()>,
 }
 
@@ -61,6 +63,7 @@ impl Origin {
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (sender, events) = mpsc::unbounded_channel();
         let (release, released) = watch::channel(false);
+        let (goaway, goaway_requested) = watch::channel(None);
         let task = tokio::spawn(async move {
             let mut accepted = 0;
             while let Ok((tcp, _)) = listener.accept().await {
@@ -69,13 +72,17 @@ impl Origin {
                 if sender.send(Event::Accepted(index)).is_err() {
                     return;
                 }
-                let (acceptor, sender, released) =
-                    (acceptor.clone(), sender.clone(), released.clone());
+                let (acceptor, sender, released, goaway) = (
+                    acceptor.clone(),
+                    sender.clone(),
+                    released.clone(),
+                    goaway_requested.clone(),
+                );
                 tokio::spawn(async move {
                     if stalled == Some(index) {
                         sleep(Duration::from_secs(3)).await;
                     }
-                    let _ = serve(tcp, acceptor, index, sender, released).await;
+                    let _ = serve(tcp, acceptor, index, sender, released, goaway).await;
                 });
             }
         });
@@ -83,8 +90,19 @@ impl Origin {
             address,
             events,
             release,
+            goaway,
             task,
         })
+    }
+
+    /// Holds responses again after a release.
+    fn hold(&self) {
+        self.release.send_replace(false);
+    }
+
+    /// Sends a graceful GOAWAY on the numbered connection.
+    fn goaway(&self, connection: usize) {
+        self.goaway.send_replace(Some(connection));
     }
 
     fn uri(&self, path: &str) -> String {
@@ -155,27 +173,54 @@ async fn serve(
     connection: usize,
     events: mpsc::UnboundedSender<Event>,
     released: watch::Receiver<bool>,
+    mut goaway: watch::Receiver<Option<usize>>,
 ) -> TestResult {
     let stream = accept_tls_stream(tcp, acceptor).await?;
     let mut builder = ::http2::server::Builder::new();
     builder.max_concurrent_streams(PEER_STREAMS);
     let mut server = builder.handshake::<_, Bytes>(stream).await?;
-    while let Some(accepted) = server.accept().await {
+    let mut shutting_down = false;
+    loop {
+        let accepted = tokio::select! {
+            accepted = server.accept() => accepted,
+            changed = goaway.wait_for(|target| *target == Some(connection)),
+                if !shutting_down =>
+            {
+                changed?;
+                // Streams already open still finish.
+                server.graceful_shutdown();
+                shutting_down = true;
+                continue;
+            }
+        };
+        let Some(accepted) = accepted else {
+            return Ok(());
+        };
         let (request, mut respond) = accepted?;
         events.send(Event::Request { connection })?;
-        let hold = request.uri().path() != "/warm";
+        let path = request.uri().path().to_owned();
         let mut released = released.clone();
         tokio::spawn(async move {
-            if hold {
+            let mut body = None;
+            if path.starts_with("/head") {
+                body =
+                    Some(respond.send_response(
+                        Response::builder().status(StatusCode::OK).body(())?,
+                        false,
+                    )?);
+            }
+            if path != "/warm" {
                 released.wait_for(|released| *released).await?;
             }
-            let mut body = respond
-                .send_response(Response::builder().status(StatusCode::OK).body(())?, false)?;
+            let mut body = match body {
+                Some(body) => body,
+                None => respond
+                    .send_response(Response::builder().status(StatusCode::OK).body(())?, false)?,
+            };
             body.send_data(Bytes::from_static(b"done"), true)?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
     }
-    Ok(())
 }
 
 fn bound(value: usize) -> TestResult<NonZeroUsize> {
@@ -367,6 +412,160 @@ async fn without_a_setup_wait_limit_a_request_waits_for_the_handshake() -> TestR
         assert!(opened.is_err(), "a second setup opened: {opened:?}");
         assert!(!waiting.is_finished());
         waiting.abort();
+        stalled.abort();
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn an_unrepresentable_setup_wait_limit_is_rejected_at_build() -> TestResult {
+    let identity = TestIdentity::generate()?;
+    let error = client_builder(&identity, true)
+        .negotiated_setup_wait_limit(Duration::MAX)
+        .build()
+        .err()
+        .ok_or("a wait limit beyond the runtime clock must be rejected")?;
+    assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    Ok(())
+}
+
+/// Sends one held exact request per path at once and returns their tasks.
+fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> Vec<JoinHandle<TestResult>> {
+    paths
+        .iter()
+        .map(|path| {
+            let (client, uri) = (client.clone(), origin.uri(path));
+            tokio::spawn(async move { finish(send(&client, Mode::Exact, &uri).await?).await })
+        })
+        .collect()
+}
+
+async fn join(tasks: Vec<JoinHandle<TestResult>>) -> TestResult {
+    for task in tasks {
+        timeout(TEST_TIMEOUT, task).await???;
+    }
+    Ok(())
+}
+
+/// Returns the sorted connections of the next `count` requests, and fails
+/// if the origin accepts a connection meanwhile.
+async fn requests_without_new_connections(
+    origin: &mut Origin,
+    count: usize,
+) -> TestResult<Vec<usize>> {
+    let mut connections = Vec::new();
+    while connections.len() < count {
+        match timeout(TEST_TIMEOUT, origin.events.recv())
+            .await?
+            .ok_or("origin stopped")?
+        {
+            Event::Request { connection } => connections.push(connection),
+            Event::Accepted(index) => return Err(format!("connection {index} opened").into()),
+        }
+    }
+    connections.sort_unstable();
+    Ok(connections)
+}
+
+#[tokio::test]
+async fn stream_counts_fall_when_bodies_end_or_are_dropped() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mut origin = Origin::start(&identity, None).await?;
+        let client = client_builder(&identity, true)
+            .max_http2_connections_per_origin(bound(2)?)
+            .build()?;
+        finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
+        assert_eq!(origin.next_request().await?, 0);
+
+        // Two response heads arrive while their bodies are held; dropping
+        // the bodies unread ends both streams.
+        let first = send(&client, Mode::Exact, &origin.uri("head-1")).await?;
+        let second = send(&client, Mode::Exact, &origin.uri("head-2")).await?;
+        assert_eq!(
+            requests_without_new_connections(&mut origin, 2).await?,
+            [0, 0]
+        );
+        drop((first, second));
+
+        // Connection 0 has room again, so two more streams need no new
+        // connection.
+        let tasks = spawn_held(&client, &origin, &["held-1", "held-2"]);
+        assert_eq!(
+            requests_without_new_connections(&mut origin, 2).await?,
+            [0, 0]
+        );
+        origin.release();
+        join(tasks).await?;
+
+        // Those streams ended with their bodies, so connection 0 takes the
+        // next two as well.
+        origin.hold();
+        let tasks = spawn_held(&client, &origin, &["held-3", "held-4"]);
+        assert_eq!(
+            requests_without_new_connections(&mut origin, 2).await?,
+            [0, 0]
+        );
+        origin.release();
+        join(tasks).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_connection_that_received_goaway_takes_no_new_streams() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mut origin = Origin::start(&identity, None).await?;
+        let client = client_builder(&identity, true)
+            .max_http2_connections_per_origin(bound(3)?)
+            .build()?;
+        finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
+
+        // Connection 0 fills up, so a third stream opens connection 1.
+        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        assert_eq!(origin.settle(4).await?, (2, 4));
+
+        // After GOAWAY on connection 0, the next stream goes to connection
+        // 1, which has room.
+        origin.goaway(0);
+        sleep(QUIET_WINDOW).await;
+        let next = spawn_held(&client, &origin, &["held-4"]);
+        assert_eq!(requests_without_new_connections(&mut origin, 1).await?, [1]);
+        origin.release();
+        join(held).await?;
+        join(next).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_connection_with_room_serves_while_another_is_being_set_up() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        // Connection 1's TLS handshake stalls for 3 seconds.
+        let mut origin = Origin::start(&identity, Some(1)).await?;
+        let client = client_builder(&identity, true)
+            .max_http2_connections_per_origin(bound(2)?)
+            .build()?;
+        finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
+
+        // Two streams fill connection 0; the third starts connection 1.
+        let mut held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        // The warm request and two held ones reach connection 0; connection
+        // 1 is accepted but its handshake stalls.
+        assert_eq!(origin.settle(3).await?, (2, 3));
+        let stalled = held.pop().ok_or("no third request")?;
+        origin.release();
+        join(held).await?;
+
+        // Connection 0 has room again. The request does not wait behind the
+        // stalled setup of connection 1.
+        let started = std::time::Instant::now();
+        finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(origin.next_request().await?, 0);
         stalled.abort();
         Ok(())
     })
