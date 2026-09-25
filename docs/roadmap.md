@@ -173,9 +173,6 @@ Each of these needs no capture, because no named recipe may reach it
 - Build each request once. A negotiated request assembles its HTTP/1.1 and
   HTTP/2 field lists, and an Alt-Svc attempt its HTTP/3 list as well, on
   every attempt, before one protocol is chosen.
-- Refuse a template without an HTTP/3 list only when the route can carry
-  QUIC. Today a negotiated request on a client with Alt-Svc enabled is
-  refused on every route, including an HTTP proxy that can never upgrade.
 
 #### Publication
 

@@ -195,7 +195,8 @@ impl RequestBuilder {
     /// I/O with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template lacks an HTTP/3 list for a request that may use
-    /// HTTP/3, when content decoding is enabled and the protocol lists carry
+    /// HTTP/3 (an exact HTTP/3 request, or a negotiated one on a client with
+    /// Alt-Svc enabled and a direct or SOCKS5 route), when content decoding is enabled and the protocol lists carry
     /// different `Accept-Encoding` values, when the caller leaves a required
     /// caller slot empty,
     /// when the template has no client-hint slot and the profile sends client
@@ -501,12 +502,15 @@ impl RequestBuilder {
         }
         let content_decoding = self.content_decoding;
         if let Some(template) = &self.request.template {
+            let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
             let scope = template::ProtocolScope {
                 exact: match self.selection {
                     ProtocolSelection::Exact(protocol) => Some(protocol),
                     ProtocolSelection::Http1Or2 => None,
                 },
-                alt_svc: self.client.alt_svc_enabled(),
+                // A route that cannot carry QUIC never moves a negotiated
+                // request to HTTP/3, so it needs no HTTP/3 list.
+                alt_svc: self.client.alt_svc_enabled() && route.carries_quic_alternative(),
                 content_decoding: content_decoding.is_enabled(),
             };
             template::check(

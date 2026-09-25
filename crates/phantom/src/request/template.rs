@@ -266,7 +266,8 @@ fn respelled(name: &str, header: &RequestHeader) -> RequestHeader {
 pub(crate) struct ProtocolScope {
     /// The exact protocol, or `None` for an ALPN-negotiated H1 or H2 request.
     pub(crate) exact: Option<HttpProtocol>,
-    /// Whether a negotiated request may move to HTTP/3 through Alt-Svc.
+    /// Whether a negotiated request may move to HTTP/3 through Alt-Svc: the
+    /// client stores alternatives and the route can carry QUIC.
     pub(crate) alt_svc: bool,
     /// Whether the response will be decoded from `Accept-Encoding`.
     pub(crate) content_decoding: bool,

@@ -338,7 +338,7 @@ and version together.
 | --- | --- |
 | A required caller slot is empty | `RequestErrorKind::RequestTemplate` |
 | Invalid template data | `InvalidRequestTemplate` from `PreparedRequestTemplate::new` |
-| No HTTP/3 list on a request that may use HTTP/3 (exact H3, or negotiated with Alt-Svc enabled) | `RequestErrorKind::RequestTemplate` |
+| No HTTP/3 list on a request that may use HTTP/3 (exact H3, or negotiated with Alt-Svc enabled on a direct or SOCKS5 route) | `RequestErrorKind::RequestTemplate` |
 
 ## Client hints
 
