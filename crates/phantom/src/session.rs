@@ -847,11 +847,9 @@ impl SessionBuilder {
     /// [`ClientBuilder::build`]: crate::ClientBuilder::build
     pub fn build(self) -> Result<Client, BuildError> {
         self.options.validate(&self.inner)?;
-        let state = self.options.build(&self.inner);
-        Ok(Client {
-            inner: self.inner,
-            state,
-        })
+        let inner = self.inner.with_fresh_proxy_credentials();
+        let state = self.options.build(&inner);
+        Ok(Client { inner, state })
     }
 }
 

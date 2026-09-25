@@ -309,7 +309,7 @@ async fn alternative_setup(
     admission
         .connect(
             connector,
-            client.inner.connect_udp_proxy.as_ref(),
+            client.inner.connect_udp_proxy.as_deref(),
             &endpoint,
             &route,
             Http3TransportTarget::new(alternative.host(), alternative.port()),
@@ -426,7 +426,7 @@ fn validate_both(
     }
     http3_pool::validate_request(
         http3,
-        client.inner.connect_udp_proxy.as_ref(),
+        client.inner.connect_udp_proxy.as_deref(),
         route,
         Http3TransportTarget::new(alternative.host(), alternative.port()),
         &attempt.method,

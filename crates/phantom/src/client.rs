@@ -84,16 +84,22 @@ pub struct Client {
     pub(crate) state: Arc<ClientState>,
 }
 
-#[derive(Debug)]
+/// Transport configuration shared by a client, its clones, and its sessions.
+///
+/// Cloning is shallow: TLS contexts, the HTTP/3 connectors, and the key log
+/// stay shared. A session takes a clone whose connectors hold its own proxy
+/// credential record.
+#[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
-    pub(crate) http3: Option<Http3Connector>,
+    pub(crate) http3: Option<Arc<Http3Connector>>,
     /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
-    pub(crate) connect_udp_proxy: Option<ConnectUdpConnectors>,
+    pub(crate) connect_udp_proxy: Option<Arc<ConnectUdpConnectors>>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     /// Proxies that accepted Basic credentials, shared with the connectors.
+    /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
@@ -109,7 +115,49 @@ pub(crate) struct ClientInner {
     #[cfg(feature = "websocket")]
     pub(crate) websocket_http1: Option<Http1TlsConnector>,
     #[cfg(feature = "diagnostics")]
-    pub(crate) key_log: Option<crate::KeyLog>,
+    pub(crate) key_log: Option<Arc<crate::KeyLog>>,
+}
+
+impl ClientInner {
+    /// Returns this configuration with an empty proxy credential record, or
+    /// itself when preemptive proxy authentication is disabled.
+    ///
+    /// Sessions call this so that one session's remembered proxy credentials
+    /// never reach another, as with cookies, Alt-Svc, and pools.
+    pub(crate) fn with_fresh_proxy_credentials(self: &Arc<Self>) -> Arc<Self> {
+        if self.proxy_credentials.is_none() {
+            return Arc::clone(self);
+        }
+        let cache = ProxyCredentialCache::new();
+        let mut inner = Self::clone(self);
+        inner.bind_proxy_credentials(&cache);
+        inner.proxy_credentials = Some(cache);
+        Arc::new(inner)
+    }
+
+    /// Gives every connector that can open an authenticated proxy tunnel the
+    /// same record.
+    fn bind_proxy_credentials(&mut self, cache: &ProxyCredentialCache) {
+        let bind =
+            |connector: Http1TlsConnector| connector.with_proxy_credential_cache(cache.clone());
+        self.http1 = self.http1.take().map(bind);
+        self.http1_or_2 = self
+            .http1_or_2
+            .take()
+            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
+        self.http2 = self
+            .http2
+            .take()
+            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
+        self.https_proxy = self
+            .https_proxy
+            .take()
+            .map(|connector| connector.with_proxy_credential_cache(cache.clone()));
+        #[cfg(feature = "websocket")]
+        {
+            self.websocket_http1 = self.websocket_http1.take().map(bind);
+        }
+    }
 }
 
 impl Client {
@@ -143,7 +191,7 @@ impl Client {
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn key_log(&self) -> Option<&crate::KeyLog> {
-        self.inner.key_log.as_ref()
+        self.inner.key_log.as_deref()
     }
 
     /// Starts one empty-body GET using exactly `protocol`.
@@ -375,10 +423,9 @@ impl Client {
     #[doc(hidden)]
     pub fn session(&self) -> Session {
         // Default options enable no Alt-Svc store, so they need no validation.
-        Client {
-            inner: Arc::clone(&self.inner),
-            state: ClientOptions::default().build(&self.inner),
-        }
+        let inner = self.inner.with_fresh_proxy_credentials();
+        let state = ClientOptions::default().build(&inner);
+        Client { inner, state }
     }
 
     /// Starts a compatibility builder for isolated state over this transport.
@@ -648,9 +695,10 @@ impl ClientBuilder {
     /// requests to that proxy send `Proxy-Authorization` on the first
     /// attempt. A `407` to such a request forgets the proxy and allows the
     /// usual single retry. The record holds at most
-    /// [`MAX_PROXY_CREDENTIAL_ENTRIES`] proxy and credential pairs, is shared
-    /// by clones of this client and by sessions built from it, and is never
-    /// consulted for a route whose credentials differ.
+    /// [`MAX_PROXY_CREDENTIAL_ENTRIES`] proxy and credential pairs and is
+    /// never consulted for a route whose credentials differ. Clones of this
+    /// client share it; a session built from the client starts with an empty
+    /// record of its own, as it does with cookies, Alt-Svc, and pools.
     ///
     /// When disabled, every tunnel and forwarded request starts without
     /// credentials and waits for a `407`. CONNECT-UDP routes always start
@@ -1187,27 +1235,6 @@ impl ClientBuilder {
             })
             .transpose()?;
 
-        // Every connector that can open an authenticated proxy tunnel shares
-        // one record. Connector clones made later, such as a pool's isolated
-        // TLS session cache, keep it.
-        let proxy_credentials = self
-            .preemptive_proxy_authentication
-            .then(ProxyCredentialCache::new);
-        let (http1, http1_or_2, http2, https_proxy) = match &proxy_credentials {
-            Some(cache) => (
-                http1.map(|c| c.with_proxy_credential_cache(cache.clone())),
-                http1_or_2.map(|c| c.with_proxy_credential_cache(cache.clone())),
-                http2.map(|c| c.with_proxy_credential_cache(cache.clone())),
-                https_proxy.map(|c| c.with_proxy_credential_cache(cache.clone())),
-            ),
-            None => (http1, http1_or_2, http2, https_proxy),
-        };
-        #[cfg(feature = "websocket")]
-        let websocket_http1 = match &proxy_credentials {
-            Some(cache) => websocket_http1.map(|c| c.with_proxy_credential_cache(cache.clone())),
-            None => websocket_http1,
-        };
-
         #[cfg(feature = "diagnostics")]
         let key_log = self.key_log_capacity.map(|capacity| {
             let (sender, receiver) = phantom_net::nss_key_log_channel(capacity);
@@ -1227,17 +1254,17 @@ impl ClientBuilder {
             websocket_http1
                 .iter()
                 .for_each(|c| c.attach_key_log(&sender));
-            crate::KeyLog::new(receiver)
+            Arc::new(crate::KeyLog::new(receiver))
         });
 
-        let inner = Arc::new(ClientInner {
+        let mut inner = ClientInner {
             http1,
             http1_or_2,
             http2,
-            http3,
-            connect_udp_proxy,
+            http3: http3.map(Arc::new),
+            connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
-            proxy_credentials,
+            proxy_credentials: None,
             client_hints,
             http1_connections_per_origin: self
                 .profile
@@ -1252,7 +1279,13 @@ impl ClientBuilder {
             websocket_http1,
             #[cfg(feature = "diagnostics")]
             key_log,
-        });
+        };
+        if self.preemptive_proxy_authentication {
+            let cache = ProxyCredentialCache::new();
+            inner.bind_proxy_credentials(&cache);
+            inner.proxy_credentials = Some(cache);
+        }
+        let inner = Arc::new(inner);
         let state = self.options.build(&inner);
         Ok(Client { inner, state })
     }
