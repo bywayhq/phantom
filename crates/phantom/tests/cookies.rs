@@ -46,7 +46,9 @@ use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_set
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
-const ORDERED_COOKIE_VALUE: &str = "deep=two; root=one";
+/// The jar's cookies in request order, one field each on HTTP/2 and HTTP/3,
+/// where the Chromium recipes split the `cookie` field.
+const ORDERED_COOKIE_CRUMBS: [&str; 2] = ["deep=two", "root=one"];
 const ORDERED_HTTP1_COOKIE_FIELD: &str = "Cookie: deep=two; root=one";
 
 #[tokio::test]
@@ -182,7 +184,8 @@ async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn http2_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -> TestResult<()> {
+async fn http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order() -> TestResult<()>
+{
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -225,14 +228,15 @@ async fn http2_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
         .await?;
         drop(session);
 
-        assert_eq!(server.await??, [ORDERED_COOKIE_VALUE]);
+        assert_eq!(server.await??, ORDERED_COOKIE_CRUMBS);
         Ok(())
     })
     .await
 }
 
 #[tokio::test]
-async fn http3_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -> TestResult<()> {
+async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order() -> TestResult<()>
+{
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
@@ -284,7 +288,7 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_ordered_cookie_field() -
             .send(())
             .map_err(|_| "HTTP/3 server stopped after its second response")?;
 
-        assert_eq!(server.await??, [ORDERED_COOKIE_VALUE]);
+        assert_eq!(server.await??, ORDERED_COOKIE_CRUMBS);
         Ok(())
     })
     .await
@@ -340,7 +344,7 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
 
         let (explicit, learned) = server.await??;
         assert_eq!(explicit, ["manual=caller"]);
-        assert_eq!(learned, ["stored=one; learned=two"]);
+        assert_eq!(learned, ["stored=one", "learned=two"]);
         Ok(())
     })
     .await

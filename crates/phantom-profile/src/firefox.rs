@@ -7,8 +7,8 @@ use crate::{
     dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
-        Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http2StaticNameIndex,
+        Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority,
+        Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
     },
     proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
@@ -262,6 +262,12 @@ pub fn v156_http1() -> Http1Settings {
 /// Huffman-coded whenever the coded form is no longer than the raw one: all
 /// 831 coding decisions in the retained Firefox captures follow that rule,
 /// and the 135 ties among them are coded.
+///
+/// Each `cookie` field is split at `"; "` into one field per cookie. A crumb
+/// shorter than 20 bytes is a never-indexed literal and a longer one is
+/// inserted into the dynamic table ([`Http2CookieCrumbs::NeverIndexShort`]),
+/// as the retained cookie captures (`fixtures/cookies/`) show for crumbs of
+/// 19 and 20 bytes and as `Http2Compressor::EncodeHeaderBlock` states.
 #[must_use]
 pub fn v156_http2() -> Http2Settings {
     Http2Settings {
@@ -299,6 +305,7 @@ pub fn v156_http2() -> Http2Settings {
             literal_pseudo_headers: Vec::new(),
             static_name_index: Http2StaticNameIndex::Highest,
             huffman_coding: Http2HuffmanCoding::WhenNotLonger,
+            cookie_crumbs: Http2CookieCrumbs::NeverIndexShort,
         },
     }
 }

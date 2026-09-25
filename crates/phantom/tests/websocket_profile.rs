@@ -1427,3 +1427,47 @@ fn pseudo_value<'a>(
         .map(|(_, value, _)| value.as_str())
         .ok_or_else(|| format!("capture omitted {name}").into())
 }
+
+/// The Chromium HTTP/2 recipe splits the jar's cookie field on an extended
+/// CONNECT as on any other request, because one HPACK encoder serves the
+/// whole connection. The origin's HPACK decoder keeps each crumb as a field.
+#[cfg(feature = "cookies")]
+#[tokio::test]
+async fn extended_connect_sends_one_cookie_field_per_jar_cookie() -> TestResult<()> {
+    let capture = Capture::parse(CHROME_ACCEPT)?;
+    let settings = chromium::v154_websocket();
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_websocket(settings.clone());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .cookies()
+            .build()?;
+        let jar = client.cookie_jar().ok_or("client has no cookie jar")?;
+        let origin = format!("https://{}/", server.address);
+        jar.set_cookie(&origin, "first=1; Path=/")?;
+        jar.set_cookie(&origin, "second=2; Path=/")?;
+
+        ordinary_get(&client, &server).await?;
+        let socket = connect_like(&client, &server, &capture.connect()?, &settings).await?;
+        assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
+        exchange(socket).await?;
+
+        let connections = server.connections()?;
+        assert_eq!(connections.len(), 1, "WebSocket did not reuse the session");
+        let connect = &connections[0].h2[1];
+        assert_eq!(connect.method, "CONNECT");
+        let cookies = connect
+            .fields
+            .iter()
+            .filter(|(name, _)| name == "cookie")
+            .map(|(_, value)| value.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(cookies, ["first=1", "second=2"]);
+        Ok(())
+    })
+    .await
+}

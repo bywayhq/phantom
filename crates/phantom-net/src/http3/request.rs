@@ -6,11 +6,12 @@ use h3::ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeader
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
-        CONNECTION, CONTENT_LENGTH, HOST, HeaderName, TE, TRAILER, TRANSFER_ENCODING, UPGRADE,
+        CONNECTION, CONTENT_LENGTH, COOKIE, HOST, HeaderName, TE, TRAILER, TRANSFER_ENCODING,
+        UPGRADE,
     },
     uri::{Authority, Scheme},
 };
-use phantom_profile::{Http3PseudoHeader, Http3RequestSettings};
+use phantom_profile::{Http3CookieCrumbs, Http3PseudoHeader, Http3RequestSettings};
 
 use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
 use crate::request::{RequestBody, RequestBodyMetadata};
@@ -233,7 +234,7 @@ fn prepare_profiled_request_head(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(|_| invalid("HTTP/3 request URI is invalid"))?;
-    let headers = ValidatedHeaders::new(headers, metadata)?;
+    let headers = ValidatedHeaders::new(headers, metadata, request_settings.cookie_crumbs)?;
 
     let mut request = Request::new(());
     *request.method_mut() = method;
@@ -483,7 +484,7 @@ pub(super) fn prepare_extended_connect(
         .path_and_query(target.into_path_and_query())
         .build()
         .map_err(|_| invalid("HTTP/3 request URI is invalid"))?;
-    let headers = ValidatedHeaders::new(headers, None)?;
+    let headers = ValidatedHeaders::new(headers, None, request_settings.cookie_crumbs)?;
 
     let mut request = Request::new(());
     *request.method_mut() = Method::CONNECT;
@@ -578,9 +579,15 @@ struct ValidatedHeaders {
 }
 
 impl ValidatedHeaders {
+    /// Validates `headers` in order, splitting each `cookie` field into
+    /// crumbs when `cookie_crumbs` asks for it.
+    ///
+    /// The count and size limits apply to the fields as supplied, before any
+    /// split.
     fn new(
         mut headers: Vec<RequestHeader>,
         metadata: Option<RequestBodyMetadata>,
+        cookie_crumbs: Http3CookieCrumbs,
     ) -> Result<Self, Http3Error> {
         let content_length_count = headers
             .iter()
@@ -630,7 +637,29 @@ impl ValidatedHeaders {
                 .map_err(|_| invalid("HTTP/3 request header value is invalid"))?;
             value.set_sensitive(header.is_sensitive());
             validate_field(&name, &value)?;
-            ordered.push((name, value));
+            if name == COOKIE && cookie_crumbs == Http3CookieCrumbs::Split {
+                // Crumbs are not marked sensitive, because the QPACK encoder
+                // sends a sensitive field as a never-indexed literal. Their
+                // `Debug` output therefore shows the value; this request never
+                // leaves the crate and Phantom does not log field values.
+                //
+                // A slice of a valid field value is itself a valid value, so
+                // every crumb converts. Should one not, the field is sent once,
+                // whole, as the HTTP/2 encoder does.
+                let crumbs = cookie_crumbs_of(value.as_bytes())
+                    .into_iter()
+                    .map(|crumb| HeaderValue::from_bytes(crumb).ok())
+                    .collect::<Option<Vec<_>>>();
+                debug_assert!(crumbs.is_some(), "a cookie crumb was not a valid value");
+                match crumbs {
+                    Some(crumbs) => {
+                        ordered.extend(crumbs.into_iter().map(|crumb| (name.clone(), crumb)));
+                    }
+                    None => ordered.push((name, value)),
+                }
+            } else {
+                ordered.push((name, value));
+            }
         }
         Ok(Self { ordered })
     }
@@ -643,6 +672,22 @@ impl ValidatedHeaders {
         }
         Ok(())
     }
+}
+
+/// Splits one `cookie` value at every `;`, skipping one space after each,
+/// as Chromium's QPACK `ValueSplittingHeaderList` does.
+fn cookie_crumbs_of(value: &[u8]) -> Vec<&[u8]> {
+    let mut crumbs = Vec::new();
+    let mut rest = value;
+    while let Some(end) = rest.iter().position(|byte| *byte == b';') {
+        crumbs.push(&rest[..end]);
+        rest = &rest[end + 1..];
+        if rest.first() == Some(&b' ') {
+            rest = &rest[1..];
+        }
+    }
+    crumbs.push(rest);
+    crumbs
 }
 
 impl PreparedTrailers {
