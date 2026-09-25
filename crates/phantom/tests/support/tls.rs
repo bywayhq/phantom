@@ -140,6 +140,17 @@ impl TestIdentity {
         ])
     }
 
+    pub(crate) fn generate_for_ip_and_dns_names(
+        address: std::net::IpAddr,
+        names: &[&str],
+    ) -> TestResult<Self> {
+        let mut subject_alt_names = vec![SanType::IpAddress(address)];
+        for name in names {
+            subject_alt_names.push(SanType::DnsName((*name).try_into()?));
+        }
+        Self::generate_with_sans(subject_alt_names)
+    }
+
     fn generate_with_sans(subject_alt_names: Vec<SanType>) -> TestResult<Self> {
         let mut root_params = CertificateParams::new(Vec::<String>::new())?;
         root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);

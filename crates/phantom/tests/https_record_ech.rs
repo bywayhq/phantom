@@ -3,6 +3,9 @@
 #![cfg(feature = "https-records")]
 
 #[allow(dead_code)]
+#[path = "support/ech.rs"]
+mod ech_support;
+#[allow(dead_code)]
 #[path = "support/h3.rs"]
 mod h3_support;
 #[allow(dead_code)]
@@ -15,75 +18,33 @@ mod tunnel_proxy;
 use tls_support as tls;
 
 use std::{
-    io,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
-    pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
+    task::Poll,
     time::Duration,
 };
 
-use btls::{
-    hpke::HpkeKey,
-    ssl::{NameType, Ssl, SslAcceptor, SslEchKeys},
-};
+use btls::ssl::SslAcceptor;
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProxy, Route,
     dns::HttpsRecordResolver,
-    profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings, TlsVersion, chromium},
+    profile::{ClientProfile, chromium},
 };
 use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
-    tls::{CaptureLimits, TEST_ECH_KEYS, capture_client_hello, ech_config, ech_config_list},
+    tls::{TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{
-    io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
-    net::{TcpListener, TcpStream},
-    sync::Barrier,
-    time::timeout,
-};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::Barrier, time::timeout};
 use tokio_btls::SslStream;
 
+use ech_support::{
+    ORIGIN_NAME, Observed, PUBLIC_NAME, Replayed, STAND_IN_NAME, TEST_TIMEOUT, discovering_client,
+    ech_tls_settings, handshake, https_rdata,
+};
 use h3_support::client_settings;
-use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head, tls_settings};
-
-const TEST_TIMEOUT: Duration = Duration::from_secs(20);
-const ORIGIN_NAME: &str = "localhost";
-const STAND_IN_NAME: &str = "origin.test";
-const PUBLIC_NAME: &str = "public.phantom.test";
-
-/// What the origin saw on one connection.
-#[derive(Debug)]
-struct Observed {
-    outer_server_name: Option<String>,
-    ech_accepted: bool,
-    inner_server_name: Option<String>,
-}
-
-/// A ServiceMode record at the owner name with `alpn=h2` and `ech`.
-fn https_rdata(ech_config_list: &[u8]) -> Vec<u8> {
-    let mut rdata = vec![0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x03, 0x02, b'h', b'2'];
-    rdata.extend_from_slice(&5_u16.to_be_bytes());
-    rdata.extend_from_slice(&(ech_config_list.len() as u16).to_be_bytes());
-    rdata.extend_from_slice(ech_config_list);
-    rdata
-}
-
-/// TLS 1.3 test settings that offer ECH from HTTPS records, as Chrome 154's
-/// recipe does.
-fn ech_tls_settings() -> TlsSettings {
-    let mut settings = tls_settings();
-    settings.max_version = TlsVersion::Tls13;
-    settings
-        .cipher_suites
-        .insert(0, CipherSuite::Aes128GcmSha256);
-    settings.key_shares = vec![NamedGroup::X25519];
-    settings.ech_grease = true;
-    settings.ech_from_https_records = true;
-    settings
-}
+use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
 
 fn client(identity: &TestIdentity, dns: &DnsServer) -> TestResult<Client> {
     client_with(
@@ -100,28 +61,12 @@ fn client_with(
     dns: &DnsServer,
     profile: ClientProfile,
 ) -> TestResult<Client> {
-    let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
-    let resolver = HttpsRecordResolver::from_fn(move |_, port| {
-        let upstream = upstream.clone();
-        async move { upstream.lookup(STAND_IN_NAME, port).await }
-    });
-    Ok(Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .alt_svc(NonZeroUsize::MIN.saturating_add(7))
-        .https_record_discovery(resolver)
-        .build()?)
+    discovering_client(identity, dns, profile, None)
 }
 
-fn ech_acceptor(identity: &TestIdentity, config: &[u8]) -> TestResult<SslAcceptor> {
-    let builder = identity.acceptor_builder(H1_ALPN)?;
-    let mut keys = SslEchKeys::builder()?;
-    keys.add_key(
-        true,
-        config,
-        HpkeKey::dhkem_p256_sha256(&TEST_ECH_KEYS[0].private_key)?,
-    )?;
-    builder.set_ech_keys(&keys.build())?;
-    Ok(builder.build())
+/// An HTTP/1.1 origin that decrypts ECH under configuration 1.
+fn ech_acceptor(identity: &TestIdentity) -> TestResult<SslAcceptor> {
+    ech_support::ech_acceptor(identity, H1_ALPN, 1, &TEST_ECH_KEYS[0])
 }
 
 /// Serves `connections` HTTP/1.1 connections, one response each.
@@ -180,84 +125,6 @@ async fn write_response(tls: &mut SslStream<Replayed>) -> TestResult<()> {
     Ok(())
 }
 
-async fn handshake(
-    mut tcp: TcpStream,
-    acceptor: &SslAcceptor,
-) -> TestResult<(Observed, SslStream<Replayed>)> {
-    {
-        let capture = capture_client_hello(
-            &mut tcp,
-            tokio::time::Instant::now() + TEST_TIMEOUT,
-            CaptureLimits::new(64 * 1024, 64 * 1024, 8),
-        )
-        .await?;
-        let summary = capture.summary()?;
-        let prefix = capture
-            .records()
-            .iter()
-            .flat_map(|record| record.wire_bytes().iter().copied())
-            .collect();
-        let mut tls = SslStream::new(
-            Ssl::new(acceptor.context())?,
-            Replayed {
-                prefix,
-                offset: 0,
-                inner: tcp,
-            },
-        )?;
-        Pin::new(&mut tls).accept().await?;
-        let seen = Observed {
-            outer_server_name: summary
-                .server_name()
-                .map(|name| String::from_utf8_lossy(name).into_owned()),
-            ech_accepted: tls.ssl().ech_accepted(),
-            inner_server_name: tls.ssl().servername(NameType::HOST_NAME).map(str::to_owned),
-        };
-        Ok((seen, tls))
-    }
-}
-
-struct Replayed {
-    prefix: Vec<u8>,
-    offset: usize,
-    inner: TcpStream,
-}
-
-impl AsyncRead for Replayed {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        if self.offset < self.prefix.len() {
-            let start = self.offset;
-            let count = (self.prefix.len() - start).min(buffer.remaining());
-            buffer.put_slice(&self.prefix[start..start + count]);
-            self.offset += count;
-            return Poll::Ready(Ok(()));
-        }
-        Pin::new(&mut self.inner).poll_read(context, buffer)
-    }
-}
-
-impl AsyncWrite for Replayed {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.inner).poll_write(context, buffer)
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.inner).poll_flush(context)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.inner).poll_shutdown(context)
-    }
-}
-
 #[tokio::test]
 async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<()> {
     timeout(TEST_TIMEOUT, async {
@@ -274,7 +141,7 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity, &config)?, 2));
+        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 2));
         let client = client(&identity, &dns)?;
 
         for path in ["/first", "/second"] {
@@ -316,7 +183,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity, &config)?, 2));
+        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 2));
 
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
         let resolver = HttpsRecordResolver::from_fn(move |_, port| {
@@ -371,7 +238,7 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let acceptor = ech_acceptor(&identity, &config)?;
+        let acceptor = ech_acceptor(&identity)?;
         let profile = ClientProfile::new(ech_tls_settings())
             .with_http2(chromium::v154_http2())
             .with_http3(client_settings())
@@ -459,7 +326,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         .await?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin = listener.local_addr()?;
-        let server = tokio::spawn(serve(listener, ech_acceptor(&identity, &config)?, 1));
+        let server = tokio::spawn(serve(listener, ech_acceptor(&identity)?, 1));
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin));

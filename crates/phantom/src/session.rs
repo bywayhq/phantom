@@ -204,23 +204,31 @@ impl ClientOptions {
         .with_setup_wait_limit(self.negotiated_setup_wait_limit);
         #[cfg(feature = "https-records")]
         http1_or_2.set_https_records(https_records.clone());
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut http1 = http1_pool::Http1Pool::new(
+            self.max_retained_http1_connections,
+            self.max_concurrent_http1_requests_per_origin
+                .unwrap_or(inner.http1_connections_per_origin),
+            self.max_pending_http1_requests_per_origin,
+        );
+        #[cfg(feature = "https-records")]
+        http1.set_https_records(https_records.clone());
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut http2 = http2_pool::Http2Pool::new(
+            self.max_retained_http2_connections,
+            self.max_concurrent_http2_requests_per_origin,
+            self.max_pending_http2_requests_per_origin,
+        )
+        .with_max_connections(self.max_http2_connections_per_origin);
+        #[cfg(feature = "https-records")]
+        http2.set_https_records(https_records.clone());
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
             request_timeouts: self.request_timeouts,
-            http1: http1_pool::Http1Pool::new(
-                self.max_retained_http1_connections,
-                self.max_concurrent_http1_requests_per_origin
-                    .unwrap_or(inner.http1_connections_per_origin),
-                self.max_pending_http1_requests_per_origin,
-            ),
+            http1,
             http1_or_2,
-            http2: http2_pool::Http2Pool::new(
-                self.max_retained_http2_connections,
-                self.max_concurrent_http2_requests_per_origin,
-                self.max_pending_http2_requests_per_origin,
-            )
-            .with_max_connections(self.max_http2_connections_per_origin),
+            http2,
             http3: http3_pool::Http3Pool::new(
                 self.max_retained_http3_connections,
                 self.max_concurrent_http3_requests_per_origin,
@@ -362,6 +370,25 @@ impl Client {
         if let Some(store) = &self.state.alt_svc {
             store.confirm(endpoint, route, alternative.location());
         }
+    }
+
+    /// Returns the lookup of the `ech` value that a direct TLS connection to
+    /// `endpoint` offering `alpn` waits for, when `offers_ech` says its
+    /// profile takes ECH from HTTPS records and this client looks them up.
+    ///
+    /// The connection's ALPN offer picks the record, as in Chromium's
+    /// `TcpConnectJob::FindServiceEndpoint`. Callers use it on the direct
+    /// route only.
+    #[cfg(all(feature = "https-records", feature = "websocket"))]
+    pub(crate) fn direct_tcp_ech(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        offers_ech: bool,
+        alpn: impl FnOnce() -> Vec<Box<[u8]>>,
+    ) -> Option<impl Future<Output = Option<phantom_net::dns::EchConfigList>> + Send + 'static>
+    {
+        let discovery = self.state.https_records.as_ref().filter(|_| offers_ech)?;
+        Some(discovery.tcp_ech(endpoint, alpn()))
     }
 
     /// Returns the origin's own location as an HTTP/3 alternative, with what

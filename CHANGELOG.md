@@ -300,6 +300,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and the `ech_config_list` fuzz target drives the parser. Chrome and its
   retry path were captured in `fixtures/tls/chrome/154.0.8037.58/`.
   (`124c1f7`, `e6e5076`)
+- `Http1TlsConnector::connect_direct_with_ech` and
+  `upgrade_get_direct_with_ech`, and `Http2TlsConnector::connect_direct_with_ech`
+  and `send_extended_connect_direct_with_ech`, offer an `ECHConfigList` on a
+  direct connection with the same wait and retry as the negotiated connector.
+  Both connectors gain `ech_from_https_records` and `alpn_protocols`, and
+  `Http1TlsError` and `Http2TlsError` gain `ech_failure`.
 - `scripts/capture/chrome_ech.py` and the `capture_ech_client_hello`
   example record a Chromium browser's ClientHellos against a loopback origin
   that decrypts ECH, with the HTTPS record served over DNS over HTTPS.
@@ -511,6 +517,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   a graceful `GOAWAY` needs a replay, and the HTTP/1.1 fields as sent are
   copied only when the connection selects HTTP/1.1. The bytes on the wire
   are unchanged.
+- Wire change for the Chrome 154 recipe on a client with HTTPS record
+  discovery: exact-protocol HTTP/1.1 and HTTP/2 requests and `wss://`
+  WebSocket openings on the direct route now look up the origin's HTTPS
+  record and send a real Encrypted Client Hello when it carries `ech`, as
+  negotiated requests already did. Their TLS handshake waits for the lookup
+  for at most 50 ms after address resolution, and a rejection is retried
+  once. Before, they sent ECH GREASE and made no lookup. Proxy routes and
+  profiles without `ech_from_https_records` are unchanged.
 - Wire change for `http://` requests forwarded through an HTTP/1.1 proxy.
   The Chrome and Edge request templates send `Proxy-Connection: keep-alive`
   where a direct request has `Connection: keep-alive`, in the same position,
