@@ -179,6 +179,11 @@ jobs:
       - name: Check documentation
         run: python scripts/docs/check_docs.py
 
+      # Here rather than in Quality: an edit to a gate command in AGENTS.md
+      # is documentation-only, and this job runs on every change.
+      - name: Check tool version pins
+        run: scripts/ci/check-tool-pins.sh
+
   features:
     name: Features
     needs: changes

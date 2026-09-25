@@ -161,9 +161,15 @@ uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 - `cargo test` compiles the Rust examples in `README.md`,
   `docs/getting-started.md`, and the guides that `crates/phantom/src/lib.rs`
   includes. A new guide with Rust code needs an include there.
-- CI installs the Python test dependencies from the hash-pinned
+- CI installs ruff and the Python test dependencies from the hash-pinned
   `scripts/requirements.txt`, generated from `scripts/requirements.in` by the
-  command in its header. Keep the `--with` pins above in step with it.
+  command in its header. That file is the source of each Python tool version,
+  and Dependabot updates only the two requirements files. The `ruff@` and
+  `--with` pins above, the ruff `required-version` in `pyproject.toml`, and
+  the permission rules in `.claude/settings.json` are copies:
+  `scripts/ci/check-tool-pins.sh` fails when a copy disagrees with the
+  requirements file, or when the pinned nightly or ShellCheck version differs
+  between files.
 
 Run these too when the change touches their area:
 
