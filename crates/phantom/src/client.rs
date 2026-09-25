@@ -9,6 +9,7 @@ use phantom_net::{
 use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
+use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
 use phantom_profile::{ClientHintSettings, ClientProfile, TcpSettings};
 
 #[cfg(feature = "cookies")]
@@ -1066,15 +1067,12 @@ impl ClientBuilder {
             .map(|settings| {
                 Http3Connector::new_with_additional_roots(
                     settings.tls(),
-                    settings.quic_transport(),
+                    &connect_udp_proxy_quic(settings.quic_transport()),
                     settings.http3(),
                     settings.request(),
                     self.proxy_additional_roots.iter().map(AsRef::as_ref),
                 )
-                // The outer connection carries only extended CONNECT, which is
-                // never sent early, and no capture shows a browser's
-                // CONNECT-UDP connection, so it offers no early data.
-                .map(|connector| self.with_qlog(connector).without_early_data())
+                .map(|connector| self.with_qlog(connector))
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -1241,6 +1239,19 @@ fn validate_websocket_policy(
     }
 }
 
+/// QUIC settings for the outer connection to a CONNECT-UDP proxy.
+///
+/// No capture shows a browser's resumed CONNECT-UDP proxy connection, so the
+/// outer connection offers no early data and sends no `initial_rtt_us`,
+/// whatever the profile sets. Everything else follows the profile.
+fn connect_udp_proxy_quic(settings: &QuicTransportSettings) -> QuicTransportSettings {
+    let mut quic = settings.clone();
+    quic.early_data = false;
+    quic.wire_parameters
+        .retain(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt);
+    quic
+}
+
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroUsize;
@@ -1253,6 +1264,25 @@ mod tests {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     use crate::BuildError;
     use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
+
+    #[test]
+    fn connect_udp_proxy_connection_omits_resumption_additions() {
+        use phantom_profile::quic::QuicTransportParameterKind;
+
+        let recipe = chromium::v154_quic();
+        let outer = super::connect_udp_proxy_quic(&recipe);
+        assert!(recipe.early_data);
+        assert!(!outer.early_data);
+        let without_rtt: Vec<_> = recipe
+            .wire_parameters
+            .iter()
+            .filter(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt)
+            .cloned()
+            .collect();
+        assert_eq!(without_rtt.len() + 1, recipe.wire_parameters.len());
+        assert_eq!(outer.wire_parameters, without_rtt);
+        assert_eq!(outer.parameter_order, recipe.parameter_order);
+    }
 
     #[test]
     fn protocol_trace_names_match_negotiated_tokens() {
