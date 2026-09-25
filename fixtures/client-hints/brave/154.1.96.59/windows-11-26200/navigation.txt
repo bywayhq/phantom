@@ -1,0 +1,73 @@
+format=phantom-client-hints-v2
+captured_at_unix=1790367212
+client=Brave
+client_version=154.1.96.59
+operating_system=Windows 11 Home 10.0.26200 x64
+listen_address=127.0.0.1:59693
+launch_mode=headless
+launch_arguments=--headless=new '--user-data-dir=<temporary-profile>' --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --no-proxy-server --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-domain-reliability --disable-sync --no-pings --disable-features=MediaRouter,OptimizationHints 'http://127.0.0.1:59693/run/<token>/first'
+capture_tool=python 3.10.20
+transport=HTTP/1.1
+accept_ch=sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,sec-ch-ua-arch,sec-ch-ua-bitness,sec-ch-ua-full-version,sec-ch-ua-full-version-list,sec-ch-ua-model,sec-ch-ua-platform-version,sec-ch-ua-wow64,sec-ch-ua-form-factors
+repeat_count=3
+run_0_first_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-User,Sec-Fetch-Dest,Accept-Encoding,Accept-Language
+run_0_first_hint_count=3
+run_0_first_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_0_first_hint_1=sec-ch-ua-mobile|?0
+run_0_first_hint_2=sec-ch-ua-platform|"Windows"
+run_0_second_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-arch,sec-ch-ua-platform,sec-ch-ua-platform-version,sec-ch-ua-model,sec-ch-ua-bitness,sec-ch-ua-wow64,sec-ch-ua-full-version-list,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-Dest,Referer,Accept-Encoding,Accept-Language
+run_0_second_hint_count=9
+run_0_second_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_0_second_hint_1=sec-ch-ua-mobile|?0
+run_0_second_hint_2=sec-ch-ua-arch|"x86"
+run_0_second_hint_3=sec-ch-ua-platform|"Windows"
+run_0_second_hint_4=sec-ch-ua-platform-version|"19.0.0"
+run_0_second_hint_5=sec-ch-ua-model|""
+run_0_second_hint_6=sec-ch-ua-bitness|"64"
+run_0_second_hint_7=sec-ch-ua-wow64|?0
+run_0_second_hint_8=sec-ch-ua-full-version-list|"Chromium";v="154.0.0.0", "Brave";v="154.0.0.0", "Not A(Brand";v="99.0.0.0"
+run_0_other_requests=0
+run_1_first_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-User,Sec-Fetch-Dest,Accept-Encoding,Accept-Language
+run_1_first_hint_count=3
+run_1_first_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_1_first_hint_1=sec-ch-ua-mobile|?0
+run_1_first_hint_2=sec-ch-ua-platform|"Windows"
+run_1_second_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-arch,sec-ch-ua-platform,sec-ch-ua-platform-version,sec-ch-ua-model,sec-ch-ua-bitness,sec-ch-ua-wow64,sec-ch-ua-full-version-list,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-Dest,Referer,Accept-Encoding,Accept-Language
+run_1_second_hint_count=9
+run_1_second_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_1_second_hint_1=sec-ch-ua-mobile|?0
+run_1_second_hint_2=sec-ch-ua-arch|"x86"
+run_1_second_hint_3=sec-ch-ua-platform|"Windows"
+run_1_second_hint_4=sec-ch-ua-platform-version|"19.0.0"
+run_1_second_hint_5=sec-ch-ua-model|""
+run_1_second_hint_6=sec-ch-ua-bitness|"64"
+run_1_second_hint_7=sec-ch-ua-wow64|?0
+run_1_second_hint_8=sec-ch-ua-full-version-list|"Chromium";v="154.0.0.0", "Brave";v="154.0.0.0", "Not A(Brand";v="99.0.0.0"
+run_1_other_requests=0
+run_2_first_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-User,Sec-Fetch-Dest,Accept-Encoding,Accept-Language
+run_2_first_hint_count=3
+run_2_first_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_2_first_hint_1=sec-ch-ua-mobile|?0
+run_2_first_hint_2=sec-ch-ua-platform|"Windows"
+run_2_second_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-arch,sec-ch-ua-platform,sec-ch-ua-platform-version,sec-ch-ua-model,sec-ch-ua-bitness,sec-ch-ua-wow64,sec-ch-ua-full-version-list,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-GPC,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-Dest,Referer,Accept-Encoding,Accept-Language
+run_2_second_hint_count=9
+run_2_second_hint_0=sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+run_2_second_hint_1=sec-ch-ua-mobile|?0
+run_2_second_hint_2=sec-ch-ua-arch|"x86"
+run_2_second_hint_3=sec-ch-ua-platform|"Windows"
+run_2_second_hint_4=sec-ch-ua-platform-version|"19.0.0"
+run_2_second_hint_5=sec-ch-ua-model|""
+run_2_second_hint_6=sec-ch-ua-bitness|"64"
+run_2_second_hint_7=sec-ch-ua-wow64|?0
+run_2_second_hint_8=sec-ch-ua-full-version-list|"Chromium";v="154.0.0.0", "Brave";v="154.0.0.0", "Not A(Brand";v="99.0.0.0"
+run_2_other_requests=0
+hint_count=9
+hint_0=default|sec-ch-ua|"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+hint_1=default|sec-ch-ua-mobile|?0
+hint_2=accept-ch|sec-ch-ua-arch|"x86"
+hint_3=default|sec-ch-ua-platform|"Windows"
+hint_4=accept-ch|sec-ch-ua-platform-version|"19.0.0"
+hint_5=accept-ch|sec-ch-ua-model|""
+hint_6=accept-ch|sec-ch-ua-bitness|"64"
+hint_7=accept-ch|sec-ch-ua-wow64|?0
+hint_8=accept-ch|sec-ch-ua-full-version-list|"Chromium";v="154.0.0.0", "Brave";v="154.0.0.0", "Not A(Brand";v="99.0.0.0"
