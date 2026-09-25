@@ -259,6 +259,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   gain `with_early_data`, `without_early_data`, and `sends_early_data`.
   `Http3Connection` gains `sent_early_data` and `early_data_accepted`.
   (`31da936`, `550e6f6`)
+- The `https-records` feature, off by default and part of `full`, adds
+  HTTP/3 discovery from HTTPS DNS records (RFC 9460).
+  `ClientBuilder::https_record_discovery` takes a
+  `phantom::dns::HttpsRecordResolver` that queries the host's nameservers
+  (`system`), explicit ones (`with_nameservers`), or a caller function
+  (`from_fn`), and needs `ClientBuilder::alt_svc`. A negotiated request on
+  the direct route with no stored Alt-Svc alternative starts a lookup and
+  never waits for it; once a ServiceMode record lists `h3` for the origin's
+  own host and port, requests use HTTP/3 there, without `Alt-Used`, under the
+  `AltSvcPolicy`. Results are cached per client for the lowest record TTL, at
+  most one day, or 60 seconds without one, for at most the Alt-Svc store's
+  number of origins. Proxy routes and IP-literal origins send no query. A
+  record's `ech` value is kept as bytes but not used for Encrypted Client
+  Hello. (`11b01d9`, `74fa7b9`, `ed5cb93`, `f3fa2e3`, `2fc3144`)
 
 ### Changed
 
