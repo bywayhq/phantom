@@ -595,6 +595,137 @@ async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResu
     Ok(())
 }
 
+/// A request stream is opened on an early session only while the handshake
+/// runs or after the server accepted the early data. Between the completed
+/// handshake and the published answer, opening waits; after a rejection it
+/// fails without allocating a stream, so the session that replaces it
+/// numbers its streams from 0.
+#[tokio::test(flavor = "current_thread")]
+async fn an_early_session_opens_no_stream_between_the_handshake_and_the_answer() -> TestResult<()> {
+    use std::future::poll_fn;
+
+    use h3::quic::{OpenStreams as _, SendStream as _};
+
+    use super::super::{early_data::EarlyDataOutcome, early_streams::Transport};
+
+    let identity = TestIdentity::generate()?;
+    let served = Served::default();
+    let connector = trusting_connector(&identity)?;
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, false)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let server = spawn_h3_server(endpoint, served);
+    let connection = connect(&connector, address).await?;
+    let quinn = connection.quinn().clone();
+    assert!(quinn.handshake_data().is_some());
+
+    let (answer, outcome) = tokio::sync::watch::channel(None);
+    let transport = Transport::early(quinn.clone(), outcome.clone());
+    let mut rejected = quic_opener(&transport);
+    let waiting = timeout(
+        Duration::from_millis(100),
+        poll_fn(|cx| rejected.poll_open_bidi(cx)),
+    )
+    .await;
+    assert!(waiting.is_err(), "a stream opened before the answer");
+    answer.send_replace(Some(EarlyDataOutcome::Rejected));
+    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| rejected.poll_open_bidi(cx))).await?;
+    assert!(refused.is_err(), "the discarded session opened a stream");
+    let (_send, _recv) = quinn.open_bi().await?;
+    assert_eq!(
+        u64::from(_send.id()),
+        0,
+        "the refused open allocated a stream"
+    );
+
+    let (answer, outcome) = tokio::sync::watch::channel(None);
+    let transport = Transport::early(quinn.clone(), outcome);
+    let mut accepted = quic_opener(&transport);
+    answer.send_replace(Some(EarlyDataOutcome::Accepted));
+    let stream = timeout(TEST_TIMEOUT, poll_fn(|cx| accepted.poll_open_bidi(cx))).await??;
+    assert_eq!(stream.send_id().into_inner(), 4);
+
+    drop((stream, connection));
+    server.abort();
+    Ok(())
+}
+
+fn quic_opener(
+    transport: &super::super::early_streams::Transport,
+) -> super::super::early_streams::Opener<Bytes> {
+    h3::quic::Connection::<Bytes>::opener(transport)
+}
+
+/// A request that takes the sender after the TLS handshake completed but
+/// before the answer to rejected early data is published waits for the
+/// answer and is sent once, on the new session.
+#[tokio::test(flavor = "current_thread")]
+async fn a_request_between_the_handshake_and_a_rejection_is_sent_once() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let hold = Arc::new(tokio::sync::Semaphore::new(0));
+    let early = Arc::new(
+        trusting_connector(&identity)?
+            .with_isolated_session_cache()
+            .with_test_restart_hold(Arc::clone(&hold)),
+    );
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    endpoint.set_server_config(Some(server_config(&identity, false)?));
+
+    let connection = connect(&early, address).await?;
+    assert!(connection.sent_early_data());
+    timeout(TEST_TIMEOUT, async {
+        while connection.quinn().handshake_data().is_none() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .map_err(|_| "the handshake did not complete")?;
+    assert!(connection.early_data_pending());
+
+    let request = tokio::spawn({
+        let early = Arc::clone(&early);
+        let connection = connection.clone();
+        async move {
+            send(&early, &connection, Method::GET, "/between", None)
+                .await
+                .map(|response| response.status())
+                .map_err(|error| error.to_string())
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(
+        !request.is_finished(),
+        "the request did not wait for the answer"
+    );
+    assert!(
+        served
+            .lock()
+            .map_err(|_| "served paths poisoned")?
+            .is_empty()
+    );
+
+    hold.add_permits(1);
+    let status = timeout(TEST_TIMEOUT, request).await???;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(connection.early_data_accepted().await, Some(false));
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(served, [(1, "/between".to_owned())]);
+
+    drop(connection);
+    server.abort();
+    Ok(())
+}
+
 /// After rejected early data the new HTTP/3 session starts without the
 /// SETTINGS remembered with the ticket, so a server that lowers a remembered
 /// limit is not closed, where an accepting server is closed with

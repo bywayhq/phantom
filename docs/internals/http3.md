@@ -618,9 +618,22 @@ session on the connection instead.
   `quic_error_codes.cc`, lines 710-711). Phantom uses the server's new
   SETTINGS instead and does not close; Quinn offers no way to send that
   transport close.
-- A request that takes the sender after the TLS handshake completed but
-  before the answer is published waits for the answer, so it never opens a
-  stream on the discarded session.
+- The early session opens request streams through `early_streams::Opener`
+  in `crates/phantom-net/src/http3/early_streams.rs`. It opens a stream
+  while the TLS handshake is running, when Quinn marks it a 0-RTT stream,
+  and after the server accepted the early data. Between the completed
+  handshake and the published answer it waits; after a rejection it fails
+  without allocating a stream, so no request of the discarded session
+  reaches the server in 1-RTT and the new session numbers its streams from
+  0. A stream whose open raced the handshake's completion is held until the
+  answer and reset, unused, if the early data was rejected.
+- A request that takes the sender in that interval also waits for the
+  answer first, and then uses the new session. `send_prepared_request`
+  reports only a request that took the sender before the answer as
+  unprocessed.
+- The datagram router forgets the discarded session's stream order when the
+  new session replaces it, and `peer_extensions` reads the new session's
+  SETTINGS.
 
 A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as
@@ -673,8 +686,12 @@ job does, unless QUIC to the origin's own host and port failed a race and has
 not connected since. A setup that resumes with early data returns its
 connection before the handshake completes, as any early-data connection does
 (see [Session tickets](#session-tickets)), so it can win at once, and a
-replay-safe request on it goes out as early data. If that handshake then
-fails, the request fails with the handshake error; the origin is not tried.
+replay-safe request on it goes out as early data. The alternative is
+confirmed only once that handshake completes. If the handshake fails instead,
+Phantom follows Chromium: QUIC to the origin is marked recently broken, and a
+request with no body or an owned body is raced again, this time without early
+data; a failed alternative then loses to the origin and is marked broken as in
+any race.
 
 When the origin wins, an alternative setup that has begun connecting keeps
 running in the background, like Chromium's orphaned alternative job. If it

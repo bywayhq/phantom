@@ -58,6 +58,8 @@ pub struct Http3Connector {
     early_peer_alps: Option<Arc<[u8]>>,
     #[cfg(test)]
     remembered_settings: Option<Arc<[u8]>>,
+    #[cfg(test)]
+    restart_hold: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl Http3Connector {
@@ -148,6 +150,8 @@ impl Http3Connector {
             early_peer_alps: None,
             #[cfg(test)]
             remembered_settings: None,
+            #[cfg(test)]
+            restart_hold: None,
         })
     }
 
@@ -286,6 +290,8 @@ impl Http3Connector {
             early_peer_alps: self.early_peer_alps.clone(),
             #[cfg(test)]
             remembered_settings: self.remembered_settings.clone(),
+            #[cfg(test)]
+            restart_hold: self.restart_hold.clone(),
         }
     }
 
@@ -388,6 +394,8 @@ impl Http3Connector {
             early_peer_alps: self.early_peer_alps.clone(),
             #[cfg(test)]
             remembered_settings: self.remembered_settings.clone(),
+            #[cfg(test)]
+            restart_hold: self.restart_hold.clone(),
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -397,6 +405,15 @@ impl Http3Connector {
     #[cfg(test)]
     pub(super) fn with_test_early_peer_alps(mut self, alps: &[u8]) -> Self {
         self.early_peer_alps = Some(Arc::from(alps));
+        self
+    }
+
+    /// Makes each connection whose early data is rejected take a permit from
+    /// `hold` after its new HTTP/3 session is built and before the answer
+    /// is published.
+    #[cfg(test)]
+    pub(super) fn with_test_restart_hold(mut self, hold: Arc<tokio::sync::Semaphore>) -> Self {
+        self.restart_hold = Some(hold);
         self
     }
 

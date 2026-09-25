@@ -18,7 +18,7 @@ use tracing::{
 use crate::shutdown_timer;
 
 type DriverResult = Result<(), h3::error::ConnectionError>;
-pub(super) type ClientDriver = h3::client::Connection<h3_quinn::Connection, Bytes>;
+pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Transport, Bytes>;
 
 /// The server's answer to a connection's early data, which the driver reads
 /// before it polls HTTP/3.

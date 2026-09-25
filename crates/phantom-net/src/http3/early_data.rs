@@ -67,38 +67,21 @@ pub(super) struct EarlyData {
     outcome: watch::Receiver<Option<EarlyDataOutcome>>,
 }
 
+/// Publishes a connection's early-data answer to its [`EarlyData`].
+pub(super) struct EarlyDataAnswer {
+    sender: watch::Sender<Option<EarlyDataOutcome>>,
+}
+
 impl EarlyData {
-    /// Records the server's answer once the connection driver reports it at
-    /// handshake end.
-    ///
-    /// When the server accepted the early data, `complete` checks and applies
-    /// the handshake metadata before the answer is published, so a request
-    /// that sees an accepted outcome also sees the peer's ALPS. When it
-    /// rejected the early data, `restart` checks the same metadata and starts
-    /// HTTP/3 again on the connection before the answer is published, so a
-    /// request that sees a rejected outcome sends on the new session.
-    pub(super) fn spawn<F, C, R, S>(
-        connection: quinn::Connection,
-        answer: oneshot::Receiver<bool>,
-        complete: F,
-        restart: R,
-    ) -> Self
-    where
-        F: FnOnce() -> C + Send + 'static,
-        C: Future<Output = EarlyDataOutcome> + Send,
-        R: FnOnce() -> S + Send + 'static,
-        S: Future<Output = EarlyDataOutcome> + Send,
-    {
+    /// Returns the unsettled answer and the handle that settles it.
+    pub(super) fn channel() -> (EarlyDataAnswer, Self) {
         let (sender, outcome) = watch::channel(None);
-        tokio::spawn(async move {
-            let outcome = match answer.await {
-                Ok(true) => complete().await,
-                Ok(false) if connection.close_reason().is_none() => restart().await,
-                Ok(false) | Err(_) => EarlyDataOutcome::Failed,
-            };
-            let _ = sender.send(Some(outcome));
-        });
-        Self { outcome }
+        (EarlyDataAnswer { sender }, Self { outcome })
+    }
+
+    /// Returns a receiver of the answer, `None` until it settles.
+    pub(super) fn subscribe(&self) -> watch::Receiver<Option<EarlyDataOutcome>> {
+        self.outcome.clone()
     }
 
     /// Returns the answer if the handshake has ended.
@@ -113,5 +96,39 @@ impl EarlyData {
             Ok(settled) => settled.unwrap_or(EarlyDataOutcome::Failed),
             Err(_) => EarlyDataOutcome::Failed,
         }
+    }
+}
+
+impl EarlyDataAnswer {
+    /// Records the server's answer once the connection driver reports it at
+    /// handshake end.
+    ///
+    /// When the server accepted the early data, `complete` checks and applies
+    /// the handshake metadata before the answer is published, so a request
+    /// that sees an accepted outcome also sees the peer's ALPS. When it
+    /// rejected the early data, `restart` checks the same metadata and starts
+    /// HTTP/3 again on the connection before the answer is published, so a
+    /// request that sees a rejected outcome sends on the new session.
+    pub(super) fn spawn<F, C, R, S>(
+        self,
+        connection: quinn::Connection,
+        answer: oneshot::Receiver<bool>,
+        complete: F,
+        restart: R,
+    ) where
+        F: FnOnce() -> C + Send + 'static,
+        C: Future<Output = EarlyDataOutcome> + Send,
+        R: FnOnce() -> S + Send + 'static,
+        S: Future<Output = EarlyDataOutcome> + Send,
+    {
+        let Self { sender } = self;
+        drop(tokio::spawn(async move {
+            let outcome = match answer.await {
+                Ok(true) => complete().await,
+                Ok(false) if connection.close_reason().is_none() => restart().await,
+                Ok(false) | Err(_) => EarlyDataOutcome::Failed,
+            };
+            let _ = sender.send(Some(outcome));
+        }));
     }
 }

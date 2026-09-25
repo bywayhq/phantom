@@ -21,6 +21,7 @@ use connection::Session;
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask, EarlyAnswer, LateApplicationSettings};
 use early_data::{EarlyData, EarlyDataOutcome, InvalidHandshake};
+use early_streams::Transport;
 #[cfg(test)]
 use request::prepare_request;
 use request::{PreparedRequest, prepare_profiled_request_body_with_trailers};
@@ -31,6 +32,7 @@ use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 
 mod alps;
 mod early_data;
+mod early_streams;
 pub use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
@@ -485,6 +487,8 @@ async fn connect(
     let peer_alps_override = diagnostics.early_peer_alps.clone();
     #[cfg(test)]
     let remembered_override = diagnostics.remembered_settings.clone();
+    #[cfg(test)]
+    let restart_hold = diagnostics.restart_hold.clone();
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -560,16 +564,21 @@ async fn connect(
         );
     }
 
-    let (h3_driver, sender) = builder
-        .build(h3_quinn::Connection::new(connection.clone()))
-        .await
-        .map_err(|error| {
-            Http3Error::with_source(
-                Http3ErrorKind::Protocol,
-                "HTTP/3 connection initialization failed",
-                error,
-            )
-        })?;
+    // The early session opens request streams only while they are 0-RTT
+    // streams or once the server accepted the early data; see
+    // `early_streams`.
+    let early_channel = zero_rtt.as_ref().map(|_| EarlyData::channel());
+    let transport = match &early_channel {
+        Some((_, early_data)) => Transport::early(connection.clone(), early_data.subscribe()),
+        None => Transport::new(connection.clone()),
+    };
+    let (h3_driver, sender) = builder.build(transport).await.map_err(|error| {
+        Http3Error::with_source(
+            Http3ErrorKind::Protocol,
+            "HTTP/3 connection initialization failed",
+            error,
+        )
+    })?;
     let datagrams = settings
         .receives_datagrams()
         .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
@@ -603,18 +612,21 @@ async fn connect(
         application_state,
         round_trip.clone(),
     );
-    let early_data = early_handles.zip(restart_profile).map(
-        |((answer, replacement, late_settings), (settings, crypto))| {
+    let early_data = early_handles.zip(restart_profile).zip(early_channel).map(
+        |(((answer, replacement, late_settings), (settings, crypto)), (publisher, early_data))| {
             let accepted = EarlyHandshake {
                 connection: connection.clone(),
                 accept_ch: Arc::clone(&accept_ch),
                 round_trip: round_trip.clone(),
                 #[cfg(test)]
                 peer_alps_override: peer_alps_override.clone(),
+                #[cfg(test)]
+                restart_hold: restart_hold.clone(),
             };
             let rejected = accepted.clone();
             let session = Arc::downgrade(&session);
-            EarlyData::spawn(
+            let router = datagrams.clone();
+            publisher.spawn(
                 connection.clone(),
                 answer,
                 move || complete_early_handshake(accepted, late_settings),
@@ -625,9 +637,11 @@ async fn connect(
                         crypto,
                         replacement,
                         session,
+                        router,
                     )
                 },
-            )
+            );
+            early_data
         },
     );
     Ok(Http3Connection::new(
@@ -650,6 +664,8 @@ struct EarlyHandshake {
     round_trip: Option<RoundTripRecorder>,
     #[cfg(test)]
     peer_alps_override: Option<Arc<[u8]>>,
+    #[cfg(test)]
+    restart_hold: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl EarlyHandshake {
@@ -753,6 +769,7 @@ async fn restart_after_rejected_early_data(
     crypto: Arc<QuicClientConfig>,
     replacement: oneshot::Sender<driver::ClientDriver>,
     session: std::sync::Weak<Session>,
+    datagrams: Option<DatagramRouter>,
 ) -> EarlyDataOutcome {
     let alps = match handshake.check() {
         Ok(alps) => alps,
@@ -776,22 +793,30 @@ async fn restart_after_rejected_early_data(
         }
     }
     let (driver, sender) = match builder
-        .build(h3_quinn::Connection::new(handshake.connection.clone()))
+        .build(Transport::new(handshake.connection.clone()))
         .await
     {
         Ok(started) => started,
         Err(error) => {
             debug!(error = %error, "HTTP/3 did not start again after rejected early data");
+            // Closing sets the reason that `early_data_settled` reports.
+            handshake
+                .connection
+                .close(H3_INTERNAL_ERROR, b"HTTP/3 restart failed");
             return EarlyDataOutcome::Failed;
         }
     };
+    #[cfg(test)]
+    if let Some(hold) = &handshake.restart_hold {
+        let _ = hold.acquire().await;
+    }
     // The driver task drops the discarded session when it takes this one,
     // which fails any request still waiting on it.
     if replacement.send(driver).is_err() {
         return EarlyDataOutcome::Failed;
     }
     match session.upgrade() {
-        Some(session) => session.replace(sender).await,
+        Some(session) => session.replace(sender, datagrams.as_ref()).await,
         // The connection handle is gone; dropping the sender lets the new
         // driver close HTTP/3.
         None => return EarlyDataOutcome::Failed,
@@ -1089,6 +1114,10 @@ pub(super) struct ConnectionDiagnostics {
     /// with its ticket, for tests of corrupt state.
     #[cfg(test)]
     pub(super) remembered_settings: Option<Arc<[u8]>>,
+    /// Holds a restart after rejected early data before its answer is
+    /// published, for tests of requests sent in between.
+    #[cfg(test)]
+    pub(super) restart_hold: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl PendingRequest {

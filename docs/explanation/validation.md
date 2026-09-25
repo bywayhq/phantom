@@ -1797,6 +1797,23 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
   whose server datagrams are held, and the `GET` reaches it; the store test
   `early_data_waits_until_quic_to_the_origin_connects_again` covers the
   recently broken rule.
+- When a session that carried a request closes before its handshake
+  completes, Chromium's requests on it fail with `ERR_QUIC_HANDSHAKE_FAILED`
+  (`net/quic/quic_http_stream.cc` lines 692-697 and 715-723), QUIC to the
+  session's server is marked recently broken
+  (`net/quic/quic_session_pool.cc` lines 2714-2731), and
+  `HttpNetworkTransaction::HandleIOError` restarts the transaction
+  (`RetryReason::kQuicHandshakeFailed`,
+  `net/http/http_network_transaction.cc` lines 2077-2078 and 2222-2233),
+  which races again without early data. Phantom confirms a raced
+  alternative that won on early data only after its handshake completes. If
+  the handshake fails, it marks QUIC to the origin recently broken and races
+  a request with no body or an owned body again, once.
+  `a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin`,
+  in `crates/phantom/tests/http3_early_data.rs`, shows the retried race
+  offering no early data, its alternative failing again, the origin carrying
+  the request, and the next request going to the origin with no further QUIC
+  attempt.
 - `AltSvcBrokenBackoff::CHROMIUM_153` holds a 300 s initial period that
   doubles up to two days. A failure inside an active broken period counts
   toward the next period without extending the current one
@@ -2578,6 +2595,13 @@ Replay against Phantom:
   on it after the handshake reach the server on the same connection.
   `rejected_early_data_discards_the_remembered_settings` shows that a server
   that rejects early data and lowers a remembered limit is not closed.
+  `an_early_session_opens_no_stream_between_the_handshake_and_the_answer`
+  shows the early session waiting to open a stream after the handshake
+  completed, refusing after a rejection without allocating a stream, and
+  opening after an acceptance.
+  `a_request_between_the_handshake_and_a_rejection_is_sent_once` holds the
+  restart after a rejection, sends a request in that interval, and the server
+  sees it once, on the new session.
   `remembered_settings_stay_with_their_ticket_cache_and_server_name` shows
   that neither another pool entry's cache nor another server name starts
   from them.

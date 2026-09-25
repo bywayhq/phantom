@@ -31,7 +31,7 @@ use super::{
 };
 use crate::request::RequestBody;
 
-type RequestSender = h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>;
+type RequestSender = h3::client::SendRequest<super::early_streams::Opener<Bytes>, Bytes>;
 
 /// Cloneable handle to one established HTTP/3 connection.
 ///
@@ -65,9 +65,16 @@ impl Session {
     }
 
     /// Sends later requests on `sender`, dropping the session it replaces.
-    pub(super) async fn replace(&self, sender: RequestSender) {
+    ///
+    /// The new session numbers its request streams from 0 again, so the
+    /// datagram router forgets the old session's stream order under the
+    /// same lock.
+    pub(super) async fn replace(&self, sender: RequestSender, datagrams: Option<&DatagramRouter>) {
         let state = sender.peer_settings();
         let mut current = self.sender.lock().await;
+        if let Some(datagrams) = datagrams {
+            datagrams.restart();
+        }
         *lock_state(&self.state) = state;
         *current = Some(sender);
     }
@@ -165,6 +172,24 @@ impl Http3Connection {
     pub async fn early_data_accepted(&self) -> Option<bool> {
         let early_data = self.inner.early_data.as_ref()?;
         Some(early_data.outcome().await == EarlyDataOutcome::Accepted)
+    }
+
+    /// Waits for the handshake and returns whether this connection sent early
+    /// data and then failed: its handshake did not complete, or its handshake
+    /// metadata failed the checks a normal connection applies.
+    ///
+    /// Such a connection may have carried requests before its handshake, as a
+    /// raced alternative that won on early data does. A connection that sent
+    /// no early data, or whose early data the server accepted or rejected,
+    /// returns `false`.
+    pub async fn early_data_handshake_failed(&self) -> bool {
+        let Some(early_data) = &self.inner.early_data else {
+            return false;
+        };
+        matches!(
+            early_data.outcome().await,
+            EarlyDataOutcome::Invalid(_) | EarlyDataOutcome::Failed
+        )
     }
 
     /// Returns whether this connection started from the server's HTTP/3
@@ -546,6 +571,9 @@ impl Http3Connection {
     /// Waits for the peer's SETTINGS from ALPS or the control stream and
     /// reports the extension capabilities they enable.
     pub(super) async fn peer_extensions(&self) -> Result<PeerExtensions, Http3Error> {
+        // A rejection replaces the session, whose SETTINGS are the ones that
+        // count.
+        self.early_data_settled().await?;
         let mut peer_settings = {
             let sender = self.inner.session.sender.lock().await;
             sender
