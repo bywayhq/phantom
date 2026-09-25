@@ -1585,11 +1585,12 @@ Limits, as differences from Chrome:
 
 ### Real ECH evidence
 
-What is claimed: with the Chrome 154 or Edge 153 recipe and HTTPS record
-discovery, a direct negotiated connection to an origin whose HTTPS record
-carries `ech` encrypts its ClientHello with that configuration, as Chrome
-154.0.8037.58 and Edge 153.0.4234.48 do: the outer server name is the configuration's public name, the
-`encrypted_client_hello` extension has the kind, cipher suite, config ID,
+What is claimed: with the Chrome 154, Edge 153, or Brave 154 recipe and
+HTTPS record discovery, a direct negotiated connection to an origin whose
+HTTPS record carries `ech` encrypts its ClientHello with that
+configuration, as Chrome 154.0.8037.58, Edge 153.0.4234.48, and Brave
+154.1.96.59 do: the outer server name is the configuration's public name,
+the `encrypted_client_hello` extension has the kind, cipher suite, config ID,
 encapsulated key length, and payload length the browser sent, and the outer
 ClientHello carries the extension set the browser's did. After a rejection it
 connects once more to the same address with the server's retry

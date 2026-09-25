@@ -331,12 +331,13 @@ Supported requests and routes:
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
   and `ech` kept as raw bytes), and a malformed record is a typed error.
-  With the Chrome 154 or Edge 153 recipe, a direct HTTP/1.1 or HTTP/2
-  connection, negotiated or exact, and a `wss://` opening encrypt the
+  With the Chrome 154, Edge 153, or Brave 154 recipe, a direct HTTP/1.1 or
+  HTTP/2 connection, negotiated or exact, and a `wss://` opening encrypt the
   ClientHello with the record's `ech`, waiting up to 50 ms after address
   resolution for the lookup, not at all when the address comes from the
   client's address cache, and retrying once after a rejection whose server
-  authenticates as the public name, as Chrome 154 and Edge 153 do
+  authenticates as the public name, as Chrome 154, Edge 153, and Brave 154
+  do
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
   Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
