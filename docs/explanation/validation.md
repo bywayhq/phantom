@@ -1350,13 +1350,13 @@ Limits, as differences from Chrome:
 
 ### Real ECH evidence
 
-What is claimed: with the Chrome 154 recipe and HTTPS record discovery, a
-direct negotiated connection to an origin whose HTTPS record carries `ech`
-encrypts its ClientHello with that configuration, as Chrome 154.0.8037.58
-does: the outer server name is the configuration's public name, the
+What is claimed: with the Chrome 154 or Edge 153 recipe and HTTPS record
+discovery, a direct negotiated connection to an origin whose HTTPS record
+carries `ech` encrypts its ClientHello with that configuration, as Chrome
+154.0.8037.58 and Edge 153.0.4234.48 do: the outer server name is the configuration's public name, the
 `encrypted_client_hello` extension has the kind, cipher suite, config ID,
-encapsulated key length, and payload length Chrome sent, and the outer
-ClientHello carries the extension set Chrome's did. After a rejection it
+encapsulated key length, and payload length the browser sent, and the outer
+ClientHello carries the extension set the browser's did. After a rejection it
 connects once more to the same address with the server's retry
 configurations, or with ECH GREASE and the true name when the server sent
 none. The ClientHello waits for the lookup as Chrome's does, for at most 50 ms
@@ -1380,11 +1380,34 @@ query over DNS over HTTPS and sent no AAAA query.
 - The outer extension set equals the set of Chrome's ECH GREASE ClientHello in
   `client-hello.txt`.
 
-`crates/phantom-net/src/http1_or_2/tests/ech.rs` replays `ech-accept.txt`:
-Phantom's outer ClientHello, sent with the Chrome 154 recipe to a loopback
-origin holding the same key, has the same outer server name, the same
-extension fields, and the same extension set, GREASE values folded and
-order ignored because both permute it. The same file proves, against a
+`fixtures/tls/edge/153.0.4234.48/windows-11-26200/` retains `ech-accept.txt`
+and `ech-reject.txt` from headless Edge 153.0.4234.48 on the same host and
+origin. Edge ignores the `Local State` preferences, so its lookups were sent
+to the capture server by the `DnsOverHttpsMode=secure` and
+`DnsOverHttpsTemplates` machine policies under
+`HKLM\SOFTWARE\Policies\Microsoft\Edge`, set for the capture and removed
+after it; `chrome_ech.py --dns-from-policy` checked them with `reg query`
+before each launch. Three runs of each scenario agreed, and the first of each
+is retained.
+
+- Edge sent an `A`, an `HTTPS`, and a second `A` query for
+  `server.phantom.test`, where Chrome sent one `A` query. Neither sent an
+  AAAA query.
+- `accept` and `reject` match Chrome's field for field: the outer server
+  name, the outer extension's cipher suite, config ID, encapsulated key
+  length, and payload length, ECH accepted with the published key, and a
+  rejection of each of two connections followed by a connection with the
+  retry configuration, which the origin accepted.
+- The outer extension set was the same in all six runs and equals Chrome's.
+
+`crates/phantom-net/src/http1_or_2/tests/ech.rs` replays each browser's
+`ech-accept.txt`: Phantom's outer ClientHello, sent with that browser's
+recipe to a loopback origin holding the same key, has the same outer server
+name, the same extension fields, and the same extension set, GREASE values
+folded and order ignored because both permute it. It replays Edge's
+`ech-reject.txt` too: with the Edge 153 recipe, the rejected connection and
+its retry have the outer name, extension fields, acceptance, and name seen
+by the origin that Edge's first rejected connection and its retry had. The same file proves, against a
 loopback BoringSSL origin that decrypts ECH, that the origin receives the
 inner name; that a rejection is retried once with the retry configurations,
 and with GREASE and the true name when there are none, but not when the
@@ -1444,7 +1467,9 @@ submodule commit `f1f2556a`, states the rules the recipe follows:
   returned to the caller.
 
 Phantom implements this as `TlsSettings::ech_from_https_records`, set in
-`chromium::v154_tls`. The wait is computed from Phantom's own address
+`chromium::v154_tls` and kept by `edge::v153_tls`. Edge's network stack
+source is not public, so for Edge these rules rest on the captures, which
+show the same outer fields and retry, and not on its source. The wait is computed from Phantom's own address
 resolution time, since its addresses come from the operating system. It
 applies only when the field is set, which replaces, for that profile, the
 rule that HTTPS record discovery never delays a request.
@@ -1482,11 +1507,21 @@ its recipe keeps GREASE:
 Reproduce: build `cargo build -p phantom-net --example
 capture_ech_client_hello`, then run
 [`chrome_ech.py`](../../scripts/capture/README.md#encrypted-client-hello)
-with `--scenario accept` and `--scenario reject`. The tool writes the
-`dns_over_https.mode` and `dns_over_https.templates` preferences into the
-disposable profile's `Local State` file; it changes nothing outside that
-directory. Setting the `DnsOverHttpsMode` policy under `HKEY_CURRENT_USER`
-failed with access denied without elevation, so the capture does not use it.
+with `--scenario accept` and `--scenario reject`. For Chrome the tool writes
+the `dns_over_https.mode` and `dns_over_https.templates` preferences into
+the disposable profile's `Local State` file; it changes nothing outside that
+directory. For Edge, pass `--doh-port 65355 --dns-from-policy` after an
+administrator has set the two machine policies to `secure` and
+`https://127.0.0.1:65355/dns-query`; the capture README has the commands to
+set and remove them. The DNS-over-HTTPS server's certificate is self-signed.
+`--ignore-certificate-errors` covers it without a trust-store change: the
+network context turns the switch into its HTTP session's
+`ignore_certificate_errors`
+(`components/network_session_configurator/browser/network_session_configurator.cc`
+lines 835-837, called from `services/network/network_context.cc` line 3212
+at Chromium 153.0.8010.53), and DNS-over-HTTPS requests go through that
+context (`net/dns/dns_transaction.cc`). An Edge window started without the
+switch, while the policy is set, fails those handshakes.
 
 Limits:
 
@@ -1503,9 +1538,6 @@ Limits:
 - Phantom keeps addresses and HTTPS records in two caches with their own
   lifetimes, where Chromium keeps one entry for both. An address cache hit
   while the record's lookup is running therefore sends GREASE.
-- Edge 153 is not covered. With the same `Local State` preferences it sent no
-  DNS-over-HTTPS query, and its policy could not be set without elevation, so
-  its default is unknown and `edge::v153_tls` keeps GREASE.
 - A record with several `ech` configurations is passed whole to BoringSSL,
   which picks one; no capture shows Chrome with more than one.
 - The capture used a single record with `alpn=h2` and a target of `.`.

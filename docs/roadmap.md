@@ -31,7 +31,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
 - Encrypted Client Hello from an HTTPS record on direct negotiated TCP
-  connections with the Chrome 154 recipe
+  connections with the Chrome 154 and Edge 153 recipes
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
@@ -126,9 +126,6 @@ anything does.
 - ECH over QUIC. Evidence: Chrome passes the record's list to QUIC
   (`net/quic/quic_chromium_client_session.cc`); the QUIC connector rejects
   the field. Blocker: a capture of Chrome's QUIC handshake with a record.
-- Edge's ECH default. Evidence: unknown; `edge::v153_tls` keeps GREASE.
-  Blocker: a capture on a host where Edge's DNS-over-HTTPS policy can be set,
-  which needs elevation.
 - ECH for exact-protocol requests. Exact HTTP/1.1 and HTTP/2 requests look
   up no HTTPS record and always send ECH GREASE. Blocker: none recorded.
 - Host-to-address overrides, a caller-supplied address resolver, and DNS
