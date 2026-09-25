@@ -221,3 +221,33 @@ A new file needs an entry in `GROUPS` first. Build the tests with
 import unused or a support module ungated. The script's own tests run with
 `python -m unittest discover -s scripts/dev/tests -p 'test_*.py'`; one of
 them fails while a grouped crate has a top-level test file.
+
+## Disk space
+
+Measured on Windows with the dev profile, which keeps line tables for the
+workspace crates and no debug information for dependencies:
+
+| After | `target/` size |
+| --- | --- |
+| A clean `cargo test --workspace --all-targets --all-features --no-run` | 2.3 GB |
+| A full `scripts/dev/gate.sh` from a clean checkout, in `target/gate/` | 8.9 GB |
+
+Cargo never deletes old artifacts. Each toolchain, profile, and feature set
+keeps its own build of the dependencies, BoringSSL alone taking 300 MB per
+build, so a long-lived checkout grows with every dependency update and
+toolchain change.
+
+IDEs run their own `cargo check` with incremental compilation on, because
+`CARGO_INCREMENTAL=0` applies only to commands run through the lock helper.
+Their incremental data lives in `target/debug/incremental`.
+
+To reclaim space:
+
+- Delete `target/debug/incremental` at any time. The IDE rebuilds it on its
+  next check.
+- Remove one package's artifacts, for example after many changes to it, with
+  `cargo clean -p <package>`, such as `cargo clean -p phantom-http`.
+- Delete a lane's `target/` when the lane hands off. `git worktree remove`
+  deletes it with the rest of the worktree.
+- Delete the whole `target/` of a long-lived checkout. The next build starts
+  from scratch.
