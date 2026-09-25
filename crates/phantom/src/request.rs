@@ -196,7 +196,8 @@ impl RequestBuilder {
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template lacks an HTTP/3 list for a request that may use
     /// HTTP/3 (an exact HTTP/3 request, or a negotiated one on a client with
-    /// Alt-Svc enabled and a direct or SOCKS5 route), when content decoding is enabled and the protocol lists carry
+    /// Alt-Svc enabled and a direct or SOCKS5 route), when content decoding
+    /// is enabled and the protocol lists carry
     /// different `Accept-Encoding` values, when the caller leaves a required
     /// caller slot empty,
     /// when the template has no client-hint slot and the profile sends client
