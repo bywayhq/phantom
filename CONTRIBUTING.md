@@ -320,6 +320,9 @@ terms or conditions.
   package's `patches/series`, described in its `PHANTOM.md`.
 - Do not add code copied from another project unless its license is
   compatible and its provenance is recorded.
+- A new dependency must use a license in the `[licenses]` allow list in
+  `deny.toml`. CI runs `cargo deny check licenses`; widening the list needs
+  the same review as the dependency.
 
 ## Next
 

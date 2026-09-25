@@ -66,8 +66,9 @@ A downstream build must never pick up a stock package in place of a fork,
 because the stock package would silently drop the patched wire behavior. The
 `Downstream` job in Phantom's CI checks this in two steps.
 
-1. `cargo deny --locked check bans advisories` checks the workspace graph.
-   The `bans` check rejects the stock package names listed in `deny.toml`.
+1. `cargo deny --locked check bans advisories licenses` checks the workspace
+   graph. The `bans` check rejects the stock package names listed in
+   `deny.toml`.
 2. `scripts/ci/check-downstream.sh path git` builds two throwaway consumers.
    Each declares Phantom with one dependency line and no `[patch]` table: one
    as a path dependency, one as a git dependency. The git consumer points at

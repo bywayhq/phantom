@@ -25,6 +25,43 @@ deny = [
     { crate = "wreq-proto", reason = "use the phantom-wreq-proto fork" },
 ]
 
+# Licenses checked by `cargo deny check licenses` in CI. Phantom is
+# `MIT OR Apache-2.0`, and its forks keep their upstream licenses. The allow
+# list names only the licenses that the graph needs and that permit
+# redistribution in a permissively licensed binary. Adding one needs a review
+# of the crate that requires it. `confidence-threshold` keeps its default.
+[licenses]
+allow = [
+    "Apache-2.0",
+    # qlog, behind the `qlog` feature.
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    # webpki-root-certs: the Mozilla root store data.
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    # zlib-rs, the flate2 backend.
+    "Zlib",
+]
+
+# btls-sys declares only the MIT license of its bindings, but it also ships and
+# builds BoringSSL, which is Apache-2.0 (deps/boringssl/LICENSE). The Go-licensed
+# test code that the same file names is not compiled into the library.
+[[licenses.clarify]]
+crate = "btls-sys"
+expression = "MIT AND Apache-2.0"
+license-files = [
+    { path = "LICENSE-MIT", hash = 0xdbbdae6a },
+    { path = "deps/boringssl/LICENSE", hash = 0x3c85d46d },
+]
+
+# btls-sys comes from the pinned BoringSSL bindings repository, which is not
+# published at the revision Phantom builds. Every other crate comes from
+# crates.io or a path under `vendor/`.
+[sources]
+allow-git = ["https://github.com/bywayhq/btls"]
+
 # Advisories checked by `cargo deny check advisories` in CI. An ignore must name
 # why the advisory cannot reach Phantom users, be mirrored in `osv-scanner.toml`
 # for OpenSSF Scorecard, and be removed once the fix reaches Phantom's graph.
