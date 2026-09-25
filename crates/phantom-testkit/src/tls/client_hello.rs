@@ -13,6 +13,7 @@ const ALPN_EXTENSION: u16 = 16;
 const SUPPORTED_VERSIONS_EXTENSION: u16 = 43;
 const KEY_SHARE_EXTENSION: u16 = 51;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
+const ENCRYPTED_CLIENT_HELLO_EXTENSION: u16 = 0xfe0d;
 
 /// The ordered fingerprint-relevant fields decoded from a TLS ClientHello.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -29,6 +30,7 @@ pub struct ClientHelloSummary {
     supported_versions: Vec<u16>,
     key_share_groups: Vec<u16>,
     requested_trust_anchor_ids: Option<Vec<Vec<u8>>>,
+    encrypted_client_hello: Option<Vec<u8>>,
 }
 
 impl ClientHelloSummary {
@@ -103,6 +105,7 @@ impl ClientHelloSummary {
             supported_versions: Vec::new(),
             key_share_groups: Vec::new(),
             requested_trust_anchor_ids: None,
+            encrypted_client_hello: None,
         };
 
         if body.remaining() == 0 {
@@ -166,6 +169,9 @@ impl ClientHelloSummary {
                 TRUST_ANCHORS_EXTENSION => {
                     summary.requested_trust_anchor_ids =
                         Some(parse_trust_anchor_ids(extension_data, extension_type)?);
+                }
+                ENCRYPTED_CLIENT_HELLO_EXTENSION => {
+                    summary.encrypted_client_hello = Some(extension_data.to_vec());
                 }
                 _ => {}
             }
@@ -253,6 +259,14 @@ impl ClientHelloSummary {
     #[must_use]
     pub fn requested_trust_anchor_ids(&self) -> Option<&[Vec<u8>]> {
         self.requested_trust_anchor_ids.as_deref()
+    }
+
+    /// Returns the `encrypted_client_hello` extension body, when present.
+    ///
+    /// [`super::EchOuterExtension::parse`] decodes the outer form.
+    #[must_use]
+    pub fn encrypted_client_hello(&self) -> Option<&[u8]> {
+        self.encrypted_client_hello.as_deref()
     }
 }
 

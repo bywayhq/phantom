@@ -27,6 +27,7 @@ Run every command from the repository root; the Python tools need Python
 | EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
 | Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
+| ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
 [Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
@@ -597,6 +598,49 @@ HPACK field keeps its representation and index, gives the marker as
 `value_hex`, and adds `redacted:true`. In an auth scenario each request
 record also carries `proxy_authorization:none`, `capture-credential`, or
 `other`; its `status` is 407 when the proxy challenged it.
+
+## Encrypted Client Hello
+
+`chrome_ech.py` records the ClientHellos Chrome or Edge sends when the
+origin's HTTPS record carries `ech`, and writes one
+`format=phantom-ech-client-hello-v1` fixture per run. It runs the
+`capture_ech_client_hello` example, which serves `https://server.phantom.test/`
+on `127.0.0.1:443` from a BoringSSL origin that decrypts ECH, and a loopback
+DNS-over-HTTPS server that answers the origin's `A` query and its `HTTPS`
+query with one record whose `ech` names `public.phantom.test`. Every other
+name gets NXDOMAIN.
+
+The browser learns the DNS-over-HTTPS server from the
+`dns_over_https.mode` and `dns_over_https.templates` preferences, which the
+tool writes into the disposable profile's `Local State` file. Nothing outside
+that profile changes. `--host-resolver-rules` is not used: it cannot produce
+an HTTPS record.
+
+Build the example, then capture both scenarios:
+
+```sh
+cargo build -p phantom-net --example capture_ech_client_hello
+uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario accept \
+  --capture-binary target/debug/examples/capture_ech_client_hello.exe \
+  --output fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt
+```
+
+| Scenario | Question |
+| --- | --- |
+| `accept` | Outer server name and `encrypted_client_hello` fields when the origin holds the published key |
+| `reject` | What follows a rejection whose server offers a retry configuration |
+
+Each connection records its ClientHello records, extension order, outer
+server name, the outer extension's fields, whether the origin decrypted the
+inner ClientHello, and the inner server name. Queries for names other than
+the origin are counted, not listed; they are the fresh profile's background
+requests. Edge 153 sent no DNS-over-HTTPS query with these preferences, so
+it has no fixture.
 
 ## Next
 

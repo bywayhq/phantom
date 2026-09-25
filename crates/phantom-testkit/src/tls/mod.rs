@@ -1,8 +1,10 @@
 //! TLS wire-capture helpers.
 
 mod client_hello;
+mod ech;
 
 pub use client_hello::{ClientHelloDecodeError, ClientHelloSummary, is_grease};
+pub use ech::{EchOuterExtension, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list};
 
 use std::{error::Error, fmt, io};
 
