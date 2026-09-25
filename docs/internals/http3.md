@@ -512,6 +512,20 @@ connection was sent before any ALPS was known, so it carries no client hints
 requested through ALPS `ACCEPT_CH`; later requests on the adopted connection
 do.
 
+The pool adopts an early-data connection only after the request that opened it
+receives its response and the early data is accepted. Until then, another
+replay-safe request to the same transport location finds no pooled
+connection, takes the location's connect turn, and opens its own connection.
+Each ticket is used once, so `n` concurrent replay-safe requests to one
+location open up to `n` connections while early data is unsettled: one early
+data connection for each ticket the entry's cache holds (at most four, plus
+any that new handshakes deliver meanwhile), bounded by the entry's
+active-request limit. A request that finds no ticket makes a full handshake,
+and that connection is pooled before the turn passes on, so the requests
+after it share it. Holding the connect turn until the early data settles would
+cap this at one connection, but every waiting request would then wait the
+handshake round trip that early data exists to avoid, so the pool does not.
+
 ### Racing
 
 Under `AltSvcPolicy::race`, one request runs two candidates:
