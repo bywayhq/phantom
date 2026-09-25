@@ -19,6 +19,8 @@ policies that stay off until you enable them.
 | HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; the Chrome 154 and Edge 153 recipes offer it | `ClientBuilder::http3_early_data(bool)` overrides the profile |
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
 | Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
+| Host-to-address overrides | None | `ClientBuilder::resolve` |
+| Address resolver | The operating system's | `ClientBuilder::dns_resolver` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |

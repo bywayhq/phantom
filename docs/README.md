@@ -34,7 +34,9 @@ Task guides for using Phantom in an application.
 - [Retries and replays](guides/retries.md): when Phantom may send a request
   again, and when it never will.
 - [Connections and client state](guides/connections-and-state.md): pools,
-  the address cache, sessions, and clearing learned state.
+  sessions, and clearing learned state.
+- [Resolve host names](guides/name-resolution.md): the address cache, host
+  overrides, and your own address resolver.
 - [Redirects](guides/redirects.md): follow a bounded number of redirects.
 - [Cookies](guides/cookies.md): keep, save, and place cookies.
 - [HTTP/3 and Alt-Svc](guides/http3.md): exact HTTP/3, early data, and

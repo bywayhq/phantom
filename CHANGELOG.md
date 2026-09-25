@@ -14,6 +14,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `phantom-net` connectors resolve names through a
+  `phantom_net::host_resolver::HostResolver`, which holds host overrides, an
+  optional `AddressResolver`, and the optional `AddressCache`. On
+  `Http1TlsConnector`, `Http2TlsConnector`, `Http1Or2TlsConnector`,
+  `Http3Connector`, and `HttpsProxyConnector`, `with_address_cache` and
+  `address_cache` are replaced by `with_host_resolver` and `host_resolver`.
+  The `phantom` facade API is unchanged.
+  Migrate: replace `connector.with_address_cache(AddressCache::new(settings))`
+  with `connector.with_host_resolver(HostResolver::new().with_cache(settings))`,
+  and `connector.address_cache()` with
+  `connector.host_resolver().and_then(HostResolver::cache)`.
 - `TlsSettings` gained the public field `ech_from_https_records`, so struct
   literals that name every field no longer compile. `chromium::v154_tls`
   sets it, which changes the Chrome 154 recipe's wire behavior on a client
@@ -216,6 +227,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `Http2Connection::peer_max_concurrent_streams` in `phantom-net`.
 - [Tune throughput and latency](docs/guides/performance.md), and a table of
   every timer in [Defaults and limits](docs/reference/limits.md#delays-and-timers).
+
+- Host-to-address overrides and a caller-supplied address resolver, like
+  reqwest's `resolve` and `dns_resolver`. `ClientBuilder::resolve(host, ips)`
+  sends a name to fixed addresses, tried in the given order, while the TLS
+  server name, `Host` or `:authority`, cookies, and pool keys keep the name;
+  the port always comes from the URL. `ClientBuilder::dns_resolver` takes a
+  `phantom::AddressResolver` built with `AddressResolver::from_fn` from an
+  async function that returns `io::Result<Vec<IpAddr>>`; it replaces the
+  operating system resolver, and its answers go through the address cache
+  when there is one, one lookup per name per cache lifetime. Both cover the
+  names a client resolves itself: origin hosts on a direct route, proxy
+  hosts, and local-DNS `socks5://` targets. Targets that `socks5h://`, an
+  HTTP proxy, or CONNECT-UDP resolves never use them. An override skips the
+  resolver and the cache. A resolver error fails the request with the kind a
+  failed system lookup gets on that path. HTTPS record lookups are
+  unchanged. See [Resolve host names](docs/guides/name-resolution.md), which
+  now also holds the address cache task.
 
 - An address cache for the names a client resolves itself: origin hosts on a
   direct route, proxy hosts, and local-DNS `socks5://` targets.

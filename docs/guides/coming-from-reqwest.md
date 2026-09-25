@@ -20,6 +20,7 @@ server can observe each choice
 | `timeout`, `connect_timeout`, `read_timeout` | `RequestTimeouts` with `total`, `connect`, `read_idle`, and two more phases |
 | `Proxy::all`; system proxies from `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` | `Route` with `HttpProxy`, `Socks5Proxy`, or `ConnectUdpProxy`; no environment variables are read |
 | `cookie_store(true)` (`cookies` feature) | `ClientBuilder::cookies()` (`cookies` feature) |
+| `resolve`, `resolve_to_addrs`, `dns_resolver` | `ClientBuilder::resolve(host, ips)` and `dns_resolver(AddressResolver)`; the port always comes from the URL ([Resolve host names](name-resolution.md)) |
 | `gzip(true)`, on when the `gzip` feature is on | `ContentDecoding::advertised(max)` per request |
 | `Response::text`, `bytes`, `json` | `ResponseBody::collect_with_limit(max)`, which returns `Bytes` |
 | `Error::is_timeout`, `is_connect` | [`RequestError::kind()`](responses.md#handle-errors), a non-exhaustive `RequestErrorKind` |
@@ -189,7 +190,6 @@ async fn text(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
   ([Content decoding](content-decoding.md)).
 - Phantom adds no browser fields and keeps the order of yours
   ([Order is part of the fingerprint](../explanation/design.md#order-is-part-of-the-fingerprint)).
-- No proxy comes from the environment ([Routes and proxies](routes-and-proxies.md)).
 - Proxy credentials go out after the proxy's first `407`, then on every later
   request ([Proxy authentication](../explanation/design.md#proxy-authentication)).
 

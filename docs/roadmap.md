@@ -40,8 +40,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
-- Parallel HTTP/1.1 connections per origin, bounded pools, and the address
-  cache ([Connections and client state](guides/connections-and-state.md)).
+- Parallel HTTP/1.1 connections per origin and bounded pools
+  ([Connections and client state](guides/connections-and-state.md)).
+- The address cache, host-to-address overrides, and a caller-supplied
+  address resolver ([Resolve host names](guides/name-resolution.md)).
 - Redirects, the cookie jar, and cookie snapshots
   ([Redirects](guides/redirects.md), [Cookies](guides/cookies.md)).
 - Connection-setup retries, reused-connection replay, unprocessed-request
@@ -131,8 +133,9 @@ anything does.
   which needs elevation.
 - ECH for exact-protocol requests. Exact HTTP/1.1 and HTTP/2 requests look
   up no HTTPS record and always send ECH GREASE. Blocker: none recorded.
-- Host-to-address overrides, a caller-supplied address resolver, and DNS
-  over HTTPS where the captured browser uses it. Blocker: none recorded.
+- DNS over HTTPS where the captured browser uses it. Blocker: none
+  recorded; a caller can already supply an `AddressResolver` that queries
+  over HTTPS, but no recipe does.
 
 #### Routes and proxies
 

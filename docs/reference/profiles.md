@@ -158,7 +158,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 `DnsCacheSettings` sets how long the client reuses the addresses it resolves
 for its own connections: origin hosts on a direct route, proxy hosts, and the
 target of a local-DNS `socks5://` route. A target that a proxy resolves is
-never resolved locally.
+never resolved locally, and a name with a `ClientBuilder::resolve` override
+never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 
 | Recipe | Names kept | Answer kept for | Failure kept for |
 | --- | --- | --- | --- |
@@ -168,8 +169,9 @@ never resolved locally.
 | Edge | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
-  TTL. Both recipes use the browser's value for an answer without one:
-  Chromium's system-resolver path and Firefox's `network.dnsCacheExpiration`.
+  TTL, or through the caller's `AddressResolver`, which returns none. Both
+  recipes use the browser's value for an answer without one: Chromium's
+  system-resolver path and Firefox's `network.dnsCacheExpiration`.
 - Chromium's built-in DNS client keeps an answer for its record TTL, at least
   60 s, and Firefox on Windows asks the OS for the TTL. Neither is modeled.
 - Firefox serves an expired answer for up to 600 s more while it resolves the
