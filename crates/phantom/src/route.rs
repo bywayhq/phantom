@@ -372,6 +372,8 @@ impl HttpProxy {
     /// The ordered CONNECT fields keep their order after those pseudo-headers,
     /// with names in HTTP/2 lowercase form; the authority placeholder becomes
     /// `:authority`, and connection-specific fields are rejected before I/O.
+    /// With [`Self::with_basic_auth`], the CONNECT replay after a `407` is a
+    /// new stream on the tunnel's challenged proxy connection.
     ///
     /// An `http://` request with exact HTTP/2 or negotiated protocol
     /// selection is forwarded as an HTTP/2 request with `:scheme` `http` and

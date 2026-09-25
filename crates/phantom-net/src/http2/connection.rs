@@ -461,7 +461,9 @@ impl Http2Connection {
     /// Sends one prepared RFC 9113 section 8.5 CONNECT request.
     ///
     /// A 2xx response yields the stream as a flow-controlled byte tunnel. Any
-    /// other final status resets the stream and reports the status and fields.
+    /// other final status ends the request side with an empty END_STREAM
+    /// DATA frame, resets a response body that is still open, and reports
+    /// the status and fields. The connection stays usable for another stream.
     pub(crate) async fn send_classic_connect(
         &self,
         request: Request<()>,
@@ -487,7 +489,7 @@ impl Http2Connection {
             let (response, send) = sender
                 .send_request(request, false)
                 .map_err(Http2Error::protocol)?;
-            let send = RequestStreamGuard::new(send);
+            let mut send = RequestStreamGuard::new(send);
             let response = match response.await {
                 Ok(response) => response,
                 Err(error) => {
@@ -506,8 +508,15 @@ impl Http2Connection {
                     stream: Http2ConnectStream::new(incoming, send.disarm()?, self.lease()),
                 })
             } else {
-                // Dropping the guard resets the rejected stream with CANCEL.
-                drop(send);
+                // Chrome 154 and Edge 153 end their half of a challenged
+                // CONNECT with an empty END_STREAM DATA frame. The status is
+                // the outcome even when the send fails because the peer has
+                // reset the stream (RFC 9113 section 8.1) or closed the
+                // connection; a caller that reuses the connection checks it
+                // first. Dropping a response whose body is still open then
+                // resets the stream with CANCEL.
+                let _ = send.stream_mut()?.send_data(Bytes::new(), true);
+                drop(send.disarm());
                 drop(incoming);
                 Ok(Http2ClassicConnectOutcome::Rejected {
                     status: status.as_u16(),

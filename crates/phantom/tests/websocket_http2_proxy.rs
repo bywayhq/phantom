@@ -483,6 +483,116 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
     .await
 }
 
+/// A `ws://` opening whose CONNECT an HTTP/2 proxy challenges replays it as
+/// stream 3 of the challenged connection, as Chrome 154, Edge 153, and
+/// Firefox 156 do, and opens no second proxy connection.
+#[tokio::test]
+async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection()
+-> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (origin_address, origin_listener) = bind().await?;
+        let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
+        let proxy_identity = TestIdentity::generate()?;
+        let (proxy_address, proxy_listener) = bind().await?;
+        let proxy = tokio::spawn(tunnel_proxy::http2_challenge_then_connect(
+            proxy_listener,
+            proxy_identity.acceptor(H2_ALPN)?,
+            origin_address,
+        ));
+
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("https://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?
+                .with_http2_transport()?,
+        );
+        let client = client_builder(&identity, true)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?;
+        let socket = client
+            .websocket(&format!("ws://{origin_address}/challenged"))?
+            .connect()
+            .await?;
+        exchange_echo(socket).await?;
+
+        let (records, one_connection) = proxy.await??;
+        assert!(one_connection, "the replay opened a new proxy connection");
+        assert_challenged_then_authorized(&records);
+        let (request, message) = origin.await??;
+        assert!(request.starts_with(b"GET /challenged HTTP/1.1\r\n"));
+        assert_eq!(message, text_frame("hello"));
+        Ok(())
+    })
+    .await
+}
+
+/// An HTTP/2 WebSocket through an HTTP/2 proxy replays a challenged CONNECT
+/// on the challenged proxy connection, then runs its extended CONNECT inside
+/// the tunnel.
+#[tokio::test]
+async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connection()
+-> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let (origin_address, origin) = spawn_h2_origin(&identity).await?;
+        let proxy_identity = TestIdentity::generate()?;
+        let (proxy_address, proxy_listener) = bind().await?;
+        let proxy = tokio::spawn(tunnel_proxy::http2_challenge_then_connect(
+            proxy_listener,
+            proxy_identity.acceptor(H2_ALPN)?,
+            origin_address,
+        ));
+
+        let client = h2_websocket_client(
+            &identity,
+            Some(proxy_identity.root_der.clone()),
+            Route::http_proxy(
+                HttpProxy::new(&format!("https://{proxy_address}"))?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            ),
+        )?;
+        let socket = client
+            .websocket_with_protocol(
+                HttpProtocol::Http2,
+                &format!("wss://{origin_address}/challenged"),
+            )?
+            .connect()
+            .await?;
+        exchange_echo(socket).await?;
+
+        let (records, one_connection) = proxy.await??;
+        assert!(one_connection, "the replay opened a new proxy connection");
+        assert_challenged_then_authorized(&records);
+        let origin_record = origin.await??;
+        assert_eq!(origin_record.protocol.as_deref(), Some("websocket"));
+        assert_eq!(origin_record.path.as_deref(), Some("/challenged"));
+        Ok(())
+    })
+    .await
+}
+
+/// Checks an anonymous CONNECT on stream 1 and its credentialed replay on
+/// stream 3 of the same proxy connection.
+fn assert_challenged_then_authorized(records: &[tunnel_proxy::Http2ConnectRecord]) {
+    let sent: Vec<_> = records
+        .iter()
+        .map(|record| {
+            let authorization = record
+                .fields
+                .iter()
+                .find(|(name, _)| name == "proxy-authorization")
+                .map(|(_, value)| value.clone());
+            (record.stream_id, authorization)
+        })
+        .collect();
+    assert_eq!(
+        sent,
+        [(1, None), (3, Some(b"Basic YWxpY2U6c2VjcmV0".to_vec()))]
+    );
+}
+
 /// A `ws://` tunnel on an HTTP/2 proxy sends the profile's CONNECT fields
 /// with the opening's `User-Agent`, as every H2 CONNECT in the
 /// `https-proxy-hostname` and `https-proxy-loopback` captures of Chrome 154,
