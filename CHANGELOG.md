@@ -152,6 +152,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Huffman-coded (`Http2HuffmanCoding`). The three types are exported from
   `phantom::profile`, so a custom profile can set them. (`5502db6`,
   `c41222c`)
+- Negotiated HTTP/1.1+HTTP/2 requests can use an HTTP proxy route, over the
+  HTTP/1.1 or HTTP/2 proxy transport. Each connection opens one CONNECT
+  tunnel with the same CONNECT fields and Basic retry as an exact request,
+  and ALPN in the origin handshake inside it selects the protocol. The route
+  learns no Alt-Svc alternative, because the tunnel cannot carry QUIC, so
+  these requests stay on HTTP/1.1 or HTTP/2. A CONNECT-UDP route still
+  rejects negotiated requests with `RequestErrorKind::UnsupportedRoute`.
+  (`ecdd984`, `5c2a749`)
 
 ### Changed
 
