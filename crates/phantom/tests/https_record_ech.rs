@@ -14,6 +14,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
     time::Duration,
 };
@@ -35,6 +36,7 @@ use phantom_testkit::{
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
+    sync::Barrier,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -79,14 +81,25 @@ fn ech_tls_settings() -> TlsSettings {
 }
 
 fn client(identity: &TestIdentity, dns: &DnsServer) -> TestResult<Client> {
+    client_with(
+        identity,
+        dns,
+        ClientProfile::new(ech_tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_http3(client_settings()),
+    )
+}
+
+fn client_with(
+    identity: &TestIdentity,
+    dns: &DnsServer,
+    profile: ClientProfile,
+) -> TestResult<Client> {
     let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
     let resolver = HttpsRecordResolver::from_fn(move |_, port| {
         let upstream = upstream.clone();
         async move { upstream.lookup(STAND_IN_NAME, port).await }
     });
-    let profile = ClientProfile::new(ech_tls_settings())
-        .with_http2(chromium::v154_http2())
-        .with_http3(client_settings());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .alt_svc(NonZeroUsize::MIN.saturating_add(7))
@@ -114,7 +127,59 @@ async fn serve(
 ) -> TestResult<Vec<Observed>> {
     let mut observed = Vec::new();
     for _ in 0..connections {
-        let (mut tcp, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+        let (tcp, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+        let (seen, mut tls) = handshake(tcp, &acceptor).await?;
+        observed.push(seen);
+        respond(&mut tls).await?;
+    }
+    Ok(observed)
+}
+
+/// Serves `connections` connections at once, answering none until every
+/// one has sent its request, so each request needs its own connection.
+async fn serve_parallel(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    connections: usize,
+) -> TestResult<Vec<Observed>> {
+    let barrier = Arc::new(Barrier::new(connections));
+    let mut tasks = Vec::new();
+    for _ in 0..connections {
+        let (tcp, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+        let acceptor = acceptor.clone();
+        let barrier = Arc::clone(&barrier);
+        tasks.push(tokio::spawn(async move {
+            let (seen, mut tls) = handshake(tcp, &acceptor).await?;
+            read_head(&mut tls).await?;
+            barrier.wait().await;
+            write_response(&mut tls).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(seen)
+        }));
+    }
+    let mut observed = Vec::new();
+    for task in tasks {
+        observed.push(task.await??);
+    }
+    Ok(observed)
+}
+
+async fn respond(tls: &mut SslStream<Replayed>) -> TestResult<()> {
+    read_head(tls).await?;
+    write_response(tls).await
+}
+
+async fn write_response(tls: &mut SslStream<Replayed>) -> TestResult<()> {
+    tls.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok")
+        .await?;
+    tls.shutdown().await?;
+    Ok(())
+}
+
+async fn handshake(
+    mut tcp: TcpStream,
+    acceptor: &SslAcceptor,
+) -> TestResult<(Observed, SslStream<Replayed>)> {
+    {
         let capture = capture_client_hello(
             &mut tcp,
             tokio::time::Instant::now() + TEST_TIMEOUT,
@@ -136,19 +201,15 @@ async fn serve(
             },
         )?;
         Pin::new(&mut tls).accept().await?;
-        observed.push(Observed {
+        let seen = Observed {
             outer_server_name: summary
                 .server_name()
                 .map(|name| String::from_utf8_lossy(name).into_owned()),
             ech_accepted: tls.ssl().ech_accepted(),
             inner_server_name: tls.ssl().servername(NameType::HOST_NAME).map(str::to_owned),
-        });
-        read_head(&mut tls).await?;
-        tls.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok")
-            .await?;
-        tls.shutdown().await?;
+        };
+        Ok((seen, tls))
     }
-    Ok(observed)
 }
 
 struct Replayed {
@@ -285,4 +346,92 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
     })
     .await
     .map_err(|_| "ECH test exceeded its deadline")?
+}
+
+/// Parallel negotiated HTTP/1.1 connections each offer the record's `ech`:
+/// once the lookup is cached, none of them waits for it.
+#[tokio::test]
+async fn parallel_http1_connections_each_offer_the_cached_configuration() -> TestResult<()> {
+    timeout(TEST_TIMEOUT, async {
+        let identity =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
+        let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
+        let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
+        let dns = DnsServer::spawn(move |_| {
+            DnsReply::new(DnsAnswer::Records {
+                ttl: 300,
+                rdata: vec![rdata.clone()],
+            })
+        })
+        .await?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let port = listener.local_addr()?.port();
+        let acceptor = ech_acceptor(&identity, &config)?;
+        let profile = ClientProfile::new(ech_tls_settings())
+            .with_http2(chromium::v154_http2())
+            .with_http3(client_settings())
+            .with_http1(chromium::v154_http1());
+        let client = client_with(&identity, &dns, profile)?;
+        let url = |path: &str| format!("https://{ORIGIN_NAME}:{port}{path}");
+
+        // Prime the cache: the lookup starts with this request.
+        let server = tokio::spawn(async move {
+            let prime = serve_parallel(&listener, &acceptor, 1).await?;
+            let parallel = serve_parallel(&listener, &acceptor, 3).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((prime, parallel))
+        });
+        let response = client.get_negotiated(&url("/prime"))?.send().await?;
+        response.into_body().collect().await?;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        let requests = (0..3)
+            .map(|index| {
+                let request = client.get_negotiated(&url(&format!("/parallel-{index}")));
+                async move {
+                    let response = request?.send().await?;
+                    response.into_body().collect().await?;
+                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                }
+            })
+            .collect::<Vec<_>>();
+        for result in futures_join_all(requests).await {
+            result?;
+        }
+
+        let (_, observed) = server.await??;
+        assert_eq!(observed.len(), 3);
+        for connection in &observed {
+            assert_eq!(connection.outer_server_name.as_deref(), Some(PUBLIC_NAME));
+            assert!(connection.ech_accepted);
+            assert_eq!(connection.inner_server_name.as_deref(), Some(ORIGIN_NAME));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|_| "ECH test exceeded its deadline")?
+}
+
+/// Runs `futures` concurrently on the current task and returns their
+/// results in order.
+async fn futures_join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Output> {
+    let mut pinned = futures.into_iter().map(Box::pin).collect::<Vec<_>>();
+    let mut results = (0..pinned.len()).map(|_| None).collect::<Vec<_>>();
+    std::future::poll_fn(|context| {
+        let mut pending = false;
+        for (index, future) in pinned.iter_mut().enumerate() {
+            if results[index].is_none() {
+                match future.as_mut().poll(context) {
+                    Poll::Ready(output) => results[index] = Some(output),
+                    Poll::Pending => pending = true,
+                }
+            }
+        }
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(())
+        }
+    })
+    .await;
+    results.into_iter().flatten().collect()
 }

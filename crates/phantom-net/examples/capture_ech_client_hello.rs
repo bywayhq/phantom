@@ -76,9 +76,10 @@ async fn main() -> CaptureResult<()> {
         ),
     };
 
+    // Checked before binding, so the capture never listens beyond loopback.
+    require_loopback(arguments.origin.ip(), "origin listener")?;
     let origin = TcpListener::bind(arguments.origin).await?;
     let origin_address = origin.local_addr()?;
-    require_loopback(origin_address.ip(), "origin listener")?;
     let doh = TcpListener::bind((origin_address.ip(), 0)).await?;
     let doh_address = doh.local_addr()?;
     let doh_template = format!("https://{doh_address}/dns-query");
