@@ -1456,8 +1456,10 @@ rule that HTTPS record discovery never delays a request.
   (`ServiceEndpointRequestImpl::DoResolveLocally`,
   `net/dns/host_resolver_manager_service_endpoint_request_impl.cc` lines
   366-369 and 433-445, and `EndpointsCryptoReady`, lines 161-167).
-- Each parallel HTTP/1.1 connection of the negotiated pool offers the record's
-  `ech` and waits on its own. All of them join the origin's one shared lookup,
+- Each parallel HTTP/1.1 connection of the negotiated pool, and each
+  additional HTTP/2 connection it opens for an origin, offers the record's
+  `ech` and waits on its own: every negotiated direct connection is opened by
+  the same pool path. All of them join the origin's one shared lookup,
   so the waits overlap rather than add up, and once the lookup is cached no
   connection waits.
   `crates/phantom/tests/https_record_ech.rs` proves three parallel
