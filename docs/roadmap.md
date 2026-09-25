@@ -249,9 +249,40 @@ have shown where the real architectural boundaries are.
      or a documented limit.
   2. Use real ECH from HTTPS DNS records. Phantom now reads the records: an
      opt-in client learns `h3` from them without an Alt-Svc advertisement,
-     and each record's `ech` value is kept as raw `ECHConfigList` bytes. Next
-     is parsing that list and encrypting the inner ClientHello with it,
-     where the captured browser does.
+     and each record's `ech` value is kept as raw `ECHConfigList` bytes.
+     [Real ECH source findings](explanation/validation.md#real-ech-source-findings)
+     records Chrome 154's rules. The first slice is Chrome's direct TCP path
+     on the negotiated pool:
+     - A TLS recipe field, such as `ech_from_https_records`, true for Chrome
+       154 only. Edge's default is unread and Firefox's ClientHelloOuter
+       comes from NSS, so both stay on GREASE. A QUIC connector rejects the
+       field until the QUIC leg implements it.
+     - A bounded `ECHConfigList` parser with a fuzz target, following
+       BoringSSL's `ssl_is_valid_ech_config_list`. A list that does not parse
+       fails the connection with a typed error, as Chrome's
+       `ERR_INVALID_ECH_CONFIG_LIST` does; the whole list goes to
+       `set_ech_config_list`, which picks the configuration.
+     - The discovery cache keeps, per origin, the `ech` of the
+       lowest-priority-value usable record that allows `h2` or
+       `http/1.1`.
+     - The direct connect resolves addresses, starts the TCP connect, and
+       holds the ClientHello until the lookup ends or a timer fires: 20% of
+       the address resolution time, at least 5 ms and at most 50 ms after
+       the addresses arrive. This is Chrome's wait, so it replaces the rule
+       that discovery never delays a request, for this field only.
+     - On `SSL_R_ECH_REJECTED`, one new TCP connection to the same address
+       with the retry configurations, or with GREASE and the true SNI when
+       there are none. A second rejection is a typed error.
+     - Tests against a loopback server that decrypts ECH: outer SNI is the
+       public name and the inner SNI reaches the server, rejection with and
+       without retry configurations, a malformed list, and no query or ECH
+       on proxy routes.
+
+     Blocked on a `btls` wrapper patch: the loopback server needs
+     `SslEchKeys` and `SslEchKeysBuilder`, which the wrapper keeps private.
+     The client calls are already public. A Chrome capture that shows the
+     ClientHelloOuter next to a GREASE ClientHello is also missing, so the
+     slice may claim only that it makes Chrome's BoringSSL calls.
   3. Model Firefox's per-connection keepalive schedule and its address
      selection. Phantom applies Chromium's keepalive and Happy Eyeballs v2 on
      every TCP path, so a Firefox profile currently connects with Chromium's

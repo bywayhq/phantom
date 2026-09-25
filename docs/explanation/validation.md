@@ -1342,6 +1342,150 @@ Limits, as differences from Chrome:
 - An unanswered query is resent after 333 ms and again 333 ms later, on the
   resolver library's schedule rather than Chrome's.
 - A record's `ech` value is kept as `ECHConfigList` bytes and not used.
+  Every TLS connection offers ECH GREASE only. What the browsers do with the
+  value is under [Real ECH source findings](#real-ech-source-findings).
+
+### Real ECH source findings
+
+What is claimed: nothing about Phantom's wire. This section records, from
+browser source, when Chrome 154.0.8037.58 and Firefox 156.0 encrypt the
+ClientHello with an `ech` value from an HTTPS record, so that the first
+Phantom implementation copies a stated rule. No capture covers it; the
+reason is at the end of the section. Chromium paths are at tag
+`154.0.8037.58`, Firefox paths at tag `FIREFOX_156_0_RELEASE`, and BoringSSL
+paths at Phantom's pinned submodule commit `f1f2556a`.
+
+Chrome enables ECH by default and sends HTTPS queries from its own DNS
+client:
+
+- The `kEncryptedClientHelloEnabled` preference defaults to true
+  (`chrome/browser/ssl/ssl_config_service_manager.cc` line 194) and becomes
+  `ech_enabled` (line 307). `SSLClientContext::GetEchMode` then gives
+  `kOpportunistic` (`net/socket/ssl_client_socket.cc` lines 248-257), which
+  `net/base/ech_mode.h` (lines 32-47) defines: use a configuration when one
+  is available, send ECH GREASE otherwise.
+- `kAsyncDns` is on for Windows, macOS, Linux, ChromeOS, and Android
+  (`net/base/features.cc` lines 42-49), and `kUseDnsHttpsSvcb` is on (line
+  83). The resolver copies a record's `ech` bytes without parsing them
+  (`net/dns/https_record_rdata.cc` lines 434-437,
+  `net/dns/dns_response_result_extractor.cc` lines 576-577).
+
+Which connections use the value:
+
+- TCP: `SSLConnectJob::DoSSLConnect` takes the list from the resolved
+  endpoint only for a direct connection
+  (`net/socket/ssl_connect_job.cc` lines 406-420). A proxied request sends
+  no HTTPS query, as the [HTTPS DNS record evidence](#https-dns-record-evidence)
+  records, so it never has a list.
+- QUIC: the session enables ECH GREASE and passes the same endpoint list to
+  the QUIC TLS stack (`net/quic/quic_chromium_client_session.cc` lines
+  1765-1780).
+- The record whose value applies is the first usable endpoint that contains
+  the connected address. `DnsTaskResultsManager::UpdateEndpoints`
+  (`net/dns/dns_task_results_manager.cc` lines 295-339) builds one endpoint
+  per ServiceMode record in priority order, all with the origin's A and AAAA
+  addresses, and `TcpConnectJob::IsEndpointResultUsable` and
+  `FindServiceEndpoint` (`net/socket/tcp_connect_job.cc` lines 809-854) keep
+  those whose protocols include one of the TCP ALPN values. So the
+  lowest-priority-value record that allows `h2` or `http/1.1` decides, and a
+  record without `ech` means no ECH even when another record has it. When
+  every usable record has `ech`, Chrome treats the origin as SVCB-reliant
+  and uses no plain A and AAAA fallback (`TcpConnectJob::UpdateSvcbOptional`,
+  lines 856-870, and `HostResolver::AllAlternativeEndpointsHaveEch`,
+  `net/dns/host_resolver.h` lines 653-671).
+
+When the ClientHello waits for DNS:
+
+- The TCP connect does not wait for the HTTPS answer, but the TLS handshake
+  does. After the TCP connect succeeds, the connector stops in
+  `kWaitForCryptoReady` until `EndpointsCryptoReady` is true
+  (`net/socket/tcp_connect_job_connector.cc` lines 250-255). That is true
+  once the HTTPS transaction has finished
+  (`net/dns/host_resolver_manager_service_endpoint_request_impl.cc` lines
+  161-177, `net/dns/dns_task_results_manager.cc` lines 128-133 and 266-268).
+- The HTTPS transaction finishes with its answer or with a timer. The timer
+  starts when both address answers are in and runs for 20% of the time
+  since the DNS task started, at least 5 ms and at most 50 ms
+  (`HostResolverDnsTask::MaybeStartTimeoutTimer`,
+  `net/dns/host_resolver_dns_task.cc` lines 1122-1195, with the limits in
+  `net/base/features.cc` lines 88-110). A timed-out query counts as no
+  record.
+- This wait applies to every direct `https` TCP connection whose resolution
+  sent an HTTPS query, whether or not the answer carries `ech`. It adds
+  nothing when the answer is cached or arrives before the TCP connect
+  completes, and at most 50 ms after the address answers otherwise.
+
+The ClientHello:
+
+- `SSLClientSocketImpl::ConfigureEch` enables ECH GREASE and then passes the
+  whole list to `SSL_set1_ech_config_list`
+  (`net/socket/ssl_client_socket_impl.cc` lines 1821-1851). BoringSSL uses
+  the first ECHConfig with version `0xfe0d`, KEM X25519 with HKDF-SHA256, a
+  HKDF-SHA256 cipher suite with a supported AEAD, a valid public name, and
+  no mandatory extension (`ssl/encrypted_client_hello.cc` lines 425-509
+  and 654-706); it prefers ChaCha20-Poly1305 without AES hardware. With a
+  selected configuration, real ECH replaces GREASE and the outer SNI is the
+  configuration's `public_name`. Without one, the connection sends GREASE
+  and the true SNI.
+- A list that does not parse fails the connection with
+  `ERR_INVALID_ECH_CONFIG_LIST` (`net/base/net_error_list.h` lines
+  448-449). Chrome does not fall back to a connection without the list.
+
+Rejection:
+
+- When the server cannot decrypt the inner ClientHello, BoringSSL verifies
+  the certificate against the public name
+  (`net/socket/ssl_client_socket_impl.cc` lines 1119-1128). A certificate
+  error there becomes `ERR_ECH_FALLBACK_CERTIFICATE_INVALID` (lines
+  1241-1246) and ends the attempt. Otherwise the handshake ends with
+  `SSL_R_ECH_REJECTED`, which Chrome maps to `ERR_ECH_NOT_NEGOTIATED`.
+- `SSLConnectJob::DoSSLConnectComplete` then retries once, on a new TCP
+  connection to the same address, with the server's retry configurations
+  (`net/socket/ssl_connect_job.cc` lines 251-285 and 506-525). Empty retry
+  configurations mean the retry sends GREASE and the true SNI. A second
+  rejection is returned to the caller.
+
+Firefox 156 differs in four ways:
+
+- It uses NSS, not BoringSSL, so its ClientHelloOuter comes from a different
+  TLS stack. Phantom's Firefox recipe is built on BoringSSL.
+- `network.dns.echconfig.enabled` and `network.dns.http3_echconfig.enabled`
+  are true (`modules/libpref/init/StaticPrefList.yaml` lines 16807-16816),
+  and `network.dns.native_https_query` is true except on Windows 10 (lines
+  15460-15471). HTTPS records are used only when the origin resolves its own
+  names and the request is not tunneled (`nsHttpChannel.cpp` lines
+  8273-8284).
+- A transaction waits for the HTTPS record only when DNS over HTTPS is
+  active (`nsHttpChannel.cpp` lines 8284-8288,
+  `nsHttpConnectionMgr.cpp` lines 1669-1674). Otherwise a record that
+  arrives after the transaction is activated is not used for it
+  (`nsHttpTransaction.cpp` lines 3621-3625).
+- On `SSL_ERROR_ECH_RETRY_WITH_ECH` it retries with the retry
+  configurations, on `SSL_ERROR_ECH_RETRY_WITHOUT_ECH` without ECH, and on
+  `SSL_ERROR_ECH_FAILED` with the next record; it does not fall back to the
+  origin's plain addresses by default (`nsHttpTransaction.cpp` lines
+  1299-1352, `network.dns.echconfig.fallback_to_origin_when_all_failed` at
+  lines 16822-16825).
+
+What Phantom's TLS stack already has: the `btls` wrapper exposes
+`SslRef::set_ech_config_list`, `ech_accepted`, `get_ech_retry_configs`, and
+`get_ech_name_override` (`vendor/btls/src/ssl/mod.rs` lines 4284-4352), and
+BoringSSL's built-in verifier checks the public name after a rejection
+(`ssl/ssl_x509.cc` line 224). The QUIC backend configures ECH GREASE on a
+borrowed `SslRef` (`crates/phantom-quic-btls/src/backend/client_session.rs`
+lines 587-600), so it can pass a list through the same safe call. The server
+side is not usable from outside the wrapper: `SslContextBuilder::set_ech_keys`
+is public, but the `SslEchKeys` type it takes and its builder live in a
+private module (`vendor/btls/src/ssl/mod.rs` lines 92 and 115). A loopback
+server that decrypts ECH therefore needs a wrapper patch that exports them.
+
+No capture: Chrome's HTTPS query goes to the system's nameservers or to a
+DNS over HTTPS server, and `--host-resolver-rules` cannot produce an HTTPS
+record. A loopback capture needs either a local nameserver set on the network
+adapter or the `DnsOverHttpsMode` and `DnsOverHttpsTemplates` policies with a
+locally trusted DNS over HTTPS server. Both change the host's configuration
+beyond launching a browser against a loopback server, so they wait for the
+maintainer's approval.
 
 ### QUIC resumption and 0-RTT evidence
 
