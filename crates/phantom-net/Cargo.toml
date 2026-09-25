@@ -49,7 +49,7 @@ btls = { workspace = true, features = ["prefix-symbols"] }
 tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 
 [dev-dependencies]
-criterion = { version = "=0.7.0", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
+criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 phantom-testkit = { path = "../phantom-testkit" }
 quinn = { workspace = true, features = ["rustls-ring"] }
