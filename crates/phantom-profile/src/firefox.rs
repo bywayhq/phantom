@@ -369,7 +369,10 @@ pub fn v156_websocket() -> WebSocketSettings {
 /// then `Proxy-Authorization` when the proxy asked for credentials
 /// (`http-proxy-*` and `http-proxy-auth-*`). Every HTTP/2 CONNECT to the TLS
 /// proxy sends `user-agent` after `:method` and `:authority`, then
-/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`).
+/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`). The
+/// `*-secure-hostname` captures show the same fields on the CONNECT for an
+/// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
+/// replay after a `407`, and with remembered credentials.
 ///
 /// Firefox's `User-Agent` there is its own, which the captures show equal to
 /// the page request's. The recipe copies the `User-Agent` of the request
@@ -425,8 +428,9 @@ fn websocket_accept_encoding(name: &str) -> WebSocketField {
 ///
 /// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
 /// captures show it after `Referer` on the `fetch()` that follows the
-/// challenged navigation. No capture shows a navigation sent with remembered
-/// credentials; its slot is at the same place relative to `Connection`.
+/// challenged navigation, and the `*-auth-remembered-hostname` captures show
+/// it after `Accept-Encoding` on a navigation sent with remembered
+/// credentials.
 fn preemptive_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Preemptive)
 }
@@ -435,8 +439,11 @@ fn preemptive_proxy_authorization(name: &str) -> RequestField {
 /// replay after a `407`: after every template field on HTTP/1.1, and before
 /// `te` on HTTP/2.
 ///
-/// The same captures show it there on the replayed navigation. No capture
-/// shows a replayed `fetch()`; its slot is last too.
+/// The same captures show it there on the replayed navigation, and the
+/// `*-auth-remembered-hostname` captures on a replayed `fetch()`. That
+/// capture's `fetch()` used the default cache mode, so where the field goes
+/// relative to the no-store template's `Pragma` and `Cache-Control` is not
+/// captured.
 fn replay_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Replay)
 }

@@ -54,6 +54,8 @@ macro_rules! proxy_fixture {
 struct CapturedRequest {
     kind: String,
     status: String,
+    /// `none`, `capture-credential`, or `other`; `none` without auth.
+    credential: String,
     request_line: String,
     names: Vec<String>,
 }
@@ -98,6 +100,7 @@ fn captured_requests(fixture: &str) -> TestResult<Vec<CapturedRequest>> {
         requests.push(CapturedRequest {
             kind: attribute("kind")?,
             status: attribute("status")?,
+            credential: attribute("proxy_authorization").unwrap_or_else(|_| "none".to_owned()),
             request_line: decode_hex(line)?,
             names,
         });
@@ -116,6 +119,25 @@ fn captured<'a>(
         .find(|request| request.kind == kind && request.status == status)
         .map(|request| request.names.as_slice())
         .ok_or_else(|| format!("capture has no {kind} request with status {status}").into())
+}
+
+/// Returns the names of the first captured request of `kind` that carried
+/// the capture credential or, with `credential` false, carried none.
+fn captured_with(
+    requests: &[CapturedRequest],
+    kind: &str,
+    credential: bool,
+) -> TestResult<Vec<String>> {
+    let wanted = if credential {
+        "capture-credential"
+    } else {
+        "none"
+    };
+    requests
+        .iter()
+        .find(|request| request.kind == kind && request.credential == wanted)
+        .map(|request| request.names.clone())
+        .ok_or_else(|| format!("capture has no {kind} request with credential {wanted}").into())
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {
@@ -142,8 +164,10 @@ struct Browser {
     user_agent: &'static str,
     /// `http-proxy-auth-hostname` and `http-proxy-auth-loopback`.
     authenticated: [&'static str; 2],
-    /// `http-proxy-hostname` and `http-proxy-loopback`.
-    anonymous: [&'static str; 2],
+    /// `http-proxy-secure-hostname` and `http-proxy-auth-secure-hostname`.
+    secure: [&'static str; 2],
+    /// `http-proxy-auth-remembered-hostname`.
+    remembered: &'static str,
 }
 
 fn browsers() -> Vec<Browser> {
@@ -161,10 +185,14 @@ fn browsers() -> Vec<Browser> {
                 proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-hostname"),
                 proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-loopback"),
             ],
-            anonymous: [
-                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-hostname"),
-                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-loopback"),
+            secure: [
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-secure-hostname"),
+                proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-secure-hostname"),
             ],
+            remembered: proxy_fixture!(
+                "chrome/154.0.8037.58",
+                "http-proxy-auth-remembered-hostname"
+            ),
         },
         Browser {
             label: "edge",
@@ -179,10 +207,11 @@ fn browsers() -> Vec<Browser> {
                 proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-hostname"),
                 proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-loopback"),
             ],
-            anonymous: [
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-hostname"),
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-loopback"),
+            secure: [
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-secure-hostname"),
+                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-secure-hostname"),
             ],
+            remembered: proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-remembered-hostname"),
         },
         Browser {
             label: "firefox",
@@ -197,10 +226,11 @@ fn browsers() -> Vec<Browser> {
                 proxy_fixture!("firefox/156.0", "http-proxy-auth-hostname"),
                 proxy_fixture!("firefox/156.0", "http-proxy-auth-loopback"),
             ],
-            anonymous: [
-                proxy_fixture!("firefox/156.0", "http-proxy-hostname"),
-                proxy_fixture!("firefox/156.0", "http-proxy-loopback"),
+            secure: [
+                proxy_fixture!("firefox/156.0", "http-proxy-secure-hostname"),
+                proxy_fixture!("firefox/156.0", "http-proxy-auth-secure-hostname"),
             ],
+            remembered: proxy_fixture!("firefox/156.0", "http-proxy-auth-remembered-hostname"),
         },
     ]
 }
@@ -373,50 +403,161 @@ async fn open_tunnel(client: &Client, browser: &Browser, caller: Vec<RequestHead
 }
 
 /// The profile's CONNECT fields for an HTTPS request through an HTTP/1.1
-/// proxy, anonymous, on the replay after a `407`, and with remembered
-/// credentials, compared with the captured CONNECT of each browser. The
-/// captures tunnel `ws://`; an HTTPS tunnel uses the same request.
+/// proxy, anonymous, challenged, on the replay after a `407`, and with
+/// remembered credentials, compared with the `https://` CONNECTs of the
+/// `http-proxy-secure-hostname` and `http-proxy-auth-secure-hostname`
+/// captures of each browser.
 #[tokio::test]
 async fn connect_requests_send_the_captured_fields() -> TestResult<()> {
     bounded(async {
         for browser in browsers() {
-            for (anonymous, authenticated) in browser.anonymous.iter().zip(browser.authenticated) {
-                let label = browser.label;
-                let expected_anonymous =
-                    captured(&captured_requests(anonymous)?, "connect", "200")?.to_vec();
-                let expected_authenticated =
-                    captured(&captured_requests(authenticated)?, "connect", "200")?.to_vec();
+            let label = browser.label;
+            let [anonymous, authenticated] = browser.secure;
+            let anonymous = captured_requests(anonymous)?;
+            let authenticated = captured_requests(authenticated)?;
+            let expected_anonymous = captured_with(&anonymous, "https-connect", false)?;
+            let expected_challenged = captured_with(&authenticated, "https-connect", false)?;
+            let expected_replay = captured_with(&authenticated, "https-connect", true)?;
+            let expected_remembered = captured_with(&authenticated, "wss-connect", true)?;
+            assert_eq!(
+                captured(&authenticated, "https-connect", "407")?,
+                expected_challenged,
+                "{label}: the first https:// CONNECT is the challenged one"
+            );
 
-                let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-                let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
-                let server = tokio::spawn(record_connects(listener, 0, 1));
-                let client = profile_client(&browser, Route::http_proxy(proxy))?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+            let server = tokio::spawn(record_connects(listener, 0, 1));
+            let client = profile_client(&browser, Route::http_proxy(proxy))?;
+            open_tunnel(&client, &browser, browser.caller.clone()).await;
+            let heads = server.await??;
+            let (request_line, names) = head_names(&heads[0])?;
+            assert_eq!(request_line, "CONNECT origin.phantom.test:443 HTTP/1.1");
+            assert_eq!(names, expected_anonymous, "{label} anonymous");
+            assert_eq!(user_agent(&heads[0]), Some(browser.user_agent), "{label}");
+
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
+                .with_basic_auth("user", "secret")?;
+            let server = tokio::spawn(record_connects(listener, 1, 3));
+            let client = profile_client(&browser, Route::http_proxy(proxy))?;
+            for _ in 0..2 {
                 open_tunnel(&client, &browser, browser.caller.clone()).await;
-                let heads = server.await??;
-                let (request_line, names) = head_names(&heads[0])?;
-                assert_eq!(request_line, "CONNECT origin.phantom.test:443 HTTP/1.1");
-                assert_eq!(names, expected_anonymous, "{label} anonymous");
-                assert_eq!(user_agent(&heads[0]), Some(browser.user_agent), "{label}");
+            }
+            let heads = server.await??;
+            let (_, challenged) = head_names(&heads[0])?;
+            assert_eq!(challenged, expected_challenged, "{label} challenged");
+            for (head, expected, what) in [
+                (&heads[1], &expected_replay, "replay"),
+                (&heads[2], &expected_remembered, "remembered"),
+            ] {
+                let (_, names) = head_names(head)?;
+                assert_eq!(&names, expected, "{label} {what}");
+                assert!(
+                    head.contains(&format!("\r\nProxy-Authorization: {CREDENTIALS}\r\n")),
+                    "{label} {what}"
+                );
+            }
+        }
+        Ok(())
+    })
+    .await
+}
 
-                let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-                let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
-                    .with_basic_auth("user", "secret")?;
-                let server = tokio::spawn(record_connects(listener, 1, 3));
-                let client = profile_client(&browser, Route::http_proxy(proxy))?;
-                for _ in 0..2 {
-                    open_tunnel(&client, &browser, browser.caller.clone()).await;
-                }
-                let heads = server.await??;
-                let (_, challenged) = head_names(&heads[0])?;
-                assert_eq!(challenged, expected_anonymous, "{label} challenged");
-                for (head, what) in [(&heads[1], "replay"), (&heads[2], "remembered")] {
-                    let (_, names) = head_names(head)?;
-                    assert_eq!(names, expected_authenticated, "{label} {what}");
-                    assert!(
-                        head.contains(&format!("\r\nProxy-Authorization: {CREDENTIALS}\r\n")),
-                        "{label} {what}"
-                    );
-                }
+/// A `wss://` tunnel through an HTTP/1.1 proxy sends the profile's CONNECT
+/// fields with the opening's `User-Agent`, as the `wss://` CONNECT of each
+/// browser's `http-proxy-secure-hostname` capture does.
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn wss_connect_sends_the_captured_fields() -> TestResult<()> {
+    bounded(async {
+        for browser in browsers() {
+            let label = browser.label;
+            let expected =
+                captured_with(&captured_requests(browser.secure[0])?, "wss-connect", false)?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
+            let server = tokio::spawn(record_connects(listener, 0, 1));
+            let client = profile_client(&browser, Route::http_proxy(proxy))?;
+            let _ = client
+                .websocket("wss://origin.phantom.test:8443/tls")?
+                .header(RequestHeader::new("User-Agent", browser.user_agent))
+                .connect()
+                .await;
+            let heads = server.await??;
+            let (request_line, names) = head_names(&heads[0])?;
+            assert_eq!(request_line, "CONNECT origin.phantom.test:8443 HTTP/1.1");
+            assert_eq!(names, expected, "{label}");
+            assert_eq!(user_agent(&heads[0]), Some(browser.user_agent), "{label}");
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// A `fetch()` challenged by the proxy, its replay, and a navigation that
+/// sends the remembered credentials first, compared with the
+/// `http-proxy-auth-remembered-hostname` capture of each browser. This is
+/// the order the forwarded-credentials test above does not cover: Firefox
+/// places the field last on a replayed `fetch()` and before `Connection` on
+/// a navigation with remembered credentials.
+#[tokio::test]
+async fn remembered_navigation_and_fetch_replay_place_credentials_as_captured() -> TestResult<()> {
+    bounded(async {
+        for browser in browsers() {
+            let label = browser.label;
+            let requests = captured_requests(browser.remembered)?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
+                .with_basic_auth("user", "secret")?;
+            let server = tokio::spawn(challenge_then_accept(listener));
+            let client = profile_client(&browser, Route::http_proxy(proxy))?;
+            for (path, template, referer) in [
+                (
+                    "/probe",
+                    &browser.fetch,
+                    Some("http://origin.phantom.test/page"),
+                ),
+                ("/page", &browser.navigation, None),
+            ] {
+                let mut caller = browser.caller.clone();
+                caller.extend(referer.map(|value| RequestHeader::new("Referer", value)));
+                client
+                    .get(
+                        HttpProtocol::Http1,
+                        &format!("http://origin.phantom.test{path}"),
+                    )?
+                    .template(&PreparedRequestTemplate::new(template.clone())?)
+                    .headers(caller)
+                    .send()
+                    .await?
+                    .into_body()
+                    .collect()
+                    .await?;
+            }
+            let heads = server.await??;
+            let [challenged, replay, remembered] = heads.as_slice() else {
+                return Err(format!("{label}: expected three requests").into());
+            };
+            for (head, expected, what) in [
+                (
+                    challenged,
+                    captured(&requests, "probe", "407")?.to_vec(),
+                    "challenged fetch",
+                ),
+                (
+                    replay,
+                    captured(&requests, "probe", "204")?.to_vec(),
+                    "fetch replay",
+                ),
+                (
+                    remembered,
+                    captured_with(&requests, "page", true)?,
+                    "remembered navigation",
+                ),
+            ] {
+                let (_, names) = head_names(head)?;
+                assert_eq!(without_no_store(&names), expected, "{label} {what}");
             }
         }
         Ok(())

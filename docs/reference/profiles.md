@@ -262,8 +262,9 @@ replace it.
   tunnel, your field or else its template's. Without one it sends none.
 - A tunnel opened for one request serves later requests on the same route,
   so its CONNECT carries the first request's `User-Agent`.
-- The captures tunnel `ws://` origins only. That an HTTPS or `wss://` tunnel
-  sends the same fields is inferred.
+- The captures cover `ws://`, `https://`, and `wss://` tunnels through both
+  proxy transports, with and without a challenge; every browser sends the
+  same fields for each.
 
 Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-route-browser-evidence).
 

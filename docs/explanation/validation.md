@@ -1570,6 +1570,17 @@ forwarding choice. One page load makes a navigation, a `ws://` opening, and a
 The loopback proxy answers as the origin itself, so nothing leaves the
 machine.
 
+Four more scenarios, `http-proxy-secure-hostname`,
+`https-proxy-secure-hostname`, and their `-auth-` variants, record the
+CONNECT for an `https://` fetch and a `wss://` opening from a named page.
+The proxy answers each CONNECT with `200` and closes the tunnel before any
+origin TLS, so these fixtures hold CONNECT heads and no origin request; the
+browsers retry a closed tunnel, so a run holds several. In the `-auth-`
+variants the proxy challenges only CONNECT, so the first `https://` CONNECT
+is challenged and the later ones carry remembered credentials. Firefox's
+plaintext-proxy launch for them also sets `network.proxy.ssl`, because its
+manual `http` proxy covers only `http://` and `ws://`.
+
 The fixtures keep H1 request lines and field lines in hex, the proxy
 connection's ALPN offer and SNI, every H2 frame in both directions, and each
 client HPACK block with its representations. Browser background traffic that
@@ -1629,18 +1640,20 @@ Against the route matrix:
   captured order on both proxy transports, with the `User-Agent` of the
   request or opening that opens the tunnel. Without the recipe, or when the
   route sets its own fields, the CONNECT carries only what the route names.
-  `connect_requests_send_the_captured_fields` in
-  `crates/phantom/tests/proxy_field_order.rs` compares the anonymous,
-  replayed, and remembered-credential CONNECT of an HTTPS request with the
-  `http-proxy-*` and `http-proxy-auth-*` captures;
-  `h2_connect_sends_the_captured_profile_fields` in `proxy_h2.rs` compares
-  the H2 CONNECT with the `https-proxy-hostname` and
-  `https-proxy-auth-hostname` captures; the `ws://` tests above and
+  The `*-secure-hostname` captures record the CONNECT for an `https://`
+  fetch and a `wss://` opening through both proxies, with and without a
+  challenge; every browser sends the same fields as for `ws://`.
+  `connect_requests_send_the_captured_fields` and
+  `wss_connect_sends_the_captured_fields` in
+  `crates/phantom/tests/proxy_field_order.rs` compare Phantom's anonymous,
+  challenged, replayed, and remembered-credential HTTP/1.1 CONNECT for
+  `https://` and `wss://` with those captures;
+  `h2_connect_sends_the_captured_profile_fields` and
+  `h2_wss_connect_sends_the_captured_profile_fields` in `proxy_h2.rs` do the
+  same on the HTTP/2 proxy transport. The `ws://` tests above and
   `plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields` in
-  `websocket_http2_proxy.rs` cover WebSocket tunnels on both transports.
-  Every captured CONNECT tunnels a `ws://` origin, so the same fields on an
-  HTTPS or `wss://` tunnel are inferred. The captured CONNECT `User-Agent`
-  equals the page request's in every run.
+  `websocket_http2_proxy.rs` cover `ws://` tunnels. The captured CONNECT
+  `User-Agent` equals the page request's in every run.
 - `http://` through an H2 proxy: Phantom forwards exact H2 and negotiated
   requests over H2 with `:scheme` `http`, as every captured browser does.
   `chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order` and
@@ -1780,16 +1793,23 @@ Against Phantom:
   its replay, and a `fetch()` with remembered credentials with the captured
   ones, `Host` included. `h2_forwarding_places_proxy_credentials_as_captured`
   in `proxy_h2.rs` does the same with the `https-proxy-auth-hostname`
-  captures on an HTTP/2 proxy. Without a template, or with a template that
-  has no slot for the attempt, the field follows every other field.
+  captures on an HTTP/2 proxy. The `*-auth-remembered-hostname` captures
+  add the two cases those scenarios lack: a challenged `fetch()` with its
+  replay, and a navigation sent with remembered credentials, which the
+  capture tool starts over the remote protocol after the `fetch()`.
+  `remembered_navigation_and_fetch_replay_place_credentials_as_captured` and
+  `h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured`
+  compare Phantom with them. Without a template, or with a template that
+  has no slot for the attempt, the field follows every other field. On a
+  route without configured credentials, a caller's own `Proxy-Authorization`
+  on a forwarded request takes the template's slot for a first attempt.
 
 Remaining differences:
 
-- No capture shows Firefox sending remembered credentials on a navigation
-  or replaying a challenged `fetch()`. Its templates place the field before
-  `Connection` (HTTP/1.1) or where `Connection` would be (HTTP/2) for the
-  first, and last or before `te` for the second, as on the captured requests
-  of the other kind.
+- The captured `fetch()` requests used the default cache mode, so where
+  Firefox puts `Proxy-Authorization` on a replayed no-store `fetch()`
+  relative to `Pragma` and `Cache-Control` is not captured. The template
+  puts it after them, last, as on the captured replay.
 - H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
   literal, where both browsers index it. Phantom keeps this on purpose, as of
   2026-09-25. The HPACK block goes only to the proxy, which already holds the
@@ -1813,7 +1833,9 @@ Remaining differences:
 - The record holds 128 pairs; Chromium holds 20 and Firefox has no limit.
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
---scenario http-proxy-auth-hostname https-proxy-auth-hostname
+--scenario http-proxy-auth-remembered-hostname
+https-proxy-auth-remembered-hostname http-proxy-auth-secure-hostname
+https-proxy-auth-secure-hostname http-proxy-auth-hostname https-proxy-auth-hostname
 http-proxy-auth-loopback https-proxy-auth-loopback --repeat 3`; see
 [Proxy routes](../../scripts/capture/README.md#proxy-routes).
 

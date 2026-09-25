@@ -643,35 +643,101 @@ fn captured_forwarded_blocks(fixture: &str) -> TestResult<Vec<Vec<String>>> {
 /// carry `:scheme` (`forwarded`) or do not (CONNECT), ordered by proxy
 /// connection and then by block.
 fn captured_blocks(fixture: &str, forwarded: bool) -> TestResult<Vec<Vec<String>>> {
-    let mut blocks = Vec::new();
-    for line in fixture.lines() {
-        let Some((key, order)) = line.split_once('=') else {
-            continue;
-        };
+    Ok(captured_h2_blocks(fixture)?
+        .into_iter()
+        .filter(|block| block.pseudo.contains_key(":scheme") == forwarded)
+        .map(|block| block.names)
+        .collect())
+}
+
+/// One run-0 client HEADERS block of a `phantom-proxy-route-v1` capture.
+struct CapturedBlock {
+    /// Pseudo-field values; a redacted value is never a pseudo-field.
+    pseudo: std::collections::BTreeMap<String, String>,
+    /// Ordinary field names in order.
+    names: Vec<String>,
+}
+
+/// Returns every run-0 client HEADERS block that the capture kept, ordered
+/// by proxy connection and then by block.
+fn captured_h2_blocks(fixture: &str) -> TestResult<Vec<CapturedBlock>> {
+    let values: std::collections::BTreeMap<&str, &str> = fixture
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .collect();
+    let mut keys = Vec::new();
+    for key in values.keys() {
         let Some(rest) = key
             .strip_prefix("run_0_connection_")
-            .and_then(|rest| rest.strip_suffix("_field_order"))
+            .and_then(|rest| rest.strip_suffix("_field_count"))
         else {
             continue;
         };
         let (connection, block) = rest
             .split_once("_headers_")
-            .ok_or("unexpected field-order key")?;
-        let names: Vec<&str> = order.split(',').collect();
-        if names.contains(&":scheme") == forwarded {
-            blocks.push((
-                connection.parse::<usize>()?,
-                block.parse::<usize>()?,
-                names
-                    .into_iter()
-                    .filter(|name| !name.starts_with(':'))
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>(),
-            ));
-        }
+            .ok_or("unexpected field-count key")?;
+        keys.push((connection.parse::<usize>()?, block.parse::<usize>()?));
     }
-    blocks.sort();
-    Ok(blocks.into_iter().map(|(_, _, names)| names).collect())
+    keys.sort_unstable();
+    let decode = |hex: &str| -> TestResult<String> {
+        if hex == "none" {
+            return Ok(String::new());
+        }
+        let bytes = (0..hex.len())
+            .step_by(2)
+            .map(|index| u8::from_str_radix(&hex[index..index + 2], 16))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(String::from_utf8(bytes)?)
+    };
+    let mut blocks = Vec::new();
+    for (connection, block) in keys {
+        let prefix = format!("run_0_connection_{connection}_headers_{block}");
+        let count: usize = values
+            .get(format!("{prefix}_field_count").as_str())
+            .ok_or("capture omitted a field count")?
+            .parse()?;
+        let mut pseudo = std::collections::BTreeMap::new();
+        let mut names = Vec::new();
+        for index in 0..count {
+            let record = values
+                .get(format!("{prefix}_field_{index}").as_str())
+                .ok_or("capture omitted a field")?;
+            let attribute = |name: &str| {
+                record
+                    .split(',')
+                    .find_map(|item| item.strip_prefix(name)?.strip_prefix(':'))
+                    .ok_or_else(|| format!("capture field omitted {name}"))
+            };
+            if attribute("repr")? == "size-update" {
+                continue;
+            }
+            let name = decode(attribute("name_hex")?)?;
+            if name.starts_with(':') {
+                pseudo.insert(name, decode(attribute("value_hex")?)?);
+            } else {
+                names.push(name);
+            }
+        }
+        blocks.push(CapturedBlock { pseudo, names });
+    }
+    Ok(blocks)
+}
+
+/// Returns the names of the first captured CONNECT to port `port` that
+/// carries `proxy-authorization`, or that carries none.
+fn captured_connect(fixture: &str, port: &str, credential: bool) -> TestResult<Vec<String>> {
+    captured_h2_blocks(fixture)?
+        .into_iter()
+        .find(|block| {
+            block.pseudo.get(":method").map(String::as_str) == Some("CONNECT")
+                && block
+                    .pseudo
+                    .get(":authority")
+                    .is_some_and(|authority| authority.ends_with(&format!(":{port}")))
+                && block.names.iter().any(|name| name == "proxy-authorization") == credential
+        })
+        .map(|block| block.names)
+        .ok_or_else(|| format!("capture has no CONNECT to port {port}").into())
 }
 
 /// A navigation challenged by an HTTP/2 proxy, its replay, and a `fetch()`
@@ -781,12 +847,11 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
     Ok(())
 }
 
-/// The profile's CONNECT fields on an HTTP/2 proxy: `user-agent` after the
-/// pseudo-fields, then `proxy-authorization` on the replay after a `407`,
-/// as every H2 CONNECT in the `https-proxy-hostname` and
-/// `https-proxy-auth-hostname` captures of Chrome 154, Edge 153, and
-/// Firefox 156 sends them. The captures tunnel `ws://`; an HTTPS tunnel uses
-/// the same request.
+/// The profile's CONNECT fields on an HTTP/2 proxy for an `https://`
+/// tunnel: anonymous, challenged, and on the replay after a `407`, compared
+/// with the `https://` CONNECTs of the `https-proxy-secure-hostname` and
+/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 153, and
+/// Firefox 156.
 #[tokio::test]
 async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
@@ -794,33 +859,28 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             "chrome",
             chromium::v154_proxy_connect(),
             chromium::v154_windows_navigation_template(),
-            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-hostname"),
-            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-secure-hostname"),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-secure-hostname"),
         ),
         (
             "edge",
             chromium::v154_proxy_connect(),
             chromium::v154_windows_navigation_template(),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-hostname"),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-secure-hostname"),
         ),
         (
             "firefox",
             firefox::v156_proxy_connect(),
             firefox::v156_windows_navigation_template(),
-            proxy_fixture!("firefox/156.0", "https-proxy-hostname"),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
+            proxy_fixture!("firefox/156.0", "https-proxy-secure-hostname"),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-secure-hostname"),
         ),
     ];
     for (label, connect, navigation, anonymous, authenticated) in cases {
-        let expected_anonymous = captured_blocks(anonymous, false)?
-            .into_iter()
-            .next()
-            .ok_or("capture has no H2 CONNECT")?;
-        let expected_authenticated = captured_blocks(authenticated, false)?
-            .into_iter()
-            .next()
-            .ok_or("capture has no H2 CONNECT")?;
+        let expected_anonymous = captured_connect(anonymous, "443", false)?;
+        let expected_challenged = captured_connect(authenticated, "443", false)?;
+        let expected_replay = captured_connect(authenticated, "443", true)?;
         let user_agent = navigation
             .http2_fields
             .iter()
@@ -870,19 +930,197 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                     .send()
                     .await;
                 let records = proxy_task.await??;
-                let last = records.last().ok_or("no CONNECT")?;
-                let names: Vec<String> = last.fields.iter().map(|(name, _)| name.clone()).collect();
-                let expected = if credentials {
-                    &expected_authenticated
-                } else {
-                    &expected_anonymous
+                let names = |index: usize| -> Vec<String> {
+                    records[index]
+                        .fields
+                        .iter()
+                        .map(|(name, _)| name.clone())
+                        .collect()
                 };
-                assert_eq!(&names, expected, "{label} credentials={credentials}");
-                assert_eq!(last.fields[0].1, user_agent, "{label}");
+                if credentials {
+                    assert_eq!(names(0), expected_challenged, "{label} challenged");
+                    assert_eq!(names(1), expected_replay, "{label} replay");
+                } else {
+                    assert_eq!(names(0), expected_anonymous, "{label} anonymous");
+                }
+                assert_eq!(records[0].fields[0].1, user_agent, "{label}");
                 Ok(())
             })
             .await?;
         }
+    }
+    Ok(())
+}
+
+/// A `wss://` tunnel on an HTTP/2 proxy sends the profile's CONNECT fields
+/// with the opening's `User-Agent`, as the `wss://` CONNECT of each
+/// browser's `https-proxy-secure-hostname` capture does.
+#[cfg(feature = "websocket")]
+#[tokio::test]
+async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
+    let cases = [
+        (
+            chromium::v154_proxy_connect(),
+            proxy_fixture!("chrome/154.0.8037.58", "https-proxy-secure-hostname"),
+        ),
+        (
+            chromium::v154_proxy_connect(),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
+        ),
+        (
+            firefox::v156_proxy_connect(),
+            proxy_fixture!("firefox/156.0", "https-proxy-secure-hostname"),
+        ),
+    ];
+    for (connect, fixture) in cases {
+        let expected = captured_connect(fixture, "8443", false)?;
+        bounded(async {
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            let proxy_task = tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_connect(tcp, &acceptor, Reply::Status(502)).await
+            });
+            let client = Client::builder(
+                ClientProfile::new(tls_settings())
+                    .with_http2(chromium::v154_http2())
+                    .with_proxy_connect(connect.clone()),
+            )
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?.with_http2_transport()?,
+            ))
+            .build()?;
+            let _ = client
+                .websocket("wss://origin.test:8443/tls")?
+                .header(RequestHeader::new("User-Agent", "opening-agent"))
+                .connect()
+                .await;
+            let record = proxy_task.await??;
+            let names: Vec<String> = record.fields.iter().map(|(name, _)| name.clone()).collect();
+            assert_eq!(names, expected);
+            assert_eq!(record.fields[0].1, b"opening-agent");
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+/// A `fetch()` challenged by an HTTP/2 proxy, its replay on the same
+/// connection, and a navigation with the remembered credentials, compared
+/// with the `https-proxy-auth-remembered-hostname` capture of each browser.
+/// Firefox places `proxy-authorization` before `te` on the replayed
+/// `fetch()` and after `accept-encoding` on the remembered navigation.
+#[tokio::test]
+async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured() -> TestResult<()>
+{
+    const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+    let cases = [
+        (
+            "chrome",
+            chromium::v154_http2(),
+            chromium::v154_windows_navigation_template(),
+            chromium::v154_windows_fetch_no_store_template(),
+            proxy_fixture!(
+                "chrome/154.0.8037.58",
+                "https-proxy-auth-remembered-hostname"
+            ),
+            false,
+        ),
+        (
+            "edge",
+            chromium::v154_http2(),
+            edge::v153_windows_navigation_template(),
+            edge::v153_windows_fetch_no_store_template(),
+            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-remembered-hostname"),
+            true,
+        ),
+        (
+            "firefox",
+            firefox::v156_http2(),
+            firefox::v156_windows_navigation_template(),
+            firefox::v156_windows_fetch_no_store_template(),
+            proxy_fixture!("firefox/156.0", "https-proxy-auth-remembered-hostname"),
+            false,
+        ),
+    ];
+    for (label, http2, navigation, fetch, fixture, caller_ua) in cases {
+        let blocks = captured_h2_blocks(fixture)?;
+        let find = |path: &str, credential: bool| -> TestResult<Vec<String>> {
+            blocks
+                .iter()
+                .find(|block| {
+                    block
+                        .pseudo
+                        .get(":path")
+                        .is_some_and(|value| value.starts_with(path))
+                        && block.names.iter().any(|name| name == "proxy-authorization")
+                            == credential
+                })
+                .map(|block| block.names.clone())
+                .ok_or_else(|| format!("{label}: capture has no {path} request").into())
+        };
+        let expected = [
+            find("/probe", false)?,
+            find("/probe", true)?,
+            find("/page", true)?,
+        ];
+        bounded(async {
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            let proxy_task = tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_forwarded_statuses(tcp, &acceptor, &[407, 200, 200]).await
+            });
+            let route = Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            );
+            let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+                .add_proxy_root_certificate_der(proxy_root)
+                .route(route)
+                .build()?;
+            for (path, template, referer) in [
+                ("/probe", fetch, Some("http://origin.test:8080/page")),
+                ("/page", navigation, None),
+            ] {
+                let mut caller = Vec::new();
+                if caller_ua {
+                    caller.push(RequestHeader::new("user-agent", EDGE_UA));
+                }
+                caller.extend(referer.map(|value| RequestHeader::new("referer", value)));
+                let response = client
+                    .get(
+                        HttpProtocol::Http2,
+                        &format!("http://origin.test:8080{path}"),
+                    )?
+                    .template(&PreparedRequestTemplate::new(template)?)
+                    .headers(caller)
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), 200, "{label} {path}");
+                response.into_body().collect().await?;
+            }
+            let record = proxy_task.await??;
+            let names: Vec<Vec<String>> = record
+                .requests
+                .iter()
+                .map(|request| {
+                    request
+                        .fields
+                        .iter()
+                        .map(|(name, _)| name.clone())
+                        .filter(|name| name != "pragma" && name != "cache-control")
+                        .collect()
+                })
+                .collect();
+            assert_eq!(names, expected, "{label}");
+            Ok(())
+        })
+        .await?;
     }
     Ok(())
 }

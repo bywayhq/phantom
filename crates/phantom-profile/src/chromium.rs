@@ -429,7 +429,10 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// `Proxy-Authorization` when the proxy asked for credentials
 /// (`http-proxy-*` and `http-proxy-auth-*`). Every HTTP/2 CONNECT to the TLS
 /// proxy sends `user-agent` after `:method` and `:authority`, then
-/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`). Edge
+/// `proxy-authorization` (`https-proxy-*` and `https-proxy-auth-*`). The
+/// `*-secure-hostname` captures show the same fields on the CONNECT for an
+/// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
+/// replay after a `407`, and with remembered credentials. Edge
 /// 153.0.4234.48 sends the same fields in the same order.
 ///
 /// Chrome's `User-Agent` there is its own, which the captures show equal to
@@ -569,7 +572,9 @@ pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
 /// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
 /// captures of Chrome 154 and Edge 153 show this on the replayed navigation
 /// and on the `fetch()` that follows it, to loopback and named origins; the
-/// client hints of a loopback origin come after it.
+/// client hints of a loopback origin come after it. The
+/// `*-auth-remembered-hostname` captures show the same place on a replayed
+/// `fetch()` and on a navigation with remembered credentials.
 fn chromium_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Every)
 }
