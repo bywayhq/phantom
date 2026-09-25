@@ -52,10 +52,19 @@ RUSTDOCFLAGS="-D warnings" scripts/dev/with-cargo-lock.sh \
 
 Wrap each Cargo command separately, so other lanes can run between them.
 
+By default one Cargo command runs at a time. On a machine with cores and disk
+to spare, allow more with `PHANTOM_CARGO_SLOTS`; each slot is one more lock
+directory, so four lanes with `-j 4` use about 16 cores:
+
+```sh
+PHANTOM_CARGO_SLOTS=4 scripts/dev/with-cargo-lock.sh cargo test --workspace --locked -j 4
+```
+
 The script:
 
-- creates the lock directory `phantom-cargo-lock` in the Git common directory
-  (`git rev-parse --git-common-dir`), which all worktrees share;
+- takes the first free lock directory among `phantom-cargo-lock`,
+  `phantom-cargo-lock.1`, and so on up to the slot count, in the Git common
+  directory (`git rev-parse --git-common-dir`), which all worktrees share;
 - records the holder's PID in `pid`, and its PID, working directory, and
   command in `owner`;
 - while another command holds the lock, prints the `owner` line once and
