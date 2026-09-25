@@ -19,10 +19,10 @@ http = "1"
 pin-project-lite = { version = "0.2", default-features = false }
 tracing = "0.1.37"
 tokio = { version = "1.28", default-features = false }
-h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.1", path = "../h3-datagram" }
+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.2", path = "../h3-datagram" }
 
 [dependencies.h3]
 package = "phantom-h3"
-version = "=0.0.8-phantom.1"
+version = "=0.0.8-phantom.2"
 path = "../h3"
 features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]

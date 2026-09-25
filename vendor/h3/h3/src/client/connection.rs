@@ -558,6 +558,36 @@ where
         self.inner.shutdown(&mut self.sent_closing, PushId(0)).await
     }
 
+    /// Applies peer HTTP/3 SETTINGS received through TLS application settings
+    /// after this connection was built.
+    ///
+    /// A client that sends early data builds its connection before the
+    /// handshake delivers the peer's application settings. The payload is
+    /// validated as [`super::Builder::peer_application_settings`] validates
+    /// it. A payload without a SETTINGS frame changes nothing. SETTINGS already
+    /// received on the control stream are reconciled with the payload under the
+    /// rules that apply when the control stream follows builder-supplied
+    /// application settings.
+    ///
+    /// An invalid payload, a conflict with control-stream SETTINGS, or a second
+    /// application closes the connection with `H3_SETTINGS_ERROR` and returns
+    /// that error.
+    pub fn apply_peer_application_settings(
+        &mut self,
+        payload: &[u8],
+    ) -> Result<(), ConnectionError> {
+        match super::builder::decode_application_settings(payload) {
+            Ok(Some(settings)) => self.inner.apply_late_application_settings(settings),
+            Ok(None) => Ok(()),
+            Err(error) => Err(self
+                .inner
+                .handle_connection_error(InternalConnectionError::new(
+                    Code::H3_SETTINGS_ERROR,
+                    format!("invalid peer application settings: {error}"),
+                ))),
+        }
+    }
+
     /// Wait until the connection is closed
     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
     pub async fn wait_idle(&mut self) -> ConnectionError

@@ -1669,6 +1669,154 @@ async fn conflicting_wire_settings_after_peer_application_settings_are_rejected(
 }
 
 #[tokio::test]
+async fn late_peer_application_settings_apply_before_control_settings() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, send) = client::builder()
+            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        driver
+            .apply_peer_application_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
+            .unwrap();
+        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
+            .await
+            .expect("late application settings are already known")
+            .unwrap();
+        assert_eq!(settings.qpack_max_table_capacity, 32);
+        assert_eq!(settings.qpack_blocked_streams, 2);
+
+        let result = future::poll_fn(|cx| driver.poll_close(cx)).await;
+        assert_matches!(
+            result,
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
+                error_code: code,
+                ..
+            }) if code == 0
+        );
+        let settings = driver.settings();
+        assert_eq!(settings.qpack_max_table_capacity, 32);
+        assert_eq!(settings.qpack_blocked_streams, 3);
+    };
+
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let mut control = connection.open_uni().await.unwrap();
+        control
+            .write_all(&[0x00, 0x04, 0x04, 0x01, 0x20, 0x07, 0x03])
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        connection.close(0_u32.into(), b"test complete");
+    };
+
+    tokio::join!(server_fut, client_fut);
+}
+
+#[tokio::test]
+async fn late_peer_application_settings_reconcile_with_control_settings() {
+    for (payload, accepted) in [
+        (&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02][..], true),
+        (&[0x04, 0x03, 0x01, 0x40, 0x40][..], false),
+    ] {
+        let mut pair = Pair::default();
+        let server = pair.server_inner();
+        let (done, finished) = oneshot::channel::<()>();
+
+        let client_fut = async {
+            let connection = pair.client_inner().await;
+            let (mut driver, send) = client::builder()
+                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+                .await
+                .unwrap();
+            let mut peer_settings = send.peer_settings();
+            tokio::select! {
+                ready = peer_settings.ready() => { ready.unwrap(); }
+                error = future::poll_fn(|cx| driver.poll_close(cx)) => {
+                    panic!("connection closed before settings: {error:?}")
+                }
+            }
+
+            let result = driver.apply_peer_application_settings(payload);
+            if accepted {
+                result.unwrap();
+                let settings = driver.settings();
+                assert_eq!(settings.qpack_max_table_capacity, 32);
+                assert_eq!(settings.qpack_blocked_streams, 3);
+            } else {
+                assert_matches!(
+                    result,
+                    Err(ConnectionError::Local {
+                        error: LocalError::Application {
+                            code: Code::H3_SETTINGS_ERROR,
+                            ..
+                        }
+                    })
+                );
+            }
+            done.send(()).unwrap();
+        };
+
+        let server_fut = async {
+            let connection = server.accept().await.unwrap().await.unwrap();
+            let mut control = connection.open_uni().await.unwrap();
+            control
+                .write_all(&[0x00, 0x04, 0x04, 0x01, 0x20, 0x07, 0x03])
+                .await
+                .unwrap();
+            finished.await.unwrap();
+        };
+
+        tokio::join!(server_fut, client_fut);
+    }
+}
+
+#[tokio::test]
+async fn invalid_or_repeated_late_peer_application_settings_close_the_connection() {
+    for payloads in [
+        &[&[0x04, 0x02, 0x01][..]][..],
+        &[&[0x04, 0x02, 0x01, 0x20][..], &[0x04, 0x02, 0x01, 0x20][..]][..],
+    ] {
+        let mut pair = Pair::default();
+        let server = pair.server_inner();
+        let (done, finished) = oneshot::channel::<()>();
+
+        let client_fut = async {
+            let connection = pair.client_inner().await;
+            let (mut driver, _send) = client::builder()
+                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
+                .await
+                .unwrap();
+            let (last, earlier) = payloads.split_last().unwrap();
+            for payload in earlier {
+                driver.apply_peer_application_settings(payload).unwrap();
+            }
+            assert_matches!(
+                driver.apply_peer_application_settings(last),
+                Err(ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_SETTINGS_ERROR,
+                        ..
+                    }
+                })
+            );
+            done.send(()).unwrap();
+        };
+
+        let server_fut = async {
+            let _connection = server.accept().await.unwrap().await.unwrap();
+            finished.await.unwrap();
+        };
+
+        tokio::join!(server_fut, client_fut);
+    }
+}
+
+#[tokio::test]
 async fn graceful_shutdown_server_rejects() {
     init_tracing();
     let mut pair = Pair::default();

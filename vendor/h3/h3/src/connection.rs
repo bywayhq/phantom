@@ -237,6 +237,8 @@ where
     got_peer_settings: bool,
     got_peer_control_frame: bool,
     peer_application_settings: Option<frame::Settings>,
+    /// The SETTINGS frame received on the peer's control stream.
+    peer_control_settings: Option<frame::Settings>,
     pub(crate) handled_connection_error: Option<ConnectionError>,
     pub send_grease_frame: bool,
     // tells if the grease steam should be sent
@@ -499,6 +501,7 @@ where
             got_peer_settings: false,
             got_peer_control_frame: false,
             peer_application_settings: config.peer_settings,
+            peer_control_settings: None,
             send_grease_frame: config.send_grease,
             config,
             accepted_streams: Default::default(),
@@ -542,6 +545,37 @@ where
             outbound.mark_ready();
         }
         Ok(())
+    }
+
+    /// Applies peer application settings that arrived after construction.
+    ///
+    /// Settings already received on the control stream are reconciled with
+    /// them under the same rules that apply when the control stream follows
+    /// application settings supplied at construction.
+    pub(crate) fn apply_late_application_settings(
+        &mut self,
+        settings: frame::Settings,
+    ) -> Result<(), ConnectionError> {
+        if self.peer_application_settings.is_some() {
+            return Err(self.handle_connection_error(InternalConnectionError::new(
+                Code::H3_SETTINGS_ERROR,
+                "peer application settings were already applied".to_string(),
+            )));
+        }
+        self.peer_application_settings = Some(settings);
+        let semantic_settings = match self.peer_control_settings.as_ref() {
+            Some(control) => match reconcile_peer_settings(&settings, control) {
+                Ok(merged) => merged,
+                Err(message) => {
+                    return Err(self.handle_connection_error(InternalConnectionError::new(
+                        Code::H3_SETTINGS_ERROR,
+                        message,
+                    )));
+                }
+            },
+            None => (&settings).into(),
+        };
+        self.apply_peer_settings(semantic_settings)
     }
 
     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
@@ -1125,6 +1159,7 @@ where
                 if let Err(error) = self.apply_peer_settings(semantic_settings) {
                     return Poll::Ready(Err(error));
                 }
+                self.peer_control_settings = Some(settings);
                 cx.waker().wake_by_ref();
                 Frame::Settings(settings)
             }

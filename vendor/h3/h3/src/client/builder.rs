@@ -57,6 +57,37 @@ impl std::error::Error for ApplicationSettingsError {
     }
 }
 
+/// Decodes an HTTP/3 application-settings payload received through TLS.
+///
+/// Returns the payload's SETTINGS frame, or `None` when the payload is empty
+/// or carries only unknown frames.
+pub(crate) fn decode_application_settings(
+    payload: &[u8],
+) -> Result<Option<frame::Settings>, ApplicationSettingsError> {
+    let mut payload = Cursor::new(payload);
+    let mut settings = None;
+    while payload.has_remaining() {
+        match frame::Frame::decode(&mut payload) {
+            Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
+            Ok(frame::Frame::Settings(_)) => {
+                return Err(ApplicationSettingsError::MultipleSettings);
+            }
+            Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
+                return Err(ApplicationSettingsError::ForbiddenFrame);
+            }
+            Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
+                return Err(ApplicationSettingsError::ForbiddenFrame);
+            }
+            Err(frame::FrameError::UnknownFrame(_)) => {}
+            Err(frame::FrameError::Settings(error)) => {
+                return Err(ApplicationSettingsError::Settings(error));
+            }
+            Err(_) => return Err(ApplicationSettingsError::Malformed),
+        }
+    }
+    Ok(settings)
+}
+
 /// Start building a new HTTP/3 client
 pub fn builder() -> Builder {
     Builder::new()
@@ -169,33 +200,7 @@ impl Builder {
         &mut self,
         payload: &[u8],
     ) -> Result<&mut Self, ApplicationSettingsError> {
-        if payload.is_empty() {
-            self.config.peer_settings = None;
-            return Ok(self);
-        }
-
-        let mut payload = Cursor::new(payload);
-        let mut settings = None;
-        while payload.has_remaining() {
-            match frame::Frame::decode(&mut payload) {
-                Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
-                Ok(frame::Frame::Settings(_)) => {
-                    return Err(ApplicationSettingsError::MultipleSettings);
-                }
-                Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
-                    return Err(ApplicationSettingsError::ForbiddenFrame);
-                }
-                Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
-                    return Err(ApplicationSettingsError::ForbiddenFrame);
-                }
-                Err(frame::FrameError::UnknownFrame(_)) => {}
-                Err(frame::FrameError::Settings(error)) => {
-                    return Err(ApplicationSettingsError::Settings(error));
-                }
-                Err(_) => return Err(ApplicationSettingsError::Malformed),
-            }
-        }
-        self.config.peer_settings = settings;
+        self.config.peer_settings = decode_application_settings(payload)?;
         Ok(self)
     }
 

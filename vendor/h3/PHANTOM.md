@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.1`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.1`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.1`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.2`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.2`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.2`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -168,6 +168,16 @@ remain independent and unchanged.
 
 `patches/application-settings.patch` contains the engine and regression-test
 delta for this seam.
+
+A client that sends early (0-RTT) data builds its connection before the
+handshake delivers the peer's application settings.
+`h3::client::Connection::apply_peer_application_settings` applies them to the
+running connection with the same payload validation. When control-stream
+SETTINGS arrived first, the two are reconciled under the rules above, so the
+result matches a connection built with the same application settings. A
+malformed payload, a conflict, or a second application closes the connection
+with `H3_SETTINGS_ERROR`. `patches/late-application-settings.patch` contains
+this delta and its regression tests.
 
 Likewise, do not advertise a nonzero `WEBTRANSPORT_MAX_SESSIONS` until the
 connection path enforces that limit and has bounded lifecycle tests. Exact

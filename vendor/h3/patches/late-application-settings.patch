@@ -1,0 +1,344 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index d0e3f2c0..7768cd53 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -57,6 +57,37 @@ impl std::error::Error for ApplicationSettingsError {
+     }
+ }
+ 
++/// Decodes an HTTP/3 application-settings payload received through TLS.
++///
++/// Returns the payload's SETTINGS frame, or `None` when the payload is empty
++/// or carries only unknown frames.
++pub(crate) fn decode_application_settings(
++    payload: &[u8],
++) -> Result<Option<frame::Settings>, ApplicationSettingsError> {
++    let mut payload = Cursor::new(payload);
++    let mut settings = None;
++    while payload.has_remaining() {
++        match frame::Frame::decode(&mut payload) {
++            Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
++            Ok(frame::Frame::Settings(_)) => {
++                return Err(ApplicationSettingsError::MultipleSettings);
++            }
++            Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
++                return Err(ApplicationSettingsError::ForbiddenFrame);
++            }
++            Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
++                return Err(ApplicationSettingsError::ForbiddenFrame);
++            }
++            Err(frame::FrameError::UnknownFrame(_)) => {}
++            Err(frame::FrameError::Settings(error)) => {
++                return Err(ApplicationSettingsError::Settings(error));
++            }
++            Err(_) => return Err(ApplicationSettingsError::Malformed),
++        }
++    }
++    Ok(settings)
++}
++
+ /// Start building a new HTTP/3 client
+ pub fn builder() -> Builder {
+     Builder::new()
+@@ -169,33 +200,7 @@ impl Builder {
+         &mut self,
+         payload: &[u8],
+     ) -> Result<&mut Self, ApplicationSettingsError> {
+-        if payload.is_empty() {
+-            self.config.peer_settings = None;
+-            return Ok(self);
+-        }
+-
+-        let mut payload = Cursor::new(payload);
+-        let mut settings = None;
+-        while payload.has_remaining() {
+-            match frame::Frame::decode(&mut payload) {
+-                Ok(frame::Frame::Settings(value)) if settings.is_none() => settings = Some(value),
+-                Ok(frame::Frame::Settings(_)) => {
+-                    return Err(ApplicationSettingsError::MultipleSettings);
+-                }
+-                Ok(_) | Err(frame::FrameError::UnsupportedFrame(_)) => {
+-                    return Err(ApplicationSettingsError::ForbiddenFrame);
+-                }
+-                Err(frame::FrameError::UnknownFrame(0x4d | 0xf0700 | 0xf0701)) => {
+-                    return Err(ApplicationSettingsError::ForbiddenFrame);
+-                }
+-                Err(frame::FrameError::UnknownFrame(_)) => {}
+-                Err(frame::FrameError::Settings(error)) => {
+-                    return Err(ApplicationSettingsError::Settings(error));
+-                }
+-                Err(_) => return Err(ApplicationSettingsError::Malformed),
+-            }
+-        }
+-        self.config.peer_settings = settings;
++        self.config.peer_settings = decode_application_settings(payload)?;
+         Ok(self)
+     }
+ 
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 4c130008..52abe8b7 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -558,6 +558,36 @@ where
+         self.inner.shutdown(&mut self.sent_closing, PushId(0)).await
+     }
+ 
++    /// Applies peer HTTP/3 SETTINGS received through TLS application settings
++    /// after this connection was built.
++    ///
++    /// A client that sends early data builds its connection before the
++    /// handshake delivers the peer's application settings. The payload is
++    /// validated as [`super::Builder::peer_application_settings`] validates
++    /// it. A payload without a SETTINGS frame changes nothing. SETTINGS already
++    /// received on the control stream are reconciled with the payload under the
++    /// rules that apply when the control stream follows builder-supplied
++    /// application settings.
++    ///
++    /// An invalid payload, a conflict with control-stream SETTINGS, or a second
++    /// application closes the connection with `H3_SETTINGS_ERROR` and returns
++    /// that error.
++    pub fn apply_peer_application_settings(
++        &mut self,
++        payload: &[u8],
++    ) -> Result<(), ConnectionError> {
++        match super::builder::decode_application_settings(payload) {
++            Ok(Some(settings)) => self.inner.apply_late_application_settings(settings),
++            Ok(None) => Ok(()),
++            Err(error) => Err(self
++                .inner
++                .handle_connection_error(InternalConnectionError::new(
++                    Code::H3_SETTINGS_ERROR,
++                    format!("invalid peer application settings: {error}"),
++                ))),
++        }
++    }
++
+     /// Wait until the connection is closed
+     #[cfg_attr(feature = "tracing", instrument(skip_all, level = "trace"))]
+     pub async fn wait_idle(&mut self) -> ConnectionError
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 7337ee13..d878abea 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -237,6 +237,8 @@ where
+     got_peer_settings: bool,
+     got_peer_control_frame: bool,
+     peer_application_settings: Option<frame::Settings>,
++    /// The SETTINGS frame received on the peer's control stream.
++    peer_control_settings: Option<frame::Settings>,
+     pub(crate) handled_connection_error: Option<ConnectionError>,
+     pub send_grease_frame: bool,
+     // tells if the grease steam should be sent
+@@ -499,6 +501,7 @@ where
+             got_peer_settings: false,
+             got_peer_control_frame: false,
+             peer_application_settings: config.peer_settings,
++            peer_control_settings: None,
+             send_grease_frame: config.send_grease,
+             config,
+             accepted_streams: Default::default(),
+@@ -544,6 +547,37 @@ where
+         Ok(())
+     }
+ 
++    /// Applies peer application settings that arrived after construction.
++    ///
++    /// Settings already received on the control stream are reconciled with
++    /// them under the same rules that apply when the control stream follows
++    /// application settings supplied at construction.
++    pub(crate) fn apply_late_application_settings(
++        &mut self,
++        settings: frame::Settings,
++    ) -> Result<(), ConnectionError> {
++        if self.peer_application_settings.is_some() {
++            return Err(self.handle_connection_error(InternalConnectionError::new(
++                Code::H3_SETTINGS_ERROR,
++                "peer application settings were already applied".to_string(),
++            )));
++        }
++        self.peer_application_settings = Some(settings);
++        let semantic_settings = match self.peer_control_settings.as_ref() {
++            Some(control) => match reconcile_peer_settings(&settings, control) {
++                Ok(merged) => merged,
++                Err(message) => {
++                    return Err(self.handle_connection_error(InternalConnectionError::new(
++                        Code::H3_SETTINGS_ERROR,
++                        message,
++                    )));
++                }
++            },
++            None => (&settings).into(),
++        };
++        self.apply_peer_settings(semantic_settings)
++    }
++
+     pub(crate) fn qpack_decoder(&self) -> Arc<qpack::DecoderState> {
+         Arc::clone(&self.qpack_streams.decoder)
+     }
+@@ -1125,6 +1159,7 @@ where
+                 if let Err(error) = self.apply_peer_settings(semantic_settings) {
+                     return Poll::Ready(Err(error));
+                 }
++                self.peer_control_settings = Some(settings);
+                 cx.waker().wake_by_ref();
+                 Frame::Settings(settings)
+             }
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index 929f1f85..501035c9 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -1668,6 +1668,154 @@ async fn conflicting_wire_settings_after_peer_application_settings_are_rejected(
+     }
+ }
+ 
++#[tokio::test]
++async fn late_peer_application_settings_apply_before_control_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server_inner();
++
++    let client_fut = async {
++        let connection = pair.client_inner().await;
++        let (mut driver, send) = client::builder()
++            .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++            .await
++            .unwrap();
++        driver
++            .apply_peer_application_settings(&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02])
++            .unwrap();
++        let settings = tokio::time::timeout(Duration::from_secs(1), send.peer_settings().ready())
++            .await
++            .expect("late application settings are already known")
++            .unwrap();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 2);
++
++        let result = future::poll_fn(|cx| driver.poll_close(cx)).await;
++        assert_matches!(
++            result,
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose {
++                error_code: code,
++                ..
++            }) if code == 0
++        );
++        let settings = driver.settings();
++        assert_eq!(settings.qpack_max_table_capacity, 32);
++        assert_eq!(settings.qpack_blocked_streams, 3);
++    };
++
++    let server_fut = async {
++        let connection = server.accept().await.unwrap().await.unwrap();
++        tokio::time::sleep(Duration::from_millis(50)).await;
++        let mut control = connection.open_uni().await.unwrap();
++        control
++            .write_all(&[0x00, 0x04, 0x04, 0x01, 0x20, 0x07, 0x03])
++            .await
++            .unwrap();
++        tokio::time::sleep(Duration::from_millis(10)).await;
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(server_fut, client_fut);
++}
++
++#[tokio::test]
++async fn late_peer_application_settings_reconcile_with_control_settings() {
++    for (payload, accepted) in [
++        (&[0x04, 0x04, 0x01, 0x20, 0x07, 0x02][..], true),
++        (&[0x04, 0x03, 0x01, 0x40, 0x40][..], false),
++    ] {
++        let mut pair = Pair::default();
++        let server = pair.server_inner();
++        let (done, finished) = oneshot::channel::<()>();
++
++        let client_fut = async {
++            let connection = pair.client_inner().await;
++            let (mut driver, send) = client::builder()
++                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++                .await
++                .unwrap();
++            let mut peer_settings = send.peer_settings();
++            tokio::select! {
++                ready = peer_settings.ready() => { ready.unwrap(); }
++                error = future::poll_fn(|cx| driver.poll_close(cx)) => {
++                    panic!("connection closed before settings: {error:?}")
++                }
++            }
++
++            let result = driver.apply_peer_application_settings(payload);
++            if accepted {
++                result.unwrap();
++                let settings = driver.settings();
++                assert_eq!(settings.qpack_max_table_capacity, 32);
++                assert_eq!(settings.qpack_blocked_streams, 3);
++            } else {
++                assert_matches!(
++                    result,
++                    Err(ConnectionError::Local {
++                        error: LocalError::Application {
++                            code: Code::H3_SETTINGS_ERROR,
++                            ..
++                        }
++                    })
++                );
++            }
++            done.send(()).unwrap();
++        };
++
++        let server_fut = async {
++            let connection = server.accept().await.unwrap().await.unwrap();
++            let mut control = connection.open_uni().await.unwrap();
++            control
++                .write_all(&[0x00, 0x04, 0x04, 0x01, 0x20, 0x07, 0x03])
++                .await
++                .unwrap();
++            finished.await.unwrap();
++        };
++
++        tokio::join!(server_fut, client_fut);
++    }
++}
++
++#[tokio::test]
++async fn invalid_or_repeated_late_peer_application_settings_close_the_connection() {
++    for payloads in [
++        &[&[0x04, 0x02, 0x01][..]][..],
++        &[&[0x04, 0x02, 0x01, 0x20][..], &[0x04, 0x02, 0x01, 0x20][..]][..],
++    ] {
++        let mut pair = Pair::default();
++        let server = pair.server_inner();
++        let (done, finished) = oneshot::channel::<()>();
++
++        let client_fut = async {
++            let connection = pair.client_inner().await;
++            let (mut driver, _send) = client::builder()
++                .build::<_, _, Bytes>(h3_quinn::Connection::new(connection))
++                .await
++                .unwrap();
++            let (last, earlier) = payloads.split_last().unwrap();
++            for payload in earlier {
++                driver.apply_peer_application_settings(payload).unwrap();
++            }
++            assert_matches!(
++                driver.apply_peer_application_settings(last),
++                Err(ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_SETTINGS_ERROR,
++                        ..
++                    }
++                })
++            );
++            done.send(()).unwrap();
++        };
++
++        let server_fut = async {
++            let _connection = server.accept().await.unwrap().await.unwrap();
++            finished.await.unwrap();
++        };
++
++        tokio::join!(server_fut, client_fut);
++    }
++}
++
+ #[tokio::test]
+ async fn graceful_shutdown_server_rejects() {
+     init_tracing();
