@@ -3,7 +3,8 @@
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. The expected field lists below are the requests
 //! of the proxy route captures of Chrome 154.0.8037.58, Edge 153.0.4234.48,
-//! and Firefox 156.0 on Windows 11 build 26200, three agreeing runs each:
+//! Brave 154.1.96.59, Opera 135.0.5973.92, and Firefox 156.0 on Windows 11
+//! build 26200, three agreeing runs each:
 //! `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-loopback.txt`
 //! for `http://127.0.0.1` and `direct-hostname.txt` for
 //! `http://origin.phantom.test`. The captures ran headless, so `User-Agent`
@@ -29,7 +30,9 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ContentCoding, ContentDecoding, HttpProtocol, HttpProxy, PreparedRequestTemplate,
     RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo, Route,
-    profile::{ClientHintSettings, ClientProfile, RequestTemplate, chromium, edge, firefox},
+    profile::{
+        ClientHintSettings, ClientProfile, RequestTemplate, brave, chromium, edge, firefox, opera,
+    },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
@@ -41,10 +44,19 @@ const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/5
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
 const FIREFOX_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
 const CHROME_BRANDS: &str = r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#;
 const EDGE_BRANDS: &str = r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#;
+const BRAVE_BRANDS: &str = r#""Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99""#;
+const OPERA_BRANDS: &str = r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#;
+/// Brave's navigation `Accept`: Chrome's without signed exchanges.
+const BRAVE_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
+image/avif,image/webp,image/apng,*/*;q=0.8";
+/// One of the five `Accept-Language` values Brave draws per session.
+const BRAVE_LANGUAGE: &str = "en-US,en;q=0.7";
 const CHROMIUM_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
 image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
 const FIREFOX_NAVIGATION_ACCEPT: &str =
@@ -71,10 +83,14 @@ fn fields(list: &[(&str, &str)]) -> Fields {
         .collect()
 }
 
-/// A Chromium-family browser's headers: its `User-Agent` and brand list.
+/// A Chromium-family browser's headers: its `User-Agent`, brand list,
+/// navigation `Accept`, `Accept-Language`, and whether it sends `Sec-GPC`.
 struct Chromium {
     user_agent: &'static str,
     brands: &'static str,
+    navigation_accept: &'static str,
+    language: &'static str,
+    gpc: bool,
 }
 
 impl Chromium {
@@ -90,8 +106,11 @@ impl Chromium {
         list.extend([
             ("Upgrade-Insecure-Requests", "1"),
             ("User-Agent", self.user_agent),
-            ("Accept", CHROMIUM_NAVIGATION_ACCEPT),
+            ("Accept", self.navigation_accept),
         ]);
+        if self.gpc {
+            list.push(("Sec-GPC", "1"));
+        }
         if loopback {
             list.extend([
                 ("Sec-Fetch-Site", "none"),
@@ -102,7 +121,7 @@ impl Chromium {
         }
         list.extend([
             ("Accept-Encoding", codings(loopback)),
-            ("Accept-Language", LANGUAGE),
+            ("Accept-Language", self.language),
         ]);
         fields(&list)
     }
@@ -120,17 +139,24 @@ impl Chromium {
                 ("sec-ch-ua", self.brands),
                 ("sec-ch-ua-mobile", "?0"),
                 ("Accept", "*/*"),
-                ("Sec-Fetch-Site", "same-origin"),
-                ("Sec-Fetch-Mode", "cors"),
-                ("Sec-Fetch-Dest", "empty"),
             ]);
         } else {
             list.extend([("User-Agent", self.user_agent), ("Accept", "*/*")]);
         }
+        if self.gpc {
+            list.push(("Sec-GPC", "1"));
+        }
+        if loopback {
+            list.extend([
+                ("Sec-Fetch-Site", "same-origin"),
+                ("Sec-Fetch-Mode", "cors"),
+                ("Sec-Fetch-Dest", "empty"),
+            ]);
+        }
         list.extend([
             ("Referer", REFERER),
             ("Accept-Encoding", codings(loopback)),
-            ("Accept-Language", LANGUAGE),
+            ("Accept-Language", self.language),
         ]);
         fields(&list)
     }
@@ -210,16 +236,33 @@ struct Case {
 }
 
 fn cases() -> Vec<Case> {
-    let chrome = Chromium {
-        user_agent: CHROME_UA,
-        brands: CHROME_BRANDS,
+    let chromium_family = |user_agent, brands| Chromium {
+        user_agent,
+        brands,
+        navigation_accept: CHROMIUM_NAVIGATION_ACCEPT,
+        language: LANGUAGE,
+        gpc: false,
     };
-    let edge = Chromium {
-        user_agent: EDGE_UA,
-        brands: EDGE_BRANDS,
+    let chrome = chromium_family(CHROME_UA, CHROME_BRANDS);
+    let edge = chromium_family(EDGE_UA, EDGE_BRANDS);
+    let opera = chromium_family(OPERA_UA, OPERA_BRANDS);
+    // Brave's `User-Agent` is Chrome's.
+    let brave = Chromium {
+        user_agent: CHROME_UA,
+        brands: BRAVE_BRANDS,
+        navigation_accept: BRAVE_NAVIGATION_ACCEPT,
+        language: BRAVE_LANGUAGE,
+        gpc: true,
     };
     let referer = || RequestHeader::new("referer", REFERER);
     let edge_ua = || RequestHeader::new("user-agent", EDGE_UA);
+    let opera_ua = || RequestHeader::new("user-agent", OPERA_UA);
+    let brave_caller = || {
+        vec![
+            RequestHeader::new("user-agent", CHROME_UA),
+            RequestHeader::new("accept-language", BRAVE_LANGUAGE),
+        ]
+    };
     vec![
         Case {
             label: "chrome navigation",
@@ -256,6 +299,42 @@ fn cases() -> Vec<Case> {
             caller: vec![edge_ua(), referer()],
             loopback: edge.fetch(true),
             named: edge.fetch(false),
+        },
+        Case {
+            label: "brave navigation",
+            chromium: true,
+            hints: Some(brave::v154_windows_client_hints()),
+            template: brave::v154_windows_navigation_template(),
+            caller: brave_caller(),
+            loopback: brave.navigation(true),
+            named: brave.navigation(false),
+        },
+        Case {
+            label: "brave fetch",
+            chromium: true,
+            hints: Some(brave::v154_windows_client_hints()),
+            template: brave::v154_windows_fetch_no_store_template(),
+            caller: [brave_caller(), vec![referer()]].concat(),
+            loopback: brave.fetch(true),
+            named: brave.fetch(false),
+        },
+        Case {
+            label: "opera navigation",
+            chromium: true,
+            hints: Some(opera::v135_windows_client_hints()),
+            template: opera::v135_windows_navigation_template(),
+            caller: vec![opera_ua()],
+            loopback: opera.navigation(true),
+            named: opera.navigation(false),
+        },
+        Case {
+            label: "opera fetch",
+            chromium: true,
+            hints: Some(opera::v135_windows_client_hints()),
+            template: opera::v135_windows_fetch_no_store_template(),
+            caller: vec![opera_ua(), referer()],
+            loopback: opera.fetch(true),
+            named: opera.fetch(false),
         },
         Case {
             label: "firefox navigation",

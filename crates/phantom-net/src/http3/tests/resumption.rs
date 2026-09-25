@@ -191,6 +191,35 @@ const EDGE_153_RESUMPTION: [&str; 3] = [
     )),
 ];
 
+const BRAVE_154_RESUMPTION: [&str; 3] = [
+    include_str!(concat!(
+        "../../../../../fixtures/http3/brave/154.1.96.59/",
+        "windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/http3/brave/154.1.96.59/",
+        "windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/http3/brave/154.1.96.59/",
+        "windows-11-26200/resumption-reject.txt"
+    )),
+];
+const OPERA_135_RESUMPTION: [&str; 3] = [
+    include_str!(concat!(
+        "../../../../../fixtures/http3/opera/135.0.5973.92/",
+        "windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/http3/opera/135.0.5973.92/",
+        "windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/http3/opera/135.0.5973.92/",
+        "windows-11-26200/resumption-reject.txt"
+    )),
+];
+
 const EARLY_DATA: u16 = 0x2a;
 const PSK_KEY_EXCHANGE_MODES: u16 = 0x2d;
 const QUIC_TRANSPORT_PARAMETERS: u16 = 0x39;
@@ -211,9 +240,11 @@ const INITIAL_RTT: u64 = 0x3127;
 /// position, and the measured round-trip time) are compared by shape.
 #[tokio::test(flavor = "current_thread")]
 async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestResult<()> {
-    use super::connector::{CHROME_154_H3_STARTUP, EDGE_153_H3_STARTUP};
+    use super::connector::{
+        BRAVE_154_H3_STARTUP, CHROME_154_H3_STARTUP, EDGE_153_H3_STARTUP, OPERA_135_H3_STARTUP,
+    };
     use super::early_data::{Served, learn_ticket};
-    use phantom_profile::edge;
+    use phantom_profile::{brave, edge, opera};
 
     for (tls, startup, captures) in [
         (
@@ -225,6 +256,16 @@ async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestR
             edge::v153_http3_tls(),
             EDGE_153_H3_STARTUP,
             EDGE_153_RESUMPTION,
+        ),
+        (
+            brave::v154_http3_tls(),
+            BRAVE_154_H3_STARTUP,
+            BRAVE_154_RESUMPTION,
+        ),
+        (
+            opera::v135_http3_tls(),
+            OPERA_135_H3_STARTUP,
+            OPERA_135_RESUMPTION,
         ),
     ] {
         let identity = TestIdentity::generate()?;

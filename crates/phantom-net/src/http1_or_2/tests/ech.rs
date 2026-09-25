@@ -383,6 +383,9 @@ const EDGE_ACCEPT: &str =
     include_str!("../../../../../fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-accept.txt");
 const EDGE_REJECT: &str =
     include_str!("../../../../../fixtures/tls/edge/153.0.4234.48/windows-11-26200/ech-reject.txt");
+/// Brave 154's ClientHelloOuter from `ech-accept.txt`, captured the same way.
+const BRAVE_ACCEPT: &str =
+    include_str!("../../../../../fixtures/tls/brave/154.1.96.59/windows-11-26200/ech-accept.txt");
 
 fn fixture_value<'a>(fixture: &'a str, field: &str) -> TestResult<&'a str> {
     fixture
@@ -477,6 +480,13 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
     assert_accept_replays(EDGE_ACCEPT, &edge::v153_tls()).await
+}
+
+/// Brave sends Chrome's outer shape without the trust-anchor IDs extension,
+/// which its recipe also omits.
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()> {
+    assert_accept_replays(BRAVE_ACCEPT, &phantom_profile::brave::v154_tls()).await
 }
 
 /// The fixture's `ech_outer` line for one observed connection.

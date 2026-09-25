@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{chromium, edge};
+use phantom_profile::{brave, chromium, edge, opera};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -94,6 +94,36 @@ fn edge_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()>
     )?;
     for client_hello in [EDGE_153_H3_CLIENT_HELLO_1, EDGE_153_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, EDGE_153_H3_STARTUP, client_hello)?;
+    }
+    Ok(())
+}
+
+/// Brave 154 offers the Chromium QUIC ClientHello without trust-anchor IDs.
+#[test]
+fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &brave::v154_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
+    )?;
+    for client_hello in [BRAVE_154_H3_CLIENT_HELLO_1, BRAVE_154_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(&connector, BRAVE_154_H3_STARTUP, client_hello)?;
+    }
+    Ok(())
+}
+
+/// Opera 135 offers the Chromium QUIC ClientHello without trust-anchor IDs.
+#[test]
+fn opera_135_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &opera::v135_http3_tls(),
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
+    )?;
+    for client_hello in [OPERA_135_H3_CLIENT_HELLO_1, OPERA_135_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(&connector, OPERA_135_H3_STARTUP, client_hello)?;
     }
     Ok(())
 }
@@ -501,6 +531,31 @@ const EDGE_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
 ));
 const EDGE_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/edge/153.0.4234.48/",
+    "windows-11-26200/quic-client-hello-2.txt"
+));
+
+pub(super) const BRAVE_154_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave/154.1.96.59/",
+    "windows-11-26200/client-startup.txt"
+));
+const BRAVE_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave/154.1.96.59/",
+    "windows-11-26200/quic-client-hello-1.txt"
+));
+const BRAVE_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave/154.1.96.59/",
+    "windows-11-26200/quic-client-hello-2.txt"
+));
+pub(super) const OPERA_135_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/135.0.5973.92/",
+    "windows-11-26200/client-startup.txt"
+));
+const OPERA_135_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/135.0.5973.92/",
+    "windows-11-26200/quic-client-hello-1.txt"
+));
+const OPERA_135_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/135.0.5973.92/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 

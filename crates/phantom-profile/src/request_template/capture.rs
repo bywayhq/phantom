@@ -5,7 +5,7 @@
 //! the HTTP/2 HEADERS blocks of `phantom-http2-websocket-v1`, and the H3
 //! request of `phantom-http3-*` startup captures.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Http2Priority;
 
@@ -134,6 +134,44 @@ impl<'a> Capture<'a> {
             }
         }
         Ok(requests)
+    }
+
+    /// Returns, for each run, the distinct `Accept-Language` values of every
+    /// HTTP/1.1 request and HTTP/2 HEADERS block in that run.
+    pub(crate) fn accept_language_by_run(&self) -> CaptureResult<Vec<BTreeSet<String>>> {
+        let mut runs: BTreeMap<usize, BTreeSet<String>> = BTreeMap::new();
+        for (key, record) in &self.fields {
+            let Some((run, rest)) = key.strip_prefix("run_").and_then(|key| key.split_once('_'))
+            else {
+                continue;
+            };
+            if !is_number(run) {
+                continue;
+            }
+            let Some((head, last)) = rest.rsplit_once('_') else {
+                continue;
+            };
+            if !is_number(last) {
+                continue;
+            }
+            let (name, value) = if head.ends_with("_field") && head.contains("_headers_") {
+                (
+                    decode_hex(attribute(record, "name_hex").ok_or("field has no name")?)?,
+                    decode_hex(attribute(record, "value_hex").ok_or("field has no value")?)?,
+                )
+            } else if head.ends_with("_header") && head.contains("request_") {
+                let line = decode_hex(record)?;
+                let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+                (name.to_owned(), value.to_owned())
+            } else {
+                continue;
+            };
+            let entry = runs.entry(run.parse()?).or_default();
+            if name.eq_ignore_ascii_case("accept-language") {
+                entry.insert(value);
+            }
+        }
+        Ok(runs.into_values().collect())
     }
 
     /// Returns the request of an HTTP/3 startup capture.
