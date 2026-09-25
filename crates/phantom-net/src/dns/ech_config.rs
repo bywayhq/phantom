@@ -90,6 +90,9 @@ impl EchConfig {
     }
 
     /// Returns the configuration's extensions in list order.
+    ///
+    /// They are not read, and this is empty, when the public name is invalid:
+    /// the client ignores such a configuration without looking further.
     #[must_use]
     pub fn extensions(&self) -> &[EchConfigExtension] {
         self.contents
@@ -265,7 +268,11 @@ fn parse_config(reader: &mut Reader<'_>) -> Option<EchConfig> {
         return None;
     }
     let mut extensions = Vec::new();
-    while !extensions_reader.is_empty() {
+    // BoringSSL stops at an invalid public name and marks the configuration
+    // unsupported without reading its extensions, so malformed extensions
+    // after one do not make the list invalid (`parse_ech_config`,
+    // `ssl/encrypted_client_hello.cc` lines 467-473).
+    while is_valid_public_name(public_name) && !extensions_reader.is_empty() {
         let extension_type = extensions_reader.u16()?;
         let data = extensions_reader.u16_prefixed()?;
         extensions.push(EchConfigExtension {

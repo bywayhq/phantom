@@ -1387,15 +1387,18 @@ extension fields, and the same extension set, GREASE values folded and
 order ignored because both permute it. The same file proves, against a
 loopback BoringSSL origin that decrypts ECH, that the origin receives the
 inner name; that a rejection is retried once with the retry configurations,
-and with GREASE and the true name when there are none; that a second
+and with GREASE and the true name when there are none, but not when the
+server's certificate does not cover the public name; that a second
 rejection fails with `EchFailure::Rejected`; that a list which does not parse
 fails with `EchFailure::InvalidConfigList` before any TLS byte; and that a
 lookup still running after the bounded wait is abandoned.
 `crates/phantom/tests/https_record_ech.rs` proves the same through the client
-facade with a loopback DNS server, and that a profile without the field keeps
-GREASE. `crates/phantom-net/src/dns/ech_config/tests.rs` checks that the
-`ECHConfigList` parser accepts exactly the lists BoringSSL's
-`SSL_set1_ech_config_list` accepts, and the `ech_config_list` fuzz target
+facade with a loopback DNS server, that a profile without the field keeps
+GREASE, and that a request through an HTTP proxy sends no HTTPS query and no
+ECH. `crates/phantom-net/src/dns/ech_config/tests.rs` checks, on truncated,
+corrupted, unknown-version, invalid-name, mandatory-extension, and
+malformed-extension samples, that the `ECHConfigList` parser accepts exactly
+the lists BoringSSL's `SSL_set1_ech_config_list` accepts, and the `ech_config_list` fuzz target
 drives it.
 
 Chrome source at tag `154.0.8037.58`, with BoringSSL at Phantom's pinned

@@ -24,6 +24,24 @@ fn edited(edit: impl FnOnce(&mut Vec<u8>)) -> Vec<u8> {
     config
 }
 
+/// Rebuilds a configuration for `public_name` whose extensions field holds
+/// `extensions` verbatim, well formed or not.
+fn with_extensions(public_name: &str, extensions: &[u8]) -> Vec<u8> {
+    let original = ech_config(3, &TEST_ECH_KEYS[0], public_name);
+    let mut contents = original[4..original.len() - 2].to_vec();
+    contents.extend_from_slice(&(extensions.len() as u16).to_be_bytes());
+    contents.extend_from_slice(extensions);
+    let mut config = vec![0xfe, 0x0d];
+    config.extend_from_slice(&(contents.len() as u16).to_be_bytes());
+    config.extend_from_slice(&contents);
+    config
+}
+
+/// A truncated extension: a type with only half of its length field.
+const MALFORMED_EXTENSIONS: &[u8] = &[0x00, 0x01, 0x00];
+/// One mandatory extension, type `0x8001`, with no data.
+const MANDATORY_EXTENSION: &[u8] = &[0x80, 0x01, 0x00, 0x00];
+
 /// Offset of the cipher-suite list length inside the contents.
 const SUITES: usize = 1 + 2 + 2 + 32;
 /// Offset of `maximum_name_length` inside the contents.
@@ -158,6 +176,25 @@ fn unsupported_parameters_parse_but_are_not_supported() -> TestResult {
 }
 
 #[test]
+fn an_invalid_public_name_hides_malformed_extensions() -> TestResult {
+    let configs = parse(&list(&[with_extensions(
+        "example.123",
+        MALFORMED_EXTENSIONS,
+    )]))?;
+    assert_eq!(configs.len(), 1);
+    assert!(!configs[0].is_supported());
+    assert!(configs[0].extensions().is_empty());
+    let error = parse(&list(&[with_extensions(
+        "public.example.test",
+        MALFORMED_EXTENSIONS,
+    )]))
+    .err()
+    .ok_or("malformed extensions after a valid name parsed")?;
+    assert_eq!(error.kind(), EchConfigListErrorKind::MalformedConfig);
+    Ok(())
+}
+
+#[test]
 fn public_names_follow_boringssl() {
     for name in ["a", "example.test", "a-b.c1", "x.0x1g"] {
         assert!(is_valid_public_name(name.as_bytes()), "{name}");
@@ -192,6 +229,11 @@ fn acceptance_matches_boringssl() -> TestResult {
         list(&[edited(|contents| contents[2] = 0x10)]),
         vec![0x00, 0x00],
         vec![0x00],
+        list(&[with_extensions("example.123", MALFORMED_EXTENSIONS)]),
+        list(&[with_extensions("example.123", MANDATORY_EXTENSION)]),
+        list(&[with_extensions("-bad.test", MALFORMED_EXTENSIONS)]),
+        list(&[with_extensions("public.example.test", MALFORMED_EXTENSIONS)]),
+        list(&[with_extensions("public.example.test", MANDATORY_EXTENSION)]),
     ];
     for cut in 0..good.len() {
         samples.push(good[..cut].to_vec());
