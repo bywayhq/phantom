@@ -1030,6 +1030,55 @@ async fn negotiated_graceful_goaway_retries_a_bodyless_get_once_on_a_replacement
 }
 
 #[tokio::test]
+async fn negotiated_graceful_goaway_replacement_may_select_http1() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let replacement_acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut first = accept_tls_stream(tcp, acceptor).await?;
+            accept_client_preface(&mut first).await?;
+            read_request_headers(&mut first, 1).await?;
+            // GOAWAY(NO_ERROR) with last-stream-id 0: stream 1 was not processed.
+            write_frame(&mut first, 0x7, 0, 0, &[0, 0, 0, 0, 0, 0, 0, 0]).await?;
+            first.flush().await?;
+            first.shutdown().await?;
+
+            let (tcp, _) = listener.accept().await?;
+            let mut replacement = accept_tls_stream(tcp, replacement_acceptor).await?;
+            let head = read_head(&mut replacement).await?;
+            replacement
+                .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(head)
+        });
+
+        let client = test_client(&identity, true)?;
+        let response = client
+            .get_negotiated(&format!("https://{address}/failed"))?
+            .header(RequestHeader::new("x-trace", "1"))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response_protocol(&response)?, HttpProtocol::Http1);
+        response.into_body().collect().await?;
+        drop(client);
+
+        // The replacement carries the complete HTTP/1.1 field list.
+        let head = server.await??;
+        assert_eq!(
+            head,
+            format!("GET /failed HTTP/1.1\r\nHost: {address}\r\nx-trace: 1\r\n\r\n").as_bytes()
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn negotiated_graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
