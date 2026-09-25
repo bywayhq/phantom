@@ -1,4 +1,4 @@
-use super::{ProxyConnectField, ProxyConnectTemplate};
+use super::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate};
 use crate::{chromium, firefox};
 
 #[test]
@@ -68,6 +68,7 @@ fn validation_rejects_missing_or_misplaced_placeholders() {
         http2_fields: vec![ProxyConnectField::proxy_authorization(
             "proxy-authorization",
         )],
+        http2_rejected: Http2RejectedConnect::EndStream,
     };
     assert_eq!(valid().validate(), Ok(()));
 
@@ -136,6 +137,7 @@ fn validation_refuses_to_copy_origin_credentials_into_connect() {
         http2_fields: vec![ProxyConnectField::proxy_authorization(
             "proxy-authorization",
         )],
+        http2_rejected: Http2RejectedConnect::EndStream,
     };
     for name in [
         "Authorization",

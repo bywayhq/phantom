@@ -5,6 +5,7 @@ use http::{
     HeaderValue,
     header::{CONNECTION, HeaderName, PROXY_AUTHORIZATION, TE, UPGRADE},
 };
+use phantom_profile::Http2RejectedConnect;
 use tracing::Span;
 
 use super::{
@@ -14,7 +15,7 @@ use super::{
 };
 use crate::http2::{
     Http2ClassicConnectOutcome, Http2ConnectStream, Http2Connection, Http2Error,
-    Http2ProtocolErrorKind, Http2TlsError, prepare_classic_connect,
+    Http2ProtocolErrorKind, Http2RejectedStream, Http2TlsError, prepare_classic_connect,
 };
 
 /// A validated HTTP/2 CONNECT request that can be sent on a fresh connection.
@@ -107,36 +108,41 @@ impl PreparedBasicHttp2Connect {
 
 pub(super) enum Http2ChallengeOutcome {
     Tunnel(Http2ConnectStream),
-    Retry,
+    /// A valid Basic `407`, with the challenged stream when the profile
+    /// leaves it open.
+    Retry(Option<Http2RejectedStream>),
 }
 
 pub(super) async fn establish(
     connection: &Http2Connection,
     request: &PreparedHttp2Connect,
+    rejected: Http2RejectedConnect,
 ) -> Result<Http2ConnectStream, HttpConnectError> {
-    match exchange(connection, request, false).await? {
+    match exchange(connection, request, rejected, false).await? {
         Http2ChallengeOutcome::Tunnel(stream) => Ok(stream),
-        Http2ChallengeOutcome::Retry => Err(HttpConnectError::InvalidResponse),
+        Http2ChallengeOutcome::Retry(_) => Err(HttpConnectError::InvalidResponse),
     }
 }
 
 pub(super) async fn establish_challenge(
     connection: &Http2Connection,
     request: &PreparedHttp2Connect,
+    rejected: Http2RejectedConnect,
 ) -> Result<Http2ChallengeOutcome, HttpConnectError> {
-    exchange(connection, request, true).await
+    exchange(connection, request, rejected, true).await
 }
 
 pub(super) async fn establish_authenticated(
     connection: &Http2Connection,
     request: &PreparedHttp2Connect,
+    rejected: Http2RejectedConnect,
 ) -> Result<Http2ConnectStream, HttpConnectError> {
-    match exchange(connection, request, false).await {
+    match exchange(connection, request, rejected, false).await {
         Err(HttpConnectError::Rejected { status: 407 }) => {
             Err(HttpConnectError::AuthenticationRejected)
         }
         Ok(Http2ChallengeOutcome::Tunnel(stream)) => Ok(stream),
-        Ok(Http2ChallengeOutcome::Retry) => Err(HttpConnectError::InvalidResponse),
+        Ok(Http2ChallengeOutcome::Retry(_)) => Err(HttpConnectError::InvalidResponse),
         Err(error) => Err(error),
     }
 }
@@ -154,22 +160,18 @@ pub(super) enum Http2Replay {
 /// Sends the credentialed CONNECT as a new stream on the challenged
 /// connection, as Chrome 154, Edge 153, and Firefox 156 do.
 ///
-/// A connection that has stopped or received `GOAWAY` since the `407` is not
-/// used.
+/// A connection whose driver has stopped is not used. Opening the stream
+/// waits for the proxy's concurrent-stream limit; a `GOAWAY` received since
+/// the `407` fails it as unprocessed.
 pub(super) async fn replay_on_challenged(
     connection: &Http2Connection,
     request: &PreparedHttp2Connect,
+    rejected: Http2RejectedConnect,
 ) -> Http2Replay {
-    // Chrome 154 and Edge 153 end the challenged stream before they open the
-    // replay. The vendored encoder writes a new stream's HEADERS ahead of
-    // queued DATA, so the connection driver gets a turn to write the queued
-    // END_STREAM first. On a current-thread runtime this fixes the order; on
-    // a multi-thread runtime the driver may run later.
-    tokio::task::yield_now().await;
-    if !connection.is_reusable() {
+    if connection.is_closed() {
         return Http2Replay::Unprocessed;
     }
-    match establish_authenticated(connection, request).await {
+    match establish_authenticated(connection, request, rejected).await {
         Err(HttpConnectError::ProxyHttp2(error)) if is_unprocessed(&error) => {
             Http2Replay::Unprocessed
         }
@@ -177,12 +179,12 @@ pub(super) async fn replay_on_challenged(
     }
 }
 
-/// Reports a failure that RFC 9113 sections 6.8 and 8.7 describe as a
-/// request the peer did not process, or a connection that ended before any
-/// response head.
+/// Reports a replay the proxy did not process.
 ///
-/// A received `GOAWAY` fails a stream only when the stream is above its
-/// last-stream-id or never opened, so any remote `GOAWAY` qualifies.
+/// That is a connection closed before any response head, a received
+/// `GOAWAY`, which fails a stream only when the stream is above its
+/// last-stream-id or never opened (RFC 9113 section 6.8), or a
+/// `REFUSED_STREAM` reset (RFC 9113 section 8.7).
 fn is_unprocessed(error: &Http2TlsError) -> bool {
     let Http2TlsError::Http2(Http2Error::Protocol(error)) = error else {
         return false;
@@ -200,10 +202,11 @@ fn is_unprocessed(error: &Http2TlsError) -> bool {
 async fn exchange(
     connection: &Http2Connection,
     request: &PreparedHttp2Connect,
+    rejected: Http2RejectedConnect,
     inspect_challenge: bool,
 ) -> Result<Http2ChallengeOutcome, HttpConnectError> {
     let outcome = connection
-        .send_classic_connect(request.request()?)
+        .send_classic_connect(request.request()?, rejected)
         .await
         .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(Http2TlsError::Http2(error))))?;
     match outcome {
@@ -211,11 +214,15 @@ async fn exchange(
             Span::current().record("status", status);
             Ok(Http2ChallengeOutcome::Tunnel(stream))
         }
-        Http2ClassicConnectOutcome::Rejected { status, headers } => {
+        Http2ClassicConnectOutcome::Rejected {
+            status,
+            headers,
+            held,
+        } => {
             Span::current().record("status", status);
             if inspect_challenge && status == 407 {
                 validate_basic_proxy_challenge(&headers)?;
-                return Ok(Http2ChallengeOutcome::Retry);
+                return Ok(Http2ChallengeOutcome::Retry(held));
             }
             Err(HttpConnectError::Rejected { status })
         }

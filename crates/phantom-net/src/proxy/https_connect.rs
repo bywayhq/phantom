@@ -5,7 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use phantom_profile::{Http2Settings, TcpSettings, TlsSettings};
+use phantom_profile::{Http2RejectedConnect, Http2Settings, TcpSettings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
@@ -23,7 +23,7 @@ use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
     host_resolver::HostResolver,
     http2::{
-        Http2ConnectStream, Http2Connection, Http2TlsError, connect_selected,
+        Http2ConnectStream, Http2Connection, Http2RejectedStream, Http2TlsError, connect_selected,
         connect_selected_extended, translate_extended_connect_settings, translate_settings,
         validate_http2,
     },
@@ -62,6 +62,7 @@ pub struct HttpsProxyConnector {
     tls: TlsConnector,
     offers_h2: bool,
     http2: Option<Http2Settings>,
+    http2_rejected: Http2RejectedConnect,
     protocol: HttpsProxyProtocol,
     tcp: Option<TcpSettings>,
     host_resolver: Option<HostResolver>,
@@ -107,6 +108,7 @@ impl HttpsProxyConnector {
                 .iter()
                 .any(|protocol| protocol.as_ref() == b"h2"),
             http2: None,
+            http2_rejected: Http2RejectedConnect::default(),
             protocol: HttpsProxyProtocol::Http1,
             tcp: None,
             host_resolver: None,
@@ -122,6 +124,18 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_http2_settings(mut self, settings: &Http2Settings) -> Self {
         self.http2 = Some(settings.clone());
+        self
+    }
+
+    /// Chooses what an HTTP/2 CONNECT sends on a stream the proxy rejected,
+    /// such as a challenged one, before the replay on the same connection.
+    ///
+    /// The default, [`Http2RejectedConnect::EndStream`], is what Chrome 154
+    /// and Edge 153 send. It has no effect in [`HttpsProxyProtocol::Http1`]
+    /// mode.
+    #[must_use]
+    pub fn with_http2_rejected_connect(mut self, rejected: Http2RejectedConnect) -> Self {
+        self.http2_rejected = rejected;
         self
     }
 
@@ -213,6 +227,7 @@ impl HttpsProxyConnector {
             tls: self.tls.with_isolated_session_cache(),
             offers_h2: self.offers_h2,
             http2: self.http2.clone(),
+            http2_rejected: self.http2_rejected,
             protocol: self.protocol,
             tcp: self.tcp,
             host_resolver: self.host_resolver.clone(),
@@ -286,7 +301,7 @@ impl HttpsProxyConnector {
                 let connection = self
                     .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
                     .await?;
-                http2_connect::establish(&connection, &request).await
+                http2_connect::establish(&connection, &request, self.http2_rejected).await
             })
             .await
             .map(HttpsProxyTunnel::http2),
@@ -349,25 +364,35 @@ impl HttpsProxyConnector {
         proxy_port: u16,
         proxy_server_name: &str,
     ) -> Result<Http2ConnectStream, HttpConnectError> {
-        let challenged = Mutex::new(None::<Http2Connection>);
+        // The connection that carried a `407`, and its challenged stream when
+        // the profile leaves it open.
+        let challenged = Mutex::new(None::<(Http2Connection, Option<Http2RejectedStream>)>);
         plan.run(
             |attempt| {
                 let challenged = &challenged;
                 async move {
                     record_authentication_attempts(attempt, plan.preemptive());
                     if attempt.is_retry() {
-                        let held = challenged
+                        let kept = challenged
                             .lock()
                             .unwrap_or_else(PoisonError::into_inner)
                             .take();
-                        if let Some(connection) = held {
+                        if let Some((connection, held)) = kept {
                             match http2_connect::replay_on_challenged(
                                 &connection,
                                 &requests.authenticated,
+                                self.http2_rejected,
                             )
                             .await
                             {
-                                Http2Replay::Answered(result) => return result.map(AuthStep::Done),
+                                Http2Replay::Answered(result) => {
+                                    return result.map(|mut stream| {
+                                        if let Some(held) = held {
+                                            stream.hold_rejected_stream(held);
+                                        }
+                                        AuthStep::Done(stream)
+                                    });
+                                }
                                 Http2Replay::Unprocessed => {}
                             }
                         }
@@ -377,6 +402,7 @@ impl HttpsProxyConnector {
                         return http2_connect::establish_authenticated(
                             &connection,
                             &requests.authenticated,
+                            self.http2_rejected,
                         )
                         .await
                         .map(AuthStep::Done);
@@ -390,11 +416,17 @@ impl HttpsProxyConnector {
                         &requests.anonymous
                     };
                     Ok(
-                        match http2_connect::establish_challenge(&connection, request).await? {
+                        match http2_connect::establish_challenge(
+                            &connection,
+                            request,
+                            self.http2_rejected,
+                        )
+                        .await?
+                        {
                             Http2ChallengeOutcome::Tunnel(stream) => AuthStep::Done(stream),
-                            Http2ChallengeOutcome::Retry => {
+                            Http2ChallengeOutcome::Retry(held) => {
                                 *challenged.lock().unwrap_or_else(PoisonError::into_inner) =
-                                    Some(connection);
+                                    Some((connection, held));
                                 AuthStep::Challenged
                             }
                         },

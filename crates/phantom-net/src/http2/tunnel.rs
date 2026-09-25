@@ -52,13 +52,34 @@ pub(crate) enum Http2ClassicConnectOutcome {
         /// Flow-controlled tunnel byte stream.
         stream: Http2ConnectStream,
     },
-    /// The peer returned a final non-2xx status; the stream was reset.
+    /// The peer returned a final non-2xx status.
     Rejected {
         /// Final response status.
         status: u16,
         /// Semantic response fields, used for authentication challenges.
         headers: http::HeaderMap,
+        /// The rejected stream, left open on the client side, when the
+        /// profile sends nothing more on it.
+        held: Option<Http2RejectedStream>,
     },
+}
+
+/// A rejected CONNECT stream whose client side stays open.
+///
+/// Dropping it resets the stream with CANCEL, so a holder keeps it for as
+/// long as the connection should carry no frame for it.
+pub(crate) struct Http2RejectedStream {
+    _send: SendStream<Bytes>,
+    _receive: RecvStream,
+}
+
+impl Http2RejectedStream {
+    pub(super) fn new(send: SendStream<Bytes>, receive: RecvStream) -> Self {
+        Self {
+            _send: send,
+            _receive: receive,
+        }
+    }
 }
 
 /// A bounded, flow-controlled byte stream carried by HTTP/2 DATA frames.
@@ -146,6 +167,8 @@ pub(crate) struct Http2ConnectStream {
     receive_complete: bool,
     send_complete: bool,
     stream_guard: Option<Box<dyn Any + Send + Sync>>,
+    // Declared before the lease so it drops while the connection is open.
+    held_rejection: Option<Http2RejectedStream>,
     _lease: ConnectionLease,
 }
 
@@ -163,8 +186,15 @@ impl Http2ConnectStream {
             receive_complete: false,
             send_complete: false,
             stream_guard: None,
+            held_rejection: None,
             _lease: lease,
         }
+    }
+
+    /// Keeps a rejected stream of the same connection open until this
+    /// tunnel is dropped.
+    pub(crate) fn hold_rejected_stream(&mut self, stream: Http2RejectedStream) {
+        self.held_rejection = Some(stream);
     }
 
     fn release_guard_if_complete(&mut self) {

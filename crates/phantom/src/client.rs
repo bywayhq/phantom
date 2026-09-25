@@ -1520,6 +1520,12 @@ impl ClientBuilder {
                     Some(settings) => connector.with_http2_settings(settings),
                     None => connector,
                 })
+                .map(|connector| match self.profile.proxy_connect() {
+                    Some(template) => {
+                        connector.with_http2_rejected_connect(template.http2_rejected)
+                    }
+                    None => connector,
+                })
                 .map(|connector| with_tcp(connector, tcp, HttpsProxyConnector::with_tcp_settings))
             })
             .transpose()

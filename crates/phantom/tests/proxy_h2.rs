@@ -988,6 +988,60 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     Ok(())
 }
 
+/// The profile's CONNECT recipe decides what the client sends on the
+/// challenged stream before the replay: Chrome 154 and Edge 153 end it, and
+/// Firefox 156 leaves it open, as in the `https-proxy-auth-secure-hostname`
+/// captures.
+#[tokio::test]
+async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestResult<()> {
+    for (label, connect, http2, ends) in [
+        (
+            "chromium",
+            chromium::v154_proxy_connect(),
+            chromium::v154_http2(),
+            true,
+        ),
+        (
+            "firefox",
+            firefox::v156_proxy_connect(),
+            firefox::v156_http2(),
+            false,
+        ),
+    ] {
+        bounded(async {
+            let proxy = H2Proxy::bind().await?;
+            let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
+            let proxy_task = tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                serve_connects(tcp, &acceptor, vec![Reply::Challenge, Reply::Status(502)]).await
+            });
+            let client = Client::builder(
+                ClientProfile::new(tls_settings())
+                    .with_http2(http2)
+                    .with_proxy_connect(connect),
+            )
+            .add_proxy_root_certificate_der(proxy_root)
+            .route(Route::http_proxy(
+                HttpProxy::new(&proxy_uri)?
+                    .with_basic_auth("alice", "secret")?
+                    .with_http2_transport()?,
+            ))
+            .build()?;
+            let _ = client
+                .get(HttpProtocol::Http2, "https://origin.test/page")?
+                .send()
+                .await;
+            let records = proxy_task.await??;
+            let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
+            assert_eq!(streams, [1, 3], "{label}");
+            assert_eq!(records[0].ended_before_next, Some(ends), "{label}");
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(())
+}
+
 /// A `wss://` tunnel on an HTTP/2 proxy sends the profile's CONNECT fields
 /// with the opening's `User-Agent`, as the `wss://` CONNECT of each
 /// browser's `https-proxy-secure-hostname` capture does.
@@ -1555,6 +1609,9 @@ struct ConnectRecord {
     authority: Option<String>,
     fields: Vec<(String, Vec<u8>)>,
     later_requests: usize,
+    /// For a challenged CONNECT, whether the client had ended its stream
+    /// when its next CONNECT arrived.
+    ended_before_next: Option<bool>,
 }
 
 /// Serves one HTTP/2 proxy connection with one CONNECT exchange.
@@ -1583,13 +1640,21 @@ async fn serve_connects(
 ) -> TestResult<Vec<ConnectRecord>> {
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let mut connection = ::http2::server::handshake(stream).await?;
-    let mut records = Vec::with_capacity(replies.len());
+    let mut records: Vec<ConnectRecord> = Vec::with_capacity(replies.len());
     let mut tunneled = false;
+    // Challenged request bodies stay open, so a client that leaves its side
+    // open is not reset by the proxy.
+    let mut challenged: Vec<::http2::RecvStream> = Vec::new();
+    let mut pending_challenge: Option<(usize, ::http2::RecvStream)> = None;
     for reply in replies {
         let (request, mut respond) = connection
             .accept()
             .await
             .ok_or("proxy connection closed before CONNECT")??;
+        if let Some((index, mut body)) = pending_challenge.take() {
+            records[index].ended_before_next = Some(has_ended(&mut body));
+            challenged.push(body);
+        }
         if request.method() != Method::CONNECT {
             return Err("proxy received a non-CONNECT request".into());
         }
@@ -1605,6 +1670,7 @@ async fn serve_connects(
                 .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
                 .collect(),
             later_requests: 0,
+            ended_before_next: None,
         });
         tunneled = matches!(reply, Reply::Tunnel(_));
         match reply {
@@ -1622,11 +1688,15 @@ async fn serve_connects(
                     response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
                 }
                 respond.send_response(response.body(())?, true)?;
+                if matches!(reply, Reply::Challenge) {
+                    pending_challenge = Some((records.len() - 1, request.into_body()));
+                }
             }
         }
     }
     if tunneled {
         tokio::spawn(async move {
+            let _challenged = (challenged, pending_challenge);
             while let Some(result) = connection.accept().await {
                 if result.is_err() {
                     break;
@@ -1644,6 +1714,19 @@ async fn serve_connects(
         }
     }
     Ok(records)
+}
+
+/// Reports whether the client has ended a request body, from the frames
+/// the connection has already processed, without waiting.
+fn has_ended(body: &mut ::http2::RecvStream) -> bool {
+    let mut context = Context::from_waker(std::task::Waker::noop());
+    loop {
+        match body.poll_data(&mut context) {
+            Poll::Ready(Some(Ok(_))) => {}
+            Poll::Ready(None) => return true,
+            Poll::Ready(Some(Err(_))) | Poll::Pending => return false,
+        }
+    }
 }
 
 fn spawn_relay(

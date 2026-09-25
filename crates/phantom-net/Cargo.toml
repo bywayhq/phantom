@@ -57,7 +57,7 @@ quinn-proto.workspace = true
 rcgen = "=0.14.10"
 rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
 socket2 = { version = "0.6.5", features = ["all"] }
-tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
 
 [[bench]]
 name = "transport"
