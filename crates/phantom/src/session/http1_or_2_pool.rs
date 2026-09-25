@@ -35,7 +35,7 @@ use crate::{
     authority::Endpoint,
     error::is_unprocessed_http2,
     retry::ConnectionSetupRetryState,
-    timeout::{PhaseTimeout, TimeoutBudget, TimeoutPhase},
+    timeout::{PhaseTimeout, TimeoutBudget, TimeoutPhase, within},
 };
 
 /// Negotiated HTTP/1.1-or-HTTP/2 connections, grouped by origin and route.
@@ -316,8 +316,8 @@ impl Http1Or2Pool {
             .map(|connection| (connection, permit)))
     }
 
-    /// Returns whether the origin's current generation is a reusable HTTP/2
-    /// connection.
+    /// Returns whether the origin has a reusable HTTP/2 connection, even one
+    /// with no room for another stream.
     ///
     /// This neither opens a connection, creates a pool entry, admits a
     /// request, nor changes eviction order. An entry whose only connections
@@ -666,15 +666,15 @@ impl PoolEntry {
         let limit = self.setup_wait_limit;
         connect_phase(connect, timeout_budget)?
             .run(async {
-                Ok(match limit {
-                    Some(limit) => tokio::time::timeout(limit, self.connections.setup_finished())
-                        .await
-                        .is_ok(),
+                match limit {
+                    Some(limit) => Ok(within(limit, self.connections.setup_finished())
+                        .await?
+                        .is_some()),
                     None => {
                         self.connections.setup_finished().await;
-                        true
+                        Ok(true)
                     }
-                })
+                }
             })
             .await
     }
@@ -856,6 +856,7 @@ impl PoolEntry {
                         Err(RequestError::http2_stream(error).into())
                     }
                     Err(error) => {
+                        drop(stream);
                         drop(permit);
                         Err(error.into())
                     }
@@ -1146,17 +1147,27 @@ impl EntryConnections {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// Returns a reusable H2 connection of the key, whether or not it has
+    /// room for another stream: the one a new stream would use, or else the
+    /// oldest. WebSocket reuse and the Alt-Svc race treat the key as
+    /// speaking H2 whenever one exists, as the exact H2 pool does.
     fn current_http2(&self) -> Option<Http2Connection> {
-        self.lock()
-            .current_http2()
-            .map(|slot| slot.connection.clone())
+        let mut state = self.lock();
+        let index = match state.choose_http2() {
+            Choice::Use(index) => index,
+            Choice::Open => 0,
+        };
+        state.http2.get(index).map(|slot| slot.connection.clone())
     }
 
     #[cfg(test)]
     fn current_http2_token(&self) -> Option<Arc<()>> {
-        self.lock()
-            .current_http2()
-            .map(|slot| Arc::clone(&slot.token))
+        let mut state = self.lock();
+        let index = match state.choose_http2() {
+            Choice::Use(index) => index,
+            Choice::Open => 0,
+        };
+        state.http2.get(index).map(|slot| Arc::clone(&slot.token))
     }
 
     /// Opens a counted stream on the H2 connection chosen now, or returns

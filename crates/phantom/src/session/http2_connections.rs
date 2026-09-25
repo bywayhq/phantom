@@ -57,8 +57,8 @@ pub(super) enum Choice {
 pub(super) struct Http2Spread {
     max_connections: NonZeroUsize,
     local_streams: NonZeroUsize,
-    /// The most recent stream limit a peer of this key advertised, used for a
-    /// connection whose SETTINGS have not arrived yet.
+    /// The stream limit of the newest connection whose peer advertised one,
+    /// used for a connection whose SETTINGS have not arrived yet.
     learned_peer_limit: Option<usize>,
 }
 

@@ -515,3 +515,60 @@ async fn setup_wait_ends_at_the_limit_only_when_one_is_set() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn setup_wait_limit_without_a_time_driver_fails_instead_of_panicking() -> TestResult {
+    // I/O but no time driver: `tokio::time::timeout` would panic here.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()?;
+    runtime.block_on(async {
+        let six = bound(6)?;
+        let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let pool = Http1Or2Pool::new(six, six, six, six, six, six)
+            .with_setup_wait_limit(Some(Duration::from_millis(20)));
+        let entry = pool.entry(PoolKey::new(&origin, &Route::Direct)).await;
+        let (connection, _peer) = http2().await?;
+        drop(reserve(&entry.connections)?.finish(connection));
+        entry
+            .connections
+            .invalidate_http2(&current_token(&entry.connections)?);
+        let _setup = reserve(&entry.connections)?;
+
+        let budget = TimeoutBudget::new(RequestTimeouts::new())?;
+        match entry.await_http2_setup(&mut None, budget).await {
+            Ok(_) => Err("the limited wait ran without a time driver".into()),
+            Err(error) => {
+                assert_eq!(error.kind(), crate::RequestErrorKind::RuntimeUnavailable);
+                Ok(())
+            }
+        }
+    })
+}
+
+#[tokio::test]
+async fn a_full_http2_connection_still_counts_as_available() -> TestResult {
+    let one = NonZeroUsize::MIN;
+    let six = bound(6)?;
+    // Two H2 connections per key, one stream each.
+    let pool =
+        Http1Or2Pool::new(six, six, six, six, one, six).with_max_http2_connections(bound(2)?);
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let entry = pool.entry(PoolKey::new(&origin, &Route::Direct)).await;
+    let (connection, _peer) = http2().await?;
+    drop(reserve(&entry.connections)?.finish(connection));
+    let _stream = entry
+        .connections
+        .open_http2_stream()
+        .ok_or("the H2 connection took no stream")?;
+
+    // A new request would open another connection, yet WebSocket reuse and
+    // the Alt-Svc race still see the key's H2 connection.
+    assert!(matches!(
+        entry.connections.before_admission(false),
+        BeforeAdmission::Admit(None)
+    ));
+    assert!(entry.connections.current_http2().is_some());
+    assert!(pool.has_available_http2(&origin, &Route::Direct).await);
+    Ok(())
+}

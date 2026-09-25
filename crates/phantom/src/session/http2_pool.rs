@@ -1,7 +1,8 @@
 use std::{
     collections::VecDeque,
     num::NonZeroUsize,
-    sync::{Arc, OnceLock},
+    pin::pin,
+    sync::{Arc, MutexGuard, OnceLock, PoisonError},
 };
 
 use http::Method;
@@ -12,7 +13,7 @@ use phantom_net::http2::{
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use phantom_profile::Http2Priority;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 use tracing::debug;
 
 use super::{
@@ -245,10 +246,13 @@ impl Http2Pool {
                         );
                         continue;
                     }
+                    // The stream count drops before the permit, as on success.
+                    drop(lease);
                     drop(permit);
                     return Err(RequestError::http2_stream(error));
                 }
                 Err(error) => {
+                    drop(lease);
                     drop(permit);
                     return Err(error);
                 }
@@ -365,9 +369,11 @@ impl PoolKey {
 }
 
 struct PoolEntry {
-    /// The key's connections, oldest first. The lock is held while a new
-    /// connection is set up, so requests to the key open one at a time.
-    connections: Mutex<Connections>,
+    /// The key's connections, oldest first. The lock is never held across an
+    /// await; a setup in flight is counted in it instead.
+    connections: std::sync::Mutex<Connections>,
+    /// Woken whenever a connection setup finishes, fails, or is cancelled.
+    setup_done: Notify,
     admission: Arc<Admission>,
     connector: OnceLock<Http2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
@@ -376,10 +382,12 @@ struct PoolEntry {
 impl PoolEntry {
     fn new(admission: Arc<Admission>, spread: Http2Spread) -> Self {
         Self {
-            connections: Mutex::new(Connections {
+            connections: std::sync::Mutex::new(Connections {
                 slots: Vec::new(),
+                connecting: 0,
                 spread,
             }),
+            setup_done: Notify::new(),
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
@@ -390,13 +398,19 @@ impl PoolEntry {
         Arc::clone(&self.admission).admit(HttpProtocol::Http2).await
     }
 
+    fn lock(&self) -> MutexGuard<'_, Connections> {
+        self.connections
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
     /// Returns the connection a new stream would use, without counting one.
     ///
     /// A WebSocket holds admission rather than a counted stream, so it does
     /// not steer later requests to another connection.
     #[cfg(feature = "websocket")]
     async fn current_reusable(&self) -> Option<Http2Connection> {
-        let mut connections = self.connections.lock().await;
+        let mut connections = self.lock();
         connections.retain_reusable();
         let index = match connections.choose() {
             Choice::Use(index) => index,
@@ -416,17 +430,36 @@ impl PoolEntry {
         route: &Route,
         mode: Http2ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
-        let mut connections = self.connections.lock().await;
-        connections.retain_reusable();
-        if let Choice::Use(index) = connections.choose()
-            && let Some(slot) = connections.slots.get(index)
-        {
-            debug!(
-                outcome = "hit",
-                "HTTP/2 connection acquired from client pool"
-            );
-            return Ok(slot.lease());
-        }
+        // One setup runs at a time per key. Requests that a connection with
+        // room can serve never wait for it; the rest wait for it to finish,
+        // as the single-connection pool did, and choose again.
+        let reservation = loop {
+            let mut setup_done = pin!(self.setup_done.notified());
+            // Registered before the check, so a setup finishing in between
+            // still wakes this request.
+            setup_done.as_mut().enable();
+            {
+                let mut connections = self.lock();
+                connections.retain_reusable();
+                if let Choice::Use(index) = connections.choose()
+                    && let Some(slot) = connections.slots.get(index)
+                {
+                    debug!(
+                        outcome = "hit",
+                        "HTTP/2 connection acquired from client pool"
+                    );
+                    return Ok(slot.lease());
+                }
+                if connections.connecting == 0 {
+                    connections.connecting = 1;
+                    break SetupReservation {
+                        entry: self,
+                        finished: false,
+                    };
+                }
+            }
+            setup_done.await;
+        };
 
         debug!(outcome = "connect", "HTTP/2 client pool opening connection");
         let connector = self
@@ -549,18 +582,11 @@ impl PoolEntry {
                     .map_err(RequestError::http2_connection_setup)?,
             },
         };
-        let slot = ConnectionSlot {
-            connection,
-            token: Arc::new(()),
-            streams: StreamCount::default(),
-        };
-        let lease = slot.lease();
-        connections.slots.push(slot);
-        Ok(lease)
+        Ok(reservation.finish(connection))
     }
 
     async fn invalidate(&self, token: &Arc<()>) {
-        let mut connections = self.connections.lock().await;
+        let mut connections = self.lock();
         if let Some(position) = connections
             .slots
             .iter()
@@ -578,7 +604,46 @@ impl PoolEntry {
 /// One pool key's HTTP/2 connections and how streams spread across them.
 struct Connections {
     slots: Vec<ConnectionSlot>,
+    /// Connection setups in flight: zero or one.
+    connecting: usize,
     spread: Http2Spread,
+}
+
+/// The key's one connection setup in flight.
+///
+/// Dropping it unfinished, when setup fails or the request is cancelled,
+/// frees the setup and wakes the requests waiting for it.
+struct SetupReservation<'a> {
+    entry: &'a PoolEntry,
+    finished: bool,
+}
+
+impl SetupReservation<'_> {
+    /// Pools the new connection and leases it for this request's stream.
+    fn finish(mut self, connection: Http2Connection) -> ConnectionLease {
+        self.finished = true;
+        let slot = ConnectionSlot {
+            connection,
+            token: Arc::new(()),
+            streams: StreamCount::default(),
+        };
+        let lease = slot.lease();
+        let mut connections = self.entry.lock();
+        connections.connecting = 0;
+        connections.slots.push(slot);
+        drop(connections);
+        self.entry.setup_done.notify_waiters();
+        lease
+    }
+}
+
+impl Drop for SetupReservation<'_> {
+    fn drop(&mut self) {
+        if !self.finished {
+            self.entry.lock().connecting = 0;
+            self.entry.setup_done.notify_waiters();
+        }
+    }
 }
 
 impl Connections {
