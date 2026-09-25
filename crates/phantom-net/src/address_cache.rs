@@ -17,6 +17,11 @@ use tokio::sync::watch;
 use crate::host_resolver::AddressResolver;
 
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
+type ResolverFuture = Pin<Box<dyn Future<Output = io::Result<Vec<IpAddr>>> + Send>>;
+
+/// Identifies one shared resolution in flight: the name, and for a caller's
+/// resolver the runtime whose task runs it.
+type PendingKey = (Box<str>, Option<tokio::runtime::Id>);
 
 /// How the cache looks up a name it holds no fresh answer for.
 #[derive(Clone)]
@@ -54,18 +59,24 @@ enum Lookup {
 /// and the answer is published through a channel that any runtime can wait
 /// on, so a lookup from one runtime never depends on another runtime being
 /// driven. A caller's [`AddressResolver`] instead runs as a task on the
-/// runtime that started the resolution, so a lookup of the same name from
-/// another runtime waits on that runtime; the caller bounds its own
-/// resolutions in flight. Either way, the resolution completes and fills the
-/// cache even when every connection that asked for it has been dropped. If
-/// the runtime drops the resolution before it finishes, as a runtime that is
+/// runtime that started the resolution, and only lookups from that runtime
+/// share it: a lookup of the same name from another runtime starts a
+/// resolution of its own, so it never waits on a runtime that has stopped
+/// being driven. Either way, the resolution completes and fills the cache
+/// even when every connection that asked for it has been dropped. If the
+/// runtime drops the resolution before it finishes, as a runtime that is
 /// shutting down does, or the resolution panics, its waiters get an error and
 /// the next lookup of the name starts again.
 /// The lock is never held across an `.await`.
 ///
 /// Clones share one cache. It holds at most
 /// [`DnsCacheSettings::max_entries`] names; when it is full, a new answer
-/// replaces an expired one, then the one that would expire soonest.
+/// replaces an expired one, then the one that would expire soonest. At most
+/// as many shared resolutions are in flight. Past that bound, a lookup
+/// through a caller's resolver runs inside the connection that asked for it
+/// and ends with it, and a system lookup runs on the blocking pool without
+/// being shared; either still stores its answer. A resolver that never
+/// answers therefore holds at most `max_entries` tasks and pending entries.
 #[derive(Clone)]
 pub struct AddressCache {
     inner: Arc<Inner>,
@@ -80,8 +91,8 @@ struct Inner {
 #[derive(Default)]
 struct State {
     entries: HashMap<Box<str>, Entry>,
-    /// Resolutions in flight.
-    pending: HashMap<Box<str>, watch::Receiver<Option<Outcome>>>,
+    /// Shared resolutions in flight, at most `max_entries` of them.
+    pending: HashMap<PendingKey, watch::Receiver<Option<Outcome>>>,
     /// Advanced by [`AddressCache::clear`], so that a resolution started
     /// before the clear does not store its answer after it.
     generation: u64,
@@ -163,12 +174,10 @@ impl AddressCache {
 
     /// Creates an empty cache that resolves names with `lookup`.
     ///
-    /// Test plumbing for the `phantom` facade, which counts lookups through
-    /// its connectors. `lookup` receives the lowercased name. Its future runs
-    /// on a blocking-pool thread under a Tokio current-thread runtime without
-    /// I/O or timer drivers.
-    #[doc(hidden)]
-    pub fn with_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
+    /// `lookup` receives the lowercased name. Its future runs on a
+    /// blocking-pool thread under a Tokio current-thread runtime without I/O
+    /// or timer drivers.
+    pub(crate) fn with_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
     where
         F: Fn(Box<str>) -> LookupFuture + Send + Sync + 'static,
     {
@@ -254,7 +263,19 @@ impl AddressCache {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok((vec![SocketAddr::new(address, port)], false));
         }
-        let mut receiver = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
+        let mut receiver =
+            match self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())? {
+                Answer::Wait(receiver) => receiver,
+                Answer::Inline {
+                    host,
+                    generation,
+                    resolution,
+                } => {
+                    let outcome = Outcome::from_result(resolution.await.map(with_zero_ports));
+                    self.complete(&host, None, generation, &outcome);
+                    return outcome.addresses(port).map(|addresses| (addresses, false));
+                }
+            };
         let stored = receiver.borrow().is_some();
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),
@@ -269,13 +290,15 @@ impl AddressCache {
     }
 
     /// Returns a receiver already holding the stored outcome for `host`, or
-    /// one for the resolution in flight, starting it when there is none.
-    fn cached_or_pending(&self, host: Box<str>) -> io::Result<watch::Receiver<Option<Outcome>>> {
+    /// one for the resolution in flight, starting it when there is none; or,
+    /// past the bound on shared resolutions, a caller's resolution to run
+    /// inline.
+    fn cached_or_pending(&self, host: Box<str>) -> io::Result<Answer> {
         let mut state = self.lock();
         let now = Instant::now();
         match state.entries.get(&host) {
             Some(entry) if entry.is_fresh(now) => {
-                return Ok(watch::channel(Some(entry.outcome.clone())).1);
+                return Ok(Answer::Wait(watch::channel(Some(entry.outcome.clone())).1));
             }
             Some(_) => {
                 state.entries.remove(&host);
@@ -288,25 +311,42 @@ impl AddressCache {
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
-        if let Some(receiver) = state.pending.get(&host) {
-            return Ok(receiver.clone());
-        }
         let runtime = tokio::runtime::Handle::try_current()
             .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
-        let (sender, receiver) = watch::channel(None);
+        let key = match &self.inner.lookup {
+            Lookup::Blocking(_) => (host, None),
+            Lookup::Task(_) => (host, Some(runtime.id())),
+        };
+        if let Some(receiver) = state.pending.get(&key) {
+            return Ok(Answer::Wait(receiver.clone()));
+        }
         let generation = state.generation;
-        state.pending.insert(host.clone(), receiver.clone());
+        let shared = state.pending.len() < self.inner.settings.max_entries.get();
+        if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
+            drop(state);
+            let resolution = resolver.lookup(&key.0);
+            return Ok(Answer::Inline {
+                host: key.0,
+                generation,
+                resolution,
+            });
+        }
+        let (sender, receiver) = watch::channel(None);
+        if shared {
+            state.pending.insert(key.clone(), receiver.clone());
+        }
         drop(state);
 
         let publisher = Publisher {
             cache: self.clone(),
-            host,
+            key,
+            shared,
             generation,
             sender: Some(sender),
         };
         match &self.inner.lookup {
             Lookup::Blocking(lookup) => {
-                let resolution = lookup(publisher.host.clone());
+                let resolution = lookup(publisher.key.0.clone());
                 drop(runtime.spawn_blocking(move || {
                     let result = tokio::runtime::Builder::new_current_thread()
                         .build()
@@ -316,29 +356,31 @@ impl AddressCache {
                 }));
             }
             Lookup::Task(resolver) => {
-                let resolution = resolver.lookup(&publisher.host);
+                let resolution = resolver.lookup(&publisher.key.0);
                 drop(runtime.spawn(async move {
-                    let result = resolution.await.map(|addresses| {
-                        addresses
-                            .into_iter()
-                            .map(|address| SocketAddr::new(address, 0))
-                            .collect()
-                    });
-                    publisher.publish(result);
+                    publisher.publish(resolution.await.map(with_zero_ports));
                 }));
             }
         }
-        Ok(receiver)
+        Ok(Answer::Wait(receiver))
     }
 
     /// Stores a finished resolution, unless the cache was cleared after it
-    /// started.
-    fn complete(&self, host: Box<str>, generation: u64, outcome: &Outcome) {
+    /// started, and releases its shared entry in `pending`, if it has one.
+    fn complete(
+        &self,
+        host: &str,
+        pending: Option<&PendingKey>,
+        generation: u64,
+        outcome: &Outcome,
+    ) {
         let mut state = self.lock();
         if state.generation != generation {
             return;
         }
-        state.pending.remove(&host);
+        if let Some(key) = pending {
+            state.pending.remove(key);
+        }
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
@@ -356,7 +398,7 @@ impl AddressCache {
         else {
             return;
         };
-        if !state.entries.contains_key(&host)
+        if !state.entries.contains_key(host)
             && state.entries.len() >= self.inner.settings.max_entries.get()
         {
             state.entries.retain(|_, entry| entry.is_fresh(now));
@@ -373,7 +415,7 @@ impl AddressCache {
             }
         }
         state.entries.insert(
-            host,
+            host.into(),
             Entry {
                 outcome: outcome.clone(),
                 expires_at,
@@ -398,7 +440,9 @@ impl AddressCache {
 /// error and the next lookup of the name starts a new resolution.
 struct Publisher {
     cache: AddressCache,
-    host: Box<str>,
+    key: PendingKey,
+    /// Whether `key` is in `pending`, so that completion releases it.
+    shared: bool,
     generation: u64,
     sender: Option<watch::Sender<Option<Outcome>>>,
 }
@@ -407,8 +451,9 @@ impl Publisher {
     /// Stores the resolution's result and answers its waiters.
     fn publish(mut self, result: io::Result<Vec<SocketAddr>>) {
         let outcome = Outcome::from_result(result);
+        let pending = self.shared.then_some(&self.key);
         self.cache
-            .complete(self.host.clone(), self.generation, &outcome);
+            .complete(&self.key.0, pending, self.generation, &outcome);
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(Some(outcome));
         }
@@ -424,6 +469,27 @@ impl Drop for Publisher {
                 .retain(|_, receiver| receiver.has_changed().is_ok());
         }
     }
+}
+
+/// How [`AddressCache::cached_or_pending`] answers a lookup.
+enum Answer {
+    /// The stored outcome, or the shared resolution to wait for.
+    Wait(watch::Receiver<Option<Outcome>>),
+    /// A caller's resolution past the bound, for the lookup to run itself.
+    Inline {
+        host: Box<str>,
+        generation: u64,
+        resolution: ResolverFuture,
+    },
+}
+
+/// Turns a caller's addresses into socket addresses whose port each lookup
+/// replaces.
+fn with_zero_ports(addresses: Vec<IpAddr>) -> Vec<SocketAddr> {
+    addresses
+        .into_iter()
+        .map(|address| SocketAddr::new(address, 0))
+        .collect()
 }
 
 impl fmt::Debug for AddressCache {

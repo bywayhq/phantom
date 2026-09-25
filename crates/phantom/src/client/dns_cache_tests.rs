@@ -1,7 +1,7 @@
 //! The client's address cache, driven through requests to a loopback origin.
 
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     sync::{
         Arc,
@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_net::{address_cache::AddressCache, host_resolver::HostResolver};
+use phantom_net::host_resolver::{AddressResolver, HostResolver};
 use phantom_profile::{ClientProfile, DnsCacheSettings, Http3ClientSettings, chromium, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -82,23 +82,28 @@ fn profile() -> ClientProfile {
     ClientProfile::new(chromium::v154_tls()).with_http1(chromium::v154_http1())
 }
 
-/// Replaces the client's address cache with one that answers every name
-/// with the loopback address once `gate` opens, counting its lookups.
+/// Replaces the client's address cache with one whose resolver answers
+/// every name with the loopback address once `gate` opens, counting its
+/// lookups.
 fn with_counting_cache(client: &Client, gate: watch::Receiver<bool>) -> (Client, Arc<AtomicUsize>) {
     let calls = Arc::new(AtomicUsize::new(0));
-    let cache = AddressCache::with_lookup(settings(), {
+    let resolver = AddressResolver::from_fn({
         let calls = Arc::clone(&calls);
         move |_| {
             calls.fetch_add(1, Ordering::SeqCst);
             let mut gate = gate.clone();
-            Box::pin(async move {
+            async move {
                 let _ = gate.wait_for(|open| *open).await;
-                Ok(vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)])
-            })
+                Ok(vec![IpAddr::V4(Ipv4Addr::LOCALHOST)])
+            }
         }
     });
     let mut inner = ClientInner::clone(&client.inner);
-    inner.bind_host_resolver(HostResolver::new().with_address_cache(cache));
+    inner.bind_host_resolver(
+        HostResolver::new()
+            .with_resolver(resolver)
+            .with_cache(settings()),
+    );
     let client = Client {
         inner: Arc::new(inner),
         state: Arc::clone(&client.state),

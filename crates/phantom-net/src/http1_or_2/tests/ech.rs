@@ -526,6 +526,51 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
     Ok(())
 }
 
+/// An overridden name counts as resolved at once, so the record gets only
+/// the 5 ms minimum: a record that is ready is used, and one 40 ms later is
+/// not waited for.
+#[tokio::test]
+async fn an_overridden_name_waits_only_the_minimum_for_the_lookup() -> TestResult<()> {
+    let identity = identity()?;
+    let key = server_key(1, TEST_ECH_KEYS[0]);
+    let (address, server) = serve(vec![
+        acceptor(&identity, Some(&key))?,
+        acceptor(&identity, Some(&key))?,
+    ])
+    .await?;
+    let resolver = crate::host_resolver::HostResolver::new().with_override(
+        "origin.test",
+        [std::net::IpAddr::from(std::net::Ipv4Addr::LOCALHOST)],
+    );
+    let connector = connector(&identity)?.with_host_resolver(resolver);
+
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async {
+            Some(published(1, &TEST_ECH_KEYS[0]))
+        }),
+    )
+    .await??;
+    // Started now, as the client's lookup starts with the request.
+    let lookup = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        published(1, &TEST_ECH_KEYS[0])
+    });
+    let ech = async { lookup.await.ok() };
+    tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+    )
+    .await??;
+
+    let observed = server.await??;
+    assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+    assert!(observed[0].ech_accepted);
+    assert_eq!(observed[1].outer_server_name.as_deref(), Some(INNER_NAME));
+    assert!(!observed[1].ech_accepted);
+    Ok(())
+}
+
 /// A record that arrives well after the bounded wait is not waited for.
 #[tokio::test]
 async fn a_lookup_past_the_bound_leaves_grease() -> TestResult<()> {
