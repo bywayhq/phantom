@@ -167,6 +167,16 @@ impl Http1Or2TlsError {
     }
 }
 
+#[cfg(feature = "https-records")]
+impl From<crate::direct::DirectTlsError> for Http1Or2TlsError {
+    fn from(error: crate::direct::DirectTlsError) -> Self {
+        match error {
+            crate::direct::DirectTlsError::Direct(error) => Self::from_direct(error),
+            crate::direct::DirectTlsError::Tls(error) => Self::Tls(error),
+        }
+    }
+}
+
 impl From<HttpConnectError> for Http1Or2TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
@@ -377,38 +387,15 @@ impl Http1Or2TlsConnector {
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
         self.trace_connect(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let (stream, list) =
-                crate::direct::connect_tcp_with_lookup(host, port, self.dialer(), ech)
-                    .await
-                    .map_err(Http1Or2TlsError::from_direct)?;
-            if let Some(Err(error)) = list.as_ref().map(crate::dns::EchConfigList::parse) {
-                return Err(Http1Or2TlsError::Tls(TlsError::invalid_ech_config_list(
-                    error,
-                )));
-            }
-            let address = stream.peer_addr().map_err(Http1Or2TlsError::Connect)?;
-            let offered = list.as_ref().map(crate::dns::EchConfigList::as_bytes);
-            let stream = match self
-                .tls
-                .connect_with_ech(server_name, stream, offered)
-                .await
-            {
-                Ok(stream) => stream,
-                Err(mut error) if error.ech_failure() == Some(EchFailure::Rejected) => {
-                    let retry_configs = error.take_ech_retry_configs();
-                    debug!(
-                        retry_configs = retry_configs.is_some(),
-                        "server rejected ECH; connecting once more"
-                    );
-                    let stream = crate::direct::connect_tcp_address(address, self.tcp)
-                        .await
-                        .map_err(Http1Or2TlsError::from_direct)?;
-                    self.tls
-                        .connect_with_ech(server_name, stream, retry_configs.as_deref())
-                        .await?
-                }
-                Err(error) => return Err(error.into()),
-            };
+            let stream = crate::direct::connect_tls_with_ech(
+                &self.tls,
+                self.dialer(),
+                host,
+                port,
+                server_name,
+                ech,
+            )
+            .await?;
             select_connection(stream, client).await
         })
         .await
