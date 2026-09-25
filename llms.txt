@@ -35,7 +35,8 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - [Routes and proxies](docs/guides/routes-and-proxies.md): routes, HTTP proxies, proxy authentication, trust roots
 - [SOCKS5 and CONNECT-UDP proxies](docs/guides/socks-and-connect-udp.md): SOCKS5 tunnels and UDP ASSOCIATE, and HTTP/3 through CONNECT-UDP
 - [Retries and replays](docs/guides/retries.md): when Phantom sends a request again
-- [Connections and client state](docs/guides/connections-and-state.md): pools, the address cache, sessions, clearing learned state
+- [Connections and client state](docs/guides/connections-and-state.md): pools, sessions, clearing learned state
+- [Resolve host names](docs/guides/name-resolution.md): the address cache, `ClientBuilder::resolve` host overrides, and `ClientBuilder::dns_resolver` with an `AddressResolver`; proxy-resolved targets never use them
 - [Redirects](docs/guides/redirects.md): opt-in bounded redirects
 - [Cookies](docs/guides/cookies.md): the `cookies` feature, snapshots, and cookie-field placement
 - [HTTP/3 and Alt-Svc](docs/guides/http3.md): exact HTTP/3, early data, and opt-in Alt-Svc upgrade

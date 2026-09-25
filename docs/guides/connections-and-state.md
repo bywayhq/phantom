@@ -7,8 +7,9 @@ sessions apart, and clear what a client has learned.
 
 A `Client` owns every piece of state that outlives one request: connection
 pools, redirect policy, cookies, learned client hints, Alt-Svc
-advertisements, TLS session tickets, and resolved host addresses. This page
-calls that state the client's session. None of it is global to the process,
+advertisements, TLS session tickets, and resolved host addresses
+([Resolve host names](name-resolution.md)). This page calls that state the
+client's session. None of it is global to the process,
 and every store has a size limit
 ([Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)).
 
@@ -77,40 +78,6 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
   When it selects HTTP/2, they share one connection. Handshake order and
   other rules:
   [HTTP/1.1 connections](../reference/profiles.md#http11-connections).
-
-## Resolve each host once
-
-Reuse the addresses a host resolved to for later connections, as a browser
-does, instead of resolving it for every new connection.
-
-```rust
-use std::time::Duration;
-
-use phantom::profile::{chromium, ClientProfile, DnsCacheSettings};
-use phantom::{BuildError, Client};
-
-fn build() -> Result<Client, BuildError> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_dns_cache(chromium::v154_dns_cache());
-    // Keep answers for five minutes instead of the recipe's 60 seconds.
-    let longer = DnsCacheSettings {
-        ttl: Duration::from_secs(300),
-        ..chromium::v154_dns_cache()
-    };
-    Client::builder(profile).dns_cache(longer).build()
-}
-```
-
-- Without `with_dns_cache` or `ClientBuilder::dns_cache`, every new
-  connection resolves its host. `ClientBuilder::no_dns_cache` turns off the
-  profile's cache.
-- The cache covers origin hosts on a direct route, proxy hosts, and the
-  target of a `socks5://` route. A target that `socks5h://`, an HTTP proxy,
-  or CONNECT-UDP resolves never reaches it.
-- Concurrent connections to one host share one lookup, and the resolver's
-  address order is kept. Bounds and recipe values are in
-  [Address cache](../reference/profiles.md#address-cache).
 
 ## Keep sessions apart
 

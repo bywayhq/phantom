@@ -487,6 +487,11 @@ Supported:
   and `firefox::v156_dns_cache` come from browser source. Proxy-resolved
   targets never reach it. See
   [Address cache evidence](../explanation/validation.md#address-cache-evidence).
+- Caller host-to-address overrides and a caller-supplied async address
+  resolver for the same names, off by default. An override skips the
+  resolver and the cache; the resolver's answers go through the cache when
+  there is one. Proxy-resolved targets never use either. See
+  [Resolve host names](../guides/name-resolution.md).
 - With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
   record results, one entry per origin, bounded by the Alt-Svc store's
   capacity and kept for the record TTL. It stores only whether the records
@@ -541,15 +546,15 @@ Not modeled:
 - The browsers' address cache lifetimes from record TTLs (Chromium's built-in
   DNS client, Firefox on Windows), Firefox's 600-second grace period for
   expired answers, and the flush both browsers do when the network changes.
-  Phantom's lookups go through the operating system and report no TTL.
+  Phantom's system lookups report no TTL, and an `AddressResolver` returns
+  none.
 
 Planned:
 
 - Cookie contexts the caller selects (cross-site and embedded requests, and
   cross-site CHIPS partitions).
 - Permissions and delegation context.
-- DNS state beyond HTTPS records and the address cache: host-to-address
-  overrides and a caller-supplied address resolver.
+- DNS over HTTPS where a captured browser uses it.
 - Persistence of Alt-Svc brokenness, reset on network change, and proxy-route
   snapshots.
 - Broader policy and retry classes.
