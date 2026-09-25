@@ -232,7 +232,8 @@ remembered SETTINGS, are held too. With the first field section that is
 prepared while instructions are queued, the type and every queued
 instruction, its own inserts included, are written ahead of its HEADERS. A
 connection that prepares no field section, or never queues an instruction,
-never writes to the stream. Both default to upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
+never writes to the stream. Both default to
+upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
 delta and its regression tests.
 
 ## Remembered SETTINGS for early data

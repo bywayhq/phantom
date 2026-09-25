@@ -1808,7 +1808,11 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
   which races again without early data. Phantom confirms a raced
   alternative that won on early data only after its handshake completes. If
   the handshake fails, it marks QUIC to the origin recently broken and races
-  a request with no body or an owned body again, once.
+  a request with no body or an owned body again, once. A raced alternative
+  that resumed with early data but lost to the origin and then fails its
+  handshake marks nothing: Chromium's `ProcessGoingAwaySession` returns early
+  for a session that carried no request (`net/quic/quic_session_pool.cc`
+  lines 2714-2716).
   `a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin`,
   in `crates/phantom/tests/http3_early_data.rs`, shows the retried race
   offering no early data, its alternative failing again, the origin carrying
@@ -2602,6 +2606,12 @@ Replay against Phantom:
   `a_request_between_the_handshake_and_a_rejection_is_sent_once` holds the
   restart after a rejection, sends a request in that interval, and the server
   sees it once, on the new session.
+  `a_request_waiting_for_stream_credit_does_not_block_a_rejection` holds
+  the send lock in a request waiting for 0-RTT stream credit when the
+  rejection arrives; both requests fail as unprocessed and the connection
+  then carries a request. `a_held_stream_is_reset_unused_after_a_rejection`
+  shows a held stream reset after a rejection or when its opener is
+  dropped, and the next stream numbered after it.
   `remembered_settings_stay_with_their_ticket_cache_and_server_name` shows
   that neither another pool entry's cache nor another server name starts
   from them.

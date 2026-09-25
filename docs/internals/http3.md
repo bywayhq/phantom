@@ -621,12 +621,18 @@ session on the connection instead.
 - The early session opens request streams through `early_streams::Opener`
   in `crates/phantom-net/src/http3/early_streams.rs`. It opens a stream
   while the TLS handshake is running, when Quinn marks it a 0-RTT stream,
-  and after the server accepted the early data. Between the completed
-  handshake and the published answer it waits; after a rejection it fails
+  and after the server accepted the early data. After the handshake it
+  waits for the answer that Quinn gives the connection driver, not the one
+  published to requests: a request waiting here holds the send lock, which
+  the restart needs before it publishes. A request waiting for stream
+  credit is woken by that answer too. After a rejection the opener fails
   without allocating a stream, so no request of the discarded session
-  reaches the server in 1-RTT and the new session numbers its streams from
-  0. A stream whose open raced the handshake's completion is held until the
-  answer and reset, unused, if the early data was rejected.
+  reaches the server in 1-RTT.
+- A stream whose open raced the handshake's completion is held until the
+  answer and reset, unused, if the early data was rejected or the request
+  is dropped. The server then sees a reset of an empty stream, and that
+  stream's number stays used: the new session's first request stream is the
+  next one. Otherwise the new session numbers its request streams from 0.
 - A request that takes the sender in that interval also waits for the
   answer first, and then uses the new session. `send_prepared_request`
   reports only a request that took the sender before the answer as
@@ -686,18 +692,25 @@ job does, unless QUIC to the origin's own host and port failed a race and has
 not connected since. A setup that resumes with early data returns its
 connection before the handshake completes, as any early-data connection does
 (see [Session tickets](#session-tickets)), so it can win at once, and a
-replay-safe request on it goes out as early data. The alternative is
-confirmed only once that handshake completes. If the handshake fails instead,
-Phantom follows Chromium: QUIC to the origin is marked recently broken, and a
-request with no body or an owned body is raced again, this time without early
-data; a failed alternative then loses to the origin and is marked broken as in
-any race.
+replay-safe request on it goes out as early data. A response confirms the
+alternative at once, since it arrives only after the handshake completed. If
+the request fails instead, the pool waits for the early-data answer, within
+the request's connect and total deadlines. A failed handshake follows
+Chromium: QUIC to the origin is marked recently broken, and a request with no
+body or an owned body is raced again once, without early data; a failed
+alternative then loses to the origin and is marked broken as in any race. The
+retry allows no early data, so it is never raced again, even when it wins on
+a pooled connection whose own early data is unanswered.
 
 When the origin wins, an alternative setup that has begun connecting keeps
 running in the background, like Chromium's orphaned alternative job. If it
 connects, the connection is pooled for later requests. If it fails, including
-at the 4-second limit, the alternative is marked broken. Until it finishes,
-it keeps its H3 admission permit for the origin and route.
+at the 4-second limit, the alternative is marked broken. A background setup
+that resumed with early data connects before its handshake completes; it
+confirms the alternative once that handshake completes, and marks nothing if
+the handshake fails, as Chromium marks nothing for a session that carried no
+request. Until it finishes, it keeps its H3 admission permit for the origin
+and route.
 
 A setup still waiting for admission, or for another setup to the same QUIC
 location, has done no network work, so it is cancelled instead. The
