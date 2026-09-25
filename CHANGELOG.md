@@ -77,6 +77,41 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   commits from `d7907cb` up to `31a3be0`. (`31a3be0`)
   Migrate: remove the import and use `RequestTemplate`.
 
+- Request templates no longer check a caller's `User-Agent` or `sec-ch-ua`
+  against the template's browser. `RequestIdentity`, `ProductVersion`, the
+  `RequestTemplate::identity` field, and `RequestErrorKind::IdentityMismatch`
+  are removed from `phantom-profile` and the `phantom` facade. The Edge
+  templates mark `User-Agent` as a required caller slot instead, and a
+  request that leaves a required slot empty fails before any I/O with
+  `RequestErrorKind::RequestTemplate`. `RequestField::Caller` gains a
+  `required` field. (`d88bd9e`)
+  Migrate: delete the `identity` field from `RequestTemplate` literals, and
+  mark a caller slot the request must fill with
+  `RequestField::required_caller(name)` instead of a `RequestIdentity`. Add
+  `required: false` where you build or match `RequestField::Caller` by its
+  fields, or use `RequestField::caller`. Handle a missing required field
+  under `RequestErrorKind::RequestTemplate` instead of `IdentityMismatch`.
+- `RequestBuilder::template` takes `&PreparedRequestTemplate` instead of a
+  `RequestTemplate` by value. `PreparedRequestTemplate::new` validates the
+  template once, so invalid template data fails there with
+  `InvalidRequestTemplate` instead of at `send`. Checks that depend on the
+  request, such as a missing HTTP/3 list or an empty required caller slot,
+  still fail at `send` with `RequestErrorKind::RequestTemplate`. (`6cdd227`)
+  Migrate: replace `RequestBuilder::template(template)` with
+  `RequestBuilder::template(&PreparedRequestTemplate::new(template)?)`, and
+  prepare each template once and reuse it across requests.
+- `ProfileMetadata`, `ProfileId`, `ClientFamily`, `Platform`, and their
+  errors `InvalidProfileId` and `EmptyClientVersion` are removed from
+  `phantom-profile` and `phantom::profile`. No client path read them.
+  (`f01d7b1`)
+  Migrate: delete the uses. There is no replacement; keep your own label if
+  you need to name a profile.
+- A caller-supplied `Host` field fails with `RequestErrorKind::InvalidHeader`
+  instead of `RequestErrorKind::AuthorityHeader`, which is removed. The error
+  message still names `Host`. (`f14cb08`)
+  Migrate: match `RequestErrorKind::InvalidHeader` where you matched
+  `RequestErrorKind::AuthorityHeader`.
+
 ### Added
 
 - Chrome 154, Edge 153, and Firefox 156 recipes for TLS, HTTP/2, HTTP/3, QUIC,
@@ -88,11 +123,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   captured navigation or no-store fetch field list for each protocol, with
   caller fields in their slots, the captured HTTP/2 priority, and profile
   hints at the captured hint positions. Before any I/O a request fails with
-  `RequestErrorKind::IdentityMismatch` when the caller's `User-Agent` or
-  brand list names another browser or version, or when a required
-  `User-Agent` is missing, and with `RequestErrorKind::RequestTemplate` when
-  a hint has no captured position. (`d7907cb`, `1ce99bb`, `f203d60`, and
-  follow-up fixes)
+  `RequestErrorKind::RequestTemplate` when a required caller field is
+  missing or a hint has no captured position. (`d7907cb`, `1ce99bb`,
+  `f203d60`, and follow-up fixes)
 - TCP socket options from the profile: `TcpSettings` with `TCP_NODELAY`,
   keepalive, and Chromium-style address racing (IPv6 first, a second attempt
   after 300 ms), set through `ClientProfile::with_tcp` and applied on every
@@ -173,6 +206,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   A negotiated redirect to an `http://` target follows the same rule.
   (`e05234b`, `2335c85`)
 
+- The `diagnostics` feature of `phantom-http` writes a TLS key log and QUIC
+  qlog files for your own connections. `ClientBuilder::key_log(capacity)`
+  queues the TLS 1.3 secrets of every TCP and QUIC handshake in NSS key log
+  format, and `Client::key_log` returns the `KeyLog` whose `write_pending`
+  drains the queue. `ClientBuilder::qlog_dir(dir)` writes one JSON-SEQ qlog
+  file per QUIC connection. The feature is off by default and not part of
+  `full`, because a key log decrypts the client's traffic. (`a2519af`)
+
 ### Changed
 
 - The cookie jar keeps `SameSite=Lax`, `SameSite=Strict`, and `Partitioned`
@@ -215,6 +256,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   first request can authenticate without a `407` round trip. The field still
   fails with `RequestErrorKind::InvalidHeader` before I/O on any other route
   and on a proxy with `with_basic_auth`. (`2f9d072`)
+
+- A templated request no longer clones the template or validates it again
+  on every `send`. `PreparedRequestTemplate` keeps the validated form and
+  its client-hint placement behind an `Arc`, and the request path parses the
+  advertised content codings once instead of once per redirect hop. The
+  fields sent on the wire do not change. (`6cdd227`, `f14cb08`)
 
 ### Fixed
 
