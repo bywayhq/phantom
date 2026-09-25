@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index cca5b3c..e921cde 100644
+index cca5b3c..02fdca0 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -1,16 +1,23 @@
