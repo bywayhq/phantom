@@ -211,6 +211,10 @@ impl TimeoutBudget {
         })
     }
 
+    /// Runs `operation` within `phase`'s deadline and the total deadline.
+    ///
+    /// The phase deadline starts when this is called, not when the returned
+    /// future is first polled.
     pub(crate) fn run<Output, Operation>(
         self,
         phase: TimeoutPhase,
@@ -597,6 +601,31 @@ mod tests {
         let error = result.err().ok_or("pending operation did not time out")?;
 
         assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn phase_deadline_before_the_total_names_the_phase_and_starts_at_the_call()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let budget = TimeoutBudget::new(
+            RequestTimeouts::new()
+                .connect(Duration::from_secs(1))
+                .total(Duration::from_secs(10)),
+        )?;
+        let started = tokio::time::Instant::now();
+
+        let operation = budget.run(TimeoutPhase::Connect, None, async {
+            pending::<()>().await;
+            Ok(())
+        });
+        tokio::time::advance(Duration::from_millis(400)).await;
+        let error = operation
+            .await
+            .err()
+            .ok_or("pending operation did not time out")?;
+
+        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Connect));
+        assert_eq!(started.elapsed(), Duration::from_secs(1));
         Ok(())
     }
 }
