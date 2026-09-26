@@ -333,6 +333,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `scripts/capture/run_matrix.py` runs desktop browser captures from one JSON
+  manifest of tools, browsers, scenarios, and repeat counts. It runs up to
+  `--jobs` tool invocations at once, each with its own temporary directory,
+  runs tools that use machine-wide state alone, skips jobs whose fixtures are
+  already complete, retries a failed job once, and writes a summary and a
+  results file. Each tool still writes its own fixture. Desktop Firefox
+  launches under the runner take turns until each has restored its first
+  window, because Firefox processes started together can lose their page
+  load.
 - Encrypted Client Hello over QUIC. `phantom_quic_btls::EchOffer` and
   `EchOutcome`, with `QuicClientConfig::with_ech`, offer an `ECHConfigList`
   on one connection and report whether the server accepted it, rejected it

@@ -31,12 +31,178 @@ Run every command from the repository root; the Python tools need Python
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
 | Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
+| Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
 [Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
 has their arguments and the browser launch flags used with them.
 `quic_packet_diff.py` and `compare_quic_flights.py` compare QUIC captures; see
 [HTTP/3 internals](../../docs/internals/http3.md#capture-workflow).
+
+## Run captures from a manifest
+
+`run_matrix.py` runs a list of captures for desktop browsers from one JSON
+manifest, several at a time, and writes a summary and a results file. Each job
+is one run of a capture tool's own command line for one tool, browser, and
+scenario, with that scenario's `--repeat` count. The tool writes its fixture
+itself, so a fixture has the same format and naming as one written by hand.
+
+Run it from the repository root with the capture requirements installed. Jobs
+start under the runner's Python interpreter:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.run_matrix captures.json
+```
+
+| Option | Effect |
+| --- | --- |
+| `--jobs N` | Run at most `N` jobs at once. The default is a quarter of the logical CPUs, at most 8 |
+| `--retries N` | Run a failed job up to `N` more times (default 1) |
+| `--force` | Also run jobs whose outputs are already complete |
+| `--only PREFIX` | Run only jobs whose id starts with `PREFIX`; repeat it for more |
+| `--dry-run` | Print each job's id and command line, then stop |
+| `--work-dir DIR` | Where attempt logs, temporary directories, and NetLogs go (default `<temp>/phantom-run-matrix-<manifest name>`) |
+| `--results PATH` | Where to write the results file (default `<work-dir>/results.json`) |
+
+The runner exits with status 1 if any job failed.
+
+### Manifest
+
+```json
+{
+  "operating_system": "Windows 11 Home 10.0.26200 x64",
+  "repeat": 3,
+  "browsers": {
+    "chrome": {
+      "path": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "version": "154.0.8037.58"
+    },
+    "opera": {
+      "path": "%LOCALAPPDATA%/Programs/Opera/135.0.5973.92/opera.exe",
+      "version": "135.0.5973.92"
+    }
+  },
+  "captures": [
+    {
+      "tool": "tls_resumption",
+      "browsers": ["chrome", "opera"],
+      "scenarios": ["sequential", "methods"],
+      "output_dir": "fixtures/tls/{browser}/{version}/windows-11-26200"
+    },
+    {
+      "tool": "client_hints",
+      "browsers": ["chrome"],
+      "repeat": 5,
+      "output_dir": "fixtures/client-hints/{browser}/{version}/windows-11-26200"
+    }
+  ]
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `operating_system` | Passed to every tool as `--operating-system` |
+| `repeat` | Default `--repeat` for every capture (default 3) |
+| `browsers` | Each desktop browser a capture may name (`chrome`, `edge`, `brave`, `opera`, or `firefox`), with its executable `path` and the `version` passed as `--client-version`. Environment variables in `path` are expanded |
+| `captures[].tool` | A tool from the table below |
+| `captures[].browsers` | Browsers from `browsers` to capture |
+| `captures[].scenarios` | Scenario names, or `"all"` for every scenario the tool defines. Omit it for `client_hints`. For `startup_capture` the names are layers |
+| `captures[].repeat` | `--repeat` for this capture |
+| `captures[].output_dir` | Directory for the fixtures. `{browser}`, `{version}`, `{tool}`, and `{scenario}` are replaced; a relative path is relative to the repository root |
+| `captures[].args` | More arguments for the tool, such as `["--navigate", "devtools"]`. The runner refuses the arguments it sets itself |
+| `captures[].exclusive` | `true` runs each job of the capture with no other job. `false` lets a timing tool share the host |
+| `captures[].timeout` | Seconds before an attempt is stopped. The default is twice the tool's run budget times `repeat`, plus 60 |
+
+The runner refuses a manifest with an unknown key, a browser a tool does not
+support, an unknown scenario, or two jobs that would write the same file.
+
+| Tool | Files per job | Browsers | Runs alone |
+| --- | --- | --- | --- |
+| `client_hints` | `navigation.txt` | All five | No |
+| `tls_resumption` | `resumption-<scenario>.txt` | All five | No |
+| `quic_resumption` | `<prefix>-<scenario>.txt`, where `--fixture-prefix` sets `<prefix>` (default `resumption`) | All five | No |
+| `cookie_crumbs` | `crumbs-<scenario>.txt` | All five | No |
+| `http2_websocket` | `<scenario>.txt` | All five | No |
+| `proxy_route` | `<scenario>.txt` | All five | No |
+| `sse_reconnect` | `<scenario>.txt` | All five | By default: the fixtures keep reconnect delays |
+| `alt_svc_race` | `<scenario>.txt` | Chrome, Edge | By default: the fixtures keep race delays |
+| `startup_capture` | For run `n`: `client-hello-<n>.txt` (`tls`), `client-startup-<n>.txt` (`http2`), or `client-startup-<n>.txt` and `quic-client-hello-<n>.txt` (`http3`) | Chromium browsers | No |
+| `chrome_ech` | `ech-<scenario>.txt`, or `ech-quic-<scenario>.txt` with `--quic`; `repeat` must be 1 | Chromium browsers | Always: the origin listens on `127.0.0.1:443`, and `--dns-from-policy` needs a machine-wide Edge policy |
+
+`startup_capture` at the `tls` and `http2` layers and `chrome_ech` run Cargo
+examples, which must be built first; pass `--capture-binary` in `args`.
+`alt_svc_race` gets a NetLog directory of its own inside the work directory.
+Android browsers and `manual` are not supported; see
+[Android browsers](#android-browsers).
+
+### Resume and retry
+
+A job is complete when every file it writes exists, ends with a newline, and
+has no `run_<n>_timed_out=true` line. Several tools record a run that timed
+out in the fixture instead of failing, and no retained fixture holds one. The
+runner skips complete jobs, so a second run of the same manifest runs only
+what is missing or failed. An attempt passes only if the tool exits with
+status 0 and rewrites every file after the attempt starts, so an older fixture
+never passes for a failed attempt.
+
+A failed attempt is run again at once. Each attempt's standard output and
+standard error go to `<work-dir>/logs/<job>.<attempt>.log`. An attempt that
+reaches its timeout is stopped with its process tree and every process whose
+command line names its temporary directory.
+
+At the end the runner prints one line per job (status, attempts, seconds, and
+the last failure) and a total, then writes the results file: the concurrency,
+the wall-clock seconds, and each job's tool, browser, scenario, outputs, and
+attempts with their seconds, failure, and log path.
+
+### Parallel safety
+
+Jobs that run at the same time share nothing the runner or the tools write:
+
+- Each attempt gets its own directory as `TMP`, `TEMP`, and `TMPDIR`, so
+  browser profiles and certificate files from `tempfile` land there. The
+  runner removes it after the attempt.
+- Every listener binds loopback port 0. `startup_capture` picks the HTTP/3
+  port by binding port 0 and releasing it; if another process takes the port
+  first, the attempt fails and is retried.
+- Output files cannot overlap: the manifest check refuses it.
+- Desktop Firefox launches take turns, as [Browser launcher](#browser-launcher)
+  describes.
+- A tool that uses machine-wide state runs with no other job. `chrome_ech` is
+  the one such tool today.
+
+Timing tools run alone by default because they retain delays that a loaded
+host would stretch. Other tools retain timings too, such as the millisecond
+fields of `tls_resumption`, but their evidence is the order and content of
+what the browser sent. On the capture host (16 cores, 32 threads), 15 jobs of
+`client_hints` and `tls_resumption` for all five browsers, 45 browser runs,
+took 125 seconds with `--jobs 1`, 26 to 30 seconds with `--jobs 8`, and 22
+seconds with `--jobs 16`. Each job took about 25% longer at 8 and about 70%
+longer at 16, and at 16 `tls_resumption --scenario methods-http1` recorded 7
+rather than 8 connections in more runs than it did alone. Keep the default
+unless a capture's evidence does not depend on timing. Measured September
+2026.
+
+### Add a tool to the runner
+
+A tool can run under the runner when it:
+
+1. takes `--browser`, `--browser-path`, `--client-version`,
+   `--operating-system`, and `--repeat`, and either `--scenario` with
+   `--output-dir` or a single `--output`;
+2. binds its listeners to loopback port 0, or declares the fixed port as
+   machine-wide state;
+3. creates temporary files through `tempfile` and launches browsers through
+   `browser_launch.py`;
+4. writes each fixture with `write_text_fixture`, and either exits with a
+   nonzero status when a run fails or records it as
+   `run_<n>_timed_out=true`.
+
+Then add a `Tool` entry to `TOOLS` in `run_matrix.py` with the module, the
+browsers it supports, the files a job writes, a run budget in seconds, and
+`global_state` or `timing` if it must run alone. Add a manifest test for its
+file names to `tests/test_run_matrix.py`.
 
 ## Browser launcher
 
