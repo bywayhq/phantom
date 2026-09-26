@@ -23,6 +23,7 @@ use wire::{
 const QUIC_V1: u32 = 0x0000_0001;
 const MIN_ACK_DELAY_DRAFT_07: u64 = 0xff04_de1b;
 const MAX_TRANSPORT_PARAMETERS_LEN: usize = u16::MAX as usize;
+const INITIAL_MAX_STREAMS_BIDI: u64 = 0x08;
 
 #[derive(Clone)]
 pub(crate) struct TransportParameterProfile {
@@ -528,6 +529,18 @@ fn minimal_width(value: u64) -> QuicVarIntWidth {
     .into_iter()
     .find(|width| width.can_encode(value))
     .unwrap_or(QuicVarIntWidth::Eight)
+}
+
+/// Reads `initial_max_streams_bidi` (RFC 9000, section 18.2) from a peer's
+/// encoded transport parameters: the number of bidirectional streams the
+/// peer lets this endpoint open before it sends `MAX_STREAMS`. An absent
+/// parameter is 0; a malformed encoding returns `None`.
+pub(crate) fn initial_max_streams_bidi(encoded: &[u8]) -> Option<u64> {
+    let parsed = ParsedTransportParameters::from_encoded(encoded).ok()?;
+    if !parsed.values.contains_key(&INITIAL_MAX_STREAMS_BIDI) {
+        return Some(0);
+    }
+    parsed.scalar(INITIAL_MAX_STREAMS_BIDI).ok()
 }
 
 fn varint(field: &'static str, value: u64) -> Result<VarInt, QuicTransportProfileError> {

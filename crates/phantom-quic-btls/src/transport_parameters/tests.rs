@@ -8,7 +8,7 @@ use quinn_proto::{Side, transport_parameters::TransportParameters};
 
 use super::{
     ENTROPY_LEN, ParsedTransportParameters, QuicTransportProfileError, TransportParameterProfile,
-    WireEntropy, decode_varint,
+    WireEntropy, decode_varint, initial_max_streams_bidi,
 };
 use crate::QuicVersion;
 
@@ -27,6 +27,23 @@ fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn 
     let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy)?;
 
     assert_eq!(encoded, captured);
+    Ok(())
+}
+
+#[test]
+fn reads_the_peer_s_bidirectional_stream_limit() -> Result<(), Box<dyn Error>> {
+    // The captured Chrome parameters carry `initial_max_streams_bidi` 100.
+    let captured = decode_hex(CAPTURED_PARAMETERS)?;
+    assert_eq!(initial_max_streams_bidi(&captured), Some(100));
+    // A two-byte varint of 1,000 among other parameters.
+    assert_eq!(
+        initial_max_streams_bidi(&[0x09, 0x01, 0x03, 0x08, 0x02, 0x43, 0xe8]),
+        Some(1_000)
+    );
+    // RFC 9000, section 18.2: an absent parameter is 0.
+    assert_eq!(initial_max_streams_bidi(&[0x09, 0x01, 0x03]), Some(0));
+    assert_eq!(initial_max_streams_bidi(&[0x08, 0x02, 0x43]), None);
+    assert_eq!(initial_max_streams_bidi(&[0x08, 0x02, 0x05, 0x06]), None);
     Ok(())
 }
 

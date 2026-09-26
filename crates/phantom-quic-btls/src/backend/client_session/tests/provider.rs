@@ -163,6 +163,8 @@ fn completes_with_owned_metadata_identity_and_exporter() {
         .unwrap_or_else(|_| panic!("unexpected handshake metadata type"));
     assert_eq!(first.protocol(), H3_PROTOCOL);
     assert_eq!(first.peer_application_settings(), None);
+    // The test server's transport parameters omit `initial_max_streams_bidi`.
+    assert_eq!(first.peer_initial_max_streams_bidi(), Some(0));
     let retained = test_some(client.handshake_data(), "retained handshake metadata");
     let retained = retained
         .downcast::<HandshakeData>()

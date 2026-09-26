@@ -396,6 +396,7 @@ pub struct HandshakeData {
     peer_application_settings: Option<Vec<u8>>,
     session_resumed: bool,
     ech_accepted: bool,
+    peer_initial_max_streams_bidi: Option<u64>,
 }
 
 impl HandshakeData {
@@ -429,6 +430,17 @@ impl HandshakeData {
     pub const fn ech_accepted(&self) -> bool {
         self.ech_accepted
     }
+
+    /// Returns the peer's `initial_max_streams_bidi` transport parameter
+    /// (RFC 9000, section 18.2): how many request streams the server lets
+    /// the client open before it grants more with `MAX_STREAMS` frames.
+    ///
+    /// `None` means the parameters could not be read when the handshake
+    /// completed.
+    #[must_use]
+    pub const fn peer_initial_max_streams_bidi(&self) -> Option<u64> {
+        self.peer_initial_max_streams_bidi
+    }
 }
 
 impl fmt::Debug for HandshakeData {
@@ -442,6 +454,10 @@ impl fmt::Debug for HandshakeData {
             )
             .field("session_resumed", &self.session_resumed)
             .field("ech_accepted", &self.ech_accepted)
+            .field(
+                "peer_initial_max_streams_bidi",
+                &self.peer_initial_max_streams_bidi,
+            )
             .finish()
     }
 }
@@ -883,6 +899,9 @@ impl SessionState {
             self.application_schedule = Some(schedule);
         }
 
+        if self.peer_transport_parameters.is_none() {
+            self.peer_transport_parameters = self.backend.peer_transport_parameters()?;
+        }
         if self.handshake_data.is_none()
             && !self.backend.is_handshaking()
             && let Some(protocol) = self.backend.selected_protocol()?
@@ -895,15 +914,16 @@ impl SessionState {
                 peer_application_settings: self.backend.peer_application_settings()?,
                 session_resumed: self.backend.session_reused(),
                 ech_accepted: self.backend.ech_accepted(),
+                peer_initial_max_streams_bidi: self
+                    .peer_transport_parameters
+                    .as_deref()
+                    .and_then(crate::transport_parameters::initial_max_streams_bidi),
             });
             if self.backend.ech_accepted()
                 && let Some(offer) = &self.ech
             {
                 offer.record(EchOutcome::Accepted);
             }
-        }
-        if self.peer_transport_parameters.is_none() {
-            self.peer_transport_parameters = self.backend.peer_transport_parameters()?;
         }
         if !self.backend.is_handshaking() && self.peer_identity.is_none() {
             self.peer_identity = Some(PeerIdentity {
