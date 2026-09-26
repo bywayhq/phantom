@@ -19,6 +19,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2Settings` gained the public field `streams`, of the new type
+  `Http2StreamSettings`, so struct literals that name every field no longer
+  compile. `first_stream_id` numbers each connection's first request, and
+  `assumed_max_concurrent_streams` bounds the streams open before the peer
+  states `SETTINGS_MAX_CONCURRENT_STREAMS`, including after SETTINGS that
+  omit it. The recipes change the wire. `firefox::v156_http2` sends each
+  connection's first request on stream 3, as every HTTP/2 connection in the
+  retained Firefox 156 cookie, WebSocket, and proxy captures does, where
+  Phantom used stream 1. Both `firefox::v156_http2` and
+  `chromium::v154_http2` open at most 100 streams until the peer states a
+  limit, where Phantom opened any number.
+  `Http2Connection::peer_max_concurrent_streams` reports the assumed limit
+  when the peer's first SETTINGS omit the setting.
+  Migrate: add `streams: Http2StreamSettings::default()` to an
+  `Http2Settings` literal to keep stream 1 and no limit before the peer's
+  SETTINGS, or copy `streams` from `chromium::v154_http2` or
+  `firefox::v156_http2`.
 - `Http2HpackSettings` gained the public fields `field_indexing`
   (`Http2FieldIndexing`), `name_reference` (`Http2NameReference`),
   `unindexed_match` (`Http2UnindexedMatch`), `indexing_limit`

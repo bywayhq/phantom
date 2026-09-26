@@ -1,7 +1,9 @@
 use super::{v135_http3_tls, v135_macos_client_hints, v135_tls, v135_windows_client_hints};
 use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
-use crate::http2::{Http2HpackSettings, Http2Settings, session_capture::SessionCapture};
+use crate::http2::{
+    Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
+};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -99,6 +101,11 @@ fn opera_135_http2_session_capture_matches_the_chromium_recipe()
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
         },
+        // A capture shows the first stream ID but not the assumed limit.
+        streams: Http2StreamSettings {
+            assumed_max_concurrent_streams: None,
+            ..settings.streams
+        },
         ..settings
     };
     for run in observed {
@@ -162,6 +169,11 @@ fn opera_135_macos_http2_session_capture_matches_the_chromium_recipe()
         hpack: Http2HpackSettings {
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
+        },
+        // A capture shows the first stream ID but not the assumed limit.
+        streams: Http2StreamSettings {
+            assumed_max_concurrent_streams: None,
+            ..settings.streams
         },
         ..settings
     };

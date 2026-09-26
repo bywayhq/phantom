@@ -628,14 +628,28 @@ impl Http2Connection {
     /// Returns the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`.
     ///
     /// `None` means the peer has set no limit, which includes the time before
-    /// its first SETTINGS frame is processed. The value is a snapshot; the
-    /// peer may change it at any time.
+    /// its first SETTINGS frame is processed, even while the connection holds
+    /// streams to the limit its profile assumes until then
+    /// ([`Http2StreamSettings::assumed_max_concurrent_streams`]). When the
+    /// peer's first SETTINGS omit the setting, the assumed limit stays in
+    /// force and is returned. The value is a snapshot; the peer may change it
+    /// at any time.
+    ///
+    /// [`Http2StreamSettings::assumed_max_concurrent_streams`]: phantom_profile::Http2StreamSettings::assumed_max_concurrent_streams
     #[must_use]
     pub fn peer_max_concurrent_streams(&self) -> Option<usize> {
-        self.inner
-            .sender()
-            .map(client::SendRequest::current_max_send_streams)
-            .filter(|limit| *limit != usize::MAX)
+        let sender = self.inner.sender()?;
+        // The readiness probe resolves once the peer's initial SETTINGS are
+        // applied; before that, the backend's limit is the assumed one.
+        let mut probe = sender.clone();
+        let mut context = Context::from_waker(Waker::noop());
+        if !matches!(
+            probe.poll_extended_connect_protocol_ready(&mut context),
+            Poll::Ready(Ok(_))
+        ) {
+            return None;
+        }
+        Some(sender.current_max_send_streams()).filter(|limit| *limit != usize::MAX)
     }
 
     /// Returns the raw `Accept-CH` field value carried through ALPS for `origin`.

@@ -207,38 +207,41 @@ async fn ping(tunnel: &mut HttpsProxyTunnel) -> TestResult<()> {
 /// Tunnels to three origins become streams 1, 3, and 5 of one proxy
 /// connection, as Chrome 154 numbers a page's CONNECTs in the
 /// `https-proxy-secure-hostname` captures; Firefox 156 shares its
-/// connection the same way but starts at stream 3.
+/// connection the same way but starts at stream 3, and so does its recipe.
 #[tokio::test]
 async fn tunnels_to_different_origins_share_one_connection() -> TestResult<()> {
     bounded(async {
-        let proxy = Proxy::bind()?;
-        let connector = proxy
-            .connector()?
-            .with_http2_proxy_pool(Http2ProxyPool::new());
-        let port = proxy.port;
-        let server = tokio::spawn(async move {
-            let mut connection = accept(&proxy.listener, &proxy.acceptor, &[]).await?;
-            for stream in [1, 3, 5] {
-                serve_tunnel(&mut connection, stream).await?;
-            }
-            expect_no_connection(&proxy.listener).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connection)
-        });
+        for (settings, expected) in [(v154_http2(), [1, 3, 5]), (v156_http2(), [3, 5, 7])] {
+            let proxy = Proxy::bind()?;
+            let connector = proxy
+                .connector()?
+                .with_http2_settings(&settings)
+                .with_http2_proxy_pool(Http2ProxyPool::new());
+            let port = proxy.port;
+            let server = tokio::spawn(async move {
+                let mut connection = accept(&proxy.listener, &proxy.acceptor, &[]).await?;
+                for stream in expected {
+                    serve_tunnel(&mut connection, stream).await?;
+                }
+                expect_no_connection(&proxy.listener).await?;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connection)
+            });
 
-        let mut tunnels = Vec::new();
-        for origin in ["a.example:443", "b.example:443", "c.example:8443"] {
-            let mut tunnel = open(&connector, port, origin).await?;
-            ping(&mut tunnel).await?;
-            tunnels.push(tunnel);
+            let mut tunnels = Vec::new();
+            for origin in ["a.example:443", "b.example:443", "c.example:8443"] {
+                let mut tunnel = open(&connector, port, origin).await?;
+                ping(&mut tunnel).await?;
+                tunnels.push(tunnel);
+            }
+            let connection = server.await??;
+            let streams: Vec<u32> = connection
+                .frames
+                .iter()
+                .filter(|frame| frame.kind == HEADERS)
+                .map(|frame| frame.stream)
+                .collect();
+            assert_eq!(streams, expected);
         }
-        let connection = server.await??;
-        let streams: Vec<u32> = connection
-            .frames
-            .iter()
-            .filter(|frame| frame.kind == HEADERS)
-            .map(|frame| frame.stream)
-            .collect();
-        assert_eq!(streams, [1, 3, 5]);
         Ok(())
     })
     .await
@@ -656,9 +659,10 @@ async fn other_credentials_or_settings_never_share_a_connection() -> TestResult<
         let port = proxy.port;
         let server = tokio::spawn(async move {
             let mut connections = Vec::new();
-            for _ in 0..4 {
+            // The Firefox recipe's connection, the last, starts at stream 3.
+            for first_stream in [1, 1, 1, 3] {
                 let mut connection = accept(&proxy.listener, &proxy.acceptor, &[]).await?;
-                serve_tunnel(&mut connection, 1).await?;
+                serve_tunnel(&mut connection, first_stream).await?;
                 connections.push(connection);
             }
             expect_no_connection(&proxy.listener).await?;

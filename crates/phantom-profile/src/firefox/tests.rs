@@ -1,7 +1,7 @@
 use super::{v156_http2, v156_tls};
 use crate::http2::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    session_capture::SessionCapture,
+    Http2StreamSettings, session_capture::SessionCapture,
 };
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
@@ -182,6 +182,14 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
             exclusive: false,
         })
     );
+    // Firefox source states the limit; the capture servers all state 100.
+    assert_eq!(
+        settings.streams,
+        Http2StreamSettings {
+            first_stream_id: 3,
+            assumed_max_concurrent_streams: Some(100),
+        }
+    );
 
     // Navigation HEADERS carry no extended CONNECT shape, and one block shows
     // only the static-name choice; the WebSocket recipe tests compare the whole
@@ -192,6 +200,11 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
         hpack: Http2HpackSettings {
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
+        },
+        // A capture shows the first stream ID but not the assumed limit.
+        streams: Http2StreamSettings {
+            assumed_max_concurrent_streams: None,
+            ..settings.streams
         },
         ..settings
     };
@@ -224,6 +237,11 @@ fn firefox_156_macos_http2_session_capture_matches_the_recipe()
         hpack: Http2HpackSettings {
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
+        },
+        // A capture shows the first stream ID but not the assumed limit.
+        streams: Http2StreamSettings {
+            assumed_max_concurrent_streams: None,
+            ..settings.streams
         },
         ..settings
     };

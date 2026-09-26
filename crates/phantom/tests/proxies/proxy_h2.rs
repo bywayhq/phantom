@@ -1041,21 +1041,23 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
 /// The profile's CONNECT recipe decides what the client sends on the
 /// challenged stream before the replay: Chrome 154 and Edge 153 end it, and
 /// Firefox 156 leaves it open, as in the `https-proxy-auth-secure-hostname`
-/// captures.
+/// captures, where Firefox numbers the two streams 3 and 5.
 #[tokio::test]
 async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestResult<()> {
-    for (label, connect, http2, ends) in [
+    for (label, connect, http2, ends, expected) in [
         (
             "chromium",
             chromium::v154_proxy_connect(),
             chromium::v154_http2(),
             true,
+            [1, 3],
         ),
         (
             "firefox",
             firefox::v156_proxy_connect(),
             firefox::v156_http2(),
             false,
+            [3, 5],
         ),
     ] {
         bounded(async {
@@ -1085,7 +1087,7 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
             drop(client);
             let records = proxy_task.await??;
             let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
-            assert_eq!(streams, [1, 3], "{label}");
+            assert_eq!(streams, expected, "{label}");
             assert_eq!(records[0].ended_before_next, Some(ends), "{label}");
             Ok(())
         })

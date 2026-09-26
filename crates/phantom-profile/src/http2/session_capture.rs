@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use crate::http2::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    Http2StaticNameIndex,
+    Http2StaticNameIndex, Http2StreamSettings,
 };
 
 type CaptureResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -194,6 +194,13 @@ impl<'a> SessionCapture<'a> {
             hpack: Http2HpackSettings {
                 static_name_index: self.static_name_index(prefix)?,
                 ..Http2HpackSettings::default()
+            },
+            // The first HEADERS is the connection's first request. Every
+            // capture server states SETTINGS_MAX_CONCURRENT_STREAMS, so the
+            // limit assumed before them is not observable.
+            streams: Http2StreamSettings {
+                first_stream_id: field_attribute(headers, "stream")?.parse()?,
+                assumed_max_concurrent_streams: None,
             },
         })
     }

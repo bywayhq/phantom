@@ -73,7 +73,8 @@ async fn tolerated_empty_data_frames_are_not_delivered_as_body_chunks() -> TestR
 async fn run_flood(settings: Http2Settings, flood: DataFlood) -> TestResult<()> {
     let frames = flood.frames(&settings);
     let (client, server) = duplex(64 * 1024);
-    let peer = tokio::spawn(run_flood_peer(server, flood, frames));
+    let first = settings.streams.first_stream_id;
+    let peer = tokio::spawn(run_flood_peer(server, flood, frames, first));
     let connection = Http2Connection::connect(client, &settings).await?;
 
     // The body is held without reading, so small frames stay buffered.
@@ -103,15 +104,18 @@ async fn run_flood_peer(
     mut stream: DuplexStream,
     flood: DataFlood,
     frames: usize,
+    first: u32,
 ) -> TestResult<()> {
     establish_baseline(&mut stream).await?;
-    write_frame(&mut stream, 0x01, END_HEADERS, 1, STATUS_200).await?;
+    write_frame(&mut stream, 0x01, END_HEADERS, first, STATUS_200).await?;
     for _ in 0..frames {
         match flood {
-            DataFlood::Empty => write_frame(&mut stream, 0x00, 0, 1, &[]).await?,
+            DataFlood::Empty => write_frame(&mut stream, 0x00, 0, first, &[]).await?,
             // Pad length 1 followed by one padding byte: an empty payload.
-            DataFlood::PaddedEmpty => write_frame(&mut stream, 0x00, PADDED, 1, &[1, 0]).await?,
-            DataFlood::Small => write_frame(&mut stream, 0x00, 0, 1, b"a").await?,
+            DataFlood::PaddedEmpty => {
+                write_frame(&mut stream, 0x00, PADDED, first, &[1, 0]).await?;
+            }
+            DataFlood::Small => write_frame(&mut stream, 0x00, 0, first, b"a").await?,
         }
     }
     stream.flush().await?;

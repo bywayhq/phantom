@@ -35,8 +35,8 @@ pub use http1::Http1Settings;
 pub use http2::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
-    Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
-    InvalidHttp2Settings,
+    Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
+    Http2UnindexedMatch, InvalidHttp2Settings,
 };
 pub use http3::{
     Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,

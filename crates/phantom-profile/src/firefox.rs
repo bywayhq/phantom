@@ -9,7 +9,8 @@ use crate::{
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
         Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
+        Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
+        Http2UnindexedMatch,
     },
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -295,6 +296,24 @@ pub fn v156_http1() -> Http1Settings {
 /// inserted into the dynamic table ([`Http2CookieCrumbs::NeverIndexShort`]),
 /// as the retained cookie captures (`fixtures/cookies/`) show for crumbs of
 /// 19 and 20 bytes and as `Http2Compressor::EncodeHeaderBlock` states.
+///
+/// Each connection's first request is stream 3. `Http2Session` starts
+/// `mNextStreamID` at 3 and reserves stream 1 for an HTTP/1.1 Upgrade
+/// (`netwerk/protocol/http/Http2Session.cpp:172` at mozilla-central
+/// `4d5216592535`). It would open RFC 7540 priority-group streams 3 to 13
+/// first (`:1179-1199`), but only while `network.http.http2.enabled.deps` is
+/// set (`:1139-1141`), and that preference is off by default
+/// (`modules/libpref/init/StaticPrefList.yaml:16554-16557`). Every HTTP/2
+/// connection in the retained cookie, WebSocket, and `https-proxy-*`
+/// captures sends its first request on stream 3 and counts up by 2.
+///
+/// Until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS`, at most 100
+/// streams are open. `mMaxConcurrent` starts at
+/// `network.http.http2.default-concurrent`, 100 (`Http2Session.cpp:236`;
+/// `StaticPrefList.yaml:16638-16641`), `TryToActivate` queues a stream while
+/// it is reached (`Http2Session.cpp:873-880`), and only a stated value
+/// replaces it (`:1880-1883`). No capture shows the limit, because every
+/// capture server states 100.
 #[must_use]
 pub fn v156_http2() -> Http2Settings {
     Http2Settings {
@@ -338,6 +357,10 @@ pub fn v156_http2() -> Http2Settings {
             unindexed_match: Http2UnindexedMatch::Literal,
             indexing_limit: Http2IndexingLimit::Half,
             table_size_updates: Http2TableSizeUpdates::EverySetting,
+        },
+        streams: Http2StreamSettings {
+            first_stream_id: 3,
+            assumed_max_concurrent_streams: Some(100),
         },
     }
 }

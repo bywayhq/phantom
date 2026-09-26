@@ -4,7 +4,9 @@ use super::{
     v153_quic, v153_tls, v153_websocket,
 };
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
-use crate::http2::{Http2HpackSettings, Http2Settings, session_capture::SessionCapture};
+use crate::http2::{
+    Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
+};
 use crate::{RequestField, brave, chromium};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -117,6 +119,11 @@ fn brave_android_153_http2_session_capture_matches_the_chromium_recipe() -> Test
         hpack: Http2HpackSettings {
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
+        },
+        // A capture shows the first stream ID but not the assumed limit.
+        streams: Http2StreamSettings {
+            assumed_max_concurrent_streams: None,
+            ..settings.streams
         },
         ..settings
     };

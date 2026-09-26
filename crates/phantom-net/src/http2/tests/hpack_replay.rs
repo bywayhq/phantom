@@ -6,7 +6,9 @@
 //! that sends the captured SETTINGS, and sends each captured request with the
 //! captured pseudo-header values and ordinary fields, rejoining cookie crumbs
 //! into one `cookie` field. Every HPACK block the client sends must equal the
-//! captured block byte for byte.
+//! captured block byte for byte, on the stream the browser sent it on: Chrome,
+//! Edge, Brave, and Opera number a connection's requests 1, 3, 5, and Firefox
+//! 3, 5, 7.
 //!
 //! A browser does not wait for the peer's SETTINGS before its first request,
 //! so the table size can reach its encoder after one or more blocks. Where the
@@ -111,7 +113,7 @@ const FIREFOX_WEBSOCKET: &[(&str, &str)] = &[
 ];
 
 #[tokio::test]
-async fn chrome_cookie_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         &[CHROME_COOKIES],
         chromium::v154_http2(),
@@ -122,13 +124,13 @@ async fn chrome_cookie_sessions_match_the_captured_hpack_bytes() -> TestResult<(
 }
 
 #[tokio::test]
-async fn edge_cookie_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn edge_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     // Edge 153 uses the Chromium recipe (`phantom_profile::edge`).
     replay_all(&[EDGE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
 }
 
 #[tokio::test]
-async fn firefox_cookie_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn firefox_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         &[FIREFOX_COOKIES],
         firefox::v156_http2(),
@@ -139,7 +141,7 @@ async fn firefox_cookie_sessions_match_the_captured_hpack_bytes() -> TestResult<
 }
 
 #[tokio::test]
-async fn chrome_websocket_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn chrome_websocket_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         CHROME_WEBSOCKET,
         chromium::v154_http2(),
@@ -150,7 +152,7 @@ async fn chrome_websocket_sessions_match_the_captured_hpack_bytes() -> TestResul
 }
 
 #[tokio::test]
-async fn edge_websocket_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn edge_websocket_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         EDGE_WEBSOCKET,
         chromium::v154_http2(),
@@ -161,7 +163,8 @@ async fn edge_websocket_sessions_match_the_captured_hpack_bytes() -> TestResult<
 }
 
 #[tokio::test]
-async fn brave_and_opera_websocket_sessions_match_the_chromium_hpack_bytes() -> TestResult<()> {
+async fn brave_and_opera_websocket_sessions_match_the_chromium_streams_and_hpack_bytes()
+-> TestResult<()> {
     // Brave 154 and Opera 135 use the Chromium recipe too.
     replay_all(
         BRAVE_WEBSOCKET,
@@ -180,7 +183,7 @@ async fn brave_and_opera_websocket_sessions_match_the_chromium_hpack_bytes() -> 
 }
 
 #[tokio::test]
-async fn firefox_websocket_sessions_match_the_captured_hpack_bytes() -> TestResult<()> {
+async fn firefox_websocket_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         FIREFOX_WEBSOCKET,
         firefox::v156_http2(),
@@ -191,27 +194,37 @@ async fn firefox_websocket_sessions_match_the_captured_hpack_bytes() -> TestResu
 }
 
 /// The rules each Firefox capture needs are not all satisfied by Chromium's
-/// recipe: the replay tells the two families apart.
+/// recipe: the replay tells the two families apart by the first stream alone,
+/// and by the HPACK blocks once the Chromium recipe numbers streams as
+/// Firefox does.
 #[tokio::test]
 async fn chromium_recipe_does_not_reproduce_a_firefox_session() -> TestResult<()> {
-    let (name, text) = FIREFOX_COOKIES;
-    let session = sessions(text, Source::Cookies)?
-        .into_iter()
-        .next()
-        .ok_or("the Firefox cookie capture holds no session")?;
-    let result = timeout(
-        SESSION_TIMEOUT,
-        replay_session(&session, &chromium::v154_http2()),
-    )
-    .await?;
-    let error = match result {
-        Ok(()) => return Err(format!("{name} run 0 replayed under the Chromium recipe").into()),
-        Err(error) => error.to_string(),
-    };
-    assert!(
-        error.contains("HPACK block differs"),
-        "{name} run 0 failed for another reason: {error}"
-    );
+    let mut renumbered = chromium::v154_http2();
+    renumbered.streams.first_stream_id = 3;
+    for (settings, expected) in [
+        (
+            chromium::v154_http2(),
+            "was sent on stream 1, captured on stream 3",
+        ),
+        (renumbered, "HPACK block differs"),
+    ] {
+        let (name, text) = FIREFOX_COOKIES;
+        let session = sessions(text, Source::Cookies)?
+            .into_iter()
+            .next()
+            .ok_or("the Firefox cookie capture holds no session")?;
+        let result = timeout(SESSION_TIMEOUT, replay_session(&session, &settings)).await?;
+        let error = match result {
+            Ok(()) => {
+                return Err(format!("{name} run 0 replayed under the Chromium recipe").into());
+            }
+            Err(error) => error.to_string(),
+        };
+        assert!(
+            error.contains(expected),
+            "{name} run 0 failed for another reason: {error}"
+        );
+    }
     Ok(())
 }
 
@@ -233,8 +246,10 @@ struct Session {
     requests: Vec<Request>,
 }
 
-/// One captured request HEADERS block and the fields it decodes to.
+/// One captured request HEADERS block, its stream, and the fields it decodes
+/// to.
 struct Request {
+    stream_id: u32,
     fields: Vec<(String, String)>,
     block: Vec<u8>,
 }
@@ -266,7 +281,11 @@ async fn replay_session(session: &Session, settings: &Http2Settings) -> TestResu
         server,
         session.settings.clone(),
         session.settings_after,
-        session.requests.iter().map(|r| r.block.clone()).collect(),
+        session
+            .requests
+            .iter()
+            .map(|r| (r.stream_id, r.block.clone()))
+            .collect(),
     ));
     let connection = Http2Connection::connect(client, settings).await?;
     let sent = send_requests(&connection, session, settings).await;
@@ -352,7 +371,7 @@ async fn run_peer(
     mut stream: DuplexStream,
     settings: Vec<(u16, u32)>,
     settings_after: usize,
-    expected: Vec<Vec<u8>>,
+    expected: Vec<(u32, Vec<u8>)>,
 ) -> TestResult<()> {
     let mut preface = [0_u8; CLIENT_PREFACE.len()];
     stream.read_exact(&mut preface).await?;
@@ -371,8 +390,14 @@ async fn run_peer(
         stream.flush().await?;
     }
 
-    for (index, want) in expected.iter().enumerate() {
+    for (index, (want_stream, want)) in expected.iter().enumerate() {
         let (stream_id, end_stream, got) = read_request_block(&mut stream, acknowledge).await?;
+        if stream_id != *want_stream {
+            return Err(format!(
+                "request {index} was sent on stream {stream_id}, captured on stream {want_stream}"
+            )
+            .into());
+        }
         if index + 1 == settings_after {
             write_frame(&mut stream, 0x04, 0, 0, &payload).await?;
             write_frame(&mut stream, 0x04, 0x01, 0, &[]).await?;
@@ -504,7 +529,13 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
                 String::from_utf8(decode_hex(attribute("value_hex")?)?)?,
             ));
         }
+        let stream_id = value(prefix)?
+            .split(',')
+            .find_map(|item| item.strip_prefix("stream:"))
+            .ok_or("capture request omitted its stream")?
+            .parse()?;
         Ok(Request {
+            stream_id,
             fields,
             block: decode_hex(value(&format!("{prefix}_block_hex"))?)?,
         })

@@ -163,7 +163,8 @@ pub(super) async fn expect_one_goaway(
     Ok(())
 }
 
-/// Accepts the client preface, completes SETTINGS, and waits for stream 1.
+/// Accepts the client preface, completes SETTINGS, and waits for the first
+/// request HEADERS, on the profile's first stream.
 ///
 /// Returns the payload of the client's initial SETTINGS frame.
 pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<Vec<u8>> {
@@ -198,7 +199,8 @@ pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<
                 }
                 observed_settings_ack = true;
             }
-            (0x01, _) if frame.stream_id == 1 => observed_request = true,
+            // The request's stream is the profile's first stream.
+            (0x01, _) => observed_request = true,
             _ => {}
         }
     }

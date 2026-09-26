@@ -60,7 +60,8 @@ async fn informational_burst_is_cut_off_at_the_ninth_response() -> TestResult<()
 
 async fn run_excess(settings: Http2Settings, sent: usize) -> TestResult<()> {
     let (client, server) = duplex(64 * 1024);
-    let peer = tokio::spawn(run_excess_peer(server, sent));
+    let first = settings.streams.first_stream_id;
+    let peer = tokio::spawn(run_excess_peer(server, sent, first));
     let connection = Http2Connection::connect(client, &settings).await?;
 
     match connection
@@ -99,19 +100,19 @@ async fn run_excess(settings: Http2Settings, sent: usize) -> TestResult<()> {
     Ok(())
 }
 
-async fn run_excess_peer(mut stream: DuplexStream, sent: usize) -> TestResult<()> {
+async fn run_excess_peer(mut stream: DuplexStream, sent: usize, first: u32) -> TestResult<()> {
     establish_baseline(&mut stream).await?;
     for _ in 0..sent {
-        write_frame(&mut stream, 0x01, END_HEADERS, 1, STATUS_103).await?;
+        write_frame(&mut stream, 0x01, END_HEADERS, first, STATUS_103).await?;
     }
     stream.flush().await?;
 
     let reset = read_frame(&mut stream)
         .await?
         .ok_or("client closed instead of resetting the stream")?;
-    if reset.frame_type != 0x03 || reset.stream_id != 1 {
+    if reset.frame_type != 0x03 || reset.stream_id != first {
         return Err(format!(
-            "expected RST_STREAM on stream 1, got type {:#04x} on {}",
+            "expected RST_STREAM on stream {first}, got type {:#04x} on {}",
             reset.frame_type, reset.stream_id
         )
         .into());
@@ -126,13 +127,22 @@ async fn run_excess_peer(mut stream: DuplexStream, sent: usize) -> TestResult<()
             .await?
             .ok_or("client closed before the sibling request")?;
         match (frame.frame_type, frame.stream_id) {
-            (0x01, 3) => break,
-            (0x03, 1) => return Err("client reset stream 1 more than once".into()),
+            (0x01, id) if id == first + 2 => break,
+            (0x03, id) if id == first => {
+                return Err(format!("client reset stream {first} more than once").into());
+            }
             (0x07, _) => return Err("client closed the connection".into()),
             _ => {}
         }
     }
-    write_frame(&mut stream, 0x01, END_HEADERS | END_STREAM, 3, STATUS_200).await?;
+    write_frame(
+        &mut stream,
+        0x01,
+        END_HEADERS | END_STREAM,
+        first + 2,
+        STATUS_200,
+    )
+    .await?;
     stream.flush().await?;
     drain_without_reset(&mut stream).await
 }

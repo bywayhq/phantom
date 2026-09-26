@@ -37,7 +37,8 @@ async fn header_list_below_firefox_ceiling_is_accepted() -> TestResult<()> {
         let peer = tokio::spawn(async move {
             let mut stream = server;
             establish_baseline(&mut stream).await?;
-            write_header_block(&mut stream, 1, &header_block(FIREFOX_LIMIT - 64), true).await?;
+            let first = v156_http2().streams.first_stream_id;
+            write_header_block(&mut stream, first, &header_block(FIREFOX_LIMIT - 64), true).await?;
             drain_without_error(&mut stream).await
         });
         let connection = Http2Connection::connect(client, &v156_http2()).await?;
@@ -79,7 +80,8 @@ async fn run_oversized(settings: Http2Settings, limit: usize) -> TestResult<()> 
             _ => None,
         });
     let (client, server) = duplex(64 * 1024);
-    let peer = tokio::spawn(run_oversized_peer(server, limit, advertised));
+    let first = settings.streams.first_stream_id;
+    let peer = tokio::spawn(run_oversized_peer(server, limit, advertised, first));
     let connection = Http2Connection::connect(client, &settings).await?;
 
     match connection
@@ -122,6 +124,7 @@ async fn run_oversized_peer(
     mut stream: DuplexStream,
     limit: usize,
     advertised: Option<u32>,
+    first: u32,
 ) -> TestResult<()> {
     let settings = establish_baseline(&mut stream).await?;
     // The local ceiling is never advertised: the SETTINGS entry is present
@@ -138,15 +141,15 @@ async fn run_oversized_peer(
     }
 
     // Without END_STREAM the stream stays open, so the client must reset it.
-    write_header_block(&mut stream, 1, &header_block(limit + 64), false).await?;
+    write_header_block(&mut stream, first, &header_block(limit + 64), false).await?;
     stream.flush().await?;
 
     let reset = read_frame(&mut stream)
         .await?
         .ok_or("client closed instead of resetting the stream")?;
-    if reset.frame_type != 0x03 || reset.stream_id != 1 {
+    if reset.frame_type != 0x03 || reset.stream_id != first {
         return Err(format!(
-            "expected RST_STREAM on stream 1, got type {:#04x} on {}",
+            "expected RST_STREAM on stream {first}, got type {:#04x} on {}",
             reset.frame_type, reset.stream_id
         )
         .into());
@@ -160,11 +163,18 @@ async fn run_oversized_peer(
         let frame = read_frame(&mut stream)
             .await?
             .ok_or("client closed before the sibling request")?;
-        if frame.frame_type == 0x01 && frame.stream_id == 3 {
+        if frame.frame_type == 0x01 && frame.stream_id == first + 2 {
             break;
         }
     }
-    write_frame(&mut stream, 0x01, END_HEADERS | END_STREAM, 3, &[0x88]).await?;
+    write_frame(
+        &mut stream,
+        0x01,
+        END_HEADERS | END_STREAM,
+        first + 2,
+        &[0x88],
+    )
+    .await?;
     stream.flush().await?;
     drain_without_error(&mut stream).await
 }
@@ -174,7 +184,9 @@ async fn run_connection_abuse(abuse: Abuse) -> TestResult<()> {
     let peer = tokio::spawn(async move {
         let mut stream = server;
         establish_baseline(&mut stream).await?;
-        abuse.write(&mut stream).await?;
+        abuse
+            .write(&mut stream, v156_http2().streams.first_stream_id)
+            .await?;
         stream.flush().await?;
         expect_one_goaway(
             &mut stream,
@@ -225,12 +237,13 @@ impl Abuse {
         }
     }
 
-    async fn write(self, stream: &mut DuplexStream) -> TestResult<()> {
+    /// Writes the abusive response on `id`, the client's request stream.
+    async fn write(self, stream: &mut DuplexStream, id: u32) -> TestResult<()> {
         match self {
             Self::EmptyContinuations => {
-                write_frame(stream, 0x01, 0, 1, &[0x88]).await?;
+                write_frame(stream, 0x01, 0, id, &[0x88]).await?;
                 for _ in 0..17 {
-                    write_frame(stream, 0x09, 0, 1, &[]).await?;
+                    write_frame(stream, 0x09, 0, id, &[]).await?;
                 }
             }
             Self::CumulativeHeaderList => {
@@ -242,10 +255,10 @@ impl Abuse {
                 const FIELDS_PER_FRAGMENT: usize = 3_000;
                 let mut remaining = (4 * FIREFOX_LIMIT - STATUS_200_COST) / FIELD_COST + 1;
 
-                write_frame(stream, 0x01, 0, 1, &[0x88]).await?;
+                write_frame(stream, 0x01, 0, id, &[0x88]).await?;
                 while remaining > 0 {
                     let count = remaining.min(FIELDS_PER_FRAGMENT);
-                    write_frame(stream, 0x09, 0, 1, &HUFFMAN_FIELD.repeat(count)).await?;
+                    write_frame(stream, 0x09, 0, id, &HUFFMAN_FIELD.repeat(count)).await?;
                     remaining -= count;
                 }
             }
@@ -254,9 +267,9 @@ impl Abuse {
                 let maximum = (4 * FIREFOX_LIMIT + 12).div_ceil(FRAGMENT_LEN / 4);
                 // Literal `x` with a 1,000-byte raw value spread one byte per
                 // fragment, so decoded size stays far below the ceiling.
-                write_frame(stream, 0x01, 0, 1, &[0x00, 0x01, b'x', 0x7f, 0xe9, 0x06]).await?;
+                write_frame(stream, 0x01, 0, id, &[0x00, 0x01, b'x', 0x7f, 0xe9, 0x06]).await?;
                 for _ in 0..=maximum {
-                    write_frame(stream, 0x09, 0, 1, b"a").await?;
+                    write_frame(stream, 0x09, 0, id, b"a").await?;
                 }
             }
         }

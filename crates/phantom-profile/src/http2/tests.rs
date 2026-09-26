@@ -1,6 +1,6 @@
 use super::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    InvalidHttp2Settings,
+    Http2StreamSettings, InvalidHttp2Settings,
 };
 
 fn settings() -> Http2Settings {
@@ -20,7 +20,51 @@ fn settings() -> Http2Settings {
         extended_connect_priority: None,
         headers_priority: None,
         hpack: Http2HpackSettings::default(),
+        streams: Http2StreamSettings::default(),
     }
+}
+
+#[test]
+fn default_stream_settings_number_from_one_without_a_limit() {
+    assert_eq!(
+        Http2StreamSettings::default(),
+        Http2StreamSettings {
+            first_stream_id: 1,
+            assumed_max_concurrent_streams: None,
+        }
+    );
+}
+
+#[test]
+fn rejects_an_even_or_oversized_first_stream_id() {
+    for first_stream_id in [0, 2, 4, 1 << 31] {
+        let mut settings = settings();
+        settings.streams.first_stream_id = first_stream_id;
+        assert_field(settings.validate(), "streams.first_stream_id");
+    }
+}
+
+#[test]
+fn accepts_odd_first_stream_ids() -> Result<(), Box<dyn std::error::Error>> {
+    for first_stream_id in [1, 3, (1 << 31) - 1] {
+        let mut settings = settings();
+        settings.streams.first_stream_id = first_stream_id;
+        settings.validate()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn rejects_a_zero_assumed_stream_limit() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.streams.assumed_max_concurrent_streams = Some(0);
+    assert_field(
+        settings.validate(),
+        "streams.assumed_max_concurrent_streams",
+    );
+    settings.streams.assumed_max_concurrent_streams = Some(1);
+    settings.validate()?;
+    Ok(())
 }
 
 #[test]

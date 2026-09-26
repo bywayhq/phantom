@@ -525,7 +525,10 @@ pub(crate) fn extended_connect_overrides(
         .ok_or(Http2Error::MissingExtendedConnectPseudoHeaderOrder)?;
     let mut overrides = HeadersFrameOverrides::new().pseudo_order(pseudo_order(order, true)?);
     if let Some(priority) = settings.extended_connect_priority {
-        overrides = overrides.stream_dependency(stream_dependency(priority)?);
+        overrides = overrides.stream_dependency(stream_dependency(
+            priority,
+            settings.streams.first_stream_id,
+        )?);
     }
     Ok(overrides)
 }
@@ -543,7 +546,7 @@ pub(crate) fn priority_overrides(
             weight: priority.weight,
         });
     }
-    Ok(HeadersFrameOverrides::new().stream_dependency(stream_dependency(priority)?))
+    Ok(HeadersFrameOverrides::new().stream_dependency(stream_dependency(priority, 1)?))
 }
 
 /// Builds the connection's HPACK encoder identity from profile settings.
@@ -626,10 +629,16 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         .size_updates(size_updates))
 }
 
-fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {
-    // Stream 1 is the first client stream, which would then depend on itself.
-    if priority.dependency_stream_id == 1 {
-        return Err(Http2Error::InvalidPriorityDependency { stream_id: 1 });
+/// Converts a HEADERS priority, rejecting a dependency on `first_stream_id`,
+/// on which the connection's first request would depend on itself.
+fn stream_dependency(
+    priority: Http2Priority,
+    first_stream_id: u32,
+) -> Result<StreamDependency, Http2Error> {
+    if priority.dependency_stream_id == first_stream_id {
+        return Err(Http2Error::InvalidPriorityDependency {
+            stream_id: first_stream_id,
+        });
     }
     Ok(StreamDependency::new(
         StreamId::from(priority.dependency_stream_id),
@@ -663,12 +672,18 @@ fn translate_settings_with_pseudo_order(
     configured_pseudo_order: &[Http2PseudoHeader],
     extended_connect: bool,
 ) -> Result<client::Builder, Http2Error> {
+    let first_stream_id = settings.streams.first_stream_id;
+    // The backend panics on an even first stream ID. Validation rejects one,
+    // but a caller may translate settings it has not validated.
+    if first_stream_id.is_multiple_of(2) || first_stream_id >= 1 << 31 {
+        return Err(Http2Error::UnsupportedSetting);
+    }
     let headers_dependency = settings
         .headers_priority
-        .map(stream_dependency)
+        .map(|priority| stream_dependency(priority, first_stream_id))
         .transpose()?;
     if let Some(priority) = settings.extended_connect_priority {
-        stream_dependency(priority)?;
+        stream_dependency(priority, first_stream_id)?;
     }
 
     let mut client = client::Builder::new();
@@ -676,6 +691,12 @@ fn translate_settings_with_pseudo_order(
     client.local_max_header_list_size(limits::MAX_RESPONSE_HEADER_LIST_BYTES);
     client.max_informational_responses(limits::MAX_INFORMATIONAL_RESPONSES);
     client.hpack_encoder_profile(hpack_encoder_profile(&settings.hpack)?);
+    client.initial_stream_id(first_stream_id);
+    if let Some(limit) = settings.streams.assumed_max_concurrent_streams {
+        client
+            .initial_max_send_streams(usize::try_from(limit).unwrap_or(usize::MAX))
+            .retain_initial_max_send_streams(true);
+    }
     let mut order = SettingsOrder::builder();
 
     for setting in &settings.initial_settings {

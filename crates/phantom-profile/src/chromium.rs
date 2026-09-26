@@ -10,7 +10,8 @@ use crate::{
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
         Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
+        Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
+        Http2UnindexedMatch,
     },
     http3::{
         Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
@@ -412,6 +413,17 @@ pub fn v154_http1() -> Http1Settings {
 /// retained Chrome and Edge WebSocket and cookie sessions equals Phantom's
 /// byte for byte.
 ///
+/// Each connection's first request is stream 1 (`kFirstStreamId`,
+/// `net/spdy/spdy_session.h:93` at tag `154.0.8037.58`), as in every retained
+/// Chrome, Edge, Brave, and Opera HTTP/2 session. Until the peer states
+/// `SETTINGS_MAX_CONCURRENT_STREAMS`, at most 100 streams are open:
+/// `SpdySession` starts at `kInitialMaxConcurrentStreams` (`:84`;
+/// `net/spdy/spdy_session.cc:837`), creates a stream only below it
+/// (`:1696-1699`), and replaces it only with a stated value (`:2355-2358`). No
+/// capture shows the limit, because every capture server states 100. Chromium
+/// also lowers a stated value above 256 to 256 (`kMaxConcurrentStreamLimit`,
+/// `:383`), which Phantom does not.
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -457,6 +469,10 @@ pub fn v154_http2() -> Http2Settings {
             unindexed_match: Http2UnindexedMatch::Index,
             indexing_limit: Http2IndexingLimit::Unlimited,
             table_size_updates: Http2TableSizeUpdates::WhenChanged,
+        },
+        streams: Http2StreamSettings {
+            first_stream_id: 1,
+            assumed_max_concurrent_streams: Some(100),
         },
     }
 }

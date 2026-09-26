@@ -950,6 +950,9 @@ async fn assert_reuses_session(
         )
     });
     let ordinary_pseudo = http2.pseudo_header_order.len();
+    // The captured session numbers its requests 1, 3, 5 in Chrome and 3, 5, 7
+    // in Firefox, as the recipe's first stream says.
+    let first = http2.streams.first_stream_id;
     bounded(async {
         let identity = Arc::new(TestIdentity::generate()?);
         let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
@@ -974,7 +977,7 @@ async fn assert_reuses_session(
                 .iter()
                 .map(|headers| headers.stream_id)
                 .collect::<Vec<_>>(),
-            [1, 3, 5]
+            [first, first + 2, first + 4]
         );
         assert_connect_matches(&connection.h2[1], &connect)?;
         for ordinary in [&connection.h2[0], &connection.h2[2]] {

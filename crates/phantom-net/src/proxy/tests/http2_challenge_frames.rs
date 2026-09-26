@@ -52,7 +52,7 @@ async fn replay_waits_for_a_proxy_that_allows_one_stream() -> TestResult<()> {
                 let mut connection =
                     RawConnection::accept(&listener, &acceptor, &[(MAX_CONCURRENT_STREAMS, 1)])
                         .await?;
-                challenge_then_accept_replay(&mut connection).await?;
+                challenge_then_accept_replay(&mut connection, 1).await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connection)
             });
             echo_through(&connector, port).await?;
@@ -82,7 +82,7 @@ async fn challenged_stream_ends_before_the_replay_on_a_multi_thread_runtime() ->
                 proxy_setup(Http2RejectedConnect::EndStream, v154_http2())?;
             let proxy = tokio::spawn(async move {
                 let mut connection = RawConnection::accept(&listener, &acceptor, &[]).await?;
-                challenge_then_accept_replay(&mut connection).await?;
+                challenge_then_accept_replay(&mut connection, 1).await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connection)
             });
             echo_through(&connector, port).await?;
@@ -134,17 +134,19 @@ async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
         ),
     ] {
         let captured = captured_challenged_stream_frames(browser)?;
+        // Firefox's challenged stream is 3, as in its capture; Chromium's is 1.
+        let first = http2.streams.first_stream_id;
         bounded(async {
             let (connector, port, listener, acceptor) = proxy_setup(rejected, http2)?;
             let proxy = tokio::spawn(async move {
                 let mut connection = RawConnection::accept(&listener, &acceptor, &[]).await?;
-                challenge_then_accept_replay(&mut connection).await?;
+                challenge_then_accept_replay(&mut connection, first).await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(connection)
             });
             echo_through(&connector, port).await?;
             let connection = proxy.await??;
             let sent: Vec<_> = connection
-                .frames_before(1, 3)
+                .frames_before(first, first + 2)
                 .into_iter()
                 .filter(|frame| frame.kind != WINDOW_UPDATE)
                 .map(Frame::shape)
@@ -152,7 +154,7 @@ async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
             assert_eq!(sent, captured, "{browser}");
             if rejected == Http2RejectedConnect::LeaveOpen {
                 assert!(
-                    connection.frames.iter().all(|frame| frame.stream != 1
+                    connection.frames.iter().all(|frame| frame.stream != first
                         || frame.kind == HEADERS
                         || frame.kind == WINDOW_UPDATE),
                     "{browser}: the client wrote on the challenged stream while the tunnel ran"
@@ -324,16 +326,22 @@ enum Unprocessed {
     CloseAfterReplay,
 }
 
-/// Challenges stream 1, then accepts the replay on stream 3 and echoes one
-/// tunnel payload.
-async fn challenge_then_accept_replay(connection: &mut RawConnection) -> TestResult<()> {
-    connection.read_until(|frame| frame.kind == HEADERS).await?;
-    connection.write(&[response(1, 407, true)]).await?;
+/// Challenges the connection's first stream, `first`, then accepts the replay
+/// on the next stream and echoes one tunnel payload.
+async fn challenge_then_accept_replay(
+    connection: &mut RawConnection,
+    first: u32,
+) -> TestResult<()> {
+    let replay = first + 2;
     connection
-        .read_until(|frame| frame.kind == HEADERS && frame.stream == 3)
+        .read_until(|frame| frame.kind == HEADERS && frame.stream == first)
         .await?;
-    connection.write(&[response(3, 200, false)]).await?;
-    connection.echo(3).await
+    connection.write(&[response(first, 407, true)]).await?;
+    connection
+        .read_until(|frame| frame.kind == HEADERS && frame.stream == replay)
+        .await?;
+    connection.write(&[response(replay, 200, false)]).await?;
+    connection.echo(replay).await
 }
 
 type Setup = (

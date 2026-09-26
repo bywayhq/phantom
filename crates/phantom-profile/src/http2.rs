@@ -265,6 +265,39 @@ pub struct Http2HpackSettings {
     pub table_size_updates: Http2TableSizeUpdates,
 }
 
+/// How a client numbers its streams and how many it opens before the peer
+/// states a limit.
+///
+/// Neither value is sent on the wire, but both shape it: the first value is
+/// the stream identifier of every connection's first request, and the second
+/// decides how many requests go out before the peer's SETTINGS arrive.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Http2StreamSettings {
+    /// Stream identifier of the first request on each connection.
+    ///
+    /// Later requests take the following odd identifiers. The value must be
+    /// odd, as every client-initiated stream is. The default is 1.
+    pub first_stream_id: u32,
+    /// Concurrent streams the client opens before the peer states
+    /// `SETTINGS_MAX_CONCURRENT_STREAMS`.
+    ///
+    /// The limit holds until the peer states a value, including after an
+    /// initial SETTINGS frame that omits the setting; a stated value then
+    /// replaces it. `None`, the default, sets no limit before the peer's
+    /// initial SETTINGS and lifts every limit when they omit the setting, as
+    /// RFC 9113 section 5.1.2 allows. A value must be at least 1.
+    pub assumed_max_concurrent_streams: Option<u32>,
+}
+
+impl Default for Http2StreamSettings {
+    fn default() -> Self {
+        Self {
+            first_stream_id: 1,
+            assumed_max_concurrent_streams: None,
+        }
+    }
+}
+
 /// Priority information carried by each outgoing request HEADERS frame.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Http2Priority {
@@ -308,6 +341,9 @@ pub struct Http2Settings {
     pub extended_connect_priority: Option<Http2Priority>,
     /// HPACK encoder choices used for every field block on the connection.
     pub hpack: Http2HpackSettings,
+    /// Stream numbering and the stream limit assumed before the peer states
+    /// one.
+    pub streams: Http2StreamSettings,
 }
 
 impl Http2Settings {
@@ -330,6 +366,8 @@ impl Http2Settings {
             validate_extended_connect_pseudo_header_order(order)?;
         }
 
+        validate_streams(self.streams)?;
+
         if let Some(priority) = self.headers_priority {
             validate_priority(
                 priority,
@@ -347,6 +385,22 @@ impl Http2Settings {
 
         Ok(())
     }
+}
+
+fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Settings> {
+    if streams.first_stream_id.is_multiple_of(2) || streams.first_stream_id > MAX_STREAM_ID {
+        return Err(InvalidHttp2Settings::new(
+            "streams.first_stream_id",
+            "a client stream ID must be odd and use 31 bits",
+        ));
+    }
+    if streams.assumed_max_concurrent_streams == Some(0) {
+        return Err(InvalidHttp2Settings::new(
+            "streams.assumed_max_concurrent_streams",
+            "an assumed stream limit must be at least 1",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_priority(

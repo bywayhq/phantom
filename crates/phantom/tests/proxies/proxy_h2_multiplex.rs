@@ -279,7 +279,8 @@ async fn tunnels_to_different_origins_share_one_proxy_connection() -> TestResult
 /// tunnels are streams of one proxy connection, as Chrome 154 sends a page's
 /// navigation, `fetch()`, and CONNECTs in the `https-proxy-*` captures.
 /// With the Firefox recipe, forwarded requests and tunnels use separate
-/// connections, as Firefox 156 does in the same captures.
+/// connections, each numbered from stream 3, as Firefox 156 does in the same
+/// captures.
 #[tokio::test]
 async fn forwarded_requests_join_the_tunnel_connection_as_the_profile_says() -> TestResult<()> {
     bounded(async {
@@ -302,7 +303,7 @@ async fn forwarded_requests_join_the_tunnel_connection_as_the_profile_says() -> 
             } else {
                 // Forwarded requests to both origins share one connection;
                 // the tunnel has its own.
-                assert_eq!(placement, [(0, 1), (1, 1), (0, 3)]);
+                assert_eq!(placement, [(0, 3), (1, 3), (0, 5)]);
             }
         }
         Ok(())
@@ -384,7 +385,8 @@ async fn sessions_never_share_a_proxy_connection() -> TestResult<()> {
 
 /// A `ws://` opening joins the tunnel connection with the Chromium recipe
 /// and opens its own with the Firefox recipe, as Chrome 154 and Firefox 156
-/// do in the `https-proxy-hostname` captures.
+/// do in the `https-proxy-hostname` captures, where each Firefox connection
+/// starts at stream 3.
 #[cfg(feature = "websocket")]
 #[tokio::test]
 async fn websocket_tunnels_use_the_connection_the_profile_gives_them() -> TestResult<()> {
@@ -424,11 +426,11 @@ async fn websocket_tunnels_use_the_connection_the_profile_gives_them() -> TestRe
                 .iter()
                 .map(|seen| (seen.connection, seen.stream, seen.authority.clone()))
                 .collect();
-            let websocket_placement = if shared { (0, 3) } else { (1, 1) };
+            let (first, websocket_placement) = if shared { (1, (0, 3)) } else { (3, (1, 3)) };
             assert_eq!(
                 placement,
                 [
-                    (0, 1, origin.to_string()),
+                    (0, first, origin.to_string()),
                     (
                         websocket_placement.0,
                         websocket_placement.1,
