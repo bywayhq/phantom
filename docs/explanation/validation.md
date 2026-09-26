@@ -39,6 +39,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
+| [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of seven browsers, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -2030,6 +2031,83 @@ Limits:
   applies them as soon as they arrive, so a Firefox profile announces the
   table size in whichever block follows their arrival.
 
+### HTTP/2 stream numbering evidence
+
+What is claimed: on every HTTP/2 connection, `chromium::v154_http2` sends
+the first request on stream 1 and `firefox::v156_http2` on stream 3, and each
+later request takes the next odd stream, as Chrome 154 and Firefox 156 do.
+Until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS`, both recipes open at
+most 100 streams at once, and SETTINGS that omit the setting leave that limit
+in place. This holds for direct connections, the pooled HTTP/2 connections to
+a TLS proxy, and WebSocket openings over HTTP/2.
+
+Evidence: the stream of every client HEADERS frame on every HTTP/2
+connection in the retained cookie, WebSocket, and `https-proxy-*` captures.
+
+| Browser | Connections | Requests | First stream | Later streams |
+| --- | --- | --- | --- | --- |
+| Chrome 154 | 134 | 334 | 1 | +2 each |
+| Edge 153 | 159 | 462 | 1 | +2 each |
+| Brave 154 | 45 | 183 | 1 | +2 each |
+| Opera 135 | 101 | 331 | 1 | +2 each |
+| Chrome for Android 153 | 18 | 54 | 1 | +2 each |
+| Brave for Android 153 | 18 | 54 | 1 | +2 each |
+| Firefox 156 | 99 | 246 | 3 | +2 each |
+
+Firefox source gives the reason. `Http2Session` starts its next stream at 3
+and keeps stream 1 for a connection upgraded from HTTP/1.1. It would first
+spend streams 3 to 13 on RFC 7540 priority groups, but only while
+`network.http.http2.enabled.deps` is set, and that preference is off by
+default. Chromium starts at `kFirstStreamId`, 1.
+
+No capture shows the stream limit, because every capture server states 100.
+It comes from source:
+
+| | Chromium (`SpdySession`) | Firefox (`Http2Session`) |
+| --- | --- | --- |
+| Limit before the peer states one | `kInitialMaxConcurrentStreams`, 100 | `network.http.http2.default-concurrent`, 100 |
+| A request past the limit | Waits in `pending_create_stream_queues_` | Waits in the queue `QueueStream` fills |
+| SETTINGS without the setting | Keep the limit | Keep the limit |
+| A stated value | Replaces it, lowered to at most 256 | Replaces it |
+
+The sources are Chromium tag `154.0.8037.58` (`net/spdy/spdy_session.h:84`,
+`:93`; `net/spdy/spdy_session.cc:383`, `:837`, `:1696-1712`,
+`:2355-2358`) and mozilla-central `4d5216592535`
+(`netwerk/protocol/http/Http2Session.cpp:172`, `:236`, `:708-716`, `:873-880`,
+`:1139-1141`, `:1179-1199`, `:1880-1883`;
+`modules/libpref/init/StaticPrefList.yaml:16554-16557`, `:16638-16641`).
+
+`crates/phantom-net/src/http2/tests/hpack_replay.rs` checks the stream of
+each replayed request against the capture along with its HPACK block, for
+the cookie and WebSocket sessions of five browsers.
+`crates/phantom-net/src/http2/tests/stream_limit.rs` runs each recipe
+against a loopback peer that holds its SETTINGS back: 100 requests arrive
+before the peer sends anything, numbered from the recipe's first stream, the
+101st waits through SETTINGS without a limit, and it opens once the peer
+states 101. A profile without an assumed limit sends all 101 at once. The
+proxy pool tests check that tunnels to three origins are streams 1, 3, and 5
+of one proxy connection under the Chromium recipe and 3, 5, and 7 under the
+Firefox recipe. The vendored `http2` crate's own tests cover the limit that
+SETTINGS without the setting leave in place, and the upstream behavior that
+lifts it.
+
+How to reproduce: capture with `scripts/capture/cookie_crumbs.py`,
+`scripts/capture/http2_websocket.py`, and `scripts/capture/proxy_route.py`,
+as in the sections that describe them, then run
+`cargo test -p phantom-net --lib http2::tests::hpack_replay` and
+`cargo test -p phantom-net --lib http2::tests::stream_limit`.
+
+Limits:
+
+- Every capture server states a limit of 100 in its first SETTINGS, so no
+  capture shows what a browser does before or without that setting.
+- Phantom does not lower a stated limit above 256 as Chromium does. A peer
+  that states 1,000 gets up to 1,000 concurrent streams from a Chromium
+  profile, where Chrome opens at most 256.
+- The proxy captures show only page requests. Firefox's own background
+  requests, which the browser sends on some of the same proxy connections,
+  take stream numbers that Phantom's requests take instead.
+
 ### Alt-Svc racing evidence
 
 What is claimed: Phantom's opt-in `AltSvcPolicy::race` follows Chrome's
@@ -3444,7 +3522,8 @@ Against the route matrix:
   `crates/phantom/tests/proxies/proxy_h2_multiplex.rs` checks that tunnels to three
   origins arrive as streams 1, 3, and 5 of one proxy connection, that the
   Chromium recipe adds forwarded requests and a `ws://` tunnel to it and the
-  Firefox recipe keeps them on connections of their own, that two sessions
+  Firefox recipe keeps them on connections of their own, each starting at
+  stream 3, that two sessions
   never share one, and that the opt-in
   `max_http2_proxy_connections_per_route` opens a second connection at the
   proxy's stream limit. `crates/phantom-net/src/proxy/tests/http2_pool.rs`
@@ -3714,7 +3793,6 @@ Remaining differences:
   `http2` frame `Debug` output leaves out every field, and Phantom never
   prints the connection whose HPACK table would hold the value, but the
   request fields pass through Phantom's own types first.
-- Phantom's first stream on a new H2 proxy connection is 1; Firefox's is 3.
 - No capture reaches a proxy's stream limit. Phantom queues a CONNECT past
   it on the route's one connection, as both browsers' sources do; the opt-in
   `max_http2_proxy_connections_per_route` opens another connection

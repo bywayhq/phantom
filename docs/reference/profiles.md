@@ -15,7 +15,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
 | `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
 | `with_dns_cache(settings)` | How long the client reuses the addresses it resolves ([details](#address-cache)) |
-| `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, and HPACK encoder choices |
+| `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, HPACK encoder choices, stream numbering, and the stream limit assumed before the peer's SETTINGS |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |

@@ -84,6 +84,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   Edge, Brave, Opera, and Firefox cookie and WebSocket sessions equals the
   recipe's byte for byte
   ([HPACK encoder evidence](explanation/validation.md#hpack-encoder-evidence)).
+- Per-browser HTTP/2 stream numbering and the stream limit before SETTINGS:
+  Firefox 156 starts each connection at stream 3 and Chromium at 1, and both
+  open at most 100 streams until the peer states a limit
+  ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
 
 ### Remaining
 
@@ -138,14 +142,11 @@ anything does.
 
 #### Wire fidelity
 
-- HTTP/2 stream numbering and the stream limit before SETTINGS. Evidence:
-  in the `https-proxy-*`
-  [captures](explanation/validation.md#proxy-route-browser-evidence),
-  Firefox 156 opens the first stream of each HTTP/2 connection as stream 3;
-  Phantom and Chromium use stream 1. Chromium assumes a peer allows 100
-  concurrent streams until its first SETTINGS arrive (source reading); the
-  vendored `http2` crate allows any number until then. Blocker: a vendored
-  `http2` seam for the first stream id and the initial stream limit.
+- Chromium's ceiling on a stated HTTP/2 stream limit. Evidence: source
+  only; `SpdySession` lowers a peer's `SETTINGS_MAX_CONCURRENT_STREAMS`
+  above 256 to 256, and every capture server states 100
+  ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
+  Blocker: a vendored `http2` seam that caps the peer's stated limit.
 - Early data over TCP for the Firefox recipe. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where Firefox 156 offers `early_data` on every resumption whose ticket

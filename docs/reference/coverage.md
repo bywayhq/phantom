@@ -100,7 +100,7 @@ connection is not enough.
 | TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
-| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity | Firefox stream `WINDOW_UPDATE` |
+| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
@@ -251,6 +251,13 @@ Supported:
   block of the retained Chrome, Edge, Brave, Opera, and Firefox cookie and
   WebSocket sessions equals the recipe's byte for byte
   ([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
+- Profile stream numbering and an assumed stream limit: the first request of
+  each connection takes the profile's first stream (1 for Chromium, 3 for
+  Firefox), and until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS` the
+  connection opens at most the profile's assumed number of streams (100 in
+  both recipes). A profile that states neither starts at stream 1 with no
+  limit before the peer's SETTINGS
+  ([HTTP/2 stream numbering evidence](../explanation/validation.md#http2-stream-numbering-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.

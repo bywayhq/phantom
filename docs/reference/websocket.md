@@ -166,8 +166,7 @@ to ordinary requests on it too.
 
 The recipes do not reproduce:
 
-- Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
-  stream 3 of a new connection (Phantom uses stream 1), and the second H2
+- Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, and the second H2
   connection it opens and closes when reusing a session.
 - Chrome's `RST_STREAM(CANCEL)` after a rejection or an unoffered extension.
 - Chrome's variable fragmentation of large uncompressed messages, and its
