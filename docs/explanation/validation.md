@@ -39,7 +39,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
-| [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of seven browsers, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
+| [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of seven browsers on Windows, macOS, and Android, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -2042,17 +2042,22 @@ in place. This holds for direct connections, the pooled HTTP/2 connections to
 a TLS proxy, and WebSocket openings over HTTP/2.
 
 Evidence: the stream of every client HEADERS frame on every HTTP/2
-connection in the retained cookie, WebSocket, and `https-proxy-*` captures.
+connection in the retained cookie, WebSocket, and `https-proxy-*` captures,
+on Windows 11 and, for the WebSocket captures, macOS 15.5.
 
-| Browser | Connections | Requests | First stream | Later streams |
-| --- | --- | --- | --- | --- |
-| Chrome 154 | 134 | 334 | 1 | +2 each |
-| Edge 153 | 159 | 462 | 1 | +2 each |
-| Brave 154 | 45 | 183 | 1 | +2 each |
-| Opera 135 | 101 | 331 | 1 | +2 each |
-| Chrome for Android 153 | 18 | 54 | 1 | +2 each |
-| Brave for Android 153 | 18 | 54 | 1 | +2 each |
-| Firefox 156 | 99 | 246 | 3 | +2 each |
+| Browser | Platform | Connections | Requests | First stream | Later streams |
+| --- | --- | --- | --- | --- | --- |
+| Chrome 154 | Windows | 134 | 334 | 1 | +2 each |
+| Chrome 154 | macOS | 5 | 8 | 1 | +2 each |
+| Edge 153 | Windows | 159 | 462 | 1 | +2 each |
+| Edge 153 | macOS | 4 | 9 | 1 | +2 each |
+| Brave 154 | Windows | 45 | 183 | 1 | +2 each |
+| Opera 135 | Windows | 101 | 331 | 1 | +2 each |
+| Opera 135 | macOS | 3 | 9 | 1 | +2 each |
+| Chrome for Android 153 | Emulator | 18 | 54 | 1 | +2 each |
+| Brave for Android 153 | Emulator | 18 | 54 | 1 | +2 each |
+| Firefox 156 | Windows | 99 | 246 | 3 | +2 each |
+| Firefox 156 | macOS | 3 | 9 | 3 | +2 each |
 
 Firefox source gives the reason. `Http2Session` starts its next stream at 3
 and keeps stream 1 for a connection upgraded from HTTP/1.1. It would first
@@ -2079,7 +2084,9 @@ The sources are Chromium tag `154.0.8037.58` (`net/spdy/spdy_session.h:84`,
 
 `crates/phantom-net/src/http2/tests/hpack_replay.rs` checks the stream of
 each replayed request against the capture along with its HPACK block, for
-the cookie and WebSocket sessions of five browsers.
+the Windows cookie and WebSocket sessions of five browsers. Each recipe's
+session capture test, on Windows and macOS, compares the first stream of the
+captured navigation with the recipe's.
 `crates/phantom-net/src/http2/tests/stream_limit.rs` runs each recipe
 against a loopback peer that holds its SETTINGS back: 100 requests arrive
 before the peer sends anything, numbered from the recipe's first stream, the
@@ -2088,8 +2095,8 @@ states 101. A profile without an assumed limit sends all 101 at once. The
 proxy pool tests check that tunnels to three origins are streams 1, 3, and 5
 of one proxy connection under the Chromium recipe and 3, 5, and 7 under the
 Firefox recipe. The vendored `http2` crate's own tests cover the limit that
-SETTINGS without the setting leave in place, and the upstream behavior that
-lifts it.
+SETTINGS without the setting, wire or seeded through ALPS, leave in place,
+and the upstream behavior that lifts it.
 
 How to reproduce: capture with `scripts/capture/cookie_crumbs.py`,
 `scripts/capture/http2_websocket.py`, and `scripts/capture/proxy_route.py`,
