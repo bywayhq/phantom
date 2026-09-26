@@ -15,15 +15,7 @@ mod ech_support;
 #[path = "support/tls.rs"]
 mod tls_support;
 
-use std::{
-    net::Ipv4Addr,
-    num::NonZeroUsize,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-    time::Duration,
-};
+use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use btls::{
     hpke::HpkeKey,
@@ -42,7 +34,13 @@ use phantom_testkit::{
     dns::DnsServer,
     tls::{ClientHelloSummary, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    sync::{oneshot, watch},
+    task::JoinHandle,
+    time::timeout,
+};
 
 use ech_support::{
     ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor, https_rdata_with_alpn,
@@ -53,7 +51,7 @@ use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
 const H3_ALPN: &[u8] = b"\x02h3";
 /// The QUIC `CRYPTO_ERROR` for the TLS `ech_required` alert (121).
 const ECH_REQUIRED: u64 = 0x179;
-/// Time for a spawned lookup to finish and a closed connection to be seen.
+/// Time for a spawned lookup to finish and cache the record.
 const SETTLE: Duration = Duration::from_millis(200);
 
 /// What the origin saw on one QUIC connection.
@@ -88,7 +86,9 @@ struct QuicOrigin {
     context: SslContext,
     stop: oneshot::Sender<()>,
     task: JoinHandle<TestResult<Vec<Observed>>>,
-    tcp: Option<(Arc<AtomicUsize>, JoinHandle<()>)>,
+    /// How many QUIC connections the origin has recorded so far.
+    recorded: watch::Receiver<usize>,
+    tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
 }
 
 impl QuicOrigin {
@@ -113,7 +113,7 @@ impl QuicOrigin {
             let port = endpoint.local_addr()?.port();
             match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
                 Ok(listener) => {
-                    let served = Arc::new(AtomicUsize::new(0));
+                    let served = Arc::new(watch::Sender::new(0));
                     let tcp = tokio::spawn(serve_tcp(listener, acceptor, Arc::clone(&served)));
                     return Ok(Self::start(endpoint, context, Some((served, tcp))));
                 }
@@ -140,10 +140,11 @@ impl QuicOrigin {
     fn start(
         endpoint: quinn::Endpoint,
         context: SslContext,
-        tcp: Option<(Arc<AtomicUsize>, JoinHandle<()>)>,
+        tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
     ) -> Self {
         let port = endpoint.local_addr().map_or(0, |address| address.port());
         let (stop, mut stopped) = oneshot::channel();
+        let (count, recorded) = watch::channel(0);
         let task = tokio::spawn(async move {
             let mut observed = Vec::new();
             let mut serving = Vec::new();
@@ -154,6 +155,7 @@ impl QuicOrigin {
                 };
                 let (seen, connection) = observe(incoming).await?;
                 observed.push(seen);
+                count.send_replace(observed.len());
                 if let Some(connection) = connection {
                     serving.push(tokio::spawn(serve_one(connection)));
                 }
@@ -168,6 +170,7 @@ impl QuicOrigin {
             context,
             stop,
             task,
+            recorded,
             tcp,
         }
     }
@@ -182,15 +185,29 @@ impl QuicOrigin {
         format!("https://{ORIGIN_NAME}:{}{path}", self.port)
     }
 
-    /// Returns what each QUIC connection showed and how many TCP
-    /// connections were served a response.
-    async fn finish(self) -> TestResult<(Vec<Observed>, usize)> {
+    /// Waits until the origin has recorded `quic` QUIC connections and
+    /// served `tcp` TCP ones, then returns what each QUIC connection showed
+    /// and how many TCP connections were served. A connection that arrives
+    /// after those counts are reached is still recorded when it was accepted
+    /// first.
+    async fn finish(mut self, quic: usize, tcp: usize) -> TestResult<(Vec<Observed>, usize)> {
+        timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
+            .await
+            .map_err(|_| format!("the origin saw fewer than {quic} QUIC connections"))??;
+        if let Some((served, _)) = &self.tcp {
+            timeout(
+                TEST_TIMEOUT,
+                served.subscribe().wait_for(|count| *count >= tcp),
+            )
+            .await
+            .map_err(|_| format!("the origin served fewer than {tcp} TCP connections"))??;
+        }
         let _ = self.stop.send(());
         let observed = self.task.await??;
         let served = match self.tcp {
             Some((served, task)) => {
                 task.abort();
-                served.load(Ordering::SeqCst)
+                *served.borrow()
             }
             None => 0,
         };
@@ -201,7 +218,11 @@ impl QuicOrigin {
 /// Serves `HTTP/1.1 200` on each TCP connection whose handshake completes
 /// with ECH accepted or without ECH, and counts them. A connection rejected
 /// under the public name is aborted by the client, which retries.
-async fn serve_tcp(listener: TcpListener, acceptor: SslAcceptor, served: Arc<AtomicUsize>) {
+async fn serve_tcp(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    served: Arc<watch::Sender<usize>>,
+) {
     while let Ok((tcp, _)) = listener.accept().await {
         let acceptor = acceptor.clone();
         let served = Arc::clone(&served);
@@ -217,7 +238,7 @@ async fn serve_tcp(listener: TcpListener, acceptor: SslAcceptor, served: Arc<Ato
             }
             let response = b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok";
             if tls.write_all(response).await.is_ok() {
-                served.fetch_add(1, Ordering::SeqCst);
+                served.send_modify(|count| *count += 1);
                 let _ = tls.shutdown().await;
             }
         });
@@ -377,7 +398,7 @@ async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
             tokio::time::sleep(SETTLE).await;
         }
 
-        let (observed, _) = origin.finish().await?;
+        let (observed, _) = origin.finish(2, 0).await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         Ok(())
@@ -399,7 +420,7 @@ async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
         tokio::time::sleep(SETTLE).await;
         get(&client, None, &origin.url("/second")).await?;
 
-        let (observed, _) = origin.finish().await?;
+        let (observed, _) = origin.finish(2, 0).await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         assert_eq!(dns.queries().len(), 1);
@@ -430,9 +451,8 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
             .err()
             .ok_or("a rejected ECH offer connected")?;
         assert_eq!(second.kind(), RequestErrorKind::Tls);
-        tokio::time::sleep(SETTLE).await;
 
-        let (observed, _) = origin.finish().await?;
+        let (observed, _) = origin.finish(2, 0).await?;
         let rejected = observed
             .iter()
             .filter(|seen| seen.closed_with == Some(ECH_REQUIRED))
@@ -461,9 +481,8 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
         let client = client(&identity, &dns, profile(false))?;
 
         get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await?;
-        tokio::time::sleep(SETTLE).await;
 
-        let (observed, _) = origin.finish().await?;
+        let (observed, _) = origin.finish(1, 0).await?;
         assert_eq!(observed.len(), 1);
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
@@ -498,9 +517,8 @@ async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> 
             .err()
             .ok_or("a rejected ECH offer connected")?;
         assert_eq!(error.kind(), RequestErrorKind::Tls);
-        tokio::time::sleep(SETTLE).await;
 
-        let (observed, _) = origin.finish().await?;
+        let (observed, _) = origin.finish(3, 0).await?;
         assert_eq!(observed.len(), 3, "{observed:?}");
         assert_accepted(&observed[1]);
         assert!(observed[1].session_resumed, "{observed:?}");
@@ -541,11 +559,52 @@ async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestRe
             tokio::time::sleep(SETTLE).await;
         }
 
-        let (observed, tcp_served) = origin.finish().await?;
+        let (observed, tcp_served) = origin.finish(1, 3).await?;
         assert_eq!(observed.len(), 1, "{observed:?}");
         assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
         assert_eq!(tcp_served, 3);
+        Ok(())
+    })
+    .await
+}
+
+/// Under the default sequential policy, a negotiated request whose
+/// HTTPS-record alternative is rejected fails, since the alternative's setup
+/// failure ends the request; the alternative is marked broken, so the next
+/// request is served over TCP without another QUIC connection.
+#[tokio::test]
+async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let dns = published_record().await?;
+        // The origin holds configuration 2; the record publishes 1.
+        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
+        let client = client(&identity, &dns, profile(true))?;
+
+        // An exact HTTP/1.1 request caches the record without touching QUIC.
+        get_as(
+            &client,
+            Some(HttpProtocol::Http1),
+            &origin.url("/warm"),
+            HttpProtocol::Http1,
+        )
+        .await?;
+        tokio::time::sleep(SETTLE).await;
+        let error = client
+            .get_negotiated(&origin.url("/rejected"))?
+            .send()
+            .await
+            .err()
+            .ok_or("a rejected ECH offer connected")?;
+        assert_eq!(error.kind(), RequestErrorKind::Tls);
+        get_as(&client, None, &origin.url("/after"), HttpProtocol::Http1).await?;
+
+        let (observed, tcp_served) = origin.finish(1, 2).await?;
+        assert_eq!(observed.len(), 1, "{observed:?}");
+        assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
+        assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+        assert_eq!(tcp_served, 2);
         Ok(())
     })
     .await
