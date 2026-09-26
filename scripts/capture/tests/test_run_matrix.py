@@ -9,8 +9,10 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.capture.browser_launch import FIREFOX_START_LIMIT_SECONDS
+from scripts.capture.process_container import ProcessContainer
 from scripts.capture.run_matrix import (
     LOCK_DIRECTORY,
     TOOLS,
@@ -394,11 +396,17 @@ def job(name: str, *, exclusive: bool = False, estimate: int = 1) -> Job:
 
 
 class ConcurrencyProbe:
-    """Record how many fake jobs run at once, and which ran beside which."""
+    """Record how many fake jobs run at once, and which ran beside which.
 
-    def __init__(self, seconds: float = 0.05) -> None:
+    Each job waits until `together` jobs have run at once, or 30 seconds pass,
+    so an overlap the scheduler allows does not depend on how quickly a busy
+    host starts threads.
+    """
+
+    def __init__(self, seconds: float = 0.05, together: int = 1) -> None:
         self.seconds = seconds
-        self.lock = threading.Lock()
+        self.together = together
+        self.lock = threading.Condition()
         self.running: set[str] = set()
         self.peak = 0
         self.overlaps: dict[str, set[str]] = {}
@@ -412,6 +420,8 @@ class ConcurrencyProbe:
                 self.overlaps.setdefault(other, set()).add(item.id)
             self.running.add(item.id)
             self.peak = max(self.peak, len(self.running))
+            self.lock.notify_all()
+            self.lock.wait_for(lambda: self.peak >= self.together, timeout=30)
         time.sleep(self.seconds)
         with self.lock:
             self.running.discard(item.id)
@@ -420,7 +430,7 @@ class ConcurrencyProbe:
 
 class ScheduleTests(unittest.TestCase):
     def test_no_more_than_the_limit_run_at_once(self) -> None:
-        probe = ConcurrencyProbe()
+        probe = ConcurrencyProbe(together=3)
         jobs = [job(f"j{index}") for index in range(10)]
 
         results = schedule(jobs, probe.run, limit=3)
@@ -429,7 +439,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([result.job.id for result in results], [j.id for j in jobs])
 
     def test_exclusive_jobs_run_alone(self) -> None:
-        probe = ConcurrencyProbe()
+        probe = ConcurrencyProbe(together=2)
         jobs = [
             job("a"),
             job("b"),
@@ -683,12 +693,50 @@ def process_alive(pid: int) -> bool:
     return True
 
 
-def wait_for_file(path: Path, seconds: float = 30) -> None:
+def wait_for_file(path: Path, seconds: float = 60) -> None:
     deadline = time.monotonic() + seconds
     while not path.exists():
         if time.monotonic() > deadline:
             raise AssertionError(f"{path} never appeared")
         time.sleep(0.05)
+
+
+def ended_within(pid: int, seconds: float = 30) -> bool:
+    """Whether `pid` ends within `seconds`.
+
+    A kill returns before the process is gone: Windows terminates a job's
+    processes asynchronously, and a killed POSIX process lingers until reaped.
+    """
+    deadline = time.monotonic() + seconds
+    while process_alive(pid):
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+def container_awaiting(path: Path, seconds: float = 60) -> type[ProcessContainer]:
+    """A container that starts the attempt's timeout once `path` exists.
+
+    The tool joins the container first, as in a real attempt. A busy host can
+    take longer than a short job timeout to start the fake tool's interpreter
+    and its child, and a timeout before then would prove nothing about the
+    child. The wait ends early if the tool exits, and never raises, so the
+    runner still ends the attempt.
+    """
+
+    class Awaiting(ProcessContainer):
+        def __init__(self, process) -> None:
+            super().__init__(process)
+            deadline = time.monotonic() + seconds
+            while (
+                not path.exists()
+                and process.poll() is None
+                and time.monotonic() < deadline
+            ):
+                time.sleep(0.05)
+
+    return Awaiting
 
 
 class SubprocessTests(unittest.TestCase):
@@ -755,16 +803,20 @@ class SubprocessTests(unittest.TestCase):
         self.assertRegex(result.attempts[0].detail, "a run timed out")
 
     def test_a_hung_tool_is_stopped_at_the_job_timeout(self) -> None:
+        capture = fake_capture(scenarios=["hang"], timeout=1)
+        (item,) = expand_manifest(manifest(capture), base=self.root, tools=FAKE_TOOLS)
+        pid_file = item.output_dir / "grandchild.pid"
         begin = time.perf_counter()
-        (result,), _wall = self.run_jobs(
-            fake_capture(scenarios=["hang"], timeout=1), retries=0
-        )
+        with mock.patch(
+            "scripts.capture.run_matrix.ProcessContainer", container_awaiting(pid_file)
+        ):
+            (result,), _wall = self.run_jobs(capture, retries=0)
 
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.attempts[0].detail, "timed out after 1s")
-        self.assertLess(time.perf_counter() - begin, 60)
-        pid = int((result.job.output_dir / "grandchild.pid").read_text())
-        self.assertFalse(process_alive(pid))
+        self.assertLess(time.perf_counter() - begin, 120)
+        pid = int(pid_file.read_text())
+        self.assertTrue(ended_within(pid), f"grandchild {pid} outlived the timeout")
 
     def test_a_stop_ends_running_attempts_and_starts_nothing_more(self) -> None:
         jobs = expand_manifest(
@@ -800,7 +852,7 @@ class SubprocessTests(unittest.TestCase):
         self.assertEqual(hung.status, "stopped")
         self.assertEqual([a.detail for a in hung.attempts], ["stopped"])
         self.assertEqual(later.status, "not-run")
-        self.assertFalse(process_alive(pid))
+        self.assertTrue(ended_within(pid), f"grandchild {pid} outlived the stop")
 
     def test_summary_and_results_count_each_outcome(self) -> None:
         results, wall = self.run_jobs(

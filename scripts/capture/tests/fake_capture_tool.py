@@ -47,7 +47,10 @@ def main() -> int:
     time.sleep(args.sleep)
     if args.scenario == "hang":
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
-        (args.output_dir / "grandchild.pid").write_text(str(child.pid))
+        # Renamed into place, so a reader never sees the file empty.
+        partial = args.output_dir / "grandchild.pid.partial"
+        partial.write_text(str(child.pid))
+        os.replace(partial, args.output_dir / "grandchild.pid")
         time.sleep(600)
     if args.scenario == "fail":
         return 1
