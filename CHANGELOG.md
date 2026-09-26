@@ -898,6 +898,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Dropping an HTTP/2 tunnel after its connection closed no longer queues a
   `RST_STREAM` that nothing writes, which left the stream in the vendored
   `http2` store and failed its debug assertion in debug builds.
+- HTTP/2 sends a field marked sensitive as a never-indexed literal even when
+  a static entry, or an entry inserted before the field was marked, matches
+  it. It was sent as that entry's index, under any profile.
 - HTTP/2 bounds empty and small DATA frames (RUSTSEC-2026-0258). (`03ef6de`)
 - HTTP/2 and HTTP/3 keep sending the request body after an early response
   head instead of truncating it. (`8fcc374`, `f7ae758`)

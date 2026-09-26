@@ -1399,9 +1399,11 @@ Limits:
   the proxy route captures record them from a server built the same way.
   Only the 4,096-byte table size reaches the encoder, and Firefox's first
   block in each cookie run announces exactly that size.
-- A field you mark sensitive is always a never-indexed literal, although
-  Chromium has no such form. Phantom marks the cookie jar's field (split
-  into crumbs under both recipes) and `proxy-authorization`
+- A field you mark sensitive is always a never-indexed literal, even when a
+  table entry matches it, although Chromium has no such form. A `cookie`
+  field sent as crumbs is the exception: the crumb rule decides. Phantom
+  marks the cookie jar's field (split into crumbs under both recipes) and
+  `proxy-authorization`
   ([Proxy authentication evidence](#proxy-authentication-evidence)).
 - When a browser applies the server's SETTINGS depends on timing; Phantom
   applies them as soon as they arrive, so a Firefox profile announces the

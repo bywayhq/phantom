@@ -148,7 +148,8 @@ pub enum Http2CookieCrumbs {
 ///
 /// `:path`, and a `cookie` field sent whole, never enter the table under any
 /// rule; this setting decides the other ordinary fields. A field marked
-/// sensitive is always a never-indexed literal.
+/// sensitive is always a never-indexed literal, even when a table entry
+/// matches it, except a `cookie` field sent as crumbs, whose rule decides.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http2FieldIndexing {
