@@ -766,7 +766,10 @@ Limits:
   the device cannot be given a DNS-over-HTTPS resolver as the desktop capture
   was, so `ech_from_https_records` is off.
 - No proxy, SSE, or Alt-Svc racing capture exists for Android, so there is no
-  `chrome_android` proxy CONNECT or cookie-placement recipe.
+  `chrome_android` proxy CONNECT or cookie-placement recipe. No Android
+  capture carries a cookie either: the H2 and H3 recipes split `cookie` into
+  crumbs as the desktop cookie captures show, which no Android capture
+  checks.
 - One build, served by a staged rollout, which trails the stable version
   Google lists.
 

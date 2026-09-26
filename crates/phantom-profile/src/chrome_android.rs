@@ -171,7 +171,9 @@ pub fn v153_tls() -> TlsSettings {
 /// The initial SETTINGS, their order, the connection WINDOW_UPDATE, the
 /// request pseudo-header order, the navigation and extended CONNECT HEADERS
 /// priorities, and the HPACK choices of the retained Android captures equal
-/// [`chromium::v154_http2`], so this returns that recipe.
+/// [`chromium::v154_http2`], so this returns that recipe. Its `cookie`
+/// crumb rule comes from the desktop cookie captures; no Android capture
+/// carries a cookie.
 #[must_use]
 pub fn v153_http2() -> Http2Settings {
     chromium::v154_http2()
@@ -208,7 +210,9 @@ pub fn v153_quic() -> QuicTransportSettings {
 /// Returns HTTP/3 settings observed from Chrome 153.0.8010.52 for Android.
 ///
 /// The five SETTINGS, their order and widths, and the QPACK stream prefixes
-/// of the retained Android capture equal [`chromium::v154_http3`].
+/// of the retained Android capture equal [`chromium::v154_http3`]. Its
+/// `cookie` crumb rule comes from the desktop cookie captures; no Android
+/// capture carries a cookie.
 #[must_use]
 pub fn v153_http3() -> Http3Settings {
     chromium::v154_http3()
