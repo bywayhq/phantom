@@ -6,18 +6,18 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls_support::{TestResult, accept_tls, read_head};
+use super::tls::{TestResult, accept_tls, read_head};
 
-pub(super) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
+pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Eq, PartialEq)]
-pub(super) struct ClientFrame {
-    pub(super) rsv1: bool,
-    pub(super) opcode: u8,
-    pub(super) payload: Vec<u8>,
+pub(crate) struct ClientFrame {
+    pub(crate) rsv1: bool,
+    pub(crate) opcode: u8,
+    pub(crate) payload: Vec<u8>,
 }
 
-pub(super) async fn read_client_frame(
+pub(crate) async fn read_client_frame(
     stream: &mut (impl AsyncRead + Unpin),
 ) -> io::Result<ClientFrame> {
     let mut head = [0_u8; 2];
@@ -54,7 +54,7 @@ pub(super) async fn read_client_frame(
     })
 }
 
-pub(super) fn append_server_frame(
+pub(crate) fn append_server_frame(
     output: &mut Vec<u8>,
     final_frame: bool,
     opcode: u8,
@@ -63,7 +63,7 @@ pub(super) fn append_server_frame(
     append_server_frame_with_rsv1(output, final_frame, false, opcode, payload);
 }
 
-pub(super) fn append_server_frame_with_rsv1(
+pub(crate) fn append_server_frame_with_rsv1(
     output: &mut Vec<u8>,
     final_frame: bool,
     rsv1: bool,
@@ -83,7 +83,7 @@ pub(super) fn append_server_frame_with_rsv1(
     output.extend_from_slice(payload);
 }
 
-pub(super) async fn append_and_write_server_frame(
+pub(crate) async fn append_and_write_server_frame(
     stream: &mut (impl AsyncWrite + Unpin),
     final_frame: bool,
     opcode: u8,
@@ -95,7 +95,7 @@ pub(super) async fn append_and_write_server_frame(
     stream.flush().await
 }
 
-pub(super) fn header_value<'a>(head: &'a [u8], name: &str) -> Option<&'a str> {
+pub(crate) fn header_value<'a>(head: &'a [u8], name: &str) -> Option<&'a str> {
     let text = std::str::from_utf8(head).ok()?;
     text.split("\r\n").skip(1).find_map(|line| {
         let (candidate, value) = line.split_once(':')?;
@@ -103,14 +103,14 @@ pub(super) fn header_value<'a>(head: &'a [u8], name: &str) -> Option<&'a str> {
     })
 }
 
-pub(super) fn websocket_accept(key: &str) -> String {
+pub(crate) fn websocket_accept(key: &str) -> String {
     let mut input = Vec::with_capacity(key.len() + 36);
     input.extend_from_slice(key.as_bytes());
     input.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
     btls::base64::encode_block(&btls::sha::sha1(&input))
 }
 
-pub(super) async fn forward_one_connect(
+pub(crate) async fn forward_one_connect(
     listener: TcpListener,
     origin: std::net::SocketAddr,
 ) -> TestResult<Vec<u8>> {
@@ -125,7 +125,7 @@ pub(super) async fn forward_one_connect(
     Ok(request)
 }
 
-pub(super) async fn forward_one_https_connect(
+pub(crate) async fn forward_one_https_connect(
     listener: TcpListener,
     acceptor: btls::ssl::SslAcceptor,
     origin: std::net::SocketAddr,
@@ -149,7 +149,7 @@ pub(super) async fn forward_one_https_connect(
     Ok(request)
 }
 
-pub(super) async fn bounded<F>(future: F) -> TestResult<()>
+pub(crate) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {

@@ -8,7 +8,7 @@ use phantom::profile::{
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
-use crate::tls_support::{TestIdentity, TestResult};
+use crate::support::tls::{TestIdentity, TestResult};
 
 pub(crate) fn client_settings() -> Http3ClientSettings {
     Http3ClientSettings::new(

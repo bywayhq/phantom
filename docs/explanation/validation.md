@@ -596,9 +596,10 @@ Tests: the `brave_154_*` and `opera_135_*` tests in `phantom-profile` and
 these fixtures. TLS and QUIC ClientHellos go through the public TLS and H3
 connector paths, H2 startup frames through the public H2 path, and Brave's
 ECH outer ClientHello through the ECH connector. Request templates are sent
-by the `phantom` client in `crates/phantom/tests/request_templates.rs`,
-`plaintext_templates.rs`, `proxy_field_order.rs`, and `proxy_h2.rs`, and
-compared with the captured requests.
+by the `phantom` client in the `requests` test binary's
+`request_templates.rs` and `plaintext_templates.rs` and the `proxies`
+binary's `proxy_field_order.rs` and `proxy_h2.rs`, all under
+`crates/phantom/tests/`, and compared with the captured requests.
 `brave_154_accept_language_is_one_drawn_value_per_session` checks the
 `Accept-Language` observations above on all 87 runs.
 
@@ -1089,7 +1090,7 @@ that selected HTTP/2, 500 at most, keyed by origin and route. Differences:
   (`net/http/http_stream_factory_job.cc:1337-1342`). Phantom lets every
   handshake it started finish, then closes a second HTTP/2 connection.
 
-Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
+Loopback tests in `crates/phantom/tests/sessions/session_http1_parallel.rs`:
 
 | Test | What it proves |
 | --- | --- |
@@ -1101,7 +1102,7 @@ Loopback tests in `crates/phantom/tests/session_http1_parallel.rs`:
 | `requests_cancelled_during_connection_setup_leave_the_full_bound` | Requests dropped while their connection is being set up do not use up the bound |
 | `custom_profile_carries_its_own_http1_bound` | A custom `Http1Settings` bound reaches the client |
 
-Loopback tests in `crates/phantom/tests/negotiated_parallel.rs`:
+Loopback tests in `crates/phantom/tests/sessions/negotiated_parallel.rs`:
 
 | Test | What it proves |
 | --- | --- |
@@ -1282,7 +1283,7 @@ Tests:
 - `templates_send_the_captured_plaintext_named_origin_fields` in
   `phantom-profile` compares each template's HTTP/1.1 and HTTP/2 lists, for
   both kinds of URL, with the captured field names and codings.
-- `crates/phantom/tests/plaintext_templates.rs` sends each built-in template
+- `crates/phantom/tests/requests/plaintext_templates.rs` sends each built-in template
   to `http://127.0.0.1` directly and to `http://origin.phantom.test` through a
   loopback forward proxy, and compares every received field and value with
   the captured request. It also checks that `Accept-CH` is learned from the
@@ -1295,7 +1296,7 @@ Tests:
   `phantom-profile` reads every `ws://` Upgrade in `fixtures/proxy/`, 18 per
   browser, and compares it with the recipe's HTTP/1.1 template for that
   origin's trust, value for value.
-- `crates/phantom/tests/websocket_trust.rs` opens each built-in WebSocket
+- `crates/phantom/tests/streams/websocket_trust.rs` opens each built-in WebSocket
   recipe, through `Client::websocket` and through
   `Client::websocket_with_profile_policy`, to `ws://127.0.0.1` directly and
   to `ws://origin.phantom.test` through a loopback CONNECT proxy. It supplies
@@ -1306,8 +1307,10 @@ Tests:
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario all --repeat 3`, then
-`cargo test -p phantom-http --all-features --test plaintext_templates
---test websocket_trust` and
+`cargo test -p phantom-http --all-features --test requests
+plaintext_templates::` and
+`cargo test -p phantom-http --all-features --test streams websocket_trust::`
+and
 `cargo test -p phantom-profile plaintext_named_origin` and
 `cargo test -p phantom-profile origin_trust`.
 
@@ -1432,7 +1435,7 @@ services, because release builds ignore those services' test-only switches.
 That traffic used separate remote connections and never reached the loopback
 listener.
 
-`crates/phantom/tests/sse_browser_reconnect.rs` reads the retained fixtures
+`crates/phantom/tests/streams/sse_browser_reconnect.rs` reads the retained fixtures
 and replays the same server stimuli against Phantom with a paused clock. It
 asserts that Phantom matches both browsers on `Last-Event-ID` spelling and raw
 value, and omission of an empty id; retry persistence, and ignoring a
@@ -1483,7 +1486,7 @@ The HTTP/2 rules match browser source: quiche
 Firefox's `Http2Compressor::EncodeHeaderBlock`, which never indexes a crumb
 shorter than 20 bytes. `vendor/http2/PHANTOM.md` cites both.
 
-`crates/phantom/tests/cookie_crumbs.rs` replays run 0 of each HTTP/2 capture
+`crates/phantom/tests/requests/cookie_crumbs.rs` replays run 0 of each HTTP/2 capture
 through a client with a cookie jar and the browser's HTTP/2 and cookie
 placement recipes: the loopback origin sets the probes on `/start`, and the
 client sends the captured fields of each later request without `cookie`. For
@@ -1498,7 +1501,7 @@ all three runs byte for byte.
 captured requests of each Chromium HTTP/3 capture with a caller `cookie`
 field and compares the encoder stream and each field section with the
 capture byte for byte. `extended_connect_sends_one_cookie_field_per_jar_cookie`
-in `crates/phantom/tests/websocket_profile.rs` checks that the jar's field is
+in `crates/phantom/tests/streams/websocket_profile.rs` checks that the jar's field is
 split on an HTTP/2 WebSocket opening too; no capture shows a browser's
 WebSocket opening with cookies.
 
@@ -1586,7 +1589,7 @@ Further observations:
   refused stream.
 - Firefox 156.0 is the build the machine had updated to.
 
-`crates/phantom/tests/websocket_profile.rs` drives
+`crates/phantom/tests/streams/websocket_profile.rs` drives
 `Client::websocket_with_profile_policy` against a loopback origin and
 compares what the origin observes with these captures. It compares every
 emitted CONNECT pseudo-field with the capture's HPACK `repr`, static
@@ -1793,7 +1796,7 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
   on the current network (`net/quic/quic_session_pool.cc` lines 2388-2392);
   a Phantom client resumes only after a connection that worked.
   `a_raced_alternative_sends_a_replay_safe_request_as_early_data`, in
-  `crates/phantom/tests/http3_early_data.rs`, races a resumed alternative
+  `crates/phantom/tests/http3/http3_early_data.rs`, races a resumed alternative
   whose server datagrams are held, and the `GET` reaches it; the store test
   `early_data_waits_until_quic_to_the_origin_connects_again` covers the
   recently broken rule.
@@ -1814,7 +1817,7 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
   for a session that carried no request (`net/quic/quic_session_pool.cc`
   lines 2714-2716).
   `a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origin`,
-  in `crates/phantom/tests/http3_early_data.rs`, shows the retried race
+  in `crates/phantom/tests/http3/http3_early_data.rs`, shows the retried race
   offering no early data, its alternative failing again, the origin carrying
   the request, and the next request going to the origin with no further QUIC
   attempt.
@@ -1828,7 +1831,7 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 | Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of both candidates, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores) |
 | Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear` |
 | Unit tests with a paused clock: H3 connect turns | One location waits only for its own turn |
-| Loopback, `crates/phantom/tests/alt_svc_race.rs`, real client pools | The default sequential terminal failure; one dispatch per request, with background pooling of the losing alternative; a one-shot streaming body sent only by the winner; route preservation |
+| Loopback, `crates/phantom/tests/http3/alt_svc_race.rs`, real client pools | The default sequential terminal failure; one dispatch per request, with background pooling of the losing alternative; a one-shot streaming body sent only by the winner; route preservation |
 | Same file: blackholed alternative | Under a short connect timeout it loses after the origin delay. With default timeouts it stops at the 4 s limit, is marked broken, and is not raced again, while a second race queued behind it never opens a QUIC connection |
 | Same file: other candidates | Exact H3 to the origin does not wait for a background alternative setup; an available H2 connection skips a 5 s origin delay |
 | Same file: admission | With one H3 admission per origin, the alternative's permit is released after a win, after cancellation, and at the 4 s limit of a background setup, while a race still waiting for admission gives its place back |
@@ -1941,7 +1944,7 @@ for the origin's own host and port sends a later negotiated request over H3
 to the origin, without an `Alt-Used` field and without delaying any request
 whose profile leaves `ech_from_https_records` unset.
 
-Evidence: `crates/phantom/tests/https_records.rs` runs a loopback DNS server
+Evidence: `crates/phantom/tests/http3/https_records.rs` runs a loopback DNS server
 from `phantom-testkit` beside a loopback H2 origin and H3 endpoint on the
 same port. It proves that a sequential client sends the first request to the
 origin and a later one over H3 without `Alt-Used`; that a lookup delayed by
@@ -2078,12 +2081,12 @@ server's certificate does not cover the public name; that a second
 rejection fails with `EchFailure::Rejected`; that a list which does not parse
 fails with `EchFailure::InvalidConfigList` before any TLS byte; and that a
 lookup still running after the bounded wait is abandoned.
-`crates/phantom/tests/https_record_ech.rs` proves the same through the client
+`crates/phantom/tests/http3/https_record_ech.rs` proves the same through the client
 facade with a loopback DNS server, that a profile without the field keeps
 GREASE, and that a request through an HTTP proxy sends no HTTPS query and no
 ECH.
 
-`crates/phantom/tests/https_record_ech_exact.rs` covers exact HTTP/1.1 and
+`crates/phantom/tests/http3/https_record_ech_exact.rs` covers exact HTTP/1.1 and
 HTTP/2 requests and WebSocket openings over an HTTP/1.1 Upgrade and over
 HTTP/2 extended CONNECT, through the facade:
 
@@ -2175,7 +2178,7 @@ rule that HTTPS record discovery never delays a request.
   the same pool path. All of them join the origin's one shared lookup,
   so the waits overlap rather than add up, and once the lookup is cached no
   connection waits.
-  `crates/phantom/tests/https_record_ech.rs` proves three parallel
+  `crates/phantom/tests/http3/https_record_ech.rs` proves three parallel
   connections each have ECH accepted, and
   `crates/phantom-net/src/http1_or_2/tests/ech.rs` proves the no-wait rule on
   a cached address and the wait after a slow resolution.
@@ -2307,7 +2310,7 @@ ends within the bounded wait is used while one past it leaves GREASE.
 `crates/phantom-quic-btls/src/backend/server/tests.rs` proves the TLS layer:
 the origin receives the inner name, a rejection reports the server's retry
 configurations or none, and a rejection by a certificate without the public
-name fails verification instead. `crates/phantom/tests/https_record_ech_http3.rs`
+name fails verification instead. `crates/phantom/tests/http3/https_record_ech_http3.rs`
 proves through the client facade that an exact HTTP/3 request and the
 HTTP/3 alternative of an HTTPS record have their ECH accepted once the
 record is cached, that a rejection fails the request without a second QUIC
@@ -2568,7 +2571,7 @@ Replay against Phantom:
   the parameter's position with the permutation, and omits it when there is
   nothing to send.
 - `resumed_connection_sends_get_early_and_holds_post`, in
-  `crates/phantom/tests/http3_early_data.rs`, uses the Chrome 154 recipes,
+  `crates/phantom/tests/http3/http3_early_data.rs`, uses the Chrome 154 recipes,
   with their dynamic QPACK policy and no early-data setting from the caller.
   A relay holds every server datagram, so no handshake can complete and the
   server's SETTINGS never reach the client: a resumed connection's `GET`
@@ -2905,7 +2908,7 @@ suppression of cookies from the challenge response, while cookies from the
 final origin response are kept.
 
 The HTTP/2 proxy transport has separate CONNECT regressions for H1 and H2
-origins in `crates/phantom/tests/proxy_h2.rs`. The same file forwards an
+origins in `crates/phantom/tests/proxies/proxy_h2.rs`. The same file forwards an
 exact H2 and a negotiated `http://` request over one HTTP/2 proxy
 connection, and asserts `:scheme` `http`, the origin in `:authority`, the
 fields, and an H2 `ResponseInfo::protocol`; it rejects exact H1 before
@@ -2914,7 +2917,7 @@ same proxy connection. H3 over SOCKS5 has its own
 [evidence](#h3-socks5-udp-evidence).
 
 Negotiated requests through plaintext, TLS, and HTTP/2 proxy transports have
-regressions in `crates/phantom/tests/negotiated_proxy.rs`. They cover `h2`
+regressions in `crates/phantom/tests/proxies/negotiated_proxy.rs`. They cover `h2`
 and `http/1.1` selection inside the tunnel, the same CONNECT fields and Basic
 retry as an exact request, a refused CONNECT that fails as an exact request
 does, an Alt-Svc advertisement on the tunnel that is not stored, refusal on a
@@ -2922,14 +2925,14 @@ CONNECT-UDP route, pool isolation between routes, and a failed origin
 handshake that is not retried.
 
 Negotiated `http://` requests have regressions in
-`crates/phantom/tests/negotiated.rs`, `socks5.rs`, `alt_svc_persistence.rs`,
-and `redirects.rs`. They prove that the request reaches the origin as a
+`crates/phantom/tests/sessions/negotiated.rs`, `proxies/socks5.rs`,
+`http3/alt_svc_persistence.rs`, and `requests/redirects.rs`. They prove that the request reaches the origin as a
 cleartext HTTP/1.1 head directly, in absolute form through a forward proxy,
 and inside a SOCKS5 tunnel; that the response reports H1; that an `h3`
 advertisement on it is not stored; and that a negotiated redirect to an
 `http://` target is followed over H1.
 
-WebSocket route regressions in `crates/phantom/tests/websocket/routing.rs`
+WebSocket route regressions in `crates/phantom/tests/streams/websocket/routing.rs`
 tunnel a plaintext `ws://` Upgrade through plaintext and TLS-encrypted HTTP
 proxies. They assert the exact CONNECT head, then an origin-form opening
 inside the tunnel with the caller-selected field order and no origin TLS,
@@ -2953,7 +2956,7 @@ Upgrade with no origin TLS, and delivery of a WebSocket frame coalesced with
 the `101` response.
 
 Plaintext `http://` requests over SOCKS5 have regressions in
-`crates/phantom/tests/socks5.rs`, `socks5_local.rs`, and `socks5/auth.rs`.
+`crates/phantom/tests/proxies/socks5.rs`, `socks5_local.rs`, and `socks5/auth.rs`.
 They prove that remote DNS sends the origin name in the SOCKS5 CONNECT, that
 local DNS sends a resolved IP, that RFC 1929 authentication completes before
 the CONNECT, and that the origin receives an origin-form HTTP/1.1 request
@@ -3061,7 +3064,7 @@ Against the route matrix:
   `Connection: keep-alive`, and Firefox's send their direct fields.
   `built_in_templates_send_the_captured_named_plaintext_fields` and
   `built_in_templates_forward_the_captured_loopback_plaintext_fields` in
-  `crates/phantom/tests/plaintext_templates.rs` compare every forwarded field
+  `crates/phantom/tests/requests/plaintext_templates.rs` compare every forwarded field
   and value with the `http-proxy-hostname` and `http-proxy-loopback`
   requests, and
   `chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded`
@@ -3069,7 +3072,7 @@ Against the route matrix:
 - `ws://` H1 through an H1 proxy: Phantom tunnels with CONNECT and sends
   the direct Upgrade inside, as every captured browser does.
   `plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening`
-  in `crates/phantom/tests/websocket_profile.rs` sends the Chromium and
+  in `crates/phantom/tests/streams/websocket_profile.rs` sends the Chromium and
   Firefox recipes' openings through a loopback CONNECT proxy and compares the
   field order with the `http-proxy-loopback` captures.
 - CONNECT fields: a profile with `chromium::v154_proxy_connect` or
@@ -3082,7 +3085,7 @@ Against the route matrix:
   challenge; every browser sends the same fields as for `ws://`.
   `connect_requests_send_the_captured_fields` and
   `wss_connect_sends_the_captured_fields` in
-  `crates/phantom/tests/proxy_field_order.rs` compare Phantom's anonymous,
+  `crates/phantom/tests/proxies/proxy_field_order.rs` compare Phantom's anonymous,
   challenged, replayed, and remembered-credential HTTP/1.1 CONNECT for
   `https://` and `wss://` with those captures;
   `h2_connect_sends_the_captured_profile_fields` and
@@ -3094,7 +3097,7 @@ Against the route matrix:
 - `http://` through an H2 proxy: Phantom forwards exact H2 and negotiated
   requests over H2 with `:scheme` `http`, as every captured browser does.
   `chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order` and
-  its Firefox counterpart in `crates/phantom/tests/proxy_h2.rs` decode the
+  its Firefox counterpart in `crates/phantom/tests/proxies/proxy_h2.rs` decode the
   first HEADERS block and compare its pseudo-field order with the
   `https-proxy` captures. Exact H1 stays rejected before I/O. Phantom does
   not reproduce the per-request HEADERS priority, `te: trailers`, or the
@@ -3113,7 +3116,7 @@ Against the route matrix:
   `crates/phantom-profile/src/proxy_connect/tests.rs` groups the page
   requests of every run of every `https-proxy-*` capture by connection and
   checks the recipe of each browser against them.
-  `crates/phantom/tests/proxy_h2_multiplex.rs` checks that tunnels to three
+  `crates/phantom/tests/proxies/proxy_h2_multiplex.rs` checks that tunnels to three
   origins arrive as streams 1, 3, and 5 of one proxy connection, that the
   Chromium recipe adds forwarded requests and a `ws://` tunnel to it and the
   Firefox recipe keeps them on connections of their own, that two sessions
@@ -3271,7 +3274,7 @@ Firefox tag `FIREFOX_156_0_RELEASE`, agrees and explains the mechanism:
 Against Phantom:
 
 - `sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel` in
-  `crates/phantom/tests/proxy_credential_cache.rs` opens four tunnels one
+  `crates/phantom/tests/proxies/proxy_credential_cache.rs` opens four tunnels one
   after the other through a plaintext proxy that challenges every request
   without credentials. With the record the proxy sees five connections and
   one `407`; with `preemptive_proxy_authentication(false)` it sees eight
@@ -3345,7 +3348,7 @@ Against Phantom:
 - A forwarded request with a built-in request template places the field at
   the template's `RequestField::ProxyAuthorization` slot for the attempt.
   `forwarded_requests_place_proxy_credentials_as_captured` in
-  `crates/phantom/tests/proxy_field_order.rs` reads the
+  `crates/phantom/tests/proxies/proxy_field_order.rs` reads the
   `http-proxy-auth-hostname` and `http-proxy-auth-loopback` captures of each
   browser and compares the field names of Phantom's challenged navigation,
   its replay, and a `fetch()` with remembered credentials with the captured
@@ -3492,7 +3495,7 @@ before ALPN, a TLS failure is terminal, the retry delay releases the
 connection lock, pre-selection admission is bounded, the budget is shared
 across redirects, and one-shot bodies are not polled before the retry.
 
-Exact-H3 loopback regressions in `crates/phantom/tests/http3_retries.rs`
+Exact-H3 loopback regressions in `crates/phantom/tests/http3/http3_retries.rs`
 recover from a refused setup through the public client:
 
 - A direct QUIC handshake refused with `CONNECTION_REFUSED` fails without a
@@ -3506,7 +3509,7 @@ recover from a refused setup through the public client:
 
 Each successful response reports one setup retry.
 
-Status-retry regressions in `crates/phantom/tests/status_retry.rs` run over
+Status-retry regressions in `crates/phantom/tests/requests/status_retry.rs` run over
 H1 loopback servers, including one negotiated request that selects H1. The
 retry loop sits above the transports, so H2 and H3 use the same code.
 

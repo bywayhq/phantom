@@ -29,7 +29,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use super::tls_support::{TestIdentity, TestResult, tls_settings};
+use super::tls::{TestIdentity, TestResult, tls_settings};
 
 pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 pub(crate) const ORIGIN_NAME: &str = "localhost";

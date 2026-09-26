@@ -25,7 +25,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::tls_support::{H2_ALPN, TestIdentity, TestResult, is_peer_gone};
+use crate::support::tls::{H2_ALPN, TestIdentity, TestResult, is_peer_gone};
 
 const H3_ALPN: &[u8] = b"h3";
 
@@ -756,7 +756,7 @@ mod raw_http2 {
     const ACK: u8 = 0x1;
     const END_HEADERS: u8 = 0x4;
 
-    pub(super) async fn serve<S>(
+    pub(crate) async fn serve<S>(
         mut stream: S,
         responses: &Mutex<VecDeque<PlannedResponse>>,
         alt_svc: &HeaderValue,

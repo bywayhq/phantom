@@ -24,8 +24,8 @@ use tokio::{
     task::JoinHandle,
 };
 
-use crate::h3_support::client_settings;
-use crate::tls_support::{
+use crate::support::h3::client_settings;
+use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, is_peer_gone, read_head,
 };
 

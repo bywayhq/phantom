@@ -87,7 +87,7 @@ fn poll_once<F: Future + Unpin>(future: &mut F) -> Poll<F::Output> {
 async fn origin_starts_after_configured_delay_and_returns_unfinished_alternative() -> TestResult {
     // The origin starts exactly at the configured delay and wins; the
     // unfinished alternative is handed back so its later failure can mark it
-    // broken, which `tests/alt_svc_race.rs` proves through the public client.
+    // broken, which `tests/http3/alt_svc_race.rs` proves through the public client.
     let alternative = Probe::new();
     let origin_started_at = Arc::new(std::sync::Mutex::new(None));
     let started = Instant::now();

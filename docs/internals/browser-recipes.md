@@ -158,7 +158,7 @@ the recipe through the same public path users take. Name tests
 | Client hints | `crates/phantom-profile/src/<browser>/tests.rs` | `edge_153_windows_client_hints_match_navigation_capture` |
 | Request templates | `crates/phantom-profile/src/request_template/tests.rs` | `edge_153_navigation_matches_every_captured_page_request` |
 | WebSocket | `crates/phantom-profile/src/websocket/tests.rs` | `chromium_154_websocket_recipe_matches_chromium_family_captures` |
-| SSE reconnect | `crates/phantom/tests/sse_browser_reconnect.rs` | Replays the SSE fixtures against the client |
+| SSE reconnect | `crates/phantom/tests/streams/sse_browser_reconnect.rs` | Replays the SSE fixtures against the client |
 
 - Where a fork shares a Chromium layer, add a test that replays the fork's
   capture against the Chromium recipe, as the `edge_153_*_matches_the_chromium_recipe`
