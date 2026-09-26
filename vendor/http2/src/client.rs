@@ -155,30 +155,38 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
-/// Creates the sleeps that bound how long a preface PING may go unanswered.
+/// The clock that times how long a preface PING goes unanswered.
 ///
-/// The function receives a duration and returns a future that completes once
-/// that duration has passed. The connection measures the PING timeout only
-/// with these sleeps and reads no clock for it, so the timer may run on any
-/// runtime, or on none.
+/// `now` reads the clock, and `sleep` returns a future that completes once
+/// the clock has advanced by the duration it receives. Both must measure the
+/// same clock. The connection reads no other clock for the PING timeout, so
+/// the timer may run on any runtime, or on none. A sleep that ends early
+/// costs only another sleep for the time that remains.
 #[derive(Clone)]
 pub struct PingTimer {
+    now: Arc<dyn Fn() -> Instant + Send + Sync>,
     sleep: Arc<dyn Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>,
 }
 
 impl PingTimer {
-    /// Wraps a function that returns a future completing after the duration
-    /// it receives.
-    pub fn new<F>(sleep: F) -> Self
+    /// Wraps a clock and a function that returns a future completing once
+    /// that clock has advanced by the duration it receives.
+    pub fn new<N, S>(now: N, sleep: S) -> Self
     where
-        F: Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
+        N: Fn() -> Instant + Send + Sync + 'static,
+        S: Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
     {
         PingTimer {
+            now: Arc::new(now),
             sleep: Arc::new(sleep),
         }
+    }
+
+    pub(crate) fn now(&self) -> Instant {
+        (self.now)()
     }
 
     pub(crate) fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
@@ -1122,12 +1130,12 @@ impl Builder {
     /// Closes the connection when a preface PING is unanswered and nothing
     /// has been read from the peer for `timeout`.
     ///
-    /// A sleep of `timeout` from `timer` starts once the PING is queued and
-    /// the connection is not blocked on writing. If it ends with no frame
-    /// read since the PING was queued or the previous sleep ended, the PING
-    /// has failed; otherwise another sleep starts. The connection therefore
-    /// closes one to two timeouts after the last frame read, and only the ACK
-    /// stops the sleeps. When the PING fails, the connection sends GOAWAY
+    /// The PING fails once `timeout` has passed on `timer`'s clock since it
+    /// was queued or since the last frame read, whichever is later, so any
+    /// frame read delays the failure and only the ACK prevents it. The
+    /// connection sleeps until that deadline and checks it again when the
+    /// sleep ends, and does not check while it is blocked on writing, when
+    /// it reads nothing either. When the PING fails, the connection sends GOAWAY
     /// with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
     /// `Failed ping.`, then closes. Every open stream, and every later
     /// request, fails with an error whose

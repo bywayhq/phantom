@@ -665,15 +665,17 @@ tag `154.0.8037.58` and the quiche revision it pins:
 
 `ping-timeout.patch` adds the client builder option
 `preface_ping_timeout(timeout, timer)` and the public `client::PingTimer`,
-which wraps a function returning a sleep future. It applies only to the
-preface PING, and only those sleeps measure it; the crate reads no clock for
-it. Queueing the PING arms the timeout with the count of frames read so far.
-A sleep of `timeout` then starts, and when it ends, the PING has failed if no
-frame was read since arming; otherwise the timeout re-arms and another sleep
-starts. Chromium instead checks again exactly `hung_interval_` after the last
-read, so this connection closes one to two timeouts after the last frame
-read where Chromium closes one timeout after it. Reads are counted per frame,
-not per socket read.
+which pairs a clock reading with a sleep on that same clock. It applies only
+to the preface PING, and only the timer measures it; the idle time keeps the
+system clock. The timer's time is recorded when the PING is queued and on
+every frame read. The deadline is the later of the two plus `timeout`, which
+is `CheckPingStatus`'s rule: when the connection is polled, the PING fails if
+the timer's time has reached the deadline, and otherwise the connection
+sleeps until it. A sleep that ends early, including after a read moved the
+deadline, only starts another for the time that remains. A new sleep that
+ends at once before the deadline makes the connection wake itself and
+return rather than loop, so a timer whose sleeps end immediately cannot hold
+the connection. Reads are counted per frame, not per socket read.
 
 When the PING fails, the connection sends
 `GOAWAY(0, PROTOCOL_ERROR, "Failed ping.")`, fails every stream with that
@@ -693,13 +695,16 @@ Its regressions in `src/client/tests.rs` use a 1 s idle time and a Tokio
 sleep: a PING unanswered for 2 s brings that GOAWAY and the end of the byte
 stream between 1 s and 4 s after the peer reads the PING, and the open
 request, a later request, and the connection report the error; a WINDOW_UPDATE
-2 s into a 3 s timeout delays the GOAWAY to between 4 s and 8 s; an
+2 s into a 4 s timeout delays the GOAWAY to between 5 s and 7 s, around the
+6 s the rule gives; an
 acknowledged PING leaves the connection working 2 s past a 1 s timeout; and a
 peer that reads nothing for 3 s while a 60,000-byte body fills the pipe, then
 drains it and sends the ACK, sees no GOAWAY under a 1 s timeout. Unit tests in
-`src/proto/streams/preface_ping.rs` drive the state with sleeps that end at
-once or never: expiry follows the sleep, not the clock, a read during a sleep
-arms another, and the ACK disarms the timeout.
+`src/proto/streams/preface_ping.rs` drive the state with a fake clock whose
+sleeps end at once or never: the failure follows the timer's clock, not the
+system clock, a read moves the deadline to a timeout after it, sleeps that
+end at once neither spin nor fail the PING early, and the ACK disarms the
+timeout.
 
 ## Refreshing the vendor copy
 

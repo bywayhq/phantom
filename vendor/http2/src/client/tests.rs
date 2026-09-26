@@ -1384,7 +1384,7 @@ async fn unanswered_preface_ping_closes_the_connection_with_goaway() {
 #[tokio::test]
 async fn a_frame_read_restarts_the_preface_ping_timeout() {
     timeout(Duration::from_secs(20), async {
-        let ping_timeout = Duration::from_secs(3);
+        let ping_timeout = Duration::from_secs(4);
         let (mut peer, mut sender, driver) = preface_ping_timeout_client(ping_timeout).await;
         tokio::time::sleep(PAST_PREFACE_IDLE).await;
         let _response = send_empty_request(&mut sender).await;
@@ -1399,10 +1399,10 @@ async fn a_frame_read_restarts_the_preface_ping_timeout() {
         let go_away = read_raw_frame(&mut peer).await;
         let waited = ping_read.elapsed();
         assert_eq!(go_away.kind, 7);
-        // 3 s after the PING without the read. With it, the first sleep ends
-        // after a read, and a second one ends 6 s after the PING.
+        // A timeout after the read: 6 s after the PING. Ignoring the read
+        // gives 4 s, and waiting a second full timeout after it gives 8 s.
         assert!(
-            waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
+            waited >= Duration::from_secs(5) && waited < Duration::from_secs(7),
             "GOAWAY after {waited:?}"
         );
         driver.abort();
@@ -1444,7 +1444,9 @@ async fn preface_ping_timeout_waits_while_writing_is_blocked() {
         let mut builder = super::Builder::new();
         builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
             Duration::from_secs(1),
-            super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
+            super::PingTimer::new(Instant::now, |duration| {
+                Box::pin(tokio::time::sleep(duration))
+            }),
         );
         let (mut sender, connection) = builder
             .handshake::<_, Bytes>(client_io)
@@ -1520,7 +1522,9 @@ async fn preface_ping_timeout_client(
     let mut builder = super::Builder::new();
     builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
         ping_timeout,
-        super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
+        super::PingTimer::new(Instant::now, |duration| {
+            Box::pin(tokio::time::sleep(duration))
+        }),
     );
     let (sender, connection) = builder
         .handshake::<_, Bytes>(client_io)

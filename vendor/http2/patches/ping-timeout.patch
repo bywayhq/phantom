@@ -1,37 +1,46 @@
 diff --git a/src/client.rs b/src/client.rs
-index 0c2d5305..dbe78675 100644
+index 0c2d5305..6623ce1d 100644
 --- a/src/client.rs
 +++ b/src/client.rs
-@@ -153,10 +153,45 @@ use http::{uri, HeaderMap, Method, Request, Response, Version};
+@@ -153,10 +153,53 @@ use http::{uri, HeaderMap, Method, Request, Response, Version};
  use std::fmt;
  use std::future::Future;
  use std::pin::Pin;
 +use std::sync::Arc;
  use std::task::{Context, Poll};
- use std::time::Duration;
+-use std::time::Duration;
++use std::time::{Duration, Instant};
  use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
  
-+/// Creates the sleeps that bound how long a preface PING may go unanswered.
++/// The clock that times how long a preface PING goes unanswered.
 +///
-+/// The function receives a duration and returns a future that completes once
-+/// that duration has passed. The connection measures the PING timeout only
-+/// with these sleeps and reads no clock for it, so the timer may run on any
-+/// runtime, or on none.
++/// `now` reads the clock, and `sleep` returns a future that completes once
++/// the clock has advanced by the duration it receives. Both must measure the
++/// same clock. The connection reads no other clock for the PING timeout, so
++/// the timer may run on any runtime, or on none. A sleep that ends early
++/// costs only another sleep for the time that remains.
 +#[derive(Clone)]
 +pub struct PingTimer {
++    now: Arc<dyn Fn() -> Instant + Send + Sync>,
 +    sleep: Arc<dyn Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>,
 +}
 +
 +impl PingTimer {
-+    /// Wraps a function that returns a future completing after the duration
-+    /// it receives.
-+    pub fn new<F>(sleep: F) -> Self
++    /// Wraps a clock and a function that returns a future completing once
++    /// that clock has advanced by the duration it receives.
++    pub fn new<N, S>(now: N, sleep: S) -> Self
 +    where
-+        F: Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
++        N: Fn() -> Instant + Send + Sync + 'static,
++        S: Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
 +    {
 +        PingTimer {
++            now: Arc::new(now),
 +            sleep: Arc::new(sleep),
 +        }
++    }
++
++    pub(crate) fn now(&self) -> Instant {
++        (self.now)()
 +    }
 +
 +    pub(crate) fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
@@ -48,7 +57,7 @@ index 0c2d5305..dbe78675 100644
  /// Initializes new HTTP/2 streams on a connection by sending a request.
  ///
  /// This type does no work itself. Instead, it is a handle to the inner
-@@ -335,6 +370,10 @@ pub struct Builder {
+@@ -335,6 +378,10 @@ pub struct Builder {
      /// Read-idle time after which a PING follows the next request frame.
      preface_ping: Option<Duration>,
  
@@ -59,7 +68,7 @@ index 0c2d5305..dbe78675 100644
      /// Initial target window size for new connections.
      initial_target_connection_window_size: Option<u32>,
  
-@@ -723,6 +762,7 @@ impl Builder {
+@@ -723,6 +770,7 @@ impl Builder {
              retain_initial_max_send_streams: false,
              max_send_streams_cap: usize::MAX,
              preface_ping: None,
@@ -67,7 +76,7 @@ index 0c2d5305..dbe78675 100644
              settings: Default::default(),
              #[cfg(feature = "unstable")]
              initial_peer_settings: None,
-@@ -1068,8 +1108,10 @@ impl Builder {
+@@ -1068,8 +1116,10 @@ impl Builder {
      /// after the request frame. A PING is written only while no earlier one
      /// awaits its ACK; any frame read from the peer restarts the idle time.
      /// The first PING's payload is the 64-bit big-endian value 1, and each
@@ -80,19 +89,19 @@ index 0c2d5305..dbe78675 100644
      ///
      /// By default no such PING is sent.
      pub fn preface_ping(&mut self, idle: Duration) -> &mut Self {
-@@ -1077,6 +1119,27 @@ impl Builder {
+@@ -1077,6 +1127,27 @@ impl Builder {
          self
      }
  
 +    /// Closes the connection when a preface PING is unanswered and nothing
 +    /// has been read from the peer for `timeout`.
 +    ///
-+    /// A sleep of `timeout` from `timer` starts once the PING is queued and
-+    /// the connection is not blocked on writing. If it ends with no frame
-+    /// read since the PING was queued or the previous sleep ended, the PING
-+    /// has failed; otherwise another sleep starts. The connection therefore
-+    /// closes one to two timeouts after the last frame read, and only the ACK
-+    /// stops the sleeps. When the PING fails, the connection sends GOAWAY
++    /// The PING fails once `timeout` has passed on `timer`'s clock since it
++    /// was queued or since the last frame read, whichever is later, so any
++    /// frame read delays the failure and only the ACK prevents it. The
++    /// connection sleeps until that deadline and checks it again when the
++    /// sleep ends, and does not check while it is blocked on writing, when
++    /// it reads nothing either. When the PING fails, the connection sends GOAWAY
 +    /// with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
 +    /// `Failed ping.`, then closes. Every open stream, and every later
 +    /// request, fails with an error whose
@@ -108,7 +117,7 @@ index 0c2d5305..dbe78675 100644
      /// Sets the maximum number of concurrent locally reset streams.
      ///
      /// When a stream is explicitly reset, the HTTP/2 specification requires
-@@ -1604,6 +1667,7 @@ where
+@@ -1604,6 +1675,7 @@ where
                  retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
                  max_send_streams_cap: builder.max_send_streams_cap,
                  preface_ping: builder.preface_ping,
@@ -117,7 +126,7 @@ index 0c2d5305..dbe78675 100644
                  reset_stream_duration: builder.reset_stream_duration,
                  reset_stream_max: builder.reset_stream_max,
 diff --git a/src/client/tests.rs b/src/client/tests.rs
-index ca2cc4b5..028ea5e4 100644
+index ca2cc4b5..e83a672b 100644
 --- a/src/client/tests.rs
 +++ b/src/client/tests.rs
 @@ -8,7 +8,7 @@ use std::{
@@ -129,7 +138,7 @@ index ca2cc4b5..028ea5e4 100644
  };
  
  use bytes::{BufMut, Bytes, BytesMut};
-@@ -1334,6 +1334,203 @@ async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
+@@ -1334,6 +1334,207 @@ async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
      .expect("preface PING after DATA test timed out");
  }
  
@@ -183,7 +192,7 @@ index ca2cc4b5..028ea5e4 100644
 +#[tokio::test]
 +async fn a_frame_read_restarts_the_preface_ping_timeout() {
 +    timeout(Duration::from_secs(20), async {
-+        let ping_timeout = Duration::from_secs(3);
++        let ping_timeout = Duration::from_secs(4);
 +        let (mut peer, mut sender, driver) = preface_ping_timeout_client(ping_timeout).await;
 +        tokio::time::sleep(PAST_PREFACE_IDLE).await;
 +        let _response = send_empty_request(&mut sender).await;
@@ -198,10 +207,10 @@ index ca2cc4b5..028ea5e4 100644
 +        let go_away = read_raw_frame(&mut peer).await;
 +        let waited = ping_read.elapsed();
 +        assert_eq!(go_away.kind, 7);
-+        // 3 s after the PING without the read. With it, the first sleep ends
-+        // after a read, and a second one ends 6 s after the PING.
++        // A timeout after the read: 6 s after the PING. Ignoring the read
++        // gives 4 s, and waiting a second full timeout after it gives 8 s.
 +        assert!(
-+            waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
++            waited >= Duration::from_secs(5) && waited < Duration::from_secs(7),
 +            "GOAWAY after {waited:?}"
 +        );
 +        driver.abort();
@@ -243,7 +252,9 @@ index ca2cc4b5..028ea5e4 100644
 +        let mut builder = super::Builder::new();
 +        builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
 +            Duration::from_secs(1),
-+            super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
++            super::PingTimer::new(Instant::now, |duration| {
++                Box::pin(tokio::time::sleep(duration))
++            }),
 +        );
 +        let (mut sender, connection) = builder
 +            .handshake::<_, Bytes>(client_io)
@@ -319,7 +330,9 @@ index ca2cc4b5..028ea5e4 100644
 +    let mut builder = super::Builder::new();
 +    builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
 +        ping_timeout,
-+        super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
++        super::PingTimer::new(Instant::now, |duration| {
++            Box::pin(tokio::time::sleep(duration))
++        }),
 +    );
 +    let (sender, connection) = builder
 +        .handshake::<_, Bytes>(client_io)
@@ -463,7 +476,7 @@ index ecb7549e..e1f7b975 100644
      pub local_max_buffer_size: usize,
  
 diff --git a/src/proto/streams/preface_ping.rs b/src/proto/streams/preface_ping.rs
-index d32fd8ce..6bd1baf3 100644
+index d32fd8ce..c25e5af9 100644
 --- a/src/proto/streams/preface_ping.rs
 +++ b/src/proto/streams/preface_ping.rs
 @@ -1,6 +1,11 @@
@@ -478,29 +491,30 @@ index d32fd8ce..6bd1baf3 100644
  use std::time::{Duration, Instant};
  
  /// Decides when a client PING follows a request frame on a connection that
-@@ -12,23 +17,57 @@ use std::time::{Duration, Instant};
+@@ -12,23 +17,58 @@ use std::time::{Duration, Instant};
  /// other frame, WINDOW_UPDATE, RST_STREAM, and PING and SETTINGS
  /// acknowledgements included. The first PING carries the big-endian 64-bit value 1 and each
  /// later one the next value. The ACK is matched by payload.
 -#[derive(Debug)]
 +///
-+/// With a timeout, a PING in flight expires when a sleep of the timeout,
-+/// taken from the caller's timer, ends with no frame read since it was armed.
-+/// A sleep that ends after a read re-arms for another timeout, so expiry
-+/// comes one to two timeouts after the last read. Only the caller's sleeps
-+/// measure this time; the idle time above uses the system clock.
++/// With a timeout, a PING in flight fails once the timeout has passed on the
++/// timer's clock since the later of its queueing and the last frame read.
++/// This is the deadline Chromium's `SpdySession::CheckPingStatus` enforces:
++/// its first check runs a timeout after the PING, and each later one a
++/// timeout after the last read. The idle time above uses the system clock;
++/// the timeout uses only the timer's.
  pub(super) struct PrefacePing {
      idle: Duration,
      last_read: Instant,
-+    /// Frames read so far, wrapping.
-+    reads: u64,
      next_payload: u64,
      in_flight: Option<[u8; 8]>,
      due: Option<[u8; 8]>,
 +    timeout: Option<(Duration, PingTimer)>,
-+    /// `reads` when the timeout was last armed, while a PING is unanswered
-+    /// and has not expired.
-+    armed_at_read: Option<u64>,
++    /// The timer's time when the PING in flight was queued, until it is
++    /// answered or fails.
++    queued_at: Option<Instant>,
++    /// The timer's time of the last frame read.
++    timer_last_read: Option<Instant>,
 +    sleep: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
 +}
 +
@@ -516,8 +530,8 @@ index d32fd8ce..6bd1baf3 100644
 +                "timeout",
 +                &self.timeout.as_ref().map(|(timeout, _)| timeout),
 +            )
-+            .field("reads", &self.reads)
-+            .field("armed_at_read", &self.armed_at_read)
++            .field("queued_at", &self.queued_at)
++            .field("timer_last_read", &self.timer_last_read)
 +            .finish_non_exhaustive()
 +    }
  }
@@ -528,66 +542,89 @@ index d32fd8ce..6bd1baf3 100644
          PrefacePing {
              idle,
              last_read: Instant::now(),
-+            reads: 0,
              next_payload: 1,
              in_flight: None,
              due: None,
 +            timeout,
-+            armed_at_read: None,
++            queued_at: None,
++            timer_last_read: None,
 +            sleep: None,
          }
      }
  
-@@ -36,9 +75,12 @@ impl PrefacePing {
+@@ -36,9 +76,14 @@ impl PrefacePing {
      /// acknowledgement of the PING in flight, which this consumes.
      pub(super) fn recv_frame(&mut self, now: Instant, ack: Option<&[u8; 8]>) -> bool {
          self.last_read = now;
-+        self.reads = self.reads.wrapping_add(1);
++        if let Some((_, timer)) = &self.timeout {
++            self.timer_last_read = Some(timer.now());
++        }
          match ack {
              Some(payload) if self.in_flight.as_ref() == Some(payload) => {
                  self.in_flight = None;
-+                self.armed_at_read = None;
++                self.queued_at = None;
 +                self.sleep = None;
                  true
              }
              _ => false,
-@@ -65,6 +107,35 @@ impl PrefacePing {
+@@ -65,6 +110,56 @@ impl PrefacePing {
          self.next_payload = self.next_payload.wrapping_add(1);
          self.in_flight = Some(payload);
          self.due = Some(payload);
-+        if self.timeout.is_some() {
-+            self.armed_at_read = Some(self.reads);
++        if let Some((_, timer)) = &self.timeout {
++            self.queued_at = Some(timer.now());
 +        }
 +    }
 +
-+    /// Returns `Ready` once, when a sleep of the timeout ends with no frame
-+    /// read since the timeout was armed. Without a timeout it never does.
++    /// Returns `Ready` once, when the PING in flight has gone the timeout
++    /// without an ACK or a read. Without a timeout it never does.
 +    pub(super) fn poll_timeout(&mut self, cx: &mut Context) -> Poll<()> {
 +        let (timeout, timer) = match &self.timeout {
 +            Some((timeout, timer)) => (*timeout, timer),
 +            None => return Poll::Pending,
 +        };
++        // A sleep that ends before the deadline re-arms once; a second one
++        // started here that ends at once yields instead, so a timer whose
++        // sleeps end immediately cannot hold the connection in this loop.
++        let mut started = false;
 +        loop {
-+            let armed_at_read = match self.armed_at_read {
-+                Some(reads) => reads,
++            let queued_at = match self.queued_at {
++                Some(queued_at) => queued_at,
 +                None => return Poll::Pending,
 +            };
-+            let sleep = self.sleep.get_or_insert_with(|| timer.sleep(timeout));
-+            if sleep.as_mut().poll(cx).is_pending() {
-+                return Poll::Pending;
-+            }
-+            self.sleep = None;
-+            if self.reads == armed_at_read {
-+                self.armed_at_read = None;
++            let quiet_since = match self.timer_last_read {
++                Some(read) if read > queued_at => read,
++                _ => queued_at,
++            };
++            let deadline = match quiet_since.checked_add(timeout) {
++                Some(deadline) => deadline,
++                None => return Poll::Pending,
++            };
++            let now = timer.now();
++            if now >= deadline {
++                self.queued_at = None;
++                self.sleep = None;
 +                return Poll::Ready(());
 +            }
-+            // A frame was read during the sleep: wait another timeout.
-+            self.armed_at_read = Some(self.reads);
++            if self.sleep.is_none() {
++                if started {
++                    cx.waker().wake_by_ref();
++                    return Poll::Pending;
++                }
++                started = true;
++                self.sleep = Some(timer.sleep(deadline - now));
++            }
++            if let Some(sleep) = &mut self.sleep {
++                if sleep.as_mut().poll(cx).is_pending() {
++                    return Poll::Pending;
++                }
++            }
++            self.sleep = None;
 +        }
      }
  
      pub(super) fn is_due(&self) -> bool {
-@@ -76,3 +147,55 @@ impl PrefacePing {
+@@ -76,3 +171,112 @@ impl PrefacePing {
          self.due.take().map(Ping::new)
      }
  }
@@ -595,16 +632,55 @@ index d32fd8ce..6bd1baf3 100644
 +#[cfg(test)]
 +mod tests {
 +    use super::*;
++    use std::sync::atomic::{AtomicU64, Ordering};
++    use std::sync::Arc;
 +    use std::task::Waker;
 +
 +    const PAYLOAD: [u8; 8] = 1_u64.to_be_bytes();
++    const TIMEOUT: Duration = Duration::from_secs(10);
 +
-+    /// A preface PING in flight, as `sent` leaves it, timed by `timer`.
++    /// A clock that moves only when a test advances it.
++    #[derive(Clone)]
++    struct FakeClock {
++        base: Instant,
++        elapsed_ms: Arc<AtomicU64>,
++    }
++
++    impl FakeClock {
++        fn new() -> Self {
++            FakeClock {
++                base: Instant::now(),
++                elapsed_ms: Arc::new(AtomicU64::new(0)),
++            }
++        }
++
++        fn advance(&self, duration: Duration) {
++            let ms = u64::try_from(duration.as_millis()).expect("test duration fits");
++            self.elapsed_ms.fetch_add(ms, Ordering::SeqCst);
++        }
++
++        /// A timer on this clock whose sleeps never end, or end at once.
++        fn timer(&self, sleeps_end: bool) -> PingTimer {
++            let clock = self.clone();
++            PingTimer::new(
++                move || clock.base + Duration::from_millis(clock.elapsed_ms.load(Ordering::SeqCst)),
++                move |_| {
++                    if sleeps_end {
++                        Box::pin(std::future::ready(()))
++                    } else {
++                        Box::pin(std::future::pending())
++                    }
++                },
++            )
++        }
++    }
++
++    /// A preface PING queued now on `timer`'s clock, as `sent` leaves it.
 +    fn in_flight(timer: PingTimer) -> PrefacePing {
-+        let mut preface_ping =
-+            PrefacePing::new(Duration::ZERO, Some((Duration::from_secs(10), timer)));
++        let queued_at = timer.now();
++        let mut preface_ping = PrefacePing::new(Duration::ZERO, Some((TIMEOUT, timer)));
 +        preface_ping.in_flight = Some(PAYLOAD);
-+        preface_ping.armed_at_read = Some(preface_ping.reads);
++        preface_ping.queued_at = Some(queued_at);
 +        preface_ping
 +    }
 +
@@ -612,34 +688,52 @@ index d32fd8ce..6bd1baf3 100644
 +        preface_ping.poll_timeout(&mut Context::from_waker(Waker::noop()))
 +    }
 +
-+    fn elapsed_timer() -> PingTimer {
-+        PingTimer::new(|_| Box::pin(std::future::ready(())))
-+    }
-+
 +    #[test]
-+    fn timeout_follows_the_timer_not_the_clock() {
-+        let mut waiting = in_flight(PingTimer::new(|_| Box::pin(std::future::pending())));
-+        waiting.last_read = Instant::now() - Duration::from_secs(60);
-+        assert!(poll(&mut waiting).is_pending());
-+
-+        let mut elapsed = in_flight(elapsed_timer());
-+        assert!(poll(&mut elapsed).is_ready());
-+        assert!(poll(&mut elapsed).is_pending(), "expiry is reported once");
-+    }
-+
-+    #[test]
-+    fn a_read_during_a_sleep_arms_another() {
-+        let mut preface_ping = in_flight(elapsed_timer());
-+        preface_ping.recv_frame(Instant::now(), None);
-+        // The first sleep saw a read, so a second one runs; it sees none.
++    fn timeout_follows_the_timer_clock() {
++        let clock = FakeClock::new();
++        let mut preface_ping = in_flight(clock.timer(false));
++        // The system clock plays no part.
++        preface_ping.last_read = Instant::now() - Duration::from_secs(60);
++        clock.advance(TIMEOUT - Duration::from_millis(1));
++        assert!(poll(&mut preface_ping).is_pending());
++        clock.advance(Duration::from_millis(1));
 +        assert!(poll(&mut preface_ping).is_ready());
-+        assert_eq!(preface_ping.armed_at_read, None);
++        assert!(
++            poll(&mut preface_ping).is_pending(),
++            "failure is reported once"
++        );
++    }
++
++    #[test]
++    fn a_read_moves_the_deadline_to_a_timeout_after_it() {
++        let clock = FakeClock::new();
++        let mut preface_ping = in_flight(clock.timer(false));
++        clock.advance(Duration::from_secs(6));
++        preface_ping.recv_frame(Instant::now(), None);
++        clock.advance(Duration::from_secs(4));
++        assert!(poll(&mut preface_ping).is_pending(), "10 s after the PING");
++        clock.advance(Duration::from_millis(5_999));
++        assert!(poll(&mut preface_ping).is_pending());
++        clock.advance(Duration::from_millis(1));
++        assert!(poll(&mut preface_ping).is_ready(), "10 s after the read");
++    }
++
++    #[test]
++    fn a_sleep_that_ends_early_does_not_spin() {
++        let clock = FakeClock::new();
++        let mut preface_ping = in_flight(clock.timer(true));
++        assert!(poll(&mut preface_ping).is_pending());
++        assert!(poll(&mut preface_ping).is_pending());
++        clock.advance(TIMEOUT);
++        assert!(poll(&mut preface_ping).is_ready());
 +    }
 +
 +    #[test]
 +    fn the_ack_disarms_the_timeout() {
-+        let mut preface_ping = in_flight(elapsed_timer());
++        let clock = FakeClock::new();
++        let mut preface_ping = in_flight(clock.timer(true));
 +        assert!(preface_ping.recv_frame(Instant::now(), Some(&PAYLOAD)));
++        clock.advance(TIMEOUT);
 +        assert!(poll(&mut preface_ping).is_pending());
 +    }
 +}
