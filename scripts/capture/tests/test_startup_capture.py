@@ -36,10 +36,12 @@ def fixture_port(path: str) -> int:
 class RecordedArgumentTests(unittest.TestCase):
     """The tool records exactly what the retained startup fixtures hold."""
 
-    def assert_reproduces(self, path: str, layer: str, *, port: int = 0) -> None:
+    def assert_reproduces(
+        self, path: str, layer: str, *, port: int = 0, platform: str = "win32"
+    ) -> None:
         devtools = fixture_field(path, "launch_mode") == "devtools-navigate"
         self.assertEqual(
-            recorded_arguments(layer, port=port, devtools=devtools, platform="win32"),
+            recorded_arguments(layer, port=port, devtools=devtools, platform=platform),
             fixture_field(path, "launch_arguments"),
         )
 
@@ -71,6 +73,17 @@ class RecordedArgumentTests(unittest.TestCase):
         ):
             with self.subTest(path):
                 self.assert_reproduces(path, "http3", port=fixture_port(path))
+
+    def test_macos_http3_fixtures(self) -> None:
+        for path in (
+            "http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt",
+            "http3/edge/153.0.4234.48/macos-15.5-arm64/client-startup.txt",
+            "http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt",
+        ):
+            with self.subTest(path):
+                self.assert_reproduces(
+                    path, "http3", port=fixture_port(path), platform="darwin"
+                )
 
 
 class LaunchArgumentTests(unittest.TestCase):

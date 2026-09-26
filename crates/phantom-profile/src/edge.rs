@@ -152,7 +152,8 @@ pub fn v153_macos_client_hints() -> ClientHintSettings {
 /// arm64 on HTTP/1.1 and HTTP/2, with [`v153_macos_client_hints`], so there
 /// is no separate macOS template. On macOS Edge takes `Accept-Language` from
 /// the system language list and ignores `--lang`; those captures ran with
-/// `--accept-lang=en-US`, which gives this template's `en-US,en;q=0.9`.
+/// `--accept-lang=en-US`, which gives this template's `en-US,en;q=0.9`. For a
+/// Mac with another language list, override `Accept-Language`.
 #[must_use]
 pub fn v153_windows_navigation_template() -> RequestTemplate {
     chromium::v154_navigation_template(None)

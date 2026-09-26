@@ -652,3 +652,37 @@ fn client_hello_extension(client_hello: &[u8], expected: u16) -> Option<&[u8]> {
     }
     None
 }
+
+/// The macOS 15.5 arm64 startups carry the Windows transport parameters.
+#[test]
+fn chromium_family_macos_quic_captures_match_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    for (fixture, client) in [
+        (
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt"
+            )),
+            "Google Chrome",
+        ),
+        (
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../fixtures/http3/edge/153.0.4234.48/macos-15.5-arm64/client-startup.txt"
+            )),
+            "Microsoft Edge",
+        ),
+        (
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../fixtures/http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt"
+            )),
+            "Opera",
+        ),
+    ] {
+        assert!(fixture.contains(&format!("\nclient={client}\n")));
+        assert!(fixture.contains("\noperating_system=macOS 15.5 (24F74) arm64\n"));
+        assert_quic_settings_match_startup(fixture, &v154_quic())?;
+    }
+    Ok(())
+}

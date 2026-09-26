@@ -112,10 +112,10 @@ const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.803
 const CHROME_MACOS_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt");
 const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/153.0.4234.48");
-const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.66");
+const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.92");
 const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/156.0");
 const OPERA_MACOS_HTTP3: &str =
-    fixture!("http3/opera/135.0.5973.66/macos-15.5-arm64/client-startup.txt");
+    fixture!("http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt");
 const CHROME_ANDROID_WEBSOCKET: [&str; 9] =
     websocket_set!("chrome-android/153.0.8010.52", "android-35-emulator");
 const BRAVE_ANDROID_WEBSOCKET: [&str; 9] =

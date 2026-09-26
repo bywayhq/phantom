@@ -19,6 +19,8 @@ const INITIAL_CONNECTION_WINDOW: u32 = 65_535;
 const METHOD_HEX: &str = "3a6d6574686f64";
 const PATH_HEX: &str = "3a70617468";
 const GET_HEX: &str = "474554";
+const SEC_FETCH_DEST_HEX: &str = "7365632d66657463682d64657374";
+const DOCUMENT_HEX: &str = "646f63756d656e74";
 
 /// One retained `format=phantom-http2-websocket-v1` session capture.
 pub(crate) struct SessionCapture<'a> {
@@ -51,8 +53,9 @@ impl<'a> SessionCapture<'a> {
     /// Returns the settings observed on each run's navigation connection.
     ///
     /// The navigation connection is the one whose first client HEADERS block
-    /// is a `GET`; its client SETTINGS and connection WINDOW_UPDATE precede
-    /// that request on the same connection.
+    /// is a `GET` with `sec-fetch-dest: document`; its client SETTINGS and
+    /// connection WINDOW_UPDATE precede that request on the same connection.
+    /// A connection opened later for the page's `fetch()` is not counted.
     pub(crate) fn navigation_settings(&self) -> CaptureResult<Vec<Http2Settings>> {
         let runs: usize = self.value("repeat_count")?.parse()?;
         (0..runs)
@@ -67,7 +70,9 @@ impl<'a> SessionCapture<'a> {
         let mut observed = Vec::new();
         for connection in 0..connections {
             let prefix = format!("run_{run}_connection_{connection}");
-            if self.first_request_method(&prefix)? != Some(GET_HEX) {
+            if self.first_request_method(&prefix)? != Some(GET_HEX)
+                || self.first_request_field(&prefix, SEC_FETCH_DEST_HEX)? != Some(DOCUMENT_HEX)
+            {
                 continue;
             }
             observed.push(self.connection_settings(&prefix)?);
@@ -83,6 +88,20 @@ impl<'a> SessionCapture<'a> {
     /// Representations such as a dynamic table size update can precede the
     /// first field, so the method is found by name rather than position.
     fn first_request_method(&self, prefix: &str) -> CaptureResult<Option<&'a str>> {
+        if !self
+            .fields
+            .contains_key(format!("{prefix}_headers_0_field_count").as_str())
+        {
+            return Ok(None);
+        }
+        self.first_request_field(prefix, METHOD_HEX)?
+            .map(Some)
+            .ok_or_else(|| format!("{prefix} first HEADERS omitted :method").into())
+    }
+
+    /// Returns the hex value of the named field in the connection's first
+    /// client HEADERS, or `None` when the block or the field is absent.
+    fn first_request_field(&self, prefix: &str, name_hex: &str) -> CaptureResult<Option<&'a str>> {
         let Some(count) = self
             .fields
             .get(format!("{prefix}_headers_0_field_count").as_str())
@@ -91,11 +110,11 @@ impl<'a> SessionCapture<'a> {
         };
         for index in 0..count.parse::<usize>()? {
             let field = self.value(&format!("{prefix}_headers_0_field_{index}"))?;
-            if field_attribute(field, "name_hex")? == METHOD_HEX {
+            if field_attribute(field, "name_hex")? == name_hex {
                 return field_attribute(field, "value_hex").map(Some);
             }
         }
-        Err(format!("{prefix} first HEADERS omitted :method").into())
+        Ok(None)
     }
 
     /// Returns which static entry named `:path` in the connection's first
