@@ -13,8 +13,22 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
-BROWSERS = (*CHROMIUM_BROWSERS, "firefox")
+from .android_device import (
+    ANDROID_BROWSERS,
+    ANDROID_CHROMIUM_BROWSERS,
+    ANDROID_CHROMIUM_FIRST_RUN_FLAGS,
+    AdbDevice,
+    AndroidLaunch,
+    AndroidSession,
+    android_launch_mode,
+    device_arguments,
+)
+
+DESKTOP_CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
+# Android Chromium browsers take the same switches through a command-line file.
+CHROMIUM_BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, *ANDROID_CHROMIUM_BROWSERS)
+FIREFOX_BROWSERS = ("firefox", "firefox-android")
+BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, "firefox", *ANDROID_BROWSERS)
 PROFILE_PLACEHOLDER = "<temporary-profile>"
 CLIENT_NAMES = {
     "chrome": "Google Chrome",
@@ -22,6 +36,7 @@ CLIENT_NAMES = {
     "brave": "Brave",
     "opera": "Opera",
     "firefox": "Mozilla Firefox",
+    **{name: browser.client_name for name, browser in ANDROID_BROWSERS.items()},
     "manual": "manual",
 }
 
@@ -117,9 +132,35 @@ def render_preferences(preferences: Sequence[tuple[str, bool | int | str]]) -> s
     return ";".join(f"{name}={preference_value(value)}" for name, value in preferences)
 
 
+def android_chromium_arguments(extra: Sequence[str] = ()) -> list[str]:
+    """Switches for an Android Chromium command-line file, in file order.
+
+    Android has no headless mode or `--user-data-dir`: the launch clears the
+    app's data instead. Host-resolver rules are rewritten for the emulator.
+    `--no-proxy-server` would override a `--proxy-server` switch, so it is
+    left out when one is present.
+    """
+    proxied = any(argument.startswith("--proxy-server=") for argument in extra)
+    return [
+        *ANDROID_CHROMIUM_FIRST_RUN_FLAGS,
+        *(
+            flag
+            for flag in CHROMIUM_FLAGS
+            if not (proxied and flag == "--no-proxy-server")
+        ),
+        *device_arguments(extra),
+    ]
+
+
 def browser_arguments(
     browser: str, profile: Path, url: str, *, headless: bool, extra: Sequence[str]
 ) -> list[str]:
+    if browser in ANDROID_CHROMIUM_BROWSERS:
+        return [*android_chromium_arguments(extra), url]
+    if browser in ANDROID_BROWSERS:
+        if extra:
+            raise ValueError(f"{browser} cannot take command-line switches")
+        return [url]
     if browser in CHROMIUM_BROWSERS:
         return chromium_arguments(profile, url, headless=headless, extra=extra)
     if browser == "firefox":
@@ -144,12 +185,21 @@ class LaunchPlan:
     firefox_preferences: tuple[tuple[str, bool | int | str], ...] = ()
     # (name, text) files written into the disposable profile before launch.
     profile_files: tuple[tuple[str, str], ...] = ()
+    # How an Android browser reaches the page: "typed" into the address bar,
+    # or "intent", which opens it without user activation.
+    android_entry: str = "typed"
 
     @property
     def launch_mode(self) -> str:
         if self.browser == "manual":
             return "manual"
+        if self.android:
+            return android_launch_mode(self.android_entry)
         return "headless" if self.headless else "headful"
+
+    @property
+    def android(self) -> bool:
+        return self.browser in ANDROID_BROWSERS
 
     @property
     def client_name(self) -> str:
@@ -172,7 +222,11 @@ class LaunchPlan:
 
 
 class LaunchedBrowser:
-    """One browser process on a fresh profile, removed with its process tree."""
+    """One browser process on a fresh profile, removed with its process tree.
+
+    For an Android browser the executable is adb, and the fresh profile is the
+    app's cleared data on the device.
+    """
 
     def __init__(self, plan: LaunchPlan, url: str) -> None:
         if plan.browser == "manual":
@@ -183,8 +237,37 @@ class LaunchedBrowser:
         self.url = url
         self.profile: Path | None = None
         self.process: subprocess.Popen[bytes] | None = None
+        self.session: AndroidSession | None = None
+
+    def android_launch(self) -> AndroidLaunch:
+        if self.plan.profile_files:
+            raise ValueError("an Android browser profile cannot receive files")
+        arguments = browser_arguments(
+            self.plan.browser,
+            Path(PROFILE_PLACEHOLDER),
+            self.url,
+            headless=False,
+            extra=self.plan.extra_arguments,
+        )
+        preferences = self.plan.firefox_preferences
+        if self.plan.browser in FIREFOX_BROWSERS:
+            preferences = (*FIREFOX_PREFERENCES, *preferences)
+        return AndroidLaunch(
+            ANDROID_BROWSERS[self.plan.browser],
+            self.url,
+            tuple(arguments[:-1]),
+            preferences,
+            entry=self.plan.android_entry,
+        )
 
     def __enter__(self) -> LaunchedBrowser:
+        if self.plan.android:
+            assert self.plan.executable is not None
+            session = AndroidSession(
+                AdbDevice(self.plan.executable), self.android_launch()
+            )
+            self.session = session.__enter__()
+            return self
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
         try:
             self.process = self._start(self.profile)
@@ -222,6 +305,10 @@ class LaunchedBrowser:
         )
 
     def __exit__(self, *_: object) -> None:
+        if self.session is not None:
+            self.session.__exit__()
+            self.session = None
+            return
         try:
             if self.process is not None:
                 terminate_process_tree(self.process)

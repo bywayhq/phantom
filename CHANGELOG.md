@@ -380,6 +380,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `chrome_http3.py --output` writes its startup fixture with LF line endings.
   `startup_capture.py` launches a browser against the TLS, HTTP/2, or HTTP/3
   startup listener, on the command line or through a DevTools navigation.
+- Android capture support in `scripts/capture`: `--browser chrome-android`,
+  `edge-android`, `brave-android`, `opera-android`, and `firefox-android`
+  launch the browser on an adb device with a cleared profile, its debug
+  command-line or GeckoView configuration, and a URL typed into the address
+  bar or opened by intent; `android_run.py` opens one page for the listen-only
+  capture examples.
 - `ClientBuilder::max_http2_connections_per_origin`: lets exact HTTP/2 and
   negotiated requests that select HTTP/2 open up to that many connections per
   origin and route. A request opens another only when every connection

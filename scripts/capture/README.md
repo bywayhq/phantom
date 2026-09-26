@@ -49,6 +49,7 @@ path replaced by `<temporary-profile>`.
 | --- | --- |
 | `chrome`, `edge`, `brave`, `opera` | `--headless=new` unless `--headful`, `--user-data-dir`, the flags in `CHROMIUM_FLAGS`, then the page URL |
 | `firefox` | `--headless` unless `--headful`, `--wait-for-browser`, `--no-remote --profile`, then the page URL |
+| `chrome-android`, `edge-android`, `brave-android`, `opera-android`, `firefox-android` | On an Android device through adb; see [Android browsers](#android-browsers) |
 | `manual` | Starts no process. Each run prints its URL on standard error for a person to open. Use it for Safari and any browser that cannot be launched from the command line |
 
 Every tool that takes `--browser chrome` also takes `brave` and `opera`. On
@@ -67,9 +68,130 @@ that turns off the same classes of traffic, including updates, captive-portal
 and connectivity checks, telemetry, Safe Browsing, DNS over HTTPS, and
 proxies.
 
-Fixtures record `launch_mode` (`headless`, `headful`, or `manual`). Captures
-made in different modes are compared, never assumed equal. A coding agent
-needs the human's approval before it launches a local browser.
+Fixtures record `launch_mode` (`headless`, `headful`, `manual`,
+`android-typed`, or `android-intent`). Captures made in different modes are
+compared, never assumed equal. A coding agent needs the human's approval before it launches a
+local browser.
+
+## Android browsers
+
+Android captures run on the `phantom-api35-play` emulator on the Windows
+capture host: a Pixel 7 device profile on the Android 15 (API 35) Google Play
+x86_64 system image, build `AE3A.240806.036`. The browsers come from the Play
+Store, signed in with a throwaway account, so each is the build Play serves to
+that device, which can trail the version Google's release API lists.
+
+Start the emulator from Git Bash with the proxy variables cleared. The
+emulator otherwise routes the guest's TCP through the host's `HTTP_PROXY`:
+
+```sh
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
+  ANDROID_SDK_ROOT=C:/code/tools/android-sdk \
+  /c/code/tools/android-sdk/emulator/emulator -avd phantom-api35-play \
+  -no-snapshot -no-boot-anim -no-metrics
+```
+
+Add `-no-window -no-audio` to run it without a window. Never pass
+`-wipe-data`: it signs the Play account out and removes the browsers. If adb
+lists the device as `unauthorized`, create the host's public key with
+`adb pubkey ~/.android/adbkey > ~/.android/adbkey.pub` and restart the
+emulator.
+
+Pass `--browser <name>-android`, the adb executable as `--browser-path`, and
+the device serial in `ANDROID_SERIAL`:
+
+```sh
+ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
+  python -m scripts.capture.client_hints \
+  --browser chrome-android \
+  --browser-path C:/code/tools/android-sdk/platform-tools/adb.exe \
+  --client-version 153.0.8010.52 \
+  --operating-system "Android 15 (API 35) sdk_gphone64_x86_64 emulator AE3A.240806.036" \
+  --repeat 3 \
+  --output fixtures/client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt
+```
+
+Each run, through `android_device.py`:
+
+1. stops every browser in the table below, so none holds a socket or sends
+   background traffic, then clears the browser's app data with `pm clear`,
+   which is the Android equivalent of a fresh profile;
+2. writes the browser's debug configuration and makes the package the
+   device's debug app (`am set-debug-app --persistent`), which a release
+   build requires before it reads that file;
+3. adds `adb reverse` for each port that a URL or switch names on
+   `127.0.0.1` or `localhost`;
+4. opens `about:blank` with a `VIEW` intent aimed at the package, focuses the
+   address bar with Ctrl+L, and types the page URL with
+   `adb shell input text`, six characters at a time. After each chunk a
+   `uiautomator dump` reads the focused field; the launcher retypes whatever
+   did not arrive and presses Enter only when the field holds the exact URL;
+5. afterwards stops the browser, removes the reverse ports and the debug
+   configuration, and clears the debug app.
+
+The page load is therefore a typed address-bar navigation, and fixtures
+record `launch_mode=android-typed`. A page that another app opens through a
+`VIEW` intent has no user activation, and Chrome then leaves out
+`Sec-Fetch-User`. A `LaunchPlan` with `android_entry="intent"` opens the page
+that way instead and records `android-intent`; the TLS, HTTP/2 startup, and
+QUIC captures use it, because those layers do not depend on how the page was
+opened and the intent needs no typing.
+
+A loaded device drops injected keys while the address bar fetches
+suggestions, and the address bar appends a selected inline completion to what
+was typed. Checking the field after each chunk handles both. On the capture
+host a typed entry takes about 90 seconds while other builds run, so the
+Android runs use run timeouts of 240 seconds.
+
+| `--browser` | Package | Debug configuration |
+| --- | --- | --- |
+| `chrome-android` | `com.android.chrome` | `/data/local/tmp/chrome-command-line` |
+| `edge-android` | `com.microsoft.emmx` | `/data/local/tmp/chrome-command-line` |
+| `brave-android` | `com.brave.browser` | `/data/local/tmp/chrome-command-line` |
+| `opera-android` | `com.opera.browser` | None; the launch refuses switches |
+| `firefox-android` | `org.mozilla.firefox` | `/data/local/tmp/org.mozilla.firefox-geckoview-config.yaml`, preferences only |
+
+A Chromium command-line file holds `--disable-fre`, `CHROMIUM_FLAGS`, and
+the tool's switches. Android has no headless mode and no `--user-data-dir`.
+The GeckoView file holds the Firefox baseline preferences and the tool's
+preferences; a tool that needs files in the Firefox profile, such as
+`cert_override.txt`, cannot run there.
+
+The TLS and HTTP/2 startup examples only listen. Start one on a free
+loopback port, then open its URL on the device with `android_run.py`, which
+runs one launch as above and stops the browser after `--hold` seconds:
+
+```sh
+ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
+  python -m scripts.capture.android_run \
+  --browser chrome-android \
+  --adb C:/code/tools/android-sdk/platform-tools/adb.exe \
+  --entry intent \
+  --switch=--disable-quic \
+  "--switch=--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost" \
+  --switch=--ignore-certificate-errors \
+  --url https://server.phantom.test:<port>/
+```
+
+Add `--print-arguments` to print the fixture's `launch_arguments` value
+without launching; pass it to the example as its launch-arguments argument.
+The examples wait 30 seconds for a connection, so use `--entry intent` with
+them.
+
+The emulator reaches host loopback at `10.0.2.2` over both TCP and UDP. The
+launcher rewrites `MAP <name> 127.0.0.1` in `--host-resolver-rules` to that
+address, so a test name reaches a host listener, QUIC included; `adb reverse`
+forwards TCP only.
+
+Limits:
+
+- The emulator's network terminates the guest's TCP connections and opens
+  new ones from the host, so the listener sees the host's SYN, window, and
+  socket options, never the device's. No TCP-layer setting can be captured
+  this way.
+- An emulator is not a phone. `sec-ch-ua-model` carries the emulator's model,
+  `sdk_gphone64_x86_64`, and the CPU is x86_64 rather than a phone's ARM
+  core, which Chromium's AES hardware check reads.
 
 ## EventSource reconnects
 
