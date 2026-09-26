@@ -21,7 +21,7 @@ use connection::Session;
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask, EarlyAnswer, LateApplicationSettings};
 use early_data::{EarlyData, EarlyDataOutcome, InvalidHandshake};
-use early_streams::{Started, Transport, ZeroRttAnswer};
+use early_streams::{HandedOver, Started, Transport, ZeroRttAnswer};
 #[cfg(test)]
 use request::prepare_request;
 use request::{PreparedRequest, prepare_profiled_request_body_with_trailers};
@@ -492,7 +492,7 @@ async fn connect(
     #[cfg(test)]
     let gate_delay = diagnostics.gate_delay.clone();
     #[cfg(test)]
-    let start_after_handshake = diagnostics.start_after_handshake;
+    let early_race = diagnostics.early_race;
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -583,35 +583,30 @@ async fn connect(
     #[cfg(test)]
     let mut transport = transport;
     #[cfg(test)]
-    if start_after_handshake && gate.is_some() {
-        transport.after_open_send_for_test(connection.clone());
+    if gate.is_some() {
+        match early_race {
+            Some(EarlyRace::StartAfterHandshake) => {
+                transport.after_open_send_for_test(connection.clone());
+            }
+            Some(EarlyRace::OpenAfterAnswer) => transport.open_after_answer_for_test(),
+            Some(EarlyRace::AnswerAfterPoll) | None => {}
+        }
     }
-    let starting = transport.starting();
+    let early_session = transport.early_session();
     let built = builder.build(transport).await;
-    // The session read Quinn's answer while it started; the driver or the
-    // restart below reads it from here.
-    let (suppressed_close, zero_rtt) = match starting.map(|starting| starting.finish()) {
+    let (suppressed_close, handed_over) = match early_session.as_ref().map(|early| early.finish()) {
         Some(Started {
             deferred_close,
-            answer: Some(answer),
-        }) => (deferred_close, Some(answer)),
-        // The answer is taken once, here, so this does not happen; a start
-        // without it cannot tell a rejection from an acceptance.
-        Some(Started { answer: None, .. }) => {
-            connection.close(H3_INTERNAL_ERROR, b"early-data answer lost");
-            return Err(Http3Error::without_source(
-                Http3ErrorKind::Protocol,
-                "the early-data answer was lost while HTTP/3 started",
-            ));
-        }
+            handed_over,
+        }) => (deferred_close, handed_over),
         None => (None, None),
     };
     let mut rejected_at_start = None;
-    let (h3_driver, sender, zero_rtt, gate, early_channel, remembered_settings) = match built {
+    let (h3_driver, sender, early_session, gate, early_channel, remembered_settings) = match built {
         Ok((h3_driver, sender)) => (
             h3_driver,
             sender,
-            zero_rtt,
+            early_session,
             gate,
             early_channel,
             remembered_settings,
@@ -622,8 +617,8 @@ async fn connect(
                 "HTTP/3 connection initialization failed",
                 error,
             );
-            let (Some(accepted), Some((settings, crypto)), Some((publisher, early_data))) =
-                (zero_rtt, &restart_profile, early_channel)
+            let (Some(early), Some((settings, crypto)), Some((publisher, early_data))) =
+                (early_session, &restart_profile, early_channel)
             else {
                 return Err(error);
             };
@@ -632,7 +627,9 @@ async fn connect(
             // session was starting, HTTP/3 starts on the connection as if it
             // had sent no early data (RFC 9001, section 4.6.2). Any other
             // failure closes with the code the session chose.
-            if accepted.await || connection.close_reason().is_some() {
+            if poll_fn(|cx| early.poll_quinn_answer(cx)).await
+                || connection.close_reason().is_some()
+            {
                 if connection.close_reason().is_none() {
                     match &suppressed_close {
                         Some((code, reason)) => connection.close(*code, reason),
@@ -650,6 +647,7 @@ async fn connect(
                 crypto,
                 &accept_ch,
                 round_trip.as_ref(),
+                handed_over,
                 #[cfg(test)]
                 peer_alps_override.as_deref(),
             )
@@ -663,18 +661,21 @@ async fn connect(
         .receives_datagrams()
         .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
     let session = Session::new(sender);
-    let early = zero_rtt.zip(gate).map(|(accepted, gate)| {
+    let early = early_session.zip(gate).map(|(session, gate)| {
         let (answer, answer_receiver) = oneshot::channel();
         let (replacement, replacement_receiver) = oneshot::channel();
         let (late_settings, late_settings_receiver) = oneshot::channel();
         (
             EarlyAnswer {
-                accepted,
+                session,
                 gate,
                 #[cfg(test)]
                 gate_delay: gate_delay.clone(),
+                #[cfg(test)]
+                answer_after_poll: early_race == Some(EarlyRace::AnswerAfterPoll),
                 answer,
                 replacement: replacement_receiver,
+                connection: connection.clone(),
             },
             late_settings_receiver,
             (answer_receiver, replacement, late_settings),
@@ -898,6 +899,7 @@ async fn start_after_rejection(
     crypto: &Arc<QuicClientConfig>,
     accept_ch: &OnceLock<AcceptCh>,
     round_trip: Option<&RoundTripRecorder>,
+    handed_over: Option<HandedOver>,
     #[cfg(test)] alps_override: Option<&[u8]>,
 ) -> Result<(driver::ClientDriver, connection::RequestSender), Http3Error> {
     #[cfg(not(test))]
@@ -908,7 +910,7 @@ async fn start_after_rejection(
         apply_peer_alps(connection, &mut builder, metadata.alps.as_deref())
             .map_err(|(_, error)| error)?;
         let started = builder
-            .build(Transport::new(connection.clone()))
+            .build(Transport::after_rejection(connection.clone(), handed_over))
             .await
             .map_err(|error| {
                 Http3Error::with_source(
@@ -1297,9 +1299,25 @@ pub(super) struct ConnectionDiagnostics {
     /// Delays the driver's answer to the stream gate, for stress tests.
     #[cfg(test)]
     pub(super) gate_delay: Option<GateDelay>,
-    /// Starts an early HTTP/3 session only after the handshake completed.
+    /// A race with the handshake to force on an early-data connection.
     #[cfg(test)]
-    pub(super) start_after_handshake: bool,
+    pub(super) early_race: Option<EarlyRace>,
+}
+
+/// A race with the handshake that tests force on an early-data connection.
+/// On a multi-threaded runtime each can happen on its own, since Quinn
+/// completes the handshake on its own task.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum EarlyRace {
+    /// The session's second and third streams open only once the
+    /// handshake completed.
+    StartAfterHandshake,
+    /// The session's first stream opens only once Quinn answered, although
+    /// the session decided to open it before.
+    OpenAfterAnswer,
+    /// The connection driver polls HTTP/3 before it reads Quinn's answer.
+    AnswerAfterPoll,
 }
 
 /// Returns how long a driver waits before it passes Quinn's early-data

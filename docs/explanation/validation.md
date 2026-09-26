@@ -2631,6 +2631,21 @@ Replay against Phantom:
   when the session starts, so the server sees every type. No test reaches a
   rejection between reading Quinn's answer and opening a stream, which the
   stream-number check covers.
+  Three tests force races that a multi-threaded runtime can produce on
+  its own, through hooks.
+  `a_stream_opened_after_a_rejection_at_start_goes_to_the_new_session`
+  opens the early session's control stream only after Quinn rejected the
+  early data; the stream is live on client stream 2 and becomes the new
+  session's control stream.
+  `a_discarded_session_polled_before_the_answer_keeps_the_connection` makes
+  the driver poll the early session before it reads the rejection; the
+  session's close is dropped and HTTP/3 starts again. Both check the
+  server's stream types on client streams 2, 6, and 10 and a request.
+  `an_early_session_accepts_server_streams_only_after_an_acceptance` shows
+  a rejected session leaving a server stream to its replacement. Each test
+  fails with its fix removed. A Linux run pinned to four CPUs under load
+  failed about half of the stress runs below before these fixes, with the
+  three failures these tests reproduce, and none of 300 iterations after.
   `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
   credit-wait and handshake-window rejections on a four-worker runtime with
   a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations

@@ -1,7 +1,8 @@
 use std::{
     future::{Future, poll_fn},
     pin::Pin,
-    task::Poll,
+    sync::Arc,
+    task::{Context, Poll},
 };
 
 use bytes::Bytes;
@@ -15,6 +16,7 @@ use tracing::{
     Instrument, Span, debug, debug_span, dispatcher, field, instrument::WithSubscriber, warn,
 };
 
+use super::early_streams::EarlySession;
 use crate::shutdown_timer;
 
 type DriverResult = Result<(), h3::error::ConnectionError>;
@@ -24,8 +26,11 @@ pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Tran
 /// before it polls HTTP/3.
 ///
 /// Quinn discards every stream opened before a rejection and settles
-/// `accepted` under the same connection lock (RFC 9001, section 4.6.2), so a
-/// driver that checks `accepted` first never polls a discarded stream. After
+/// `accepted` under the same connection lock (RFC 9001, section 4.6.2). Quinn
+/// runs on its own task, so the rejection can still land between the
+/// driver's check of `accepted` and its poll of HTTP/3, and the discarded
+/// session then fails. Its close is held until the answer is read, and a
+/// failure is checked against `accepted` again before the driver ends. After
 /// a rejection the driver stops polling the discarded HTTP/3 session, which
 /// would otherwise close the QUIC connection, and waits for its
 /// `replacement`, built on the same connection.
@@ -34,12 +39,67 @@ pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Tran
 /// opening request streams before the answer is checked and published; see
 /// `early_streams`. Dropping it unanswered closes the gate.
 pub(super) struct EarlyAnswer {
-    pub(super) accepted: super::early_streams::ZeroRttAnswer,
+    /// Holds Quinn's answer, and the closes the session asked for after its
+    /// handshake until the answer is read; see `early_streams::EarlySession`.
+    pub(super) session: Arc<EarlySession>,
     pub(super) gate: watch::Sender<Option<bool>>,
     #[cfg(test)]
     pub(super) gate_delay: Option<super::GateDelay>,
+    /// Makes the driver poll HTTP/3 before it reads Quinn's answer.
+    #[cfg(test)]
+    pub(super) answer_after_poll: bool,
     pub(super) answer: oneshot::Sender<bool>,
     pub(super) replacement: oneshot::Receiver<ClientDriver>,
+    pub(super) connection: quinn::Connection,
+}
+
+/// Reads Quinn's answer when it is ready, hands it to the stream gate and
+/// the publishing task, and returns the replacement's receiver on a
+/// rejection.
+fn poll_early_answer(
+    early: &mut Option<EarlyAnswer>,
+    context: &mut Context<'_>,
+) -> Option<oneshot::Receiver<ClientDriver>> {
+    let pending = early.as_mut()?;
+    let Poll::Ready(accepted) = pending.session.poll_quinn_answer(context) else {
+        return None;
+    };
+    let EarlyAnswer {
+        gate,
+        #[cfg(test)]
+        gate_delay,
+        answer,
+        replacement,
+        session,
+        connection,
+        ..
+    } = early.take()?;
+    // A close the session deferred came from a discarded session on a
+    // rejection, and is its own on an acceptance.
+    if let Some((code, reason)) = session.answered()
+        && accepted
+    {
+        connection.close(code, &reason);
+    }
+    #[cfg(test)]
+    let gate = match gate_delay {
+        Some(delay) => {
+            let delay = delay.next();
+            drop(tokio::spawn(async move {
+                tokio::time::sleep(delay).await;
+                gate.send_replace(Some(accepted));
+            }));
+            None
+        }
+        None => Some(gate),
+    };
+    #[cfg(not(test))]
+    let gate = Some(gate);
+    if let Some(gate) = gate {
+        gate.send_replace(Some(accepted));
+    }
+    let _ = answer.send(accepted);
+    (!accepted).then_some(replacement)
 }
 
 /// Peer ALPS that reached an early-data connection after its HTTP/3 driver
@@ -149,38 +209,13 @@ async fn drive(
 ) -> DriverResult {
     let error = loop {
         let step = poll_fn(|context| {
-            if let Some(pending) = early.as_mut()
-                && let Poll::Ready(accepted) = Pin::new(&mut pending.accepted).poll(context)
-                && let Some(EarlyAnswer {
-                    gate,
-                    #[cfg(test)]
-                    gate_delay,
-                    answer,
-                    replacement,
-                    ..
-                }) = early.take()
+            #[cfg(test)]
+            let answer_after_poll = early.as_ref().is_some_and(|early| early.answer_after_poll);
+            #[cfg(not(test))]
+            let answer_after_poll = false;
+            if !answer_after_poll && let Some(replacement) = poll_early_answer(&mut early, context)
             {
-                #[cfg(test)]
-                let gate = match gate_delay {
-                    Some(delay) => {
-                        let delay = delay.next();
-                        drop(tokio::spawn(async move {
-                            tokio::time::sleep(delay).await;
-                            gate.send_replace(Some(accepted));
-                        }));
-                        None
-                    }
-                    None => Some(gate),
-                };
-                #[cfg(not(test))]
-                let gate = Some(gate);
-                if let Some(gate) = gate {
-                    gate.send_replace(Some(accepted));
-                }
-                let _ = answer.send(accepted);
-                if !accepted {
-                    return Poll::Ready(DriveStep::Rejected(replacement));
-                }
+                return Poll::Ready(DriveStep::Rejected(replacement));
             }
             // The driver owns the HTTP/3 connection state, so peer ALPS that
             // arrives after it started is applied here, between polls.
@@ -203,6 +238,22 @@ async fn drive(
                     debug!("HTTP/3 SETTINGS stored for session resumption");
                 }
                 application_state = None;
+            }
+            if closed.is_ready() || answer_after_poll {
+                // Quinn can discard the early streams after the answer was
+                // polled above, and the session then fails. Quinn settles
+                // the answer in the same step, so it is ready here.
+                if let Some(replacement) = poll_early_answer(&mut early, context) {
+                    return Poll::Ready(DriveStep::Rejected(replacement));
+                }
+            }
+            if closed.is_ready() {
+                // Any other failure closes with the code the session chose.
+                if let Some(pending) = early.take()
+                    && let Some((code, reason)) = pending.session.answered()
+                {
+                    pending.connection.close(code, &reason);
+                }
             }
             closed.map(DriveStep::Closed)
         })

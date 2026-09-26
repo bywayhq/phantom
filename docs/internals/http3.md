@@ -639,6 +639,11 @@ session on the connection instead.
   answer first, and then uses the new session. `send_prepared_request`
   reports only a request that took the sender before the answer as
   unprocessed.
+- Quinn discards the early streams and settles its answer in one step,
+  under the connection's lock, but on its own task. On a multi-threaded
+  runtime that step can land between any check of the answer and the next
+  use of the connection, so the early session reads the answer again after
+  each use that depends on it (`EarlySession` in `early_streams`).
 - The handshake can complete while the early session is still starting.
   Once the handshake data is in, the session reads Quinn's answer before it
   opens another control or QPACK stream. After an acceptance the open goes
@@ -650,13 +655,26 @@ session on the connection instead.
   applies, opens its streams as client streams 2, 6, and 10, and publishes
   the rejection, so `sent_early_data` is true and `early_data_accepted` is
   `Some(false)`. On any other failure `connect` closes with the code the
-  session chose. Quinn's answer is read and the stream opened under
-  separate locks, so a rejection can land between the two. The open then
-  takes a live 1-RTT number, and a later session would have to use other
-  stream numbers. Every session therefore checks that its critical streams
-  take client streams 2, 6, and 10, and one that does not fails to start;
-  the connection is closed with `H3_INTERNAL_ERROR` rather than started on
-  other stream numbers.
+  session chose.
+- A rejection can land after the session decided to open a stream as a
+  0-RTT one and before it opens it. The session reads the answer again
+  after the open: a pending answer means the stream is a 0-RTT one. After a
+  rejection, Quinn reports the rejection on a 0-RTT stream, and any other
+  stream is a live 1-RTT stream on client stream 2. That stream is handed to
+  the session that starts after the rejection, as its control stream.
+  Every session still checks that its critical streams take client streams
+  2, 6, and 10, and one that does not fails to start; the connection is
+  closed with `H3_INTERNAL_ERROR` rather than started on other stream
+  numbers.
+- After the start, the driver can poll the early session after Quinn
+  discarded its streams and before the driver read the answer. The session
+  then fails and asks to close the connection. That close is held until the
+  driver reads the answer, which it does again whenever the session ends:
+  on a rejection the close is dropped and HTTP/3 starts again, and
+  otherwise the connection closes with the session's code. The early
+  session also accepts no server stream before Quinn accepted the early
+  data, so a server stream that arrives in that interval stays for the
+  session that replaces a rejected one.
 - Every session applies the same start checks, in `check_start` and
   `apply_peer_alps`: a missing `h3` ALPN or malformed ALPS `ACCEPT_CH`
   closes the connection with `H3_GENERAL_PROTOCOL_ERROR`, and invalid ALPS

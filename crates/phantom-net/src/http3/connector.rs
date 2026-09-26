@@ -63,7 +63,7 @@ pub struct Http3Connector {
     #[cfg(test)]
     gate_delay: Option<super::GateDelay>,
     #[cfg(test)]
-    start_after_handshake: bool,
+    early_race: Option<super::EarlyRace>,
 }
 
 impl Http3Connector {
@@ -159,7 +159,7 @@ impl Http3Connector {
             #[cfg(test)]
             gate_delay: None,
             #[cfg(test)]
-            start_after_handshake: false,
+            early_race: None,
         })
     }
 
@@ -303,7 +303,7 @@ impl Http3Connector {
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
             #[cfg(test)]
-            start_after_handshake: self.start_after_handshake,
+            early_race: self.early_race,
         }
     }
 
@@ -411,7 +411,7 @@ impl Http3Connector {
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
             #[cfg(test)]
-            start_after_handshake: self.start_after_handshake,
+            early_race: self.early_race,
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -443,12 +443,10 @@ impl Http3Connector {
         self
     }
 
-    /// Makes each early-data connection wait for its handshake to complete
-    /// before its early HTTP/3 session starts, so a rejection arrives while
-    /// the session writes its first stream bytes.
+    /// Forces `race` with the handshake on each early-data connection.
     #[cfg(test)]
-    pub(super) fn with_test_start_after_handshake(mut self) -> Self {
-        self.start_after_handshake = true;
+    pub(super) fn with_test_early_race(mut self, race: super::EarlyRace) -> Self {
+        self.early_race = Some(race);
         self
     }
 

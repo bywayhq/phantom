@@ -19,7 +19,7 @@ use http::{Method, StatusCode};
 use tokio::{sync::watch, time::timeout};
 
 use super::super::{
-    GateDelay, Http3Unprocessed,
+    EarlyRace, GateDelay, Http3Unprocessed,
     early_data::EarlyDataOutcome,
     early_streams::{Opener, Transport, ZeroRttAnswer},
 };
@@ -36,14 +36,17 @@ type Published = watch::Sender<Option<EarlyDataOutcome>>;
 
 /// A gated transport over `quinn` whose answers the test sends.
 fn gated(quinn: &quinn::Connection) -> (Answer, Published, Transport) {
+    gated_with(quinn, ZeroRttAnswer::Known(true))
+}
+
+/// A gated transport over `quinn` on which Quinn gave `quinn_answer`.
+fn gated_with(
+    quinn: &quinn::Connection,
+    quinn_answer: ZeroRttAnswer,
+) -> (Answer, Published, Transport) {
     let (answer, answer_rx) = watch::channel(None);
     let (published, published_rx) = watch::channel(None);
-    let transport = Transport::early(
-        quinn.clone(),
-        ZeroRttAnswer::Known(true),
-        answer_rx,
-        published_rx,
-    );
+    let transport = Transport::early(quinn.clone(), quinn_answer, answer_rx, published_rx);
     (answer, published, transport)
 }
 
@@ -418,7 +421,13 @@ async fn check_rejected_at_start(
         TEST_TIMEOUT,
         send(connector, connection, Method::GET, path, None),
     )
-    .await??;
+    .await
+    .map_err(|_| {
+        format!(
+            "the request after a rejection at start did not finish: close {:?}",
+            connection.quinn().close_reason()
+        )
+    })??;
     if response.status() != StatusCode::OK {
         return Err("the session started after the rejection did not serve".into());
     }
@@ -562,7 +571,7 @@ async fn handshake_window_rejection(
             send(&early, &connection, Method::GET, "/between", None)
                 .await
                 .map(|response| response.status())
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error}: {error:?}"))
         }
     });
     tokio::time::sleep(release).await;
@@ -578,7 +587,18 @@ async fn handshake_window_rejection(
         return Err("the request reached the server before the answer".into());
     }
     hold.add_permits(1);
-    let status = timeout(TEST_TIMEOUT, request).await???;
+    let status = match timeout(TEST_TIMEOUT, request).await {
+        Ok(joined) => joined??,
+        Err(_) => {
+            return Err(format!(
+                "the request did not finish after the answer: close {:?}, pending {}, served {:?}",
+                connection.quinn().close_reason(),
+                connection.early_data_pending(),
+                served.lock().map(|served| served.clone()).ok(),
+            )
+            .into());
+        }
+    };
     if status != StatusCode::OK {
         return Err(format!("unexpected status {status}").into());
     }
@@ -635,7 +655,7 @@ async fn a_parked_request_does_not_open_before_invalid_metadata_is_found() -> Te
             send(&early, &connection, Method::GET, "/first", None)
                 .await
                 .map(|_| ())
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error}: {error:?}"))
         }
     });
     let second = tokio::spawn({
@@ -645,7 +665,7 @@ async fn a_parked_request_does_not_open_before_invalid_metadata_is_found() -> Te
             send(&early, &connection, Method::GET, "/second", None)
                 .await
                 .map(|_| ())
-                .map_err(|error| error.to_string())
+                .map_err(|error| format!("{error}: {error:?}"))
         }
     });
     // Long enough for the handshake to complete and for the server's
@@ -733,13 +753,15 @@ async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult
         let delay = random_gate_delay(mixed);
         let rejection = credit_wait_rejection(Some(delay.clone()))
             .await
-            .map_err(|error| format!("credit wait, seed {seed}, iteration {iteration}: {error}"))?;
+            .map_err(|error| {
+                format!("credit wait, seed {seed}, iteration {iteration}: {error:?}")
+            })?;
         credit_wait[index(rejection)] += 1;
         let release = Duration::from_micros(mixed.rotate_left(17) % 5_000);
         let rejection = handshake_window_rejection(Some(delay), release)
             .await
             .map_err(|error| {
-                format!("handshake window, seed {seed}, iteration {iteration}: {error}")
+                format!("handshake window, seed {seed}, iteration {iteration}: {error:?}")
             })?;
         handshake_window[index(rejection)] += 1;
     }
@@ -799,7 +821,7 @@ async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> Te
     let identity = TestIdentity::generate()?;
     let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
-        .with_test_start_after_handshake();
+        .with_test_early_race(EarlyRace::StartAfterHandshake);
     let endpoint = quinn::Endpoint::server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
@@ -845,7 +867,7 @@ async fn an_acceptance_while_the_early_session_starts_keeps_the_connection() -> 
     let identity = TestIdentity::generate()?;
     let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
-        .with_test_start_after_handshake();
+        .with_test_early_race(EarlyRace::StartAfterHandshake);
     let endpoint = quinn::Endpoint::server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
@@ -874,5 +896,127 @@ async fn an_acceptance_while_the_early_session_starts_keeps_the_connection() -> 
 
     drop((next, connection));
     server.abort();
+    Ok(())
+}
+
+/// Connects through a relay that holds the server's datagrams, to a server
+/// that rejects the early data, with `race` forced, and checks that the
+/// connection reports the rejection, starts HTTP/3 again on client streams
+/// 2, 6, and 10, and carries a request.
+async fn check_rejection_with(race: EarlyRace) -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector_with(&identity, &typed_critical_streams())?
+        .with_isolated_session_cache()
+        .with_test_early_race(race);
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served, types) = spawn_recording_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    endpoint.set_server_config(Some(server_config(&identity, false)?));
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let connection = connect(&early, relay).await?;
+    assert!(connection.sent_early_data());
+    assert_eq!(
+        timeout(TEST_TIMEOUT, connection.early_data_accepted()).await?,
+        Some(false)
+    );
+    let response = timeout(
+        TEST_TIMEOUT,
+        send(&early, &connection, Method::GET, "/restarted", None),
+    )
+    .await??;
+    assert_eq!(response.status(), StatusCode::OK);
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(served, [(1, "/restarted".to_owned())]);
+    check_critical_stream_types(&types, 1).await?;
+    let next = connection.quinn().open_uni().await?;
+    assert_eq!(u64::from(next.id()), 14);
+
+    drop((next, response, connection));
+    relay_task.abort();
+    server.abort();
+    Ok(())
+}
+
+/// Quinn completes the handshake on its own task, so a rejection can land
+/// after the early session decided to open its control stream as a 0-RTT
+/// stream and before it opens it. The stream is then a live 1-RTT stream on
+/// client stream 2, and the session started after the rejection takes it as
+/// its control stream. A hook opens the stream only once Quinn answered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_stream_opened_after_a_rejection_at_start_goes_to_the_new_session() -> TestResult<()> {
+    check_rejection_with(EarlyRace::OpenAfterAnswer).await
+}
+
+/// Quinn can discard the early streams after the connection driver checked
+/// its answer and before the driver polls HTTP/3. The discarded session
+/// then fails and asks to close the connection, and may find the server's
+/// streams. The close is dropped, the server's streams are left to the
+/// session that replaces it, and the connection carries a request on that
+/// session. A hook makes the driver poll HTTP/3 before it reads the answer.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_discarded_session_polled_before_the_answer_keeps_the_connection() -> TestResult<()> {
+    check_rejection_with(EarlyRace::AnswerAfterPoll).await
+}
+
+/// An early session accepts none of the server's streams after a
+/// rejection, which leaves them to the session that replaces it; after an
+/// acceptance it accepts them. Quinn can deliver a server stream between the
+/// driver's check of the answer and its poll of HTTP/3, so the session reads
+/// the answer itself.
+#[tokio::test(flavor = "current_thread")]
+async fn an_early_session_accepts_server_streams_only_after_an_acceptance() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, false)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (done, finished) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let mut control = connection.open_uni().await?;
+        control.write_all(&[0x00]).await?;
+        let _ = finished.await;
+        drop((control, connection));
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let client = super::super::endpoint(
+        address,
+        super::client_config(&identity)?,
+        super::super::ConnectionDiagnostics::default(),
+    )?;
+    let quinn = client
+        .connect(address, crate::tls::test_support::TEST_SERVER_NAME)?
+        .await?;
+
+    let (_, _, mut rejected) = gated_with(&quinn, ZeroRttAnswer::Known(false));
+    let refused = timeout(
+        Duration::from_millis(200),
+        poll_fn(|cx| h3::quic::Connection::<Bytes>::poll_accept_recv(&mut rejected, cx)),
+    )
+    .await;
+    assert!(
+        refused.is_err(),
+        "a rejected session accepted a server stream"
+    );
+    let (_, _, mut accepted) = gated_with(&quinn, ZeroRttAnswer::Known(true));
+    let stream = timeout(
+        TEST_TIMEOUT,
+        poll_fn(|cx| h3::quic::Connection::<Bytes>::poll_accept_recv(&mut accepted, cx)),
+    )
+    .await??;
+    assert_eq!(h3::quic::RecvStream::recv_id(&stream).into_inner(), 3);
+
+    drop(stream);
+    let _ = done.send(());
+    timeout(TEST_TIMEOUT, server).await???;
     Ok(())
 }

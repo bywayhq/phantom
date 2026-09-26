@@ -49,14 +49,30 @@ type Answered = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 pub(super) struct Transport {
     inner: h3_quinn::Connection,
     gate: Option<OpenGate>,
-    /// Present while an early session starts; see [`Starting`].
-    starting: Option<Arc<Starting>>,
+    /// Present on an early session; see [`EarlySession`].
+    early: Option<Arc<EarlySession>>,
+    /// A stream the rejected session opened for this one.
+    handed_over: Option<HandedOver>,
     /// How many of the session's critical streams have opened.
     critical_opened: u64,
     /// Makes every stream the session opens for itself after its first one
     /// wait until the handshake completes, for tests.
     #[cfg(test)]
     wait_for_handshake: Option<HandshakeWait>,
+    /// Makes the session's first stream open only once Quinn answered.
+    #[cfg(test)]
+    open_after_answer: OpenAfterAnswer,
+}
+
+/// Where the test hook that opens the first stream after Quinn's answer is.
+#[cfg(test)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+enum OpenAfterAnswer {
+    #[default]
+    Off,
+    Armed,
+    /// The open was decided and waits for the answer.
+    Waiting,
 }
 
 impl Transport {
@@ -65,10 +81,13 @@ impl Transport {
         Self {
             inner: h3_quinn::Connection::new(connection),
             gate: None,
-            starting: None,
+            early: None,
+            handed_over: None,
             critical_opened: 0,
             #[cfg(test)]
             wait_for_handshake: None,
+            #[cfg(test)]
+            open_after_answer: OpenAfterAnswer::Off,
         }
     }
 
@@ -90,11 +109,22 @@ impl Transport {
                 answer,
                 outcome,
             }),
-            starting: Some(Arc::new(Starting::new(accepted))),
+            early: Some(Arc::new(EarlySession::new(accepted))),
+            handed_over: None,
             critical_opened: 0,
             #[cfg(test)]
             wait_for_handshake: None,
+            #[cfg(test)]
+            open_after_answer: OpenAfterAnswer::Off,
         }
+    }
+
+    /// Makes the session's first stream open only once Quinn answered,
+    /// although the session decided to open it before, as when Quinn
+    /// completes the handshake on another thread between the two.
+    #[cfg(test)]
+    pub(super) fn open_after_answer_for_test(&mut self) {
+        self.open_after_answer = OpenAfterAnswer::Armed;
     }
 
     /// Makes every stream the session opens for itself after its first one
@@ -109,14 +139,43 @@ impl Transport {
         });
     }
 
-    /// Returns the start state of an early session, which the caller ends
+    /// A session that replaces a rejected one, with the live stream the
+    /// rejected session opened, if any, as its first stream.
+    pub(super) fn after_rejection(
+        connection: quinn::Connection,
+        handed_over: Option<HandedOver>,
+    ) -> Self {
+        Self {
+            handed_over,
+            ..Self::new(connection)
+        }
+    }
+
+    /// Returns the state of an early session, whose start the caller ends
     /// once the session has started or failed to.
-    pub(super) fn starting(&self) -> Option<Arc<Starting>> {
-        self.starting.clone()
+    pub(super) fn early_session(&self) -> Option<Arc<EarlySession>> {
+        self.early.clone()
     }
 }
 
-impl<B: Buf> quic::Connection<B> for Transport {
+impl Transport {
+    /// Whether the session may accept the server's streams: an early session
+    /// only once Quinn accepted its early data.
+    fn poll_accepts(&self, cx: &mut Context<'_>) -> Poll<()> {
+        match &self.early {
+            Some(early) => match early.poll_quinn_answer(cx) {
+                Poll::Ready(true) => Poll::Ready(()),
+                // After a rejection the server's streams belong to the
+                // session that replaces this one, and the driver stops
+                // polling this one.
+                Poll::Ready(false) | Poll::Pending => Poll::Pending,
+            },
+            None => Poll::Ready(()),
+        }
+    }
+}
+
+impl<B: Buf + Send + 'static> quic::Connection<B> for Transport {
     type RecvStream = h3_quinn::RecvStream;
     type OpenStreams = Opener<B>;
 
@@ -124,6 +183,7 @@ impl<B: Buf> quic::Connection<B> for Transport {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::RecvStream, ConnectionErrorIncoming>> {
+        ready!(self.poll_accepts(cx));
         quic::Connection::<B>::poll_accept_recv(&mut self.inner, cx)
     }
 
@@ -131,6 +191,7 @@ impl<B: Buf> quic::Connection<B> for Transport {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::BidiStream, ConnectionErrorIncoming>> {
+        ready!(self.poll_accepts(cx));
         quic::Connection::<B>::poll_accept_bidi(&mut self.inner, cx)
     }
 
@@ -148,7 +209,7 @@ impl<B: Buf> quic::Connection<B> for Transport {
 
 /// The session's own streams (control and QPACK) open when it starts, so
 /// they need no gate.
-impl<B: Buf> quic::OpenStreams<B> for Transport {
+impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
     type BidiStream = h3_quinn::BidiStream<B>;
     type SendStream = h3_quinn::SendStream<B>;
 
@@ -169,20 +230,69 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
         {
             ready!(wait.poll(cx));
         }
+        if let Some(stream) = self.handed_over.take()
+            && let Ok(stream) = stream.downcast::<h3_quinn::SendStream<B>>()
+        {
+            self.critical_opened += 1;
+            return Poll::Ready(Ok(*stream));
+        }
         // Once the handshake completed, a stream opened here is a 1-RTT
         // stream. After a rejection it would take a stream number the
         // session that replaces this one needs, so the start fails and the
         // caller starts again; after an acceptance it is the stream the
         // session asked for.
-        if let (Some(starting), Some(gate)) = (&self.starting, &self.gate)
-            && starting.is_starting()
-            && ready!(starting.poll_answer(&gate.quinn, cx)) == Some(false)
+        let mut raced = false;
+        #[cfg(test)]
+        let resumed = self.open_after_answer == OpenAfterAnswer::Waiting;
+        #[cfg(not(test))]
+        let resumed = false;
+        if resumed {
+            raced = true;
+        } else if let (Some(early), Some(gate)) = (&self.early, &self.gate)
+            && early.is_starting()
         {
+            match ready!(early.poll_open_answer(&gate.quinn, cx)) {
+                Some(false) => {
+                    return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
+                        DiscardedSession,
+                    ))));
+                }
+                Some(true) => {}
+                None => raced = true,
+            }
+        }
+        #[cfg(test)]
+        if raced
+            && self.open_after_answer != OpenAfterAnswer::Off
+            && let Some(early) = &self.early
+        {
+            self.open_after_answer = OpenAfterAnswer::Waiting;
+            ready!(early.poll_quinn_answer(cx));
+            self.open_after_answer = OpenAfterAnswer::Off;
+        }
+        let mut stream = ready!(quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx))?;
+        // The open was decided before Quinn answered, so the rejection can
+        // have landed between the check and the open. Quinn settles its
+        // answer when it discards the early streams, so a pending answer
+        // means the stream is a 0-RTT one. After a rejection, a 0-RTT stream
+        // reports the rejection, and any other stream is a live 1-RTT one
+        // on the first number, which the replacement session takes as its
+        // control stream.
+        if raced
+            && let Some(early) = &self.early
+            && early.poll_quinn_answer(cx) == Poll::Ready(false)
+        {
+            let discarded = matches!(
+                quic::SendStreamUnframed::<B>::poll_stopped(&mut stream, cx),
+                Poll::Ready(Err(_))
+            );
+            if !discarded {
+                early.hand_over(Box::new(stream));
+            }
             return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                 DiscardedSession,
             ))));
         }
-        let stream = ready!(quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx))?;
         // The session's critical streams take the first client
         // unidirectional stream numbers, 2, 6 and 10 (RFC 9000, section
         // 2.1). A rejection that lands between the check above and the open
@@ -212,9 +322,9 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
     }
 
     fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
-        if let (Some(starting), Some(gate)) = (&self.starting, &self.gate)
+        if let (Some(early), Some(gate)) = (&self.early, &self.gate)
             && gate.quinn.handshake_data().is_some()
-            && starting.defer_close(code, reason)
+            && early.defer_close(code, reason)
         {
             return;
         }
@@ -223,18 +333,15 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
 }
 
 /// Quinn's answer to a connection's early data: `true` when the server
-/// accepted it. The session reads it while it starts, and the connection
-/// driver afterwards.
+/// accepted it.
 pub(super) enum ZeroRttAnswer {
     Waiting(quinn::ZeroRttAccepted),
     Known(bool),
 }
 
-impl Future for ZeroRttAnswer {
-    type Output = bool;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<bool> {
-        match &mut *self {
+impl ZeroRttAnswer {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<bool> {
+        match self {
             Self::Known(accepted) => Poll::Ready(*accepted),
             Self::Waiting(answer) => {
                 let accepted = ready!(Pin::new(answer).poll(cx));
@@ -245,39 +352,67 @@ impl Future for ZeroRttAnswer {
     }
 }
 
-/// The start of an early session.
+/// The state an early session shares with `connect` and the connection
+/// driver.
 ///
-/// A stream the session opens for itself before the handshake completes is
-/// a 0-RTT stream. Once the handshake data is in, the session waits for
-/// Quinn's answer before it opens another: an acceptance lets the open go
-/// ahead, and a rejection fails it.
+/// Quinn discards the early streams and settles its answer in one step, under
+/// the connection's lock, but runs on its own task. On a multi-threaded
+/// runtime that step can land between any check of the answer and the next
+/// use of the connection, so every decision that depends on the answer reads
+/// it again after the connection was used:
 ///
-/// A server can reject the early data while the session writes its first
-/// stream bytes, and the writes then fail. A close the session asks for
-/// after the handshake completed, which a rejection can cause, is deferred
-/// to the caller: it starts HTTP/3 again on a rejection, and otherwise
-/// closes with the code the session chose. A close before the handshake
-/// completed cannot come from a rejection and is sent at once.
-pub(super) struct Starting {
+/// - A stream the session opens for itself before Quinn answers is a 0-RTT
+///   stream. Once the handshake data is in, an open waits for the answer: an
+///   acceptance lets it open as a 1-RTT stream, and a rejection fails it. An
+///   open that raced the rejection is checked afterwards; see
+///   [`Transport::poll_open_send`].
+/// - The session accepts no stream from the server before Quinn's answer, and
+///   none after a rejection: the server's streams then belong to the session
+///   that replaces it.
+/// - Quinn fails every use of a discarded stream, and the session then asks
+///   to close the connection. A close it asks for after the handshake
+///   completed, and before the connection driver read the answer, is
+///   deferred: while the session starts it goes to `connect`, and afterwards
+///   to the driver. On a rejection the close is dropped and HTTP/3 starts
+///   again; otherwise the connection closes with the code the session chose.
+///   A close before the handshake completed cannot come from a rejection and
+///   is sent at once.
+pub(super) struct EarlySession {
     started: AtomicBool,
-    deferred: std::sync::Mutex<Option<(quinn::VarInt, Vec<u8>)>>,
-    answer: std::sync::Mutex<Option<ZeroRttAnswer>>,
+    deferred: std::sync::Mutex<DeferredClose>,
+    answer: std::sync::Mutex<ZeroRttAnswer>,
+    /// A live stream a start that raced the rejection opened; it is the
+    /// replacement session's control stream.
+    handed_over: std::sync::Mutex<Option<HandedOver>>,
+}
+
+/// A stream the rejected session opened after the rejection, for the
+/// session that replaces it.
+pub(super) type HandedOver = Box<dyn std::any::Any + Send>;
+
+/// A close deferred until Quinn's answer is read.
+#[derive(Default)]
+struct DeferredClose {
+    /// Set once the answer was read; later closes are sent at once.
+    answered: bool,
+    close: Option<(quinn::VarInt, Vec<u8>)>,
 }
 
 /// What an early session's start leaves to its caller.
 pub(super) struct Started {
     /// The close the session asked for after its handshake completed.
     pub(super) deferred_close: Option<(quinn::VarInt, Vec<u8>)>,
-    /// Quinn's answer, which only a start that ended twice lacks.
-    pub(super) answer: Option<ZeroRttAnswer>,
+    /// A live stream for the session that replaces a rejected one.
+    pub(super) handed_over: Option<HandedOver>,
 }
 
-impl Starting {
+impl EarlySession {
     fn new(answer: ZeroRttAnswer) -> Self {
         Self {
             started: AtomicBool::new(false),
-            deferred: std::sync::Mutex::new(None),
-            answer: std::sync::Mutex::new(Some(answer)),
+            deferred: std::sync::Mutex::new(DeferredClose::default()),
+            answer: std::sync::Mutex::new(answer),
+            handed_over: std::sync::Mutex::new(None),
         }
     }
 
@@ -285,25 +420,24 @@ impl Starting {
         !self.started.load(Ordering::Acquire)
     }
 
+    /// Polls Quinn's answer.
+    pub(super) fn poll_quinn_answer(&self, cx: &mut Context<'_>) -> Poll<bool> {
+        self.answer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .poll(cx)
+    }
+
     /// Resolves to Quinn's answer once it is known, or to `None` at once
     /// while the handshake runs. Once the handshake data is in and the
     /// answer is not, it waits: Quinn answers when the same handshake
-    /// completes. Without an answer, which only an ended start lacks, it
-    /// resolves to `Some(false)` so no stream opens; `finish` then fails the
-    /// start.
-    fn poll_answer(
+    /// completes.
+    fn poll_open_answer(
         &self,
         connection: &quinn::Connection,
         cx: &mut Context<'_>,
     ) -> Poll<Option<bool>> {
-        let mut answer = self
-            .answer
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(answer) = answer.as_mut() else {
-            return Poll::Ready(Some(false));
-        };
-        if let Poll::Ready(accepted) = Pin::new(answer).poll(cx) {
+        if let Poll::Ready(accepted) = self.poll_quinn_answer(cx) {
             return Poll::Ready(Some(accepted));
         }
         if connection.handshake_data().is_none() {
@@ -313,18 +447,39 @@ impl Starting {
         }
     }
 
+    fn hand_over(&self, stream: HandedOver) {
+        *self
+            .handed_over
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(stream);
+    }
+
     fn defer_close(&self, code: h3::error::Code, reason: &[u8]) -> bool {
-        if !self.is_starting() {
-            return false;
-        }
         let Ok(code) = quinn::VarInt::from_u64(code.value()) else {
             return false;
         };
-        self.deferred
+        let mut deferred = self
+            .deferred
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if deferred.answered {
+            return false;
+        }
+        deferred
+            .close
             .get_or_insert_with(|| (code, reason.to_vec()));
         true
+    }
+
+    /// Records that the connection driver read Quinn's answer, and returns
+    /// the close the session deferred since it started.
+    pub(super) fn answered(&self) -> Option<(quinn::VarInt, Vec<u8>)> {
+        let mut deferred = self
+            .deferred
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        deferred.answered = true;
+        deferred.close.take()
     }
 
     /// Ends the start and returns what it leaves to the caller.
@@ -334,15 +489,16 @@ impl Starting {
             .deferred
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .close
             .take();
-        let answer = self
-            .answer
+        let handed_over = self
+            .handed_over
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
         Started {
             deferred_close,
-            answer,
+            handed_over,
         }
     }
 }
@@ -380,7 +536,7 @@ impl HandshakeWait {
     }
 }
 
-impl<B: Buf> DatagramConnectionExt<B> for Transport {
+impl<B: Buf + Send + 'static> DatagramConnectionExt<B> for Transport {
     type SendDatagramHandler = h3_quinn::datagram::SendDatagramHandler;
     type RecvDatagramHandler = h3_quinn::datagram::RecvDatagramHandler;
 
