@@ -20,7 +20,7 @@ that means. This index lists every page by what you want to do.
 Task guides for using Phantom in an application.
 
 - [Using the client](guides/client.md): clients, protocols, fields, bodies,
-  trailers, and timeouts.
+  trailers, timeouts, and client certificates.
 - [Responses and errors](guides/responses.md): response fields in wire
   order, bounded bodies, and error kinds.
 - [Browser profiles](guides/profiles.md): built-in recipes and custom
@@ -34,7 +34,7 @@ Task guides for using Phantom in an application.
 - [Retries and replays](guides/retries.md): when Phantom may send a request
   again, and when it never will.
 - [Connections and client state](guides/connections-and-state.md): pools,
-  sessions, and clearing learned state.
+  sessions, source addresses, and clearing learned state.
 - [Resolve host names](guides/name-resolution.md): the address cache, host
   overrides, and your own address resolver.
 - [Redirects](guides/redirects.md): follow a bounded number of redirects.

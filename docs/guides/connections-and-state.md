@@ -1,7 +1,8 @@
 # Connections and client state
 
 Share one client's connections and state between tasks, keep separate
-sessions apart, and clear what a client has learned.
+sessions apart, choose where connections leave from, and clear what a
+client has learned.
 
 > For builders who have read [Using the client](client.md).
 
@@ -106,6 +107,41 @@ fn two_sessions() -> Result<(Client, Client), BuildError> {
 - A session does not change the profile: two sessions built from one profile
   send the same fingerprint.
 
+## Send connections from a chosen local address
+
+Bind every socket the client opens to a local address of each family, or to
+a network interface.
+
+```rust
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{BuildError, Client};
+
+fn bound_client() -> Result<Client, BuildError> {
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    Client::builder(profile)
+        .local_address(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10)))
+        .local_address(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10)))
+        .build()
+}
+```
+
+- `local_address` keeps one address per family; call it once for each.
+  With an address for one family only, the client connects only to
+  resolved addresses of that family, as curl does with `--interface` and an
+  address. A host without such an address fails with
+  `RequestErrorKind::Connect`, or `Proxy` for a proxy host, and nothing
+  leaves from an unbound socket.
+- The binding covers TCP to origins and proxies (HTTP, HTTPS, SOCKS5, and
+  the TCP legs of CONNECT-UDP), the UDP socket of a QUIC connection to an
+  origin or a CONNECT-UDP proxy, and the UDP socket of a SOCKS5
+  association. Name resolution is not bound.
+- `interface("eth0")` binds with `SO_BINDTODEVICE` on Linux and Android.
+  Other platforms fail `build` with `BuildErrorKind::InvalidPolicy`
+  ([Limits](#limits)).
+- No field of the ClientHello or the HTTP/2 and HTTP/3 fingerprints changes.
+
 ## Clear what a client has learned
 
 Discard learned client hints, Alt-Svc advertisements, cached addresses, and
@@ -140,6 +176,12 @@ fn forget(client: &Client) {
 - Browsers also keep separate tickets for each top-level site a page runs
   under. A client has no such partitions: all its requests share one ticket
   cache per origin and route.
+
+## Limits
+
+- Interface binding by name needs `SO_BINDTODEVICE`. macOS, iOS, and Windows
+  have no binding by name in Phantom. Linux kernels before 5.7 allow it only
+  with `CAP_NET_RAW`.
 
 ## Next
 

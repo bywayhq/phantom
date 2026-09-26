@@ -2,7 +2,7 @@
 
 Build a `Client` from a [profile](../reference/glossary.md#profile) and your
 policies, send requests on the protocol you choose, with fields, a body, and
-trailers.
+trailers, and present a client certificate when a server asks for one.
 
 > For builders who have read [Getting started](../getting-started.md).
 
@@ -129,6 +129,41 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   the names in order as `RequestTrailerName`s; the final `Frame::trailers`
   must hold exactly those names, and static trailers cannot be added.
 
+## Present a client certificate
+
+Answer a server that requests TLS client authentication with a certificate
+and its private key.
+
+```rust
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{Client, ClientCertificate};
+
+fn client_with_certificate(
+    chain_pem: &[u8],
+    key_pem: &[u8],
+) -> Result<Client, Box<dyn std::error::Error>> {
+    // The chain starts with the client certificate, then its intermediates.
+    let certificate = ClientCertificate::from_pem(chain_pem, key_pem)?;
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    Ok(Client::builder(profile)
+        .client_certificate(certificate)
+        .build()?)
+}
+```
+
+- `ClientCertificate::from_der` takes DER certificates and a PKCS #8, RSA,
+  or EC key. A key that does not match the first certificate fails with
+  `ClientCertificateErrorKind::KeyMismatch`.
+- The ClientHello does not change. The certificate leaves the client only in
+  answer to a `CertificateRequest`, over TCP and QUIC, and never to a proxy.
+- The key signs with a scheme from the profile's `signature_schemes`. The
+  Chromium recipes cover RSA, P-256, and P-384 keys, and the Firefox recipe
+  also P-521; `build` fails with `BuildErrorKind::InvalidPolicy` for a key
+  the profile cannot sign with.
+- Under TLS 1.3 and QUIC a server checks the certificate after the client's
+  handshake ends, so a rejection can fail the first read instead of the
+  handshake.
+
 ## Limits
 
 - Accept the [pre-1.0 terms](../getting-started.md#distribution-status), use
@@ -147,6 +182,10 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   fails with `RequestErrorKind::RequestBody`.
 - An invalid or forbidden trailer fails before I/O and before the body is
   read. If the body fails, no trailers are sent.
+- One client certificate serves every origin the client reaches; for
+  another certificate, build another client. An encrypted private key is
+  not accepted. An Ed25519 key parses, but no profile lists an Ed25519
+  signature scheme, so `build` rejects it.
 - The cookie, SSE, and WebSocket APIs need their
   [Cargo features](../getting-started.md#optional-features).
 

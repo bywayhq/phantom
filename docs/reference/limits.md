@@ -22,6 +22,9 @@ policies that stay off until you enable them.
 | Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
 | Host-to-address overrides | None | `ClientBuilder::resolve` |
 | Address resolver | The operating system's | `ClientBuilder::dns_resolver` |
+| Local source address | The operating system's | `ClientBuilder::local_address`, one per address family |
+| Interface binding | None | `ClientBuilder::interface`, Linux and Android only |
+| TLS client certificate | None; a `CertificateRequest` gets an empty `Certificate` | `ClientBuilder::client_certificate` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
 | More than one H3 connection per transport location | One connection | `ClientBuilder::max_http3_connections_per_origin` |

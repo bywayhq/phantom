@@ -484,6 +484,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientBuilder::local_address` binds every TCP and QUIC socket a client
+  opens, to origins and to proxies, to a local IPv4 or IPv6 address, one per
+  family. With an address for one family only, connections skip resolved
+  addresses of the other family, and a host without an address of the bound
+  family fails with `RequestErrorKind::Connect` (or `Proxy`) and an
+  `io::ErrorKind::AddrNotAvailable` source. `ClientBuilder::interface` binds
+  them to a network interface with `SO_BINDTODEVICE` on Linux and Android;
+  `build` fails with `BuildErrorKind::InvalidPolicy` elsewhere. Both are off
+  by default and change no fingerprint field. `phantom-net` adds
+  `SourceBinding` and the connectors' `with_source_binding`.
+- `ClientBuilder::client_certificate` presents a `ClientCertificate`, parsed
+  with `ClientCertificate::from_pem` or `from_der` from a chain and an RSA,
+  ECDSA, or Ed25519 key, when an origin sends a TLS `CertificateRequest`,
+  over TCP and QUIC. The ClientHello does not change, and proxies never
+  receive the certificate. A key that does not match the certificate fails
+  with `ClientCertificateErrorKind::KeyMismatch`, and a key the profile's
+  `signature_schemes` cannot sign with fails `build` with
+  `BuildErrorKind::InvalidPolicy`. `phantom-quic-btls` adds
+  `QuicClientConfig::with_client_certificate`.
 - Brave 154 profiles can take `chromium::v154_tcp`, `chromium::v154_http1`,
   and `chromium::v154_dns_cache`: Brave 1.96.59 builds the Chromium tag
   those recipes cite and changes none of their values. Brave 154 and Opera

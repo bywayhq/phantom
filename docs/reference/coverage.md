@@ -568,6 +568,15 @@ Supported:
   resolver and the cache; the resolver's answers go through the cache when
   there is one. Proxy-resolved targets never use either. See
   [Resolve host names](../guides/name-resolution.md).
+- A caller source binding, off by default: one local address per address
+  family for every TCP and QUIC socket, to origins and proxies, skipping
+  resolved addresses of a family without one; and, on Linux and Android
+  only, an interface bound with `SO_BINDTODEVICE`. See
+  [Send connections from a chosen local address](../guides/connections-and-state.md#send-connections-from-a-chosen-local-address).
+- A caller TLS client certificate for origins over TCP and QUIC, off by
+  default, sent only in answer to a `CertificateRequest`, with an unchanged
+  ClientHello. Proxies never receive it. See
+  [Present a client certificate](../guides/client.md#present-a-client-certificate).
 - With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
   record results, one entry per origin, bounded by the Alt-Svc store's
   capacity and kept for the record TTL. It stores only whether the records

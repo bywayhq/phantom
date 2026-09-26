@@ -71,6 +71,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   replay, and status retries ([Retries and replays](guides/retries.md)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
+- A local source address per address family and, on Linux and Android, an
+  interface binding for every TCP and QUIC socket, and a client certificate
+  sent over TCP and QUIC when a server requests one, each off by default
+  ([Send connections from a chosen local address](guides/connections-and-state.md#send-connections-from-a-chosen-local-address),
+  [Present a client certificate](guides/client.md#present-a-client-certificate)).
 - More than one HTTP/3 connection per origin and route with
   `ClientBuilder::max_http3_connections_per_origin`, off by default: streams
   spread by the server's `initial_max_streams_bidi`
@@ -225,7 +230,8 @@ Each of these needs no capture, because no named recipe may reach it
 - A buffered request body that a retry may replay.
 - Keepalive and address-selection settings on a custom profile.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
-- A source address or interface binding, and client certificates.
+- Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
+  `IP_UNICAST_IF`), and a client certificate chosen per origin.
 
 #### Request pipeline
 
