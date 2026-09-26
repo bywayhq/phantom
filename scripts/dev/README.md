@@ -47,17 +47,21 @@ concurrent chains:
 
 | Chain | Target directory | Steps |
 | --- | --- | --- |
-| Tests | `target/gate/test`, then `target/gate/fuzz` | `cargo nextest run` and `cargo test --doc`, then Clippy and tests of the `fuzz/` crate |
-| Lint | `target/gate/lint` | Clippy, then rustdoc, which reuses Clippy's dependency builds |
+| Tests | `target/gate/test` | `cargo nextest run`, `cargo test --doc`, then the tests of the `fuzz/` crate |
+| Lint | `target/gate/lint`, then `target/gate/doc` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
 | Features | `target/gate/features` | The Features job's rows |
 | Python | none | ruff, the three unittest suites, the docs checker, and the tool-pin check |
 
 The feature rows are read from `.github/workflows/ci.yml`, so the gate checks
-the rows CI checks. Each chain has its own target directory, so chains do not
+the rows CI checks. No two chains share a target directory, so chains do not
 wait on one another's Cargo build lock; the first run builds each directory
-from scratch, and later runs are incremental. The four Cargo chains match the
-default of four slots, so the gate does not queue behind itself.
+from scratch, and later runs are incremental. Only Clippy builds in
+`target/gate/lint`: the `btls-sys` build script reruns whenever
+`RUSTC_WORKSPACE_WRAPPER` changes, and Clippy sets it while other Cargo
+commands do not, so sharing a directory rebuilds BoringSSL on each switch.
+The four Cargo chains match the default of four slots, so the gate does not
+queue behind itself.
 
 ```sh
 scripts/dev/gate.sh                  # the full gate
@@ -80,8 +84,10 @@ followed by the matching lines.
 
 Every Cargo command in the gate takes one slot through `with-cargo-lock.sh`,
 so the gate shares the machine with other worktrees under the rules below.
-When `PHANTOM_CARGO_SLOTS` is unset, the gate sets it to `--slots` (default
-4), and several chains wait for a slot. Each Cargo command gets `-j` jobs
+The feature rows are the exception: each chain of rows holds one slot for the
+whole batch, because each row is a check of a few seconds and queueing before
+every row cost minutes. When `PHANTOM_CARGO_SLOTS` is unset, the gate sets it
+to `--slots` (default 4). Each Cargo command gets `-j` jobs
 (default: twice the CPUs divided by slots, since a build often waits on one
 crate and leaves cores idle); `--test-threads` sets how many tests
 nextest runs at once. Without `cargo-nextest`, the tests step runs

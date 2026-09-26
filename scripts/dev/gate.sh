@@ -109,25 +109,31 @@ run_step() {
 # feature_rows JOB TARGET: checks each optional feature row of the CI job JOB
 # (features or msrv) in target/gate/TARGET. The rows are read from the
 # workflow, so the gate and CI cannot drift apart. Every row runs; the status
-# is 1 when any row fails.
+# is 1 when any row fails. The rows take one Cargo slot for the whole batch:
+# each is a check of a few seconds, and queueing for a slot before every row
+# spent several minutes behind the other chains' long builds.
 feature_rows() {
-  local job=$1 target=$2 pattern rows row args command status=0
+  local job=$1 target=$2 pattern rows toolchain=""
   # shellcheck disable=SC2016 # $MSRV is literal workflow text.
   case $job in
-    features) pattern='s/^ +cargo check (-p .* --locked)\r?$/\1/p'; command=(cargo check) ;;
-    msrv) pattern='s/^ +cargo "\+\$MSRV" check (-p .* --locked)\r?$/\1/p'; command=(cargo "+$msrv" check) ;;
+    features) pattern='s/^ +cargo check (-p .* --locked)\r?$/\1/p' ;;
+    msrv) pattern='s/^ +cargo "\+\$MSRV" check (-p .* --locked)\r?$/\1/p'; toolchain="+$msrv" ;;
   esac
-  rows=$(sed -nE "$pattern" .github/workflows/ci.yml)
-  if [[ -z $rows ]]; then
+  mapfile -t rows < <(sed -nE "$pattern" .github/workflows/ci.yml)
+  if [[ ${#rows[@]} -eq 0 ]]; then
     echo "gate: no $job feature rows found in .github/workflows/ci.yml"
     return 1
   fi
-  while IFS= read -r row; do
-    read -ra args <<<"$row"
-    printf '\n$ %s -j %s %s\n' "${command[*]}" "$jobs" "$row"
-    CARGO_TARGET_DIR="$gate_dir/$target" "$lock" "${command[@]}" -j "$jobs" "${args[@]}" || status=1
-  done <<<"$rows"
-  return "$status"
+  # shellcheck disable=SC2016 # The script expands its own arguments.
+  CARGO_TARGET_DIR="$gate_dir/$target" "$lock" bash -c '
+    toolchain=$1 jobs=$2 status=0
+    shift 2
+    for row in "$@"; do
+      read -ra args <<<"$row"
+      printf "\n\$ cargo %scheck -j %s %s\n" "${toolchain:+$toolchain }" "$jobs" "$row"
+      cargo ${toolchain:+"$toolchain"} check -j "$jobs" "${args[@]}" || status=1
+    done
+    exit "$status"' _ "$toolchain" "$jobs" "${rows[@]}"
 }
 
 # changed_packages: prints the workspace packages whose files differ from the
@@ -154,12 +160,23 @@ changed_packages() {
   done | sort -u
 }
 
+# Each chain runs in a process group of its own, so an interrupted gate stops
+# the whole chain, Cargo and the lock helper included, and no orphaned build
+# keeps a lock slot.
+set -m
 pids=()
 launch() {
   "$@" &
   pids+=($!)
 }
-trap 'kill "${pids[@]}" 2>/dev/null; exit 130' INT TERM
+stop_chains() {
+  local pid
+  for pid in "${pids[@]}"; do
+    kill -TERM -- "-$pid" 2>/dev/null
+  done
+  exit 130
+}
+trap stop_chains INT TERM
 
 gate_start=$(date +%s)
 steps=(fmt)
@@ -206,9 +223,13 @@ fi
 clippy=(cargo clippy -j "$jobs" --workspace --all-targets --all-features --locked -- -D warnings)
 python=(uv run --no-project --python 3.10)
 
-# Each chain runs in the background. Steps within a chain share a target
-# directory and run in order. The full gate has four Cargo chains, one per
-# default slot, so it does not queue behind itself.
+# Each chain runs in the background, its steps in order. The full gate has
+# four Cargo chains, one per default slot, so it does not queue behind itself.
+#
+# Only Clippy runs in target/gate/lint. The btls-sys build script declares
+# RUSTC_WORKSPACE_WRAPPER, which Clippy sets and other Cargo commands do not,
+# as a rerun trigger, so a directory shared by Clippy and any other command
+# rebuilds BoringSSL on every switch between them.
 chain_tests() {
   if [[ ${#scope[@]} -eq 0 ]]; then
     echo "no Rust package changed since $base" >"$logs/nextest.log"
@@ -219,17 +240,14 @@ chain_tests() {
   run_step nextest test "${runner[@]}" "${scope[@]}" "${tests[@]}"
   [[ $quick == true ]] && return
   run_step doctest test cargo test --doc -j "$jobs" --workspace --all-features --locked
-  # The fuzz crate has a target directory of its own: sharing one with the
-  # workspace reruns the BoringSSL build script on every switch between them.
-  run_step fuzz-clippy fuzz cargo clippy -j "$jobs" --manifest-path fuzz/Cargo.toml \
-    --all-targets --locked -- -D warnings
-  run_step fuzz-test fuzz cargo test -j "$jobs" --manifest-path fuzz/Cargo.toml --locked
+  run_step fuzz-test test cargo test -j "$jobs" --manifest-path fuzz/Cargo.toml --locked
 }
 chain_lint() {
   run_step clippy lint "${clippy[@]}"
   [[ $quick == true ]] && return
-  # rustdoc reuses the dependency builds that Clippy makes.
-  RUSTDOCFLAGS="-D warnings" run_step rustdoc lint \
+  run_step fuzz-clippy lint cargo clippy -j "$jobs" --manifest-path fuzz/Cargo.toml \
+    --all-targets --locked -- -D warnings
+  RUSTDOCFLAGS="-D warnings" run_step rustdoc doc \
     cargo doc -j "$jobs" --workspace --all-features --no-deps --locked
 }
 chain_msrv() {
@@ -256,7 +274,7 @@ if [[ $quick == true ]]; then
   launch chain_lint
   launch run_step docs-check - "${python[@]}" python scripts/docs/check_docs.py
 else
-  steps+=(nextest doctest fuzz-clippy fuzz-test clippy rustdoc msrv-workspace msrv-rows
+  steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests docs-check
     tool-pins)
   launch chain_tests
