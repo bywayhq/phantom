@@ -25,7 +25,10 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::tls::{H2_ALPN, TestIdentity, TestResult, is_peer_gone};
+use crate::support::{
+    shared_port,
+    tls::{H2_ALPN, TestIdentity, TestResult, is_peer_gone},
+};
 
 const H3_ALPN: &[u8] = b"h3";
 
@@ -921,27 +924,11 @@ mod raw_http2 {
 ///
 /// The H3 service listens on the IPv4 loopback and, when the host has one, on
 /// the IPv6 loopback at the same port.
-///
-/// Candidates come from below the dynamic port range (49152 and up on Windows
-/// and Linux): under a full workspace test run, TCP clients leave many
-/// `TIME_WAIT` sockets on dynamic ports, and binding a listener there fails
-/// with `AddrInUse`. Windows also reserves blocks of UDP and TCP ports, so
-/// either bind may fail and the loop tries another candidate.
 async fn bind_shared_origin_port(
     identity: &TestIdentity,
 ) -> TestResult<(TcpListener, Vec<Endpoint>)> {
-    const FIRST: u32 = 20_000;
-    const SPAN: u32 = 29_000;
-    static NEXT: AtomicUsize = AtomicUsize::new(0);
-    let seed = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.subsec_nanos())
-        ^ std::process::id();
     let mut last_error = None;
-    for _ in 0..256 {
-        let step = u32::try_from(NEXT.fetch_add(1, Ordering::Relaxed) % 65_536)?;
-        let offset = seed.wrapping_add(step.wrapping_mul(7_919)) % SPAN;
-        let port = u16::try_from(FIRST + offset)?;
+    for port in shared_port::candidates() {
         let bind = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
         let endpoint = match h3_endpoint(identity, bind) {
             Ok(endpoint) => endpoint,
@@ -964,10 +951,7 @@ async fn bind_shared_origin_port(
         }
         match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
             Ok(listener) => return Ok((listener, endpoints)),
-            Err(error)
-                if error.kind() == std::io::ErrorKind::AddrInUse
-                    || error.kind() == std::io::ErrorKind::PermissionDenied =>
-            {
+            Err(error) if shared_port::is_unavailable(&error) => {
                 last_error = Some(error.to_string());
                 continue;
             }

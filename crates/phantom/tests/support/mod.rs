@@ -11,6 +11,7 @@ pub(crate) mod h3;
 pub(crate) mod http3_upgrade;
 pub(crate) mod masque;
 pub(crate) mod reserved_port;
+pub(crate) mod shared_port;
 pub(crate) mod socks5;
 pub(crate) mod socks5_udp;
 pub(crate) mod tls;

@@ -122,7 +122,10 @@ Use a sibling worktree only when independent work can proceed concurrently.
 
 - Windows reserves UDP ports 49841 to 50959 on the development host
   (`netsh int ipv4 show excludedportrange protocol=udp`). Bind port 0 in
-  tests and captures rather than a fixed port.
+  tests and captures rather than a fixed port. Windows hands out UDP ports
+  in sequence and reserves blocks of TCP ports, so an origin that needs one
+  port for both takes it from `crates/phantom/tests/support/shared_port.rs`
+  instead of binding UDP to port 0 and TCP to the port it got.
 - Tests bind loopback addresses only, so Windows Defender Firewall does not
   prompt for each rebuilt test binary. A test that binds `0.0.0.0` or `::`,
   directly or through a client socket aimed at a loopback peer, is a bug.

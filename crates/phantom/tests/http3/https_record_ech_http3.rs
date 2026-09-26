@@ -7,6 +7,7 @@
 //! finishes; later ones find it cached.
 
 use crate::support::ech as ech_support;
+use crate::support::shared_port;
 use crate::support::tls as tls_support;
 
 use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
@@ -101,20 +102,31 @@ impl QuicOrigin {
         let context = Self::context(identity, config_id, key)?;
         let acceptor = ech_acceptor(identity, H1_ALPN, config_id, key)?;
         let mut last_error = None;
-        // A free UDP port may be taken for TCP; try a few.
-        for _ in 0..16 {
-            let endpoint = Self::endpoint(&context, 0)?;
-            let port = endpoint.local_addr()?.port();
+        for port in shared_port::candidates() {
+            let endpoint = match Self::endpoint(&context, port) {
+                Ok(endpoint) => endpoint,
+                Err(error) => {
+                    last_error = Some(error.to_string());
+                    continue;
+                }
+            };
             match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
                 Ok(listener) => {
                     let served = Arc::new(watch::Sender::new(0));
                     let tcp = tokio::spawn(serve_tcp(listener, acceptor, Arc::clone(&served)));
                     return Ok(Self::start(endpoint, context, Some((served, tcp))));
                 }
-                Err(error) => last_error = Some(error),
+                Err(error) if shared_port::is_unavailable(&error) => {
+                    last_error = Some(error.to_string());
+                }
+                Err(error) => return Err(error.into()),
             }
         }
-        Err(format!("no port was free for both UDP and TCP: {last_error:?}").into())
+        Err(format!(
+            "no loopback port was free for both UDP and TCP; last error: {}",
+            last_error.as_deref().unwrap_or("none")
+        )
+        .into())
     }
 
     fn context(identity: &TestIdentity, config_id: u8, key: &EchTestKey) -> TestResult<SslContext> {
