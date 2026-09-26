@@ -1,0 +1,83 @@
+# Pixel 7 (panther), Android 17 QPR1, build CP3A.260905.009 (September 2026).
+# Sources:
+# - Google's factory image list, https://developers.google.com/android/images#panther:
+#   17.0.0 (CP3A.260905.009), panther-cp3a.260905.009-factory-2eb27508.zip.
+# - Pixel binary transparency log,
+#   https://developers.google.com/android/binary_transparency/image_info.txt:
+#   google/generic_system_google/generic:17/CP3A.260905.009/16091614:user/release-keys,
+#   which gives the incremental 16091614 and the system partition fingerprint.
+# - Pixel Update Bulletin 2026-09: security patch level 2026-09-05.
+# The emulator's cpu.abilist, codename, sdk, and hardware values stay unset
+# here: they describe the guest itself, and apps rely on them.
+ro.product.model=Pixel 7
+ro.product.brand=google
+ro.product.name=panther
+ro.product.device=panther
+ro.product.manufacturer=Google
+ro.product.vendor.model=Pixel 7
+ro.product.vendor.brand=google
+ro.product.vendor.name=panther
+ro.product.vendor.device=panther
+ro.product.vendor.manufacturer=Google
+ro.product.product.model=Pixel 7
+ro.product.product.brand=google
+ro.product.product.name=panther
+ro.product.product.device=panther
+ro.product.product.manufacturer=Google
+ro.product.system_ext.model=Pixel 7
+ro.product.system_ext.brand=google
+ro.product.system_ext.name=panther
+ro.product.system_ext.device=panther
+ro.product.system_ext.manufacturer=Google
+ro.product.odm.model=Pixel 7
+ro.product.odm.brand=google
+ro.product.odm.name=panther
+ro.product.odm.device=panther
+ro.product.odm.manufacturer=Google
+ro.product.vendor_dlkm.model=Pixel 7
+ro.product.vendor_dlkm.brand=google
+ro.product.vendor_dlkm.name=panther
+ro.product.vendor_dlkm.device=panther
+ro.product.vendor_dlkm.manufacturer=Google
+ro.product.system_dlkm.model=Pixel 7
+ro.product.system_dlkm.brand=google
+ro.product.system_dlkm.name=panther
+ro.product.system_dlkm.device=panther
+ro.product.system_dlkm.manufacturer=Google
+ro.product.board=panther
+ro.soc.manufacturer=Google
+ro.soc.model=GS201
+ro.build.characteristics=nosdcard
+ro.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.build.id=CP3A.260905.009
+ro.build.display.id=CP3A.260905.009
+ro.build.version.incremental=16091614
+ro.build.description=panther-user 17 CP3A.260905.009 16091614 release-keys
+ro.build.flavor=panther-user
+ro.build.product=panther
+ro.build.tags=release-keys
+ro.build.type=user
+ro.build.version.security_patch=2026-09-05
+ro.vendor.build.security_patch=2026-09-05
+ro.vendor.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.vendor.build.id=CP3A.260905.009
+ro.vendor.build.version.incremental=16091614
+ro.product.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.product.build.id=CP3A.260905.009
+ro.product.build.version.incremental=16091614
+ro.system_ext.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.system_ext.build.id=CP3A.260905.009
+ro.system_ext.build.version.incremental=16091614
+ro.odm.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.odm.build.id=CP3A.260905.009
+ro.odm.build.version.incremental=16091614
+ro.vendor_dlkm.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.vendor_dlkm.build.id=CP3A.260905.009
+ro.vendor_dlkm.build.version.incremental=16091614
+ro.system_dlkm.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.system_dlkm.build.id=CP3A.260905.009
+ro.system_dlkm.build.version.incremental=16091614
+ro.bootimage.build.fingerprint=google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys
+ro.system.build.fingerprint=google/generic_system_google/generic:17/CP3A.260905.009/16091614:user/release-keys
+ro.system.build.id=CP3A.260905.009
+ro.system.build.version.incremental=16091614

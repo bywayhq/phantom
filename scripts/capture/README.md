@@ -450,20 +450,19 @@ from the Play Store, signed in with a throwaway account, so each is the build
 Play serves to that device, which can trail the version Google's release API
 lists.
 
-Set `ANDROID_SDK_ROOT` to the Android SDK directory; on the capture host it
-is `C:/code/tools/android-sdk`. Start the emulator from Git Bash with the
-proxy variables cleared. The emulator otherwise routes the guest's TCP
-through the host's `HTTP_PROXY`. Pass the patched ramdisk with `-ramdisk`,
-and boot the `onboarded` snapshot without saving over it:
+[Android capture emulators](android/README.md) describes how both
+emulators are built: the system images, rooting, the Magisk module, the guest
+settings, and the `onboarded` snapshot. Set `ANDROID_SDK_ROOT` to the Android
+SDK directory and start an emulator from Git Bash with
+[`start-capture.sh`](android/start-capture.sh), which loads `onboarded`
+without saving over it and clears the proxy variables:
 
 ```sh
-env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  "$ANDROID_SDK_ROOT/emulator/emulator" -avd phantom-pixel7 -port 5556 \
-  -ramdisk <patched-ramdisk.img> -snapshot onboarded -no-snapshot-save \
-  -memory 8192 -no-boot-anim -no-metrics
+scripts/capture/android/start-capture.sh -r <patched-ramdisk.img> \
+  -- -no-window -no-audio > emulator.log 2>&1 &
 ```
 
-`-port 5556` makes the device's serial `emulator-5556`.
+The device's serial is `emulator-5556`.
 
 Play serves Edge for Android only as an arm64 build, which cannot start on
 the x86_64 emulator. Edge runs on `phantom-pixel7-arm`, an emulator on an
@@ -487,10 +486,9 @@ adb -s emulator-5556 shell cmd wifi status
 If Wi-Fi drops and `dumpsys connectivity` reports no default network,
 `svc wifi disable` followed by `svc wifi enable` restores it.
 
-Add `-no-window -no-audio` to run it without a window. Never pass
-`-wipe-data`: it signs the Play account out, removes the browsers, and
-discards the rooted `onboarded` state. If adb
-lists the device as `unauthorized`, create the host's public key with
+Never pass `-wipe-data`: it signs the Play account out, removes the
+browsers, and discards the rooted `onboarded` state. If adb lists the device
+as `unauthorized`, create the host's public key with
 `adb pubkey ~/.android/adbkey > ~/.android/adbkey.pub` and restart the
 emulator.
 
@@ -500,13 +498,17 @@ tabs, history, and sign-ins. The launcher therefore refuses a device that does
 not report `ro.kernel.qemu` or `ro.boot.qemu` as `1`, which every emulator
 does. To run on a phone set aside for captures, set
 `PHANTOM_ANDROID_ALLOW_PHYSICAL_DEVICE=1`, or pass `--allow-physical-device` to
-`android_run.py`. It also refuses an emulator that cold-booted instead of
-loading the `onboarded` snapshot. It tells them apart by the
-`debug.phantom.snapshot` property, which `adb shell setprop` sets in guest
-memory before the snapshot is saved, and which a cold boot does not
-have. `PHANTOM_ANDROID_ALLOW_COLD_BOOT=1` or `--allow-cold-boot` overrides it. `startup_capture.py` and `chrome_ech.py` take desktop
-browsers only, and `proxy_route.py` refuses the authentication scenarios for
-an Android browser.
+`android_run.py`.
+
+The launcher also refuses an emulator that cold-booted instead of loading
+the `onboarded` snapshot. It tells them apart by the `debug.phantom.snapshot`
+property, which is set in guest memory before the snapshot is saved; see
+[The `onboarded` snapshot](android/README.md#the-onboarded-snapshot).
+`PHANTOM_ANDROID_ALLOW_COLD_BOOT=1` or `--allow-cold-boot` overrides it.
+
+`startup_capture.py` and `chrome_ech.py` take desktop browsers only, and
+`proxy_route.py` refuses the authentication scenarios for an Android
+browser.
 
 Pass `--browser <name>-android`, the adb executable as `--browser-path`, and
 the device serial in `ANDROID_SERIAL`:
