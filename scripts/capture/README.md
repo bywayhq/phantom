@@ -68,6 +68,16 @@ that turns off the same classes of traffic, including updates, captive-portal
 and connectivity checks, telemetry, Safe Browsing, DNS over HTTPS, and
 proxies.
 
+When `run_matrix.py` runs tools side by side, it sets
+`PHANTOM_CAPTURE_LOCK_DIR`, and desktop Firefox launches then take turns. Each
+holds a lock file in that directory until `sessionCheckpoints.json` in its
+profile records `sessionstore-windows-restored`, which Firefox writes at about
+the moment it requests the page, or for at most 15 seconds. On the capture
+host, Firefox 156 processes started three at a time at the same moment loaded
+their page in 5 of 9 launches; with the lock, 12 of 12 loaded in groups of
+four. Chromium browsers started four at a time loaded 8 of 8 and do not take
+turns. A tool run on its own does not see the variable and launches at once.
+
 Fixtures record `launch_mode` (`headless`, `headful`, `manual`,
 `android-typed`, or `android-intent`). Captures made in different modes are
 compared, never assumed equal. A coding agent needs the human's approval before it launches a

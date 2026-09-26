@@ -1,9 +1,13 @@
+import os
 import shlex
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
+from scripts.capture import browser_launch
 from scripts.capture.browser_launch import (
     CHROMIUM_BROWSERS,
     CHROMIUM_FLAGS,
@@ -166,6 +170,67 @@ class BrowserLaunchTests(unittest.TestCase):
         self.assertIsNone(browser.profile)
         after = set(Path(tempfile.gettempdir()).glob("phantom-capture-profile-*"))
         self.assertEqual(after, before)
+
+
+class LaunchTurnTests(unittest.TestCase):
+    def test_without_a_lock_directory_launches_do_not_wait(self) -> None:
+        os.environ.pop(browser_launch.LAUNCH_LOCK_DIRECTORY, None)
+
+        with browser_launch.launch_turn("firefox") as shared:
+            self.assertFalse(shared)
+
+    def test_launches_take_turns_when_a_runner_sets_the_lock_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            os.environ[browser_launch.LAUNCH_LOCK_DIRECTORY] = directory
+            self.addCleanup(os.environ.pop, browser_launch.LAUNCH_LOCK_DIRECTORY, None)
+            events = []
+            first_holds = threading.Event()
+
+            def second() -> None:
+                first_holds.wait()
+                with browser_launch.launch_turn("firefox"):
+                    events.append("second")
+
+            thread = threading.Thread(target=second)
+            thread.start()
+            with browser_launch.launch_turn("firefox") as shared:
+                first_holds.set()
+                time.sleep(0.3)
+                events.append("first")
+            thread.join(timeout=10)
+
+            self.assertTrue(shared)
+            self.assertEqual(events, ["first", "second"])
+
+
+class FakeProcess:
+    def __init__(self, code):
+        self.code = code
+
+    def poll(self):
+        return self.code
+
+
+class FirefoxStartTests(unittest.TestCase):
+    def test_the_wait_ends_when_firefox_restores_its_window(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            (profile / "sessionCheckpoints.json").write_text(
+                '{"final-ui-startup":true,"sessionstore-windows-restored":true}'
+            )
+            begin = time.monotonic()
+
+            browser_launch.wait_for_firefox_start(profile, FakeProcess(None))
+
+            self.assertLess(time.monotonic() - begin, 1)
+
+    def test_the_wait_ends_when_firefox_exits(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            begin = time.monotonic()
+
+            browser_launch.wait_for_firefox_start(Path(directory), FakeProcess(0))
+
+            self.assertLess(time.monotonic() - begin, 1)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,9 @@ import signal
 import subprocess
 import sys
 import tempfile
-from collections.abc import Sequence
+import time
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,6 +32,12 @@ CHROMIUM_BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, *ANDROID_CHROMIUM_BROWSERS)
 FIREFOX_BROWSERS = ("firefox", "firefox-android")
 BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, "firefox", *ANDROID_BROWSERS)
 PROFILE_PLACEHOLDER = "<temporary-profile>"
+# Set by run_matrix.py when it runs tools side by side. Desktop Firefox
+# processes that start at the same moment can each lose their page load, so
+# launches then take turns until each has restored its first window.
+LAUNCH_LOCK_DIRECTORY = "PHANTOM_CAPTURE_LOCK_DIR"
+FIREFOX_STARTED_CHECKPOINT = "sessionstore-windows-restored"
+FIREFOX_START_LIMIT_SECONDS = 15.0
 CLIENT_NAMES = {
     "chrome": "Google Chrome",
     "edge": "Microsoft Edge",
@@ -273,7 +281,13 @@ class LaunchedBrowser:
             return self
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
         try:
-            self.process = self._start(self.profile)
+            if self.plan.browser == "firefox":
+                with launch_turn("firefox") as shared:
+                    self.process = self._start(self.profile)
+                    if shared:
+                        wait_for_firefox_start(self.profile, self.process)
+            else:
+                self.process = self._start(self.profile)
         except BaseException:
             shutil.rmtree(self.profile, ignore_errors=True)
             self.profile = None
@@ -340,6 +354,76 @@ class BrowserDriver:
     async def __aexit__(self, *details: object) -> None:
         if self.browser is not None:
             self.browser.__exit__(*details)
+
+
+@contextmanager
+def launch_turn(name: str) -> Iterator[bool]:
+    """Hold the machine-wide `name` launch lock when a runner shares the host.
+
+    Yields whether the lock is held; without `PHANTOM_CAPTURE_LOCK_DIR` the
+    launch proceeds at once, as a tool run on its own always has.
+    """
+    directory = os.environ.get(LAUNCH_LOCK_DIRECTORY)
+    if not directory:
+        yield False
+        return
+    path = Path(directory) / f"{name}.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        lock_file(handle.fileno())
+        try:
+            yield True
+        finally:
+            unlock_file(handle.fileno())
+
+
+def lock_file(descriptor: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        # LK_LOCK gives up after ten seconds, so poll the non-blocking form.
+        # The lock covers byte 0, whatever the file's length.
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        while True:
+            try:
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+                return
+            except OSError:
+                time.sleep(0.05)
+    else:
+        import fcntl
+
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+
+
+def unlock_file(descriptor: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+
+def wait_for_firefox_start(profile: Path, process: subprocess.Popen[bytes]) -> None:
+    """Wait until Firefox records that it restored its first window.
+
+    Firefox writes the checkpoint to `sessionCheckpoints.json` in the profile
+    at about the moment it requests the page. The wait ends early if the
+    process exits, and after `FIREFOX_START_LIMIT_SECONDS` in any case.
+    """
+    checkpoints = profile / "sessionCheckpoints.json"
+    deadline = time.monotonic() + FIREFOX_START_LIMIT_SECONDS
+    while time.monotonic() < deadline and process.poll() is None:
+        try:
+            if FIREFOX_STARTED_CHECKPOINT in checkpoints.read_text(encoding="utf-8"):
+                return
+        except OSError:
+            pass
+        time.sleep(0.05)
 
 
 def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
