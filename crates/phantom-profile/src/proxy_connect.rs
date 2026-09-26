@@ -113,8 +113,9 @@ pub enum Http2RejectedConnect {
 /// Which requests share an HTTP/2 connection to an HTTPS proxy.
 ///
 /// Every variant shares a connection only between requests on the same proxy
-/// route with the same credentials, and opens another connection when the
-/// shared one is full or the proxy has sent `GOAWAY`.
+/// route with the same credentials. A request past the proxy's
+/// `SETTINGS_MAX_CONCURRENT_STREAMS` waits on the connection, and the next
+/// request after the proxy's `GOAWAY` opens a new one.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http2ProxyConnections {
