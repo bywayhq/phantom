@@ -14,6 +14,14 @@ Edge 153 sent no DNS-over-HTTPS query with those preferences. With
 have the `DnsOverHttpsMode` and `DnsOverHttpsTemplates` machine policies,
 which the tool reads with `reg query` and checks before it launches anything.
 The policy names a fixed template, so the server listens on `--doh-port`.
+
+With `--quic`, the HTTPS record lists `h3` and `h2`, the origin also serves
+HTTP/3 from a BoringSSL QUIC server that decrypts ECH, and the browser runs
+with QUIC enabled. Chromium's QUIC client accepts a certificate from an
+unknown root only for a host named in `--origin-to-force-quic-on`, so the
+origin's host is named there with a decoy port that is never requested, and
+the certificate's public key is trusted through
+`--ignore-certificate-errors-spki-list`.
 """
 
 from __future__ import annotations
@@ -41,6 +49,12 @@ DNS_CONFIGURATION = (
 # The origin's certificate is self-signed; QUIC stays off so every
 # ClientHello arrives over TCP.
 EXTRA_ARGUMENTS = ("--ignore-certificate-errors", "--disable-quic")
+# Never requested: naming the origin's host here lets QUIC accept its
+# certificate (`ProofVerifierChromium::Job::ShouldAllowUnknownRootForHost`)
+# without forcing the origin itself onto QUIC, which would skip the HTTPS
+# record's `alpn` (`HttpStreamFactory::JobController::DoCreateJobs`).
+DECOY_FORCE_QUIC_PORT = 9
+SPKI_PLACEHOLDER = "<certificate-spki>"
 POLICY_KEYS = {"edge": r"HKLM\SOFTWARE\Policies\Microsoft\Edge"}
 POLICY_DNS_CONFIGURATION = (
     "policy {key} DnsOverHttpsMode=secure DnsOverHttpsTemplates=<doh_template>"
@@ -102,16 +116,18 @@ def policy_problem(key: str, values: dict[str, str], template: str) -> str | Non
     )
 
 
-def parse_ready_line(line: str) -> tuple[str, str] | None:
-    """Return the DoH template and origin from the example's ready line."""
+def parse_ready_line(line: str) -> tuple[str, str, str | None] | None:
+    """Return the DoH template, origin, and certificate SPKI hash, if any,
+    from the example's ready line."""
     if not line.startswith(READY_PREFIX):
         return None
-    template, separator, origin = (
-        line[len(READY_PREFIX) :].strip().partition(" origin=")
-    )
+    template, separator, rest = line[len(READY_PREFIX) :].strip().partition(" origin=")
+    origin, spki_separator, spki = rest.partition(" spki=")
     if not separator or not template.startswith("https://127.") or not origin:
         return None
-    return template, origin
+    if spki_separator and not re.fullmatch(r"[A-Za-z0-9+/]{43}=", spki):
+        return None
+    return template, origin, spki if spki_separator else None
 
 
 @dataclass(frozen=True)
@@ -126,20 +142,32 @@ class CaptureRun:
     headless: bool
     doh_port: int | None = None
     dns_from_policy: bool = False
+    quic: bool = False
 
 
-def launch_plan(run: CaptureRun) -> LaunchPlan:
+def quic_arguments(spki: str) -> tuple[str, ...]:
+    """Chromium switches that let QUIC reach the loopback origin."""
+    return (
+        "--enable-quic",
+        f"--origin-to-force-quic-on={HOSTNAME}:{DECOY_FORCE_QUIC_PORT}",
+        f"--ignore-certificate-errors-spki-list={spki}",
+    )
+
+
+def launch_plan(run: CaptureRun, spki: str = SPKI_PLACEHOLDER) -> LaunchPlan:
+    """The browser launch; with QUIC, `spki` trusts the origin's key."""
     return LaunchPlan(
         browser=run.browser,
         executable=run.browser_path,
         headless=run.headless,
-        extra_arguments=EXTRA_ARGUMENTS,
+        extra_arguments=quic_arguments(spki) if run.quic else EXTRA_ARGUMENTS,
     )
 
 
 def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
     """Arguments for the `capture_ech_client_hello` example."""
     port = [] if run.doh_port is None else ["--doh-port", str(run.doh_port)]
+    quic = ["--quic"] if run.quic else []
     dns_configuration = (
         POLICY_DNS_CONFIGURATION.format(key=POLICY_KEYS[run.browser])
         if run.dns_from_policy
@@ -148,6 +176,7 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
     return [
         str(run.capture_binary),
         *port,
+        *quic,
         run.scenario,
         run.origin,
         plan.client_name,
@@ -200,11 +229,15 @@ def capture(
             report(line.rstrip())
         if ready is None:
             raise RuntimeError("the capture server exited before it was ready")
-        template, _origin = ready
+        template, _origin, spki = ready
         if run.doh_port is not None and template != doh_template(
             run.origin, run.doh_port
         ):
             raise RuntimeError(f"the capture server listens on {template}")
+        if run.quic != (spki is not None):
+            raise RuntimeError("the capture server's QUIC mode does not match the run")
+        if spki is not None:
+            plan = launch_plan(run, spki)
         threading.Thread(
             target=lambda: [report(line.rstrip()) for line in process.stderr or ()],
             daemon=True,
@@ -255,6 +288,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--headful", action="store_true")
     parser.add_argument("--doh-port", type=port_number)
     parser.add_argument("--dns-from-policy", action="store_true")
+    parser.add_argument("--quic", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args(argv)
     fixture = capture(
@@ -269,6 +303,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             headless=not arguments.headful,
             doh_port=arguments.doh_port,
             dns_from_policy=arguments.dns_from_policy,
+            quic=arguments.quic,
         )
     )
     write_text_fixture(arguments.output, fixture)

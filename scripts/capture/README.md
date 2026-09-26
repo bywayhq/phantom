@@ -726,7 +726,9 @@ record also carries `proxy_authorization:none`, `capture-credential`, or
 
 `chrome_ech.py` records the ClientHellos a Chromium browser sends when the
 origin's HTTPS record carries `ech`, and writes one
-`format=phantom-ech-client-hello-v1` fixture per run. It runs the
+`format=phantom-ech-client-hello-v2` fixture per run. Version 2 adds the
+`dns_https_alpn` line and the `quic_connection_*` lines to version 1; TCP-only
+runs record `quic_connection_count=0`. It runs the
 `capture_ech_client_hello` example, which serves `https://server.phantom.test/`
 on `127.0.0.1:443` from a BoringSSL origin that decrypts ECH, and a loopback
 DNS-over-HTTPS server that answers the origin's `A` query and its `HTTPS`
@@ -783,6 +785,33 @@ uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech   --brows
 | --- | --- |
 | `accept` | Outer server name and `encrypted_client_hello` fields when the origin holds the published key |
 | `reject` | What follows a rejection whose server offers a retry configuration |
+
+With `--quic`, the record lists `h3` and `h2`, and the origin also serves
+HTTP/3 on the same UDP port from a BoringSSL QUIC server that holds the same
+key, through the `phantom-quic-btls` `server` feature. The browser runs with
+`--enable-quic` and trusts the origin's key through
+`--ignore-certificate-errors-spki-list`; Chromium's QUIC client accepts a
+certificate from an unknown root only for a host named in
+`--origin-to-force-quic-on`, so the origin's host is named there with port 9,
+which is never requested. The example prints the key's hash on its ready line
+and the fixture records it as `<certificate-spki>`. Each QUIC connection
+records the ClientHello the server read from the Initial packets, the same
+outer fields as a TCP connection, the inner server name, and how the
+handshake ended, including the close code the browser sent:
+
+```sh
+uv run --no-project --python 3.10 python -m scripts.capture.chrome_ech \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario reject --quic \
+  --capture-binary target/debug/examples/capture_ech_client_hello.exe \
+  --output fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-quic-reject.txt
+```
+
+Edge 153.0.4234.48 read the `Local State` preferences in the `--quic` runs, so
+they need no policy.
 
 Each connection records its ClientHello records, extension order, outer
 server name, the outer extension's fields, whether the origin decrypted the

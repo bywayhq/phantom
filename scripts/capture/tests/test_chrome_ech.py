@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.capture.chrome_ech import (
     DNS_CONFIGURATION,
+    SPKI_PLACEHOLDER,
     URL,
     CaptureRun,
     capture_arguments,
@@ -22,6 +23,8 @@ from scripts.capture.chrome_ech import (
 
 EDGE_KEY = r"HKLM\SOFTWARE\Policies\Microsoft\Edge"
 TEMPLATE = "https://127.0.0.1:65355/dns-query"
+# A SHA-256 hash in base64, as the example prints it.
+SPKI = "q" * 43 + "="
 REG_OUTPUT = (
     "\r\n"
     f"{EDGE_KEY}\r\n"
@@ -62,7 +65,22 @@ class ChromeEchTest(unittest.TestCase):
                 "ready doh_template=https://127.0.0.1:5353/dns-query "
                 "origin=127.0.0.1:443\n"
             ),
-            ("https://127.0.0.1:5353/dns-query", "127.0.0.1:443"),
+            ("https://127.0.0.1:5353/dns-query", "127.0.0.1:443", None),
+        )
+
+    def test_quic_ready_line_yields_the_certificate_key_hash(self) -> None:
+        self.assertEqual(
+            parse_ready_line(
+                "ready doh_template=https://127.0.0.1:5353/dns-query "
+                f"origin=127.0.0.1:443 spki={SPKI}\n"
+            ),
+            ("https://127.0.0.1:5353/dns-query", "127.0.0.1:443", SPKI),
+        )
+        self.assertIsNone(
+            parse_ready_line(
+                "ready doh_template=https://127.0.0.1:5353/dns-query "
+                "origin=127.0.0.1:443 spki=--flag\n"
+            )
         )
 
     def test_other_lines_and_non_loopback_templates_are_not_ready(self) -> None:
@@ -101,6 +119,24 @@ class ChromeEchTest(unittest.TestCase):
         self.assertIn("--ignore-certificate-errors", arguments[8])
         self.assertNotIn("--host-resolver-rules", arguments[8])
         self.assertTrue(arguments[8].endswith(URL))
+
+    def test_quic_arguments_enable_quic_and_record_the_key_placeholder(self) -> None:
+        run = replace(
+            EDGE_RUN, browser="chrome", doh_port=None, dns_from_policy=False, quic=True
+        )
+        arguments = capture_arguments(run, launch_plan(run))
+        self.assertEqual(arguments[1:3], ["--quic", "accept"])
+        launch = arguments[-1]
+        self.assertIn("--enable-quic", launch)
+        self.assertNotIn("--disable-quic", launch)
+        self.assertIn("--origin-to-force-quic-on=server.phantom.test:9", launch)
+        self.assertIn(
+            f"--ignore-certificate-errors-spki-list={SPKI_PLACEHOLDER}", launch
+        )
+        self.assertIn(
+            f"--ignore-certificate-errors-spki-list={SPKI}",
+            launch_plan(run, SPKI).extra_arguments,
+        )
 
     def test_chrome_arguments_name_no_doh_port_by_default(self) -> None:
         run = replace(EDGE_RUN, browser="chrome", doh_port=None, dns_from_policy=False)
