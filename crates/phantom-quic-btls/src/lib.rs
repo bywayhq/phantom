@@ -10,6 +10,10 @@
 //! [`QuicClientConfig::with_ech`] offers Encrypted Client Hello on one
 //! connection and reports the result through an [`EchOffer`].
 //!
+//! The optional `server` feature adds `QuicServerConfig`, a Quinn server
+//! provider on a BoringSSL context, for Phantom's loopback tests and capture
+//! tools; it can hold ECH keys and offers no 0-RTT.
+//!
 //! All `unsafe` code is confined to the private `backend` module, the
 //! BoringSSL FFI boundary. The rest of the crate denies `unsafe_code`, and
 //! every unsafe block in `backend` carries a `SAFETY` comment required by
@@ -48,6 +52,8 @@ pub use backend::client::{
     HandshakeData, InvalidServerName, PeerIdentity, QuicClientConfig, QuicTlsProfileError,
     QuicTlsProfileErrorKind,
 };
+#[cfg(feature = "server")]
+pub use backend::server::{QuicServerConfig, ServerHandshakeData};
 pub use ech::{EchOffer, EchOutcome};
 pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;

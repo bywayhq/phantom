@@ -21,6 +21,8 @@ pub(super) mod client;
 mod client_session;
 #[allow(dead_code, reason = "private QUIC callback bridge")]
 mod quic_callbacks;
+#[cfg(feature = "server")]
+pub(super) mod server;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HkdfDigest {

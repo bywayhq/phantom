@@ -1475,6 +1475,7 @@ dependencies = [
  "phantom-btls",
  "phantom-profile",
  "phantom-quinn-proto",
+ "phantom-testkit",
  "rustls-pki-types",
  "zeroize",
 ]

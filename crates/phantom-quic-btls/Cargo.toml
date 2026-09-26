@@ -10,6 +10,8 @@ version.workspace = true
 [features]
 default = []
 keylog = []
+# A BoringSSL QUIC server for loopback tests and capture tools.
+server = []
 
 [dependencies]
 bytes.workspace = true
@@ -28,6 +30,9 @@ btls-sys.workspace = true
 [target.'cfg(not(any(target_vendor = "apple", target_os = "windows")))'.dependencies]
 btls = { workspace = true, features = ["prefix-symbols"] }
 btls-sys = { workspace = true, features = ["prefix-symbols"] }
+
+[dev-dependencies]
+phantom-testkit = { path = "../phantom-testkit" }
 
 [lints.rust]
 missing_docs = "warn"
