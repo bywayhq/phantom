@@ -675,13 +675,15 @@ fn pseudo_order(
 }
 
 /// Sleeps on the runtime-neutral deadline service, so a PING timeout needs no
-/// Tokio time driver.
+/// Tokio time driver. The service sets its deadlines from
+/// [`std::time::Instant::now`], the clock the PING timer reads, so both
+/// measure the same time.
 ///
 /// The service was running when the connection was built and never stops,
 /// and validation bounds the duration, so scheduling does not fail. Should
 /// it, the sleep never ends: the connection keeps running as if the profile
-/// set no PING timeout, and a warning is logged. Ending the sleep instead
-/// would send a `GOAWAY` for a PING that had not failed.
+/// set no PING timeout, and a warning is logged. A sleep that ended at once
+/// would instead have the connection wake repeatedly until the deadline.
 fn ping_sleep(
     duration: std::time::Duration,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
@@ -745,7 +747,10 @@ fn translate_settings_with_pseudo_order(
         if !shutdown_timer::is_available() {
             return Err(Http2Error::RuntimeUnavailable);
         }
-        client.preface_ping_timeout(timeout, client::PingTimer::new(ping_sleep));
+        client.preface_ping_timeout(
+            timeout,
+            client::PingTimer::new(std::time::Instant::now, ping_sleep),
+        );
     }
     let mut order = SettingsOrder::builder();
 

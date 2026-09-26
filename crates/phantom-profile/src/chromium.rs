@@ -460,9 +460,7 @@ pub fn v154_http1() -> Http1Settings {
 /// nothing has been read since the PING or for 10 seconds, and otherwise
 /// checks again 10 seconds after the last read (`:2512-2538`). Closing sends
 /// `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
-/// `Failed ping.` (`:2719-2738`) and fails every stream (`:2753`). Phantom
-/// checks with full-length sleeps, so it closes 10 to 20 seconds after the
-/// last read rather than exactly 10.
+/// `Failed ping.` (`:2719-2738`) and fails every stream (`:2753`).
 ///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.

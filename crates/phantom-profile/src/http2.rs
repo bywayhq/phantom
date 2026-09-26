@@ -373,11 +373,10 @@ pub struct Http2Settings {
     /// unanswered with nothing read from the peer before the connection
     /// closes.
     ///
-    /// The client sleeps for this long after the PING. If it read no frame
-    /// meanwhile, the PING has failed; otherwise it sleeps again. The close
-    /// therefore comes one to two periods after the last frame read, and
-    /// only the ACK stops it. The client does not count the time while its
-    /// writes are blocked. When the PING fails, the client sends `GOAWAY`
+    /// The PING fails this long after the PING or after the last frame read,
+    /// whichever is later, so any frame read delays the failure and only the
+    /// ACK prevents it. The client does not check while its writes are
+    /// blocked. When the PING fails, the client sends `GOAWAY`
     /// with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
     /// `Failed ping.`, then closes the connection, and every request still
     /// open on it fails. `None` keeps a connection whose PING is never

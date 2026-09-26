@@ -35,8 +35,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `phantom_net::http2::Http2Error` gained the variants `PingTimeout` and
   `ReusedConnectionClosed`, so exhaustive matches on it no longer compile.
   When set, a PING sent under `preface_ping_after` that goes unanswered
-  while nothing is read from the peer for one to two such periods closes the
-  connection with `GOAWAY` (last stream ID 0, `PROTOCOL_ERROR`, debug data
+  while nothing is read from the peer for that long closes the connection
+  with `GOAWAY` (last stream ID 0, `PROTOCOL_ERROR`, debug data
   `Failed ping.`). Requests open on it fail with `Http2Error::PingTimeout`,
   which is not replayed, and the pool drops the connection. A request that
   reaches the closed connection before the pool does fails with

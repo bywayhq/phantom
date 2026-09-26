@@ -2390,9 +2390,8 @@ PING. `firefox::v156_http2` sends none.
 When the PING goes unanswered and nothing is read from the peer, the
 Chromium recipe closes the connection as Chrome 154 does, sending `GOAWAY`
 with last stream ID 0, `PROTOCOL_ERROR`, and the debug data `Failed ping.`,
-then closing. Chrome closes 10 seconds after the later of the PING and the
-last read; Phantom closes 10 to 20 seconds after it (see the limits below).
-Every request still open on the connection fails with
+then closing, 10 seconds after the later of the PING and the last frame
+read. Every request still open on the connection fails with
 `Http2Error::PingTimeout`, and the client's pool drops the connection, so
 the next request opens a new one. A request that reaches the closed
 connection before the pool drops it sends nothing and fails with
@@ -2471,7 +2470,9 @@ unanswered for 2 seconds brings that GOAWAY between 1 and 4 seconds after the
 peer reads the PING, then the end of the byte stream; the open request fails
 with `Http2Error::PingTimeout`, and a later one with
 `Http2Error::ReusedConnectionClosed`. A WINDOW_UPDATE 2 seconds into a
-3-second timeout moves the GOAWAY to between 4 and 8 seconds after the PING,
+4-second timeout moves the GOAWAY to between 5 and 7 seconds after the PING,
+where Chrome's rule gives 6, ignoring the read gives 4, and a second full
+timeout after it would give 8,
 and an acknowledged PING leaves the connection usable 2 seconds past a
 1-second timeout. The vendored `http2` crate's tests add a peer that stops
 reading for three timeouts while a request body fills the pipe, then drains
@@ -2507,12 +2508,11 @@ Limits:
   `kMaxRetryAttempts` of 2 at `:108`). Phantom does not replay it: the
   client closed the connection itself, so nothing shows that the server did
   not process the request.
-- Phantom measures the PING timeout with sleeps of the full timeout: a
-  sleep that ends after a read starts another, so the close comes one to two
-  timeouts after the last frame read. Chrome's next check runs exactly one
-  timeout after the last read. Phantom also counts reads per whole frame,
-  where Chrome counts every socket read, including part of a frame, and
-  Phantom does not run the timeout while its writes are blocked.
+- Phantom counts reads per whole frame for the idle time and the PING
+  timeout, where Chrome counts every socket read, including part of a frame.
+  Phantom also does not check the PING timeout while its writes are
+  blocked, since it then reads nothing either; Chrome reads and checks
+  independently of its writes.
 - Phantom sends a TLS `close_notify` whenever an HTTP/2 connection closes
   itself, this close included. Chrome sends none on any close:
   `SSLClientSocketImpl::Disconnect`

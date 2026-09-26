@@ -129,16 +129,16 @@ async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> Tes
     .await
 }
 
-/// A frame read delays the close; only the ACK stops the timeout. With a
-/// 3-second timeout and a `WINDOW_UPDATE` 2 seconds after the PING, the
-/// first sleep ends after a read, and the connection closes when a second
-/// ends, 6 seconds after the PING rather than 3.
+/// A frame read moves the close to a timeout after it; only the ACK stops
+/// the timeout. With a 4-second timeout and a `WINDOW_UPDATE` 2 seconds after
+/// the PING, the connection closes 6 seconds after the PING, as Chrome's
+/// `CheckPingStatus` would: not 4, which ignores the read, nor 8.
 #[tokio::test]
 async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
     idle_peer_test(async {
         let mut settings = chromium::v154_http2();
         settings.preface_ping_after = Some(IDLE);
-        settings.ping_timeout = Some(Duration::from_secs(3));
+        settings.ping_timeout = Some(Duration::from_secs(4));
         let (mut peer, connection) = start(&settings).await?;
         let mut requests = JoinSet::new();
         tokio::time::sleep(PAST_IDLE).await;
@@ -152,7 +152,7 @@ async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
         let waited = ping_read.elapsed();
         assert_eq!(kind, GOAWAY);
         assert!(
-            waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
+            waited >= Duration::from_secs(5) && waited < Duration::from_secs(7),
             "GOAWAY after {waited:?}"
         );
         requests.abort_all();
