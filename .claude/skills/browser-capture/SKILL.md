@@ -16,8 +16,19 @@ exists. Read the relevant sections before capturing.
 - Capture only against the loopback listeners the tools start; they refuse
   non-loopback addresses. Live services may supplement local evidence but
   never replace it.
-- Run tools from the repository root with Python 3.10 through `uv`, for
-  example `uv run --no-project --python 3.10 python -m scripts.capture.<tool>`.
+- For desktop browsers, write a JSON manifest and run every capture with
+  `run_matrix.py` in one command instead of driving each tool run by run:
+  `uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt python -m scripts.capture.run_matrix <manifest>.json`.
+  Check the jobs first with `--dry-run`. It runs jobs side by side, runs
+  tools whose evidence depends on timing alone, skips jobs its work directory
+  recorded as complete, and retries a failed job once. Read the summary table
+  and `results.json`, and each failed attempt's log, before retaining
+  anything. The manifest format and safety rules are in the capture README
+  under "Run captures from a manifest".
+- Run a tool directly, from the repository root with Python 3.10 through
+  `uv`, for Android browsers, `manual`, a tool the runner does not list, or a
+  single diagnostic run: for example
+  `uv run --no-project --python 3.10 python -m scripts.capture.<tool>`.
 - Each browser run uses a fresh temporary profile (`browser_launch.py`).
   Headless, headful, and manual captures are compared, never assumed equal.
 - Retain fixtures at `fixtures/<area>/<browser>/<exact-version>/<host>/`, for
