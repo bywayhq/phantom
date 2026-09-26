@@ -106,12 +106,16 @@ anything does.
 
 #### Browser recipes
 
-- Firefox HTTP/3 recipe. Evidence: only the resumption captures, where a
-  resumed Firefox 156 connection chooses QUIC v2 (`0x6b3343cf`) in
-  `version_information` and starts in v2 packets
-  ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
-  Blocker: a fresh-connection capture, and QUIC v2 support; Phantom speaks
-  only QUIC v1.
+- Firefox HTTP/3 beyond the recipe. Delivered: `firefox::v156_http3_tls`,
+  `v156_quic`, `v156_http3`, and `v156_http3_request` from Firefox 156.0.1
+  captures, with QUIC v2 and compatible version negotiation
+  ([Validation](explanation/validation.md#firefox-156-http3-recipe)).
+  Remaining: the QUIC ClientHello's fixed tail of `quic_transport_parameters`
+  and `encrypted_client_hello`, and its `record_size_limit`,
+  `extended_master_secret`, and `renegotiation_info` extensions; the
+  position of `Alt-Used`. Blocker: the first four need changes to the
+  BoringSSL fork; `Alt-Used` needs a template slot for a field the client
+  generates.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 135 and `macos` request
   templates for Chrome 154 and Firefox 156, from macOS 15.5 captures on an

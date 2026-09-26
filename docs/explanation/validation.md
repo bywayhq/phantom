@@ -1355,6 +1355,141 @@ probe request carried none. No client-hint capture ran on Android 17: the
 launcher's typed entry opens `about:blank` by `VIEW` intent, which Firefox
 does not resolve.
 
+### Firefox 156 HTTP/3 recipe
+
+What is claimed: `firefox::v156_http3_tls`, `v156_quic`, `v156_http3`, and
+`v156_http3_request`, with the HTTP/3 lists of the Firefox 156 templates,
+reproduce the QUIC and HTTP/3 layers of Firefox 156.0.1 on Windows 11 that
+the list below names, apart from the differences under Limits.
+
+Evidence: `fixtures/http3/firefox/156.0.1/windows-11-26200/` retains three
+headless [fingerprint snapshots](#fingerprint-snapshot-evidence)
+(`snapshot-1.txt` to `snapshot-3.txt`, 3.2, 2.7, and 2.8 seconds a run, 9
+seconds in all), the QUIC ClientHello split from each
+(`quic-client-hello-1.txt` to `-3.txt`), and one `quic_resumption.py`
+`accept` capture of three runs and 15 connections that records each client
+unidirectional stream's type (`resumption-streams-accept.txt`, 13 seconds).
+Each process used a fresh profile against the aioquic 1.3.0 capture
+servers. All 18 connections agree on the following.
+
+- Transport parameters, in this order and never permuted: `max_idle_timeout`
+  30000, `initial_max_data` 25165824, `initial_max_stream_data_bidi_local`
+  12582912, `_bidi_remote` and `_uni` 1048576, both stream limits 100,
+  `max_ack_delay` 20, `active_connection_id_limit` 8, a 3-byte
+  `initial_source_connection_id`, `version_information`, the empty
+  `reset_stream_at` (0x1d), draft 02's `min_ack_delay` (0xff02de1a, an
+  8-byte identifier, 1000 µs), and `max_datagram_frame_size` 65535. There is
+  no `max_udp_payload_size`, `grease_quic_bit`, or reserved parameter. The
+  order is the order of neqo's parameter table.
+- `version_information` lists the chosen version, then a reserved version,
+  QUIC v2, and QUIC v1. A fresh connection chooses v1 and starts in v1
+  packets; aioquic acknowledged the first Initial in v1 and then moved every
+  fresh connection to v2 by compatible version negotiation. A connection that
+  presented a ticket chose v2 and started in v2 packets.
+- The control stream is client stream 2, the QPACK encoder stream 6, and the
+  decoder stream 10. SETTINGS lists, in this order, `QPACK_MAX_TABLE_CAPACITY`
+  65536, `QPACK_BLOCKED_STREAMS` 20, draft 02's `ENABLE_WEBTRANSPORT`
+  (0x2b603742) 0, the draft (0xffd277) and final `H3_DATAGRAM` 1, and
+  `ENABLE_CONNECT_PROTOCOL` 1. The control stream's first STREAM frame held
+  35 to 39 bytes: its type and SETTINGS take 24, and the rest is one
+  reserved frame, as neqo's `HFrame::Grease` writes after SETTINGS.
+- The encoder stream's first frame carries its type and a Set Dynamic Table
+  Capacity of 4096, the server's table; the decoder stream's first frame is
+  its type alone.
+- Requests send `:method`, `:scheme`, `:authority`, and `:path`, then the
+  template's fields. The QPACK encoder indexes exact static and dynamic
+  matches, sends a static or dynamic name reference with a literal value, and
+  inserts only a field whose name matches no table entry, with a
+  Huffman-coded literal name.
+- The QUIC ClientHello differs from the TCP one: TLS 1.3 alone, three cipher
+  suites, `h3`, ECDSA-SHA1 moved after the other ECDSA schemes and
+  ML-DSA-44, -65, and -87 added to both signature lists, `compress_certificate`
+  in the order zlib, zstd, brotli, and no `ec_point_formats`,
+  `session_ticket`, or `signed_certificate_timestamp`. Its extension order
+  changes on every connection, except that `quic_transport_parameters` and
+  `encrypted_client_hello` are always last.
+
+A diagnostic run, not retained, hooked the snapshot server's datagram input:
+every Initial datagram Firefox sent was 1252 bytes, the ClientHello with its
+X25519MLKEM768 key share took two of them, and the first Destination
+Connection IDs were 11 and 17 bytes. neqo's `ConnectionId::generate_initial`
+(`neqo-transport/src/cid.rs`) draws the length as `max(8, 5 + (b & (b >>
+4)))` for a random byte `b`; the recipe uses that rule. The reserved frame
+and the QPACK rules are read from neqo's `main` branch on 2026-09-26
+(`neqo-http3/src/frames/hframe.rs`, `neqo-qpack/src/encoder.rs`), and the
+captures agree with them.
+
+Tests replay the captures:
+
+- `firefox_156_quic_offer_and_streams_match_windows_capture` connects the
+  recipes to a loopback BoringSSL QUIC server. The ClientHello matches each
+  retained one in cipher suites, groups, key shares, both signature lists,
+  ALPN, server name, extension set, and the delegated-credential, status
+  request, certificate-compression, and PSK-mode bodies; the transport
+  parameters match each snapshot in order, identifier and length widths,
+  and value, apart from the connection ID bytes and the reserved version.
+  The control stream carries the captured SETTINGS frame byte for byte and
+  one reserved frame, and streams 2, 6, and 10 carry types 0, 2, and 3.
+- `firefox_156_initial_datagrams_match_windows_capture` receives the two
+  Initial datagrams on a bare UDP socket: 1252 bytes each, version 1, a
+  3-byte Source Connection ID, and an 8- to 20-byte Destination one.
+- `firefox_cookie_fields_match_the_captured_qpack_bytes` encodes the four
+  requests of the Firefox 156.0 HTTP/3 cookie capture through the request
+  recipe and the QPACK encoding; the encoder stream and all four field
+  sections equal the capture. A unit test in the vendored `h3` does the same
+  for the snapshot's two requests.
+- `firefox_156_http3_templates_follow_the_captured_field_order` compares
+  both templates' HTTP/3 lists with the captured requests.
+
+QUIC v2 is checked against RFC 9369's Appendix A vectors (Initial keys, the
+protected server Initial, the Retry, and the ChaCha20 short header) in
+`phantom-quic-btls`, and against aioquic 1.3.0 on loopback. There,
+`scripts/conformance/aioquic_versions.py` with the `quic_version_interop`
+example of `phantom-net`, three requests on fresh connections with the
+Firefox recipes, reported on 2026-09-26:
+
+```text
+first_packet_version=0x00000001 negotiated_version=0x6b3343cf chosen_version=0x00000001 available_versions=0xdaeaca8a,0x6b3343cf,0x00000001 resumed=false early_data_accepted=false
+first_packet_version=0x6b3343cf negotiated_version=0x6b3343cf chosen_version=0x6b3343cf available_versions=0x1a3a2a0a,0x6b3343cf,0x00000001 resumed=true early_data_accepted=true
+first_packet_version=0x6b3343cf negotiated_version=0x6b3343cf chosen_version=0x6b3343cf available_versions=0x0ada3a1a,0x6b3343cf,0x00000001 resumed=true early_data_accepted=true
+```
+
+That is the pattern of the Firefox captures: v1 moved to v2 on the first
+connection, and v2 from the first packet, with early data, on the resumed
+ones.
+
+How to reproduce: the snapshot and resumption commands in the
+[capture README](../../scripts/capture/README.md#quick-fingerprint-snapshot),
+with `--browser firefox`, `--client-version 156.0.1`, and, for the
+resumption capture, `--scenario accept --repeat 3 --fixture-prefix
+resumption-streams`. For the interop run, start
+`uv run --no-project --python 3.10 --with aioquic==1.3.0 python
+scripts/conformance/aioquic_versions.py --root <dir>/root.der --port-file
+<dir>/port`, then run `cargo run -p phantom-net --example
+quic_version_interop -- <port> <dir>/root.der`.
+
+Limits:
+
+- Four ClientHello differences remain, all in BoringSSL. Its permutation
+  also moves `quic_transport_parameters` and `encrypted_client_hello`. It
+  refuses `record_size_limit` on QUIC, which Firefox sends (16385). It omits
+  `extended_master_secret` and `renegotiation_info` from a TLS 1.3-only
+  offer, and Firefox sends both.
+- Firefox sends `Alt-Used` after `accept-encoding`, or after `referer` on a
+  `fetch`, on requests to an origin it reached through Alt-Svc. Phantom
+  generates the field and appends it last.
+- neqo stops using the dynamic table once 1000 streams hold unacknowledged
+  field sections; Phantom does not.
+- Phantom never sends `ACK_FREQUENCY` or `RESET_STREAM_AT`. No capture shows
+  whether Firefox sends either.
+- A resumed connection starts in v2. If the server no longer offers v2, the
+  connection fails on the Version Negotiation packet; how Firefox recovers
+  there is not captured.
+- Datagrams after the first flight, path MTU probing, and loss-probe sizes
+  are not compared; Phantom's retransmitted Initials are 1200 bytes.
+- The captures cover Windows only, and no extended CONNECT or WebSocket over
+  HTTP/3.
+
 ### TCP socket option evidence
 
 What is claimed: `chromium::v154_tcp` and `firefox::v156_tcp` set the socket
@@ -3280,8 +3415,9 @@ are compared with their own resumption captures the same way; see
 as the browsers did, and never sends `POST`, `PUT`, or `DELETE` early. Like
 Chromium, it starts a resumed connection from the server SETTINGS remembered
 with the ticket, so the recipes' dynamic QPACK policy can encode a request
-before the server's SETTINGS arrive. The Firefox 156 captures record browser
-behavior only; Firefox has no H3 recipe.
+before the server's SETTINGS arrive. The
+[Firefox 156 HTTP/3 recipe](#firefox-156-http3-recipe) starts a resumed
+connection in QUIC v2, as these Firefox captures show.
 
 Evidence: `fixtures/http3/<browser>/<version>/windows-11-26200/` retains
 `resumption-accept.txt` (5 runs), `resumption-accept-delayed.txt` (3 runs),

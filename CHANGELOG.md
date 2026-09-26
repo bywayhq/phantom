@@ -96,6 +96,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `max_concurrent_streams_cap: None` to an
   `Http2StreamSettings` literal to apply every stated limit unchanged, or
   use `..Http2StreamSettings::default()`.
+- `QuicTransportSettings` gained the public fields `max_ack_delay_ms`,
+  `active_connection_id_limit`, `min_ack_delay_us`, `reset_stream_at`,
+  `initial_datagram_size`, and `initial_destination_connection_id`, so struct
+  literals that name every field no longer compile. The protocol defaults
+  (25, 2, `None`, `false`, `None`, `None`) keep the wire and the runtime as
+  before; `chromium::v154_quic` uses them. Distinct values for
+  `initial_max_stream_data_bidi_local`, `_bidi_remote`, and `_uni` are now
+  accepted, where the QUIC runtime required one value for all three.
+  Migrate: add `max_ack_delay_ms: 25, active_connection_id_limit: 2,
+  min_ack_delay_us: None, reset_stream_at: false, initial_datagram_size:
+  None, initial_destination_connection_id: None` to a
+  `QuicTransportSettings` literal.
+- `Http3Settings` gained the public field `reserved_frame_after_settings`.
+  Migrate: add `reserved_frame_after_settings: false` to an `Http3Settings`
+  literal to keep the control stream unchanged.
 - The Edge recipes move to Edge 154.0.4258.37 on Windows 11 and macOS 15.5:
   `edge::v153_tls`, `v153_http3_tls`, `v153_windows_client_hints`,
   `v153_macos_client_hints`, `v153_windows_navigation_template`, and
@@ -499,6 +514,35 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   could not connect or resolve. TLS failures, proxy rejections, timeouts,
   and any answer from the server, `101` and `2xx` included, are returned at
   once. It is off by default; browsers do not retry an opening.
+- Firefox 156 HTTP/3 recipes from Firefox 156.0.1 captures on Windows 11:
+  `firefox::v156_http3_tls`, `v156_quic`, `v156_http3`, and
+  `v156_http3_request`, and an HTTP/3 list in the Firefox navigation and
+  `fetch` templates. The QUIC transport parameters, their order and
+  encodings, the SETTINGS frame and the reserved frame after it, the QPACK
+  stream order and encoding, and the request field order match the captures;
+  [Validation](docs/explanation/validation.md#firefox-156-http3-recipe)
+  lists the remaining differences.
+- QUIC version 2 (RFC 9369). A profile whose `version_information` lists two
+  available versions offers v2 and v1, follows a server that moves the
+  connection from v1 to v2 (RFC 9368 compatible version negotiation), and
+  starts a connection that presents a session ticket in the version of the
+  connection that received it. `phantom_quic_btls::QuicVersion` gained `V2`,
+  `wire`, and `from_wire`.
+- QUIC profile data for `max_ack_delay`, `active_connection_id_limit`, the
+  empty `reset_stream_at` parameter, draft 02 and draft 07 `min_ack_delay`
+  (`QuicAckFrequencyDraft`), a leading reserved version
+  (`QuicVersionGrease::First`), the size of Initial datagrams, and the length
+  of the first Destination Connection ID (`QuicConnectionIdLength`). The
+  runtime honors each: it acknowledges within the advertised delay, stores
+  that many connection IDs, delivers the reliable part of a stream reset by
+  `RESET_STREAM_AT`, and reads draft 02 `ACK_FREQUENCY` frames.
+- `Http3Setting::EnableConnectProtocol`, `EnableWebTransportDraft02` (only
+  `false`), and `H3DatagramDraft04`, and
+  `Http3QpackEncoding::DynamicUnmatchedNames`, the QPACK encoding of neqo,
+  Firefox's HTTP/3 stack.
+- `scripts/conformance/aioquic_versions.py` and the
+  `quic_version_interop` example of `phantom-net` check QUIC version
+  negotiation and v2 resumption against aioquic on loopback.
 - `scripts/capture/run_matrix.py` runs desktop browser captures from one JSON
   manifest of tools, browsers, scenarios, and repeat counts. It runs up to
   `--jobs` tool invocations at once, each with its own temporary directory

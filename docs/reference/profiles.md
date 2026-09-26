@@ -39,7 +39,7 @@ recaptured and reverified.
 | Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
-| Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows; macOS for templates |
+| Firefox 156 | `firefox::v156_*` | Yes | Yes | Yes, from 156.0.1 | No | `v156_websocket` | Windows; macOS for templates |
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
@@ -308,7 +308,7 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order; Brave's `Sec-GPC` goes to both. |
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
 | Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |
-| `Referer` on a navigation | Navigation templates have no `Referer` slot, so an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's. No capture shows that position. |
+| `Referer` on a navigation | Navigation templates have no `Referer` slot, except Firefox's HTTP/3 list, which puts it after `accept-encoding` as a Firefox script navigation does. Elsewhere an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's HTTP/1.1 and HTTP/2 lists. No capture shows that position. |
 
 ### Cookie placement in templates
 
@@ -361,8 +361,9 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
   request never leaves `phantom-net`, and Phantom logs no field values.
 - The count and size limits on request fields apply to the fields as you
   supply them, before the split.
-- Firefox 156 does not split `cookie` over HTTP/3; Phantom has no Firefox
-  HTTP/3 recipe.
+- Firefox 156 does not split `cookie` over HTTP/3, so
+  `firefox::v156_http3_request` sends one joined field, a literal with a
+  static name reference that is never inserted.
 - Edge, Brave, and Opera use `chromium::v154_http2` and
   `chromium::v154_http3_request`, so they send crumbs as Chrome does, as
   their cookie captures show.
@@ -413,7 +414,10 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
   templates leave `User-Agent` to you. The Firefox value comes from headless
   captures; Firefox sent no headless marker, but no headful Firefox capture
   confirms the value.
-- Firefox has no HTTP/3 recipe, so its templates have no HTTP/3 list.
+- The Firefox HTTP/3 lists come from Firefox 156.0.1, the HTTP/1.1 and
+  HTTP/2 lists from 156.0. Firefox sends `Alt-Used` after `accept-encoding`
+  on requests to an origin it reached through Alt-Svc; Phantom appends the
+  field it generates last.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |
 | --- | --- | --- |

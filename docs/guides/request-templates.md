@@ -110,7 +110,7 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 ## Limits
 
 - Templates cover only address-bar navigations and same-origin no-store
-  `fetch` GETs. Firefox templates have no HTTP/3 list and no hint slots
+  `fetch` GETs. Firefox templates have no hint slots
   ([template limits](../reference/profiles.md#template-limits)).
 - A `fetch` or Firefox template refuses to send hints an origin requested,
   because no capture shows where they go

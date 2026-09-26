@@ -98,8 +98,8 @@ fn profiles() -> [ClientProfile; 5] {
   Brave 153 (`brave_android::v153_*`), Opera 102 (`opera_android::v102_*`),
   and Firefox 156 (`firefox_android::v156_tls`). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
-  components each one has. Firefox has no QUIC, HTTP/3, or client-hint
-  recipe; no Android browser has a TCP or HTTP/1.1 connection recipe; Edge
+  components each one has. Firefox has no client-hint recipe, and its
+  QUIC and HTTP/3 recipes come from Firefox 156.0.1; no Android browser has a TCP or HTTP/1.1 connection recipe; Edge
   for Android has no WebSocket recipe; Opera for Android has only TLS and
   client hints, and Firefox for Android only TLS.
 - A request fails before any network I/O if the profile lacks a component it

@@ -24,7 +24,7 @@ protocol or route. Phantom is maintained by
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Not covered | Yes | Yes | Yes |
+| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox | Yes | Yes | Yes |
 | Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | WebSocket openings | Yes | Yes | Yes | Yes | Yes | Yes | Not covered | Yes |

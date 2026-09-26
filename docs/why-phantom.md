@@ -44,8 +44,8 @@ is a better choice in these cases:
 - You need a browser Phantom has no recipe for. Phantom ships Chrome 154,
   Edge 154, Brave 154, Opera 135, and Firefox 156, one build each, all
   captured on Windows 11. It
-  has no Safari, mobile, macOS, or Linux captures, and no Firefox HTTP/3
-  recipe. [Coverage](reference/coverage.md#browser-profiles) has the details.
+  has no Safari, mobile, macOS, or Linux captures.
+  [Coverage](reference/coverage.md#browser-profiles) has the details.
 - You need many browser versions or operating systems. Phantom retires a
   browser version when it adds the next one. Tools that ship more targets
   are listed [below](#compared-with-other-clients).
