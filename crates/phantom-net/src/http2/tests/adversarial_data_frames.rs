@@ -106,7 +106,7 @@ async fn run_flood_peer(
     frames: usize,
     first: u32,
 ) -> TestResult<()> {
-    establish_baseline(&mut stream).await?;
+    establish_baseline(&mut stream, first).await?;
     write_frame(&mut stream, 0x01, END_HEADERS, first, STATUS_200).await?;
     for _ in 0..frames {
         match flood {
@@ -129,7 +129,7 @@ async fn run_flood_peer(
 }
 
 async fn run_tolerated_peer(mut stream: DuplexStream) -> TestResult<()> {
-    establish_baseline(&mut stream).await?;
+    establish_baseline(&mut stream, v154_http2().streams.first_stream_id).await?;
     write_frame(&mut stream, 0x01, END_HEADERS, 1, STATUS_200).await?;
     for _ in 0..MAX_EMPTY_DATA_FRAMES {
         write_frame(&mut stream, 0x00, 0, 1, &[]).await?;

@@ -36,8 +36,8 @@ async fn header_list_below_firefox_ceiling_is_accepted() -> TestResult<()> {
         let (client, server) = duplex(64 * 1024);
         let peer = tokio::spawn(async move {
             let mut stream = server;
-            establish_baseline(&mut stream).await?;
             let first = v156_http2().streams.first_stream_id;
+            establish_baseline(&mut stream, first).await?;
             write_header_block(&mut stream, first, &header_block(FIREFOX_LIMIT - 64), true).await?;
             drain_without_error(&mut stream).await
         });
@@ -126,7 +126,7 @@ async fn run_oversized_peer(
     advertised: Option<u32>,
     first: u32,
 ) -> TestResult<()> {
-    let settings = establish_baseline(&mut stream).await?;
+    let settings = establish_baseline(&mut stream, first).await?;
     // The local ceiling is never advertised: the SETTINGS entry is present
     // exactly when the profile carries it, with the profile's value.
     let sent = settings
@@ -183,10 +183,9 @@ async fn run_connection_abuse(abuse: Abuse) -> TestResult<()> {
     let (client, server) = duplex(64 * 1024);
     let peer = tokio::spawn(async move {
         let mut stream = server;
-        establish_baseline(&mut stream).await?;
-        abuse
-            .write(&mut stream, v156_http2().streams.first_stream_id)
-            .await?;
+        let first = v156_http2().streams.first_stream_id;
+        establish_baseline(&mut stream, first).await?;
+        abuse.write(&mut stream, first).await?;
         stream.flush().await?;
         expect_one_goaway(
             &mut stream,

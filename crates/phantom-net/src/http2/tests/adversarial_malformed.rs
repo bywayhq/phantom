@@ -105,7 +105,8 @@ fn settings_for(case: MalformedCase) -> TestResult<Http2Settings> {
 }
 
 async fn run_malformed_peer(mut stream: DuplexStream, case: MalformedCase) -> TestResult<()> {
-    establish_baseline(&mut stream).await?;
+    // Every malformed case runs under the Chromium recipe.
+    establish_baseline(&mut stream, v154_http2().streams.first_stream_id).await?;
     write_fault(&mut stream, case).await?;
     stream.flush().await?;
     expect_one_goaway(
@@ -163,11 +164,14 @@ pub(super) async fn expect_one_goaway(
     Ok(())
 }
 
-/// Accepts the client preface, completes SETTINGS, and waits for the first
-/// request HEADERS, on the profile's first stream.
+/// Accepts the client preface, completes SETTINGS, and waits for the request
+/// HEADERS on `first`, the profile's first stream.
 ///
 /// Returns the payload of the client's initial SETTINGS frame.
-pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<Vec<u8>> {
+pub(super) async fn establish_baseline(
+    stream: &mut DuplexStream,
+    first: u32,
+) -> TestResult<Vec<u8>> {
     let mut preface = [0_u8; CLIENT_PREFACE.len()];
     stream.read_exact(&mut preface).await?;
     if preface.as_slice() != CLIENT_PREFACE {
@@ -199,8 +203,7 @@ pub(super) async fn establish_baseline(stream: &mut DuplexStream) -> TestResult<
                 }
                 observed_settings_ack = true;
             }
-            // The request's stream is the profile's first stream.
-            (0x01, _) => observed_request = true,
+            (0x01, _) if frame.stream_id == first => observed_request = true,
             _ => {}
         }
     }

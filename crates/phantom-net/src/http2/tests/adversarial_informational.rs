@@ -20,7 +20,7 @@ async fn eight_informational_responses_precede_the_final_response() -> TestResul
         let (client, server) = duplex(64 * 1024);
         let peer = tokio::spawn(async move {
             let mut stream = server;
-            establish_baseline(&mut stream).await?;
+            establish_baseline(&mut stream, v154_http2().streams.first_stream_id).await?;
             for _ in 0..MAX_INFORMATIONAL {
                 write_frame(&mut stream, 0x01, END_HEADERS, 1, STATUS_103).await?;
             }
@@ -101,7 +101,7 @@ async fn run_excess(settings: Http2Settings, sent: usize) -> TestResult<()> {
 }
 
 async fn run_excess_peer(mut stream: DuplexStream, sent: usize, first: u32) -> TestResult<()> {
-    establish_baseline(&mut stream).await?;
+    establish_baseline(&mut stream, first).await?;
     for _ in 0..sent {
         write_frame(&mut stream, 0x01, END_HEADERS, first, STATUS_103).await?;
     }
