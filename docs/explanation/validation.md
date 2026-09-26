@@ -2387,13 +2387,16 @@ one awaits its ACK, and the ACK, like any frame read, restarts the idle time.
 Every Chromium-family recipe shares `chromium::v154_http2`, so each sends the
 PING. `firefox::v156_http2` sends none.
 
-When the PING goes unanswered and nothing is read from the peer for 10
-seconds, counted from the PING or from the last frame read, whichever is
-later, the Chromium recipe closes the connection as Chrome 154 does: it sends
-`GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
-`Failed ping.`, then closes. Every request still open on the connection
-fails with `Http2Error::PingTimeout`, and the client's pool drops the
-connection, so the next request opens a new one.
+When the PING goes unanswered and nothing is read from the peer, the
+Chromium recipe closes the connection as Chrome 154 does, sending `GOAWAY`
+with last stream ID 0, `PROTOCOL_ERROR`, and the debug data `Failed ping.`,
+then closing. Chrome closes 10 seconds after the later of the PING and the
+last read; Phantom closes 10 to 20 seconds after it (see the limits below).
+Every request still open on the connection fails with
+`Http2Error::PingTimeout`, and the client's pool drops the connection, so
+the next request opens a new one. A request that reaches the closed
+connection before the pool drops it sends nothing and fails with
+`Http2Error::ReusedConnectionClosed`, which reused-connection replay covers.
 
 Evidence: Chromium source at tag `154.0.8037.58` and loopback captures of
 Chrome 154.0.8037.58 on Windows 11, one of them retained. `SpdySession::MaybeSendPrefacePing`
@@ -2465,11 +2468,14 @@ empty END_STREAM DATA frame, and none while PING 1 is unanswered.
 
 The same file checks the close with the timeout shortened: a PING
 unanswered for 2 seconds brings that GOAWAY between 1 and 4 seconds after the
-peer reads the PING, then the end of the byte stream, and the open request
-fails with `Http2Error::PingTimeout`. A WINDOW_UPDATE 2 seconds into a
+peer reads the PING, then the end of the byte stream; the open request fails
+with `Http2Error::PingTimeout`, and a later one with
+`Http2Error::ReusedConnectionClosed`. A WINDOW_UPDATE 2 seconds into a
 3-second timeout moves the GOAWAY to between 4 and 8 seconds after the PING,
 and an acknowledged PING leaves the connection usable 2 seconds past a
-1-second timeout. `crates/phantom/tests/requests/unprocessed_replay.rs`
+1-second timeout. The vendored `http2` crate's tests add a peer that stops
+reading for three timeouts while a request body fills the pipe, then drains
+it and sends the ACK, and sees no GOAWAY. `crates/phantom/tests/requests/unprocessed_replay.rs`
 checks through the client that the failed request is not replayed, even with
 unprocessed replay on, and that the next request opens a new connection.
 
@@ -2501,13 +2507,17 @@ Limits:
   `kMaxRetryAttempts` of 2 at `:108`). Phantom does not replay it: the
   client closed the connection itself, so nothing shows that the server did
   not process the request.
-- Phantom restarts the idle time and the PING timeout when a whole frame is
-  read; Chrome restarts both on every socket read, including part of a
-  frame.
-- After the GOAWAY, Phantom ends the TLS stream with `close_notify` before
-  closing TCP. Chrome's `SSLClientSocketImpl::Disconnect`
-  (`net/socket/ssl_client_socket_impl.cc:400-418`) closes the transport
-  without one.
+- Phantom measures the PING timeout with sleeps of the full timeout: a
+  sleep that ends after a read starts another, so the close comes one to two
+  timeouts after the last frame read. Chrome's next check runs exactly one
+  timeout after the last read. Phantom also counts reads per whole frame,
+  where Chrome counts every socket read, including part of a frame, and
+  Phantom does not run the timeout while its writes are blocked.
+- Phantom sends a TLS `close_notify` whenever an HTTP/2 connection closes
+  itself, this close included. Chrome sends none on any close:
+  `SSLClientSocketImpl::Disconnect`
+  (`net/socket/ssl_client_socket_impl.cc:400-418`) closes the transport,
+  and the file never calls `SSL_shutdown`.
 
 ### Alt-Svc racing evidence
 

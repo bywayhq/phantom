@@ -155,6 +155,12 @@ anything does.
   sends a never-indexed literal. Blocker: a profile setting and a
   `RequestHeader` marker that hides a value from `Debug` without choosing
   the never-indexed form.
+- Closing a TLS connection without `close_notify`. Evidence: source only;
+  Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
+  ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),
+  while Phantom's TLS stream sends `close_notify` from `poll_shutdown` on
+  every close. Blocker: a TLS profile setting that `poll_shutdown` applies,
+  and a capture of a Chrome close.
 - Chromium's retry of a request whose session ended with
   `ERR_HTTP2_PING_FAILED`: up to twice on a new connection, whatever the
   method. Evidence: source only

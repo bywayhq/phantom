@@ -32,13 +32,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   without the recipe's limit.
 - `Http2Settings` gained the public field `ping_timeout: Option<Duration>`,
   so struct literals that name every field no longer compile, and
-  `phantom_net::http2::Http2Error` gained the variant `PingTimeout`, so
-  exhaustive matches on it no longer compile. When set, a PING sent under
-  `preface_ping_after` that goes unanswered while nothing is read from the
-  peer for that long closes the connection with `GOAWAY` (last stream ID 0,
-  `PROTOCOL_ERROR`, debug data `Failed ping.`). Requests open on it fail with
-  `Http2Error::PingTimeout`, which is not replayed, and the pool drops the
-  connection. `chromium::v154_http2`, and so every Chromium-family recipe,
+  `phantom_net::http2::Http2Error` gained the variants `PingTimeout` and
+  `ReusedConnectionClosed`, so exhaustive matches on it no longer compile.
+  When set, a PING sent under `preface_ping_after` that goes unanswered
+  while nothing is read from the peer for one to two such periods closes the
+  connection with `GOAWAY` (last stream ID 0, `PROTOCOL_ERROR`, debug data
+  `Failed ping.`). Requests open on it fail with `Http2Error::PingTimeout`,
+  which is not replayed, and the pool drops the connection. A request that
+  reaches the closed connection before the pool does fails with
+  `Http2Error::ReusedConnectionClosed`, having sent nothing;
+  `RetryPolicy::with_reused_connection_replay` replays it on a fresh
+  connection when the method is idempotent.
+  `chromium::v154_http2`, and so every Chromium-family recipe,
   sets 10 seconds, Chromium's `kHungIntervalSeconds`; `firefox::v156_http2`
   sets `None`. `Http2Settings::validate` rejects a zero timeout, one the
   clock cannot represent, and a timeout without `preface_ping_after`, so
@@ -47,7 +52,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   fails such a connection with `Http2Error::RuntimeUnavailable`.
   Migrate: add `ping_timeout: None` to an `Http2Settings` literal to keep
   connections whose PING is never answered, or copy the field from
-  `chromium::v154_http2`; add an arm for `Http2Error::PingTimeout` to an
+  `chromium::v154_http2`. Where code sets `preface_ping_after = None` on a
+  recipe, also set `ping_timeout = None`. Add arms for
+  `Http2Error::PingTimeout` and `Http2Error::ReusedConnectionClosed` to an
   exhaustive match.
 - `Http2Settings` gained the public field `preface_ping_after:
   Option<Duration>`, so struct literals that name every field no longer
