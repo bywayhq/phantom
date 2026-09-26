@@ -857,9 +857,9 @@ shares component data with a capture from another platform:
 - Chrome 154 for Android (154.0.8037.57) recipes come from captures on the
   Android 17 emulator described in
   [Validation](../explanation/validation.md#chrome-for-android-154-recipes),
-  QUIC resumption, WebSocket openings, and plaintext trust included. Edge 153 for Android (153.0.4234.49) recipes come from
-  an arm64 Android 17 emulator
-  ([Validation](../explanation/validation.md#edge-for-android-153-recipes)).
+  including QUIC resumption, WebSocket openings, and plaintext trust. Edge
+  153 for Android (153.0.4234.49) recipes come from an arm64 Android 17
+  emulator ([Validation](../explanation/validation.md#edge-for-android-153-recipes)).
 - SSE browser captures are from Windows 11 (10.0.26200) only, and WebSocket
   browser captures from that host and the Android emulators. The macOS
   WebSocket captures back request fields only. Phantom does not assume macOS

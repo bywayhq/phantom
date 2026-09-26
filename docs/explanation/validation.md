@@ -890,8 +890,9 @@ user activation and comes from another app, so Chrome omits `Sec-Fetch-User`
 and sends `Sec-Fetch-Site: cross-site`; the request templates therefore rest
 on typed captures only. The TLS, HTTP/2 startup, QUIC, QUIC resumption,
 WebSocket opening, and plaintext-trust layers do not depend on how the page
-was opened: the page's own script makes every request they record, and no
-WebSocket opening carries a `Sec-Fetch-*` field.
+was opened: every request their recipe tests compare comes from the page's
+own script, and no WebSocket opening carries a `Sec-Fetch-*` field. The
+intent captures record the page load too, but no test compares it.
 
 | Layer | Samples | Result against the desktop Chrome 154 recipes |
 | --- | --- | --- |
@@ -955,8 +956,9 @@ This finding comes from Chrome 153 and Brave 153 for Android on the Android
 15 emulator. That emulator offered a Wi-Fi network and a cellular (HSPA)
 one, and Android picks the default. With Wi-Fi as the default, no fresh QUIC
 connection of Chrome or Brave for Android sent `initial_rtt_us` (`0x3127`),
-as on Windows: the Wi-Fi startups retained from that emulator, and 6
-fresh connections taken with mobile data switched off (`svc data disable`) to check this. With the
+as on Windows: Brave's Wi-Fi startup retained from that emulator,
+`http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt`,
+and 6 fresh connections taken with mobile data switched off (`svc data disable`) to check this. With the
 cellular network as the default, which the emulator chose after a restart,
 every fresh connection sent it, set to 400000 microseconds: 13 of 13 Chrome
 and 12 of 12 Brave startups. Two Chrome startups before the restart sent it
@@ -994,8 +996,10 @@ listener. The launcher rewrites `127.0.0.1` in `--host-resolver-rules` to
 for a URL on the device's own `127.0.0.1`. The Android 17 captures of Chrome,
 Brave, and Opera took about 29 minutes of wall-clock time on the Windows
 host; the typed entries took most of it. The intent captures of QUIC
-resumption, plaintext trust, and the seven WebSocket scenarios, 39 runs, took
-about 3 minutes.
+resumption, plaintext trust, and the seven WebSocket scenarios took about 3
+minutes. That time covers 39 runs: 6 QUIC resumption and 6 plaintext-trust
+runs, and 3 runs of each of the 7 WebSocket scenarios. Adding the 6 typed runs
+of `accept` and `h1-accept`, 45 Chrome 154 runs back these three layers.
 
 Retained fixtures under
 `fixtures/<area>/chrome-android/154.0.8037.57/android-17-pixel7-emulator/`:
@@ -1192,7 +1196,7 @@ offer and unchecked every data-collection box
 | TLS ClientHello to `https://localhost` | Android 17 | 1 process on a cleared profile, after the launcher stepped through the first-run screens | Equal to `opera_android::v102_tls` |
 | TLS ClientHello to `https://localhost` | Android 15 | 14 fresh processes: 2 on cleared profiles, 12 restarted on one onboarded profile | All agree. Equal to Chrome 154's ClientHello without trust-anchor IDs, signature-algorithm GREASE included, where desktop Opera 135 drops that GREASE |
 | Client hints | Android 17 | 3 typed runs on cleared profiles | The Chromium names, order, and delivery; a four-brand list (`OperaMobile` 102, `Opera` 137, `Chromium` 152, and a greased brand last), platform version `"17"`, model `"Pixel 7"`, and an empty `sec-ch-ua-form-factors` |
-| HTTP/1.1 page load, `fetch()`, and `ws://` opening to `127.0.0.1` | Android 15 | 3 typed runs of `direct-loopback` | The field names Chrome for Android sends; `User-Agent` ends in `OPR/102.0.0.0` |
+| HTTP/1.1 page load, `fetch()`, and `ws://` opening to `127.0.0.1` | Android 15 | 3 typed runs of `direct-loopback` | The field names Chrome 154 for Android sends: the page load equals the typed `h1-accept` page load in the WebSocket captures, and the `fetch()` and `ws://` opening equal the `direct-loopback` capture; `User-Agent` ends in `OPR/102.0.0.0` |
 
 On the Android 15 emulator the 12 restarted processes kept one profile,
 because the first-run screens did not complete reliably from a script on
@@ -2204,8 +2208,7 @@ emulators.
 | Brave 154 | Windows | 45 | 183 | 1 | +2 each |
 | Opera 135 | Windows | 101 | 331 | 1 | +2 each |
 | Opera 135 | macOS | 3 | 9 | 1 | +2 each |
-| Chrome for Android 153 | Android 15 emulator | 18 | 54 | 1 | +2 each |
-| Chrome for Android 154 | Android 17 emulator | 3 | 9 | 1 | +2 each |
+| Chrome for Android 154 | Android 17 emulator | 18 | 54 | 1 | +2 each |
 | Brave for Android 153 | Android 15 and 17 emulators | 21 | 63 | 1 | +2 each |
 | Edge for Android 153 | Android 17 emulator | 3 | 9 | 1 | +2 each |
 | Firefox 156 | Windows | 99 | 246 | 3 | +2 each |

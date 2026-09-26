@@ -171,10 +171,10 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 
 /// Returns WebSocket settings for Chrome 154.0.8037.57 for Android.
 ///
-/// The retained Chrome 154 `accept` and `h1-accept` captures open their
-/// WebSockets as [`chromium::v154_websocket`] does, and the nine-scenario
-/// Chrome 153 for Android set matched that recipe on every compared field,
-/// so this returns it.
+/// The nine retained Chrome 154 for Android WebSocket scenarios, `accept`
+/// and `h1-accept` opened by typed entry and the other seven by intent,
+/// match [`chromium::v154_websocket`] on every compared field, so this
+/// returns it.
 #[must_use]
 pub fn v154_websocket() -> WebSocketSettings {
     chromium::v154_websocket()
