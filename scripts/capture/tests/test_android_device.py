@@ -14,6 +14,7 @@ from scripts.capture.android_device import (
     device_arguments,
     focused_field_text,
     gecko_config_text,
+    onboarding_taps,
     reverse_ports,
 )
 from scripts.capture.browser_launch import (
@@ -384,6 +385,29 @@ class AndroidSessionTests(unittest.TestCase):
             commands[tap + 1], ("shell", "input", "keycombination", "113", "40")
         )
         self.assertEqual(commands[-1], ("shell", "input", "keyevent", "66"))
+
+    def test_onboarding_customizes_instead_of_allowing_data_collection(self) -> None:
+        consent = (
+            '<hierarchy><node text="Customize" bounds="[42,2169][525,2295]" />'
+            '<node text="Allow" bounds="[555,2169][1038,2295]" /></hierarchy>'
+        )
+
+        self.assertEqual(onboarding_taps(consent), [(283, 2232)])
+
+    def test_onboarding_unchecks_every_box_before_confirming(self) -> None:
+        customize = (
+            '<hierarchy><node text="Data collection" bounds="[0,0][10,10]" />'
+            '<node text="" checkable="true" checked="true" bounds="[943,947][1069,1073]" />'
+            '<node text="" checkable="true" checked="false" bounds="[943,1159][1069,1285]" />'
+            '<node text="Confirm" bounds="[42,2169][1038,2295]" /></hierarchy>'
+        )
+
+        self.assertEqual(onboarding_taps(customize), [(1006, 1010), (540, 2232)])
+
+    def test_onboarding_is_done_when_no_first_run_label_shows(self) -> None:
+        self.assertIsNone(
+            onboarding_taps('<hierarchy><node text="about:blank" /></hierarchy>')
+        )
 
     def test_focused_field_text_reads_only_the_focused_node(self) -> None:
         dump = (

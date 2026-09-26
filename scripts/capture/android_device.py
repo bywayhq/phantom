@@ -49,6 +49,9 @@ class AndroidBrowser:
     command_line_file: str | None = None
     # GeckoView reads `<package>-geckoview-config.yaml` there instead.
     gecko_config: bool = False
+    # A cleared profile opens first-run screens the browser offers no switch
+    # to skip; the launcher steps through them (see `onboarding_taps`).
+    onboarding: bool = False
 
     @property
     def configuration_path(self) -> str | None:
@@ -69,7 +72,7 @@ ANDROID_BROWSERS = {
     "brave-android": AndroidBrowser(
         "com.brave.browser", "Brave", command_line_file="chrome-command-line"
     ),
-    "opera-android": AndroidBrowser("com.opera.browser", "Opera"),
+    "opera-android": AndroidBrowser("com.opera.browser", "Opera", onboarding=True),
     "firefox-android": AndroidBrowser(
         "org.mozilla.firefox", "Mozilla Firefox", gecko_config=True
     ),
@@ -178,6 +181,48 @@ def wait_button_center(dump: str) -> tuple[int, int] | None:
     return None
 
 
+# First-run labels the launcher taps, in no particular order. None of them
+# grants a permission or consents to data collection.
+ONBOARDING_LABELS = ("Next", "Skip", "Start browsing")
+ONBOARDING_DECLINE_SCREEN = "Data collection"
+ONBOARDING_LAST = "Start browsing"
+ONBOARDING_IDLE = 20.0
+
+
+def onboarding_taps(dump: str) -> list[tuple[int, int]] | None:
+    """Return the taps that advance a first-run screen, or None if none shows.
+
+    On Opera's consent screen, "Customize" is chosen over "Allow"; on the
+    customize screen every checked box is unchecked before "Confirm".
+    """
+    try:
+        root = ElementTree.fromstring(dump)
+    except ElementTree.ParseError:
+        return None
+
+    def center(node: ElementTree.Element) -> tuple[int, int]:
+        left, top, right, bottom = (
+            int(value) for value in re.findall(r"\d+", node.get("bounds", ""))
+        )
+        return (left + right) // 2, (top + bottom) // 2
+
+    nodes = list(root.iter("node"))
+    texts = {node.get("text", ""): node for node in nodes}
+    if ONBOARDING_DECLINE_SCREEN in texts and "Confirm" in texts:
+        taps = [
+            center(node)
+            for node in nodes
+            if node.get("checkable") == "true" and node.get("checked") == "true"
+        ]
+        return [*taps, center(texts["Confirm"])]
+    if "Customize" in texts and "Allow" in texts:
+        return [center(texts["Customize"])]
+    for label in ONBOARDING_LABELS:
+        if label in texts:
+            return [center(texts[label])]
+    return None
+
+
 class TypingFailed(RuntimeError):
     """The address bar never held the whole typed URL; Enter was not pressed."""
 
@@ -238,6 +283,8 @@ class AndroidLaunch:
     # many cleared-profile launches to try before giving up.
     typing_timeout: float = 150.0
     typing_attempts: int = 3
+    # Seconds between first-run screen checks.
+    onboarding_delay: float = 3.0
 
     def __post_init__(self) -> None:
         if self.entry not in ENTRIES:
@@ -319,7 +366,23 @@ class AndroidSession:
     def _open(self, package: str) -> None:
         launch = self.launch
         time.sleep(launch.settle)
-        target = launch.url if launch.entry == "intent" else "about:blank"
+        onboarding = launch.browser.onboarding
+        intent_url = launch.entry == "intent" and not onboarding
+        target = launch.url if intent_url else "about:blank"
+        self.start_view(package, target)
+        if onboarding:
+            self.finish_onboarding()
+            if launch.entry == "intent":
+                self.start_view(package, launch.url)
+                return
+        if launch.entry == "typed":
+            time.sleep(launch.typing_delay)
+            self.device.shell("input", "keycombination", KEYCODE_CTRL_LEFT, KEYCODE_L)
+            time.sleep(1.0)
+            self.type_url()
+            self.device.shell("input", "keyevent", KEYCODE_ENTER)
+
+    def start_view(self, package: str, url: str) -> None:
         self.device.shell(
             "am",
             "start",
@@ -327,16 +390,36 @@ class AndroidSession:
             "-a",
             "android.intent.action.VIEW",
             "-d",
-            shlex.quote(target),
+            shlex.quote(url),
             "-p",
             package,
         )
-        if launch.entry == "typed":
-            time.sleep(launch.typing_delay)
-            self.device.shell("input", "keycombination", KEYCODE_CTRL_LEFT, KEYCODE_L)
-            time.sleep(1.0)
-            self.type_url()
-            self.device.shell("input", "keyevent", KEYCODE_ENTER)
+
+    def finish_onboarding(self) -> None:
+        """Tap through first-run screens until the last one is dismissed.
+
+        The screens end with "Start browsing". A browser that shows no
+        first-run label for `ONBOARDING_IDLE` seconds is taken to have none;
+        a splash screen alone does not end the wait.
+        """
+        deadline = time.monotonic() + self.launch.typing_timeout
+        idle_since = time.monotonic()
+        while time.monotonic() - idle_since < ONBOARDING_IDLE:
+            if time.monotonic() >= deadline:
+                raise TypingFailed("the first-run screens did not finish")
+            time.sleep(self.launch.onboarding_delay)
+            self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
+            dump = self.device.shell("cat", WINDOW_DUMP, check=False)
+            taps = onboarding_taps(dump)
+            if taps is None:
+                continue
+            for x, y in taps:
+                self.device.shell("input", "tap", str(x), str(y))
+                time.sleep(0.5)
+            if ONBOARDING_LAST in dump:
+                time.sleep(self.launch.onboarding_delay)
+                return
+            idle_since = time.monotonic()
 
     def focused_text(self) -> str | None:
         """The text of the focused field on screen, from a window dump.
