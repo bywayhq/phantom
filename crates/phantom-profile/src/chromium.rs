@@ -831,6 +831,13 @@ pub fn v154_http3() -> Http3Settings {
 /// resumed Chrome 154 ClientHello adding `early_data` and, last,
 /// `pre_shared_key`; [`v154_quic`] sets `early_data` so a resumed connection
 /// offers it too.
+///
+/// [`TlsSettings::ech_from_https_records`] stays set from [`v154_tls`]:
+/// given an HTTPS record that lists `h3` and carries `ech`, Chrome 154
+/// encrypted its QUIC ClientHello with the record's configuration, under the
+/// public name, with the extension set of its ECH GREASE QUIC ClientHello.
+/// After a rejection it did not open another QUIC connection with the
+/// server's retry configurations; the request went over TCP instead.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();
@@ -859,9 +866,6 @@ pub fn v154_http3_tls() -> TlsSettings {
         use_new_codepoint: true,
     });
     settings.session_tickets = true;
-    // Chrome passes the record's `ech` to QUIC too, but Phantom's QUIC leg
-    // does not implement it yet.
-    settings.ech_from_https_records = false;
     settings.grease = false;
     settings.grease_signature_algorithms = false;
     settings.request_ocsp_staple = false;

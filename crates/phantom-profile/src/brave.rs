@@ -55,6 +55,12 @@ pub fn v154_tls() -> TlsSettings {
 /// this reuses that recipe and removes only the ID list. It inherits that
 /// recipe's ticket resumption, which the retained Brave resumption captures
 /// show: a resumed connection offers early data.
+///
+/// It also keeps [`TlsSettings::ech_from_https_records`]. Given an HTTPS
+/// record that lists `h3` and carries `ech`, Brave 154.1.96.59 encrypted its
+/// QUIC ClientHello with the record's configuration and did not repeat a
+/// rejected QUIC connection, as Chrome 154 does, in three runs of each
+/// scenario.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();

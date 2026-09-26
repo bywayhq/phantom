@@ -49,11 +49,14 @@ pub fn v135_tls() -> TlsSettings {
 /// trust-anchor IDs extension. That recipe already sends no signature
 /// algorithm GREASE over QUIC, so this removes only the ID list. It inherits
 /// that recipe's ticket resumption, whose Chromium source basis was read at
-/// 154, not at Opera's Chromium 151 base.
+/// 154, not at Opera's Chromium 151 base. It clears
+/// [`TlsSettings::ech_from_https_records`], as [`v135_tls`] does: no capture
+/// shows Opera using an HTTPS record's `ech`.
 #[must_use]
 pub fn v135_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();
     settings.requested_trust_anchor_ids = None;
+    settings.ech_from_https_records = false;
     settings
 }
 

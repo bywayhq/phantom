@@ -402,21 +402,29 @@ pub struct TlsSettings {
     /// non-empty list requires [`Self::ech_grease`] and must not repeat an
     /// AEAD.
     pub ech_grease_aeads: Vec<EchGreaseAead>,
-    /// Whether a direct TLS connection over TCP offers Encrypted Client Hello
-    /// with the `ech` value of the origin's HTTPS record, as Chrome 154, Edge
-    /// 153, and Brave 154 do.
+    /// Whether a direct TLS connection offers Encrypted Client Hello with the
+    /// `ech` value of the origin's HTTPS record, as Chrome 154, Edge 153, and
+    /// Brave 154 do.
     ///
-    /// On a client that looks up HTTPS records, this covers the connections
-    /// of negotiated and exact-protocol HTTP/1.1 and HTTP/2 requests and of
-    /// `wss://` WebSocket openings. Such a connection holds its ClientHello
-    /// until the lookup ends, for at most 5-50 ms after the address answers,
-    /// and retries once after an ECH rejection. The record it uses is the
-    /// first one that supports a protocol in the connection's own ALPN offer.
+    /// On a client that looks up HTTPS records, this covers the TCP
+    /// connections of negotiated and exact-protocol HTTP/1.1 and HTTP/2
+    /// requests and of `wss://` WebSocket openings. Such a connection holds
+    /// its ClientHello until the lookup ends, for at most 5-50 ms after the
+    /// address answers, and retries once after an ECH rejection. The record
+    /// it uses is the first one that supports a protocol in the connection's
+    /// own ALPN offer.
+    ///
+    /// In an HTTP/3 profile it covers the QUIC connections to the origin's
+    /// own host and port: an HTTP/3 alternative found through HTTPS records
+    /// and an exact HTTP/3 request. Such a connection starts once the lookup
+    /// ends, within the same bound, and uses the first record that lists
+    /// `h3`. After an ECH rejection it fails and is not repeated.
+    ///
     /// Without a record, or when that record has no usable `ech`, the
-    /// connection sends ECH GREASE. Proxy routes, and connector methods
-    /// without `with_ech` in their name, send ECH GREASE and never wait. A
-    /// QUIC connector rejects the field. Requires [`Self::ech_grease`], which
-    /// Chrome always enables beside a configuration.
+    /// connection sends ECH GREASE. Proxy routes, Alt-Svc alternatives at
+    /// another location, and connector methods without `with_ech` in their
+    /// name send ECH GREASE and never wait. Requires [`Self::ech_grease`],
+    /// which Chrome always enables beside a configuration.
     pub ech_from_https_records: bool,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,

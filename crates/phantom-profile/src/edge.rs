@@ -48,6 +48,12 @@ pub fn v153_tls() -> TlsSettings {
 /// trust-anchor IDs extension, so this reuses that recipe and removes only
 /// the ID list. It inherits that recipe's ticket resumption, whose Chromium
 /// source basis was read at 154, not at Edge's Chromium 153 base.
+///
+/// It also keeps [`TlsSettings::ech_from_https_records`]. Given an HTTPS
+/// record that lists `h3` and carries `ech`, Edge 153.0.4234.48 encrypted its
+/// QUIC ClientHello with the record's configuration and did not repeat a
+/// rejected QUIC connection, as Chrome 154 does, in three runs of each
+/// scenario.
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();

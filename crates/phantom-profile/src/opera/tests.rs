@@ -73,6 +73,7 @@ fn opera_135_tls_recipes_drop_trust_anchor_ids_and_tcp_signature_algorithm_greas
     let mut expected = chromium::v154_http3_tls();
     assert!(!expected.grease_signature_algorithms);
     expected.requested_trust_anchor_ids = None;
+    expected.ech_from_https_records = false;
     assert_eq!(opera, expected);
     Ok(())
 }

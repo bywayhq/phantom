@@ -71,10 +71,10 @@ fn brave_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
         expected.requested_trust_anchor_ids = None;
         assert_eq!(brave, expected);
     }
-    // The TCP recipe keeps Chrome's ECH from HTTPS records, which the
-    // retained Brave ECH captures show; the QUIC leg does not implement it.
+    // Both recipes keep Chrome's ECH from HTTPS records, which the retained
+    // Brave ECH captures over TCP and QUIC show.
     assert!(v154_tls().ech_from_https_records);
-    assert!(!v154_http3_tls().ech_from_https_records);
+    assert!(v154_http3_tls().ech_from_https_records);
     Ok(())
 }
 
