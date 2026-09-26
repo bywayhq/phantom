@@ -38,6 +38,7 @@ build that can be recaptured and reverified.
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
 | Chrome 153 for Android | `chrome_android::v153_*` | Yes | Chromium | Chromium QUIC and H3; own trust-anchor orders | `v153_android_client_hints` | Chromium | Android emulator |
 
@@ -94,7 +95,7 @@ resolved addresses.
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
-| Chrome and Brave for Android | Not covered | Not covered | Not covered |
+| Android browsers | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
@@ -135,7 +136,7 @@ for each origin and route.
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
 | Edge, Brave, Opera | Not covered | Their values have not been read from a source or a capture |
-| Chrome and Brave for Android | Not covered | No Android source reading or capture backs a value |
+| Android browsers | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
   the limit.
@@ -182,7 +183,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
-| Chrome and Brave for Android | Not covered | Not covered | Not covered |
+| Android browsers | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
   TTL, or through the caller's `AddressResolver`, which returns none. Both

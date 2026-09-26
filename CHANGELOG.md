@@ -392,6 +392,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `cookie` into crumbs on H2 and H3, which no Android capture checks. There
   is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
   cookie-placement recipe.
+- Opera for Android recipes in `opera_android`, from Opera 102.1.5206.90382
+  (Chromium 152) on the same emulator: `v102_tls`, Chrome 154's ClientHello
+  without trust-anchor IDs, and `v102_android_client_hints`. Opera for
+  Android reads no command-line file, so no other layer was captured.
 - Brave for Android recipes in `brave_android`, captured from Brave 1.95.104
   (Chromium 153) on the same emulator: `v153_tls` (desktop Brave's
   ClientHello without ECH from HTTPS records), `v153_http3_tls`,

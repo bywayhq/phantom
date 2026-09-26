@@ -2,10 +2,14 @@
 
 use phantom_profile::{
     TlsSettings, brave, brave_android, chrome_android, chromium::v154_tls, edge, opera,
+    opera_android,
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
-use super::{capture_client_hello_from, capture_client_hellos_from, client_hello_fixture};
+use super::{
+    capture_client_hello_from, capture_client_hello_from_server_name, capture_client_hellos_from,
+    client_hello_fixture,
+};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestResult};
 
 const CHROME_154_FIXTURE: &str = include_str!(concat!(
@@ -38,6 +42,10 @@ const CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
 ));
 const BRAVE_ANDROID_153_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/brave-android/153.1.95.104/",
+    "android-35-emulator/client-hello.txt"
+));
+const OPERA_ANDROID_102_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/opera-android/102.1.5206.90382/",
     "android-35-emulator/client-hello.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;
@@ -147,6 +155,13 @@ async fn brave_android_153_tls_recipe_matches_android_capture() -> TestResult<()
     assert_recipe_matches_fixture(BRAVE_ANDROID_153_FIXTURE, &brave_android::v153_tls(), None).await
 }
 
+/// Opera for Android sends Chrome's ClientHello without trust-anchor IDs,
+/// signature-algorithm GREASE included; its captures reached `localhost`.
+#[tokio::test]
+async fn opera_android_102_tls_recipe_matches_android_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(OPERA_ANDROID_102_FIXTURE, &opera_android::v102_tls(), None).await
+}
+
 /// Edge 153 sends the Chromium ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
@@ -179,6 +194,7 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         opera::v135_tls(),
         chrome_android::v153_tls(),
         brave_android::v153_tls(),
+        opera_android::v102_tls(),
     ] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
@@ -196,8 +212,14 @@ async fn assert_recipe_matches_fixture(
     settings: &TlsSettings,
     trust_anchor_id_count: Option<usize>,
 ) -> TestResult<()> {
+    // The emulator captures of a browser that takes no switches reached
+    // `localhost`; every other capture used the test name.
+    let server_name = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("hostname="))
+        .unwrap_or(TEST_SERVER_NAME);
     let expected_capture = client_hello_fixture::capture(fixture).await?;
-    let actual_capture = capture_client_hello_from(settings).await?;
+    let actual_capture = capture_client_hello_from_server_name(settings, server_name).await?;
 
     assert_eq!(
         actual_capture.records().len(),
@@ -236,7 +258,7 @@ async fn assert_recipe_matches_fixture(
         normalize_grease(expected.key_share_groups())
     );
     assert_eq!(actual.server_name(), expected.server_name());
-    assert_eq!(actual.server_name(), Some(TEST_SERVER_NAME.as_bytes()));
+    assert_eq!(actual.server_name(), Some(server_name.as_bytes()));
     // Cross-capture comparison is membership only; the Chrome 154 order test
     // pins the exact order the connector emits.
     assert_eq!(

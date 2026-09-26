@@ -25,6 +25,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
+| [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 15 emulator captures of the TLS ClientHello, client hints, and HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
 | [Chrome for Android 153 recipes](#chrome-for-android-153-recipes) | Android 15 emulator captures of TLS, H2, QUIC, H3, client hints, templates, and WebSocket openings, replayed by recipe tests | An emulator, not a phone; no TCP layer; Play served 153 while 155 was stable |
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
@@ -844,6 +845,52 @@ Retained fixtures, each under
 
 Limits: those of Chrome for Android on the same emulator, and one Brave
 build, which Play served while its desktop build was 154.
+
+### Opera for Android 102 recipes
+
+What is claimed: `opera_android::v102_tls` and
+`opera_android::v102_android_client_hints` reproduce Opera 102.1.5206.90382
+for Android, built on Chromium 152.0.7977.82, on the Android 15 emulator of
+the [Chrome for Android section](#chrome-for-android-153-recipes).
+
+Evidence: Opera 102.1.5206.90382 is the build Play served to the emulator on
+2026-09-25. Opera for Android reads no command-line file: with a resolver
+rule in `chrome-command-line` and Opera as the debug app, it still could
+not resolve the rule's name, and no other command-line file name appears in
+its code. No capture can therefore map a test name, trust a test
+certificate, force QUIC, or set a proxy, and Opera reaches only the device's
+own loopback through `adb reverse`. A cleared Opera profile also opens
+first-run screens: the terms notice, a default-browser offer, a
+notifications offer, a data-collection consent, and a wallpaper choice. The
+capture declined each offer and unchecked every data-collection box
+([Android browsers](../../scripts/capture/README.md#android-browsers)).
+
+| Layer | Samples | Result |
+| --- | --- | --- |
+| TLS ClientHello to `https://localhost` | 14 fresh processes: 2 on cleared profiles, 12 restarted on one onboarded profile | All agree. Equal to Chrome 154's ClientHello without trust-anchor IDs, signature-algorithm GREASE included, where desktop Opera 135 drops that GREASE |
+| Client hints | 3 typed runs on cleared profiles | The Chromium names, order, and delivery; a four-brand list (`OperaMobile` 102, `Opera` 137, `Chromium` 152, and a greased brand last), platform version `"15"`, the emulator's model, and an empty `sec-ch-ua-form-factors` |
+| HTTP/1.1 page load, `fetch()`, and `ws://` opening to `127.0.0.1` | 3 typed runs of `direct-loopback` | The field names Chrome for Android sends; `User-Agent` ends in `OPR/102.0.0.0` |
+
+The 12 restarted processes kept one profile, because the first-run screens
+did not complete reliably from a script on every cleared profile: the
+screens' accessibility tree filled in late or listed pages that were not
+yet shown. A ClientHello comes from the process, and the 2 cleared-profile
+samples equal the 12.
+
+There are no Opera for Android request templates. Only HTTP/1.1 requests
+were captured, and a template needs an HTTP/2 list, which no capture backs.
+`opera_android_102_navigation_field_order_equals_chrome_for_android` records
+that the captured HTTP/1.1 order is Chrome's.
+
+Retained fixtures, each under
+`fixtures/<area>/opera-android/102.1.5206.90382/android-35-emulator/`:
+`tls/client-hello.txt` (a cleared-profile sample, `hostname=localhost`),
+`client-hints/navigation.txt`, and `proxy/direct-loopback.txt`.
+
+Limits: those of Chrome for Android on the same emulator, and no HTTP/2,
+QUIC, HTTP/3, WebSocket over HTTP/2, plaintext named-origin, proxy, or ECH
+capture. The ClientHello was sent to `localhost`, so its server name differs
+from a capture to another name.
 
 ### TCP socket option evidence
 

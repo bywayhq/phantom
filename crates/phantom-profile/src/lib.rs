@@ -13,6 +13,7 @@ pub mod http1;
 pub mod http2;
 pub mod http3;
 pub mod opera;
+pub mod opera_android;
 pub mod proxy_connect;
 pub mod quic;
 pub mod request_template;

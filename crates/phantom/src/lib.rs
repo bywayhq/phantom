@@ -315,6 +315,15 @@ pub mod profile {
         };
     }
 
+    /// Opera for Android recipes implemented by the public facade.
+    ///
+    /// Captured from Opera 102 (Chromium 152) on an Android 15 emulator. Opera
+    /// for Android takes no switches, so only its TLS ClientHello and client
+    /// hints are captured.
+    pub mod opera_android {
+        pub use phantom_profile::opera_android::{v102_android_client_hints, v102_tls};
+    }
+
     /// Chrome for Android recipes implemented by the public facade.
     ///
     /// Captured from Chrome 153 on an Android 15 emulator. The H2, QUIC, H3,
