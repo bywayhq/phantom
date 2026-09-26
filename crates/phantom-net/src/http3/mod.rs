@@ -601,7 +601,9 @@ async fn connect(
         }
     }
     let early_session = transport.early_session();
-    let built = builder.build(transport).await;
+    // Boxed: the start future is about 9 KB in a debug build, and it cannot
+    // share space with its result, which holds the whole HTTP/3 driver.
+    let built = Box::pin(builder.build(transport)).await;
     let (suppressed_close, handed_over) = match early_session.as_ref().map(|early| early.finish()) {
         Some(Started {
             deferred_close,
@@ -649,7 +651,9 @@ async fn connect(
                 return Err(error);
             }
             debug!("early data rejected while HTTP/3 started; starting it again");
-            let (h3_driver, sender) = start_after_rejection(
+            // Boxed: this restart is rare and awaits a second HTTP/3 start,
+            // which would otherwise enlarge every connection's future.
+            let (h3_driver, sender) = Box::pin(start_after_rejection(
                 &connection,
                 settings,
                 crypto,
@@ -658,7 +662,7 @@ async fn connect(
                 handed_over,
                 #[cfg(test)]
                 peer_alps_override.as_deref(),
-            )
+            ))
             .await?;
             publisher.publish(EarlyDataOutcome::Rejected);
             rejected_at_start = Some(early_data);
