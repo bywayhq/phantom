@@ -253,7 +253,9 @@ Supported:
   ordinary requests included, and not only to extended CONNECT. A profile
   that states none of them keeps the encoder's own behavior. Every HEADERS
   block of the retained Chrome, Edge, Brave, Opera, and Firefox cookie and
-  WebSocket sessions equals the recipe's byte for byte
+  WebSocket sessions equals the recipe's byte for byte, and every replayable
+  block of their HTTP/2 proxy sessions, `proxy-authorization` included, has
+  the recipe's representations, indexes, and length
   ([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
 - Profile stream numbering and an assumed stream limit: the first request of
   each connection takes the profile's first stream (1 for Chromium, 3 for

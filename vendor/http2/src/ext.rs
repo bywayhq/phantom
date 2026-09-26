@@ -308,6 +308,26 @@ impl CookieCrumbs {
     }
 }
 
+/// How an HPACK encoder sends a `proxy-authorization` field marked sensitive.
+///
+/// RFC 7541 section 7.1.3 lets an encoder protect a credential by never
+/// indexing it, but Chromium's and Firefox's encoders do not: each inserts
+/// `proxy-authorization` into the dynamic table like any other field and
+/// sends it as an index on later requests.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SensitiveProxyAuthorization {
+    /// Send it as a never-indexed literal, as every sensitive field is.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    NeverIndexed,
+    /// Send it as though it were not marked, by the field indexing rule, so
+    /// that the mark only keeps the value out of `Debug` output. A nameless
+    /// further value of the field is sent the same way.
+    FieldRule,
+}
+
 /// Connection-wide HPACK encoder choices that RFC 7541 leaves open.
 ///
 /// Every encoder that RFC 7541 allows produces a block the peer decodes to the
@@ -328,6 +348,7 @@ pub struct HpackEncoderProfile {
     unindexed_match: UnindexedMatch,
     indexing_limit: IndexingLimit,
     size_updates: SizeUpdates,
+    proxy_authorization: SensitiveProxyAuthorization,
 }
 
 impl HpackEncoderProfile {
@@ -407,6 +428,13 @@ impl HpackEncoderProfile {
         self
     }
 
+    /// Sends a sensitive `proxy-authorization` field by this rule.
+    #[must_use]
+    pub fn sensitive_proxy_authorization(mut self, rule: SensitiveProxyAuthorization) -> Self {
+        self.proxy_authorization = rule;
+        self
+    }
+
     pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
         self.literal_pseudo_headers & pseudo_bit(id) != 0
     }
@@ -441,6 +469,10 @@ impl HpackEncoderProfile {
 
     pub(crate) fn updates(self) -> SizeUpdates {
         self.size_updates
+    }
+
+    pub(crate) fn proxy_authorization(self) -> SensitiveProxyAuthorization {
+        self.proxy_authorization
     }
 }
 

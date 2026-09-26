@@ -25,18 +25,32 @@
 //! every HTTP/2 connection in `fixtures/websocket/<browser>/<version>/
 //! windows-11-26200/`, whose page loads mix navigations, `fetch()`, and
 //! extended CONNECT.
+//!
+//! Proxy sessions come from every HTTP/2 proxy connection in the
+//! `https-proxy-*` files of `fixtures/proxy/<browser>/<version>/
+//! windows-11-26200/`: CONNECT tunnels and requests forwarded with `:scheme`
+//! `http`, with and without `proxy-authorization`. Those captures keep each
+//! field's representation, its index or size, and the block length, but not
+//! the block bytes, and they replace the credential with a marker. The replay
+//! restores the capture tool's throwaway credential, marks the field
+//! sensitive as Phantom marks the field it generates, and compares the
+//! representations, indexes, and length. With the fields known, only the
+//! Huffman flag of a string whose coded and raw forms are equally long is left
+//! unchecked. A connection whose capture omits the fields of a block, which
+//! the tool does for the browser's own background requests, leaves the table
+//! state unknown and is not replayed.
 
 use std::collections::BTreeMap;
 
-use http::Method;
-use phantom_profile::{Http2Settings, chromium, firefox};
+use http::{HeaderName, HeaderValue, Method};
+use phantom_profile::{Http2RejectedConnect, Http2Settings, chromium, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     time::timeout,
 };
 
 use super::{OriginForm, RequestHeader, TestResult};
-use crate::http2::Http2Connection;
+use crate::http2::{Http2Connection, prepare_classic_connect};
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const MAX_CLIENT_FRAME_LEN: usize = 1 << 20;
@@ -49,6 +63,12 @@ const SESSION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 /// reaches the encoder, and Firefox's first block answers it with a 4,096-byte
 /// update.
 const H2_DEFAULT_SERVER_SETTINGS: &str = "1=4096;2=0;4=65535;5=16384;8=0;3=100;6=65536";
+
+/// The `proxy-authorization` value behind the proxy captures'
+/// `redacted:capture-credential` marker: `Basic` and the Base64 of the
+/// capture tool's throwaway `phantom-user:phantom-pass`
+/// (`scripts/capture/proxy_route.py`).
+const CAPTURE_CREDENTIAL: &str = "Basic cGhhbnRvbS11c2VyOnBoYW50b20tcGFzcw==";
 
 macro_rules! fixture {
     ($path:literal) => {
@@ -115,6 +135,45 @@ const FIREFOX_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/firefox/156.0/windows-11-26200/refused-stream.txt"),
     fixture!("websocket/firefox/156.0/windows-11-26200/reject-403.txt"),
 ];
+
+/// Every `https-proxy-*` capture in one `fixtures/proxy/` directory.
+macro_rules! proxy_fixtures {
+    ($directory:literal) => {
+        proxy_fixtures!(
+            $directory;
+            "https-proxy-hostname",
+            "https-proxy-loopback",
+            "https-proxy-secure-hostname",
+            "https-proxy-auth-hostname",
+            "https-proxy-auth-loopback",
+            "https-proxy-auth-nostore-hostname",
+            "https-proxy-auth-nostore-loopback",
+            "https-proxy-auth-remembered-hostname",
+            "https-proxy-auth-secure-hostname"
+        )
+    };
+    ($directory:literal; $($scenario:literal),+) => {
+        &[$(
+            (
+                concat!("proxy/", $directory, "/", $scenario, ".txt"),
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../fixtures/proxy/",
+                    $directory,
+                    "/",
+                    $scenario,
+                    ".txt"
+                )),
+            )
+        ),+]
+    };
+}
+
+const CHROME_PROXY: &[(&str, &str)] = proxy_fixtures!("chrome/154.0.8037.58/windows-11-26200");
+const EDGE_PROXY: &[(&str, &str)] = proxy_fixtures!("edge/154.0.4258.37/windows-11-26200");
+const BRAVE_PROXY: &[(&str, &str)] = proxy_fixtures!("brave/154.1.96.59/windows-11-26200");
+const OPERA_PROXY: &[(&str, &str)] = proxy_fixtures!("opera/135.0.5973.92/windows-11-26200");
+const FIREFOX_PROXY: &[(&str, &str)] = proxy_fixtures!("firefox/156.0/windows-11-26200");
 
 #[tokio::test]
 async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
@@ -209,6 +268,58 @@ async fn firefox_websocket_sessions_match_the_captured_streams_and_hpack_bytes()
     .await
 }
 
+#[tokio::test]
+async fn chromium_family_proxy_sessions_match_the_captured_streams_and_hpack_fields()
+-> TestResult<()> {
+    // Edge 154, Brave 154, and Opera 135 use the Chromium recipe. Each file
+    // holds three runs with one proxy connection per run that carries only
+    // the page's requests; the others carry only background requests.
+    for (files, name) in [
+        (CHROME_PROXY, "Chrome"),
+        (EDGE_PROXY, "Edge"),
+        (BRAVE_PROXY, "Brave"),
+        (OPERA_PROXY, "Opera"),
+    ] {
+        replay_all(files, chromium::v154_http2(), Source::Proxy, 27)
+            .await
+            .map_err(|error| format!("{name}: {error}"))?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn firefox_proxy_sessions_match_the_captured_streams_and_hpack_fields() -> TestResult<()> {
+    // 45 of the 51 connections with page requests; the other six begin with
+    // a background request (`https-proxy-auth-secure-hostname` and
+    // `https-proxy-secure-hostname`, one per run).
+    replay_all(FIREFOX_PROXY, firefox::v156_http2(), Source::Proxy, 45).await
+}
+
+/// Under the default rule the sensitive `proxy-authorization` is a
+/// never-indexed literal, which no browser capture shows.
+#[tokio::test]
+async fn never_indexed_proxy_authorization_does_not_reproduce_a_proxy_session() -> TestResult<()> {
+    let mut settings = chromium::v154_http2();
+    settings.hpack.sensitive_proxy_authorization =
+        phantom_profile::Http2SensitiveProxyAuthorization::NeverIndexed;
+    let (name, text) = CHROME_PROXY[3];
+    let session = sessions(text, Source::Proxy)?
+        .into_iter()
+        .next()
+        .ok_or("the Chrome proxy capture holds no session")?;
+    let error = match timeout(SESSION_TIMEOUT, replay_session(&session, &settings)).await? {
+        Ok(()) => {
+            return Err(format!("{name} run 0 replayed with a never-indexed credential").into());
+        }
+        Err(error) => error.to_string(),
+    };
+    assert!(
+        error.contains("HPACK block differs") && error.contains("never-indexed"),
+        "{name} run 0 failed for another reason: {error}"
+    );
+    Ok(())
+}
+
 /// The rules each Firefox capture needs are not all satisfied by Chromium's
 /// recipe: the replay tells the two families apart by the first stream alone,
 /// and by the HPACK blocks once the Chromium recipe numbers streams as
@@ -251,6 +362,9 @@ enum Source {
     Cookies,
     /// The WebSocket session format: several connections per run.
     WebSocket,
+    /// `phantom-proxy-route-v1`: several proxy connections per run, with
+    /// each block's representations and length in place of its bytes.
+    Proxy,
 }
 
 /// One captured connection.
@@ -267,7 +381,100 @@ struct Session {
 struct Request {
     stream_id: u32,
     fields: Vec<(String, String)>,
-    block: Vec<u8>,
+    block: Block,
+}
+
+/// What a capture retains of one HPACK block.
+#[derive(Clone)]
+enum Block {
+    /// The block itself.
+    Bytes(Vec<u8>),
+    /// Each representation with its index, or a size update with its size,
+    /// and the block's length.
+    Shape {
+        representations: Vec<(&'static str, usize)>,
+        length: usize,
+    },
+}
+
+impl Block {
+    fn matches(&self, got: &[u8]) -> TestResult<bool> {
+        Ok(match self {
+            Block::Bytes(bytes) => bytes == got,
+            Block::Shape {
+                representations,
+                length,
+            } => *length == got.len() && *representations == shape(got)?,
+        })
+    }
+
+    fn describe(&self) -> String {
+        match self {
+            Block::Bytes(bytes) => hex(bytes),
+            Block::Shape {
+                representations,
+                length,
+            } => format!("{representations:?} in {length} bytes"),
+        }
+    }
+}
+
+/// Returns each representation in `block` with its index, or a size update
+/// with its size, named as the capture tool names them.
+fn shape(block: &[u8]) -> TestResult<Vec<(&'static str, usize)>> {
+    let mut cursor = 0;
+    let mut representations = Vec::new();
+    while let Some(&first) = block.get(cursor) {
+        let (kind, prefix) = if first & 0x80 != 0 {
+            ("indexed", 7)
+        } else if first & 0xc0 == 0x40 {
+            ("incremental", 6)
+        } else if first & 0xe0 == 0x20 {
+            ("size-update", 5)
+        } else if first & 0xf0 == 0x10 {
+            ("never-indexed", 4)
+        } else {
+            ("without-indexing", 4)
+        };
+        let index = integer(block, &mut cursor, prefix)?;
+        if !matches!(kind, "indexed" | "size-update") {
+            if index == 0 {
+                skip_string(block, &mut cursor)?;
+            }
+            skip_string(block, &mut cursor)?;
+        }
+        representations.push((kind, index));
+    }
+    Ok(representations)
+}
+
+fn integer(block: &[u8], cursor: &mut usize, prefix: u32) -> TestResult<usize> {
+    let limit = (1_usize << prefix) - 1;
+    let first = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
+    *cursor += 1;
+    let mut value = usize::from(first) & limit;
+    if value < limit {
+        return Ok(value);
+    }
+    let mut shift = 0;
+    loop {
+        let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
+        *cursor += 1;
+        value += usize::from(byte & 0x7f) << shift;
+        shift += 7;
+        if byte & 0x80 == 0 {
+            return Ok(value);
+        }
+    }
+}
+
+fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<()> {
+    let length = integer(block, cursor, 7)?;
+    *cursor += length;
+    if *cursor > block.len() {
+        return Err("HPACK string is truncated".into());
+    }
+    Ok(())
 }
 
 async fn replay_all(
@@ -300,7 +507,7 @@ async fn replay_session(session: &Session, settings: &Http2Settings) -> TestResu
         session
             .requests
             .iter()
-            .map(|r| (r.stream_id, r.block.clone()))
+            .map(|request| (request.stream_id, request.block.clone()))
             .collect(),
     ));
     let connection = Http2Connection::connect(client, settings).await?;
@@ -331,12 +538,33 @@ async fn send_requests(
         };
         let method = pseudo(":method").ok_or("captured request has no :method")?;
         let authority = pseudo(":authority").ok_or("captured request has no :authority")?;
-        let path = pseudo(":path").ok_or("captured request has no :path")?;
-        if pseudo(":scheme") != Some("https") {
-            return Err("replay supports only https requests".into());
-        }
-        let target = OriginForm::parse(path)?;
         let headers = ordinary_fields(&request.fields);
+        if method == "CONNECT" && pseudo(":protocol").is_none() {
+            // An RFC 9113 section 8.5 CONNECT to a proxy.
+            let fields = headers
+                .iter()
+                .map(|header| {
+                    let mut value = HeaderValue::from_bytes(header.value())?;
+                    value.set_sensitive(header.is_sensitive());
+                    Ok((HeaderName::from_bytes(header.name().as_bytes())?, value))
+                })
+                .collect::<TestResult<Vec<_>>>()?;
+            let _outcome = connection
+                .send_classic_connect(
+                    prepare_classic_connect(authority, fields)?,
+                    Http2RejectedConnect::EndStream,
+                )
+                .await?;
+            continue;
+        }
+        let path = pseudo(":path").ok_or("captured request has no :path")?;
+        let target = OriginForm::parse(path)?;
+        let forwarded = match pseudo(":scheme") {
+            Some("https") => false,
+            // A request forwarded to an HTTP/2 proxy.
+            Some("http") => true,
+            _ => return Err("replay supports only http and https requests".into()),
+        };
         if method == "CONNECT" {
             if pseudo(":protocol") != Some("websocket") {
                 return Err("replay supports only WebSocket extended CONNECT".into());
@@ -347,16 +575,32 @@ async fn send_requests(
                 .await?;
         } else {
             let method = Method::from_bytes(method.as_bytes())?;
-            connection
-                .send_request(method, authority, target, headers, None)
-                .await?;
+            if forwarded {
+                connection
+                    .send_forward_request_body_with_trailers(
+                        method,
+                        authority,
+                        target,
+                        headers,
+                        None,
+                        Vec::new(),
+                        None,
+                    )
+                    .await?;
+            } else {
+                connection
+                    .send_request(method, authority, target, headers, None)
+                    .await?;
+            }
         }
     }
     Ok(())
 }
 
 /// Returns the ordinary fields in order, joining each run of cookie crumbs
-/// back into the one `cookie` field a caller or cookie jar supplies.
+/// back into the one `cookie` field a caller or cookie jar supplies, and
+/// marking `proxy-authorization` sensitive as Phantom marks the field it
+/// generates.
 fn ordinary_fields(fields: &[(String, String)]) -> Vec<RequestHeader> {
     let mut headers: Vec<(String, String)> = Vec::new();
     let mut previous_cookie = false;
@@ -373,7 +617,15 @@ fn ordinary_fields(fields: &[(String, String)]) -> Vec<RequestHeader> {
     }
     headers
         .into_iter()
-        .map(|(name, value)| RequestHeader::new(name, value))
+        .map(|(name, value)| {
+            let sensitive = name == "proxy-authorization";
+            let header = RequestHeader::new(name, value);
+            if sensitive {
+                header.sensitive()
+            } else {
+                header
+            }
+        })
         .collect()
 }
 
@@ -387,7 +639,7 @@ async fn run_peer(
     mut stream: DuplexStream,
     settings: Vec<(u16, u32)>,
     settings_after: usize,
-    expected: Vec<(u32, Vec<u8>)>,
+    expected: Vec<(u32, Block)>,
 ) -> TestResult<()> {
     let mut preface = [0_u8; CLIENT_PREFACE.len()];
     stream.read_exact(&mut preface).await?;
@@ -419,11 +671,18 @@ async fn run_peer(
             write_frame(&mut stream, 0x04, 0x01, 0, &[]).await?;
             acknowledge = true;
         }
-        if &got != want {
+        if !want.matches(&got)? {
+            let phantom = match want {
+                Block::Bytes(_) => Block::Bytes(got),
+                Block::Shape { .. } => Block::Shape {
+                    representations: shape(&got)?,
+                    length: got.len(),
+                },
+            };
             return Err(format!(
                 "request {index} HPACK block differs\n  captured: {}\n  phantom:  {}",
-                hex(want),
-                hex(&got)
+                want.describe(),
+                phantom.describe()
             )
             .into());
         }
@@ -553,7 +812,53 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
         Ok(Request {
             stream_id,
             fields,
-            block: decode_hex(value(&format!("{prefix}_block_hex"))?)?,
+            block: Block::Bytes(decode_hex(value(&format!("{prefix}_block_hex"))?)?),
+        })
+    };
+    // A proxy capture's block: its fields with the credential restored, and
+    // its representations and length in place of its bytes.
+    let proxy_block = |prefix: &str, length: usize| -> TestResult<Request> {
+        let mut fields = Vec::new();
+        let mut representations = Vec::new();
+        for field in 0..count(&format!("{prefix}_field_count"))? {
+            let record = value(&format!("{prefix}_field_{field}"))?;
+            let attribute = |name: &str| {
+                record
+                    .split(',')
+                    .find_map(|item| item.strip_prefix(name)?.strip_prefix(':'))
+                    .ok_or_else(|| format!("capture field omitted {name}"))
+            };
+            let kind = match attribute("repr")? {
+                "indexed" => "indexed",
+                "incremental" => "incremental",
+                "without-indexing" => "without-indexing",
+                "never-indexed" => "never-indexed",
+                "size-update" => "size-update",
+                other => return Err(format!("unknown representation {other}").into()),
+            };
+            representations.push((kind, attribute("index")?.parse()?));
+            if kind == "size-update" {
+                continue;
+            }
+            let name = String::from_utf8(decode_hex(attribute("name_hex")?)?)?;
+            let mut field_value = String::from_utf8(decode_hex(attribute("value_hex")?)?)?;
+            if record.contains("redacted:true") {
+                if field_value != "redacted:capture-credential" {
+                    return Err(
+                        format!("{prefix} carries a credential the tool did not supply").into(),
+                    );
+                }
+                field_value = CAPTURE_CREDENTIAL.to_owned();
+            }
+            fields.push((name, field_value));
+        }
+        Ok(Request {
+            stream_id: value(&format!("{prefix}_stream"))?.parse()?,
+            fields,
+            block: Block::Shape {
+                representations,
+                length,
+            },
         })
     };
 
@@ -608,6 +913,51 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
                     });
                 }
             }
+            Source::Proxy => {
+                for connection in 0..count(&format!("run_{run}_connection_count"))? {
+                    let prefix = format!("run_{run}_connection_{connection}");
+                    let headers = match values.get(format!("{prefix}_headers_count").as_str()) {
+                        Some(headers) => headers.parse::<usize>()?,
+                        None => continue,
+                    };
+                    let background = (0..headers).any(|index| {
+                        values.contains_key(format!("{prefix}_headers_{index}_background").as_str())
+                    });
+                    if headers == 0 || background {
+                        continue;
+                    }
+                    let frames = (0..count(&format!("{prefix}_frame_count"))?)
+                        .map(|frame| value(&format!("{prefix}_frame_{frame}")))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let lengths = frames
+                        .iter()
+                        .filter(|record| record.starts_with("client:HEADERS,"))
+                        .map(|record| {
+                            Ok(record
+                                .split(',')
+                                .find_map(|item| item.strip_prefix("block_length:"))
+                                .ok_or("client HEADERS omitted its block length")?
+                                .parse()?)
+                        })
+                        .collect::<TestResult<Vec<usize>>>()?;
+                    if lengths.len() != headers {
+                        return Err(format!("{prefix} frames and blocks disagree").into());
+                    }
+                    let requests = lengths
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, length)| {
+                            proxy_block(&format!("{prefix}_headers_{index}"), length)
+                        })
+                        .collect::<TestResult<Vec<_>>>()?;
+                    sessions.push(Session {
+                        label: format!("run {run} connection {connection}"),
+                        settings: server_settings(&frames)?,
+                        settings_after: requests_before_settings_ack(&frames),
+                        requests,
+                    });
+                }
+            }
         }
     }
     Ok(sessions)
@@ -617,11 +967,7 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
 fn server_settings(frames: &[&str]) -> TestResult<Vec<(u16, u32)>> {
     let record = frames
         .iter()
-        .find(|record| {
-            record.contains("dir:server")
-                && record.contains("type:SETTINGS")
-                && record.contains("flags:0x00")
-        })
+        .find(|record| frame_is(record, "server", "SETTINGS") && record.contains("flags:0x00"))
         .ok_or("connection recorded no server SETTINGS")?;
     let settings = record
         .split(',')
@@ -633,14 +979,21 @@ fn server_settings(frames: &[&str]) -> TestResult<Vec<(u16, u32)>> {
 /// Counts the request HEADERS the browser sent before acknowledging the
 /// server's SETTINGS, which it does when it applies them.
 fn requests_before_settings_ack(frames: &[&str]) -> usize {
-    let client = |record: &&&str, kind: &str| {
-        record.contains("dir:client") && record.contains(&format!("type:{kind},"))
-    };
     frames
         .iter()
-        .take_while(|record| !(client(record, "SETTINGS") && record.contains("flags:0x01")))
-        .filter(|record| client(record, "HEADERS"))
+        .take_while(|record| {
+            !(frame_is(record, "client", "SETTINGS") && record.contains("flags:0x01"))
+        })
+        .filter(|record| frame_is(record, "client", "HEADERS"))
         .count()
+}
+
+/// Whether a frame record has this direction and type, in the WebSocket
+/// format (`dir:client,type:HEADERS,...`) or the proxy route format
+/// (`client:HEADERS,...`).
+fn frame_is(record: &str, direction: &str, kind: &str) -> bool {
+    (record.contains(&format!("dir:{direction},")) && record.contains(&format!("type:{kind},")))
+        || record.starts_with(&format!("{direction}:{kind},"))
 }
 
 fn parse_settings(text: &str) -> TestResult<Vec<(u16, u32)>> {

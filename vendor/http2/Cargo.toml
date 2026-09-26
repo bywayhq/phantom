@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.68"
 name = "phantom-http2"
-version = "0.5.20-phantom.8"
+version = "0.5.20-phantom.9"
 authors = [
     "0x676e67 <gngppz@gmail.com>",
     "Carl Lerche <me@carllerche.com>",

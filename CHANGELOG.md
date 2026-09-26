@@ -14,6 +14,29 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2HpackSettings` gained the public field
+  `sensitive_proxy_authorization` (`Http2SensitiveProxyAuthorization`), so
+  struct literals that name every field no longer compile. It decides how a
+  `proxy-authorization` field marked sensitive is sent over HTTP/2:
+  `NeverIndexed`, the default, keeps the never-indexed literal, and
+  `FieldIndexing` leaves it to `field_indexing` as though it were not
+  marked, while `RequestHeader::sensitive` still hides the value from
+  `Debug` output. `chromium::v154_http2` and `firefox::v156_http2` set
+  `FieldIndexing`, which changes the wire on every HTTP/2 connection that
+  carries a sensitive `proxy-authorization`: the generated field on
+  CONNECT, CONNECT-UDP, and forwarded requests, and a caller's own sensitive
+  field, is now a literal with incremental indexing on static name 49 on
+  first use and an index into the dynamic table after that. Chrome 154,
+  Edge 154, Brave 154, Opera 135, and Firefox 156 send it that way on
+  CONNECT and forwarded requests; neither browser authenticates CONNECT-UDP,
+  so no capture shows that case. Every replayable HEADERS block of the retained `https-proxy-*`
+  captures now has the recipe's representations, indexes, and length.
+  The credential then sits in the proxy connection's HPACK table, as it
+  does in the browsers.
+  Migrate: add `sensitive_proxy_authorization:
+  Http2SensitiveProxyAuthorization::NeverIndexed` to an
+  `Http2HpackSettings` literal, or set that field on a recipe, to keep the
+  never-indexed form.
 - `WebSocketSettings` gained the public field `handshake_timeout`
   (`Option<Duration>`), the browser's own opening-handshake timer, so struct
   literals that name every field no longer compile. `chromium::v154_websocket`
@@ -132,8 +155,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   fields of any size. Every HEADERS block of the retained Chrome, Edge,
   Brave, Opera, and Firefox cookie and WebSocket sessions now equals the
   recipe's byte for byte; before, 24 of 27 Firefox connections differed.
-  Proxy connections still differ in `proxy-authorization`, which Phantom
-  never indexes.
   Migrate: fill the new fields from a recipe with struct update syntax, or
   add `..Http2HpackSettings::default()` to a literal to keep the previous
   encoding.

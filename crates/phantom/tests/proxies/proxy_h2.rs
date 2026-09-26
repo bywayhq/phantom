@@ -474,21 +474,12 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
                 ("/second", vec![credentials]),
             ]
         );
-        // The replay and the remembered request carry `proxy-authorization`
-        // as a never-indexed literal (0x10 prefix) naming static entry 49,
-        // so the credentials never enter either HPACK dynamic table.
+        // As in the captures, the replay inserts `proxy-authorization` with
+        // incremental indexing on static name 49, and the remembered request
+        // takes it from the dynamic table.
         let blocks = header_blocks(&record.client_wire)?;
         assert_eq!(blocks.len(), 3);
-        assert!(!hpack_representations(blocks[0])?.contains(&(Representation::NeverIndexed, 49)));
-        for block in &blocks[1..] {
-            let representations = hpack_representations(block)?;
-            assert!(representations.contains(&(Representation::NeverIndexed, 49)));
-            assert!(
-                representations
-                    .iter()
-                    .all(|&(kind, index)| index != 49 || kind == Representation::NeverIndexed)
-            );
-        }
+        assert_proxy_authorization_indexed(&blocks, "chrome")?;
         Ok(())
     })
     .await
@@ -773,7 +764,8 @@ type ForwardingCase = (
 /// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
 /// sends remembered credentials first places it where they do in the
 /// `https-proxy-auth-nostore-hostname` captures. Every run of each agrees.
-/// The field stays a never-indexed literal on static name 49.
+/// The field enters the HPACK dynamic table on the replay and is sent as an
+/// index on the remembered request.
 #[tokio::test]
 async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
@@ -896,23 +888,10 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             assert_eq!(names[0], *challenged, "{label} challenged");
             assert_eq!(names[1], *replay, "{label} replay");
             assert_eq!(names[2], remembered, "{label} remembered");
-            // A template slot does not change the HPACK form: never indexed,
-            // naming static entry 49.
+            // A template slot does not change the HPACK form.
             let blocks = header_blocks(&record.client_wire)?;
             assert_eq!(blocks.len(), 3, "{label}");
-            for block in &blocks[1..] {
-                let representations = hpack_representations(block)?;
-                assert!(
-                    representations.contains(&(Representation::NeverIndexed, 49)),
-                    "{label}"
-                );
-                assert!(
-                    representations
-                        .iter()
-                        .all(|&(kind, index)| index != 49 || kind == Representation::NeverIndexed),
-                    "{label}"
-                );
-            }
+            assert_proxy_authorization_indexed(&blocks, label)?;
             Ok(())
         })
         .await?;
@@ -1523,6 +1502,42 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
         });
     }
     Ok(blocks)
+}
+
+/// Checks the HPACK form of `proxy-authorization` in a challenged request,
+/// its replay, and a request with remembered credentials on one connection:
+/// absent, then a literal with incremental indexing on static name 49, then
+/// no field naming static entry 49, so the remembered credential comes from
+/// the dynamic table. No block carries a never-indexed field. The HPACK
+/// replay of the proxy captures pins the exact representation.
+fn assert_proxy_authorization_indexed(blocks: &[&[u8]], label: &str) -> TestResult<()> {
+    let [challenged, replay, remembered] = blocks else {
+        return Err(format!("{label}: expected three HEADERS blocks").into());
+    };
+    for (block, name) in [
+        (challenged, "challenged"),
+        (replay, "replay"),
+        (remembered, "remembered"),
+    ] {
+        let representations = hpack_representations(block)?;
+        assert!(
+            !representations
+                .iter()
+                .any(|&(kind, _)| kind == Representation::NeverIndexed),
+            "{label} {name}: {representations:?}"
+        );
+        let names_49 = representations
+            .iter()
+            .filter(|&&(_, index)| index == 49)
+            .count();
+        let expected = usize::from(name == "replay");
+        assert_eq!(names_49, expected, "{label} {name}: {representations:?}");
+    }
+    assert!(
+        hpack_representations(replay)?.contains(&(Representation::IncrementalIndexing, 49)),
+        "{label} replay"
+    );
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

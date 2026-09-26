@@ -151,7 +151,8 @@ fn http1_head(
 }
 
 /// Builds the RFC 9298 section 3.4 extended CONNECT request (figure 5). The
-/// generated authorization field is never indexed by HPACK.
+/// generated authorization field is marked sensitive; the profile's
+/// `Http2SensitiveProxyAuthorization` decides whether HPACK indexes it.
 fn http2_request(
     authority: &str,
     path: OriginForm,

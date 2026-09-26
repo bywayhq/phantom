@@ -153,7 +153,9 @@ pub enum Http2CookieCrumbs {
 /// `:path`, and a `cookie` field sent whole, never enter the table under any
 /// rule; this setting decides the other ordinary fields. A field marked
 /// sensitive is always a never-indexed literal, even when a table entry
-/// matches it, except a `cookie` field sent as crumbs, whose rule decides.
+/// matches it, except a `cookie` field sent as crumbs, whose rule decides,
+/// and a `proxy-authorization` field that
+/// [`Http2SensitiveProxyAuthorization::FieldIndexing`] leaves to this rule.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http2FieldIndexing {
@@ -238,6 +240,27 @@ pub enum Http2TableSizeUpdates {
     EverySetting,
 }
 
+/// How the HPACK encoder sends a `proxy-authorization` field marked sensitive.
+///
+/// Phantom marks the field it generates from a route's proxy credentials
+/// sensitive, and a caller can mark its own. The rule applies to every such
+/// field on an HTTP/2 connection: on CONNECT, CONNECT-UDP, and forwarded
+/// requests to a proxy, and on any request that carries one to an origin.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2SensitiveProxyAuthorization {
+    /// A never-indexed literal, as every other sensitive field is, so the
+    /// credential never enters the dynamic table.
+    #[default]
+    NeverIndexed,
+    /// By [`Http2HpackSettings::field_indexing`], as though the field were
+    /// not marked; `RequestHeader::sensitive` then only hides the value from
+    /// `Debug` output. Under the Chromium and Firefox recipes the field enters
+    /// the dynamic table on first use on a connection and is sent as an index
+    /// afterwards, as both browsers send it.
+    FieldIndexing,
+}
+
 /// HPACK encoder choices that RFC 7541 leaves to the encoder.
 ///
 /// A peer decodes the same fields whichever choice is made, so these describe
@@ -267,6 +290,8 @@ pub struct Http2HpackSettings {
     pub indexing_limit: Http2IndexingLimit,
     /// When a field block starts with a dynamic-table size update.
     pub table_size_updates: Http2TableSizeUpdates,
+    /// How a `proxy-authorization` field marked sensitive is sent.
+    pub sensitive_proxy_authorization: Http2SensitiveProxyAuthorization,
 }
 
 /// How a client numbers its streams and how many it opens at once.
