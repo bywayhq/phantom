@@ -1168,6 +1168,50 @@ mod tests {
     }
 
     #[test]
+    fn unmatched_names_sections_decode_across_acknowledgements_and_evictions() {
+        use crate::qpack::decoder::{ack_header, Decoder};
+
+        // 160 bytes hold `alt-used` and two `x-request-<n>` entries, whose
+        // names match nothing earlier, so each later request evicts
+        // acknowledged entries to insert its own.
+        let (mut encoder, setup) = neqo_encoder(160, 16);
+        let mut decoder = Decoder::new(160, u64::MAX).unwrap();
+        decoder
+            .on_encoder_recv(&mut Cursor::new(setup), &mut Vec::new())
+            .unwrap();
+
+        for index in 0..8_u64 {
+            let stream_id = index * 4;
+            let request = vec![
+                HeaderField::new(":method", "GET"),
+                HeaderField::new(":path", "/"),
+                HeaderField::new("user-agent", "Firefox"),
+                HeaderField::new(format!("x-request-{index}"), "value"),
+                HeaderField::new("alt-used", "server.phantom.test:443"),
+            ];
+            let mut block = Vec::new();
+            let mut instructions = Vec::new();
+            encoder
+                .encode(stream_id, &mut block, &mut instructions, request.clone())
+                .unwrap();
+
+            let mut feedback = Vec::new();
+            decoder
+                .on_encoder_recv(&mut Cursor::new(instructions), &mut feedback)
+                .unwrap();
+            let decoded = decoder.decode_header(&mut Cursor::new(block)).unwrap();
+            assert_eq!(decoded.fields, request, "request {index}");
+            if decoded.dyn_ref {
+                ack_header(stream_id, &mut feedback);
+            }
+            encoder.on_decoder_recv(&mut Cursor::new(feedback)).unwrap();
+        }
+        // One `x-request-<n>` insert per request, and `alt-used` again after
+        // each eviction of it.
+        assert!(decoder.total_inserted() > 8, "{}", decoder.total_inserted());
+    }
+
+    #[test]
     fn invalid_peer_limits_do_not_change_encoder_state_or_output() {
         let mut encoder = Encoder::default();
         let mut instructions = vec![0xaa];

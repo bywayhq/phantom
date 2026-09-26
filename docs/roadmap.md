@@ -327,6 +327,10 @@ not carry its renames. Until then, depend on a pinned git revision
   [`0x676e67/http3`](https://github.com/0x676e67/http3) fork before its next
   refresh: port the QPACK absolute-Base fix and Hyperium's buffered-write fix,
   then review later fixes one commit at a time.
+- Find which vendored `h3` patch lets a server send a field section larger
+  than the client's `SETTINGS_MAX_FIELD_SECTION_SIZE`, which fails the
+  upstream tests `header_too_big_server_error` and
+  `header_too_big_server_error_trailers`, and restore the check.
 - Document the TCP/IP stack fingerprint as the host's, with reference JA4T
   and p0f signatures and a check that compares the host with the profile's
   platform.

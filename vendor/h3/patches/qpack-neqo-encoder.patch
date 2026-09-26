@@ -248,7 +248,7 @@ index 210c236..5a35076 100644
          self.track_map
              .entry(reference)
 diff --git a/h3/src/qpack/encoder.rs b/h3/src/qpack/encoder.rs
-index 2b83197..9836120 100644
+index 2b83197..8481155 100644
 --- a/h3/src/qpack/encoder.rs
 +++ b/h3/src/qpack/encoder.rs
 @@ -21,6 +21,7 @@ use super::{
@@ -498,7 +498,7 @@ index 2b83197..9836120 100644
          }
      }
  }
-@@ -735,6 +880,293 @@ mod tests {
+@@ -735,6 +880,337 @@ mod tests {
          assert_eq!(read_block.get_ref().len() as u64, read_block.position());
      }
  
@@ -787,6 +787,50 @@ index 2b83197..9836120 100644
 +        let mut read = Cursor::new(block);
 +        HeaderPrefix::decode(&mut read).unwrap();
 +        assert_eq!(Literal::decode(&mut read), Ok(Literal::new("x-c", "d")));
++    }
++
++    #[test]
++    fn unmatched_names_sections_decode_across_acknowledgements_and_evictions() {
++        use crate::qpack::decoder::{ack_header, Decoder};
++
++        // 160 bytes hold `alt-used` and two `x-request-<n>` entries, whose
++        // names match nothing earlier, so each later request evicts
++        // acknowledged entries to insert its own.
++        let (mut encoder, setup) = neqo_encoder(160, 16);
++        let mut decoder = Decoder::new(160, u64::MAX).unwrap();
++        decoder
++            .on_encoder_recv(&mut Cursor::new(setup), &mut Vec::new())
++            .unwrap();
++
++        for index in 0..8_u64 {
++            let stream_id = index * 4;
++            let request = vec![
++                HeaderField::new(":method", "GET"),
++                HeaderField::new(":path", "/"),
++                HeaderField::new("user-agent", "Firefox"),
++                HeaderField::new(format!("x-request-{index}"), "value"),
++                HeaderField::new("alt-used", "server.phantom.test:443"),
++            ];
++            let mut block = Vec::new();
++            let mut instructions = Vec::new();
++            encoder
++                .encode(stream_id, &mut block, &mut instructions, request.clone())
++                .unwrap();
++
++            let mut feedback = Vec::new();
++            decoder
++                .on_encoder_recv(&mut Cursor::new(instructions), &mut feedback)
++                .unwrap();
++            let decoded = decoder.decode_header(&mut Cursor::new(block)).unwrap();
++            assert_eq!(decoded.fields, request, "request {index}");
++            if decoded.dyn_ref {
++                ack_header(stream_id, &mut feedback);
++            }
++            encoder.on_decoder_recv(&mut Cursor::new(feedback)).unwrap();
++        }
++        // One `x-request-<n>` insert per request, and `alt-used` again after
++        // each eviction of it.
++        assert!(decoder.total_inserted() > 8, "{}", decoder.total_inserted());
 +    }
 +
      #[test]

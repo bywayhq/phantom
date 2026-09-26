@@ -344,6 +344,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked client::builder::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked config::tests
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked proto::frame::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked proto::headers::tests

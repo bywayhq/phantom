@@ -239,8 +239,10 @@ delta and its regression tests.
 ## Reserved frame after SETTINGS
 
 Firefox's HTTP/3 stack, neqo, writes one reserved frame on its control
-stream directly after SETTINGS (`Http3Connection::send_settings` and
-`HFrame::Grease` in `neqo-http3`). Its type is `0x1f * N + 0x21` with `N` a
+stream directly after SETTINGS. Firefox 156.0.1 vendors neqo 0.30.1, where
+`Http3Connection::send_settings` queues it (`neqo-http3/src/connection.rs`,
+lines 365 to 371) and `HFrame::Grease` encodes it
+(`neqo-http3/src/frames/hframe.rs`, lines 101 to 105 and 146 to 150). Its type is `0x1f * N + 0x21` with `N` a
 random 64-bit value shifted right by 7, and its payload is zero to seven
 random bytes. Upstream h3 can send a reserved frame only as part of
 `send_grease`, which also adds a reserved setting, a reserved stream, and
@@ -261,8 +263,10 @@ delta.
 
 The stateful request encoder inserts every field without an exact static
 match, with a name reference when one exists, and chooses Huffman coding on
-the encoder stream only when it is shorter. neqo encodes differently
-(`Encoder::encode_header_block` and `HeaderTable::lookup` in `neqo-qpack`).
+the encoder stream only when it is shorter. neqo 0.30.1, the version
+Firefox 156.0.1 vendors, encodes differently (`Encoder::encode_header_block`
+in `neqo-qpack/src/encoder.rs`, lines 404 to 513, and `HeaderTable::lookup`
+in `neqo-qpack/src/table.rs`, lines 231 to 261).
 In one pass over the fields it uses, in this order, an exact static match,
 an exact dynamic match, a literal with a static name reference, a literal
 with a dynamic name reference, and only then an Insert With Literal Name
@@ -287,7 +291,9 @@ in the Phantom repository, against a 4096-byte table and 16 blocked streams
 with no feedback between them. The encoder stream bytes (capacity and four
 inserts) and both field sections equal the capture byte for byte. Other
 tests cover the blocked-stream budget, the stop after a failed insert, the
-eviction rule, and forced Huffman coding. An integration test shows that
+eviction rule, and forced Huffman coding, and eight requests decode through
+h3's own decoder while its acknowledgements return and a 160-byte table
+evicts entries. An integration test shows that
 with the default stream order and eager stream types the Set Dynamic Table
 Capacity instruction is written as soon as peer SETTINGS arrive, before any
 request, as neqo writes it. Once 1000 streams have unacknowledged
@@ -451,3 +457,12 @@ cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-featur
 ```
 
 The integration checkout owns workspace-wide checks and lockfile verification.
+
+Two upstream tests fail on this copy and are not run by
+`scripts/ci/check-vendor.sh`: `tests::request::header_too_big_server_error`
+and `header_too_big_server_error_trailers`. Each expects a server's
+`send_response` to refuse a field section larger than the client's
+`SETTINGS_MAX_FIELD_SECTION_SIZE`, and the send succeeds. Both fail the same
+way on `main` without the Firefox HTTP/3 patches and with them, so the
+cause is an earlier patch; the [roadmap](../../docs/roadmap.md#phase-3-hardening)
+tracks it.
