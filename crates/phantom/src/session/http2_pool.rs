@@ -534,8 +534,9 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         let connection = match route {
-            // One proxy connection per origin carries its forwarded requests;
-            // the pool key keeps it apart from CONNECT tunnels.
+            // The forwarding connector's pool decides whether this proxy
+            // connection also carries other origins' forwarded requests and
+            // CONNECT tunnels, as the profile says.
             Route::HttpProxy(proxy) if mode == Http2ConnectionMode::Forward => {
                 let base = https_proxy
                     .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
@@ -543,7 +544,12 @@ impl PoolEntry {
                     .https_proxy
                     .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
                 proxy_connector
-                    .connect_forward_http2(proxy.host(), proxy.port(), proxy.host())
+                    .connect_forward_http2_with_credentials(
+                        proxy.host(),
+                        proxy.port(),
+                        proxy.host(),
+                        proxy.basic_credentials(),
+                    )
                     .await
                     .map_err(|error| {
                         RequestError::http2_connection_setup(Http2TlsError::from(error))

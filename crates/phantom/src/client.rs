@@ -8,7 +8,7 @@ use phantom_net::{
     http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector,
     http3::Http3Connector,
-    proxy::{HttpsProxyConnector, ProxyCredentialCache},
+    proxy::{Http2ProxyPool, HttpsProxyConnector, ProxyCredentialCache},
 };
 #[cfg(feature = "cookies")]
 use phantom_profile::CookiePlacement;
@@ -16,7 +16,8 @@ use phantom_profile::CookiePlacement;
 use phantom_profile::WebSocketSettings;
 use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
 use phantom_profile::{
-    ClientHintSettings, ClientProfile, DnsCacheSettings, ProxyConnectTemplate, TcpSettings,
+    ClientHintSettings, ClientProfile, DnsCacheSettings, Http2ProxyConnections,
+    ProxyConnectTemplate, TcpSettings,
 };
 
 use crate::{
@@ -104,7 +105,18 @@ pub(crate) struct ClientInner {
     pub(crate) http3_session_tickets: bool,
     /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
     pub(crate) connect_udp_proxy: Option<Arc<ConnectUdpConnectors>>,
+    /// Opens CONNECT tunnels through an HTTPS proxy, sharing HTTP/2 proxy
+    /// connections from the session's pool.
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
+    /// `https_proxy` for `http://` requests forwarded over HTTP/2, with the
+    /// pool the profile's [`Http2ProxyConnections`] gives them.
+    pub(crate) forward_https_proxy: Option<HttpsProxyConnector>,
+    /// `https_proxy` for WebSocket tunnels, with the pool the profile's
+    /// [`Http2ProxyConnections`] gives them.
+    #[cfg(feature = "websocket")]
+    pub(crate) websocket_https_proxy: Option<HttpsProxyConnector>,
+    /// Which HTTP/2 proxy requests share a connection.
+    pub(crate) http2_proxy_connections: Http2ProxyConnections,
     /// Proxies that accepted Basic credentials, shared with the connectors.
     /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
@@ -132,18 +144,19 @@ pub(crate) struct ClientInner {
 }
 
 impl ClientInner {
-    /// Returns this configuration with an empty proxy credential record and
-    /// an empty address cache, or itself when it keeps neither.
+    /// Returns this configuration with an empty proxy credential record, an
+    /// empty address cache, and empty HTTP/2 proxy pools, or itself when it
+    /// keeps none of them.
     ///
-    /// Sessions call this so that one session's remembered proxy credentials
-    /// and resolved addresses never reach another, as with cookies, Alt-Svc,
-    /// and pools.
+    /// Sessions call this so that one session's remembered proxy credentials,
+    /// resolved addresses, and proxy connections never reach another, as with
+    /// cookies, Alt-Svc, and pools.
     pub(crate) fn with_fresh_session_state(self: &Arc<Self>) -> Arc<Self> {
         let caches_addresses = self
             .host_resolver
             .as_ref()
             .is_some_and(|resolver| resolver.cache().is_some());
-        if self.proxy_credentials.is_none() && !caches_addresses {
+        if self.proxy_credentials.is_none() && !caches_addresses && self.https_proxy.is_none() {
             return Arc::clone(self);
         }
         let mut inner = Self::clone(self);
@@ -155,7 +168,34 @@ impl ClientInner {
         if let Some(resolver) = self.host_resolver.as_ref().filter(|_| caches_addresses) {
             inner.bind_host_resolver(resolver.with_empty_cache());
         }
+        inner.bind_http2_proxy_pools();
         Arc::new(inner)
+    }
+
+    /// Gives the HTTPS proxy connectors new HTTP/2 connection pools: one for
+    /// every purpose, or one per purpose, as the profile says.
+    ///
+    /// Call it after every other change to `https_proxy`, whose clones it
+    /// makes.
+    fn bind_http2_proxy_pools(&mut self) {
+        let Some(base) = self.https_proxy.take() else {
+            return;
+        };
+        let tunnels = Http2ProxyPool::new();
+        let separate = self.http2_proxy_connections == Http2ProxyConnections::ByPurpose;
+        let own_pool = || {
+            if separate {
+                Http2ProxyPool::new()
+            } else {
+                tunnels.clone()
+            }
+        };
+        self.forward_https_proxy = Some(base.clone().with_http2_proxy_pool(own_pool()));
+        #[cfg(feature = "websocket")]
+        {
+            self.websocket_https_proxy = Some(base.clone().with_http2_proxy_pool(own_pool()));
+        }
+        self.https_proxy = Some(base.with_http2_proxy_pool(tunnels));
     }
 
     /// Gives every connector that resolves host names the same resolver.
@@ -1175,6 +1215,14 @@ impl ClientBuilder {
             http3_session_tickets,
             connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
+            forward_https_proxy: None,
+            #[cfg(feature = "websocket")]
+            websocket_https_proxy: None,
+            http2_proxy_connections: self
+                .profile
+                .proxy_connect()
+                .map(|template| template.http2_connections)
+                .unwrap_or_default(),
             proxy_credentials: None,
             host_resolver: None,
             client_hints,
@@ -1201,6 +1249,7 @@ impl ClientBuilder {
         if let Some(resolver) = host_resolver {
             inner.bind_host_resolver(resolver);
         }
+        inner.bind_http2_proxy_pools();
         Ok(self.options.into_client(Arc::new(inner)))
     }
 }

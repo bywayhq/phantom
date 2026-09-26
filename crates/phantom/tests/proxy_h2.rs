@@ -280,6 +280,8 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
             connect_error(&error),
             Some(HttpConnectError::Rejected { status: 403 })
         ));
+        // The pooled proxy connection closes with the client.
+        drop(client);
         proxy_task.await??;
         assert!(matches!(
             origin.accept(),
@@ -562,17 +564,21 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
         let proxy = H2Proxy::bind().await?;
         let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
         let proxy_task = tokio::spawn(async move {
-            let mut records = Vec::new();
-            // The first tunnel's replay shares its challenged connection.
-            for replies in [
-                vec![Reply::Challenge, Reply::Tunnel(origin_address)],
-                vec![Reply::Tunnel(origin_address)],
-            ] {
-                let (tcp, _) = listener.accept().await?;
-                records.extend(serve_connects(tcp, &acceptor, replies).await?);
-            }
-            let third = timeout(Duration::from_millis(100), listener.accept()).await;
-            Ok::<_, Box<dyn StdError + Send + Sync>>((records, third.is_err()))
+            // The first tunnel's replay and the second tunnel share the
+            // challenged connection.
+            let (tcp, _) = listener.accept().await?;
+            let records = serve_connects(
+                tcp,
+                &acceptor,
+                vec![
+                    Reply::Challenge,
+                    Reply::Tunnel(origin_address),
+                    Reply::Tunnel(origin_address),
+                ],
+            )
+            .await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn StdError + Send + Sync>>((records, second.is_err()))
         });
         let route = Route::http_proxy(
             HttpProxy::new(&proxy_uri)?
@@ -592,10 +598,10 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
         }
 
-        let (records, no_third_connection) = proxy_task.await??;
-        assert!(no_third_connection);
+        let (records, no_second_connection) = proxy_task.await??;
+        assert!(no_second_connection);
         let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
-        assert_eq!(streams, [1, 3, 1]);
+        assert_eq!(streams, [1, 3, 5]);
         let credentials = vec![(
             "proxy-authorization".to_owned(),
             b"Basic YWxpY2U6c2VjcmV0".to_vec(),
@@ -1009,6 +1015,8 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                     .template(&template)
                     .send()
                     .await;
+                // The pooled proxy connection closes with the client.
+                drop(client);
                 let records = proxy_task.await??;
                 let names = |index: usize| -> Vec<String> {
                     records[index]
@@ -1075,6 +1083,8 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
                 .get(HttpProtocol::Http2, "https://origin.test/page")?
                 .send()
                 .await;
+            // The pooled proxy connection closes with the client.
+            drop(client);
             let records = proxy_task.await??;
             let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
             assert_eq!(streams, [1, 3], "{label}");
@@ -1138,6 +1148,8 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 .header(RequestHeader::new("User-Agent", "opening-agent"))
                 .connect()
                 .await;
+            // The pooled proxy connection closes with the client.
+            drop(client);
             let record = proxy_task.await??;
             let names: Vec<String> = record.fields.iter().map(|(name, _)| name.clone()).collect();
             assert_eq!(names, expected);

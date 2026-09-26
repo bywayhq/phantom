@@ -364,21 +364,28 @@ impl HttpProxy {
 
     /// Speaks HTTP/2 to this HTTPS proxy instead of HTTP/1.1.
     ///
-    /// Each tunnel opens one dedicated proxy connection whose TLS handshake
+    /// Tunnels are streams of shared proxy connections whose TLS handshake
     /// must select `h2`; a proxy that selects `http/1.1` or no protocol fails
-    /// with a proxy error instead of falling back. The proxy connection uses
+    /// with a proxy error instead of falling back. Each session shares one
+    /// connection per proxy and set of credentials between tunnels to
+    /// different origins, up to the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`
+    /// or 100, and opens another when it is full or after the proxy's
+    /// `GOAWAY`. The profile's
+    /// [`Http2ProxyConnections`](crate::profile::Http2ProxyConnections)
+    /// decides whether forwarded requests and WebSocket tunnels share it too.
+    /// The proxy connection uses
     /// the client profile's TLS offer and HTTP/2 settings, and sends an
     /// RFC 9113 CONNECT with only `:method` and `:authority` pseudo-headers.
     /// The ordered CONNECT fields keep their order after those pseudo-headers,
     /// with names in HTTP/2 lowercase form; the authority placeholder becomes
     /// `:authority`, and connection-specific fields are rejected before I/O.
     /// With [`Self::with_basic_auth`], the CONNECT replay after a `407` is a
-    /// new stream on the tunnel's challenged proxy connection.
+    /// new stream on the challenged proxy connection.
     ///
     /// An `http://` request with exact HTTP/2 or negotiated protocol
     /// selection is forwarded as an HTTP/2 request with `:scheme` `http` and
-    /// the origin in `:authority`, on one proxy connection per origin that
-    /// later requests reuse. Exact HTTP/1.1 `http://` requests fail before
+    /// the origin in `:authority`, on a pooled proxy connection that later
+    /// requests reuse. Exact HTTP/1.1 `http://` requests fail before
     /// proxy I/O with [`RequestErrorKind::UnsupportedRoute`]. HTTPS origins
     /// may use HTTP/1.1 or HTTP/2 inside the tunnel.
     ///

@@ -856,19 +856,26 @@ async fn dispatch_attempt(
                 .http2
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
+            let (mode, https_proxy) = if request.uri.scheme_str() == Some("http") {
+                (
+                    Http2ConnectionMode::Forward,
+                    client.inner.forward_https_proxy.as_ref(),
+                )
+            } else {
+                (
+                    Http2ConnectionMode::TlsOrigin,
+                    client.inner.https_proxy.as_ref(),
+                )
+            };
             client
                 .state
                 .http2
                 .send_request(
                     connector,
-                    client.inner.https_proxy.as_ref(),
+                    https_proxy,
                     endpoint,
                     route,
-                    if request.uri.scheme_str() == Some("http") {
-                        Http2ConnectionMode::Forward
-                    } else {
-                        Http2ConnectionMode::TlsOrigin
-                    },
+                    mode,
                     method,
                     endpoint.authority().as_str(),
                     target,

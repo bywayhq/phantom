@@ -138,7 +138,7 @@ impl WebSocketRequestBuilder {
                     let authority = request.endpoint.tunnel_authority();
                     if proxy.uses_tls() {
                         let proxy_connector = &proxy.https_connector(
-                            client.inner.https_proxy.as_ref().ok_or_else(|| {
+                            client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
                                 WebSocketError::request(RequestError::unsupported_route(
                                     HttpProtocol::Http1,
                                 ))
@@ -248,7 +248,7 @@ impl WebSocketRequestBuilder {
                     let authority = request.endpoint.tunnel_authority();
                     if proxy.uses_tls() {
                         let proxy_connector = &proxy.https_connector(
-                            client.inner.https_proxy.as_ref().ok_or_else(|| {
+                            client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
                                 WebSocketError::request(RequestError::unsupported_route(
                                     HttpProtocol::Http1,
                                 ))
