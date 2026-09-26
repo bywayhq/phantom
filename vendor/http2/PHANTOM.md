@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.8`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.9`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -500,6 +500,54 @@ values of several crumbs, and requires the decoder to read back every field,
 each crumb as its own field. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays
 every retained Chromium-family and Firefox HTTP/2 session and compares each
 HEADERS block with the capture byte for byte.
+
+## Sensitive proxy-authorization
+
+A caller marks a credential sensitive so that the encoder sends it as a
+never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
+`Debug` output hides it. Neither browser treats `proxy-authorization` that
+way. The retained `https-proxy-auth-*` captures under `fixtures/proxy/` show
+Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 sending it on an
+HTTP/2 proxy connection as a literal with incremental indexing on static name
+49 the first time, and as the dynamic entry's index after that, on CONNECT
+and forwarded requests alike.
+
+- Chromium's quiche `HpackEncoder::EncodeRepresentations` sends a field that
+  matches no entry as an indexed literal whenever `should_index_` allows,
+  and the default policy allows every ordinary field. The encoder writes
+  only the incremental-indexing and without-indexing literal opcodes, never
+  the never-indexed one.
+- Firefox's `Http2Compressor::EncodeHeaderBlock` passes `neverIndex` only for
+  `authorization` and for a cookie crumb under 20 bytes, and CONNECT
+  requests take the same path.
+
+Sources, at quiche `80bf9559d3a4` and tag `FIREFOX_156_0_RELEASE`:
+
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L72-L83>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L140-L160>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L181-L195>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1066-L1070>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1157-L1161>
+
+`sensitive-proxy-authorization.patch` adds
+`http2::ext::SensitiveProxyAuthorization` and
+`HpackEncoderProfile::sensitive_proxy_authorization`. The default,
+`NeverIndexed`, keeps the upstream treatment. Under `FieldRule` the encoder
+clears the mark on a `proxy-authorization` value, and on each nameless
+further value of that field, before indexing it, so the field indexing rule
+decides its representation as it would for an unmarked value. The value keeps
+its mark everywhere outside the encoder, so a request's `Debug` output still
+hides it; the encoder's own table entry does not. Other sensitive fields are
+unaffected.
+
+The patch changes `src/ext.rs` and `src/hpack/encoder.rs`, and adds the
+choice to the random profile in `src/hpack/test/fuzz.rs`. Its encoder unit
+test checks, under both the `All` and `NeverIndexAuthorization` field rules,
+an incremental literal on static name 49 and then index 62, a nameless
+further value sent without indexing, another sensitive field that stays
+never-indexed, and the default, which sends the field never-indexed on every
+request. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays the
+retained proxy sessions through the browser recipes, which set `FieldRule`.
 
 ## Stream limit before SETTINGS
 
