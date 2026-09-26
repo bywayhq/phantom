@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{SslContext, SslMethod, SslRef, SslVerifyMode};
+use btls::ssl::{SslContext, SslMethod, SslRef, SslSession, SslVerifyMode};
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 
@@ -370,7 +370,7 @@ pub(super) fn resumption_client_context() -> OwnedContext {
     context
 }
 
-fn configure_client_verification(context: &OwnedContext) {
+pub(super) fn configure_client_verification(context: &OwnedContext) {
     // SAFETY: the context is live and no SSL has been created from it.
     unsafe {
         ffi::SSL_CTX_set_verify(context.as_ptr(), ffi::SSL_VERIFY_PEER, None);
@@ -432,3 +432,95 @@ pub(super) fn session(context: &OwnedContext) -> ClientSession {
     let client = ClientSession::new(context.as_context(), SERVER_NAME, CLIENT_PARAMETERS);
     test_ok(client, "client session")
 }
+
+/// Completes a full handshake without passing the server's post-handshake
+/// flight to the client, and returns that flight.
+pub(super) fn complete_without_tickets(
+    client: &mut ClientSession,
+    server: &mut RawServer,
+) -> Vec<HandshakeChunk> {
+    test_ok(client.start_handshake(), "client start");
+    for chunk in test_ok(client.drain_output(), "client hello") {
+        test_ok(server.provide(&chunk), "server input");
+    }
+    test_ok(server.drive(), "server first flight");
+    let mut progress = HandshakeProgress::NeedsData;
+    for chunk in test_ok(server.drain_output(), "server flight") {
+        progress = test_ok(client.provide_handshake_data(&chunk.bytes), "client input");
+    }
+    assert_eq!(progress, HandshakeProgress::Complete);
+    for chunk in test_ok(client.drain_output(), "client finish") {
+        test_ok(server.provide(&chunk), "server finish input");
+    }
+    assert_eq!(
+        test_ok(server.drive(), "server completion"),
+        HandshakeProgress::Complete
+    );
+    test_ok(server.drain_output(), "server post-handshake flight")
+}
+
+/// Returns a session issued to a completed handshake from `client_context`.
+///
+/// With `early_data`, the server's ticket permits 0-RTT.
+pub(super) fn issued_session(
+    client_context: &OwnedContext,
+    server_context: &OwnedContext,
+    early_data: bool,
+) -> SslSession {
+    let mut client = session(client_context);
+    let mut server = if early_data {
+        test_ok(
+            RawServer::new_accepting_early_data(server_context),
+            "server accepting early data",
+        )
+    } else {
+        test_ok(RawServer::new(server_context), "server session")
+    };
+    for chunk in complete_without_tickets(&mut client, &mut server) {
+        test_ok(client.provide_handshake_data(&chunk.bytes), "ticket input");
+    }
+    test_some(client.take_new_sessions().pop_front(), "issued session")
+}
+
+/// Appends `bytes` behind a big-endian length of `width` bytes.
+fn length_prefixed(output: &mut Vec<u8>, width: usize, bytes: &[u8]) {
+    let len = u32::try_from(bytes.len()).unwrap_or(u32::MAX).to_be_bytes();
+    output.extend_from_slice(&len[len.len() - width..]);
+    output.extend_from_slice(bytes);
+}
+
+/// Frames `body` as a TLS handshake message of type `message_type`.
+pub(super) fn handshake_message(message_type: u8, body: &[u8]) -> Vec<u8> {
+    let mut message = vec![message_type];
+    length_prefixed(&mut message, 3, body);
+    message
+}
+
+/// Encodes a NewSessionTicket body (RFC 8446, section 4.6.1) with a
+/// one-byte nonce.
+pub(super) fn ticket_body(lifetime: u32, ticket: &[u8], extensions: &[u8]) -> Vec<u8> {
+    let mut body = lifetime.to_be_bytes().to_vec();
+    body.extend_from_slice(&0x0102_0304_u32.to_be_bytes());
+    length_prefixed(&mut body, 1, &[0]);
+    length_prefixed(&mut body, 2, ticket);
+    length_prefixed(&mut body, 2, extensions);
+    body
+}
+
+/// A well-formed NewSessionTicket message that BoringSSL turns into a session.
+pub(super) fn new_session_ticket(lifetime: u32, extensions: &[u8]) -> Vec<u8> {
+    handshake_message(
+        NEW_SESSION_TICKET,
+        &ticket_body(lifetime, &[0xa5; 16], extensions),
+    )
+}
+
+/// Encodes one TLS extension.
+pub(super) fn extension(extension_type: u16, data: &[u8]) -> Vec<u8> {
+    let mut encoded = extension_type.to_be_bytes().to_vec();
+    length_prefixed(&mut encoded, 2, data);
+    encoded
+}
+
+pub(super) const NEW_SESSION_TICKET: u8 = 4;
+pub(super) const EARLY_DATA_EXTENSION: u16 = 42;

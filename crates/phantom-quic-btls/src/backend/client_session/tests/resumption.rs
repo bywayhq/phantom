@@ -1,15 +1,16 @@
 use std::io::Cursor;
 use std::sync::Arc;
 
+use btls::ssl::{SslContext, SslContextBuilder, SslMethod};
 use btls_sys as ffi;
 use foreign_types::ForeignType;
 use phantom_profile::chromium;
 use quinn_proto::crypto;
-use quinn_proto::{Side, transport_parameters::TransportParameters};
+use quinn_proto::{Side, TransportErrorCode, transport_parameters::TransportParameters};
 
 use super::super::{ClientSession, HandshakeProgress};
 use super::support::*;
-use crate::backend::callback_state::EncryptionLevel;
+use crate::backend::callback_state::{EncryptionLevel, HandshakeChunk};
 use crate::backend::client::ClientTlsProfile;
 use crate::resumption::{MAX_APPLICATION_STATE_LEN, MAX_HELD_TICKETS};
 use crate::{ApplicationState, HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind};
@@ -64,10 +65,21 @@ fn start(config: &Arc<QuicClientConfig>) -> Box<dyn crypto::Session> {
     )
 }
 
-fn handshake_with(
+fn handshake_with(client: Box<dyn crypto::Session>, server: RawServer) -> Box<dyn crypto::Session> {
+    let (mut client, post_handshake) = handshake_without_tickets(client, server);
+    for chunk in post_handshake {
+        assert_eq!(chunk.level, EncryptionLevel::Application);
+        test_ok(client.read_handshake(&chunk.bytes), "client ticket input");
+    }
+    client
+}
+
+/// Completes the handshake and returns the server's post-handshake flight
+/// undelivered.
+fn handshake_without_tickets(
     mut client: Box<dyn crypto::Session>,
     mut server: RawServer,
-) -> Box<dyn crypto::Session> {
+) -> (Box<dyn crypto::Session>, Vec<HandshakeChunk>) {
     let mut client_initial = Vec::new();
     assert!(client.write_handshake(&mut client_initial).is_none());
     test_ok(
@@ -94,12 +106,9 @@ fn handshake_with(
         test_ok(server.drive(), "server completion"),
         HandshakeProgress::Complete
     );
-    for chunk in test_ok(server.drain_output(), "server post-handshake output") {
-        assert_eq!(chunk.level, EncryptionLevel::Application);
-        test_ok(client.read_handshake(&chunk.bytes), "client ticket input");
-    }
     assert!(!client.is_handshaking());
-    client
+    let post_handshake = test_ok(server.drain_output(), "server post-handshake output");
+    (client, post_handshake)
 }
 
 fn resumed(client: &dyn crypto::Session) -> bool {
@@ -529,4 +538,102 @@ fn a_reused_application_state_handle_starts_empty_for_each_connection() {
     assert_eq!(state.held_len(), 0);
     assert!(state.store(b"third"));
     assert_eq!(cache_len(&early), 0);
+}
+
+#[test]
+fn a_malformed_ticket_fails_the_connection_with_its_alert_and_stores_nothing() {
+    let server_context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let server = test_ok(RawServer::new(&server_context), "server session");
+    let (mut client, _withheld) = handshake_without_tickets(start(&config), server);
+
+    let empty_ticket = handshake_message(NEW_SESSION_TICKET, &ticket_body(7200, &[], &[]));
+    let error = match client.read_handshake(&empty_ticket) {
+        Ok(_) => panic!("a ticket without a ticket field was accepted"),
+        Err(error) => error,
+    };
+    // decode_error (50), carried as a QUIC CRYPTO_ERROR (RFC 9001, section 4.8).
+    assert_eq!(error.code, TransportErrorCode::crypto(50));
+    assert_eq!(cache_len(&config), 0);
+}
+
+#[test]
+fn a_zero_lifetime_ticket_is_not_retained() {
+    let server_context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let server = test_ok(RawServer::new(&server_context), "server session");
+    let (mut client, _withheld) = handshake_without_tickets(start(&config), server);
+
+    // RFC 8446, section 4.6.1: a lifetime of zero means discard at once.
+    test_ok(
+        client.read_handshake(&new_session_ticket(0, &[])),
+        "zero-lifetime ticket",
+    );
+    assert_eq!(cache_len(&config), 0);
+    test_ok(
+        client.read_handshake(&new_session_ticket(7200, &[])),
+        "ordinary ticket",
+    );
+    assert_eq!(cache_len(&config), 1);
+}
+
+fn context_builder() -> SslContextBuilder {
+    SslContext::builder(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("test context allocation failed: {error}"))
+}
+
+#[test]
+fn preparation_refuses_a_context_with_another_new_session_callback() {
+    let mut builder = context_builder();
+    builder.set_new_session_callback(|_, _| {});
+    let error = QuicClientConfig::enable_session_resumption(&mut builder)
+        .err()
+        .unwrap_or_else(|| panic!("a foreign new-session callback was replaced"));
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::ContextConflict);
+    assert_eq!(error.field(), "session_tickets");
+
+    let error = QuicClientConfig::new(builder.build())
+        .with_tls_profile(&resuming_tls_settings())
+        .err()
+        .unwrap_or_else(|| panic!("a foreign new-session callback was accepted"));
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::ContextConflict);
+}
+
+#[test]
+fn a_callback_installed_after_preparation_is_refused() {
+    let mut builder = context_builder();
+    test_ok(
+        QuicClientConfig::enable_session_resumption(&mut builder),
+        "session resumption preparation",
+    );
+    builder.set_new_session_callback(|_, _| {});
+    let error = QuicClientConfig::new(builder.build())
+        .with_tls_profile(&resuming_tls_settings())
+        .err()
+        .unwrap_or_else(|| panic!("a replaced new-session callback was accepted"));
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::ContextConflict);
+    assert_eq!(error.field(), "session_tickets");
+}
+
+#[test]
+fn preparing_a_context_twice_still_resumes() {
+    let mut builder = context_builder();
+    for _ in 0..2 {
+        test_ok(
+            QuicClientConfig::enable_session_resumption(&mut builder),
+            "session resumption preparation",
+        );
+    }
+    let context = OwnedContext(builder.build());
+    configure_client_verification(&context);
+    let config = Arc::new(
+        test_ok(
+            QuicClientConfig::new(context.0).with_tls_profile(&resuming_tls_settings()),
+            "resuming TLS profile",
+        )
+        .with_isolated_session_cache(),
+    );
+    let server_context = server_context();
+    handshake(&config, &server_context);
+    assert!(resumed(handshake(&config, &server_context).as_ref()));
 }

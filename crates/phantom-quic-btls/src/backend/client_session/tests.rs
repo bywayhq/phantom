@@ -1,3 +1,5 @@
+mod lifecycle;
+mod post_handshake;
 mod provider;
 mod resumption;
 mod support;
