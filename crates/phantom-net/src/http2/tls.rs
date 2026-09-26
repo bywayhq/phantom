@@ -21,10 +21,10 @@ use crate::{
         ProxyCredentialCache, Socks5Auth, Socks5Error, http_connect_tunnel,
         http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
-    tls::{TlsConnector, TlsStream, trace_alpn},
+    tls::{ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{EchFailure, ServerAuthentication, TlsError, TlsErrorKind};
+pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
 
 /// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
 #[derive(Clone, Debug)]

@@ -20,10 +20,10 @@ use crate::{
         Socks5Auth, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
         socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
-    tls::{TlsConnector, TlsStream, trace_alpn},
+    tls::{ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{EchFailure, ServerAuthentication, TlsError, TlsErrorKind};
+pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
 pub use error::Http1TlsError;
 
 /// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.
