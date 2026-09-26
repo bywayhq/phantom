@@ -1,6 +1,9 @@
 use super::table::{Index, Table};
 use super::{huffman, Header};
-use crate::ext::{CookieCrumbs, FieldIndexing, HpackEncoderProfile, HuffmanCoding, SizeUpdates};
+use crate::ext::{
+    CookieCrumbs, FieldIndexing, HpackEncoderProfile, HuffmanCoding, SensitiveProxyAuthorization,
+    SizeUpdates,
+};
 use crate::tracing;
 
 use bytes::{BufMut, BytesMut};
@@ -14,6 +17,7 @@ pub struct Encoder {
     crumbs: CookieCrumbs,
     fields: FieldIndexing,
     updates: SizeUpdates,
+    proxy_authorization: SensitiveProxyAuthorization,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -31,6 +35,7 @@ impl Encoder {
             crumbs: CookieCrumbs::default(),
             fields: FieldIndexing::default(),
             updates: SizeUpdates::default(),
+            proxy_authorization: SensitiveProxyAuthorization::default(),
         }
     }
 
@@ -43,6 +48,7 @@ impl Encoder {
         self.crumbs = profile.crumbs();
         self.fields = profile.fields();
         self.updates = profile.updates();
+        self.proxy_authorization = profile.proxy_authorization();
         self.table.set_profile(profile);
     }
 
@@ -107,6 +113,10 @@ impl Encoder {
         // Whether the previous named field was one the profile never
         // indexes, so that its nameless further values are not either.
         let mut never_indexed = false;
+        // Whether the previous named field was a sensitive
+        // `proxy-authorization` the profile sends by the field rule, so that
+        // its nameless further values are too.
+        let mut unmarked = false;
 
         for header in headers {
             match header.reify() {
@@ -121,13 +131,22 @@ impl Encoder {
                 }
                 // The header has an associated name. In which case, try to
                 // index it in the table.
-                Ok(header) => {
+                Ok(mut header) => {
                     crumbling = false;
                     never_indexed = self.fields == FieldIndexing::NeverIndexAuthorization
                         && matches!(
                             &header,
                             Header::Field { name, .. } if name == http::header::AUTHORIZATION
                         );
+                    unmarked = false;
+                    if let Header::Field { name, value } = &mut header {
+                        if *name == http::header::PROXY_AUTHORIZATION
+                            && self.proxy_authorization == SensitiveProxyAuthorization::FieldRule
+                        {
+                            unmarked = true;
+                            value.set_sensitive(false);
+                        }
+                    }
                     let index = self.table.index(header);
                     self.encode_header(&index, dst);
 
@@ -140,6 +159,8 @@ impl Encoder {
                 Err(mut value) => {
                     if never_indexed {
                         value.set_sensitive(true);
+                    } else if unmarked {
+                        value.set_sensitive(false);
                     }
                     self.encode_header_without_name(
                         last_index.as_ref().unwrap_or_else(|| {
@@ -1478,6 +1499,85 @@ mod test {
             let block = encode(&mut encoder, vec![sensitive("x-a", "1")]);
             assert_eq!(&block[..2], &[0x1f, 62 - 15], "{profile:?}");
             assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", "1")]));
+        }
+    }
+
+    /// Under the field rule a sensitive `proxy-authorization` is indexed as
+    /// Chromium and Firefox index it: a literal with incremental indexing on
+    /// static name 49, then the dynamic entry's index. Other sensitive fields
+    /// stay never-indexed, and the default keeps the field never-indexed.
+    #[test]
+    fn field_rule_indexes_a_sensitive_proxy_authorization() {
+        let sensitive = |name: &str, value: &str| {
+            let mut value = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+            value.set_sensitive(true);
+            Header::Field {
+                name: Some(HeaderName::from_bytes(name.as_bytes()).unwrap()),
+                value,
+            }
+        };
+        let further = |value: &str| {
+            let mut value = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+            value.set_sensitive(true);
+            Header::Field { name: None, value }
+        };
+        let credential = "Basic YWxpY2U6c2VjcmV0";
+        let expected = pairs(&[("proxy-authorization", credential)]);
+        for fields in [FieldIndexing::All, FieldIndexing::NeverIndexAuthorization] {
+            let mut encoder = Encoder::default();
+            encoder.set_profile(
+                HpackEncoderProfile::new()
+                    .field_indexing(fields)
+                    .sensitive_proxy_authorization(SensitiveProxyAuthorization::FieldRule),
+            );
+            let mut decoder = Decoder::new(4096);
+            let block = encode(
+                &mut encoder,
+                vec![sensitive("proxy-authorization", credential)],
+            );
+            assert_eq!(representations(&block), [0x40 | 49], "{fields:?}");
+            assert_eq!(decode(&mut decoder, block), expected);
+            let block = encode(
+                &mut encoder,
+                vec![sensitive("proxy-authorization", credential)],
+            );
+            assert_eq!(*block, [0x80 | 62], "{fields:?}");
+            assert_eq!(decode(&mut decoder, block), expected);
+
+            // A nameless further value follows the rule; another sensitive
+            // field does not.
+            let block = encode(
+                &mut encoder,
+                vec![
+                    sensitive("proxy-authorization", credential),
+                    further("Basic Ym9iOnNlY3JldA=="),
+                    sensitive("x-a", "1"),
+                ],
+            );
+            assert_eq!(
+                representations(&block),
+                [0x80 | 62, 0x00, 0x10],
+                "{fields:?}"
+            );
+            assert_eq!(
+                decode(&mut decoder, block),
+                pairs(&[
+                    ("proxy-authorization", credential),
+                    ("proxy-authorization", "Basic Ym9iOnNlY3JldA=="),
+                    ("x-a", "1"),
+                ])
+            );
+        }
+
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().field_indexing(FieldIndexing::All));
+        for _ in 0..2 {
+            let block = encode(
+                &mut encoder,
+                vec![sensitive("proxy-authorization", credential)],
+            );
+            assert_eq!(representations(&block), [0x10]);
+            assert_eq!(decode(&mut Decoder::new(4096), block), expected);
         }
     }
 

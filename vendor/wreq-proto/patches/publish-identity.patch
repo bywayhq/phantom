@@ -9,7 +9,7 @@ index 17b559e..1a786d1 100644
 -name = "wreq-proto"
 -version = "0.2.5"
 +name = "phantom-wreq-proto"
-+version = "0.2.5-phantom.8"
++version = "0.2.5-phantom.9"
  authors = [
      "0x676e67 <gngppz@gmail.com>",
      "Sean McArthur <sean@seanmonstar.com>",
@@ -53,7 +53,7 @@ index 17b559e..1a786d1 100644
  
  [dependencies.http2]
 -version = "0.5.16"
-+version = "=0.5.20-phantom.8"
++version = "=0.5.20-phantom.9"
 +package = "phantom-http2"
 +path = "../http2"
  features = ["unstable"]

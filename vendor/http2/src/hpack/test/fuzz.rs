@@ -1,6 +1,6 @@
 use crate::ext::{
     CookieCrumbs, FieldIndexing, HpackEncoderProfile, HuffmanCoding, IndexingLimit, NameReference,
-    SizeUpdates, StaticNameIndex, UnindexedMatch,
+    SensitiveProxyAuthorization, SizeUpdates, StaticNameIndex, UnindexedMatch,
 };
 use crate::frame::PseudoId;
 use crate::hpack::{Decoder, Encoder, Header};
@@ -310,6 +310,13 @@ fn gen_profile(g: &mut StdRng) -> HpackEncoderProfile {
         .size_updates(pick(
             g,
             [SizeUpdates::WhenChanged, SizeUpdates::EverySetting],
+        ))
+        .sensitive_proxy_authorization(pick(
+            g,
+            [
+                SensitiveProxyAuthorization::NeverIndexed,
+                SensitiveProxyAuthorization::FieldRule,
+            ],
         ))
 }
 

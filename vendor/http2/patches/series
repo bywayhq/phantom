@@ -16,4 +16,5 @@ retained-stream-limit.patch
 stream-limit-cap.patch
 preface-ping.patch
 ping-timeout.patch
+sensitive-proxy-authorization.patch
 publish-identity.patch
