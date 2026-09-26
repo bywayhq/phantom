@@ -95,6 +95,8 @@ impl<B: Buf> quic::Connection<B> for Transport {
             gate: self.gate.clone(),
             answered: None,
             held: None,
+            #[cfg(test)]
+            after_permit: None,
         }
     }
 }
@@ -144,6 +146,9 @@ pub(super) struct Opener<B: Buf> {
     answered: Option<Answered>,
     /// A stream opened while the handshake completed, so possibly after it.
     held: Option<h3_quinn::BidiStream<B>>,
+    /// Runs after a permit is granted and before the stream opens.
+    #[cfg(test)]
+    after_permit: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl<B: Buf> Opener<B> {
@@ -151,6 +156,12 @@ impl<B: Buf> Opener<B> {
     #[cfg(test)]
     pub(super) fn hold_for_test(&mut self, stream: h3_quinn::BidiStream<B>) {
         self.held = Some(stream);
+    }
+
+    /// Runs `hook` after each permit is granted and before the stream opens.
+    #[cfg(test)]
+    pub(super) fn after_permit_for_test(&mut self, hook: std::sync::Arc<dyn Fn() + Send + Sync>) {
+        self.after_permit = Some(hook);
     }
 }
 
@@ -175,6 +186,8 @@ impl<B: Buf> Clone for Opener<B> {
             gate: self.gate.clone(),
             answered: None,
             held: None,
+            #[cfg(test)]
+            after_permit: None,
         }
     }
 }
@@ -206,11 +219,14 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                     ready!(answered.as_mut().poll(cx));
                     self.answered = None;
                 }
-                Permit::Open => {
+                Permit::Open { during_handshake } => {
                     if let Some(stream) = self.held.take() {
                         return Poll::Ready(Ok(stream));
                     }
-                    let during_handshake = gate.quinn.handshake_data().is_none();
+                    #[cfg(test)]
+                    if let Some(hook) = &self.after_permit {
+                        hook();
+                    }
                     let stream = match quic::OpenStreams::<B>::poll_open_bidi(&mut self.inner, cx) {
                         Poll::Ready(stream) => stream?,
                         Poll::Pending => {
@@ -231,9 +247,12 @@ impl<B: Buf> quic::OpenStreams<B> for Opener<B> {
                             return Poll::Pending;
                         }
                     };
-                    // The handshake completed between the check and the open,
-                    // so the stream may be a 1-RTT one; keep it until the
-                    // server's answer says whether the session may use it.
+                    // The permit was granted while the handshake ran, and the
+                    // handshake has completed since: the stream may be a
+                    // 1-RTT one, so keep it until the server's answer says
+                    // whether the session may use it. The state behind the
+                    // permit is carried, not read again, so a handshake that
+                    // completes after the permit is read is always seen.
                     if during_handshake && gate.quinn.handshake_data().is_some() {
                         self.held = Some(stream);
                         continue;
@@ -268,7 +287,11 @@ struct OpenGate {
 
 #[derive(Debug, Eq, PartialEq)]
 enum Permit {
-    Open,
+    /// Open a stream. `during_handshake` is set when the permit rests on
+    /// the handshake still running rather than on a published acceptance.
+    Open {
+        during_handshake: bool,
+    },
     Wait,
     Refuse,
 }
@@ -276,7 +299,11 @@ enum Permit {
 impl OpenGate {
     fn permit(&self) -> Permit {
         match *self.outcome.borrow() {
-            Some(EarlyDataOutcome::Accepted) => return Permit::Open,
+            Some(EarlyDataOutcome::Accepted) => {
+                return Permit::Open {
+                    during_handshake: false,
+                };
+            }
             Some(_) => return Permit::Refuse,
             None => {}
         }
@@ -293,7 +320,9 @@ impl OpenGate {
             // The TLS handshake data appears when the handshake completes,
             // no later than Quinn decides whether the early data was
             // rejected, so a stream opened before it is a 0-RTT stream.
-            None if self.quinn.handshake_data().is_none() => Permit::Open,
+            None if self.quinn.handshake_data().is_none() => Permit::Open {
+                during_handshake: true,
+            },
             None => Permit::Wait,
         }
     }

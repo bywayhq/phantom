@@ -211,6 +211,71 @@ async fn a_rejection_between_two_polls_of_a_request_waiting_for_credit_refuses_i
     Ok(())
 }
 
+/// A permit granted while the handshake runs stays a handshake-time permit:
+/// when the handshake completes between the permit and the open, the stream
+/// that opens is held until the answer rather than returned, and a rejection
+/// then resets it unused. A hook completes the handshake inside that window.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_handshake_that_completes_after_the_permit_holds_the_stream() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector(&identity)?.with_isolated_session_cache();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let server = spawn_h3_server(endpoint, Served::default());
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+
+    let (relay, relay_task) = delaying_relay(address).await?;
+    let connection = connect(&early, relay).await?;
+    let quinn = connection.quinn().clone();
+    assert!(quinn.handshake_data().is_none());
+    let (answer, _published, transport) = gated(&quinn);
+    let mut gated_opener = opener(&transport);
+    let watched = quinn.clone();
+    // Blocks the polling worker, after the permit and before the open, until
+    // another worker has completed the handshake.
+    gated_opener.after_permit_for_test(Arc::new(move || {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while watched.handshake_data().is_none() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }));
+    let resets = quinn.stats().frame_tx.reset_stream;
+
+    let opened = timeout(
+        Duration::from_millis(300),
+        poll_fn(|cx| gated_opener.poll_open_bidi(cx)),
+    )
+    .await;
+    assert!(quinn.handshake_data().is_some());
+    assert!(
+        opened.is_err(),
+        "a stream opened after the handshake was returned unheld"
+    );
+    answer.send_replace(Some(false));
+    let refused = timeout(TEST_TIMEOUT, poll_fn(|cx| gated_opener.poll_open_bidi(cx))).await?;
+    assert!(
+        refused.is_err(),
+        "the held stream was used after a rejection"
+    );
+    timeout(TEST_TIMEOUT, async {
+        while quinn.stats().frame_tx.reset_stream <= resets {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .map_err(|_| "the held stream was not reset")?;
+
+    drop(connection);
+    relay_task.abort();
+    server.abort();
+    Ok(())
+}
+
 /// A stream whose open raced the handshake's completion is held until the
 /// answer. A rejection resets it unused, and so does dropping the opener
 /// that holds it. Its stream number stays taken: the next stream is the
@@ -539,30 +604,43 @@ fn stress_iterations() -> usize {
 /// Repeats both rejection scenarios on a four-worker runtime, with a random
 /// delay between the driver receiving Quinn's answer and the stream gate
 /// seeing it. `PHANTOM_H3_STRESS_ITERATIONS` sets the repetitions (10 by
-/// default).
+/// default) and `PHANTOM_H3_STRESS_SEED` the delay seed, which every failure
+/// and the final count report.
+///
+/// The delays fall between whole polls, so the test does not reach windows
+/// inside one poll, such as the handshake completing between the permit and
+/// the open; the hook-driven unit tests above cover those.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult<()> {
     let iterations = stress_iterations();
-    let seed = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_nanos() as u64)
-        .unwrap_or(0x9e37_79b9_7f4a_7c15);
+    let seed = std::env::var("PHANTOM_H3_STRESS_SEED")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_else(|| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_nanos() as u64)
+                .unwrap_or(0x9e37_79b9_7f4a_7c15)
+        });
     let mut passed = (0, 0);
     for iteration in 0..iterations {
         let delay = random_gate_delay(seed.wrapping_add(iteration as u64));
         credit_wait_rejection(Some(delay.clone()))
             .await
-            .map_err(|error| format!("credit wait, iteration {iteration}: {error}"))?;
+            .map_err(|error| format!("credit wait, seed {seed}, iteration {iteration}: {error}"))?;
         passed.0 += 1;
         let release = Duration::from_micros((seed >> (iteration % 32)) % 5_000);
         handshake_window_rejection(Some(delay), release)
             .await
-            .map_err(|error| format!("handshake window, iteration {iteration}: {error}"))?;
+            .map_err(|error| {
+                format!("handshake window, seed {seed}, iteration {iteration}: {error}")
+            })?;
         passed.1 += 1;
     }
+    let (credit_wait, handshake_window) = passed;
     println!(
-        "credit wait passed {} of {iterations}; handshake window passed {} of {iterations}",
-        passed.0, passed.1
+        "seed {seed}: passed credit wait {credit_wait}/{iterations}, \
+         handshake window {handshake_window}/{iterations}"
     );
     Ok(())
 }
