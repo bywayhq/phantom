@@ -1,8 +1,8 @@
 diff --git a/src/ext.rs b/src/ext.rs
-index e43745ac..8d18458c 100644
+index e43745ac..e67c2459 100644
 --- a/src/ext.rs
 +++ b/src/ext.rs
-@@ -308,6 +308,26 @@ impl CookieCrumbs {
+@@ -308,6 +308,28 @@ impl CookieCrumbs {
      }
  }
  
@@ -22,14 +22,16 @@ index e43745ac..8d18458c 100644
 +    NeverIndexed,
 +    /// Send it as though it were not marked, by the field indexing rule, so
 +    /// that the mark only keeps the value out of `Debug` output. A nameless
-+    /// further value of the field is sent the same way.
++    /// further value of the field is sent the same way. An entry the field
++    /// adds to the dynamic table is marked again once written, so the
++    /// encoder's `Debug` output hides it too.
 +    FieldRule,
 +}
 +
  /// Connection-wide HPACK encoder choices that RFC 7541 leaves open.
  ///
  /// Every encoder that RFC 7541 allows produces a block the peer decodes to the
-@@ -328,6 +348,7 @@ pub struct HpackEncoderProfile {
+@@ -328,6 +350,7 @@ pub struct HpackEncoderProfile {
      unindexed_match: UnindexedMatch,
      indexing_limit: IndexingLimit,
      size_updates: SizeUpdates,
@@ -37,7 +39,7 @@ index e43745ac..8d18458c 100644
  }
  
  impl HpackEncoderProfile {
-@@ -407,6 +428,13 @@ impl HpackEncoderProfile {
+@@ -407,6 +430,13 @@ impl HpackEncoderProfile {
          self
      }
  
@@ -51,7 +53,7 @@ index e43745ac..8d18458c 100644
      pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
          self.literal_pseudo_headers & pseudo_bit(id) != 0
      }
-@@ -442,6 +470,10 @@ impl HpackEncoderProfile {
+@@ -442,6 +472,10 @@ impl HpackEncoderProfile {
      pub(crate) fn updates(self) -> SizeUpdates {
          self.size_updates
      }
@@ -63,7 +65,7 @@ index e43745ac..8d18458c 100644
  
  /// Returns the bit that represents `id` in a pseudo-header set.
 diff --git a/src/hpack/encoder.rs b/src/hpack/encoder.rs
-index bae97ee9..5c139ee4 100644
+index bae97ee9..766760b7 100644
 --- a/src/hpack/encoder.rs
 +++ b/src/hpack/encoder.rs
 @@ -1,6 +1,9 @@
@@ -112,7 +114,7 @@ index bae97ee9..5c139ee4 100644
  
          for header in headers {
              match header.reify() {
-@@ -121,13 +131,22 @@ impl Encoder {
+@@ -121,15 +131,31 @@ impl Encoder {
                  }
                  // The header has an associated name. In which case, try to
                  // index it in the table.
@@ -125,18 +127,27 @@ index bae97ee9..5c139ee4 100644
                              Header::Field { name, .. } if name == http::header::AUTHORIZATION
                          );
 +                    unmarked = false;
++                    let mut remark = false;
 +                    if let Header::Field { name, value } = &mut header {
 +                        if *name == http::header::PROXY_AUTHORIZATION
 +                            && self.proxy_authorization == SensitiveProxyAuthorization::FieldRule
 +                        {
 +                            unmarked = true;
++                            remark = value.is_sensitive();
 +                            value.set_sensitive(false);
 +                        }
 +                    }
                      let index = self.table.index(header);
                      self.encode_header(&index, dst);
++                    if remark {
++                        // The entry is written; marking it again keeps the
++                        // credential out of the table's `Debug` output.
++                        self.table.mark_inserted_sensitive(&index);
++                    }
  
-@@ -140,6 +159,8 @@ impl Encoder {
+                     last_index = Some(index);
+                 }
+@@ -140,6 +166,8 @@ impl Encoder {
                  Err(mut value) => {
                      if never_indexed {
                          value.set_sensitive(true);
@@ -145,7 +156,7 @@ index bae97ee9..5c139ee4 100644
                      }
                      self.encode_header_without_name(
                          last_index.as_ref().unwrap_or_else(|| {
-@@ -1481,6 +1502,85 @@ mod test {
+@@ -1481,6 +1509,108 @@ mod test {
          }
      }
  
@@ -216,6 +227,29 @@ index bae97ee9..5c139ee4 100644
 +            );
 +        }
 +
++        // The table entry is marked again once written, so the encoder's
++        // `Debug` output never shows the credential.
++        let mut encoder = Encoder::default();
++        encoder.set_profile(
++            HpackEncoderProfile::new()
++                .field_indexing(FieldIndexing::All)
++                .sensitive_proxy_authorization(SensitiveProxyAuthorization::FieldRule),
++        );
++        let block = encode(
++            &mut encoder,
++            vec![sensitive("proxy-authorization", credential)],
++        );
++        assert_eq!(representations(&block), [0x40 | 49]);
++        assert_eq!(encoder.table.len(), 1);
++        let debug = format!("{encoder:?}");
++        assert!(!debug.contains(credential), "{debug}");
++        assert!(debug.contains("Sensitive"), "{debug}");
++        let block = encode(
++            &mut encoder,
++            vec![sensitive("proxy-authorization", credential)],
++        );
++        assert_eq!(*block, [0x80 | 62]);
++
 +        let mut encoder = Encoder::default();
 +        encoder.set_profile(HpackEncoderProfile::new().field_indexing(FieldIndexing::All));
 +        for _ in 0..2 {
@@ -231,6 +265,31 @@ index bae97ee9..5c139ee4 100644
      /// Firefox announces every table size setting, even an unchanged one.
      #[test]
      fn every_setting_size_updates_announce_unchanged_sizes() {
+diff --git a/src/hpack/table.rs b/src/hpack/table.rs
+index b865a1d0..d3e17c7c 100644
+--- a/src/hpack/table.rs
++++ b/src/hpack/table.rs
+@@ -128,6 +128,20 @@ impl Table {
+         self.max_size
+     }
+ 
++    /// Marks the value of the entry `index` just inserted as sensitive.
++    ///
++    /// Only the field being inserted reads an entry's sensitivity, when it is
++    /// written; lookups compare values without it. Marking the entry after
++    /// that write changes no later encoding and hides its value from `Debug`
++    /// output.
++    pub fn mark_inserted_sensitive(&mut self, index: &Index) {
++        if let Index::Inserted(slot) | Index::InsertedValue(_, slot) = *index {
++            if let Header::Field { ref mut value, .. } = self.slots[slot].header {
++                value.set_sensitive(true);
++            }
++        }
++    }
++
+     /// Gets the header stored in the table
+     pub fn resolve<'a>(&'a self, index: &'a Index) -> &'a Header {
+         use self::Index::*;
 diff --git a/src/hpack/test/fuzz.rs b/src/hpack/test/fuzz.rs
 index e96a690d..021628f5 100644
 --- a/src/hpack/test/fuzz.rs

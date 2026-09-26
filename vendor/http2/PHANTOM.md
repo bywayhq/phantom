@@ -537,16 +537,20 @@ clears the mark on a `proxy-authorization` value, and on each nameless
 further value of that field, before indexing it, so the field indexing rule
 decides its representation as it would for an unmarked value. The value keeps
 its mark everywhere outside the encoder, so a request's `Debug` output still
-hides it; the encoder's own table entry does not. Other sensitive fields are
-unaffected.
+hides it. Once the encoder has written a field it inserted, it marks the
+table entry sensitive again, so the connection's `Debug` output hides it too.
+Only the insertion reads an entry's sensitivity, when `encode_header` writes
+it; lookups compare values alone, and a later match is decided by the
+incoming field's mark. Other sensitive fields are unaffected.
 
-The patch changes `src/ext.rs` and `src/hpack/encoder.rs`, and adds the
-choice to the random profile in `src/hpack/test/fuzz.rs`. Its encoder unit
-test checks, under both the `All` and `NeverIndexAuthorization` field rules,
-an incremental literal on static name 49 and then index 62, a nameless
-further value sent without indexing, another sensitive field that stays
-never-indexed, and the default, which sends the field never-indexed on every
-request. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays the
+The patch changes `src/ext.rs`, `src/hpack/encoder.rs`, and
+`src/hpack/table.rs`, and adds the choice to the random profile in
+`src/hpack/test/fuzz.rs`. Its encoder unit test checks, under both the `All`
+and `NeverIndexAuthorization` field rules, an incremental literal on static
+name 49 and then index 62, a nameless further value sent without indexing,
+another sensitive field that stays never-indexed, an encoder whose `Debug`
+output shows the entry as sensitive and not the credential, and the default,
+which sends the field never-indexed on every request. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays the
 retained proxy sessions through the browser recipes, which set `FieldRule`.
 
 ## Stream limit before SETTINGS

@@ -139,16 +139,23 @@ impl Encoder {
                             Header::Field { name, .. } if name == http::header::AUTHORIZATION
                         );
                     unmarked = false;
+                    let mut remark = false;
                     if let Header::Field { name, value } = &mut header {
                         if *name == http::header::PROXY_AUTHORIZATION
                             && self.proxy_authorization == SensitiveProxyAuthorization::FieldRule
                         {
                             unmarked = true;
+                            remark = value.is_sensitive();
                             value.set_sensitive(false);
                         }
                     }
                     let index = self.table.index(header);
                     self.encode_header(&index, dst);
+                    if remark {
+                        // The entry is written; marking it again keeps the
+                        // credential out of the table's `Debug` output.
+                        self.table.mark_inserted_sensitive(&index);
+                    }
 
                     last_index = Some(index);
                 }
@@ -1568,6 +1575,29 @@ mod test {
                 ])
             );
         }
+
+        // The table entry is marked again once written, so the encoder's
+        // `Debug` output never shows the credential.
+        let mut encoder = Encoder::default();
+        encoder.set_profile(
+            HpackEncoderProfile::new()
+                .field_indexing(FieldIndexing::All)
+                .sensitive_proxy_authorization(SensitiveProxyAuthorization::FieldRule),
+        );
+        let block = encode(
+            &mut encoder,
+            vec![sensitive("proxy-authorization", credential)],
+        );
+        assert_eq!(representations(&block), [0x40 | 49]);
+        assert_eq!(encoder.table.len(), 1);
+        let debug = format!("{encoder:?}");
+        assert!(!debug.contains(credential), "{debug}");
+        assert!(debug.contains("Sensitive"), "{debug}");
+        let block = encode(
+            &mut encoder,
+            vec![sensitive("proxy-authorization", credential)],
+        );
+        assert_eq!(*block, [0x80 | 62]);
 
         let mut encoder = Encoder::default();
         encoder.set_profile(HpackEncoderProfile::new().field_indexing(FieldIndexing::All));

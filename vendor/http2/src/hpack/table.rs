@@ -128,6 +128,20 @@ impl Table {
         self.max_size
     }
 
+    /// Marks the value of the entry `index` just inserted as sensitive.
+    ///
+    /// Only the field being inserted reads an entry's sensitivity, when it is
+    /// written; lookups compare values without it. Marking the entry after
+    /// that write changes no later encoding and hides its value from `Debug`
+    /// output.
+    pub fn mark_inserted_sensitive(&mut self, index: &Index) {
+        if let Index::Inserted(slot) | Index::InsertedValue(_, slot) = *index {
+            if let Header::Field { ref mut value, .. } = self.slots[slot].header {
+                value.set_sensitive(true);
+            }
+        }
+    }
+
     /// Gets the header stored in the table
     pub fn resolve<'a>(&'a self, index: &'a Index) -> &'a Header {
         use self::Index::*;

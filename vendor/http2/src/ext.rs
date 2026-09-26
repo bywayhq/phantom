@@ -324,7 +324,9 @@ pub enum SensitiveProxyAuthorization {
     NeverIndexed,
     /// Send it as though it were not marked, by the field indexing rule, so
     /// that the mark only keeps the value out of `Debug` output. A nameless
-    /// further value of the field is sent the same way.
+    /// further value of the field is sent the same way. An entry the field
+    /// adds to the dynamic table is marked again once written, so the
+    /// encoder's `Debug` output hides it too.
     FieldRule,
 }
 
