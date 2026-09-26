@@ -45,11 +45,8 @@ type Answered = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 pub(super) struct Transport {
     inner: h3_quinn::Connection,
     gate: Option<OpenGate>,
-    /// Set while an early session starts. A server can reject the early
-    /// data while the session writes its first stream bytes, and the write
-    /// then fails; the session's close is left to the caller, which starts
-    /// HTTP/3 again on the connection instead of closing it.
-    starting: Option<Arc<AtomicBool>>,
+    /// Present while an early session starts; see [`Starting`].
+    starting: Option<Arc<Starting>>,
     /// Blocks after each stream the session opens for itself until this
     /// connection's handshake completes, for tests.
     #[cfg(test)]
@@ -83,7 +80,7 @@ impl Transport {
                 answer,
                 outcome,
             }),
-            starting: Some(Arc::new(AtomicBool::new(true))),
+            starting: Some(Arc::new(Starting::default())),
             #[cfg(test)]
             wait_for_handshake: None,
         }
@@ -97,9 +94,9 @@ impl Transport {
         self.wait_for_handshake = Some(connection);
     }
 
-    /// Returns the flag that is set while an early session starts; clearing
-    /// it lets the session close the connection again.
-    pub(super) fn starting(&self) -> Option<Arc<AtomicBool>> {
+    /// Returns the start state of an early session, which the caller ends
+    /// once the session has started or failed to.
+    pub(super) fn starting(&self) -> Option<Arc<Starting>> {
         self.starting.clone()
     }
 }
@@ -151,6 +148,18 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
+        // Once the handshake completed, a stream opened here is a 1-RTT
+        // stream and would take a stream number the session that replaces a
+        // rejected one needs; the start fails instead, and the caller
+        // decides from the server's answer.
+        if let (Some(starting), Some(gate)) = (&self.starting, &self.gate)
+            && starting.is_starting()
+            && gate.quinn.handshake_data().is_some()
+        {
+            return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
+                DiscardedSession,
+            ))));
+        }
         let opened = quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx);
         #[cfg(test)]
         if opened.is_ready()
@@ -165,14 +174,55 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
     }
 
     fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
-        if self
-            .starting
-            .as_ref()
-            .is_some_and(|starting| starting.load(Ordering::Acquire))
+        if let (Some(starting), Some(gate)) = (&self.starting, &self.gate)
+            && gate.quinn.handshake_data().is_some()
+            && starting.defer_close(code, reason)
         {
             return;
         }
         quic::OpenStreams::<B>::close(&mut self.inner, code, reason);
+    }
+}
+
+/// The start of an early session.
+///
+/// A server can reject the early data while the session writes its first
+/// stream bytes, and the writes then fail. A close the session asks for
+/// after the handshake completed, which a rejection can cause, is deferred
+/// to the caller: it starts HTTP/3 again on a rejection, and otherwise
+/// closes with the code the session chose. A close before the handshake
+/// completed cannot come from a rejection and is sent at once.
+#[derive(Default)]
+pub(super) struct Starting {
+    started: AtomicBool,
+    deferred: std::sync::Mutex<Option<(quinn::VarInt, Vec<u8>)>>,
+}
+
+impl Starting {
+    fn is_starting(&self) -> bool {
+        !self.started.load(Ordering::Acquire)
+    }
+
+    fn defer_close(&self, code: h3::error::Code, reason: &[u8]) -> bool {
+        if !self.is_starting() {
+            return false;
+        }
+        let Ok(code) = quinn::VarInt::from_u64(code.value()) else {
+            return false;
+        };
+        if let Ok(mut deferred) = self.deferred.lock() {
+            deferred.get_or_insert_with(|| (code, reason.to_vec()));
+        }
+        true
+    }
+
+    /// Ends the start and returns the close the session deferred, if any.
+    pub(super) fn finish(&self) -> Option<(quinn::VarInt, Vec<u8>)> {
+        self.started.store(true, Ordering::Release);
+        self.deferred
+            .lock()
+            .ok()
+            .and_then(|mut deferred| deferred.take())
     }
 }
 

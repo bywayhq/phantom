@@ -544,26 +544,15 @@ async fn connect(
     }
     let accept_ch = Arc::new(OnceLock::new());
     if zero_rtt.is_none() {
-        let handshake = require_h3(&connection)?;
-        let mut decoded = AcceptCh::default();
-        if let Some(peer_settings) = handshake.peer_application_settings() {
-            decoded = decode_accept_ch(peer_settings)?;
-            builder
-                .peer_application_settings(peer_settings)
-                .map_err(|error| {
-                    Http3Error::with_source(
-                        Http3ErrorKind::Protocol,
-                        "peer HTTP/3 application settings are invalid",
-                        error,
-                    )
-                })?;
-        }
-        let _ = accept_ch.set(decoded);
+        let metadata = check_start(&connection, None).map_err(|(_, error)| error)?;
+        apply_peer_alps(&connection, &mut builder, metadata.alps.as_deref())
+            .map_err(|(_, error)| error)?;
+        let _ = accept_ch.set(metadata.accept_ch);
         if let Some(round_trip) = &round_trip {
             round_trip.after_handshake(&connection);
         }
         debug!(
-            session_resumed = handshake.session_resumed(),
+            session_resumed = metadata.session_resumed,
             "QUIC connection established with exact h3 ALPN"
         );
     }
@@ -590,9 +579,8 @@ async fn connect(
     }
     let starting = transport.starting();
     let built = builder.build(transport).await;
-    if let Some(starting) = &starting {
-        starting.store(false, Ordering::Release);
-    }
+    let suppressed_close = starting.as_ref().and_then(|starting| starting.finish());
+    let mut rejected_at_start = None;
     let (h3_driver, sender, zero_rtt, gate, early_channel, remembered_settings) = match built {
         Ok((h3_driver, sender)) => (
             h3_driver,
@@ -608,15 +596,25 @@ async fn connect(
                 "HTTP/3 connection initialization failed",
                 error,
             );
-            let (Some(accepted), Some((settings, crypto))) = (zero_rtt, &restart_profile) else {
+            let (Some(accepted), Some((settings, crypto)), Some((publisher, early_data))) =
+                (zero_rtt, &restart_profile, early_channel)
+            else {
                 return Err(error);
             };
-            // The early session left the close to this caller. When the
-            // server rejected the early data while the session was writing
-            // its first stream bytes, HTTP/3 starts on the connection as if
-            // it had sent no early data (RFC 9001, section 4.6.2).
+            // The early session left a close after its handshake to this
+            // caller. When the server rejected the early data while the
+            // session was starting, HTTP/3 starts on the connection as if it
+            // had sent no early data (RFC 9001, section 4.6.2). Any other
+            // failure closes with the code the session chose.
             if accepted.await || connection.close_reason().is_some() {
-                connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+                if connection.close_reason().is_none() {
+                    match &suppressed_close {
+                        Some((code, reason)) => connection.close(*code, reason),
+                        None => {
+                            connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+                        }
+                    }
+                }
                 return Err(error);
             }
             debug!("early data rejected while HTTP/3 started; starting it again");
@@ -626,8 +624,12 @@ async fn connect(
                 crypto,
                 &accept_ch,
                 round_trip.as_ref(),
+                #[cfg(test)]
+                peer_alps_override.as_deref(),
             )
             .await?;
+            publisher.publish(EarlyDataOutcome::Rejected);
+            rejected_at_start = Some(early_data);
             (h3_driver, sender, None, None, None, None)
         }
     };
@@ -699,6 +701,7 @@ async fn connect(
             early_data
         },
     );
+    let early_data = early_data.or(rejected_at_start);
     Ok(Http3Connection::new(
         session,
         driver,
@@ -709,6 +712,75 @@ async fn connect(
         early_data,
         remembered_settings.is_some(),
     ))
+}
+
+/// The handshake metadata every HTTP/3 session checks before it starts.
+struct StartMetadata {
+    /// The peer's ALPS payload, when it sent one.
+    alps: Option<Vec<u8>>,
+    accept_ch: AcceptCh,
+    session_resumed: bool,
+}
+
+/// Checks the exact `h3` ALPN and decodes the peer's ALPS `ACCEPT_CH`
+/// entries, as every session does before it starts, whether it waited for
+/// its handshake, sent early data, or starts again after a rejection.
+///
+/// Invalid metadata closes the connection with `H3_GENERAL_PROTOCOL_ERROR`.
+/// `alps_override`, used by tests against peers without ALPS, replaces the
+/// handshake's ALPS.
+fn check_start(
+    connection: &quinn::Connection,
+    alps_override: Option<&[u8]>,
+) -> Result<StartMetadata, (InvalidHandshake, Http3Error)> {
+    let handshake = match require_h3(connection) {
+        Ok(handshake) => handshake,
+        Err(error) => {
+            debug!(error = %error, "HTTP/3 handshake metadata is invalid");
+            connection.close(H3_GENERAL_PROTOCOL_ERROR, b"invalid handshake metadata");
+            return Err((InvalidHandshake::Alpn, error));
+        }
+    };
+    let alps = alps_override.or(handshake.peer_application_settings());
+    let accept_ch = match alps.map(decode_accept_ch).transpose() {
+        Ok(accept_ch) => accept_ch.unwrap_or_default(),
+        Err(error) => {
+            debug!(error = %error, "HTTP/3 handshake metadata is invalid");
+            connection.close(H3_GENERAL_PROTOCOL_ERROR, b"invalid ALPS metadata");
+            return Err((InvalidHandshake::Alps, error));
+        }
+    };
+    Ok(StartMetadata {
+        alps: alps.map(<[u8]>::to_vec),
+        accept_ch,
+        session_resumed: handshake.session_resumed(),
+    })
+}
+
+/// Applies the peer's ALPS SETTINGS to a session that has not started.
+/// Invalid SETTINGS close the connection with `H3_SETTINGS_ERROR`, the code
+/// the HTTP/3 driver uses for ALPS SETTINGS applied later.
+fn apply_peer_alps(
+    connection: &quinn::Connection,
+    builder: &mut h3::client::Builder,
+    alps: Option<&[u8]>,
+) -> Result<(), (InvalidHandshake, Http3Error)> {
+    let Some(alps) = alps else {
+        return Ok(());
+    };
+    builder.peer_application_settings(alps).map_err(|error| {
+        debug!(error = %error, "peer HTTP/3 application settings are invalid");
+        connection.close(H3_SETTINGS_ERROR, b"invalid peer application settings");
+        (
+            InvalidHandshake::AlpsSettings,
+            Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "peer HTTP/3 application settings are invalid",
+                error,
+            ),
+        )
+    })?;
+    Ok(())
 }
 
 /// What an early-data connection checks once its handshake completes.
@@ -727,33 +799,18 @@ impl EarlyHandshake {
     /// connection, as a normal connection refuses it before its first
     /// request.
     fn check(&self) -> Result<Option<(Vec<u8>, AcceptCh)>, EarlyDataOutcome> {
-        let handshake = match require_h3(&self.connection) {
-            Ok(handshake) => handshake,
-            Err(error) => {
-                debug!(error = %error, "early-data handshake metadata is invalid");
-                self.connection
-                    .close(H3_GENERAL_PROTOCOL_ERROR, b"invalid handshake metadata");
-                return Err(EarlyDataOutcome::Invalid(InvalidHandshake::Alpn));
-            }
-        };
         #[cfg(test)]
-        let peer_settings = self
-            .peer_alps_override
-            .as_deref()
-            .or(handshake.peer_application_settings());
+        let alps_override = self.peer_alps_override.as_deref();
         #[cfg(not(test))]
-        let peer_settings = handshake.peer_application_settings();
-        let Some(peer_settings) = peer_settings else {
-            return Ok(None);
-        };
-        match decode_accept_ch(peer_settings) {
-            Ok(decoded) => Ok(Some((peer_settings.to_vec(), decoded))),
-            Err(error) => {
-                debug!(error = %error, "early-data handshake metadata is invalid");
-                self.connection
-                    .close(H3_GENERAL_PROTOCOL_ERROR, b"invalid ALPS metadata");
-                Err(EarlyDataOutcome::Invalid(InvalidHandshake::Alps))
-            }
+        let alps_override = None;
+        match check_start(&self.connection, alps_override) {
+            Ok(StartMetadata {
+                alps: Some(alps),
+                accept_ch,
+                ..
+            }) => Ok(Some((alps, accept_ch))),
+            Ok(StartMetadata { alps: None, .. }) => Ok(None),
+            Err((invalid, _)) => Err(EarlyDataOutcome::Invalid(invalid)),
         }
     }
 
@@ -815,23 +872,15 @@ async fn start_after_rejection(
     crypto: &Arc<QuicClientConfig>,
     accept_ch: &OnceLock<AcceptCh>,
     round_trip: Option<&RoundTripRecorder>,
+    #[cfg(test)] alps_override: Option<&[u8]>,
 ) -> Result<(driver::ClientDriver, connection::RequestSender), Http3Error> {
+    #[cfg(not(test))]
+    let alps_override = None;
+    let metadata = check_start(connection, alps_override).map_err(|(_, error)| error)?;
     let started = async {
         let mut builder = settings::builder(settings, crypto)?;
-        let handshake = require_h3(connection)?;
-        let mut decoded = AcceptCh::default();
-        if let Some(peer_settings) = handshake.peer_application_settings() {
-            decoded = decode_accept_ch(peer_settings)?;
-            builder
-                .peer_application_settings(peer_settings)
-                .map_err(|error| {
-                    Http3Error::with_source(
-                        Http3ErrorKind::Protocol,
-                        "peer HTTP/3 application settings are invalid",
-                        error,
-                    )
-                })?;
-        }
+        apply_peer_alps(connection, &mut builder, metadata.alps.as_deref())
+            .map_err(|(_, error)| error)?;
         let started = builder
             .build(Transport::new(connection.clone()))
             .await
@@ -842,15 +891,20 @@ async fn start_after_rejection(
                     error,
                 )
             })?;
-        let _ = accept_ch.set(decoded);
-        if let Some(round_trip) = round_trip {
-            round_trip.after_handshake(connection);
-        }
         Ok(started)
     }
     .await;
-    if started.is_err() {
-        connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+    match &started {
+        Ok(_) => {
+            let _ = accept_ch.set(metadata.accept_ch);
+            if let Some(round_trip) = round_trip {
+                round_trip.after_handshake(connection);
+            }
+        }
+        Err(_) if connection.close_reason().is_none() => {
+            connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+        }
+        Err(_) => {}
     }
     started
 }
@@ -886,12 +940,10 @@ async fn restart_after_rejected_early_data(
     let mut decoded = AcceptCh::default();
     if let Some((payload, accept_ch)) = alps {
         decoded = accept_ch;
-        if let Err(error) = builder.peer_application_settings(&payload) {
-            debug!(error = %error, "early-data peer application settings are invalid");
-            handshake
-                .connection
-                .close(H3_SETTINGS_ERROR, b"invalid peer application settings");
-            return EarlyDataOutcome::Invalid(InvalidHandshake::AlpsSettings);
+        if let Err((invalid, _)) =
+            apply_peer_alps(&handshake.connection, &mut builder, Some(&payload))
+        {
+            return EarlyDataOutcome::Invalid(invalid);
         }
     }
     let (driver, sender) = match builder

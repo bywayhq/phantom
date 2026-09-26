@@ -349,7 +349,44 @@ async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
 /// credit when the server's rejection arrives. Both requests on the early
 /// session fail as unprocessed instead of blocking the restart, which needs
 /// that lock, and the connection then carries a request on its new session.
-async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<()> {
+/// How a rejection scenario's connection met the rejection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Rejection {
+    /// The server's answer arrived while requests were on the early session.
+    InFlight,
+    /// The answer arrived while the early session was still starting, so
+    /// HTTP/3 started on the connection before any request.
+    AtStart,
+}
+
+/// Checks a connection whose early data was rejected while its early
+/// session started: the answer is settled at once, and a request goes to the
+/// server once, on the session that started after it.
+async fn check_rejected_at_start(
+    connector: &super::super::Http3Connector,
+    connection: &super::super::Http3Connection,
+    served: &super::early_data::ServedOn,
+    path: &str,
+) -> TestResult<Rejection> {
+    if connection.early_data_accepted().await != Some(false) {
+        return Err("a settled early-data answer was not a rejection".into());
+    }
+    let response = timeout(
+        TEST_TIMEOUT,
+        send(connector, connection, Method::GET, path, None),
+    )
+    .await??;
+    if response.status() != StatusCode::OK {
+        return Err("the session started after the rejection did not serve".into());
+    }
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    if served != [(1, path.to_owned())] {
+        return Err(format!("unexpected requests served: {served:?}").into());
+    }
+    Ok(Rejection::AtStart)
+}
+
+async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<Rejection> {
     let identity = TestIdentity::generate()?;
     let mut early = trusting_connector(&identity)?.with_isolated_session_cache();
     if let Some(delay) = gate_delay {
@@ -370,6 +407,12 @@ async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<()> 
     let connection = connect(&early, relay).await?;
     if !connection.sent_early_data() {
         return Err("the connection sent no early data".into());
+    }
+    if !connection.early_data_pending() {
+        let rejection = check_rejected_at_start(&early, &connection, &served, "/again").await;
+        relay_task.abort();
+        server.abort();
+        return rejection;
     }
     let (first, second) = timeout(TEST_TIMEOUT, async {
         tokio::join!(
@@ -404,7 +447,7 @@ async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<()> 
     drop((again, connection));
     relay_task.abort();
     server.abort();
-    Ok(())
+    Ok(Rejection::InFlight)
 }
 
 /// Withholding the answer from the gate makes this test time out: a
@@ -413,7 +456,7 @@ async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<()> 
 /// without sending on it.
 #[tokio::test(flavor = "current_thread")]
 async fn a_request_waiting_for_stream_credit_does_not_block_a_rejection() -> TestResult<()> {
-    credit_wait_rejection(None).await
+    credit_wait_rejection(None).await.map(|_| ())
 }
 
 /// Runs a request that takes the sender after the TLS handshake completed
@@ -423,7 +466,7 @@ async fn a_request_waiting_for_stream_credit_does_not_block_a_rejection() -> Tes
 async fn handshake_window_rejection(
     gate_delay: Option<GateDelay>,
     release: Duration,
-) -> TestResult<()> {
+) -> TestResult<Rejection> {
     let identity = TestIdentity::generate()?;
     let hold = Arc::new(tokio::sync::Semaphore::new(0));
     let mut early = trusting_connector(&identity)?
@@ -448,6 +491,11 @@ async fn handshake_window_rejection(
     let connection = connect(&early, address).await?;
     if !connection.sent_early_data() {
         return Err("the connection sent no early data".into());
+    }
+    if !connection.early_data_pending() {
+        let rejection = check_rejected_at_start(&early, &connection, &served, "/between").await;
+        server.abort();
+        return rejection;
     }
     timeout(TEST_TIMEOUT, async {
         while connection.quinn().handshake_data().is_none() {
@@ -494,12 +542,14 @@ async fn handshake_window_rejection(
 
     drop(connection);
     server.abort();
-    Ok(())
+    Ok(Rejection::InFlight)
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn a_request_between_the_handshake_and_a_rejection_is_sent_once() -> TestResult<()> {
-    handshake_window_rejection(None, Duration::from_millis(100)).await
+    handshake_window_rejection(None, Duration::from_millis(100))
+        .await
+        .map(|_| ())
 }
 
 /// A request that holds the send lock while it waits for stream credit on a
@@ -605,7 +655,10 @@ fn stress_iterations() -> usize {
 /// delay between the driver receiving Quinn's answer and the stream gate
 /// seeing it. `PHANTOM_H3_STRESS_ITERATIONS` sets the repetitions (10 by
 /// default) and `PHANTOM_H3_STRESS_SEED` the delay seed, which every failure
-/// and the final count report.
+/// and the final counts report. The seed reproduces only the injected
+/// delays, not the scheduling of the runtime or the network. A connection
+/// whose rejection arrived while its early session was still starting is
+/// checked and counted as its own outcome.
 ///
 /// The delays fall between whole polls, so the test does not reach windows
 /// inside one poll, such as the handshake completing between the permit and
@@ -613,34 +666,40 @@ fn stress_iterations() -> usize {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult<()> {
     let iterations = stress_iterations();
-    let seed = std::env::var("PHANTOM_H3_STRESS_SEED")
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or_else(|| {
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|elapsed| elapsed.as_nanos() as u64)
-                .unwrap_or(0x9e37_79b9_7f4a_7c15)
-        });
-    let mut passed = (0, 0);
+    let seed = match std::env::var("PHANTOM_H3_STRESS_SEED") {
+        Ok(value) => value
+            .parse::<u64>()
+            .map_err(|_| format!("PHANTOM_H3_STRESS_SEED is not a u64: {value:?}"))?,
+        Err(_) => std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_nanos() as u64)
+            .unwrap_or(0x9e37_79b9_7f4a_7c15),
+    };
+    let mut credit_wait = [0_usize; 2];
+    let mut handshake_window = [0_usize; 2];
+    let index = |rejection| match rejection {
+        Rejection::InFlight => 0,
+        Rejection::AtStart => 1,
+    };
     for iteration in 0..iterations {
-        let delay = random_gate_delay(seed.wrapping_add(iteration as u64));
-        credit_wait_rejection(Some(delay.clone()))
+        let mixed = seed ^ (iteration as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+        let delay = random_gate_delay(mixed);
+        let rejection = credit_wait_rejection(Some(delay.clone()))
             .await
             .map_err(|error| format!("credit wait, seed {seed}, iteration {iteration}: {error}"))?;
-        passed.0 += 1;
-        let release = Duration::from_micros((seed >> (iteration % 32)) % 5_000);
-        handshake_window_rejection(Some(delay), release)
+        credit_wait[index(rejection)] += 1;
+        let release = Duration::from_micros(mixed.rotate_left(17) % 5_000);
+        let rejection = handshake_window_rejection(Some(delay), release)
             .await
             .map_err(|error| {
                 format!("handshake window, seed {seed}, iteration {iteration}: {error}")
             })?;
-        passed.1 += 1;
+        handshake_window[index(rejection)] += 1;
     }
-    let (credit_wait, handshake_window) = passed;
     println!(
-        "seed {seed}: passed credit wait {credit_wait}/{iterations}, \
-         handshake window {handshake_window}/{iterations}"
+        "seed {seed}: {iterations} iterations; credit wait passed {} in flight and {} at \
+         start; handshake window passed {} in flight and {} at start",
+        credit_wait[0], credit_wait[1], handshake_window[0], handshake_window[1]
     );
     Ok(())
 }
@@ -668,8 +727,17 @@ async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> Te
     endpoint.set_server_config(Some(server_config(&identity, false)?));
 
     let connection = connect(&early, address).await?;
-    assert!(!connection.sent_early_data());
+    // The connection offered early data, and the server rejected it.
+    assert!(connection.sent_early_data());
+    assert!(!connection.early_data_pending());
+    assert_eq!(connection.early_data_accepted().await, Some(false));
     assert!(!connection.started_from_remembered_settings());
+    // The session that started after the rejection took client streams 2,
+    // 6, and 10 for its control and QPACK streams, as a fresh connection's
+    // does, so the next unidirectional stream is 14.
+    let next = connection.quinn().open_uni().await?;
+    assert_eq!(u64::from(next.id()), 14);
+    drop(next);
     let response = send(&early, &connection, Method::GET, "/started", None).await?;
     assert_eq!(response.status(), StatusCode::OK);
     let served = served.lock().map_err(|_| "served paths poisoned")?.clone();

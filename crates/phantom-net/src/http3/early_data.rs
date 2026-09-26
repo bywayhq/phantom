@@ -109,6 +109,12 @@ impl EarlyData {
 }
 
 impl EarlyDataAnswer {
+    /// Publishes an answer known without waiting, as when the server
+    /// rejected the early data before the early session had started.
+    pub(super) fn publish(self, outcome: EarlyDataOutcome) {
+        let _ = self.sender.send(Some(outcome));
+    }
+
     /// Makes the connection take a permit from `hold` after Quinn's answer
     /// arrives and before the handshake metadata is checked or HTTP/3 starts
     /// again, for tests of requests sent in between.
