@@ -44,6 +44,13 @@ rustup toolchain install 1.88.0 --profile minimal
 rustup toolchain install 1.85.0 --profile minimal
 ```
 
+The gate runs the workspace tests with [cargo-nextest](https://nexte.st/),
+at the version CI installs:
+
+```console
+cargo install --locked cargo-nextest@0.9.140
+```
+
 ### Windows
 
 Install the native prerequisites with `winget` from PowerShell:
@@ -131,14 +138,20 @@ regression test.
 ## Run the checks
 
 The integration gate is defined in
-[AGENTS.md](AGENTS.md#verification-and-handoff), which is authoritative. It is
-copied here so this page is complete; change both lists together. Run it from
-the repository root:
+[AGENTS.md](AGENTS.md#verification-and-handoff), which is authoritative. Run
+it from the repository root with `scripts/dev/gate.sh`, which runs
+independent steps in parallel, writes a log per step under `target/gate/logs`,
+and prints a table of results. For a quicker check of one change, run
+`scripts/dev/gate.sh --quick`; [Development
+helpers](scripts/dev/README.md#integration-gate) has the options. The script
+runs these commands, copied here so this page is complete; change both lists
+together:
 
 ```console
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
+cargo nextest run --workspace --all-targets --all-features --locked
+cargo test --doc --workspace --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
 uvx ruff@0.16.8 check scripts/capture scripts/conformance scripts/docs
@@ -158,9 +171,12 @@ uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 - Read the output of every command. A list joined with `;` or piped through
   `tail` reports the status of its last command only, so search the output for
   `error`, `FAILED`, and `warning`.
-- `cargo test` compiles the Rust examples in `README.md`,
+- nextest does not run doctests, and neither does `cargo test --all-targets`.
+  `cargo test --doc` compiles and runs the Rust examples in `README.md`,
   `docs/getting-started.md`, and the guides that `crates/phantom/src/lib.rs`
   includes. A new guide with Rust code needs an include there.
+- Without nextest, `cargo test --workspace --all-targets --all-features
+  --locked` runs the same tests in one process per test binary.
 - CI installs ruff and the Python test dependencies from the hash-pinned
   `scripts/requirements.txt`, generated from `scripts/requirements.in` by the
   command in its header. That file is the source of each Python tool version,
@@ -168,8 +184,9 @@ uv run --no-project --python 3.10 python scripts/docs/check_docs.py
   `--with` pins above, the ruff `required-version` in `pyproject.toml`, and
   the permission rules in `.claude/settings.json` are copies:
   `scripts/ci/check-tool-pins.sh` fails when a copy disagrees with the
-  requirements file, or when the pinned nightly or ShellCheck version differs
-  between files.
+  requirements file, when the pinned nightly or ShellCheck version differs
+  between files, or when a `cargo-nextest@` version differs from the one that
+  `.config/nextest.toml` recommends.
 
 Run these too when the change touches their area:
 

@@ -21,7 +21,8 @@ An agent that uses Phantom as a library, rather than changing it, should read
 - Documentation follows
   [Writing the documentation](docs/internals/documentation.md); check it with
   `python scripts/docs/check_docs.py`.
-- The full integration gate is under
+- Run the full integration gate with `scripts/dev/gate.sh`, and a lane's
+  checks with `scripts/dev/gate.sh --quick`; see
   [Verification and handoff](#verification-and-handoff).
 
 ## Before editing
@@ -131,12 +132,20 @@ Use a sibling worktree only when independent work can proceed concurrently.
 ## Verification and handoff
 
 Run the narrowest relevant checks while iterating, then the applicable gates
-from [CONTRIBUTING.md](CONTRIBUTING.md). The full integration gate is:
+from [CONTRIBUTING.md](CONTRIBUTING.md). `scripts/dev/gate.sh` runs the full
+integration gate with independent steps in parallel, each Cargo step through
+the lock helper and in its own target directory, and prints a table of step
+results. `scripts/dev/gate.sh --quick` runs formatting, Clippy, the tests of
+the changed crates and their dependents, and the docs checker, for a lane.
+[Development helpers](scripts/dev/README.md#integration-gate) describes both.
+
+The script runs these commands, which remain the reference for the gate:
 
 ```sh
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
+cargo nextest run --workspace --all-targets --all-features --locked
+cargo test --doc --workspace --all-features --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo +1.88.0 check --workspace --all-targets --locked
 uvx ruff@0.16.8 check scripts/capture scripts/conformance scripts/docs
@@ -151,10 +160,17 @@ uv run --no-project --python 3.10 \
 uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
+nextest runs each test in its own process and does not run doctests, hence
+the separate `cargo test --doc`; without nextest, `cargo test --workspace
+--all-targets --all-features --locked` runs the same tests. The script also
+runs the fuzz crate's Clippy and tests, the optional feature rows of the CI
+Features and MSRV jobs, and `scripts/ci/check-tool-pins.sh`.
+
 Read the output of every gate command. A command list joined with `;` or
 piped through `tail` or `grep` reports the status of its last command, not of
 Cargo, so search the output for `error`, `FAILED`, and `warning` before
-declaring success or merging.
+declaring success or merging. `gate.sh` searches each step's log for these
+and marks a step `FLAG` when its log shows one; read the flagged log.
 
 Run `scripts/ci/check-vendor.sh <package>` for every vendored package touched.
 [CONTRIBUTING.md](CONTRIBUTING.md) lists the conditional ShellCheck, fuzz, and

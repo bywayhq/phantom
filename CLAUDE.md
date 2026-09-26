@@ -13,8 +13,11 @@
   evidence), and `/phantom-docs` (write or review documentation). The
   `gate-reviewer` subagent reviews a lane diff against AGENTS.md before
   integration.
+- A lane checks its work with `scripts/dev/gate.sh --quick`; the integration
+  checkout runs the full `scripts/dev/gate.sh` on the rebased branch.
 - The Bash tool times out after at most ten minutes, and waiting for the Cargo
-  lock counts toward it. Run the full gate or a long `cargo test` in the
-  background, write its output to a log, and read the log.
+  lock counts toward it. Run the gate or a long `cargo test` in the
+  background, write its output to a log, and read the log and the per-step
+  logs it names.
 - Give each subagent an explicit list of owned files and the checks it must
   run. Subagents report back; they do not merge, push, or edit another lane.
