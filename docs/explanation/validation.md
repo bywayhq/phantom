@@ -1417,15 +1417,33 @@ aioquic 1.3.0 capture servers. All 60 connections agree on the following.
   changes on every connection, except that `quic_transport_parameters` and
   `encrypted_client_hello` are always last.
 
-A diagnostic run, not retained, hooked the snapshot server's datagram input:
-every Initial datagram Firefox sent was 1252 bytes, the ClientHello with its
-X25519MLKEM768 key share took two of them, and the first Destination
-Connection IDs were 11 and 17 bytes. neqo's `ConnectionId::generate_initial`
-(`neqo-transport/src/cid.rs`) draws the length as `max(8, 5 + (b & (b >>
-4)))` for a random byte `b`; the recipe uses that rule. The reserved frame
-and the QPACK rules are read from neqo's `main` branch on 2026-09-26
-(`neqo-http3/src/frames/hframe.rs`, `neqo-qpack/src/encoder.rs`), and the
-captures agree with them.
+The snapshot server records each client Initial datagram: its size,
+version, and connection ID lengths. In all five snapshots every Initial
+datagram was 1252 bytes, and the ClientHello with its X25519MLKEM768 key
+share took two of them. The first Destination Connection IDs were 8, 8, 8,
+9, and 11 bytes.
+
+Firefox 156.0.1 vendors neqo 0.30.1
+(`third_party/rust/neqo-*` at `FIREFOX_156_0_1_RELEASE`), and the rules
+below are read from that version:
+
+- `ConnectionId::generate_initial` (`neqo-transport/src/cid.rs`, lines 54
+  to 59) draws the first Destination Connection ID's length as
+  `max(8, 5 + (b & (b >> 4)))` for a random byte `b`. The recipe uses that
+  rule.
+- A path starts at a 1280-byte IP MTU, less 28 header bytes over IPv4 and
+  48 over IPv6 (`neqo-transport/src/pmtud.rs`, lines 26 to 30 and 76 to
+  81). The recipe's `initial_path_mtu` is 1280, so Phantom's Initial
+  datagrams are 1252 bytes over IPv4 and 1232 over IPv6.
+- `Http3Connection::send_settings` (`neqo-http3/src/connection.rs`, lines
+  365 to 371) queues one reserved frame after SETTINGS, and
+  `HFrame::Grease` (`neqo-http3/src/frames/hframe.rs`, lines 101 to 105 and
+  146 to 150) draws its type and a payload of zero to seven bytes.
+- `Encoder::encode_header_block` (`neqo-qpack/src/encoder.rs`, lines 404 to
+  513) and `HeaderTable::lookup` (`neqo-qpack/src/table.rs`, lines 231 to
+  261) set the QPACK rules.
+
+The captures agree with each rule.
 
 Tests replay the captures:
 
@@ -1438,12 +1456,20 @@ Tests replay the captures:
   and value, apart from the connection ID bytes and the reserved version.
   The control stream carries the captured SETTINGS frame byte for byte and
   one reserved frame, and streams 2, 6, and 10 carry types 0, 2, and 3.
-- `firefox_156_initial_datagrams_have_the_measured_sizes` receives the two
-  Initial datagrams on a bare UDP socket: 1252 bytes each, the size the
-  diagnostic run measured, version 1, a 3-byte Source Connection ID, and an
-  8- to 20-byte Destination one.
+- `firefox_156_initial_datagrams_match_the_capture` receives the two
+  Initial datagrams on a bare IPv4 UDP socket and compares them with the
+  first two of each snapshot: the size, the version, and the Source
+  Connection ID length are equal, and both Destination Connection IDs are 8
+  to 20 bytes. `firefox_156_initial_datagrams_leave_room_for_ipv6_headers`
+  checks 1232-byte datagrams over IPv6, which no capture covers.
+- `firefox_156_recipe_completes_a_request` sends a request with the Firefox
+  recipes to a loopback `h3` server.
+- `firefox_156_client_follows_a_server_to_version_2` runs the BoringSSL
+  session through a v2-only Quinn server. A relay protects Phantom's v1
+  Initials again as v2, the server answers in v2, and Phantom switches and
+  completes the request in v2.
 - `firefox_cookie_fields_match_the_captured_qpack_bytes` encodes the four
-  requests of the Firefox 156.0 HTTP/3 cookie capture through the request
+  requests of the Firefox 156.0.1 HTTP/3 cookie capture through the request
   recipe and the QPACK encoding; the encoder stream and all four field
   sections equal the capture. A unit test in the vendored `h3` does the same
   for the snapshot's two requests.

@@ -1,16 +1,28 @@
 //! The Firefox 156 HTTP/3 recipe against the retained Firefox 156.0.1 captures.
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 use btls::ssl::{AlpnError, select_next_proto};
+use bytes::{Bytes, BytesMut};
+use http::{Response, StatusCode};
+use http_body_util::BodyExt;
 use phantom_profile::firefox;
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::ClientHelloSummary;
+use quinn::crypto::ServerConfig as _;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{net::UdpSocket, time::timeout};
 
 use super::super::Http3Connector;
 use super::connector::{client_hello_extension, fixture_hex};
-use super::{TEST_TIMEOUT, TestResult};
+use super::{TEST_TIMEOUT, TestResult, accept_request, server_endpoint};
+use crate::request::{OriginForm, RequestHeader};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 
 const SNAPSHOTS: [&str; 3] = [
@@ -246,13 +258,37 @@ fn control_prefix_complete(bytes: &[u8], settings_len: usize) -> TestResult<bool
     Ok(bytes.len() >= offset + usize::try_from(length)?)
 }
 
-/// The sizes come from a diagnostic run against the snapshot server that was
-/// not retained; see the Firefox 156 HTTP/3 recipe in Validation.
-#[tokio::test(flavor = "current_thread")]
-async fn firefox_156_initial_datagrams_have_the_measured_sizes() -> TestResult<()> {
+/// One client Initial datagram: size, version, and the lengths of its
+/// Destination and Source Connection IDs.
+type InitialDatagram = (usize, u32, usize, usize);
+
+fn captured_initial_datagram(snapshot: &str, index: usize) -> TestResult<InitialDatagram> {
+    let key = format!("quic_connection_0_initial_datagram_{index}=");
+    let line = snapshot
+        .lines()
+        .find_map(|line| line.strip_prefix(key.as_str()))
+        .ok_or("snapshot has no such Initial datagram")?;
+    let mut fields = line.split(',').map(|field| field.split_once(':'));
+    let mut next = |name: &str| -> TestResult<String> {
+        match fields.next().flatten() {
+            Some((key, value)) if key == name => Ok(value.to_owned()),
+            _ => Err(format!("snapshot Initial datagram has no {name}").into()),
+        }
+    };
+    Ok((
+        next("size")?.parse()?,
+        u32::from_str_radix(next("version")?.trim_start_matches("0x"), 16)?,
+        next("destination_cid_length")?.parse()?,
+        next("source_cid_length")?.parse()?,
+    ))
+}
+
+/// Sends the first flight to a silent loopback socket bound to `bind` and
+/// returns its first two datagrams.
+async fn first_flight(bind: SocketAddr) -> TestResult<Vec<InitialDatagram>> {
     let identity = TestIdentity::generate()?;
     let connector = connector(&identity)?;
-    let socket = UdpSocket::bind("127.0.0.1:0").await?;
+    let socket = UdpSocket::bind(bind).await?;
     let address = socket.local_addr()?;
     let host = address.ip().to_string();
     let attempt = tokio::spawn(async move {
@@ -263,16 +299,268 @@ async fn firefox_156_initial_datagrams_have_the_measured_sizes() -> TestResult<(
 
     // The X25519MLKEM768 key share puts the ClientHello in two Initial packets.
     let mut buffer = [0_u8; 2048];
+    let mut datagrams = Vec::new();
     for _ in 0..2 {
         let (length, _) = timeout(TEST_TIMEOUT, socket.recv_from(&mut buffer)).await??;
         let datagram = &buffer[..length];
-        assert_eq!(length, 1_252);
         assert_eq!(datagram[0] & 0xb0, 0x80, "a version 1 Initial");
-        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
         let destination_length = usize::from(datagram[5]);
-        assert!((8..=20).contains(&destination_length));
-        assert_eq!(datagram[6 + destination_length], 3);
+        datagrams.push((
+            length,
+            u32::from_be_bytes(datagram[1..5].try_into()?),
+            destination_length,
+            usize::from(datagram[6 + destination_length]),
+        ));
     }
     attempt.abort();
+    Ok(datagrams)
+}
+
+/// The snapshots record Firefox's Initial datagrams over IPv4 loopback. neqo
+/// draws a Destination Connection ID of 8 to 20 bytes
+/// (`ConnectionId::generate_initial`, `neqo-transport/src/cid.rs` lines 54 to
+/// 59 in neqo 0.30.1), so only that range is compared.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_156_initial_datagrams_match_the_capture() -> TestResult<()> {
+    let actual = first_flight((Ipv4Addr::LOCALHOST, 0).into()).await?;
+    assert_eq!(actual[0].2, actual[1].2);
+    for snapshot in SNAPSHOTS {
+        for (index, actual) in actual.iter().enumerate() {
+            let captured = captured_initial_datagram(snapshot, index)?;
+            assert_eq!(
+                (actual.0, actual.1, actual.3),
+                (captured.0, captured.1, captured.3)
+            );
+            assert!((8..=20).contains(&actual.2));
+            assert!((8..=20).contains(&captured.2));
+        }
+    }
+    assert_eq!((actual[0].0, actual[0].1), (1_252, QUIC_V1));
+    Ok(())
+}
+
+/// neqo starts a path at a 1280-byte IP MTU less the IPv6 and UDP headers
+/// (`neqo-transport/src/pmtud.rs` lines 76 to 81 in neqo 0.30.1). No capture
+/// covers IPv6.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_156_initial_datagrams_leave_room_for_ipv6_headers() -> TestResult<()> {
+    let actual = first_flight((Ipv6Addr::LOCALHOST, 0).into()).await?;
+    assert!(
+        actual.iter().all(|datagram| datagram.0 == 1_232),
+        "{actual:?}"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_156_recipe_completes_a_request() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = connector(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    // The server keeps its connection until the client has read the body.
+    let server = async {
+        let (request, mut stream, connection) = accept_request(&endpoint).await?;
+        assert_eq!(request.method(), http::Method::GET);
+        assert_eq!(request.uri().path(), "/firefox");
+        let probe = request
+            .headers()
+            .get("x-probe")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        stream
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+        stream.send_data(Bytes::from_static(b"served")).await?;
+        stream.finish().await?;
+        TestResult::Ok((probe, connection))
+    };
+    let request = super::super::prepare_traced_request(
+        &firefox::v156_http3_request(),
+        http::Method::GET,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/firefox")?,
+        vec![RequestHeader::new("x-probe", "firefox")],
+        None,
+    )?;
+    let client = async {
+        let response = connector
+            .send_prepared_to_addresses(vec![address], TEST_SERVER_NAME, request)
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        TestResult::Ok(response.into_body().collect().await?.to_bytes())
+    };
+    let (body, (probe, _connection)) =
+        timeout(TEST_TIMEOUT, async { tokio::try_join!(client, server) }).await??;
+    assert_eq!(body, "served");
+    assert_eq!(probe.as_deref(), Some("firefox"));
+    Ok(())
+}
+
+/// A rustls QUIC server for `h3` that speaks only version 2 and names it in
+/// its `version_information`.
+fn v2_server(
+    identity: &TestIdentity,
+) -> TestResult<(
+    SocketAddr,
+    quinn::Endpoint,
+    Arc<quinn::crypto::rustls::QuicServerConfig>,
+)> {
+    let certificate = CertificateDer::from(identity.leaf_der().to_vec());
+    let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        identity.private_key_der().to_vec(),
+    ));
+    let mut tls = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], private_key)?;
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+    let crypto = Arc::new(quinn::crypto::rustls::QuicServerConfig::try_from(tls)?);
+    let mut endpoint_config = quinn::EndpointConfig::default();
+    endpoint_config
+        .supported_versions(vec![QUIC_V2])
+        .compatible_versions(vec![QUIC_V2]);
+    let socket = std::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let endpoint = quinn::Endpoint::new(
+        endpoint_config,
+        Some(quinn::ServerConfig::with_crypto(crypto.clone())),
+        socket,
+        Arc::new(quinn::TokioRuntime),
+    )?;
+    Ok((endpoint.local_addr()?, endpoint, crypto))
+}
+
+/// Protects a client's version 1 Initial again as a version 2 Initial (RFC
+/// 9369), keeping its packet number, connection IDs, and payload.
+fn initial_v1_as_v2(
+    keys: &quinn::crypto::rustls::QuicServerConfig,
+    datagram: &[u8],
+) -> TestResult<Vec<u8>> {
+    let mut packet = datagram.to_vec();
+    assert_eq!(packet[0] & 0xb0, 0x80, "a version 1 Initial");
+    let destination_length = usize::from(packet[5]);
+    let destination = quinn::ConnectionId::new(&packet[6..6 + destination_length]);
+    let mut offset = 6 + destination_length;
+    offset += 1 + usize::from(packet[offset]);
+    let (token_length, _) = varint(&packet, &mut offset)?;
+    offset += usize::try_from(token_length)?;
+    let (length, _) = varint(&packet, &mut offset)?;
+    let pn_offset = offset;
+    assert_eq!(
+        pn_offset + usize::try_from(length)?,
+        packet.len(),
+        "one Initial per datagram"
+    );
+
+    let v1 = keys
+        .initial_keys(QUIC_V1, &destination)
+        .map_err(|_| "no version 1 Initial keys")?;
+    v1.header.remote.decrypt(pn_offset, &mut packet);
+    let header_length = pn_offset + usize::from(packet[0] & 0x03) + 1;
+    let number = packet[pn_offset..header_length]
+        .iter()
+        .fold(0_u64, |number, byte| (number << 8) | u64::from(*byte));
+    let mut payload = BytesMut::from(&packet[header_length..]);
+    v1.packet
+        .remote
+        .decrypt(number, &packet[..header_length], &mut payload)
+        .map_err(|_| "the version 1 Initial did not authenticate")?;
+
+    let v2 = keys
+        .initial_keys(QUIC_V2, &destination)
+        .map_err(|_| "no version 2 Initial keys")?;
+    packet[0] = (packet[0] & !0x30) | 0x10;
+    packet[1..5].copy_from_slice(&QUIC_V2.to_be_bytes());
+    packet.truncate(header_length);
+    packet.extend_from_slice(&payload);
+    packet.resize(packet.len() + v2.packet.remote.tag_len(), 0);
+    v2.packet.remote.encrypt(number, &mut packet, header_length);
+    v2.header.remote.encrypt(pn_offset, &mut packet);
+    Ok(packet)
+}
+
+/// Forwards datagrams between one client and `server`, re-protecting the
+/// client's version 1 Initials as version 2, and counts the client's
+/// version 2 long-header packets.
+async fn v2_relay(
+    socket: UdpSocket,
+    server: SocketAddr,
+    keys: Arc<quinn::crypto::rustls::QuicServerConfig>,
+    client_v2_packets: Arc<AtomicUsize>,
+) -> TestResult<()> {
+    let mut client = None;
+    let mut buffer = [0_u8; 2048];
+    loop {
+        let (length, from) = socket.recv_from(&mut buffer).await?;
+        let datagram = &buffer[..length];
+        if from == server {
+            if let Some(client) = client {
+                socket.send_to(datagram, client).await?;
+            }
+            continue;
+        }
+        client = Some(from);
+        let long_version = (datagram[0] & 0x80 != 0).then(|| &datagram[1..5]);
+        let forwarded = match long_version {
+            Some(version) if version == QUIC_V1.to_be_bytes() => initial_v1_as_v2(&keys, datagram)?,
+            Some(version) => {
+                assert_eq!(version, QUIC_V2.to_be_bytes());
+                client_v2_packets.fetch_add(1, Ordering::Relaxed);
+                datagram.to_vec()
+            }
+            None => datagram.to_vec(),
+        };
+        socket.send_to(&forwarded, server).await?;
+    }
+}
+
+/// The BoringSSL session switches from version 1 to version 2 when a
+/// version 2-only server answers its first flight in version 2 (RFC 9368
+/// section 2.3), and the request completes in version 2.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_156_client_follows_a_server_to_version_2() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = connector(&identity)?;
+    let (server_address, endpoint, keys) = v2_server(&identity)?;
+    let relay_socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let relay_address = relay_socket.local_addr()?;
+    let client_v2_packets = Arc::new(AtomicUsize::new(0));
+    let relay = tokio::spawn(v2_relay(
+        relay_socket,
+        server_address,
+        keys,
+        client_v2_packets.clone(),
+    ));
+    let server = async {
+        let (_request, mut stream, connection) = accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        TestResult::Ok(connection)
+    };
+    let request = super::super::prepare_traced_request(
+        &firefox::v156_http3_request(),
+        http::Method::GET,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/")?,
+        Vec::new(),
+        None,
+    )?;
+    let client = async {
+        let response = connector
+            .send_prepared_to_addresses(vec![relay_address], TEST_SERVER_NAME, request)
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        TestResult::Ok(())
+    };
+    let ((), _connection) =
+        timeout(TEST_TIMEOUT, async { tokio::try_join!(client, server) }).await??;
+    relay.abort();
+    // The Handshake packets that finish the handshake can only be version 2.
+    assert!(client_v2_packets.load(Ordering::Relaxed) > 0);
     Ok(())
 }
