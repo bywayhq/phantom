@@ -27,6 +27,9 @@ where
 
     /// Prevents repeated self-wakes while an idle GOAWAY awaits codec capacity.
     idle_close_requested: bool,
+
+    /// Whether frames read are reported to the preface PING state.
+    preface_ping: bool,
 }
 
 // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
@@ -82,6 +85,8 @@ pub(crate) struct Config {
     pub next_stream_id: StreamId,
     pub initial_max_send_streams: usize,
     pub retain_initial_max_send_streams: bool,
+    pub max_send_streams_cap: usize,
+    pub preface_ping: Option<Duration>,
     pub max_send_buffer_size: usize,
     pub reset_stream_duration: Duration,
     pub reset_stream_max: usize,
@@ -129,6 +134,8 @@ where
             streams::Config {
                 initial_max_send_streams: config.initial_max_send_streams,
                 retain_initial_max_send_streams: config.retain_initial_max_send_streams,
+                max_send_streams_cap: config.max_send_streams_cap,
+                preface_ping: config.preface_ping,
                 local_max_buffer_size: config.max_send_buffer_size,
                 local_next_stream_id: config.next_stream_id,
                 local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),
@@ -160,6 +167,7 @@ where
         Connection {
             codec,
             idle_close_requested: false,
+            preface_ping: config.preface_ping.is_some(),
             inner: ConnectionInner {
                 state: State::Open,
                 error: None,
@@ -405,6 +413,18 @@ where
             {
                 proto_err!(conn: "first peer frame was not a non-ACK SETTINGS frame");
                 return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
+            }
+
+            if self.preface_ping {
+                if let Some(frame) = &frame {
+                    let ack = match frame {
+                        Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
+                        _ => None,
+                    };
+                    if self.inner.streams.recv_frame_for_preface_ping(ack) {
+                        continue;
+                    }
+                }
             }
 
             match self.inner.as_dyn().recv_frame(frame)? {

@@ -362,6 +362,10 @@ impl Send {
         Ok(())
     }
 
+    pub fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
+        self.prioritize.recv_frame_for_preface_ping(ack)
+    }
+
     pub fn poll_complete<T, B>(
         &mut self,
         cx: &mut Context,

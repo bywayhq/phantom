@@ -196,6 +196,13 @@ where
         me.actions.recv.send_pending_refusal(cx, dst)
     }
 
+    /// Records a frame read from the peer for the preface PING. Returns `true`
+    /// when `ack` acknowledges the preface PING in flight.
+    pub fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
+        let mut me = self.inner.lock();
+        me.actions.send.recv_frame_for_preface_ping(ack)
+    }
+
     pub fn clear_expired_reset_streams(&mut self) {
         let mut me = self.inner.lock();
         let me = &mut *me;

@@ -1,6 +1,7 @@
 mod buffer;
 mod counts;
 mod flow_control;
+mod preface_ping;
 mod prioritize;
 mod recv;
 mod send;
@@ -44,6 +45,14 @@ pub struct Config {
     /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`
     /// instead of lifting the limit.
     pub retain_initial_max_send_streams: bool,
+
+    /// Highest peer-stated SETTINGS_MAX_CONCURRENT_STREAMS applied as the
+    /// send limit; a larger stated value is lowered to it.
+    pub max_send_streams_cap: usize,
+
+    /// Read-idle time after which a PING follows the next request HEADERS or
+    /// non-empty DATA frame.
+    pub preface_ping: Option<Duration>,
 
     /// Max amount of DATA bytes to buffer per stream.
     pub local_max_buffer_size: usize,

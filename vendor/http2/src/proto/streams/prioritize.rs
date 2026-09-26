@@ -1,3 +1,4 @@
+use super::preface_ping::PrefacePing;
 use super::store::Resolve;
 use super::*;
 
@@ -13,6 +14,7 @@ use std::{
     cmp::{self, Ordering},
     fmt, io, mem,
     task::{Context, Poll, Waker},
+    time::Instant,
 };
 
 /// # Warning
@@ -58,6 +60,9 @@ pub(super) struct Prioritize {
 
     /// The maximum amount of bytes a stream should buffer.
     max_buffer_size: usize,
+
+    /// When a PING follows a request frame on a read-idle connection.
+    preface_ping: Option<PrefacePing>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -103,6 +108,14 @@ impl Prioritize {
             last_opened_id: StreamId::ZERO,
             in_flight_data_frame: InFlightData::Nothing,
             max_buffer_size: config.local_max_buffer_size,
+            preface_ping: config.preface_ping.map(PrefacePing::new),
+        }
+    }
+
+    pub(super) fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
+        match &mut self.preface_ping {
+            Some(preface_ping) => preface_ping.recv_frame(Instant::now(), ack),
+            None => false,
         }
     }
 
@@ -524,6 +537,13 @@ impl Prioritize {
         tracing::trace!("poll_complete");
 
         loop {
+            // The codec is ready here, and a PING owed to the frame buffered
+            // last must follow it before any other frame.
+            if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
+                dst.buffer(ping.into()).expect("invalid frame");
+                ready!(dst.poll_ready(cx))?;
+            }
+
             if let Some(mut stream) = self.pop_pending_open(store, counts) {
                 self.pending_send.push_front(&mut stream);
                 self.try_assign_capacity(&mut stream);
@@ -536,6 +556,9 @@ impl Prioritize {
                     debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
                     if let Frame::Data(ref frame) = frame {
                         self.in_flight_data_frame = InFlightData::DataFrame(frame.payload().stream);
+                    }
+                    if let Some(preface_ping) = &mut self.preface_ping {
+                        preface_ping.sent(&frame, Instant::now());
                     }
                     dst.buffer(frame).expect("invalid frame");
 

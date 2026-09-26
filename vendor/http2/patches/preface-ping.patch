@@ -1,0 +1,503 @@
+diff --git a/src/client.rs b/src/client.rs
+index 0230a8f0..d1426993 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -332,6 +332,9 @@ pub struct Builder {
+     /// Highest peer-stated MAX_CONCURRENT_STREAMS honored as the send limit.
+     max_send_streams_cap: usize,
+ 
++    /// Read-idle time after which a PING follows the next request frame.
++    preface_ping: Option<Duration>,
++
+     /// Initial target window size for new connections.
+     initial_target_connection_window_size: Option<u32>,
+ 
+@@ -719,6 +722,7 @@ impl Builder {
+             initial_max_send_streams: usize::MAX,
+             retain_initial_max_send_streams: false,
+             max_send_streams_cap: usize::MAX,
++            preface_ping: None,
+             settings: Default::default(),
+             #[cfg(feature = "unstable")]
+             initial_peer_settings: None,
+@@ -1054,6 +1058,23 @@ impl Builder {
+         self
+     }
+ 
++    /// Sends a PING right after a request frame once nothing has been read
++    /// from the peer for longer than `idle`.
++    ///
++    /// The request frames are a request's HEADERS and each DATA frame with a
++    /// non-empty payload. The PING is the next frame the send path writes
++    /// after the request frame. A PING is written only while no earlier one
++    /// awaits its ACK; any frame read from the peer restarts the idle time.
++    /// The first PING's payload is the 64-bit big-endian value 1, and each
++    /// later one carries the next value. A PING whose ACK never arrives does
++    /// not close the connection, but no further PING is sent on it.
++    ///
++    /// By default no such PING is sent.
++    pub fn preface_ping(&mut self, idle: Duration) -> &mut Self {
++        self.preface_ping = Some(idle);
++        self
++    }
++
+     /// Sets the maximum number of concurrent locally reset streams.
+     ///
+     /// When a stream is explicitly reset, the HTTP/2 specification requires
+@@ -1580,6 +1601,7 @@ where
+                 initial_max_send_streams: builder.initial_max_send_streams,
+                 retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
+                 max_send_streams_cap: builder.max_send_streams_cap,
++                preface_ping: builder.preface_ping,
+                 max_send_buffer_size: builder.max_send_buffer_size,
+                 reset_stream_duration: builder.reset_stream_duration,
+                 reset_stream_max: builder.reset_stream_max,
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 411c5d76..8e007de4 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -1219,6 +1219,162 @@ async fn stated_stream_limit_is_lowered_to_the_cap() {
+     .expect("stream limit cap test timed out");
+ }
+ 
++const PREFACE_IDLE: Duration = Duration::from_millis(250);
++const PAST_PREFACE_IDLE: Duration = Duration::from_millis(400);
++
++#[tokio::test]
++async fn preface_ping_follows_request_headers_only_after_read_idle() {
++    timeout(Duration::from_secs(5), async {
++        let (mut peer, mut sender, driver) = preface_ping_client().await;
++        let mut responses = Vec::new();
++
++        responses.push(send_empty_request(&mut sender).await);
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, headers.stream_id, ping), (1, 1, None));
++
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        responses.push(send_empty_request(&mut sender).await);
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, headers.stream_id), (1, 3));
++        assert_eq!(ping, Some(1_u64.to_be_bytes()));
++        write_raw_frame(&mut peer, 6, 1, 0, &1_u64.to_be_bytes()).await;
++
++        // Reading the ACK restarts the idle time.
++        responses.push(send_empty_request(&mut sender).await);
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, headers.stream_id, ping), (1, 5, None));
++
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        responses.push(send_empty_request(&mut sender).await);
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, headers.stream_id), (1, 7));
++        assert_eq!(ping, Some(2_u64.to_be_bytes()));
++        driver.abort();
++    })
++    .await
++    .expect("preface PING test timed out");
++}
++
++#[tokio::test]
++async fn preface_ping_is_not_repeated_while_one_awaits_its_ack() {
++    timeout(Duration::from_secs(5), async {
++        let (mut peer, mut sender, driver) = preface_ping_client().await;
++        let mut responses = Vec::new();
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        responses.push(send_empty_request(&mut sender).await);
++        let (_, ping) = read_request_frame(&mut peer).await;
++        assert_eq!(ping, Some(1_u64.to_be_bytes()));
++
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        responses.push(send_empty_request(&mut sender).await);
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, headers.stream_id, ping), (1, 3, None));
++        driver.abort();
++    })
++    .await
++    .expect("preface PING in flight test timed out");
++}
++
++#[tokio::test]
++async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
++    timeout(Duration::from_secs(5), async {
++        let (mut peer, mut sender, driver) = preface_ping_client().await;
++        poll_fn(|cx| sender.poll_ready(cx))
++            .await
++            .expect("sender never became ready");
++        let (_response, mut body) = sender
++            .send_request(data_budget_request(), false)
++            .expect("request was rejected");
++        let (headers, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((headers.kind, ping), (1, None));
++
++        // Large enough for the codec to write the payload after the frame
++        // head, so the PING must wait for the whole frame.
++        let chunk = Bytes::from(vec![0x61; 4096]);
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        body.send_data(chunk.clone(), false)
++            .expect("data was rejected");
++        let (data, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((data.kind, data.payload.as_slice()), (0, &chunk[..]));
++        assert_eq!(ping, Some(1_u64.to_be_bytes()));
++        write_raw_frame(&mut peer, 6, 1, 0, &1_u64.to_be_bytes()).await;
++
++        // An empty DATA frame owes no PING.
++        tokio::time::sleep(PAST_PREFACE_IDLE).await;
++        body.send_data(Bytes::new(), true)
++            .expect("end of stream was rejected");
++        let (data, ping) = read_request_frame(&mut peer).await;
++        assert_eq!((data.kind, data.flags, ping), (0, 1, None));
++        driver.abort();
++    })
++    .await
++    .expect("preface PING after DATA test timed out");
++}
++
++/// Opens a client that sends a preface PING after `PREFACE_IDLE` without a
++/// read, and completes the peer side of its handshake.
++async fn preface_ping_client() -> (
++    DuplexStream,
++    super::SendRequest<Bytes>,
++    tokio::task::JoinHandle<Result<(), crate::Error>>,
++) {
++    let (client_io, mut peer) = duplex(64 * 1024);
++    let mut builder = super::Builder::new();
++    builder.preface_ping(PREFACE_IDLE);
++    let (sender, connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let driver = tokio::spawn(connection);
++    accept_client_handshake(&mut peer).await;
++    (peer, sender, driver)
++}
++
++async fn send_empty_request(sender: &mut super::SendRequest<Bytes>) -> super::ResponseFuture {
++    poll_fn(|cx| sender.poll_ready(cx))
++        .await
++        .expect("sender never became ready");
++    sender
++        .send_request(data_budget_request(), true)
++        .expect("request was rejected")
++        .0
++}
++
++/// Reads the next HEADERS or DATA frame and the payload of a PING that the
++/// client wrote immediately after it, if any.
++///
++/// A probe PING from the peer bounds the wait: the client writes its own
++/// PING together with the request frame, so it arrives before the probe's
++/// ACK.
++async fn read_request_frame(peer: &mut DuplexStream) -> (RawFrame, Option<[u8; 8]>) {
++    let request = loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++        assert!(
++            frame.kind != 6 || frame.flags & 0x1 != 0,
++            "a PING came before the request frame"
++        );
++        if matches!(frame.kind, 0 | 1) {
++            break frame;
++        }
++    };
++    write_raw_frame(peer, 6, 0, 0, b"probe!!!").await;
++    let mut ping = None;
++    let mut first = true;
++    loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++        if frame.kind == 6 && frame.flags & 0x1 != 0 && frame.payload == b"probe!!!" {
++            return (request, ping);
++        }
++        if frame.kind == 6 && frame.flags & 0x1 == 0 {
++            assert!(first, "a frame came between the request frame and the PING");
++            ping = Some(frame.payload.try_into().expect("PING payload is 8 bytes"));
++        }
++        first = false;
++    }
++}
++
+ /// Opens a client whose peer has not sent SETTINGS, limited to `limit`
+ /// streams until then, and sends `limit + 1` requests. The response futures
+ /// are returned so that no stream is cancelled while the test runs.
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index f9cec88f..fddd1488 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -27,6 +27,9 @@ where
+ 
+     /// Prevents repeated self-wakes while an idle GOAWAY awaits codec capacity.
+     idle_close_requested: bool,
++
++    /// Whether frames read are reported to the preface PING state.
++    preface_ping: bool,
+ }
+ 
+ // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
+@@ -83,6 +86,7 @@ pub(crate) struct Config {
+     pub initial_max_send_streams: usize,
+     pub retain_initial_max_send_streams: bool,
+     pub max_send_streams_cap: usize,
++    pub preface_ping: Option<Duration>,
+     pub max_send_buffer_size: usize,
+     pub reset_stream_duration: Duration,
+     pub reset_stream_max: usize,
+@@ -131,6 +135,7 @@ where
+                 initial_max_send_streams: config.initial_max_send_streams,
+                 retain_initial_max_send_streams: config.retain_initial_max_send_streams,
+                 max_send_streams_cap: config.max_send_streams_cap,
++                preface_ping: config.preface_ping,
+                 local_max_buffer_size: config.max_send_buffer_size,
+                 local_next_stream_id: config.next_stream_id,
+                 local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),
+@@ -162,6 +167,7 @@ where
+         Connection {
+             codec,
+             idle_close_requested: false,
++            preface_ping: config.preface_ping.is_some(),
+             inner: ConnectionInner {
+                 state: State::Open,
+                 error: None,
+@@ -409,6 +415,18 @@ where
+                 return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
+             }
+ 
++            if self.preface_ping {
++                if let Some(frame) = &frame {
++                    let ack = match frame {
++                        Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
++                        _ => None,
++                    };
++                    if self.inner.streams.recv_frame_for_preface_ping(ack) {
++                        continue;
++                    }
++                }
++            }
++
+             match self.inner.as_dyn().recv_frame(frame)? {
+                 ReceivedFrame::Settings(frame) => {
+                     self.inner.settings.recv_settings(
+diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
+index 4b3917e9..8dfd313f 100644
+--- a/src/proto/streams/counts.rs
++++ b/src/proto/streams/counts.rs
+@@ -377,6 +377,7 @@ mod tests {
+                 initial_max_send_streams: 0,
+                 retain_initial_max_send_streams: false,
+                 max_send_streams_cap: usize::MAX,
++                preface_ping: None,
+                 local_max_buffer_size: 0,
+                 local_next_stream_id: 2.into(),
+                 local_push_enabled: false,
+diff --git a/src/proto/streams/mod.rs b/src/proto/streams/mod.rs
+index ed2f2e28..695432b2 100644
+--- a/src/proto/streams/mod.rs
++++ b/src/proto/streams/mod.rs
+@@ -1,6 +1,7 @@
+ mod buffer;
+ mod counts;
+ mod flow_control;
++mod preface_ping;
+ mod prioritize;
+ mod recv;
+ mod send;
+@@ -49,6 +50,10 @@ pub struct Config {
+     /// send limit; a larger stated value is lowered to it.
+     pub max_send_streams_cap: usize,
+ 
++    /// Read-idle time after which a PING follows the next request HEADERS or
++    /// non-empty DATA frame.
++    pub preface_ping: Option<Duration>,
++
+     /// Max amount of DATA bytes to buffer per stream.
+     pub local_max_buffer_size: usize,
+ 
+diff --git a/src/proto/streams/preface_ping.rs b/src/proto/streams/preface_ping.rs
+new file mode 100644
+index 00000000..70989c99
+--- /dev/null
++++ b/src/proto/streams/preface_ping.rs
+@@ -0,0 +1,73 @@
++use crate::frame::{Frame, Ping};
++
++use bytes::Buf;
++use std::time::{Duration, Instant};
++
++/// Decides when a client PING follows a request frame on a connection that
++/// has read nothing for longer than a configured time.
++///
++/// A PING is due after request HEADERS, or after a DATA frame with a
++/// non-empty payload, when the last frame read from the peer is older than
++/// `idle` and no earlier such PING awaits its ACK. It is written before any
++/// other frame. The first PING carries the big-endian 64-bit value 1 and each
++/// later one the next value. The ACK is matched by payload.
++#[derive(Debug)]
++pub(super) struct PrefacePing {
++    idle: Duration,
++    last_read: Instant,
++    next_payload: u64,
++    in_flight: Option<[u8; 8]>,
++    due: Option<[u8; 8]>,
++}
++
++impl PrefacePing {
++    pub(super) fn new(idle: Duration) -> Self {
++        PrefacePing {
++            idle,
++            last_read: Instant::now(),
++            next_payload: 1,
++            in_flight: None,
++            due: None,
++        }
++    }
++
++    /// Records a frame read from the peer. Returns `true` when `ack` is the
++    /// acknowledgement of the PING in flight, which this consumes.
++    pub(super) fn recv_frame(&mut self, now: Instant, ack: Option<&[u8; 8]>) -> bool {
++        self.last_read = now;
++        match ack {
++            Some(payload) if self.in_flight.as_ref() == Some(payload) => {
++                self.in_flight = None;
++                true
++            }
++            _ => false,
++        }
++    }
++
++    /// Records a frame about to be written, making a PING due after it when
++    /// the connection has been read-idle for longer than `idle`.
++    pub(super) fn sent<B: Buf>(&mut self, frame: &Frame<B>, now: Instant) {
++        let request_frame = match frame {
++            Frame::Headers(headers) => headers.pseudo().method.is_some(),
++            Frame::Data(data) => data.payload().has_remaining(),
++            _ => false,
++        };
++        if !request_frame || self.in_flight.is_some() {
++            return;
++        }
++        // Due only once the idle time is strictly exceeded.
++        match now.checked_duration_since(self.last_read) {
++            Some(elapsed) if elapsed > self.idle => {}
++            _ => return,
++        }
++        let payload = self.next_payload.to_be_bytes();
++        self.next_payload = self.next_payload.wrapping_add(1);
++        self.in_flight = Some(payload);
++        self.due = Some(payload);
++    }
++
++    /// Takes the PING due after the last request frame, if any.
++    pub(super) fn take_due(&mut self) -> Option<Ping> {
++        self.due.take().map(Ping::new)
++    }
++}
+diff --git a/src/proto/streams/prioritize.rs b/src/proto/streams/prioritize.rs
+index bdcf43cf..075d6bbd 100644
+--- a/src/proto/streams/prioritize.rs
++++ b/src/proto/streams/prioritize.rs
+@@ -1,3 +1,4 @@
++use super::preface_ping::PrefacePing;
+ use super::store::Resolve;
+ use super::*;
+ 
+@@ -13,6 +14,7 @@ use std::{
+     cmp::{self, Ordering},
+     fmt, io, mem,
+     task::{Context, Poll, Waker},
++    time::Instant,
+ };
+ 
+ /// # Warning
+@@ -58,6 +60,9 @@ pub(super) struct Prioritize {
+ 
+     /// The maximum amount of bytes a stream should buffer.
+     max_buffer_size: usize,
++
++    /// When a PING follows a request frame on a read-idle connection.
++    preface_ping: Option<PrefacePing>,
+ }
+ 
+ #[derive(Debug, Eq, PartialEq)]
+@@ -103,6 +108,14 @@ impl Prioritize {
+             last_opened_id: StreamId::ZERO,
+             in_flight_data_frame: InFlightData::Nothing,
+             max_buffer_size: config.local_max_buffer_size,
++            preface_ping: config.preface_ping.map(PrefacePing::new),
++        }
++    }
++
++    pub(super) fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
++        match &mut self.preface_ping {
++            Some(preface_ping) => preface_ping.recv_frame(Instant::now(), ack),
++            None => false,
+         }
+     }
+ 
+@@ -524,6 +537,13 @@ impl Prioritize {
+         tracing::trace!("poll_complete");
+ 
+         loop {
++            // The codec is ready here, and a PING owed to the frame buffered
++            // last must follow it before any other frame.
++            if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
++                dst.buffer(ping.into()).expect("invalid frame");
++                ready!(dst.poll_ready(cx))?;
++            }
++
+             if let Some(mut stream) = self.pop_pending_open(store, counts) {
+                 self.pending_send.push_front(&mut stream);
+                 self.try_assign_capacity(&mut stream);
+@@ -537,6 +557,9 @@ impl Prioritize {
+                     if let Frame::Data(ref frame) = frame {
+                         self.in_flight_data_frame = InFlightData::DataFrame(frame.payload().stream);
+                     }
++                    if let Some(preface_ping) = &mut self.preface_ping {
++                        preface_ping.sent(&frame, Instant::now());
++                    }
+                     dst.buffer(frame).expect("invalid frame");
+ 
+                     // Ensure the codec is ready to try the loop again.
+diff --git a/src/proto/streams/send.rs b/src/proto/streams/send.rs
+index 70bf64d6..a714bffe 100644
+--- a/src/proto/streams/send.rs
++++ b/src/proto/streams/send.rs
+@@ -362,6 +362,10 @@ impl Send {
+         Ok(())
+     }
+ 
++    pub fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
++        self.prioritize.recv_frame_for_preface_ping(ack)
++    }
++
+     pub fn poll_complete<T, B>(
+         &mut self,
+         cx: &mut Context,
+diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
+index 8e267a06..3517883f 100644
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -196,6 +196,13 @@ where
+         me.actions.recv.send_pending_refusal(cx, dst)
+     }
+ 
++    /// Records a frame read from the peer for the preface PING. Returns `true`
++    /// when `ack` acknowledges the preface PING in flight.
++    pub fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
++        let mut me = self.inner.lock();
++        me.actions.send.recv_frame_for_preface_ping(ack)
++    }
++
+     pub fn clear_expired_reset_streams(&mut self) {
+         let mut me = self.inner.lock();
+         let me = &mut *me;
+diff --git a/src/server.rs b/src/server.rs
+index 1aab78a2..43390912 100644
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -1520,6 +1520,7 @@ where
+                             initial_max_send_streams: 0,
+                             retain_initial_max_send_streams: false,
+                             max_send_streams_cap: usize::MAX,
++                            preface_ping: None,
+                             max_send_buffer_size: self.builder.max_send_buffer_size,
+                             reset_stream_duration: self.builder.reset_stream_duration,
+                             reset_stream_max: self.builder.reset_stream_max,

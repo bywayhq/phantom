@@ -41,6 +41,10 @@ pub(super) struct Counts {
     /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `max_send_streams`.
     retain_initial_max_send_streams: bool,
 
+    /// Highest peer-stated SETTINGS_MAX_CONCURRENT_STREAMS applied to
+    /// `max_send_streams`.
+    max_send_streams_cap: usize,
+
     /// Current number of remote initiated streams
     num_send_streams: usize,
 
@@ -87,6 +91,7 @@ impl Counts {
             peer,
             max_send_streams: config.initial_max_send_streams,
             retain_initial_max_send_streams: config.retain_initial_max_send_streams,
+            max_send_streams_cap: config.max_send_streams_cap,
             num_send_streams: 0,
             max_recv_streams: config.remote_max_initiated.unwrap_or(usize::MAX),
             num_recv_streams: 0,
@@ -253,7 +258,7 @@ impl Counts {
 
     pub fn apply_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
         match settings.max_concurrent_streams() {
-            Some(val) => self.max_send_streams = val as usize,
+            Some(val) => self.max_send_streams = (val as usize).min(self.max_send_streams_cap),
             None if is_initial && !self.retain_initial_max_send_streams => {
                 self.max_send_streams = usize::MAX
             }
@@ -371,6 +376,8 @@ mod tests {
             &Config {
                 initial_max_send_streams: 0,
                 retain_initial_max_send_streams: false,
+                max_send_streams_cap: usize::MAX,
+                preface_ping: None,
                 local_max_buffer_size: 0,
                 local_next_stream_id: 2.into(),
                 local_push_enabled: false,

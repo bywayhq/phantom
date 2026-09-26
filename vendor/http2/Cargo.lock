@@ -280,7 +280,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http2"
-version = "0.5.20-phantom.6"
+version = "0.5.20-phantom.7"
 dependencies = [
  "atomic-waker",
  "bytes",

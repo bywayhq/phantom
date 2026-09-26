@@ -329,6 +329,12 @@ pub struct Builder {
     /// MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`.
     retain_initial_max_send_streams: bool,
 
+    /// Highest peer-stated MAX_CONCURRENT_STREAMS honored as the send limit.
+    max_send_streams_cap: usize,
+
+    /// Read-idle time after which a PING follows the next request frame.
+    preface_ping: Option<Duration>,
+
     /// Initial target window size for new connections.
     initial_target_connection_window_size: Option<u32>,
 
@@ -715,6 +721,8 @@ impl Builder {
             initial_target_connection_window_size: None,
             initial_max_send_streams: usize::MAX,
             retain_initial_max_send_streams: false,
+            max_send_streams_cap: usize::MAX,
+            preface_ping: None,
             settings: Default::default(),
             #[cfg(feature = "unstable")]
             initial_peer_settings: None,
@@ -1031,6 +1039,39 @@ impl Builder {
     /// [`initial_max_send_streams`]: Builder::initial_max_send_streams
     pub fn retain_initial_max_send_streams(&mut self, enabled: bool) -> &mut Self {
         self.retain_initial_max_send_streams = enabled;
+        self
+    }
+
+    /// Lowers a SETTINGS_MAX_CONCURRENT_STREAMS value stated by the peer to
+    /// at most `cap` before it becomes the limit on locally initiated streams.
+    ///
+    /// A stated value at or below `cap` applies unchanged. The cap does not
+    /// apply to [`initial_max_send_streams`], which holds only until the peer
+    /// states a value, and it changes nothing on the wire.
+    ///
+    /// The default is `usize::MAX`, which applies every stated value
+    /// unchanged.
+    ///
+    /// [`initial_max_send_streams`]: Builder::initial_max_send_streams
+    pub fn max_send_streams_cap(&mut self, cap: usize) -> &mut Self {
+        self.max_send_streams_cap = cap;
+        self
+    }
+
+    /// Sends a PING right after a request frame once nothing has been read
+    /// from the peer for longer than `idle`.
+    ///
+    /// The request frames are a request's HEADERS and each DATA frame with a
+    /// non-empty payload. The PING is the next frame the send path writes
+    /// after the request frame. A PING is written only while no earlier one
+    /// awaits its ACK; any frame read from the peer restarts the idle time.
+    /// The first PING's payload is the 64-bit big-endian value 1, and each
+    /// later one carries the next value. A PING whose ACK never arrives does
+    /// not close the connection, but no further PING is sent on it.
+    ///
+    /// By default no such PING is sent.
+    pub fn preface_ping(&mut self, idle: Duration) -> &mut Self {
+        self.preface_ping = Some(idle);
         self
     }
 
@@ -1559,6 +1600,8 @@ where
                 next_stream_id: builder.stream_id,
                 initial_max_send_streams: builder.initial_max_send_streams,
                 retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
+                max_send_streams_cap: builder.max_send_streams_cap,
+                preface_ping: builder.preface_ping,
                 max_send_buffer_size: builder.max_send_buffer_size,
                 reset_stream_duration: builder.reset_stream_duration,
                 reset_stream_max: builder.reset_stream_max,

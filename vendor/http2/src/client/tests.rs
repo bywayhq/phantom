@@ -1180,6 +1180,201 @@ async fn initial_stream_id_numbers_requests_from_it() {
     .expect("initial stream id test timed out");
 }
 
+#[tokio::test]
+async fn stated_stream_limit_is_lowered_to_the_cap() {
+    timeout(Duration::from_secs(5), async {
+        let (client_io, mut peer) = duplex(64 * 1024);
+        let mut builder = super::Builder::new();
+        builder.max_send_streams_cap(2);
+        let (mut sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer).await;
+        let initial = read_raw_frame(&mut peer).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(3, 1000)])).await;
+        read_settings_ack(&mut peer).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+
+        let mut responses = Vec::new();
+        for _ in 0..3 {
+            let (response, _) = sender
+                .send_request(data_budget_request(), true)
+                .expect("request was rejected");
+            responses.push(response);
+        }
+        read_request_headers(&mut peer, 1).await;
+        read_request_headers(&mut peer, 3).await;
+        assert_no_request_before_ping_ack(&mut peer).await;
+
+        // A stated value under the cap applies unchanged.
+        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(3, 1)])).await;
+        read_settings_ack(&mut peer).await;
+        assert_eq!(sender.current_max_send_streams(), 1);
+        driver.abort();
+    })
+    .await
+    .expect("stream limit cap test timed out");
+}
+
+const PREFACE_IDLE: Duration = Duration::from_millis(250);
+const PAST_PREFACE_IDLE: Duration = Duration::from_millis(400);
+
+#[tokio::test]
+async fn preface_ping_follows_request_headers_only_after_read_idle() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, mut sender, driver) = preface_ping_client().await;
+        let mut responses = Vec::new();
+
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id, ping), (1, 1, None));
+
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id), (1, 3));
+        assert_eq!(ping, Some(1_u64.to_be_bytes()));
+        write_raw_frame(&mut peer, 6, 1, 0, &1_u64.to_be_bytes()).await;
+
+        // Reading the ACK restarts the idle time.
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id, ping), (1, 5, None));
+
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id), (1, 7));
+        assert_eq!(ping, Some(2_u64.to_be_bytes()));
+        driver.abort();
+    })
+    .await
+    .expect("preface PING test timed out");
+}
+
+#[tokio::test]
+async fn preface_ping_is_not_repeated_while_one_awaits_its_ack() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, mut sender, driver) = preface_ping_client().await;
+        let mut responses = Vec::new();
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (_, ping) = read_request_frame(&mut peer).await;
+        assert_eq!(ping, Some(1_u64.to_be_bytes()));
+
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id, ping), (1, 3, None));
+        driver.abort();
+    })
+    .await
+    .expect("preface PING in flight test timed out");
+}
+
+#[tokio::test]
+async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, mut sender, driver) = preface_ping_client().await;
+        poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect("sender never became ready");
+        let (_response, mut body) = sender
+            .send_request(data_budget_request(), false)
+            .expect("request was rejected");
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, ping), (1, None));
+
+        // Large enough for the codec to write the payload after the frame
+        // head, so the PING must wait for the whole frame.
+        let chunk = Bytes::from(vec![0x61; 4096]);
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        body.send_data(chunk.clone(), false)
+            .expect("data was rejected");
+        let (data, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((data.kind, data.payload.as_slice()), (0, &chunk[..]));
+        assert_eq!(ping, Some(1_u64.to_be_bytes()));
+        write_raw_frame(&mut peer, 6, 1, 0, &1_u64.to_be_bytes()).await;
+
+        // An empty DATA frame owes no PING.
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        body.send_data(Bytes::new(), true)
+            .expect("end of stream was rejected");
+        let (data, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((data.kind, data.flags, ping), (0, 1, None));
+        driver.abort();
+    })
+    .await
+    .expect("preface PING after DATA test timed out");
+}
+
+/// Opens a client that sends a preface PING after `PREFACE_IDLE` without a
+/// read, and completes the peer side of its handshake.
+async fn preface_ping_client() -> (
+    DuplexStream,
+    super::SendRequest<Bytes>,
+    tokio::task::JoinHandle<Result<(), crate::Error>>,
+) {
+    let (client_io, mut peer) = duplex(64 * 1024);
+    let mut builder = super::Builder::new();
+    builder.preface_ping(PREFACE_IDLE);
+    let (sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+    accept_client_handshake(&mut peer).await;
+    (peer, sender, driver)
+}
+
+async fn send_empty_request(sender: &mut super::SendRequest<Bytes>) -> super::ResponseFuture {
+    poll_fn(|cx| sender.poll_ready(cx))
+        .await
+        .expect("sender never became ready");
+    sender
+        .send_request(data_budget_request(), true)
+        .expect("request was rejected")
+        .0
+}
+
+/// Reads the next HEADERS or DATA frame and the payload of a PING that the
+/// client wrote immediately after it, if any.
+///
+/// A probe PING from the peer bounds the wait: the client writes its own
+/// PING together with the request frame, so it arrives before the probe's
+/// ACK.
+async fn read_request_frame(peer: &mut DuplexStream) -> (RawFrame, Option<[u8; 8]>) {
+    let request = loop {
+        let frame = read_raw_frame(peer).await;
+        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+        assert!(
+            frame.kind != 6 || frame.flags & 0x1 != 0,
+            "a PING came before the request frame"
+        );
+        if matches!(frame.kind, 0 | 1) {
+            break frame;
+        }
+    };
+    write_raw_frame(peer, 6, 0, 0, b"probe!!!").await;
+    let mut ping = None;
+    let mut first = true;
+    loop {
+        let frame = read_raw_frame(peer).await;
+        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+        if frame.kind == 6 && frame.flags & 0x1 != 0 && frame.payload == b"probe!!!" {
+            return (request, ping);
+        }
+        if frame.kind == 6 && frame.flags & 0x1 == 0 {
+            assert!(first, "a frame came between the request frame and the PING");
+            ping = Some(frame.payload.try_into().expect("PING payload is 8 bytes"));
+        }
+        first = false;
+    }
+}
+
 /// Opens a client whose peer has not sent SETTINGS, limited to `limit`
 /// streams until then, and sends `limit + 1` requests. The response futures
 /// are returned so that no stream is cancelled while the test runs.
