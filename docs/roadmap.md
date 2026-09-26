@@ -48,7 +48,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   on a new stream of it, as the captured browsers do.
   CONNECT tunnels share HTTP/2 proxy connections, and the Chromium and
   Firefox CONNECT recipes decide whether forwarded requests and WebSocket
-  tunnels join them.
+  tunnels join them. `ClientBuilder::max_http2_proxy_connections_per_route`
+  opts into more than one connection per proxy route, off by default.
 - SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
@@ -177,9 +178,6 @@ Each of these needs no capture, because no named recipe may reach it
 - A buffered request body that a retry may replay.
 - Keepalive and address-selection settings on a custom profile.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
-- More than one HTTP/2 connection per proxy route. Available as
-  `ClientBuilder::max_http2_proxy_connections_per_route`; browsers keep one
-  and queue streams on it.
 - A source address or interface binding, and client certificates.
 
 #### Request pipeline

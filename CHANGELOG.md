@@ -647,9 +647,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and Firefox 156 do, instead of one TLS connection per tunnel. The streams
   are numbered 1, 3, 5, as Chromium numbers them; Firefox starts at 3. A
   tunnel past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that
-  connection, as in the browsers. With the Chromium CONNECT recipe, or no recipe, forwarded
-  `http://` requests to every origin and WebSocket tunnels are streams of
-  that connection too; with the Firefox recipe each of the three has its
+  connection, as in the browsers. With the Chromium CONNECT recipe, or no
+  recipe, forwarded `http://` requests to every origin and WebSocket
+  tunnels are streams of that connection too; with the Firefox recipe each of the three has its
   own connection. Forwarded requests to different origins now share one
   proxy connection instead of one per origin. A proxy sees fewer
   connections and TLS handshakes; tunnels on a connection share its

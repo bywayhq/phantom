@@ -86,9 +86,9 @@ fn multi_connection_client() -> Result<Client, Box<dyn std::error::Error>> {
 - Each connection makes its own handshake and sends the profile's full H2
   preface, so each looks like the browser. Several at once to one origin
   do not: Chrome, Edge, and Firefox keep one.
-- It applies to `HttpProtocol::Http2` and to `get_negotiated` requests that
-  select H2; `max_http2_proxy_connections_per_route` is the same option for
-  HTTP/2 proxy routes. HTTP/3 keeps one connection per origin and route.
+- It applies to `HttpProtocol::Http2` and `get_negotiated` requests that
+  select H2; `max_http2_proxy_connections_per_route` is its proxy-route
+  counterpart ([limits](../reference/limits.md#connection-pools)).
 
 ## Stop waiting for a stalled handshake
 
