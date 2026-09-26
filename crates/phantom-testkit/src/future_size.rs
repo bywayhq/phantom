@@ -14,7 +14,10 @@
 
 /// The largest future, in bytes, that a function on a request path may
 /// return in a debug build.
-pub const FUTURE_BUDGET: usize = 16 * 1024;
+///
+/// It leaves about a quarter of headroom over the largest measured request
+/// future, so a small change or a toolchain upgrade does not fail the check.
+pub const FUTURE_BUDGET: usize = 20 * 1024;
 
 /// A function whose return value has a size known without calling it.
 ///

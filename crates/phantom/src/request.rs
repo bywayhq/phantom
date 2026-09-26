@@ -1271,6 +1271,13 @@ mod tests {
 
     /// A request's future holds every future on its path inline, and a debug
     /// build's poll frames grow with them; see `phantom_testkit::future_size`.
+    ///
+    /// With all features, the largest, `RequestBuilder::send_inner`, is
+    /// 14,880 bytes on Windows and on Linux (x86-64, Rust 1.98.1). When this
+    /// fails, for example after a toolchain upgrade, run it with
+    /// `--nocapture` to see every size, then box the largest cold branch
+    /// with `Box::pin`. Raise `FUTURE_BUDGET` only with the measurements
+    /// that justify it, and never box the path of an ordinary request.
     #[cfg(debug_assertions)]
     #[test]
     fn request_futures_stay_within_the_stack_budget() {
