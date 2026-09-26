@@ -1145,6 +1145,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the operation it times. Opening a pooled HTTP/1.1, HTTP/2, or negotiated
   connection now makes one allocation for its setup, and an HTTP/3 request
   makes one for its send.
+- Opening a connection needs less stack in a debug build. Each connector's
+  tracing wrapper held its whole setup twice, and the wrappers nest, so a
+  Basic-authenticated CONNECT through `Http1TlsConnector`,
+  `Http2TlsConnector`, or `Http1Or2TlsConnector` shrinks from about 39 KB to
+  6 KB in a debug build, and a plain CONNECT from 20 KB to 5.5 KB.
+  `Http3Connector::connect_direct` shrinks from 17,056 to 6,800 bytes, and
+  opening a pooled HTTP/3 connection from 38,928 to 9,536. A new HTTP/3
+  connection makes one more allocation, for its HTTP/3 start. A proxy's
+  `407` challenge and an HTTP/3 start after rejected early data each make
+  one for their retry.
 
 ### Fixed
 
