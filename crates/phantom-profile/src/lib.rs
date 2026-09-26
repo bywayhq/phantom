@@ -9,6 +9,7 @@ pub mod cookie;
 pub mod dns_cache;
 pub mod edge;
 pub mod firefox;
+pub mod firefox_android;
 pub mod http1;
 pub mod http2;
 pub mod http3;

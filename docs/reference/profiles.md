@@ -38,6 +38,7 @@ build that can be recaptured and reverified.
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
 | Chrome 153 for Android | `chrome_android::v153_*` | Yes | Chromium | Chromium QUIC and H3; own trust-anchor orders | `v153_android_client_hints` | Chromium | Android emulator |

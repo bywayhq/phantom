@@ -16,6 +16,14 @@ const WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox/156.0/",
     "windows-11-26200/client-hello-chacha20-ech.txt"
 ));
+const ANDROID_FIREFOX_156_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/firefox-android/156.0.1/",
+    "android-35-emulator/client-hello.txt"
+));
+const ANDROID_FIREFOX_156_CHACHA20_ECH_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/firefox-android/156.0.1/",
+    "android-35-emulator/client-hello-chacha20-ech.txt"
+));
 const FIREFOX_SERVER_NAME: &str = "localhost";
 // ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
 const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
@@ -34,6 +42,16 @@ async fn firefox_156_tls_recipe_matches_windows_capture() -> TestResult<()> {
 async fn firefox_156_tls_recipe_matches_windows_capture_with_chacha20_ech_grease() -> TestResult<()>
 {
     assert_recipe_matches_fixture(WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE, &v156_tls(), 282).await
+}
+
+/// Firefox 156.0.1 for Android sends the desktop Firefox 156 ClientHello:
+/// the same fixed extension order and a per-connection ECH GREASE AEAD.
+#[tokio::test]
+async fn firefox_android_156_tls_recipe_matches_android_captures() -> TestResult<()> {
+    let recipe = phantom_profile::firefox_android::v156_tls();
+    assert_eq!(recipe, v156_tls());
+    assert_recipe_matches_fixture(ANDROID_FIREFOX_156_FIXTURE, &recipe, 282).await?;
+    assert_recipe_matches_fixture(ANDROID_FIREFOX_156_CHACHA20_ECH_FIXTURE, &recipe, 282).await
 }
 
 /// Firefox 156 still picks the ECH GREASE AEAD per connection (7 AES-128-GCM
@@ -89,9 +107,14 @@ async fn assert_recipe_matches_fixture(
     settings: &TlsSettings,
     ech_extension_length: usize,
 ) -> TestResult<()> {
+    // The Windows captures reached `localhost`; the Android captures mapped
+    // the test name with `network.dns.localDomains`.
+    let server_name = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix("hostname="))
+        .unwrap_or(FIREFOX_SERVER_NAME);
     let expected_capture = client_hello_fixture::capture(fixture).await?;
-    let actual_capture =
-        capture_client_hello_from_server_name(settings, FIREFOX_SERVER_NAME).await?;
+    let actual_capture = capture_client_hello_from_server_name(settings, server_name).await?;
 
     assert_eq!(actual_capture.records().len(), 1);
     assert_eq!(
@@ -116,7 +139,7 @@ async fn assert_recipe_matches_fixture(
     let actual = actual_capture.summary()?;
     assert_stable_vectors(&actual, &expected);
     assert_eq!(actual.server_name(), expected.server_name());
-    assert_eq!(actual.server_name(), Some(FIREFOX_SERVER_NAME.as_bytes()));
+    assert_eq!(actual.server_name(), Some(server_name.as_bytes()));
     assert_eq!(actual.alpn_protocols(), expected.alpn_protocols());
     assert_eq!(
         actual.alpn_protocols(),

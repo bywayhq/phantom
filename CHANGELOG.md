@@ -392,6 +392,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `cookie` into crumbs on H2 and H3, which no Android capture checks. There
   is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
   cookie-placement recipe.
+- `firefox_android::v156_tls`, from Firefox 156.0.1 on the same emulator. It
+  returns `firefox::v156_tls`, which its ClientHellos equal.
 - Opera for Android recipes in `opera_android`, from Opera 102.1.5206.90382
   (Chromium 152) on the same emulator: `v102_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, and `v102_android_client_hints`. Opera for

@@ -324,6 +324,14 @@ pub mod profile {
         pub use phantom_profile::opera_android::{v102_android_client_hints, v102_tls};
     }
 
+    /// Firefox for Android recipes implemented by the public facade.
+    ///
+    /// Captured from Firefox 156.0.1 on an Android 15 emulator. Only the TLS
+    /// ClientHello is captured; it equals desktop Firefox 156's.
+    pub mod firefox_android {
+        pub use phantom_profile::firefox_android::v156_tls;
+    }
+
     /// Chrome for Android recipes implemented by the public facade.
     ///
     /// Captured from Chrome 153 on an Android 15 emulator. The H2, QUIC, H3,

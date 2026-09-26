@@ -91,6 +91,12 @@ anything does.
   known from source. Blocker: a matched Chrome build on an Apple Silicon
   capture host. Retain each difference from the Windows recipe rather than
   assuming the platforms match.
+- Edge for Android. Evidence: none; Play serves Edge 153.0.4234.49 only for
+  arm64, and it crashes at startup (SIGSEGV in its native library) under the
+  x86_64 emulator's ARM translation. Blocker: an arm64 device or emulator.
+- Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
+  Blocker: trusting a test certificate on Android, such as a user CA with
+  `security.enterprise_roots.enabled`.
 - Chrome for Android on a phone, and the current stable build. Evidence:
   Chrome 153.0.8010.52 captures on an Android 15 emulator back
   `chrome_android::v153_*`; Google listed 155.0.8059.16 as stable, but Play

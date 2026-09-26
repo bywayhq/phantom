@@ -21,6 +21,7 @@ presented as a complete client match.
 | Brave 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured | Captured | Captured | Not covered | Not covered | Not sent by Firefox | Captured | Captured |
+| Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Chrome 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
@@ -844,6 +845,9 @@ How the recipes differ:
   its TCP ClientHello has no GREASE signature algorithm. `opera::` carries
   `v135_tls`, `v135_http3_tls`, `v135_windows_client_hints`, and its request
   templates, which equal the Chromium templates apart from `User-Agent`.
+- `firefox_android::v156_tls` returns `firefox::v156_tls`, which the Android
+  ClientHellos equal. No other Firefox for Android layer is captured,
+  because no certificate override can be installed on Android.
 - `opera_android::v102_*` carries only `v102_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, and `v102_android_client_hints`. Opera for Android
   takes no switches, so only loopback captures without a certificate exist.

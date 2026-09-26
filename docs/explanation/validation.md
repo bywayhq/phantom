@@ -26,6 +26,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
 | [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 15 emulator captures of the TLS ClientHello, client hints, and HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
+| [Firefox for Android 156 recipe](#firefox-for-android-156-recipe) | Android 15 emulator captures of the TLS ClientHello | No certificate trust on Android, so no other layer |
 | [Chrome for Android 153 recipes](#chrome-for-android-153-recipes) | Android 15 emulator captures of TLS, H2, QUIC, H3, client hints, templates, and WebSocket openings, replayed by recipe tests | An emulator, not a phone; no TCP layer; Play served 153 while 155 was stable |
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
@@ -891,6 +892,41 @@ Limits: those of Chrome for Android on the same emulator, and no HTTP/2,
 QUIC, HTTP/3, WebSocket over HTTP/2, plaintext named-origin, proxy, or ECH
 capture. The ClientHello was sent to `localhost`, so its server name differs
 from a capture to another name.
+
+### Firefox for Android 156 recipe
+
+What is claimed: `firefox_android::v156_tls` reproduces the TCP ClientHello
+of Firefox 156.0.1 for Android on the Android 15 emulator of the
+[Chrome for Android section](#chrome-for-android-153-recipes).
+
+Evidence: Firefox 156.0.1 is the build Play served to the emulator on
+2026-09-25. Release Firefox for Android reads
+`/data/local/tmp/org.mozilla.firefox-geckoview-config.yaml` when it is the
+device's debug app: a probe with `network.dns.localDomains` naming a test
+host reached a listener on the device's loopback. A capture can therefore
+set preferences, but it cannot put a `cert_override.txt` into the app's
+private profile, so no page over TLS loads with a test certificate. A page
+opened by intent loads while Firefox's first-run screens are showing, so the
+ClientHello capture needed no first-run handling.
+
+Twelve fresh-profile processes, each opened by intent at
+`https://server.phantom.test:<port>/` with `network.dns.localDomains` and
+`network.dns.disableIPv6` set and `adb reverse` for the port, sent the
+desktop Firefox 156 ClientHello: the same fixed extension order and every
+compared field, and a 240-byte ECH GREASE payload. The ECH GREASE AEAD
+varied per connection, as on Windows: 5 AES-128-GCM and 7
+ChaCha20-Poly1305. `firefox_android::v156_tls` returns `firefox::v156_tls`,
+and `firefox_android_156_tls_recipe_matches_android_captures` replays one
+retained sample of each AEAD through the TLS connector.
+
+Retained fixtures, under
+`fixtures/tls/firefox-android/156.0.1/android-35-emulator/`:
+`client-hello.txt` (AES-128-GCM) and `client-hello-chacha20-ech.txt`.
+
+Limits: those of Chrome for Android on the same emulator, and no HTTP/2,
+WebSocket, request-field, or proxy capture, because none can load a TLS
+page. Firefox for Android sends no user-agent client hints; a plaintext probe
+request carried none.
 
 ### TCP socket option evidence
 

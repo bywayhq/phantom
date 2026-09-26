@@ -31,7 +31,8 @@ protocol or route. Phantom is maintained by
 | TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only | Not covered | Not covered |
 
 Opera 102 for Android has TLS and client-hint recipes only; it takes no
-command-line switches, so no other layer could be captured.
+command-line switches, so no other layer could be captured. Firefox 156 for
+Android has a TLS recipe only, equal to desktop Firefox's.
 
 Every captured recipe comes from captures of one build per browser: Windows
 11 for the desktop browsers, and an Android 15 emulator for Chrome and Brave
