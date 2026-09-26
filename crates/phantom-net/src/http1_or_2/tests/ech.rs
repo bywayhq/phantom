@@ -584,8 +584,12 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
         acceptor(&identity, Some(&key))?,
     ])
     .await?;
+    // The record comes 1 s after the request and a resolution takes 1.5 s. A
+    // cache hit starts the handshake at once, well before the record; a
+    // resolution that bypassed the cache would finish after the record and
+    // offer it. Both margins hold on a loaded host.
     let connector =
-        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
+        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(1_500)));
 
     tokio::time::timeout(
         TEST_TIMEOUT,
@@ -593,9 +597,7 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
             .connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async { None }),
     )
     .await??;
-    // Started now, as the client's lookup starts with the request. Any wait
-    // is at most 50 ms, so a record a second away is never waited for, even
-    // when a loaded host delays the ClientHello by tens of milliseconds.
+    // Started now, as the client's lookup starts with the request.
     let lookup = tokio::spawn(async {
         tokio::time::sleep(Duration::from_secs(1)).await;
         published(1, &TEST_ECH_KEYS[0])
