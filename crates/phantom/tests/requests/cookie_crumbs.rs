@@ -48,6 +48,14 @@ const EDGE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h2.txt"
 ));
+const BRAVE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/cookies/brave/154.1.96.59/windows-11-26200/crumbs-h2.txt"
+));
+const OPERA: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h2.txt"
+));
 const FIREFOX: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/cookies/firefox/156.0/windows-11-26200/crumbs-h2.txt"
@@ -69,6 +77,32 @@ async fn chrome_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResu
 async fn edge_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
     // Edge 154 replays against the Chromium recipes (`phantom::profile::edge`).
     let capture = Capture::parse(EDGE)?;
+    let observed = replay(
+        &capture,
+        chromium::v154_http2(),
+        chromium::v154_cookie_placement(),
+    )
+    .await?;
+    assert_crumbs_match(&capture, &observed)
+}
+
+#[tokio::test]
+async fn brave_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
+    // Brave 154 replays against the Chromium recipes (`phantom::profile::brave`).
+    let capture = Capture::parse(BRAVE)?;
+    let observed = replay(
+        &capture,
+        chromium::v154_http2(),
+        chromium::v154_cookie_placement(),
+    )
+    .await?;
+    assert_crumbs_match(&capture, &observed)
+}
+
+#[tokio::test]
+async fn opera_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
+    // Opera 135 replays against the Chromium recipes (`phantom::profile::opera`).
+    let capture = Capture::parse(OPERA)?;
     let observed = replay(
         &capture,
         chromium::v154_http2(),

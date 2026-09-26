@@ -23,6 +23,12 @@ const CHROME: &str = include_str!(
 const EDGE: &str = include_str!(
     "../../../../../fixtures/cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h3.txt"
 );
+const BRAVE: &str = include_str!(
+    "../../../../../fixtures/cookies/brave/154.1.96.59/windows-11-26200/crumbs-h3.txt"
+);
+const OPERA: &str = include_str!(
+    "../../../../../fixtures/cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h3.txt"
+);
 /// The capture server's `SETTINGS_QPACK_BLOCKED_STREAMS` (aioquic 1.3.0).
 const CAPTURE_BLOCKED_STREAMS: usize = 16;
 
@@ -35,6 +41,18 @@ fn chrome_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
 fn edge_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
     // Edge 154 replays against the Chromium recipes (`phantom_profile::edge`).
     assert_replay_matches(&Capture::parse(EDGE)?)
+}
+
+#[test]
+fn brave_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
+    // Brave 154 replays against the Chromium recipes (`phantom_profile::brave`).
+    assert_replay_matches(&Capture::parse(BRAVE)?)
+}
+
+#[test]
+fn opera_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
+    // Opera 135 replays against the Chromium recipes (`phantom_profile::opera`).
+    assert_replay_matches(&Capture::parse(OPERA)?)
 }
 
 #[test]

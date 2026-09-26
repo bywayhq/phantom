@@ -833,6 +833,94 @@ mod cookie_placement {
         Ok(())
     }
 
+    const BRAVE_H1_COOKIES: &str =
+        fixture!("cookies/brave/154.1.96.59/windows-11-26200/crumbs-h1.txt");
+    const OPERA_H1_COOKIES: &str =
+        fixture!("cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h1.txt");
+
+    /// Returns the lowercase field names of `fields`.
+    fn names(fields: &Fields) -> Vec<String> {
+        fields
+            .iter()
+            .map(|(name, _)| name.to_ascii_lowercase())
+            .collect()
+    }
+
+    /// Brave 154 and Opera 135 send the jar's `Cookie` last on HTTP/1.1 in
+    /// their cookie captures, on the navigation and on the `fetch()`, and so
+    /// do their templates with the Chromium placement. The captured `fetch()`
+    /// also has the template's field order. The captured navigation is a
+    /// script navigation, with `Referer` and without `Sec-Fetch-User`, so
+    /// only its `Cookie` position is compared with the address-bar template.
+    #[tokio::test]
+    async fn brave_and_opera_templates_place_the_jar_cookie_as_captured() -> TestResult<()> {
+        type Template = fn() -> RequestTemplate;
+        let cases: [(Browser, &str, Template, &str); 4] = [
+            (
+                brave(),
+                BRAVE_H1_COOKIES,
+                brave::v154_windows_navigation_template,
+                "page",
+            ),
+            (
+                brave(),
+                BRAVE_H1_COOKIES,
+                brave::v154_windows_fetch_no_store_template,
+                "done",
+            ),
+            (
+                opera(),
+                OPERA_H1_COOKIES,
+                opera::v135_windows_navigation_template,
+                "page",
+            ),
+            (
+                opera(),
+                OPERA_H1_COOKIES,
+                opera::v135_windows_fetch_no_store_template,
+                "done",
+            ),
+        ];
+        for (browser, capture, template, kind) in cases {
+            let captured = Capture::parse(capture)?.http1_request(kind)?;
+            let captured_names = names(&captured);
+            assert_eq!(
+                captured_names.last().map(String::as_str),
+                Some("cookie"),
+                "{kind}: the capture sends Cookie last"
+            );
+            let template = template();
+            let caller = captured
+                .iter()
+                .filter(|(name, _)| {
+                    protocol_fields(&template, HttpProtocol::Http1)
+                        .iter()
+                        .any(|field| {
+                            matches!(field, phantom::profile::RequestField::Caller { .. })
+                                && field
+                                    .name()
+                                    .is_some_and(|slot| slot.eq_ignore_ascii_case(name))
+                        })
+                })
+                .map(|(name, value)| RequestHeader::new(name.to_ascii_lowercase(), value))
+                .collect();
+            let observed = send_with_jar_cookie(
+                &browser,
+                template,
+                chromium::v154_cookie_placement(),
+                HttpProtocol::Http1,
+                caller,
+            )
+            .await?;
+            let (_, after) = sides(&observed)?;
+            assert!(after.is_empty(), "{kind}: Cookie is sent last");
+            if kind == "done" {
+                assert_eq!(names(&observed), captured_names, "{kind} field order");
+            }
+        }
+        Ok(())
+    }
+
     /// Chrome sends the jar's `Cookie` last on HTTP/1.1, as in the
     /// EventSource capture, and before the final `priority` on HTTP/2.
     #[tokio::test]

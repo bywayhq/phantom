@@ -67,6 +67,10 @@ const CHROME_COOKIES: (&str, &str) =
     fixture!("cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h2.txt");
 const EDGE_COOKIES: (&str, &str) =
     fixture!("cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h2.txt");
+const BRAVE_COOKIES: (&str, &str) =
+    fixture!("cookies/brave/154.1.96.59/windows-11-26200/crumbs-h2.txt");
+const OPERA_COOKIES: (&str, &str) =
+    fixture!("cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h2.txt");
 const FIREFOX_COOKIES: (&str, &str) =
     fixture!("cookies/firefox/156.0/windows-11-26200/crumbs-h2.txt");
 
@@ -127,6 +131,18 @@ async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> 
 async fn edge_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     // Edge 154 uses the Chromium recipe (`phantom_profile::edge`).
     replay_all(&[EDGE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
+}
+
+#[tokio::test]
+async fn brave_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
+    // Brave 154 uses the Chromium recipe (`phantom_profile::brave`).
+    replay_all(&[BRAVE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
+}
+
+#[tokio::test]
+async fn opera_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
+    // Opera 135 uses the Chromium recipe (`phantom_profile::opera`).
+    replay_all(&[OPERA_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
 }
 
 #[tokio::test]

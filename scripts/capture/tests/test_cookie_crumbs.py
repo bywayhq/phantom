@@ -163,7 +163,7 @@ class QpackParserTests(unittest.TestCase):
 
     def test_retained_http3_fixtures_parse_to_their_recorded_field_lines(self) -> None:
         paths = sorted(FIXTURES.glob("*/*/*/crumbs-h3.txt"))
-        self.assertEqual(len(paths), 3)
+        self.assertEqual(len(paths), 5)
         for path in paths:
             values = fixture_values(path)
             capacity = int(values["server_qpack_max_table_capacity"])
