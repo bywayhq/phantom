@@ -42,9 +42,9 @@ is a better choice in these cases:
   [Coverage](reference/coverage.md#at-a-glance)); use a browser automation
   tool such as Playwright.
 - You need a browser Phantom has no recipe for. Phantom ships Chrome 154,
-  Edge 154, Brave 154, Opera 135, and Firefox 156, one build each, all
-  captured on Windows 11. It
-  has no Safari, mobile, macOS, or Linux captures.
+  Edge 154, Brave 154, Opera 135, and Firefox 156, one build each, captured
+  on Windows 11, with some layers from macOS 15.5 and Android emulators. It
+  has no Safari, iOS, or Linux captures and no captures on a physical phone.
   [Coverage](reference/coverage.md#browser-profiles) has the details.
 - You need many browser versions or operating systems. Phantom retires a
   browser version when it adds the next one. Tools that ship more targets
