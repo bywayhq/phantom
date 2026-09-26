@@ -38,6 +38,10 @@ use super::early_data::EarlyDataOutcome;
 /// `H3_REQUEST_CANCELLED` (RFC 9114, section 8.1).
 const H3_REQUEST_CANCELLED: u64 = 0x010c;
 
+/// The unidirectional streams every session opens first: the control stream
+/// and the two QPACK streams (RFC 9114, section 6.2).
+const CRITICAL_STREAMS: u64 = 3;
+
 type Answered = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 
 /// The QUIC connection under one HTTP/3 session, with the early-data gate
@@ -47,10 +51,12 @@ pub(super) struct Transport {
     gate: Option<OpenGate>,
     /// Present while an early session starts; see [`Starting`].
     starting: Option<Arc<Starting>>,
-    /// Blocks after each stream the session opens for itself until this
-    /// connection's handshake completes, for tests.
+    /// How many of the session's critical streams have opened.
+    critical_opened: u64,
+    /// Makes each stream the session opens for itself after its first wait
+    /// until this connection's handshake completes, for tests.
     #[cfg(test)]
-    wait_for_handshake: Option<quinn::Connection>,
+    wait_for_handshake: Option<HandshakeWait>,
 }
 
 impl Transport {
@@ -60,16 +66,20 @@ impl Transport {
             inner: h3_quinn::Connection::new(connection),
             gate: None,
             starting: None,
+            critical_opened: 0,
             #[cfg(test)]
             wait_for_handshake: None,
         }
     }
 
-    /// A session started in early data. `answer` receives whether Quinn
-    /// saw the server accept the early data, and closes unanswered when the
-    /// connection ends first; `outcome` receives the published answer.
+    /// A session started in early data. `accepted` is Quinn's answer to the
+    /// early data, which the session reads while it starts. `answer`
+    /// receives the same answer from the connection driver once the session
+    /// runs, and closes unanswered when the connection ends first; `outcome`
+    /// receives the published answer.
     pub(super) fn early(
         connection: quinn::Connection,
+        accepted: ZeroRttAnswer,
         answer: watch::Receiver<Option<bool>>,
         outcome: watch::Receiver<Option<EarlyDataOutcome>>,
     ) -> Self {
@@ -80,18 +90,23 @@ impl Transport {
                 answer,
                 outcome,
             }),
-            starting: Some(Arc::new(Starting::default())),
+            starting: Some(Arc::new(Starting::new(accepted))),
+            critical_opened: 0,
             #[cfg(test)]
             wait_for_handshake: None,
         }
     }
 
-    /// Makes the session's own streams, opened in 0-RTT, wait for the
-    /// handshake to complete before the session writes to them. The wait
-    /// blocks the polling thread, so the runtime needs another worker.
+    /// Makes every stream the session opens for itself after its first one
+    /// wait until the handshake completes, so the session starts across the
+    /// handshake's completion.
     #[cfg(test)]
     pub(super) fn after_open_send_for_test(&mut self, connection: quinn::Connection) {
-        self.wait_for_handshake = Some(connection);
+        self.wait_for_handshake = Some(HandshakeWait {
+            connection,
+            deadline: None,
+            sleep: None,
+        });
     }
 
     /// Returns the start state of an early session, which the caller ends
@@ -148,29 +163,42 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
+        #[cfg(test)]
+        if self.critical_opened > 0
+            && let Some(wait) = self.wait_for_handshake.as_mut()
+        {
+            ready!(wait.poll(cx));
+        }
         // Once the handshake completed, a stream opened here is a 1-RTT
-        // stream and would take a stream number the session that replaces a
-        // rejected one needs; the start fails instead, and the caller
-        // decides from the server's answer.
+        // stream. After a rejection it would take a stream number the
+        // session that replaces this one needs, so the start fails and the
+        // caller starts again; after an acceptance it is the stream the
+        // session asked for.
         if let (Some(starting), Some(gate)) = (&self.starting, &self.gate)
             && starting.is_starting()
-            && gate.quinn.handshake_data().is_some()
+            && ready!(starting.poll_answer(&gate.quinn, cx)) == Some(false)
         {
             return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                 DiscardedSession,
             ))));
         }
-        let opened = quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx);
-        #[cfg(test)]
-        if opened.is_ready()
-            && let Some(connection) = &self.wait_for_handshake
-        {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-            while connection.handshake_data().is_none() && std::time::Instant::now() < deadline {
-                std::thread::sleep(std::time::Duration::from_millis(1));
+        let stream = ready!(quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx))?;
+        // The session's critical streams take the first client
+        // unidirectional stream numbers, 2, 6 and 10 (RFC 9000, section
+        // 2.1). A rejection that lands between the check above and the open
+        // lets the open take a live 1-RTT number, and a session started
+        // after a rejected one then finds that number taken. Either session
+        // fails to start rather than use other stream numbers.
+        if self.critical_opened < CRITICAL_STREAMS {
+            let expected = self.critical_opened;
+            self.critical_opened += 1;
+            if quic::SendStream::<B>::send_id(&stream).index() != expected {
+                return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
+                    UnexpectedStreamNumber,
+                ))));
             }
         }
-        opened
+        Poll::Ready(Ok(stream))
     }
 
     fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
@@ -184,7 +212,35 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
     }
 }
 
+/// Quinn's answer to a connection's early data: `true` when the server
+/// accepted it. The session reads it while it starts, and the connection
+/// driver afterwards.
+pub(super) enum ZeroRttAnswer {
+    Waiting(quinn::ZeroRttAccepted),
+    Known(bool),
+}
+
+impl Future for ZeroRttAnswer {
+    type Output = bool;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<bool> {
+        match &mut *self {
+            Self::Known(accepted) => Poll::Ready(*accepted),
+            Self::Waiting(answer) => {
+                let accepted = ready!(Pin::new(answer).poll(cx));
+                *self = Self::Known(accepted);
+                Poll::Ready(accepted)
+            }
+        }
+    }
+}
+
 /// The start of an early session.
+///
+/// A stream the session opens for itself before the handshake completes is
+/// a 0-RTT stream. Once the handshake data is in, the session waits for
+/// Quinn's answer before it opens another: an acceptance lets the open go
+/// ahead, and a rejection fails it.
 ///
 /// A server can reject the early data while the session writes its first
 /// stream bytes, and the writes then fail. A close the session asks for
@@ -192,15 +248,55 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
 /// to the caller: it starts HTTP/3 again on a rejection, and otherwise
 /// closes with the code the session chose. A close before the handshake
 /// completed cannot come from a rejection and is sent at once.
-#[derive(Default)]
 pub(super) struct Starting {
     started: AtomicBool,
     deferred: std::sync::Mutex<Option<(quinn::VarInt, Vec<u8>)>>,
+    answer: std::sync::Mutex<Option<ZeroRttAnswer>>,
+}
+
+/// What an early session's start leaves to its caller.
+pub(super) struct Started {
+    /// The close the session asked for after its handshake completed.
+    pub(super) deferred_close: Option<(quinn::VarInt, Vec<u8>)>,
+    pub(super) answer: ZeroRttAnswer,
 }
 
 impl Starting {
+    fn new(answer: ZeroRttAnswer) -> Self {
+        Self {
+            started: AtomicBool::new(false),
+            deferred: std::sync::Mutex::new(None),
+            answer: std::sync::Mutex::new(Some(answer)),
+        }
+    }
+
     fn is_starting(&self) -> bool {
         !self.started.load(Ordering::Acquire)
+    }
+
+    /// Resolves to Quinn's answer once it is known, or to `None` at once
+    /// while the handshake runs. Once the handshake data is in and the
+    /// answer is not, it waits: Quinn answers when the same handshake
+    /// completes.
+    fn poll_answer(
+        &self,
+        connection: &quinn::Connection,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<bool>> {
+        let Ok(mut answer) = self.answer.lock() else {
+            return Poll::Ready(Some(false));
+        };
+        let Some(answer) = answer.as_mut() else {
+            return Poll::Ready(Some(false));
+        };
+        if let Poll::Ready(accepted) = Pin::new(answer).poll(cx) {
+            return Poll::Ready(Some(accepted));
+        }
+        if connection.handshake_data().is_none() {
+            Poll::Ready(None)
+        } else {
+            Poll::Pending
+        }
     }
 
     fn defer_close(&self, code: h3::error::Code, reason: &[u8]) -> bool {
@@ -216,13 +312,57 @@ impl Starting {
         true
     }
 
-    /// Ends the start and returns the close the session deferred, if any.
-    pub(super) fn finish(&self) -> Option<(quinn::VarInt, Vec<u8>)> {
+    /// Ends the start and returns what it leaves to the caller.
+    pub(super) fn finish(&self) -> Started {
         self.started.store(true, Ordering::Release);
-        self.deferred
+        let deferred_close = self
+            .deferred
             .lock()
             .ok()
-            .and_then(|mut deferred| deferred.take())
+            .and_then(|mut deferred| deferred.take());
+        let answer = self
+            .answer
+            .lock()
+            .ok()
+            .and_then(|mut answer| answer.take())
+            .unwrap_or(ZeroRttAnswer::Known(false));
+        Started {
+            deferred_close,
+            answer,
+        }
+    }
+}
+
+/// The test hook that makes a session's own stream opens wait for the
+/// handshake to complete.
+#[cfg(test)]
+struct HandshakeWait {
+    connection: quinn::Connection,
+    deadline: Option<tokio::time::Instant>,
+    sleep: Option<Pin<Box<tokio::time::Sleep>>>,
+}
+
+#[cfg(test)]
+impl HandshakeWait {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        const LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
+        loop {
+            if self.connection.handshake_data().is_some() {
+                self.sleep = None;
+                return Poll::Ready(());
+            }
+            let now = tokio::time::Instant::now();
+            let deadline = *self.deadline.get_or_insert(now + LIMIT);
+            assert!(
+                now < deadline,
+                "the QUIC handshake did not complete within {LIMIT:?} of the session's first stream"
+            );
+            let sleep = self.sleep.get_or_insert_with(|| {
+                Box::pin(tokio::time::sleep(std::time::Duration::from_millis(1)))
+            });
+            ready!(sleep.as_mut().poll(cx));
+            self.sleep = None;
+        }
     }
 }
 
@@ -481,3 +621,15 @@ impl fmt::Display for DiscardedSession {
 }
 
 impl Error for DiscardedSession {}
+
+/// A critical stream of a session did not take the stream number it needs.
+#[derive(Debug)]
+struct UnexpectedStreamNumber;
+
+impl fmt::Display for UnexpectedStreamNumber {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("an HTTP/3 critical stream did not open on its expected stream number")
+    }
+}
+
+impl Error for UnexpectedStreamNumber {}

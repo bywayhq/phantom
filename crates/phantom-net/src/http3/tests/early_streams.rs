@@ -21,11 +21,12 @@ use tokio::{sync::watch, time::timeout};
 use super::super::{
     GateDelay, Http3Unprocessed,
     early_data::EarlyDataOutcome,
-    early_streams::{Opener, Transport},
+    early_streams::{Opener, Transport, ZeroRttAnswer},
 };
 use super::early_data::{
-    Served, alps_frame, connect, delaying_relay, send, server_config, spawn_counting_server,
-    spawn_h3_server, trusting_connector, unprocessed, wait_for_ticket,
+    Served, StreamTypes, alps_frame, connect, delaying_relay, send, server_config,
+    spawn_counting_server, spawn_h3_server, spawn_recording_server, trusting_connector,
+    trusting_connector_with, unprocessed, wait_for_ticket,
 };
 use super::{TEST_TIMEOUT, TestResult};
 use crate::tls::test_support::TestIdentity;
@@ -37,7 +38,12 @@ type Published = watch::Sender<Option<EarlyDataOutcome>>;
 fn gated(quinn: &quinn::Connection) -> (Answer, Published, Transport) {
     let (answer, answer_rx) = watch::channel(None);
     let (published, published_rx) = watch::channel(None);
-    let transport = Transport::early(quinn.clone(), answer_rx, published_rx);
+    let transport = Transport::early(
+        quinn.clone(),
+        ZeroRttAnswer::Known(true),
+        answer_rx,
+        published_rx,
+    );
     (answer, published, transport)
 }
 
@@ -704,15 +710,53 @@ async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult
     Ok(())
 }
 
+/// The Chrome HTTP/3 profile with both QPACK stream types written when the
+/// session starts, so a server reads the type of every critical stream. The
+/// QPACK stream order stays Chrome's: decoder, then encoder.
+fn typed_critical_streams() -> phantom_profile::Http3Settings {
+    let mut settings = phantom_profile::chromium::v154_http3();
+    settings.qpack_decoder_stream = phantom_profile::Http3QpackDecoderStream::Eager;
+    settings.qpack_encoder_stream = phantom_profile::Http3QpackEncoderStream::Eager;
+    settings
+}
+
+/// Waits until the server read the types of client streams 2, 6 and 10 on
+/// its connection `index`, and checks they are the control stream and the
+/// QPACK decoder and encoder streams, in the Chrome profile's order.
+async fn check_critical_stream_types(types: &StreamTypes, index: usize) -> TestResult<()> {
+    const EXPECTED: [(u64, u64); 3] = [(2, 0x00), (6, 0x03), (10, 0x02)];
+    timeout(TEST_TIMEOUT, async {
+        loop {
+            let mut seen = types
+                .lock()
+                .map_err(|_| "stream types poisoned")?
+                .iter()
+                .filter(|(connection, id, _)| *connection == index && *id < 14)
+                .map(|(_, id, stream_type)| (*id, *stream_type))
+                .collect::<Vec<_>>();
+            seen.sort_unstable();
+            if seen.len() >= EXPECTED.len() {
+                if seen != EXPECTED {
+                    return Err(format!("unexpected critical stream types: {seen:x?}").into());
+                }
+                return Ok::<(), Box<dyn std::error::Error + Send + Sync>>(());
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .map_err(|_| "the server did not read three critical stream types")?
+}
+
 /// A server that rejects early data while the early HTTP/3 session is still
 /// writing its first stream bytes leaves the connection open: HTTP/3 starts
 /// on it as on a connection without early data, and it carries a request.
-/// A hook holds the session's first writes, on streams opened in 0-RTT,
-/// until the handshake completed.
+/// A hook makes the session's second and third streams wait until the
+/// handshake completed; the first was opened in 0-RTT.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let early = trusting_connector(&identity)?
+    let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
         .with_test_start_after_handshake();
     let endpoint = quinn::Endpoint::server(
@@ -720,7 +764,7 @@ async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> Te
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
     let address = endpoint.local_addr()?;
-    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
+    let (server, served, types) = spawn_recording_server(endpoint.clone(), vec![16_384, 16_384]);
     let learning = connect(&early, address).await?;
     wait_for_ticket(&early).await?;
     drop(learning);
@@ -742,8 +786,52 @@ async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> Te
     assert_eq!(response.status(), StatusCode::OK);
     let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
     assert_eq!(served, [(1, "/started".to_owned())]);
+    check_critical_stream_types(&types, 1).await?;
 
     drop((response, connection));
+    server.abort();
+    Ok(())
+}
+
+/// A server that accepts early data while the early HTTP/3 session is still
+/// opening its own streams keeps the connection and the session: the
+/// streams the session opens after the handshake are the control and QPACK
+/// streams it asked for, on client streams 2, 6 and 10, and requests
+/// succeed. A hook makes the session's second and third streams wait until
+/// the handshake completed; the first was opened in 0-RTT.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_acceptance_while_the_early_session_starts_keeps_the_connection() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector_with(&identity, &typed_critical_streams())?
+        .with_isolated_session_cache()
+        .with_test_start_after_handshake();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served, types) = spawn_recording_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+
+    let connection = connect(&early, address).await?;
+    assert!(connection.sent_early_data());
+    assert_eq!(connection.early_data_accepted().await, Some(true));
+    for path in ["/accepted", "/again"] {
+        let response = send(&early, &connection, Method::GET, path, None).await?;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(
+        served,
+        [(1, "/accepted".to_owned()), (1, "/again".to_owned())]
+    );
+    check_critical_stream_types(&types, 1).await?;
+    let next = connection.quinn().open_uni().await?;
+    assert_eq!(u64::from(next.id()), 14);
+
+    drop((next, connection));
     server.abort();
     Ok(())
 }

@@ -34,7 +34,7 @@ pub(super) type ClientDriver = h3::client::Connection<super::early_streams::Tran
 /// opening request streams before the answer is checked and published; see
 /// `early_streams`. Dropping it unanswered closes the gate.
 pub(super) struct EarlyAnswer {
-    pub(super) accepted: quinn::ZeroRttAccepted,
+    pub(super) accepted: super::early_streams::ZeroRttAnswer,
     pub(super) gate: watch::Sender<Option<bool>>,
     #[cfg(test)]
     pub(super) gate_delay: Option<super::GateDelay>,

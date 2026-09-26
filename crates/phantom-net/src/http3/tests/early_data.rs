@@ -1,10 +1,12 @@
 use std::{
     net::{Ipv4Addr, SocketAddr},
     sync::{Arc, Mutex},
+    task::{Context, Poll, ready},
     time::Duration,
 };
 
 use bytes::{Buf, Bytes};
+use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use http::{Method, Response, StatusCode};
 use phantom_profile::chromium;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -38,7 +40,7 @@ fn stateless_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     trusting_connector_with(identity, &http3)
 }
 
-fn trusting_connector_with(
+pub(super) fn trusting_connector_with(
     identity: &TestIdentity,
     http3: &phantom_profile::Http3Settings,
 ) -> TestResult<Http3Connector> {
@@ -485,21 +487,43 @@ pub(super) fn spawn_counting_server(
     endpoint: quinn::Endpoint,
     field_section_limits: Vec<u64>,
 ) -> (JoinHandle<()>, ServedOn) {
+    let (task, served, _) = spawn_recording_server(endpoint, field_section_limits);
+    (task, served)
+}
+
+/// The type of each client unidirectional stream the server read, by
+/// connection index and stream ID, in the order the types arrived.
+pub(super) type StreamTypes = Arc<Mutex<Vec<(usize, u64, u64)>>>;
+
+/// [`spawn_counting_server`] that also records the stream type of each
+/// client unidirectional stream it reads.
+pub(super) fn spawn_recording_server(
+    endpoint: quinn::Endpoint,
+    field_section_limits: Vec<u64>,
+) -> (JoinHandle<()>, ServedOn, StreamTypes) {
     let served = Arc::new(Mutex::new(Vec::new()));
     let recorded = Arc::clone(&served);
+    let types = Arc::new(Mutex::new(Vec::new()));
+    let recorded_types = Arc::clone(&types);
     let task = tokio::spawn(async move {
         for (index, limit) in field_section_limits.into_iter().enumerate() {
             let Some(incoming) = endpoint.accept().await else {
                 return;
             };
             let served = Arc::clone(&served);
+            let types = Arc::clone(&types);
             tokio::spawn(async move {
                 let Ok(quic) = incoming.await else {
                     return;
                 };
+                let recording = RecordingConnection {
+                    inner: h3_quinn::Connection::new(quic),
+                    index,
+                    types,
+                };
                 let Ok(mut connection) = h3::server::builder()
                     .max_field_section_size(limit)
-                    .build::<_, Bytes>(h3_quinn::Connection::new(quic))
+                    .build::<_, Bytes>(recording)
                     .await
                 else {
                     return;
@@ -526,7 +550,107 @@ pub(super) fn spawn_counting_server(
             });
         }
     });
-    (task, recorded)
+    (task, recorded, recorded_types)
+}
+
+/// A server-side QUIC connection that records the stream type at the start
+/// of each client unidirectional stream.
+struct RecordingConnection {
+    inner: h3_quinn::Connection,
+    index: usize,
+    types: StreamTypes,
+}
+
+impl<B: Buf> quic::Connection<B> for RecordingConnection {
+    type RecvStream = RecordingRecvStream;
+    type OpenStreams = h3_quinn::OpenStreams;
+
+    fn poll_accept_recv(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::RecvStream, ConnectionErrorIncoming>> {
+        let inner = ready!(quic::Connection::<B>::poll_accept_recv(&mut self.inner, cx))?;
+        Poll::Ready(Ok(RecordingRecvStream {
+            inner,
+            record: Some((self.index, Arc::clone(&self.types))),
+        }))
+    }
+
+    fn poll_accept_bidi(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::BidiStream, ConnectionErrorIncoming>> {
+        quic::Connection::<B>::poll_accept_bidi(&mut self.inner, cx)
+    }
+
+    fn opener(&self) -> Self::OpenStreams {
+        quic::Connection::<B>::opener(&self.inner)
+    }
+}
+
+impl<B: Buf> quic::OpenStreams<B> for RecordingConnection {
+    type BidiStream = h3_quinn::BidiStream<B>;
+    type SendStream = h3_quinn::SendStream<B>;
+
+    fn poll_open_bidi(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::BidiStream, StreamErrorIncoming>> {
+        quic::OpenStreams::<B>::poll_open_bidi(&mut self.inner, cx)
+    }
+
+    fn poll_open_send(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
+        quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx)
+    }
+
+    fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+        quic::OpenStreams::<B>::close(&mut self.inner, code, reason);
+    }
+}
+
+struct RecordingRecvStream {
+    inner: h3_quinn::RecvStream,
+    record: Option<(usize, StreamTypes)>,
+}
+
+impl quic::RecvStream for RecordingRecvStream {
+    type Buf = Bytes;
+
+    fn poll_data(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<Self::Buf>, StreamErrorIncoming>> {
+        let data = ready!(quic::RecvStream::poll_data(&mut self.inner, cx))?;
+        // The critical stream types fit one varint byte (RFC 9114, section
+        // 6.2); a longer type, such as a reserved one, is recorded as
+        // `u64::MAX`.
+        if let Some(chunk) = &data
+            && let Some(first) = chunk.first()
+            && let Some((index, types)) = self.record.take()
+        {
+            let stream_type = if first >> 6 == 0 {
+                u64::from(*first)
+            } else {
+                u64::MAX
+            };
+            let id = quic::RecvStream::recv_id(&self.inner).into_inner();
+            if let Ok(mut types) = types.lock() {
+                types.push((index, id, stream_type));
+            }
+        }
+        Poll::Ready(Ok(data))
+    }
+
+    fn stop_sending(&mut self, error_code: u64) {
+        quic::RecvStream::stop_sending(&mut self.inner, error_code);
+    }
+
+    fn recv_id(&self) -> quic::StreamId {
+        quic::RecvStream::recv_id(&self.inner)
+    }
 }
 
 pub(super) fn unprocessed(error: &(dyn std::error::Error + 'static)) -> Option<Http3Unprocessed> {

@@ -21,7 +21,7 @@ use connection::Session;
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask, EarlyAnswer, LateApplicationSettings};
 use early_data::{EarlyData, EarlyDataOutcome, InvalidHandshake};
-use early_streams::Transport;
+use early_streams::{Started, Transport, ZeroRttAnswer};
 #[cfg(test)]
 use request::prepare_request;
 use request::{PreparedRequest, prepare_profiled_request_body_with_trailers};
@@ -561,25 +561,38 @@ async fn connect(
     // streams or once the server accepted the early data; see
     // `early_streams`.
     let early_channel = zero_rtt.as_ref().map(|_| EarlyData::channel());
-    let (gate, transport) = match &early_channel {
-        Some((_, early_data)) => {
+    let (gate, transport) = match (zero_rtt, &early_channel) {
+        (Some(accepted), Some((_, early_data))) => {
             let (gate, answer) = tokio::sync::watch::channel(None);
             (
                 Some(gate),
-                Transport::early(connection.clone(), answer, early_data.subscribe()),
+                Transport::early(
+                    connection.clone(),
+                    ZeroRttAnswer::Waiting(accepted),
+                    answer,
+                    early_data.subscribe(),
+                ),
             )
         }
-        None => (None, Transport::new(connection.clone())),
+        _ => (None, Transport::new(connection.clone())),
     };
     #[cfg(test)]
     let mut transport = transport;
     #[cfg(test)]
-    if start_after_handshake && zero_rtt.is_some() {
+    if start_after_handshake && gate.is_some() {
         transport.after_open_send_for_test(connection.clone());
     }
     let starting = transport.starting();
     let built = builder.build(transport).await;
-    let suppressed_close = starting.as_ref().and_then(|starting| starting.finish());
+    // The session read Quinn's answer while it started; the driver or the
+    // restart below reads it from here.
+    let (suppressed_close, zero_rtt) = match starting.map(|starting| starting.finish()) {
+        Some(Started {
+            deferred_close,
+            answer,
+        }) => (deferred_close, Some(answer)),
+        None => (None, None),
+    };
     let mut rejected_at_start = None;
     let (h3_driver, sender, zero_rtt, gate, early_channel, remembered_settings) = match built {
         Ok((h3_driver, sender)) => (

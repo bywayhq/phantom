@@ -2617,11 +2617,20 @@ Replay against Phantom:
   fails its checks, and the server never sees it.
   `a_rejection_between_two_polls_of_a_request_waiting_for_credit_refuses_it`
   shows the rejection waking such a request.
-  `a_rejection_while_the_early_session_starts_keeps_the_connection` holds
-  the early session's first writes until the handshake completed with a
-  rejection; the connection reports the rejected early data, starts HTTP/3
-  again on client streams 2, 6, and 10, and carries a request. The stress
+  `a_rejection_while_the_early_session_starts_keeps_the_connection` makes
+  the early session's second and third streams wait until the handshake
+  completed with a rejection; the connection reports the rejected early
+  data, starts HTTP/3 again, and carries a request. The server reads the
+  control stream type on client stream 2, the QPACK decoder stream type on
+  6, and the QPACK encoder stream type on 10, Chrome's order. The stress
   test below found this case.
+  `an_acceptance_while_the_early_session_starts_keeps_the_connection` does
+  the same with the early data accepted: the session opens its last two
+  streams in 1-RTT, the server reads the same three types on streams 2, 6,
+  and 10, and two requests succeed. Both tests write the QPACK stream types
+  when the session starts, so the server sees every type. No test reaches a
+  rejection between reading Quinn's answer and opening a stream, which the
+  stream-number check covers.
   `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
   credit-wait and handshake-window rejections on a four-worker runtime with
   a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations

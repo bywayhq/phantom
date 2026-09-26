@@ -639,18 +639,24 @@ session on the connection instead.
   answer first, and then uses the new session. `send_prepared_request`
   reports only a request that took the sender before the answer as
   unprocessed.
-- A rejection can arrive while the early session is still starting. Its
-  writes on streams opened in 0-RTT then fail, and once the handshake has
-  completed it opens no further control or QPACK stream, so no 1-RTT stream
-  takes a number. A close the session asks for after the handshake goes to
-  `connect`: on a rejection it starts HTTP/3 on the connection with the
-  metadata checks every session applies, opens its streams as client
-  streams 2, 6, and 10, and publishes the rejection, so
-  `sent_early_data` is true and `early_data_accepted` is `Some(false)`. On
-  any other failure `connect` closes with the code the session chose. If the
-  handshake completes between that check and an open, which no test reaches,
-  the stream opened in 1-RTT keeps its number and the new session's streams
-  follow it.
+- The handshake can complete while the early session is still starting.
+  Once the handshake data is in, the session reads Quinn's answer before it
+  opens another control or QPACK stream. After an acceptance the open goes
+  ahead as a 1-RTT stream, and the session keeps client streams 2, 6, and
+  10. After a rejection the open fails, so no 1-RTT stream takes a number,
+  and the session's writes on its 0-RTT streams fail too. A close the
+  session asks for after the handshake goes to `connect`: on a rejection it
+  starts HTTP/3 on the connection with the metadata checks every session
+  applies, opens its streams as client streams 2, 6, and 10, and publishes
+  the rejection, so `sent_early_data` is true and `early_data_accepted` is
+  `Some(false)`. On any other failure `connect` closes with the code the
+  session chose. Quinn's answer is read and the stream opened under
+  separate locks, so a rejection can land between the two. The open then
+  takes a live 1-RTT number, and a later session would have to use other
+  stream numbers. Every session therefore checks that its critical streams
+  take client streams 2, 6, and 10, and one that does not fails to start;
+  the connection is closed rather than started on other stream
+  numbers.
 - Every session applies the same start checks, in `check_start` and
   `apply_peer_alps`: a missing `h3` ALPN or malformed ALPS `ACCEPT_CH`
   closes the connection with `H3_GENERAL_PROTOCOL_ERROR`, and invalid ALPS
