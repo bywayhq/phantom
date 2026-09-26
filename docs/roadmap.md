@@ -130,9 +130,9 @@ anything does.
   a `brave-core` source reading at its release tag, and both browsers use
   the Chromium cookie placement, which their cookie captures equal
   ([Brave 154 and Opera 135 recipes](explanation/validation.md#brave-154-and-opera-135-recipes)).
-  Evidence for Opera: none; Chromium 151, its base, has the Chromium 154
-  values. Blocker: Opera's network source is not public, and no capture
-  shows socket options or cache lifetimes.
+  Evidence: none for Opera itself; Chromium 151, which Opera reports, has
+  the Chromium 154 values at its tag. Blocker: Opera's network source is not
+  public, and no capture shows socket options or cache lifetimes.
 - Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
   query with the capture tool's preferences, and `opera::v135_tls` keeps
   GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.

@@ -644,20 +644,44 @@ them below. Its `net/dns/dns_client.cc` override adds a fallback
 DNS-over-HTTPS server behind `kBraveFallbackDoHProvider`, which is off by
 default, and its resolver configuration changes apply only while Brave VPN
 is connected. So `chromium::v154_tcp`, `chromium::v154_http1`, and
-`chromium::v154_dns_cache` serve Brave as they are. Brave's
-`patches/net-base-features.cc.patch` enables
+`chromium::v154_dns_cache` serve Brave as they are.
+
+Brave's `patches/net-base-features.cc.patch` enables
 `kPartitionConnectionsByNetworkIsolationKey`, which Chromium leaves off
-(`net/base/features.cc:213-214`). With it, socket pool groups
-(`net/socket/client_socket_pool.cc:122-136`), host cache entries, and
-learned HTTP/2 support are keyed by top-level site as well. A Phantom
-client has no top-level site: it behaves as Brave does within one.
+(`net/base/features.cc:213-214`); its `chromium_src/net/base/features.cc`
+only includes the upstream file and adds Brave's own features. The flag
+makes `NetworkAnonymizationKey::IsPartitioningEnabled` true
+(`net/base/network_anonymization_key.cc:261-266`), and at Chromium tag
+`154.0.8037.58` these keys then carry the top-level site's key:
+
+| Key | Source |
+| --- | --- |
+| Socket pool group, so the HTTP/1.1 bound applies per site | `net/socket/client_socket_pool.cc:122-136` |
+| TLS session cache | `net/socket/ssl_client_socket_impl.cc:1631-1644` |
+| HTTP/2 session | `net/spdy/spdy_session_key.cc:36-44` |
+| QUIC session, and the QUIC crypto configurations | `net/quic/quic_session_key.cc:80-88`, `net/quic/quic_session_pool.cc:733-734` |
+| Host cache, with `kSplitHostCacheByNetworkAnonymizationKey`, on by default (`net/base/features.cc:216-217`) | `net/dns/host_resolver_manager_request_impl.cc:51-56`, `net/dns/host_resolver_manager_service_endpoint_request_impl.cc:56` |
+| Learned server properties: HTTP/2 support, Alt-Svc, and their saved copy | `net/http/http_server_properties.cc:150-151`, `net/http/http_server_properties_manager.cc:323-324` |
+| `HttpStreamPool` keys, used only with Happy Eyeballs v3, off by default | `net/http/http_stream_key.cc:36-39`, `net/http/http_stream_pool_request_info.cc:36` |
+| Reporting and Network Error Logging, which Phantom does not implement | `net/reporting/reporting_service.cc:349`, `net/network_error_logging/network_error_logging_service.cc:354` |
+
+The table lists every non-test call of `IsPartitioningEnabled` under
+`net/` at that tag. The two outside `net/` in `services/network/`,
+`content/browser/`, and `chrome/browser/net/`, and none in `brave-core`,
+only check that a key is set. A Phantom client has no top-level site: it
+behaves as Brave does within one site, sharing each of these across every
+request it sends.
 
 Opera's network source is not public, so Opera has no TCP, HTTP/1.1
-connection, or address cache recipe. Chromium 151.0.7922.176, the version
-Opera reports, has the values of 154 for `kTCPKeepAliveSeconds`,
-`g_max_sockets_per_group`, `kDefaultCacheSize`, `kCacheEntryTTLSeconds`,
-`kNegativeCacheEntryTTLSeconds`, and `kIPv6FallbackTime`, with Happy
-Eyeballs v3 off, but that does not show what Opera changes.
+connection, or address cache recipe. At Chromium tag `151.0.7922.176`, the
+version Opera reports, the recipes' values are those of 154:
+`kTCPKeepAliveSeconds = 45` (`net/socket/tcp_socket_win.cc:50`),
+`g_max_sockets_per_group` 6 (`net/socket/client_socket_pool_manager.cc:54-56`),
+`kDefaultCacheSize = 1000` (`net/dns/resolve_context.cc:107`),
+`kCacheEntryTTLSeconds = 60` and `kNegativeCacheEntryTTLSeconds = 0`
+(`net/dns/host_resolver_manager_job.cc:53`, `:56`), `kIPv6FallbackTime` 300 ms
+(`net/socket/tcp_connect_job.h:89`), and Happy Eyeballs v3 off
+(`net/base/features.cc:99`). That does not show what Opera changes.
 
 Brave's `Accept-Language` is the one request value that no literal can
 match. The sample is the 87 runs of the Brave WebSocket and proxy route
@@ -779,6 +803,11 @@ Limits:
   browser matched the headless runs, but it was not retained.
 - Brave's TCP options, HTTP/1.1 bound, and address cache rest on source
   alone; no capture confirms them. Opera has no recipe for those layers.
+- Brave partitions connections, TLS sessions, the host cache, and learned
+  server properties by top-level site; Phantom does not. A Phantom client
+  matches Brave within one top-level site, but reuses a connection, a TLS
+  session, or a cached address where Brave, under a second site, would
+  open, handshake, or resolve again.
 - No SSE or Alt-Svc racing capture exists for either browser.
 - The Opera comparison is with Chrome 154, not with a Chromium 151 build.
 - Opera's H2 and H3 startups were launched through DevTools; its TLS
@@ -1391,9 +1420,9 @@ Limits:
 What is claimed: `chromium::v154_http1` and `firefox::v156_http1` allow 6
 HTTP/1.1 connections to one origin and route, as those browsers do at the
 profiled release tags and as Brave 154 does, and the client opens
-connections up to the profile's bound. Negotiated requests that select HTTP/1.1 use the same bound, and
-their TLS handshakes follow the browsers' rule for a server whose protocol
-is not yet known.
+connections up to the profile's bound. Negotiated requests that select
+HTTP/1.1 use the same bound, and their TLS handshakes follow the browsers'
+rule for a server whose protocol is not yet known.
 
 Evidence: a capture of one page load cannot show a limit that the page never
 reached, so the recipes rest on browser source at Chromium tag
@@ -1958,14 +1987,16 @@ names a literal with the highest-numbered entry that has its name.
 all three runs byte for byte. Brave and Opera replay against
 `chromium::v154_http2` and `chromium::v154_cookie_placement`, as Edge does.
 
-The HTTP/1.1 captures are replayed for Brave and Opera:
+The Brave and Opera HTTP/1.1 captures are compared with Phantom's
+requests, not replayed:
 `brave_and_opera_templates_place_the_jar_cookie_as_captured` in
 `crates/phantom/tests/requests/request_templates.rs` sends each browser's
 navigation and `fetch()` templates with a jar cookie and the Chromium
-placement. `Cookie` arrives last from both, and the `fetch()` fields arrive
-in the captured order. The captured navigation is a script navigation, with
-`Referer` and without `Sec-Fetch-User`, so only its `Cookie` position is
-compared with the address-bar template. Chrome's HTTP/1.1 placement is
+placement. It compares the `Cookie` position, last, with the captured
+`/page` and `/done` requests, and the whole field order with the captured
+`/done`. The captured `/page` is a script navigation, with `Referer` and
+without `Sec-Fetch-User`, so its other fields are not compared with the
+address-bar template. Chrome's HTTP/1.1 placement is
 checked against its EventSource capture instead, by
 `chrome_templates_place_the_jar_cookie_where_chrome_does` in the same file;
 no test replays the Chrome or Edge HTTP/1.1 cookie captures.

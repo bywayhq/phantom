@@ -23,9 +23,11 @@
 //! a value those recipes cite, so they serve Brave unchanged. The one Brave
 //! change that reaches these layers enables
 //! `kPartitionConnectionsByNetworkIsolationKey`
-//! (`patches/net-base-features.cc.patch`), which keys Chromium's socket
-//! groups and host cache by top-level site as well; a Phantom client keeps
-//! one pool and one cache, as a single top-level site would.
+//! (`patches/net-base-features.cc.patch` in `brave-core`), which keys
+//! Chromium's socket groups, TLS session cache, HTTP/2 and QUIC sessions,
+//! host cache, and learned server properties by top-level site as well. A
+//! Phantom client shares each of these across all its requests, as Brave
+//! does within one top-level site.
 
 use crate::{
     chromium,
