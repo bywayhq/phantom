@@ -27,8 +27,10 @@ pub(super) enum Choice {
 pub(super) struct Http2Spread {
     max_connections: NonZeroUsize,
     local_streams: NonZeroUsize,
-    /// The stream limit of the newest connection whose peer advertised one,
-    /// used for a connection whose SETTINGS have not arrived yet.
+    /// The stream limit of the newest connection that reported one, used for
+    /// a connection whose SETTINGS have not arrived yet. A connection reports
+    /// its peer's `SETTINGS_MAX_CONCURRENT_STREAMS`, or, when the peer's
+    /// SETTINGS omitted it, the limit the profile assumes.
     learned_peer_limit: Option<usize>,
 }
 
@@ -44,7 +46,12 @@ impl Http2Spread {
     /// Chooses the least-loaded connection that has room for another stream.
     ///
     /// A connection's room is the lower of the local active bound and the
-    /// peer's `SETTINGS_MAX_CONCURRENT_STREAMS`. When no connection has room,
+    /// limit the connection reports: the peer's
+    /// `SETTINGS_MAX_CONCURRENT_STREAMS`, or the profile's assumed limit
+    /// when the peer's SETTINGS omitted it. Before a connection's SETTINGS
+    /// arrive, the HTTP/2 layer already holds its streams to the assumed
+    /// limit, and the room uses the newest reported limit instead. When no
+    /// connection has room,
     /// the key opens another up to its limit; at the limit the least-loaded
     /// connection takes the stream and the HTTP/2 layer queues it until the
     /// peer allows it. Ties go to the oldest connection, so a key with one
@@ -89,7 +96,7 @@ mod tests {
 
     use phantom_net::http2::Http2Connection;
     use phantom_profile::chromium;
-    use tokio::io::{DuplexStream, duplex};
+    use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
     use super::{Choice, Http2Spread};
     use crate::session::stream_count::StreamCount;
@@ -145,6 +152,27 @@ mod tests {
         assert_eq!(spread.choose(two.into_iter()), Choice::Use(0));
         drop(first_held);
         assert_eq!(spread.choose(two.into_iter()), Choice::Use(0));
+        Ok(())
+    }
+
+    /// SETTINGS that omit a stream limit leave the recipe's assumed 100 in
+    /// force, so a connection with 100 streams is full.
+    #[tokio::test]
+    async fn settings_without_a_limit_leave_room_for_the_assumed_limit() -> TestResult {
+        let (first, mut peer) = connection().await?;
+        assert_eq!(first.peer_max_concurrent_streams(), None);
+        // An empty SETTINGS frame on stream 0.
+        peer.write_all(&[0, 0, 0, 0x4, 0, 0, 0, 0, 0]).await?;
+        first.extended_connect_enabled().await?;
+        assert_eq!(first.peer_max_concurrent_streams(), Some(100));
+
+        let streams = StreamCount::default();
+        let mut spread = Http2Spread::new(bound(2)?, bound(256)?);
+        let mut held = (0..99).map(|_| streams.open()).collect::<Vec<_>>();
+        let one = [(&first, &streams)];
+        assert_eq!(spread.choose(one.into_iter()), Choice::Use(0));
+        held.push(streams.open());
+        assert_eq!(spread.choose(one.into_iter()), Choice::Open);
         Ok(())
     }
 }
