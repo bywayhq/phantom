@@ -702,6 +702,12 @@ fn translate_settings_with_pseudo_order(
             .initial_max_send_streams(usize::try_from(limit).unwrap_or(usize::MAX))
             .retain_initial_max_send_streams(true);
     }
+    if let Some(cap) = settings.streams.max_concurrent_streams_cap {
+        client.max_send_streams_cap(usize::try_from(cap).unwrap_or(usize::MAX));
+    }
+    if let Some(idle) = settings.preface_ping_after {
+        client.preface_ping(idle);
+    }
     let mut order = SettingsOrder::builder();
 
     for setting in &settings.initial_settings {

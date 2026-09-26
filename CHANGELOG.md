@@ -35,6 +35,31 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   keep no limit, or copy the value from a recipe. Call
   `WebSocketRequestBuilder::handshake_timeout(None)` to open one WebSocket
   without the recipe's limit.
+- `Http2Settings` gained the public field `preface_ping_after:
+  Option<Duration>`, so struct literals that name every field no longer
+  compile. When set, a connection that has read nothing from the peer for
+  longer than that time sends a PING right after the next request HEADERS or
+  non-empty DATA frame, with a 64-bit big-endian counter from 1 as payload,
+  and sends no other while it awaits the ACK. `chromium::v154_http2`, and so
+  every Chromium-family recipe, sets 10 seconds, as Chromium's
+  `SpdySession::MaybeSendPrefacePing` does; a pooled connection reused after
+  10 idle seconds now sends that PING. Two loopback captures of Chrome 154
+  show the PING right after the request HEADERS, before the request's DATA.
+  `firefox::v156_http2` sets `None`.
+  Migrate: add `preface_ping_after: None` to an `Http2Settings` literal to
+  keep sending no such PING, or copy the field from `chromium::v154_http2`.
+- `Http2StreamSettings` gained the public field `max_concurrent_streams_cap:
+  Option<u32>`, so struct literals that name every field no longer compile.
+  A `SETTINGS_MAX_CONCURRENT_STREAMS` value the peer states above the cap is
+  lowered to it. `chromium::v154_http2` caps at 256, Chromium's
+  `kMaxConcurrentStreamLimit`, so a Chromium-family connection to a peer
+  that states more opens at most 256 streams at once;
+  `Http2Connection::peer_max_concurrent_streams` reports the capped value.
+  `firefox::v156_http2` sets `None`, as Firefox's `Http2Session` applies the
+  stated value unchanged.
+  Migrate: add `max_concurrent_streams_cap: None` to an
+  `Http2StreamSettings` literal to apply every stated limit unchanged, or
+  use `..Http2StreamSettings::default()`.
 - The Edge recipes move to Edge 154.0.4258.37 on Windows 11 and macOS 15.5:
   `edge::v153_tls`, `v153_http3_tls`, `v153_windows_client_hints`,
   `v153_macos_client_hints`, `v153_windows_navigation_template`, and

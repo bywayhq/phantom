@@ -21,6 +21,7 @@ fn settings() -> Http2Settings {
         headers_priority: None,
         hpack: Http2HpackSettings::default(),
         streams: Http2StreamSettings::default(),
+        preface_ping_after: None,
     }
 }
 
@@ -31,6 +32,7 @@ fn default_stream_settings_number_from_one_without_a_limit() {
         Http2StreamSettings {
             first_stream_id: 1,
             assumed_max_concurrent_streams: None,
+            max_concurrent_streams_cap: None,
         }
     );
 }
@@ -63,6 +65,16 @@ fn rejects_a_zero_assumed_stream_limit() -> Result<(), Box<dyn std::error::Error
         "streams.assumed_max_concurrent_streams",
     );
     settings.streams.assumed_max_concurrent_streams = Some(1);
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn rejects_a_zero_stream_limit_cap() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.streams.max_concurrent_streams_cap = Some(0);
+    assert_field(settings.validate(), "streams.max_concurrent_streams_cap");
+    settings.streams.max_concurrent_streams_cap = Some(1);
     settings.validate()?;
     Ok(())
 }

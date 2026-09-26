@@ -119,11 +119,14 @@ fn chrome_android_154_http2_session_capture_matches_the_chromium_recipe() -> Tes
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
         },
-        // A capture shows the first stream ID but not the assumed limit.
+        // A capture shows the first stream ID but neither the assumed limit
+        // nor the cap, and one navigation shows no preface PING.
         streams: Http2StreamSettings {
             assumed_max_concurrent_streams: None,
+            max_concurrent_streams_cap: None,
             ..settings.streams
         },
+        preface_ping_after: None,
         ..settings
     };
     for run in observed {

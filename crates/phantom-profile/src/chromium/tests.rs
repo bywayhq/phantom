@@ -216,6 +216,7 @@ fn chrome_154_http2_recipe_matches_windows_captures() -> Result<(), Box<dyn std:
         Http2StreamSettings {
             first_stream_id: 1,
             assumed_max_concurrent_streams: Some(100),
+            max_concurrent_streams_cap: Some(256),
         }
     );
     // Navigation HEADERS carry no extended CONNECT shape, and one block shows
@@ -228,11 +229,14 @@ fn chrome_154_http2_recipe_matches_windows_captures() -> Result<(), Box<dyn std:
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
         },
-        // A capture shows the first stream ID but not the assumed limit.
+        // A capture shows the first stream ID but neither the assumed limit
+        // nor the cap, and one navigation shows no preface PING.
         streams: Http2StreamSettings {
             assumed_max_concurrent_streams: None,
+            max_concurrent_streams_cap: None,
             ..settings.streams
         },
+        preface_ping_after: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;
@@ -307,11 +311,14 @@ fn chrome_154_macos_http2_session_capture_matches_the_recipe()
             static_name_index: settings.hpack.static_name_index,
             ..Http2HpackSettings::default()
         },
-        // A capture shows the first stream ID but not the assumed limit.
+        // A capture shows the first stream ID but neither the assumed limit
+        // nor the cap, and one navigation shows no preface PING.
         streams: Http2StreamSettings {
             assumed_max_concurrent_streams: None,
+            max_concurrent_streams_cap: None,
             ..settings.streams
         },
+        preface_ping_after: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;

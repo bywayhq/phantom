@@ -123,6 +123,7 @@ mod driver_shutdown;
 mod extended_connect;
 mod hpack_replay;
 mod hpack_transitions;
+mod preface_ping;
 mod request_body_cancellation;
 mod request_body_early_response;
 mod request_body_error;

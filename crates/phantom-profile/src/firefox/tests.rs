@@ -188,6 +188,7 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
         Http2StreamSettings {
             first_stream_id: 3,
             assumed_max_concurrent_streams: Some(100),
+            max_concurrent_streams_cap: None,
         }
     );
 

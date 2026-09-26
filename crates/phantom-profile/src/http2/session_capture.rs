@@ -196,12 +196,16 @@ impl<'a> SessionCapture<'a> {
                 ..Http2HpackSettings::default()
             },
             // The first HEADERS is the connection's first request. Every
-            // capture server states SETTINGS_MAX_CONCURRENT_STREAMS, so the
-            // limit assumed before them is not observable.
+            // capture server states SETTINGS_MAX_CONCURRENT_STREAMS as 100,
+            // so neither the limit assumed before them nor a cap on a larger
+            // stated value is observable.
             streams: Http2StreamSettings {
                 first_stream_id: field_attribute(headers, "stream")?.parse()?,
                 assumed_max_concurrent_streams: None,
+                max_concurrent_streams_cap: None,
             },
+            // A navigation on a fresh connection is never read-idle.
+            preface_ping_after: None,
         })
     }
 }

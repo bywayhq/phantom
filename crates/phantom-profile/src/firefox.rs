@@ -312,8 +312,13 @@ pub fn v156_http1() -> Http1Settings {
 /// `network.http.http2.default-concurrent`, 100 (`Http2Session.cpp:236`;
 /// `StaticPrefList.yaml:16638-16641`), `TryToActivate` queues a stream while
 /// it is reached (`Http2Session.cpp:873-880`), and only a stated value
-/// replaces it (`:1880-1883`). No capture shows the limit, because every
-/// capture server states 100.
+/// replaces it (`:1880-1883`), with no cap on a large value. No capture shows
+/// the limit, because every capture server states 100.
+///
+/// No PING precedes a request on a read-idle connection. `Http2Session` sends
+/// a PING of its own only from its read-timeout tick and on a network change
+/// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_156_0_RELEASE`),
+/// which Phantom does not model.
 #[must_use]
 pub fn v156_http2() -> Http2Settings {
     Http2Settings {
@@ -361,7 +366,9 @@ pub fn v156_http2() -> Http2Settings {
         streams: Http2StreamSettings {
             first_stream_id: 3,
             assumed_max_concurrent_streams: Some(100),
+            max_concurrent_streams_cap: None,
         },
+        preface_ping_after: None,
     }
 }
 

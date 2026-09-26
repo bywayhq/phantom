@@ -1,10 +1,11 @@
-//! Stream numbering and the stream limit a profile assumes before the peer's
-//! SETTINGS, against a loopback peer that holds its SETTINGS back.
+//! Stream numbering, the stream limit a profile assumes before the peer's
+//! SETTINGS, and the cap on a stated limit, against a loopback peer.
 //!
-//! The client sends one request more than the assumed limit. The peer counts
-//! the request HEADERS that arrive before it sends any SETTINGS, then sends
-//! SETTINGS that omit `SETTINGS_MAX_CONCURRENT_STREAMS`, and only then states
-//! a limit that admits the last request.
+//! For the assumed limit, the client sends one request more than it. The peer
+//! counts the request HEADERS that arrive before it sends any SETTINGS, then
+//! sends SETTINGS that omit `SETTINGS_MAX_CONCURRENT_STREAMS`, and only then
+//! states a limit that admits the last request. For the cap, the peer states
+//! 1,000 and counts the requests that open.
 
 use std::net::Ipv4Addr;
 
@@ -39,6 +40,19 @@ async fn chromium_recipe_opens_100_streams_from_1_before_settings() -> TestResul
 #[tokio::test]
 async fn firefox_recipe_opens_100_streams_from_3_before_settings() -> TestResult<()> {
     bounded_peer_test(expect_assumed_limit(firefox::v156_http2(), 3, 100)).await
+}
+
+/// Chrome 154 lowers a stated limit of 1,000 to 256: of 257 requests, the
+/// last waits.
+#[tokio::test]
+async fn chromium_recipe_caps_a_stated_limit_of_1000_at_256() -> TestResult<()> {
+    bounded_peer_test(expect_stated_limit(chromium::v154_http2(), 1, 256)).await
+}
+
+/// Firefox 156 applies a stated limit of 1,000 as it is: 257 requests open.
+#[tokio::test]
+async fn firefox_recipe_applies_a_stated_limit_of_1000() -> TestResult<()> {
+    bounded_peer_test(expect_stated_limit(firefox::v156_http2(), 3, 1_000)).await
 }
 
 /// Without an assumed limit, every request opens before the peer's SETTINGS.
@@ -130,6 +144,29 @@ async fn expect_assumed_limit(settings: Http2Settings, first: u32, limit: u32) -
     write_frame(&mut peer, SETTINGS, 0, 0, &stated).await?;
     assert_eq!(read_headers(&mut peer).await?, first + 2 * limit);
     assert_eq!(connection.peer_max_concurrent_streams(), Some(assumed + 1));
+    requests.abort_all();
+    Ok(())
+}
+
+/// Sends 257 requests to a peer that states a limit of 1,000, and checks that
+/// `limit`, the capped value, is in force: `min(limit, 257)` requests open,
+/// numbered from `first`, and no other opens before a PING round trip.
+async fn expect_stated_limit(settings: Http2Settings, first: u32, limit: u32) -> TestResult<()> {
+    const REQUESTS: u32 = 257;
+    let (mut peer, connection, mut requests) = start(&settings, REQUESTS).await?;
+    let mut stated = MAX_CONCURRENT_STREAMS.to_be_bytes().to_vec();
+    stated.extend_from_slice(&1_000_u32.to_be_bytes());
+    write_frame(&mut peer, SETTINGS, 0, 0, &stated).await?;
+    for index in 0..limit.min(REQUESTS) {
+        let stream = read_headers(&mut peer).await?;
+        assert_eq!(stream, first + 2 * index, "request {index} stream");
+    }
+    write_frame(&mut peer, PING, 0, 0, b"stated!!").await?;
+    read_until(&mut peer, PING, ACK).await?;
+    assert_eq!(
+        connection.peer_max_concurrent_streams(),
+        Some(usize::try_from(limit)?)
+    );
     requests.abort_all();
     Ok(())
 }

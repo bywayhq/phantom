@@ -630,7 +630,8 @@ impl Http2Connection {
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
     }
 
-    /// Returns the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`.
+    /// Returns the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`, lowered to the
+    /// profile's cap ([`Http2StreamSettings::max_concurrent_streams_cap`]).
     ///
     /// `None` means the peer has set no limit, which includes the time before
     /// its first SETTINGS frame is processed, even while the connection holds
@@ -641,6 +642,7 @@ impl Http2Connection {
     /// at any time.
     ///
     /// [`Http2StreamSettings::assumed_max_concurrent_streams`]: phantom_profile::Http2StreamSettings::assumed_max_concurrent_streams
+    /// [`Http2StreamSettings::max_concurrent_streams_cap`]: phantom_profile::Http2StreamSettings::max_concurrent_streams_cap
     #[must_use]
     pub fn peer_max_concurrent_streams(&self) -> Option<usize> {
         let sender = self.inner.sender()?;

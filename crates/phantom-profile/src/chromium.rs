@@ -420,9 +420,21 @@ pub fn v154_http1() -> Http1Settings {
 /// `SpdySession` starts at `kInitialMaxConcurrentStreams` (`:84`;
 /// `net/spdy/spdy_session.cc:837`), creates a stream only below it
 /// (`:1696-1699`), and replaces it only with a stated value (`:2355-2358`). No
-/// capture shows the limit, because every capture server states 100. Chromium
-/// also lowers a stated value above 256 to 256 (`kMaxConcurrentStreamLimit`,
-/// `:383`), which Phantom does not.
+/// capture shows the limit, because every capture server states 100. A stated
+/// value above 256 is lowered to 256 (`kMaxConcurrentStreamLimit`, `:383`,
+/// applied at `:2355-2358`).
+///
+/// On a connection that has read nothing for more than 10 seconds, a PING
+/// follows the next request HEADERS or non-empty DATA frame.
+/// `SpdySession::MaybeSendPrefacePing` runs as the write loop builds each such
+/// frame (`:1088`, `:1205-1207`) and queues one when no PING of its own is in
+/// flight and `kSpdyDefaultConnectionAtRiskOfLossSeconds`, 10, has passed
+/// since the last read (`:2446-2456`; `net/spdy/spdy_session.h:111`). Its
+/// payload is a counter from 1, sent as a 64-bit big-endian value
+/// (`:2479-2499`). The check is on by default
+/// (`net/http/http_network_session.h:88`). Two loopback captures of Chrome
+/// 154 on Windows show the PING right after the HEADERS of a request sent
+/// after 11.5 idle seconds.
 ///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
@@ -473,7 +485,9 @@ pub fn v154_http2() -> Http2Settings {
         streams: Http2StreamSettings {
             first_stream_id: 1,
             assumed_max_concurrent_streams: Some(100),
+            max_concurrent_streams_cap: Some(256),
         },
+        preface_ping_after: Some(Duration::from_secs(10)),
     }
 }
 

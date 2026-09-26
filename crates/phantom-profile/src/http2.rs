@@ -1,6 +1,6 @@
 //! Backend-neutral HTTP/2 profile settings.
 
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, time::Duration};
 
 const MAX_WINDOW_SIZE: u32 = (1 << 31) - 1;
 const MAX_STREAM_ID: u32 = (1 << 31) - 1;
@@ -265,12 +265,13 @@ pub struct Http2HpackSettings {
     pub table_size_updates: Http2TableSizeUpdates,
 }
 
-/// How a client numbers its streams and how many it opens before the peer
-/// states a limit.
+/// How a client numbers its streams and how many it opens at once.
 ///
-/// Neither value is sent on the wire, but both shape it: the first value is
-/// the stream identifier of every connection's first request, and the second
-/// decides how many requests go out before the peer's SETTINGS arrive.
+/// None of these values is sent on the wire, but each shapes it: the first
+/// value is the stream identifier of every connection's first request, the
+/// second decides how many requests go out before the peer's SETTINGS arrive,
+/// and the third bounds how many go out at once after the peer states a
+/// limit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Http2StreamSettings {
     /// Stream identifier of the first request on each connection.
@@ -287,6 +288,14 @@ pub struct Http2StreamSettings {
     /// initial SETTINGS and lifts every limit when they omit the setting, as
     /// RFC 9113 section 5.1.2 allows. A value must be at least 1.
     pub assumed_max_concurrent_streams: Option<u32>,
+    /// Largest `SETTINGS_MAX_CONCURRENT_STREAMS` from the peer that the
+    /// client applies as stated.
+    ///
+    /// A larger stated value is lowered to this one before it limits the
+    /// client's concurrent streams. It does not bound
+    /// [`Self::assumed_max_concurrent_streams`]. `None`, the default, applies
+    /// every stated value unchanged. A value must be at least 1.
+    pub max_concurrent_streams_cap: Option<u32>,
 }
 
 impl Default for Http2StreamSettings {
@@ -294,6 +303,7 @@ impl Default for Http2StreamSettings {
         Self {
             first_stream_id: 1,
             assumed_max_concurrent_streams: None,
+            max_concurrent_streams_cap: None,
         }
     }
 }
@@ -341,9 +351,18 @@ pub struct Http2Settings {
     pub extended_connect_priority: Option<Http2Priority>,
     /// HPACK encoder choices used for every field block on the connection.
     pub hpack: Http2HpackSettings,
-    /// Stream numbering and the stream limit assumed before the peer states
-    /// one.
+    /// Stream numbering, the stream limit assumed before the peer states one,
+    /// and the cap on a stated limit.
     pub streams: Http2StreamSettings,
+    /// Read-idle time after which a PING precedes the next request frame.
+    ///
+    /// When set, the client writes a PING immediately before a request's
+    /// HEADERS, or before a DATA frame with a non-empty payload, once it has
+    /// read nothing from the peer for longer than this. It sends none while
+    /// an earlier such PING awaits its ACK. The first PING's payload is the
+    /// 64-bit big-endian value 1, and each later one carries the next value.
+    /// `None` sends no such PING.
+    pub preface_ping_after: Option<Duration>,
 }
 
 impl Http2Settings {
@@ -398,6 +417,12 @@ fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Sett
         return Err(InvalidHttp2Settings::new(
             "streams.assumed_max_concurrent_streams",
             "an assumed stream limit must be at least 1",
+        ));
+    }
+    if streams.max_concurrent_streams_cap == Some(0) {
+        return Err(InvalidHttp2Settings::new(
+            "streams.max_concurrent_streams_cap",
+            "a stream limit cap must be at least 1",
         ));
     }
     Ok(())
