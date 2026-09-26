@@ -351,10 +351,6 @@ async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
     Ok(())
 }
 
-/// Runs a request that holds the send lock while it waits for 0-RTT stream
-/// credit when the server's rejection arrives. Both requests on the early
-/// session fail as unprocessed instead of blocking the restart, which needs
-/// that lock, and the connection then carries a request on its new session.
 /// How a rejection scenario's connection met the rejection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Rejection {
@@ -392,6 +388,10 @@ async fn check_rejected_at_start(
     Ok(Rejection::AtStart)
 }
 
+/// Runs a request that holds the send lock while it waits for 0-RTT stream
+/// credit when the server's rejection arrives. Both requests on the early
+/// session fail as unprocessed instead of blocking the restart, which needs
+/// that lock, and the connection then carries a request on its new session.
 async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<Rejection> {
     let identity = TestIdentity::generate()?;
     let mut early = trusting_connector(&identity)?.with_isolated_session_cache();
