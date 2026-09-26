@@ -19,12 +19,11 @@ use phantom_profile::{
     ClientHintSettings, ClientProfile, DnsCacheSettings, ProxyConnectTemplate, TcpSettings,
 };
 
-#[cfg(feature = "cookies")]
-use crate::CookieJar;
 use crate::{
-    BuildError, RedirectPolicy, RequestBuilder, RequestTimeouts, RetryPolicy, Route, Session,
-    SessionBuilder,
-    session::{ClientOptions, ClientState, http3_pool::ConnectUdpConnectors},
+    BuildError, RequestBuilder, Route, Session, SessionBuilder,
+    session::{
+        ClientOptions, ClientState, client_option_setters, http3_pool::ConnectUdpConnectors,
+    },
 };
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
@@ -100,6 +99,9 @@ pub(crate) struct ClientInner {
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Arc<Http3Connector>>,
+    /// Whether the profile's HTTP/3 TLS settings enable session tickets,
+    /// which HTTP/3 early data needs.
+    pub(crate) http3_session_tickets: bool,
     /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
     pub(crate) connect_udp_proxy: Option<Arc<ConnectUdpConnectors>>,
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
@@ -325,9 +327,9 @@ impl Client {
     /// opens at most one current TCP/TLS generation per origin and route, and
     /// reuses the ALPN-selected protocol while that generation is eligible.
     /// Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects
-    /// HTTP/1.1. It does not race. An opt-in [`RetryPolicy`] may retry a TCP
-    /// or proxy connect failure before TLS starts; TLS and ALPN failures are
-    /// terminal.
+    /// HTTP/1.1. It does not race. An opt-in
+    /// [`RetryPolicy`](crate::RetryPolicy) may retry a TCP or proxy connect
+    /// failure before TLS starts; TLS and ALPN failures are terminal.
     /// When bounded Alt-Svc learning is enabled, a fresh `h3` advertisement
     /// from an earlier negotiated response selects HTTP/3 without changing the
     /// origin identity or the route. Alternatives are learned only on direct
@@ -486,9 +488,7 @@ impl Client {
     #[doc(hidden)]
     pub fn session(&self) -> Session {
         // Default options enable no Alt-Svc store, so they need no validation.
-        let inner = self.inner.with_fresh_session_state();
-        let state = ClientOptions::default().build(&inner);
-        Client { inner, state }
+        ClientOptions::default().into_client(self.inner.with_fresh_session_state())
     }
 
     /// Starts a compatibility builder for isolated state over this transport.
@@ -546,8 +546,8 @@ pub struct ClientBuilder {
 
 impl fmt::Debug for ClientBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("ClientBuilder")
+        let mut debug = formatter.debug_struct("ClientBuilder");
+        debug
             .field("http2_configured", &self.profile.http2().is_some())
             .field(
                 "negotiated_http1_or_2_configured",
@@ -581,81 +581,9 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("dns_cache", &self.dns_cache_settings())
             .field("host_overrides", &self.host_overrides.len())
-            .field("address_resolver", &self.address_resolver.is_some())
-            .field("redirect_policy", &self.options.redirect_policy)
-            .field("retry_policy", &self.options.retry_policy)
-            .field("request_timeouts", &self.options.request_timeouts)
-            .field(
-                "max_retained_http1_connections",
-                &self.options.max_retained_http1_connections,
-            )
-            .field(
-                "max_concurrent_http1_requests_per_origin",
-                &self.options.max_concurrent_http1_requests_per_origin,
-            )
-            .field(
-                "max_pending_http1_requests_per_origin",
-                &self.options.max_pending_http1_requests_per_origin,
-            )
-            .field(
-                "max_retained_http2_connections",
-                &self.options.max_retained_http2_connections,
-            )
-            .field(
-                "max_concurrent_http2_requests_per_origin",
-                &self.options.max_concurrent_http2_requests_per_origin,
-            )
-            .field(
-                "max_pending_http2_requests_per_origin",
-                &self.options.max_pending_http2_requests_per_origin,
-            )
-            .field(
-                "max_http2_connections_per_origin",
-                &self.options.max_http2_connections_per_origin,
-            )
-            .field(
-                "negotiated_setup_wait_limit",
-                &self.options.negotiated_setup_wait_limit,
-            )
-            .field(
-                "max_retained_http3_connections",
-                &self.options.max_retained_http3_connections,
-            )
-            .field(
-                "max_concurrent_http3_requests_per_origin",
-                &self.options.max_concurrent_http3_requests_per_origin,
-            )
-            .field(
-                "max_pending_http3_requests_per_origin",
-                &self.options.max_pending_http3_requests_per_origin,
-            )
-            .field(
-                "max_client_hint_origins",
-                &self.options.max_client_hint_origins,
-            )
-            .field("max_alt_svc_origins", &self.options.max_alt_svc_origins)
-            .field("alt_svc_policy", &self.options.alt_svc_policy)
-            .field("https_record_discovery", &{
-                #[cfg(feature = "https-records")]
-                {
-                    self.options.https_record_resolver.is_some()
-                }
-                #[cfg(not(feature = "https-records"))]
-                {
-                    false
-                }
-            })
-            .field("cookies_enabled", &{
-                #[cfg(feature = "cookies")]
-                {
-                    self.options.cookie_jar.is_some()
-                }
-                #[cfg(not(feature = "cookies"))]
-                {
-                    false
-                }
-            })
-            .finish_non_exhaustive()
+            .field("address_resolver", &self.address_resolver.is_some());
+        self.options.debug_fields(&mut debug);
+        debug.finish_non_exhaustive()
     }
 }
 
@@ -972,341 +900,7 @@ impl ClientBuilder {
         }
     }
 
-    /// Sets the finite policy for following redirect responses.
-    ///
-    /// The default is [`RedirectPolicy::none`], which returns a 3xx response
-    /// without following it. Redirects are followed to `http://` and
-    /// `https://` targets. A target with another scheme fails with
-    /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect), and a
-    /// hop the request's protocol selection or route cannot carry fails with
-    /// that combination's typed error before the hop is sent.
-    #[must_use]
-    pub fn redirect_policy(mut self, policy: RedirectPolicy) -> Self {
-        self.options.redirect_policy = policy;
-        self
-    }
-
-    /// Sets the policy for retrying connection-establishment failures.
-    ///
-    /// The default is [`RetryPolicy::none`]. Connection retries apply only to
-    /// connection setup before dispatch: exact-protocol acquisition and
-    /// negotiated H1/H2 TCP setup before ALPN selection.
-    /// [`RequestBuilder::retry_policy`] replaces the policy for one request. A
-    /// delay or `Retry-After` limit the runtime clock cannot represent fails
-    /// [`Self::build`] with
-    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
-    pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
-        self.options.retry_policy = policy;
-        self
-    }
-
-    /// Sets the default phase and whole-operation limits for ordinary requests.
-    ///
-    /// The default is [`RequestTimeouts::new`], which sets no limit.
-    /// [`RequestBuilder::timeouts`] replaces this policy for one request.
-    /// Every timeout is disabled unless explicitly present in `timeouts`. A
-    /// duration the runtime clock cannot represent fails [`Self::build`] with
-    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
-    pub fn request_timeouts(mut self, timeouts: RequestTimeouts) -> Self {
-        self.options.request_timeouts = timeouts;
-        self
-    }
-
-    /// Sets the maximum number of HTTP/1.1 pool entries retained for reuse.
-    ///
-    /// The default is 32. Each entry holds one pool key's connection state;
-    /// when the limit is reached, the least recently used entry is evicted.
-    /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
-    /// retention limits so neither maximum is exceeded.
-    #[must_use]
-    pub fn max_retained_http1_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_retained_http1_connections = maximum;
-        self
-    }
-
-    /// Sets the local active-request bound for each HTTP/1.1 pool key.
-    ///
-    /// Each active HTTP/1.1 request holds its own connection, so this is also
-    /// the most connections open at once to the pool key, idle ones included.
-    /// Negotiated requests use the same bound for connections that selected
-    /// HTTP/1.1 or are still in their TLS handshake. It replaces the
-    /// profile's [`Http1Settings`] bound. Without either, the bound is one
-    /// connection.
-    ///
-    /// [`Http1Settings`]: crate::profile::Http1Settings
-    #[must_use]
-    pub fn max_concurrent_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_concurrent_http1_requests_per_origin = Some(maximum);
-        self
-    }
-
-    /// Sets the number of requests allowed to wait per HTTP/1.1 pool key.
-    ///
-    /// The default is 100. A pool key is the origin plus the complete route.
-    /// A request beyond the limit fails with
-    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
-    pub fn max_pending_http1_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_pending_http1_requests_per_origin = maximum;
-        self
-    }
-
-    /// Sets the maximum number of HTTP/2 pool entries retained for reuse.
-    ///
-    /// The default is 32. When the limit is reached, the least recently used
-    /// entry is evicted. The negotiated H1/H2 pool uses the lower of the
-    /// configured H1 and H2 retention limits so neither maximum is exceeded.
-    #[must_use]
-    pub fn max_retained_http2_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_retained_http2_connections = maximum;
-        self
-    }
-
-    /// Sets the local active-request bound for each HTTP/2 pool key.
-    ///
-    /// The default is 100. The peer's stream limit also caps active requests.
-    /// The bound covers all of a pool key's connections when
-    /// [`Self::max_http2_connections_per_origin`] allows more than one.
-    #[must_use]
-    pub fn max_concurrent_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_concurrent_http2_requests_per_origin = maximum;
-        self
-    }
-
-    /// Sets the number of requests allowed to wait per HTTP/2 pool key.
-    ///
-    /// The default is 100. A request beyond the limit fails with
-    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
-    pub fn max_pending_http2_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_pending_http2_requests_per_origin = maximum;
-        self
-    }
-
-    /// Lets each HTTP/2 pool key open up to `maximum` connections.
-    ///
-    /// The default is 1, as Chrome, Edge, and Firefox keep one HTTP/2
-    /// connection per origin. With a higher limit, a request opens another
-    /// connection only when every connection to the pool key has as many
-    /// streams in flight as it can carry: the lower of
-    /// [`Self::max_concurrent_http2_requests_per_origin`] and the peer's
-    /// `SETTINGS_MAX_CONCURRENT_STREAMS`. Each connection makes its own TCP
-    /// and TLS handshake and sends the profile's full HTTP/2 preface. A new
-    /// stream goes to the connection with the fewest streams in flight. At
-    /// the limit, the least-loaded connection takes the stream and holds it
-    /// until the peer allows it.
-    ///
-    /// This applies to exact HTTP/2 requests and to negotiated requests
-    /// whose connections select HTTP/2. The active and waiting bounds stay
-    /// per pool key, across all its connections, so a connection count
-    /// above one helps only when the peer's stream limit is below
-    /// [`Self::max_concurrent_http2_requests_per_origin`]. A server can see
-    /// several simultaneous connections from one client, which no browser
-    /// opens to one origin.
-    #[must_use]
-    pub fn max_http2_connections_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_http2_connections_per_origin = maximum;
-        self
-    }
-
-    /// Bounds how long a negotiated request waits for another request's TLS
-    /// handshake to an origin that selected HTTP/2 before.
-    ///
-    /// By default the request waits until that handshake finishes, as
-    /// Firefox 156 does, so a stalled handshake stalls every request queued
-    /// behind it. Chromium 154 waits at most 300 ms. After `limit`, the
-    /// request opens a connection of its own; if both select HTTP/2, the one
-    /// that finishes second closes and its requests join the first, unless
-    /// [`Self::max_http2_connections_per_origin`] allows both. The server
-    /// sees a second TLS handshake that a Firefox profile would not make.
-    ///
-    /// A `limit` the runtime clock cannot represent fails [`Self::build`]
-    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
-    pub fn negotiated_setup_wait_limit(mut self, limit: std::time::Duration) -> Self {
-        self.options.negotiated_setup_wait_limit = Some(limit);
-        self
-    }
-
-    /// Sets the maximum number of HTTP/3 pool entries retained for reuse.
-    ///
-    /// The default is 32. When the limit is reached, the least recently used
-    /// entry is evicted. One entry keeps connections for up to four transport
-    /// locations, so exact H3 and Alt-Svc H3 do not replace each other.
-    #[must_use]
-    pub fn max_retained_http3_connections(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_retained_http3_connections = maximum;
-        self
-    }
-
-    /// Sets the local active-request bound for each HTTP/3 pool key.
-    ///
-    /// The default is 100. The peer's stream limit also caps active requests.
-    #[must_use]
-    pub fn max_concurrent_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_concurrent_http3_requests_per_origin = maximum;
-        self
-    }
-
-    /// Sets the number of requests allowed to wait per HTTP/3 pool key.
-    ///
-    /// The default is 100. A request beyond the limit fails with
-    /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
-    pub fn max_pending_http3_requests_per_origin(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_pending_http3_requests_per_origin = maximum;
-        self
-    }
-
-    /// Sets the number of origins that may retain `Accept-CH` state.
-    ///
-    /// The default is 64.
-    #[must_use]
-    pub fn max_client_hint_origins(mut self, maximum: NonZeroUsize) -> Self {
-        self.options.max_client_hint_origins = maximum;
-        self
-    }
-
-    /// Enables bounded, in-memory Alt-Svc learning for negotiated HTTPS requests.
-    ///
-    /// Alt-Svc learning is disabled by default. `maximum_origins` bounds
-    /// stored origin-and-route pairs: one origin learned over N routes
-    /// occupies N entries. [`Self::build`] fails with
-    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
-    /// unless the profile configures HTTP/2, offers `http/1.1` in its TLS ALPN
-    /// list, and configures HTTP/3.
-    ///
-    /// A fresh `h3` alternative is used by a later negotiated request without
-    /// changing its origin identity or its route. Alternative setup failure is
-    /// terminal for that request and never falls back implicitly to H1 or H2.
-    ///
-    /// The store is keyed by origin and route, so an alternative learned on
-    /// one route is only ever dialed over that route. Learning runs only on
-    /// direct and SOCKS5 routes. An HTTP proxy route makes negotiated requests
-    /// but stores no advertisement, because its CONNECT tunnel cannot carry
-    /// QUIC; see [`Route`](crate::Route).
-    #[must_use]
-    pub fn alt_svc(mut self, maximum_origins: NonZeroUsize) -> Self {
-        self.options.max_alt_svc_origins = Some(maximum_origins);
-        self
-    }
-
-    /// Selects how negotiated requests use a learned HTTP/3 alternative.
-    ///
-    /// The default is [`AltSvcPolicy::sequential`](crate::AltSvcPolicy::sequential).
-    /// A racing policy requires [`ClientBuilder::alt_svc`]; building without
-    /// it, or with an origin delay the runtime clock cannot represent, fails
-    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
-    pub fn alt_svc_policy(mut self, policy: crate::AltSvcPolicy) -> Self {
-        self.options.alt_svc_policy = policy;
-        self
-    }
-
-    /// Sets whether a resumed HTTP/3 connection offers early (0-RTT) data,
-    /// overriding the profile.
-    ///
-    /// Without this call the profile decides: a client offers early data
-    /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154 and
-    /// Edge 153 recipes do, because the captured browsers offer it on every
-    /// resumed connection. `false` turns it off for such a profile; `true`
-    /// turns it on for a profile that leaves it unset.
-    ///
-    /// # Replay
-    ///
-    /// Early data is replayable. An attacker who records a connection's first
-    /// flight can deliver it to the server again, and the server may process
-    /// each copy (RFC 8446, section 8; RFC 9001, section 9.2).
-    ///
-    /// Only a request that is safe to replay goes out as early data: a safe
-    /// method (`GET`, `HEAD`, `OPTIONS`, or `TRACE`) with no body and no
-    /// trailers, the rule Chromium applies to a request of default
-    /// idempotency. It is sent on a new connection that presents a ticket
-    /// permitting early data; a request that finds a pooled connection uses
-    /// it as usual. Any other request that opens a new connection offers
-    /// early data in its ClientHello, as the captured browsers do, but is
-    /// sent only after the handshake. Under a profile with dynamic QPACK
-    /// encoding, as in the Chrome 154 recipe, the connection encodes early
-    /// requests with the server's SETTINGS remembered with the ticket, as
-    /// Chromium does, and closes with `H3_SETTINGS_ERROR` if the server's own
-    /// SETTINGS then lower a remembered limit. If the server rejects the
-    /// early data, it processed none of it, and Phantom sends the request
-    /// again after a handshake over the same route and protocol.
-    ///
-    /// Building with `true` fails with
-    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
-    /// unless the profile has HTTP/3 settings whose TLS settings enable
-    /// `session_tickets`, because early data needs a resumed session.
-    #[must_use]
-    pub fn http3_early_data(mut self, enabled: bool) -> Self {
-        self.options.http3_early_data = Some(enabled);
-        self
-    }
-
-    /// Lets HTTPS DNS records (RFC 9460) advertise HTTP/3 for negotiated
-    /// requests, as a learned Alt-Svc advertisement does. Off by default.
-    ///
-    /// When no Alt-Svc alternative is stored for a direct-route request, the
-    /// client looks up the origin's HTTPS records with `resolver`. If a usable
-    /// ServiceMode record lists `h3` for the origin's own host and port, the
-    /// request uses HTTP/3 at that location under the
-    /// [`AltSvcPolicy`](crate::AltSvcPolicy), without an `Alt-Used` field.
-    ///
-    /// The lookup does not hold back the request. While it is in flight, a
-    /// sequential client sends the request to the origin, and a racing
-    /// client starts origin setup at once and alternative setup when the
-    /// lookup advertises `h3`. A failed lookup counts as no advertisement.
-    ///
-    /// A profile that sets
-    /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
-    /// as the Chrome 154, Edge 153, and Brave 154 recipes do, also uses the
-    /// records for Encrypted Client Hello on every direct TLS connection over
-    /// TCP: those of negotiated and exact-protocol HTTP/1.1 and HTTP/2
-    /// requests and of `wss://` WebSocket openings. Each such connection
-    /// starts the origin's lookup when none is cached, and its TLS handshake
-    /// waits for it at most 20% of the address resolution time, clamped to
-    /// 5-50 ms, then offers the record's `ech`.
-    ///
-    /// Results are cached per origin for the records' TTL, capped at one day,
-    /// or 60 seconds when there is no TTL, as after a failed lookup. The
-    /// cache holds at most the `maximum_origins` given to
-    /// [`ClientBuilder::alt_svc`], which this requires; building without it
-    /// fails with
-    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    /// Concurrent requests for one origin share one lookup. Proxy routes never
-    /// query.
-    ///
-    /// Requires the `https-records` feature.
-    #[cfg(feature = "https-records")]
-    #[must_use]
-    pub fn https_record_discovery(mut self, resolver: crate::dns::HttpsRecordResolver) -> Self {
-        self.options.https_record_resolver = Some(resolver);
-        self
-    }
-
-    /// Enables a bounded in-memory cookie jar owned by the client.
-    ///
-    /// By default the client has no cookie jar. This jar uses the default
-    /// [`CookieLimits`](crate::CookieLimits).
-    #[cfg(feature = "cookies")]
-    #[must_use]
-    pub fn cookies(mut self) -> Self {
-        self.options.cookie_jar = Some(CookieJar::default());
-        self
-    }
-
-    /// Enables cookie handling with a caller-created jar.
-    ///
-    /// By default the client has no cookie jar. Use this to set other
-    /// [`CookieLimits`](crate::CookieLimits).
-    #[cfg(feature = "cookies")]
-    #[must_use]
-    pub fn cookie_jar(mut self, jar: CookieJar) -> Self {
-        self.options.cookie_jar = Some(jar);
-        self
-    }
+    client_option_setters!();
 
     /// Validates the profile and builds reusable protocol connectors.
     ///
@@ -1332,16 +926,7 @@ impl ClientBuilder {
     /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
     ///   when the profile enables no HTTP protocol Phantom implements.
     pub fn build(self) -> Result<Client, BuildError> {
-        if !self.options.request_timeouts.validate() {
-            return Err(BuildError::invalid_policy(
-                "request timeout exceeds the runtime clock range",
-            ));
-        }
-        if !self.options.retry_policy.validate() {
-            return Err(BuildError::invalid_policy(
-                "retry delay or Retry-After limit exceeds the runtime clock range",
-            ));
-        }
+        self.options.validate_policies()?;
         self.profile
             .tls()
             .validate()
@@ -1453,24 +1038,13 @@ impl ClientBuilder {
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
                 .map(|connector| self.with_qlog(connector))
-                .map(|connector| match self.options.http3_early_data {
-                    Some(true) => connector.with_early_data(),
-                    Some(false) => connector.without_early_data(),
-                    None => connector,
-                })
             })
             .transpose()
             .map_err(BuildError::http3)?;
-        if self.options.http3_early_data == Some(true)
-            && !self
-                .profile
-                .http3()
-                .is_some_and(|settings| settings.tls().session_tickets)
-        {
-            return Err(BuildError::invalid_policy(
-                "HTTP/3 early data requires HTTP/3 TLS settings with session tickets",
-            ));
-        }
+        let http3_session_tickets = self
+            .profile
+            .http3()
+            .is_some_and(|settings| settings.tls().session_tickets);
         // CONNECT-UDP's outer connection authenticates the proxy with proxy
         // trust roots; HTTP/3 cannot disable verification.
         let connect_udp_http3 = self
@@ -1494,8 +1068,11 @@ impl ClientBuilder {
                 "disabled proxy server authentication is not supported for CONNECT-UDP",
             ));
         }
-        self.options
-            .validate_protocols(http1_or_2.is_some(), http3.is_some())?;
+        self.options.validate_transport(
+            http1_or_2.is_some(),
+            http3.is_some(),
+            http3_session_tickets,
+        )?;
         let secure_proxy_requested = self
             .route
             .as_http_proxy()
@@ -1595,6 +1172,7 @@ impl ClientBuilder {
             http1_or_2,
             http2,
             http3: http3.map(Arc::new),
+            http3_session_tickets,
             connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
             proxy_credentials: None,
@@ -1623,9 +1201,7 @@ impl ClientBuilder {
         if let Some(resolver) = host_resolver {
             inner.bind_host_resolver(resolver);
         }
-        let inner = Arc::new(inner);
-        let state = self.options.build(&inner);
-        Ok(Client { inner, state })
+        Ok(self.options.into_client(Arc::new(inner)))
     }
 }
 
@@ -1717,6 +1293,65 @@ mod tests {
         assert_eq!(without_rtt.len() + 1, recipe.wire_parameters.len());
         assert_eq!(outer.wire_parameters, without_rtt);
         assert_eq!(outer.parameter_order, recipe.parameter_order);
+    }
+
+    /// Every `ClientBuilder` option reaches a session: per-client state and
+    /// policy through the `SessionBuilder` setters that
+    /// `client_option_setters!` defines on both builders, and transport by
+    /// sharing the parent client's.
+    ///
+    /// The pattern names every field, so a new builder option does not
+    /// compile here until it is sorted into one of the two.
+    #[test]
+    fn every_client_builder_option_reaches_sessions() -> Result<(), Box<dyn std::error::Error>> {
+        let builder = || -> Result<super::ClientBuilder, Box<dyn std::error::Error>> {
+            let builder = Client::builder(
+                ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2()),
+            )
+            .route(Route::http_connect(HttpProxy::new("http://proxy.example")?))
+            .preemptive_proxy_authentication(false)
+            .dns_cache(phantom_profile::firefox::v156_dns_cache());
+            #[cfg(feature = "diagnostics")]
+            let builder = builder.key_log(NonZeroUsize::MIN);
+            Ok(builder)
+        };
+        let super::ClientBuilder {
+            // Transport the session shares with the client.
+            profile: _,
+            additional_roots: _,
+            server_authentication: _,
+            proxy_additional_roots: _,
+            proxy_server_authentication: _,
+            route: _,
+            preemptive_proxy_authentication: _,
+            dns_cache: _,
+            host_overrides: _,
+            address_resolver: _,
+            #[cfg(feature = "diagnostics")]
+                key_log_capacity: _,
+            #[cfg(feature = "diagnostics")]
+                qlog_dir: _,
+            // Set per session; `session::tests` checks every field.
+            options: _,
+        } = builder()?;
+
+        let client = builder()?.build()?;
+        let session = client.session_builder().build()?;
+        assert_eq!(session.inner.route, client.inner.route);
+        assert!(session.inner.proxy_credentials.is_none());
+        assert!(
+            session
+                .inner
+                .host_resolver
+                .as_ref()
+                .is_some_and(|resolver| resolver.cache().is_some())
+        );
+        #[cfg(feature = "diagnostics")]
+        assert!(match (&session.inner.key_log, &client.inner.key_log) {
+            (Some(session), Some(client)) => std::sync::Arc::ptr_eq(session, client),
+            _ => false,
+        });
+        Ok(())
     }
 
     #[test]

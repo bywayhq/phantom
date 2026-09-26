@@ -586,6 +586,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HttpsProxyConnector::connect_forward_http2`,
   `Http2Connection::send_forward_request_body_with_trailers`, and
   `HttpConnectError::ForwardingRequiresHttp2`. (`e99940b`)
+- The hidden `SessionBuilder` takes every per-client option of
+  `ClientBuilder`, from one shared definition: it gains `request_timeouts`,
+  `max_http2_connections_per_origin`, `negotiated_setup_wait_limit`,
+  `alt_svc_policy`, `http3_early_data`, and `https_record_discovery`. A
+  session shares the transport options of the client it is built from, such
+  as the route, trust roots, key log, and resolver settings. Without
+  `http3_early_data`, a session keeps its client's early-data choice.
 
 ### Changed
 
@@ -847,6 +854,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   CONNECT tunnel cannot carry QUIC, so the request never moves to HTTP/3. On
   a CONNECT-UDP route it fails with `UnsupportedRoute`, as a negotiated
   request without a template does. A direct or SOCKS5 route still refuses it.
+- `SessionBuilder::build` rejects a retry policy whose delay or
+  `Retry-After` limit the runtime clock cannot represent, with
+  `BuildErrorKind::InvalidPolicy`, as `ClientBuilder::build` does. The
+  `Debug` output of `ClientBuilder` includes its `http3_early_data` choice.
 
 ### Removed
 
