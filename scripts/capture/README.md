@@ -251,7 +251,9 @@ On Windows each attempt's processes, the browsers included, belong to a Job
 Object that ends them when it closes. On other systems the tool leads a new
 process group. When an attempt ends, passes, fails, or reaches its timeout,
 the runner closes its job, ends every process whose command line names the
-attempt's temporary directory, and removes that directory. If the runner
+attempt's temporary directory as a whole path component, and removes that
+directory. The match is the launcher's profile sweep, so a browser whose
+profile path only starts with the same text keeps running. If the runner
 itself exits, Windows closes the jobs and ends their processes.
 
 Ctrl+C starts no more jobs or retries, ends every running attempt the same

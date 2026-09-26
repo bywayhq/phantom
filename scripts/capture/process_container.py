@@ -71,18 +71,15 @@ class ProcessContainer:
 
 
 def stop_processes_naming(directory: Path) -> None:
-    """End processes whose command line names `directory`, such as browsers."""
-    if sys.platform == "win32":
-        from .browser_launch import terminate_profile_processes
+    """End processes whose command line names `directory`, such as browsers.
 
-        terminate_profile_processes(directory)
-        return
-    subprocess.run(
-        ["pkill", "-KILL", "-f", str(directory)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
+    The browser launcher's own sweep does the matching, so outside Windows
+    `directory` must appear as a whole path component: a person's browser
+    whose profile path merely starts with the same text is left alone.
+    """
+    from .browser_launch import terminate_profile_processes
+
+    terminate_profile_processes(directory)
 
 
 def _kernel32():

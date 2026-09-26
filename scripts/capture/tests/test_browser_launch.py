@@ -97,6 +97,20 @@ class BrowserLaunchTests(unittest.TestCase):
 
         self.assertEqual(profile_process_ids(listing, profile, own_pid=105), [102, 103])
 
+    def test_profile_sweep_of_a_job_directory_matches_the_profiles_inside_it(
+        self,
+    ) -> None:
+        job = Path("/Users/a/phantom-capture/run/job-3/tmp")
+        listing = "\n".join(
+            (
+                f"  201 Google Chrome --user-data-dir={job}/phantom-capture-profile-x1",
+                f"  202 firefox --profile {job}4/phantom-capture-profile-x2",
+                "  203 Google Chrome --user-data-dir=/Users/a/Library/Chrome",
+            )
+        )
+
+        self.assertEqual(profile_process_ids(listing, job, own_pid=1), [201])
+
     def test_headful_chromium_arguments_omit_headless_and_keep_extra_order(
         self,
     ) -> None:
