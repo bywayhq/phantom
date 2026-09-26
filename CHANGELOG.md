@@ -817,6 +817,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   CONNECT tunnel cannot carry QUIC, so the request never moves to HTTP/3. On
   a CONNECT-UDP route it fails with `UnsupportedRoute`, as a negotiated
   request without a template does. A direct or SOCKS5 route still refuses it.
+- `phantom_quic_btls::QuicClientConfig::enable_session_resumption` no longer
+  replaces a new-session callback that other code set on the builder, which
+  cut that callback off without notice. It fails with the new
+  `QuicTlsProfileErrorKind::ContextConflict` and leaves the builder
+  unchanged; calling it twice still succeeds. With `session_tickets`,
+  `with_tls_profile` fails with `ContextConflict` when a callback set after
+  preparation replaced Phantom's, and with `InvalidProfile` when client
+  session caching was turned off, because neither context would deliver a
+  ticket. The `phantom` client and `Http3Connector` are not affected.
 
 ### Removed
 

@@ -3,10 +3,9 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::io::Cursor;
 use std::net::IpAddr;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use btls::ex_data::Index;
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
@@ -18,7 +17,7 @@ use rustls_pki_types::DnsName;
 
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
-use super::quic_callbacks::enable_session_delivery;
+use super::quic_callbacks::{SessionDelivery, enable_session_delivery, session_delivery};
 #[cfg(test)]
 use crate::key_schedule::TestDerivationFailure;
 use crate::key_schedule::{
@@ -33,15 +32,6 @@ use quinn_proto::{EndpointConfig, TransportConfig};
 
 const QUIC_VERSION_1: u32 = 0x0000_0001;
 const H3_PROTOCOL: &[u8] = b"h3";
-
-/// Marks a context whose builder passed through
-/// [`QuicClientConfig::enable_session_resumption`].
-struct SessionDeliveryEnabled;
-
-fn session_delivery_index() -> Option<Index<SslContext, SessionDeliveryEnabled>> {
-    static INDEX: OnceLock<Option<Index<SslContext, SessionDeliveryEnabled>>> = OnceLock::new();
-    *INDEX.get_or_init(|| SslContext::new_ex_index().ok())
-}
 
 /// Immutable BoringSSL configuration for Quinn client sessions.
 ///
@@ -114,21 +104,19 @@ impl QuicClientConfig {
     /// Prepares a context builder so QUIC sessions can retain tickets.
     ///
     /// This enables BoringSSL's client session callback, with its internal
-    /// cache off, and marks the context. Call it on the builder of every
-    /// context whose TLS profile sets `session_tickets`. It changes nothing
-    /// in a ClientHello that offers no ticket.
+    /// cache off. Call it on the builder of every context whose TLS profile
+    /// sets `session_tickets`. It changes nothing in a ClientHello that
+    /// offers no ticket.
+    ///
+    /// A context has a single new-session callback. When the builder already
+    /// has one that this crate did not install, for example from
+    /// `SslContextBuilder::set_new_session_callback`, this returns an error
+    /// of kind [`QuicTlsProfileErrorKind::ContextConflict`] and leaves the
+    /// builder unchanged. Calling it again on a prepared builder succeeds.
     pub fn enable_session_resumption(
         builder: &mut SslContextBuilder,
     ) -> Result<(), QuicTlsProfileError> {
-        let index = session_delivery_index().ok_or_else(|| {
-            QuicTlsProfileError::unsupported(
-                "session_tickets",
-                "BoringSSL could not allocate the session-delivery marker",
-            )
-        })?;
-        enable_session_delivery(builder);
-        builder.set_ex_data(index, SessionDeliveryEnabled);
-        Ok(())
+        enable_session_delivery(builder).map_err(|_| foreign_session_callback())
     }
 
     /// Applies TLS controls that BoringSSL owns per QUIC session.
@@ -138,20 +126,25 @@ impl QuicClientConfig {
     /// this method never rewrites them.
     ///
     /// `session_tickets` enables TLS 1.3 session resumption. It requires a
-    /// context prepared with [`Self::enable_session_resumption`], and it takes
+    /// context prepared with [`Self::enable_session_resumption`] whose
+    /// new-session callback was not replaced afterwards, and it takes
     /// effect only on configurations derived with
     /// [`Self::with_isolated_session_cache`]. Without `session_tickets` no
     /// connection resumes, so this also clears the early-data offer that a
     /// transport profile's `early_data` set.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         let profile = ClientTlsProfile::new(settings)?;
-        if profile.session_tickets
-            && session_delivery_index().is_none_or(|index| self.context.ex_data(index).is_none())
-        {
-            return Err(QuicTlsProfileError::invalid(
-                "session_tickets",
-                "QUIC session tickets require a context prepared for session resumption",
-            ));
+        if profile.session_tickets {
+            match session_delivery(&self.context) {
+                SessionDelivery::Quic => {}
+                SessionDelivery::Off => {
+                    return Err(QuicTlsProfileError::invalid(
+                        "session_tickets",
+                        "QUIC session tickets require a context prepared for session resumption",
+                    ));
+                }
+                SessionDelivery::Foreign => return Err(foreign_session_callback()),
+            }
         }
         if !profile.session_tickets {
             self.early_data = false;
@@ -689,6 +682,14 @@ impl QuicTlsProfileError {
         }
     }
 
+    fn conflict(field: &'static str, message: impl Into<Box<str>>) -> Self {
+        Self {
+            kind: QuicTlsProfileErrorKind::ContextConflict,
+            field,
+            message: message.into(),
+        }
+    }
+
     fn unsupported(field: &'static str, message: impl Into<Box<str>>) -> Self {
         Self {
             kind: QuicTlsProfileErrorKind::UnsupportedSetting,
@@ -730,6 +731,16 @@ pub enum QuicTlsProfileErrorKind {
     InvalidProfile,
     /// The adapter cannot represent one supplied TLS control.
     UnsupportedSetting,
+    /// The BoringSSL context already uses a setting the adapter must own,
+    /// such as a new-session callback installed by other code.
+    ContextConflict,
+}
+
+fn foreign_session_callback() -> QuicTlsProfileError {
+    QuicTlsProfileError::conflict(
+        "session_tickets",
+        "the context's new-session callback belongs to other code",
+    )
 }
 
 struct QuicSession {

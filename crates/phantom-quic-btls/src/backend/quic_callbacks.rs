@@ -5,9 +5,9 @@ use std::ptr::{self, NonNull};
 use std::slice;
 use std::sync::OnceLock;
 
-use btls::ssl::{SslContextBuilder, SslSession, SslSessionCacheMode};
+use btls::ssl::{SslContextBuilder, SslContextRef, SslSession, SslSessionCacheMode};
 use btls_sys as ffi;
-use foreign_types::ForeignType;
+use foreign_types::{ForeignType, ForeignTypeRef};
 
 use super::callback_state::{
     Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, SecretDirection,
@@ -398,19 +398,79 @@ unsafe extern "C" fn send_alert(
     })
 }
 
+/// The new-session callback BoringSSL calls on a context prepared by
+/// [`enable_session_delivery`].
+///
+/// Installation and every later comparison read this one value, so the
+/// comparison never depends on how often the function was instantiated.
+static SESSION_DELIVERY: unsafe extern "C" fn(*mut ffi::SSL, *mut ffi::SSL_SESSION) -> c_int =
+    deliver_new_session;
+
+/// Who receives the TLS 1.3 sessions a context's connections are issued.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum SessionDelivery {
+    /// BoringSSL keeps no session: client caching is off or no callback is set.
+    Off,
+    /// [`deliver_new_session`] routes each session to its QUIC connection.
+    Quic,
+    /// Another callback owns the slot and receives every session.
+    Foreign,
+}
+
+/// Reports which callback receives the sessions issued on `context`.
+///
+/// # Safety
+///
+/// `context` must be a live `SSL_CTX` that no other thread mutates during
+/// the call.
+unsafe fn session_delivery_raw(context: *mut ffi::SSL_CTX) -> SessionDelivery {
+    // SAFETY: the caller guarantees a live context; both getters read one field.
+    let (callback, mode) = unsafe {
+        (
+            ffi::SSL_CTX_sess_get_new_cb(context),
+            ffi::SSL_CTX_get_session_cache_mode(context),
+        )
+    };
+    match callback {
+        Some(callback) if !ptr::fn_addr_eq(callback, SESSION_DELIVERY) => SessionDelivery::Foreign,
+        Some(_) if mode & ffi::SSL_SESS_CACHE_CLIENT != 0 => SessionDelivery::Quic,
+        Some(_) | None => SessionDelivery::Off,
+    }
+}
+
+/// Reports which callback receives the sessions issued on `context`.
+pub(super) fn session_delivery(context: &SslContextRef) -> SessionDelivery {
+    // SAFETY: the safe reference keeps the context live, and a built context
+    // is immutable through the safe API.
+    unsafe { session_delivery_raw(context.as_ptr()) }
+}
+
 /// Routes each session a peer issues to the QUIC session that received it.
 ///
 /// BoringSSL reports TLS 1.3 tickets only through the context-level
 /// new-session callback, and only while client caching is enabled. The
 /// internal cache stays off so no session outlives the connection that
 /// received it except through [`crate::resumption::SessionCache`].
-pub(super) fn enable_session_delivery(builder: &mut SslContextBuilder) {
+///
+/// A context has one new-session callback slot. When another callback
+/// already holds it, this returns [`SessionDelivery::Foreign`] and changes
+/// nothing, rather than silently cutting that callback off. Preparing the
+/// same builder twice is harmless.
+pub(super) fn enable_session_delivery(
+    builder: &mut SslContextBuilder,
+) -> Result<(), SessionDelivery> {
+    // SAFETY: the builder uniquely owns its live context.
+    let current = unsafe { session_delivery_raw(builder.as_ptr()) };
+    if current == SessionDelivery::Foreign {
+        return Err(current);
+    }
     builder.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
     // SAFETY: the builder uniquely owns its context, so no SSL can read the
-    // callback slot concurrently, and `deliver_new_session` has process lifetime.
+    // callback slot concurrently, and `SESSION_DELIVERY` has process lifetime.
     unsafe {
-        ffi::SSL_CTX_sess_set_new_cb(builder.as_ptr(), Some(deliver_new_session));
+        ffi::SSL_CTX_sess_set_new_cb(builder.as_ptr(), Some(SESSION_DELIVERY));
     }
+    Ok(())
 }
 
 unsafe extern "C" fn deliver_new_session(

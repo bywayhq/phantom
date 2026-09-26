@@ -407,3 +407,103 @@ fn no_bio_client_handshake_publishes_client_hello_after_flush() {
     assert_eq!(chunks[0].level, EncryptionLevel::Initial);
     assert_eq!(chunks[0].bytes.first(), Some(&1));
 }
+
+/// Allocates an empty session owned by the caller.
+fn new_session(test_ssl: &TestSsl) -> NonNull<ffi::SSL_SESSION> {
+    // SAFETY: the context is live; the returned reference belongs to the caller.
+    let session = unsafe { ffi::SSL_SESSION_new(test_ssl.context.as_ptr()) };
+    match NonNull::new(session) {
+        Some(session) => session,
+        None => panic!("SSL_SESSION_new failed"),
+    }
+}
+
+#[test]
+fn session_callback_declines_without_taking_the_reference() {
+    let test_ssl = TestSsl::client();
+    let session = new_session(&test_ssl);
+
+    // SAFETY: both handles are live. An SSL without callback state makes the
+    // callback return 0, which leaves the reference with the caller.
+    let status = unsafe { deliver_new_session(test_ssl.ssl().as_ptr(), session.as_ptr()) };
+    assert_eq!(status, 0);
+    // SAFETY: as above; a null SSL yields no callback state either.
+    let status = unsafe { deliver_new_session(ptr::null_mut(), session.as_ptr()) };
+    assert_eq!(status, 0);
+    // SAFETY: a null session is rejected before the SSL is read.
+    let status = unsafe { deliver_new_session(test_ssl.ssl().as_ptr(), ptr::null_mut()) };
+    assert_eq!(status, 0);
+
+    // SAFETY: the callback declined, so this test still owns the one
+    // reference. Had the callback released it, AddressSanitizer would report
+    // this use and the release after it.
+    let session = unsafe { SslSession::from_ptr(session.as_ptr()) };
+    assert!(session.time() > 0);
+}
+
+#[test]
+fn session_callback_takes_the_reference_it_accepts() {
+    let test_ssl = TestSsl::client();
+    let state = install(&test_ssl);
+    let session = new_session(&test_ssl);
+
+    // SAFETY: both handles are live; returning 1 transfers the reference.
+    let status = unsafe { deliver_new_session(test_ssl.ssl().as_ptr(), session.as_ptr()) };
+    assert_eq!(status, 1);
+    let delivered = state.take_sessions();
+    assert_eq!(delivered.len(), 1);
+    assert_eq!(delivered[0].as_ptr(), session.as_ptr());
+}
+
+fn context_builder() -> SslContextBuilder {
+    match SslContextBuilder::new(btls::ssl::SslMethod::tls()) {
+        Ok(builder) => builder,
+        Err(error) => panic!("context allocation failed: {error}"),
+    }
+}
+
+#[test]
+fn session_delivery_reports_who_owns_the_callback_slot() {
+    let mut builder = context_builder();
+    assert_eq!(enable_session_delivery(&mut builder), Ok(()));
+    // Preparing twice keeps the same callback.
+    assert_eq!(enable_session_delivery(&mut builder), Ok(()));
+    assert_eq!(session_delivery(&builder.build()), SessionDelivery::Quic);
+
+    assert_eq!(
+        session_delivery(&context_builder().build()),
+        SessionDelivery::Off
+    );
+
+    let mut caching_off = context_builder();
+    assert_eq!(enable_session_delivery(&mut caching_off), Ok(()));
+    caching_off.set_session_cache_mode(SslSessionCacheMode::OFF);
+    assert_eq!(session_delivery(&caching_off.build()), SessionDelivery::Off);
+}
+
+#[test]
+fn session_delivery_refuses_a_foreign_callback_and_changes_nothing() {
+    let mut builder = context_builder();
+    builder.set_new_session_callback(|_, _| {});
+    let mode = builder.set_session_cache_mode(SslSessionCacheMode::SERVER);
+    assert_eq!(mode, SslSessionCacheMode::SERVER);
+
+    assert_eq!(
+        enable_session_delivery(&mut builder),
+        Err(SessionDelivery::Foreign)
+    );
+    assert_eq!(
+        builder.set_session_cache_mode(SslSessionCacheMode::SERVER),
+        SslSessionCacheMode::SERVER
+    );
+    assert_eq!(session_delivery(&builder.build()), SessionDelivery::Foreign);
+
+    // A callback installed over a prepared builder is foreign too.
+    let mut replaced = context_builder();
+    assert_eq!(enable_session_delivery(&mut replaced), Ok(()));
+    replaced.set_new_session_callback(|_, _| {});
+    assert_eq!(
+        session_delivery(&replaced.build()),
+        SessionDelivery::Foreign
+    );
+}
