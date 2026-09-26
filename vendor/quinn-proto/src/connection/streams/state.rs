@@ -2532,6 +2532,59 @@ mod tests {
     }
 
     #[test]
+    fn reset_at_resets_an_unordered_reader_at_once() {
+        let mut client = make(Side::Client);
+        let id = StreamId::new(Side::Server, Dir::Uni, 0);
+        received_bytes(&mut client, id, 2048);
+        let mut pending = Retransmits::default();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(false).unwrap();
+        chunks.next(100).unwrap();
+        let _ = chunks.finalize();
+
+        let _ = client.received_reset_at(reset_at(id, 4096, 1500)).unwrap();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(false).unwrap();
+        assert_eq!(
+            chunks.next(usize::MAX),
+            Err(crate::ReadError::Reset(7u32.into()))
+        );
+        let _ = chunks.finalize();
+    }
+
+    #[test]
+    fn reset_at_ends_when_an_unordered_read_starts() {
+        let mut client = make(Side::Client);
+        let id = StreamId::new(Side::Server, Dir::Uni, 0);
+        let initial_max = client.local_max_data;
+        received_bytes(&mut client, id, 100);
+        let _ = client.received_reset_at(reset_at(id, 3000, 2000)).unwrap();
+
+        let mut pending = Retransmits::default();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(false).unwrap();
+        assert_eq!(
+            chunks.next(usize::MAX),
+            Err(crate::ReadError::Reset(7u32.into()))
+        );
+        let _ = chunks.finalize();
+        // Every byte up to the final size is credited back.
+        assert_eq!(client.local_max_data - initial_max, 3000);
+    }
+
+    #[test]
     fn reset_at_rejects_a_final_size_below_received_data() {
         let mut client = make(Side::Client);
         let id = StreamId::new(Side::Server, Dir::Uni, 0);

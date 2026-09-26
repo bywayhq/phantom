@@ -47,57 +47,126 @@ index 15a75f1..a241ea5 100644
              .field("rng_seed", &self.rng_seed)
              .finish_non_exhaustive()
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
-index 189adf7..4b75b45 100644
+index 57d36e6..73e9c77 100644
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
-@@ -245,6 +245,8 @@ pub struct Connection {
+@@ -2,7 +2,7 @@ use std::{
+     cmp,
+     collections::VecDeque,
+     convert::TryFrom,
+-    fmt, io, mem,
++    fmt, io, iter, mem,
+     net::{IpAddr, SocketAddr},
+     sync::Arc,
+ };
+@@ -245,6 +245,12 @@ pub struct Connection {
      stats: ConnectionStats,
      /// QUIC version used for the connection.
      version: u32,
 +    /// The version this client started in, once a server switched it (RFC 9368)
 +    original_version: Option<u32>,
++    /// The start version followed by the versions a server may switch this client to
++    switch_candidates: Vec<u32>,
++    /// Whether a version switch discarded this client's 0-RTT keys
++    zero_rtt_dropped_by_switch: bool,
  }
  
  impl Connection {
-@@ -372,6 +374,7 @@ impl Connection {
+@@ -282,6 +288,13 @@ impl Connection {
+         let active_connection_id_limit = config
+             .active_connection_id_limit
+             .map_or(CidQueue::LEN as u64, u64::from);
++        let switch_candidates =
++            match side.is_client() && !endpoint_config.compatible_versions.is_empty() {
++                true => iter::once(version)
++                    .chain(endpoint_config.compatible_versions.iter().copied())
++                    .collect(),
++                false => Vec::new(),
++            };
+         let mut this = Self {
+             endpoint_config,
+             crypto,
+@@ -372,6 +385,9 @@ impl Connection {
              rng,
              stats: ConnectionStats::default(),
              version,
 +            original_version: None,
++            switch_candidates,
++            zero_rtt_dropped_by_switch: false,
          };
          if path_validated {
              this.on_path_validated();
-@@ -2291,11 +2294,15 @@ impl Connection {
+@@ -2315,11 +2331,21 @@ impl Connection {
      ) {
          self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
          let mut remaining = Some(data);
-+        let mut versions = vec![self.version];
-+        if self.may_switch_version() {
-+            versions.extend_from_slice(&self.endpoint_config.compatible_versions);
-+        }
++        // The candidate list is lent out for this datagram rather than copied.
++        let candidates = match self.may_switch_version() {
++            true => mem::take(&mut self.switch_candidates),
++            false => Vec::new(),
++        };
++        let own = [self.version];
++        let versions: &[u32] = match candidates.is_empty() {
++            true => &own,
++            false => &candidates,
++        };
          while let Some(data) = remaining {
              match PartialDecode::new(
                  data,
                  &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
 -                &[self.version],
-+                &versions,
++                versions,
                  self.endpoint_config.grease_quic_bit,
              ) {
                  Ok((partial_decode, rest)) => {
-@@ -2317,6 +2324,12 @@ impl Connection {
+@@ -2328,10 +2354,13 @@ impl Connection {
+                 }
+                 Err(e) => {
+                     trace!("malformed header: {}", e);
+-                    return;
++                    break;
+                 }
+             }
+         }
++        if !candidates.is_empty() {
++            self.switch_candidates = candidates;
++        }
+     }
+ 
+     fn handle_decode(
+@@ -2341,6 +2370,18 @@ impl Connection {
          ecn: Option<EcnCodepoint>,
          partial_decode: PartialDecode,
      ) {
 +        if let Some(version) = partial_decode.version() {
-+            if version != self.version && !self.switch_version(version, &partial_decode) {
-+                trace!(version, "dropping packet of another QUIC version");
-+                return;
++            if version != self.version {
++                // Nothing changes until the packet authenticates in the new version.
++                let switched = self
++                    .authenticate_switch(version, &partial_decode)
++                    .is_some_and(|keys| self.commit_switch(version, keys));
++                if !switched {
++                    trace!(version, "dropping packet of another QUIC version");
++                    return;
++                }
 +            }
 +        }
          if let Some(decoded) = packet_crypto::unprotect_header(
              partial_decode,
              &self.spaces,
-@@ -3569,6 +3582,55 @@ impl Connection {
+@@ -2663,7 +2704,11 @@ impl Connection {
+                             })?;
+ 
+                     if self.has_0rtt() {
+-                        if !self.crypto.early_data_accepted().unwrap() {
++                        // 0-RTT keys of the start version cannot protect packets of the
++                        // version a server switched to, so a switch rejects early data.
++                        if self.zero_rtt_dropped_by_switch
++                            || !self.crypto.early_data_accepted().unwrap()
++                        {
+                             debug_assert!(self.side.is_client());
+                             debug!("0-RTT rejected");
+                             self.accepted_0rtt = false;
+@@ -3595,6 +3640,71 @@ impl Connection {
              .set(Timer::Close, now + 3 * self.pto(self.highest_space));
      }
  
@@ -113,32 +182,45 @@ index 189adf7..4b75b45 100644
 +            && !self.endpoint_config.compatible_versions.is_empty()
 +    }
 +
-+    /// Adopts `version` when a server's first Initial uses it, per RFC 9368 section 2.3
++    /// Returns `version`'s Initial keys if a server's Initial in that version authenticates
++    /// with them, per RFC 9368 section 2.3
 +    ///
-+    /// Initial keys are derived again from the same connection ID with the new version's salt.
-+    /// Returns whether the packet may be processed.
-+    fn switch_version(&mut self, version: u32, packet: &PartialDecode) -> bool {
++    /// Initial keys come from the same connection ID with the new version's salt: the first
++    /// Initial's Destination Connection ID, or a Retry's Source Connection ID. The packet is
++    /// decrypted on a copy, so connection state is untouched either way.
++    fn authenticate_switch(&self, version: u32, packet: &PartialDecode) -> Option<Keys> {
 +        if !self.may_switch_version()
 +            || !packet.is_initial()
 +            || !self.endpoint_config.compatible_versions.contains(&version)
 +            || !self.endpoint_config.supported_versions.contains(&version)
 +        {
-+            return false;
++            return None;
 +        }
++        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
++        let keys = self
++            .crypto
++            .initial_keys_for_version(version, &key_cid, self.side.side())?;
++        let mut trial = packet.clone().finish(Some(&*keys.header.remote)).ok()?;
++        let number = trial
++            .header
++            .number()?
++            .expand(self.spaces[SpaceId::Initial].rx_packet + 1);
++        keys.packet
++            .remote
++            .decrypt(number, &trial.header_data, &mut trial.payload)
++            .ok()?;
++        Some(keys)
++    }
++
++    /// Adopts `version` and its authenticated Initial `keys`
++    ///
++    /// 0-RTT keys of the start version are discarded, and the handshake then treats early
++    /// data as rejected, so it is sent again in 1-RTT packets.
++    fn commit_switch(&mut self, version: u32, keys: Keys) -> bool {
 +        if !self.crypto.switch_version(version) {
 +            debug!(version, "crypto session cannot switch QUIC version");
 +            return false;
 +        }
-+        // Initial keys come from the first Initial's Destination Connection ID, or from the
-+        // Source Connection ID of a Retry; the server's own ID may already be in use.
-+        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
-+        let keys = match self.crypto.initial_keys(&key_cid, self.side.side()) {
-+            Ok(keys) => keys,
-+            Err(_) => {
-+                debug!(version, "no Initial keys for the negotiated QUIC version");
-+                return false;
-+            }
-+        };
 +        debug!(
 +            from = self.version,
 +            to = version,
@@ -147,13 +229,16 @@ index 189adf7..4b75b45 100644
 +        self.spaces[SpaceId::Initial].crypto = Some(keys);
 +        self.original_version = Some(self.version);
 +        self.version = version;
++        if self.zero_rtt_crypto.take().is_some() || self.zero_rtt_enabled {
++            self.zero_rtt_dropped_by_switch = true;
++        }
 +        true
 +    }
 +
      /// Handle transport parameters received from the peer
      fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
          if Some(self.orig_rem_cid) != params.initial_src_cid
-@@ -3580,6 +3642,23 @@ impl Connection {
+@@ -3606,6 +3716,23 @@ impl Connection {
                  "CID authentication failure",
              ));
          }
@@ -178,21 +263,38 @@ index 189adf7..4b75b45 100644
          self.set_peer_params(params);
  
 diff --git a/src/crypto.rs b/src/crypto.rs
-index df0e285..ba4c579 100644
+index df0e285..b46012e 100644
 --- a/src/crypto.rs
 +++ b/src/crypto.rs
-@@ -81,6 +81,19 @@ pub trait Session: Send + Sync + 'static {
+@@ -81,6 +81,36 @@ pub trait Session: Send + Sync + 'static {
      /// Verify the integrity of a retry packet
      fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
  
++    /// Initial keys for another QUIC version, without changing the session
++    ///
++    /// Quinn authenticates a server's first Initial of a compatible version (RFC 9368 section
++    /// 2.3) with these keys before it calls [`Self::switch_version`]. `dst_cid` is the client's
++    /// first Destination Connection ID, or a Retry's Source Connection ID. Returns `None`, the
++    /// default, when the session cannot use `version`.
++    fn initial_keys_for_version(
++        &self,
++        version: u32,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Option<Keys> {
++        let _ = (version, dst_cid, side);
++        None
++    }
++
 +    /// Moves a client session to another QUIC version during compatible version negotiation
 +    ///
 +    /// RFC 9368 section 2.3 lets a server answer a client's first flight in a different version
-+    /// that the client listed as available. Quinn calls this before processing the server's
-+    /// first packet of `version`, and only while no key derived from the handshake exists yet.
-+    /// Later Initial, Handshake, 1-RTT, and key-update keys, and Retry integrity, must then use
-+    /// `version`. Returns `false`, the default, if the session cannot switch; the packet is
-+    /// then dropped.
++    /// that the client listed as available. Quinn calls this once a server Initial of `version`
++    /// has authenticated with [`Self::initial_keys_for_version`], and only while no key derived
++    /// from the handshake exists yet. Later Handshake, 1-RTT, and key-update keys, and Retry
++    /// integrity, must then use `version`, and 0-RTT keys must no longer be offered: Quinn treats
++    /// early data as rejected. Returns `false`, the default, if the session cannot switch; the
++    /// packet is then dropped.
 +    fn switch_version(&mut self, version: u32) -> bool {
 +        let _ = version;
 +        false
@@ -202,10 +304,27 @@ index df0e285..ba4c579 100644
      /// from the [Session]'s secrets, using `label` and `context` for domain
      /// separation.
 diff --git a/src/crypto/rustls.rs b/src/crypto/rustls.rs
-index 3dbf421..eed7f4c 100644
+index 3dbf421..0cef1ba 100644
 --- a/src/crypto/rustls.rs
 +++ b/src/crypto/rustls.rs
-@@ -196,6 +196,7 @@ impl crypto::Session for TlsSession {
+@@ -61,6 +61,16 @@ impl crypto::Session for TlsSession {
+         Ok(initial_keys(self.version, *dst_cid, side, &self.suite))
+     }
+ 
++    fn initial_keys_for_version(
++        &self,
++        version: u32,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Option<Keys> {
++        let version = interpret_version(version).ok()?;
++        Some(initial_keys(version, *dst_cid, side, &self.suite))
++    }
++
+     fn handshake_data(&self) -> Option<Box<dyn Any>> {
+         if !self.got_handshake_data {
+             return None;
+@@ -196,6 +206,7 @@ impl crypto::Session for TlsSession {
          let (nonce, key) = match self.version {
              Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
              Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
@@ -213,7 +332,7 @@ index 3dbf421..eed7f4c 100644
              _ => unreachable!(),
          };
  
-@@ -226,6 +227,13 @@ const RETRY_INTEGRITY_NONCE_DRAFT: [u8; 12] = [
+@@ -226,6 +237,13 @@ const RETRY_INTEGRITY_NONCE_DRAFT: [u8; 12] = [
      0xe5, 0x49, 0x30, 0xf9, 0x7f, 0x21, 0x36, 0xf0, 0x53, 0x0a, 0x8c, 0x1c,
  ];
  
@@ -227,7 +346,7 @@ index 3dbf421..eed7f4c 100644
  const RETRY_INTEGRITY_KEY_V1: [u8; 16] = [
      0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66, 0x57, 0x5a, 0x1d, 0x76, 0x6b, 0x54, 0xe3, 0x68, 0xc8, 0x4e,
  ];
-@@ -552,6 +560,7 @@ impl crypto::ServerConfig for QuicServerConfig {
+@@ -552,6 +570,7 @@ impl crypto::ServerConfig for QuicServerConfig {
          let (nonce, key) = match version {
              Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
              Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
@@ -235,7 +354,7 @@ index 3dbf421..eed7f4c 100644
              _ => unreachable!(),
          };
  
-@@ -659,6 +668,7 @@ fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
+@@ -659,6 +678,7 @@ fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
      match version {
          0xff00_001d..=0xff00_0020 => Ok(Version::V1Draft),
          0x0000_0001 | 0xff00_0021..=0xff00_0022 => Ok(Version::V1),
@@ -283,10 +402,20 @@ index ebf01dc..30d9112 100644
          params.retry_src_cid = incoming.token.retry_src_cid;
          let mut pref_addr_cid = None;
 diff --git a/src/packet.rs b/src/packet.rs
-index b5ef0c4..6a68493 100644
+index b5ef0c4..874feb8 100644
 --- a/src/packet.rs
 +++ b/src/packet.rs
-@@ -74,6 +74,16 @@ impl PartialDecode {
+@@ -21,8 +21,7 @@ use crate::{
+ /// across QUIC versions), which gives us the destination CID and allows us
+ /// to inspect the version and packet type (which depends on the version).
+ /// This information allows us to fully decode and decrypt the packet.
+-#[cfg_attr(test, derive(Clone))]
+-#[derive(Debug)]
++#[derive(Clone, Debug)]
+ pub struct PartialDecode {
+     plain_header: ProtectedHeader,
+     buf: io::Cursor<BytesMut>,
+@@ -74,6 +73,16 @@ impl PartialDecode {
          self.space() == Some(SpaceId::Initial)
      }
  
@@ -303,7 +432,7 @@ index b5ef0c4..6a68493 100644
      pub(crate) fn space(&self) -> Option<SpaceId> {
          use ProtectedHeader::*;
          match self.plain_header {
-@@ -292,7 +302,7 @@ impl Header {
+@@ -292,7 +301,7 @@ impl Header {
                  number,
                  version,
              }) => {
@@ -312,7 +441,7 @@ index b5ef0c4..6a68493 100644
                  w.write(version);
                  dst_cid.encode_long(w);
                  src_cid.encode_long(w);
-@@ -313,7 +323,7 @@ impl Header {
+@@ -313,7 +322,7 @@ impl Header {
                  number,
                  version,
              } => {
@@ -321,7 +450,7 @@ index b5ef0c4..6a68493 100644
                  w.write(version);
                  dst_cid.encode_long(w);
                  src_cid.encode_long(w);
-@@ -330,7 +340,7 @@ impl Header {
+@@ -330,7 +339,7 @@ impl Header {
                  ref src_cid,
                  version,
              } => {
@@ -330,7 +459,7 @@ index b5ef0c4..6a68493 100644
                  w.write(version);
                  dst_cid.encode_long(w);
                  src_cid.encode_long(w);
-@@ -618,7 +628,7 @@ impl ProtectedHeader {
+@@ -618,7 +627,7 @@ impl ProtectedHeader {
                  });
              }
  
@@ -339,7 +468,7 @@ index b5ef0c4..6a68493 100644
                  LongHeaderType::Initial => {
                      let token_len = buf.get_var()? as usize;
                      let token_start = buf.position() as usize;
-@@ -815,10 +825,16 @@ pub(crate) enum LongHeaderType {
+@@ -815,10 +824,16 @@ pub(crate) enum LongHeaderType {
  }
  
  impl LongHeaderType {
@@ -358,7 +487,7 @@ index b5ef0c4..6a68493 100644
              0x0 => Initial,
              0x1 => Standard(ZeroRtt),
              0x2 => Standard(Handshake),
-@@ -826,17 +842,20 @@ impl LongHeaderType {
+@@ -826,17 +841,20 @@ impl LongHeaderType {
              _ => unreachable!(),
          })
      }
@@ -388,7 +517,7 @@ index b5ef0c4..6a68493 100644
      }
  }
  
-@@ -873,6 +892,9 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
+@@ -873,6 +891,9 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
      }
  }
  
@@ -412,15 +541,16 @@ index 3d1d453..f0ac5cf 100644
  
 diff --git a/src/tests/quic_v2.rs b/src/tests/quic_v2.rs
 new file mode 100644
-index 0000000..bf5fad3
+index 0000000..f474b31
 --- /dev/null
 +++ b/src/tests/quic_v2.rs
-@@ -0,0 +1,486 @@
+@@ -0,0 +1,674 @@
 +use std::{
 +    any::Any,
++    net::{Ipv6Addr, SocketAddr},
 +    sync::{
 +        Arc,
-+        atomic::{AtomicBool, Ordering},
++        atomic::{AtomicUsize, Ordering},
 +    },
 +};
 +
@@ -606,12 +736,22 @@ index 0000000..bf5fad3
 +    );
 +}
 +
-+/// A rustls client session that runs its handshake in QUIC v2 but protects its first flight
-+/// with QUIC v1 Initial keys until Quinn switches it, as a client that started in v1 would.
++/// What a [`SwitchingSession`] does when Quinn offers it another version.
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum Switching {
++    /// Refuse, as a provider without version switching does.
++    Refuse,
++    /// Handshake in QUIC v2 but protect the first flight with QUIC v1 Initial keys until Quinn
++    /// switches it, as a client that started in v1 would.
++    ToV2,
++    /// Handshake in QUIC v1 and only count switches: a switch would break the handshake.
++    Count,
++}
++
 +struct SwitchingClientConfig {
 +    inner: Arc<crypto::rustls::QuicClientConfig>,
-+    switches: bool,
-+    switched: Arc<AtomicBool>,
++    mode: Switching,
++    switches: Arc<AtomicUsize>,
 +}
 +
 +impl crypto::ClientConfig for SwitchingClientConfig {
@@ -622,22 +762,28 @@ index 0000000..bf5fad3
 +        params: &TransportParameters,
 +    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
 +        assert_eq!(version, QUIC_V1);
++        let handshake_version = match self.mode {
++            Switching::Count => QUIC_V1,
++            Switching::Refuse | Switching::ToV2 => QUIC_V2,
++        };
 +        let inner = self
 +            .inner
 +            .clone()
-+            .start_session(QUIC_V2, server_name, params)?;
++            .start_session(handshake_version, server_name, params)?;
 +        Ok(Box::new(SwitchingSession {
 +            inner,
-+            switches: self.switches,
-+            switched: self.switched.clone(),
++            mode: self.mode,
++            switched: false,
++            switches: self.switches.clone(),
 +        }))
 +    }
 +}
 +
 +struct SwitchingSession {
 +    inner: Box<dyn crypto::Session>,
-+    switches: bool,
-+    switched: Arc<AtomicBool>,
++    mode: Switching,
++    switched: bool,
++    switches: Arc<AtomicUsize>,
 +}
 +
 +impl crypto::Session for SwitchingSession {
@@ -646,18 +792,32 @@ index 0000000..bf5fad3
 +        dst_cid: &ConnectionId,
 +        side: Side,
 +    ) -> Result<Keys, crypto::CryptoError> {
-+        if self.switched.load(Ordering::SeqCst) {
++        if self.switched || self.mode == Switching::Count {
 +            return self.inner.initial_keys(dst_cid, side);
 +        }
 +        let suite = initial_suite_from_provider(&configured_provider()).unwrap();
 +        Ok(initial_keys(Version::V1, *dst_cid, side, &suite))
 +    }
 +
++    fn initial_keys_for_version(
++        &self,
++        version: u32,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Option<Keys> {
++        if self.mode == Switching::Refuse || version != QUIC_V2 {
++            return None;
++        }
++        let suite = initial_suite_from_provider(&configured_provider()).unwrap();
++        Some(initial_keys(Version::V2, *dst_cid, side, &suite))
++    }
++
 +    fn switch_version(&mut self, version: u32) -> bool {
-+        if !self.switches || version != QUIC_V2 {
++        if self.mode == Switching::Refuse || version != QUIC_V2 {
 +            return false;
 +        }
-+        self.switched.store(true, Ordering::SeqCst);
++        self.switched = true;
++        self.switches.fetch_add(1, Ordering::SeqCst);
 +        true
 +    }
 +
@@ -711,28 +871,31 @@ index 0000000..bf5fad3
 +    }
 +}
 +
-+fn switching_client_config(switches: bool) -> (ClientConfig, Arc<AtomicBool>) {
-+    let switched = Arc::new(AtomicBool::new(false));
++fn switching_client_config(mode: Switching) -> (ClientConfig, Arc<AtomicUsize>) {
++    let switches = Arc::new(AtomicUsize::new(0));
 +    let config = ClientConfig::new(Arc::new(SwitchingClientConfig {
 +        inner: Arc::new(client_crypto()),
-+        switches,
-+        switched: switched.clone(),
++        mode,
++        switches: switches.clone(),
 +    }));
-+    (config, switched)
++    (config, switches)
 +}
 +
 +/// Re-protects a client's QUIC v1 Initial as QUIC v2, standing in for a server that performs
 +/// compatible version negotiation (RFC 9368 section 2.3) on the client's first flight.
++///
++/// Packets coalesced after the Initial, such as 0-RTT, are dropped, as a v2-only server drops
++/// packets of a version it does not support.
 +fn initial_v1_as_v2(datagram: &[u8]) -> Vec<u8> {
 +    let suite = initial_suite_from_provider(&configured_provider()).unwrap();
-+    let (partial, rest) = PartialDecode::new(
++    let (partial, _) = PartialDecode::new(
 +        BytesMut::from(datagram),
 +        &FixedLengthConnectionIdParser::new(0),
 +        &[QUIC_V1],
-+        false,
++        // A resumed client may grease the fixed bit (RFC 9287).
++        true,
 +    )
 +    .unwrap();
-+    assert!(rest.is_none(), "one Initial per datagram");
 +    let dst_cid = *partial.dst_cid();
 +    let v1 = initial_keys(Version::V1, dst_cid, Side::Client, &suite);
 +    let mut packet = partial.finish(Some(&*v1.header.local)).unwrap();
@@ -756,7 +919,29 @@ index 0000000..bf5fad3
 +        &*v2.header.local,
 +        Some((number, &*v2.packet.local)),
 +    );
++    // Packets coalesced after the Initial, such as 0-RTT, become zero padding, so the datagram
++    // keeps the size a server requires of an Initial.
++    buf.resize(buf.len().max(datagram.len()), 0);
 +    buf
++}
++
++/// Delivers the client's pending first flight to the server re-protected as v2.
++///
++/// Datagrams that start with a v1 0-RTT packet are lost on the way, as a v2-only server would
++/// drop them.
++fn deliver_first_flight_as_v2(pair: &mut Pair) {
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++    for (_, datagram) in pair.client.outbound.drain(..) {
++        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
++        if datagram[0] & 0x30 != 0 {
++            continue;
++        }
++        let rewritten = initial_v1_as_v2(&datagram);
++        pair.server
++            .inbound
++            .push_back((now, None, rewritten.as_slice().into()));
++    }
 +}
 +
 +/// Starts a v1 client and delivers its first flight to a v2-only server as v2.
@@ -764,35 +949,27 @@ index 0000000..bf5fad3
 +    client_versions: &[u32],
 +    client_compatible: &[u32],
 +    server_compatible: &[u32],
-+    client_switches: bool,
-+) -> (Pair, ConnectionHandle, Arc<AtomicBool>) {
++    mode: Switching,
++) -> (Pair, ConnectionHandle, Arc<AtomicUsize>) {
 +    let mut pair = pair_with(
 +        endpoint_config(client_versions, client_compatible),
 +        endpoint_config(&[QUIC_V2], server_compatible),
 +    );
-+    let (config, switched) = switching_client_config(client_switches);
++    let (config, switches) = switching_client_config(mode);
 +    let client_ch = pair.begin_connect(config);
-+    let now = pair.time;
-+    pair.client.drive_outgoing(now);
-+    for (_, datagram) in pair.client.outbound.drain(..) {
-+        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
-+        let rewritten = initial_v1_as_v2(&datagram);
-+        pair.server
-+            .inbound
-+            .push_back((now, None, rewritten.as_slice().into()));
-+    }
++    deliver_first_flight_as_v2(&mut pair);
 +    pair.drive();
-+    (pair, client_ch, switched)
++    (pair, client_ch, switches)
 +}
 +
 +#[test]
 +fn server_moves_client_from_v1_to_v2() {
 +    let _guard = subscribe();
 +    let versions = [QUIC_V1, QUIC_V2];
-+    let (mut pair, client_ch, switched) =
-+        start_switched_connection(&versions, &[QUIC_V2], &[QUIC_V2], true);
++    let (mut pair, client_ch, switches) =
++        start_switched_connection(&versions, &[QUIC_V2], &[QUIC_V2], Switching::ToV2);
 +
-+    assert!(switched.load(Ordering::SeqCst));
++    assert_eq!(switches.load(Ordering::SeqCst), 1);
 +    let server_ch = pair.server.assert_accept();
 +    assert_matches!(
 +        pair.client_conn_mut(client_ch).poll(),
@@ -816,10 +993,10 @@ index 0000000..bf5fad3
 +    let _guard = subscribe();
 +    let versions = [QUIC_V1, QUIC_V2];
 +    // The server does not advertise version_information.
-+    let (mut pair, client_ch, switched) =
-+        start_switched_connection(&versions, &[QUIC_V2], &[], true);
++    let (mut pair, client_ch, switches) =
++        start_switched_connection(&versions, &[QUIC_V2], &[], Switching::ToV2);
 +
-+    assert!(switched.load(Ordering::SeqCst));
++    assert_eq!(switches.load(Ordering::SeqCst), 1);
 +    assert_matches!(
 +        pair.client_conn_mut(client_ch).poll(),
 +        Some(Event::HandshakeDataReady)
@@ -839,10 +1016,13 @@ index 0000000..bf5fad3
 +fn client_stays_in_its_version_without_compatible_versions() {
 +    let _guard = subscribe();
 +    let versions = [QUIC_V1, QUIC_V2];
-+    for (compatible, switches) in [(&[][..], true), (&[QUIC_V2][..], false)] {
-+        let (mut pair, client_ch, switched) =
-+            start_switched_connection(&versions, compatible, &[QUIC_V2], switches);
-+        assert!(!switched.load(Ordering::SeqCst));
++    for (compatible, mode) in [
++        (&[][..], Switching::ToV2),
++        (&[QUIC_V2][..], Switching::Refuse),
++    ] {
++        let (mut pair, client_ch, switches) =
++            start_switched_connection(&versions, compatible, &[QUIC_V2], mode);
++        assert_eq!(switches.load(Ordering::SeqCst), 0);
 +        // The server's v2 answer is dropped. Once the client retransmits its v1 Initial, the
 +        // v2-only server answers with Version Negotiation.
 +        assert_matches!(
@@ -867,9 +1047,10 @@ index 0000000..bf5fad3
 +    };
 +    let mut buf = Vec::new();
 +    params.write(&mut buf);
++    // The start version, then the compatible ones.
 +    assert_eq!(
 +        buf,
-+        [0x11, 0x0c, 0, 0, 0, 1, 0x6b, 0x33, 0x43, 0xcf, 0, 0, 0, 1]
++        [0x11, 0x0c, 0, 0, 0, 1, 0, 0, 0, 1, 0x6b, 0x33, 0x43, 0xcf]
 +    );
 +    let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
 +    assert_eq!(
@@ -890,8 +1071,10 @@ index 0000000..bf5fad3
 +        (Side::Server, &[0x11, 0x03, 0, 0, 1][..]),
 +        (Side::Server, &[0x11, 0x04, 0, 0, 0, 0][..]),
 +        (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 0][..]),
-+        // A client reading a server's parameter requires it to list the chosen version.
-+        (Side::Client, &[0x11, 0x04, 0, 0, 0, 1][..]),
++        // A client must list its Chosen Version among its Available Versions.
++        (Side::Server, &[0x11, 0x04, 0, 0, 0, 1][..]),
++        (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 2][..]),
++        (Side::Client, &[0x11, 0x08, 0, 0, 0, 0, 0, 0, 0, 1][..]),
 +    ] {
 +        assert!(
 +            matches!(
@@ -901,6 +1084,140 @@ index 0000000..bf5fad3
 +            "{encoded:02x?}"
 +        );
 +    }
++}
++
++#[test]
++fn a_server_may_list_no_available_versions() {
++    // RFC 9368 section 3: a server's Available Versions may be empty.
++    let encoded = [0x11, 0x04, 0, 0, 0, 1];
++    let read = TransportParameters::read(Side::Client, &mut &encoded[..]).unwrap();
++    assert_eq!(
++        read.version_information.map(|info| info.chosen),
++        Some(QUIC_V1)
++    );
++}
++
++#[test]
++fn an_initial_that_fails_authentication_does_not_switch_versions() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    let mut pair = pair_with(
++        endpoint_config(&versions, &[QUIC_V2]),
++        endpoint_config(&versions, &[]),
++    );
++    let (config, switches) = switching_client_config(Switching::Count);
++    let client_ch = pair.begin_connect(config);
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++    let first = &pair
++        .client
++        .outbound
++        .front()
++        .expect("client sent an Initial")
++        .1;
++    let destination_len = usize::from(first[5]);
++    let source_len = usize::from(first[6 + destination_len]);
++    let client_cid =
++        ConnectionId::new(&first[7 + destination_len..7 + destination_len + source_len]);
++
++    // A v2 Initial to the client, protected with keys of another connection ID.
++    let suite = initial_suite_from_provider(&configured_provider()).unwrap();
++    let forged_keys = initial_keys(
++        Version::V2,
++        ConnectionId::new(&[9; 8]),
++        Side::Server,
++        &suite,
++    );
++    let mut forged = Vec::new();
++    let encode = Header::Initial(InitialHeader {
++        dst_cid: client_cid,
++        src_cid: ConnectionId::new(&[7; 8]),
++        token: Bytes::new(),
++        number: PacketNumber::U8(0),
++        version: QUIC_V2,
++    })
++    .encode(&mut forged);
++    forged.push(0x01); // PING
++    forged.resize(forged.len() + 40, 0);
++    forged.resize(forged.len() + forged_keys.packet.local.tag_len(), 0);
++    encode.finish(
++        &mut forged,
++        &*forged_keys.header.local,
++        Some((0, &*forged_keys.packet.local)),
++    );
++    pair.client
++        .inbound
++        .push_back((now, None, forged.as_slice().into()));
++
++    pair.drive();
++    assert_eq!(switches.load(Ordering::SeqCst), 0);
++    pair.server.assert_accept();
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::Connected)
++    );
++}
++
++#[test]
++fn a_switch_rejects_outstanding_early_data() {
++    let _guard = subscribe();
++    let mut pair = pair_with(
++        endpoint_config(&[QUIC_V1, QUIC_V2], &[QUIC_V2]),
++        endpoint_config(&[QUIC_V2], &[QUIC_V2]),
++    );
++    let (config, switches) = switching_client_config(Switching::ToV2);
++
++    // The first connection receives a v2 session ticket.
++    let first = pair.begin_connect(config.clone());
++    deliver_first_flight_as_v2(&mut pair);
++    pair.drive();
++    pair.server.assert_accept();
++    pair.client
++        .connections
++        .get_mut(&first)
++        .unwrap()
++        .close(pair.time, VarInt(0), [][..].into());
++    pair.drive();
++    pair.client.addr = SocketAddr::new(
++        Ipv6Addr::LOCALHOST.into(),
++        CLIENT_PORTS.lock().unwrap().next().unwrap(),
++    );
++
++    // The second starts in v1 with 0-RTT data, and the server moves it to v2.
++    let second = pair.begin_connect(config);
++    assert!(pair.client_conn_mut(second).has_0rtt());
++    let early = pair.client_streams(second).open(Dir::Uni).unwrap();
++    pair.client_send(second, early).write(b"early").unwrap();
++    deliver_first_flight_as_v2(&mut pair);
++    pair.drive();
++
++    assert_eq!(switches.load(Ordering::SeqCst), 2);
++    assert_matches!(
++        pair.client_conn_mut(second).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(pair.client_conn_mut(second).poll(), Some(Event::Connected));
++    assert!(!pair.client_conn_mut(second).accepted_0rtt());
++
++    // The application sends again in 1-RTT, and the data arrives.
++    let server_ch = pair.server.assert_accept();
++    let stream = pair.client_streams(second).open(Dir::Uni).unwrap();
++    pair.client_send(second, stream).write(b"again").unwrap();
++    pair.client_send(second, stream).finish().unwrap();
++    pair.drive();
++    let accepted = pair
++        .server_streams(server_ch)
++        .accept(Dir::Uni)
++        .expect("stream arrived");
++    let mut recv = pair.server_recv(server_ch, accepted);
++    let mut chunks = recv.read(true).unwrap();
++    let chunk = chunks.next(usize::MAX).unwrap().expect("data arrived");
++    assert_eq!(chunk.bytes, &b"again"[..]);
++    let _ = chunks.finalize();
 +}
 diff --git a/src/transport_error.rs b/src/transport_error.rs
 index 047cd0a..ea1715b 100644
@@ -913,12 +1230,20 @@ index 047cd0a..ea1715b 100644
 +    VERSION_NEGOTIATION_ERROR(0x11) "the peer's Version Information does not match the negotiated version";
  }
 diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
-index 4d56c0b..9e6c3c9 100644
+index 6e7c531..1d9ce2d 100644
 --- a/src/transport_parameters.rs
 +++ b/src/transport_parameters.rs
-@@ -96,6 +96,11 @@ macro_rules! make_struct {
-             /// A peer that advertised only draft 02 is not sent ACK_FREQUENCY or IMMEDIATE_ACK,
-             /// whose draft 07 encodings it may not read.
+@@ -8,6 +8,7 @@
+ 
+ use std::{
+     convert::TryFrom,
++    iter,
+     net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6},
+ };
+ 
+@@ -98,6 +99,11 @@ macro_rules! make_struct {
+             /// Only outgoing parameters set this. A peer's draft 02 parameter is skipped as an
+             /// unknown one, so that peer is never sent draft 07 frames it may not read.
              pub(crate) min_ack_delay_draft02: bool,
 +            /// `version_information` (RFC 9368 section 3)
 +            ///
@@ -928,7 +1253,7 @@ index 4d56c0b..9e6c3c9 100644
  
              // Server-only
              /// The value of the Destination Connection ID field from the first Initial packet sent
-@@ -136,6 +141,7 @@ macro_rules! make_struct {
+@@ -138,6 +144,7 @@ macro_rules! make_struct {
                      reset_stream_at: false,
                      min_ack_delay: None,
                      min_ack_delay_draft02: false,
@@ -936,7 +1261,7 @@ index 4d56c0b..9e6c3c9 100644
  
                      original_dst_cid: None,
                      retry_src_cid: None,
-@@ -390,6 +396,16 @@ impl TransportParameters {
+@@ -392,6 +399,16 @@ impl TransportParameters {
                          w.put_slice(cid);
                      }
                  }
@@ -953,7 +1278,7 @@ index 4d56c0b..9e6c3c9 100644
                  TransportParameterId::ResetStreamAt => {
                      if self.reset_stream_at {
                          w.write_var(id as u64);
-@@ -525,6 +541,29 @@ impl TransportParameters {
+@@ -512,6 +529,31 @@ impl TransportParameters {
                      0 => params.grease_quic_bit = true,
                      _ => return Err(Error::Malformed),
                  },
@@ -965,25 +1290,27 @@ index 4d56c0b..9e6c3c9 100644
 +                    {
 +                        return Err(Error::Malformed);
 +                    }
++                    // RFC 9368 section 4: a zero Chosen or Available Version is a parsing
++                    // failure. A client lists its Chosen Version among its Available
++                    // Versions; a server's Available Versions may be empty.
 +                    let chosen = r.get::<u32>()?;
-+                    let mut available = 0;
++                    let mut lists_chosen = false;
 +                    for _ in 1..len / 4 {
-+                        if r.get::<u32>()? == 0 {
++                        let available = r.get::<u32>()?;
++                        if available == 0 {
 +                            return Err(Error::IllegalValue);
 +                        }
-+                        available += 1;
++                        lists_chosen |= available == chosen;
 +                    }
-+                    // RFC 9368 section 3: a server must list its chosen version, and no endpoint
-+                    // may choose version 0.
-+                    if chosen == 0 || (side.is_client() && available == 0) {
++                    if chosen == 0 || (side.is_server() && !lists_chosen) {
 +                        return Err(Error::IllegalValue);
 +                    }
 +                    params.version_information = Some(VersionInformation::chosen(chosen));
 +                }
-                 TransportParameterId::ResetStreamAt => match len {
-                     0 if !params.reset_stream_at => params.reset_stream_at = true,
-                     _ => return Err(Error::Malformed),
-@@ -688,6 +727,9 @@ pub(crate) enum TransportParameterId {
+                 // Only written: the endpoint never sends RESET_STREAM_AT, so a peer's
+                 // parameter is skipped as upstream skips any unknown one.
+                 TransportParameterId::ResetStreamAt => r.advance(len),
+@@ -671,6 +713,9 @@ pub(crate) enum TransportParameterId {
      InitialSourceConnectionId = 0x0F,
      RetrySourceConnectionId = 0x10,
  
@@ -993,7 +1320,7 @@ index 4d56c0b..9e6c3c9 100644
      // The empty parameter neqo advertises for draft-ietf-quic-reliable-stream-reset support
      ResetStreamAt = 0x1D,
  
-@@ -706,7 +748,7 @@ pub(crate) enum TransportParameterId {
+@@ -689,7 +734,7 @@ pub(crate) enum TransportParameterId {
  
  impl TransportParameterId {
      /// Array with all supported transport parameter IDs
@@ -1002,7 +1329,7 @@ index 4d56c0b..9e6c3c9 100644
          Self::MaxIdleTimeout,
          Self::MaxUdpPayloadSize,
          Self::InitialMaxData,
-@@ -726,6 +768,7 @@ impl TransportParameterId {
+@@ -709,6 +754,7 @@ impl TransportParameterId {
          Self::OriginalDestinationConnectionId,
          Self::InitialSourceConnectionId,
          Self::RetrySourceConnectionId,
@@ -1010,7 +1337,7 @@ index 4d56c0b..9e6c3c9 100644
          Self::GreaseQuicBit,
          Self::ResetStreamAt,
          Self::MinAckDelayDraft07,
-@@ -766,6 +809,7 @@ impl TryFrom<u64> for TransportParameterId {
+@@ -749,6 +795,7 @@ impl TryFrom<u64> for TransportParameterId {
              }
              id if Self::InitialSourceConnectionId == id => Self::InitialSourceConnectionId,
              id if Self::RetrySourceConnectionId == id => Self::RetrySourceConnectionId,
@@ -1018,7 +1345,7 @@ index 4d56c0b..9e6c3c9 100644
              id if Self::GreaseQuicBit == id => Self::GreaseQuicBit,
              id if Self::ResetStreamAt == id => Self::ResetStreamAt,
              id if Self::MinAckDelayDraft07 == id => Self::MinAckDelayDraft07,
-@@ -775,6 +819,47 @@ impl TryFrom<u64> for TransportParameterId {
+@@ -758,6 +805,55 @@ impl TryFrom<u64> for TransportParameterId {
      }
  }
  
@@ -1045,13 +1372,21 @@ index 4d56c0b..9e6c3c9 100644
 +
 +    /// The local parameter of an endpoint that allows compatible version negotiation
 +    ///
-+    /// Available Versions lists the supported versions in preference order, at most eight.
++    /// Available Versions lists the chosen version, then each compatible version, at most
++    /// eight in all.
 +    pub(crate) fn local(chosen: u32, config: &EndpointConfig) -> Option<Self> {
 +        if config.compatible_versions.is_empty() {
 +            return None;
 +        }
 +        let mut info = Self::chosen(chosen);
-+        for &version in config.supported_versions.iter().take(Self::MAX_AVAILABLE) {
++        let versions = iter::once(chosen).chain(
++            config
++                .compatible_versions
++                .iter()
++                .copied()
++                .filter(|version| *version != chosen),
++        );
++        for version in versions.take(Self::MAX_AVAILABLE) {
 +            info.available[usize::from(info.available_len)] = version;
 +            info.available_len += 1;
 +        }

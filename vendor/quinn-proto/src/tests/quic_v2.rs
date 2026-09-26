@@ -1,8 +1,9 @@
 use std::{
     any::Any,
+    net::{Ipv6Addr, SocketAddr},
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -188,12 +189,22 @@ fn retry_is_authenticated_in_quic_v2() {
     );
 }
 
-/// A rustls client session that runs its handshake in QUIC v2 but protects its first flight
-/// with QUIC v1 Initial keys until Quinn switches it, as a client that started in v1 would.
+/// What a [`SwitchingSession`] does when Quinn offers it another version.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Switching {
+    /// Refuse, as a provider without version switching does.
+    Refuse,
+    /// Handshake in QUIC v2 but protect the first flight with QUIC v1 Initial keys until Quinn
+    /// switches it, as a client that started in v1 would.
+    ToV2,
+    /// Handshake in QUIC v1 and only count switches: a switch would break the handshake.
+    Count,
+}
+
 struct SwitchingClientConfig {
     inner: Arc<crypto::rustls::QuicClientConfig>,
-    switches: bool,
-    switched: Arc<AtomicBool>,
+    mode: Switching,
+    switches: Arc<AtomicUsize>,
 }
 
 impl crypto::ClientConfig for SwitchingClientConfig {
@@ -204,22 +215,28 @@ impl crypto::ClientConfig for SwitchingClientConfig {
         params: &TransportParameters,
     ) -> Result<Box<dyn crypto::Session>, ConnectError> {
         assert_eq!(version, QUIC_V1);
+        let handshake_version = match self.mode {
+            Switching::Count => QUIC_V1,
+            Switching::Refuse | Switching::ToV2 => QUIC_V2,
+        };
         let inner = self
             .inner
             .clone()
-            .start_session(QUIC_V2, server_name, params)?;
+            .start_session(handshake_version, server_name, params)?;
         Ok(Box::new(SwitchingSession {
             inner,
-            switches: self.switches,
-            switched: self.switched.clone(),
+            mode: self.mode,
+            switched: false,
+            switches: self.switches.clone(),
         }))
     }
 }
 
 struct SwitchingSession {
     inner: Box<dyn crypto::Session>,
-    switches: bool,
-    switched: Arc<AtomicBool>,
+    mode: Switching,
+    switched: bool,
+    switches: Arc<AtomicUsize>,
 }
 
 impl crypto::Session for SwitchingSession {
@@ -228,18 +245,32 @@ impl crypto::Session for SwitchingSession {
         dst_cid: &ConnectionId,
         side: Side,
     ) -> Result<Keys, crypto::CryptoError> {
-        if self.switched.load(Ordering::SeqCst) {
+        if self.switched || self.mode == Switching::Count {
             return self.inner.initial_keys(dst_cid, side);
         }
         let suite = initial_suite_from_provider(&configured_provider()).unwrap();
         Ok(initial_keys(Version::V1, *dst_cid, side, &suite))
     }
 
+    fn initial_keys_for_version(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Option<Keys> {
+        if self.mode == Switching::Refuse || version != QUIC_V2 {
+            return None;
+        }
+        let suite = initial_suite_from_provider(&configured_provider()).unwrap();
+        Some(initial_keys(Version::V2, *dst_cid, side, &suite))
+    }
+
     fn switch_version(&mut self, version: u32) -> bool {
-        if !self.switches || version != QUIC_V2 {
+        if self.mode == Switching::Refuse || version != QUIC_V2 {
             return false;
         }
-        self.switched.store(true, Ordering::SeqCst);
+        self.switched = true;
+        self.switches.fetch_add(1, Ordering::SeqCst);
         true
     }
 
@@ -293,28 +324,31 @@ impl crypto::Session for SwitchingSession {
     }
 }
 
-fn switching_client_config(switches: bool) -> (ClientConfig, Arc<AtomicBool>) {
-    let switched = Arc::new(AtomicBool::new(false));
+fn switching_client_config(mode: Switching) -> (ClientConfig, Arc<AtomicUsize>) {
+    let switches = Arc::new(AtomicUsize::new(0));
     let config = ClientConfig::new(Arc::new(SwitchingClientConfig {
         inner: Arc::new(client_crypto()),
-        switches,
-        switched: switched.clone(),
+        mode,
+        switches: switches.clone(),
     }));
-    (config, switched)
+    (config, switches)
 }
 
 /// Re-protects a client's QUIC v1 Initial as QUIC v2, standing in for a server that performs
 /// compatible version negotiation (RFC 9368 section 2.3) on the client's first flight.
+///
+/// Packets coalesced after the Initial, such as 0-RTT, are dropped, as a v2-only server drops
+/// packets of a version it does not support.
 fn initial_v1_as_v2(datagram: &[u8]) -> Vec<u8> {
     let suite = initial_suite_from_provider(&configured_provider()).unwrap();
-    let (partial, rest) = PartialDecode::new(
+    let (partial, _) = PartialDecode::new(
         BytesMut::from(datagram),
         &FixedLengthConnectionIdParser::new(0),
         &[QUIC_V1],
-        false,
+        // A resumed client may grease the fixed bit (RFC 9287).
+        true,
     )
     .unwrap();
-    assert!(rest.is_none(), "one Initial per datagram");
     let dst_cid = *partial.dst_cid();
     let v1 = initial_keys(Version::V1, dst_cid, Side::Client, &suite);
     let mut packet = partial.finish(Some(&*v1.header.local)).unwrap();
@@ -338,7 +372,29 @@ fn initial_v1_as_v2(datagram: &[u8]) -> Vec<u8> {
         &*v2.header.local,
         Some((number, &*v2.packet.local)),
     );
+    // Packets coalesced after the Initial, such as 0-RTT, become zero padding, so the datagram
+    // keeps the size a server requires of an Initial.
+    buf.resize(buf.len().max(datagram.len()), 0);
     buf
+}
+
+/// Delivers the client's pending first flight to the server re-protected as v2.
+///
+/// Datagrams that start with a v1 0-RTT packet are lost on the way, as a v2-only server would
+/// drop them.
+fn deliver_first_flight_as_v2(pair: &mut Pair) {
+    let now = pair.time;
+    pair.client.drive_outgoing(now);
+    for (_, datagram) in pair.client.outbound.drain(..) {
+        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
+        if datagram[0] & 0x30 != 0 {
+            continue;
+        }
+        let rewritten = initial_v1_as_v2(&datagram);
+        pair.server
+            .inbound
+            .push_back((now, None, rewritten.as_slice().into()));
+    }
 }
 
 /// Starts a v1 client and delivers its first flight to a v2-only server as v2.
@@ -346,35 +402,27 @@ fn start_switched_connection(
     client_versions: &[u32],
     client_compatible: &[u32],
     server_compatible: &[u32],
-    client_switches: bool,
-) -> (Pair, ConnectionHandle, Arc<AtomicBool>) {
+    mode: Switching,
+) -> (Pair, ConnectionHandle, Arc<AtomicUsize>) {
     let mut pair = pair_with(
         endpoint_config(client_versions, client_compatible),
         endpoint_config(&[QUIC_V2], server_compatible),
     );
-    let (config, switched) = switching_client_config(client_switches);
+    let (config, switches) = switching_client_config(mode);
     let client_ch = pair.begin_connect(config);
-    let now = pair.time;
-    pair.client.drive_outgoing(now);
-    for (_, datagram) in pair.client.outbound.drain(..) {
-        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
-        let rewritten = initial_v1_as_v2(&datagram);
-        pair.server
-            .inbound
-            .push_back((now, None, rewritten.as_slice().into()));
-    }
+    deliver_first_flight_as_v2(&mut pair);
     pair.drive();
-    (pair, client_ch, switched)
+    (pair, client_ch, switches)
 }
 
 #[test]
 fn server_moves_client_from_v1_to_v2() {
     let _guard = subscribe();
     let versions = [QUIC_V1, QUIC_V2];
-    let (mut pair, client_ch, switched) =
-        start_switched_connection(&versions, &[QUIC_V2], &[QUIC_V2], true);
+    let (mut pair, client_ch, switches) =
+        start_switched_connection(&versions, &[QUIC_V2], &[QUIC_V2], Switching::ToV2);
 
-    assert!(switched.load(Ordering::SeqCst));
+    assert_eq!(switches.load(Ordering::SeqCst), 1);
     let server_ch = pair.server.assert_accept();
     assert_matches!(
         pair.client_conn_mut(client_ch).poll(),
@@ -398,10 +446,10 @@ fn switched_client_requires_server_version_information() {
     let _guard = subscribe();
     let versions = [QUIC_V1, QUIC_V2];
     // The server does not advertise version_information.
-    let (mut pair, client_ch, switched) =
-        start_switched_connection(&versions, &[QUIC_V2], &[], true);
+    let (mut pair, client_ch, switches) =
+        start_switched_connection(&versions, &[QUIC_V2], &[], Switching::ToV2);
 
-    assert!(switched.load(Ordering::SeqCst));
+    assert_eq!(switches.load(Ordering::SeqCst), 1);
     assert_matches!(
         pair.client_conn_mut(client_ch).poll(),
         Some(Event::HandshakeDataReady)
@@ -421,10 +469,13 @@ fn switched_client_requires_server_version_information() {
 fn client_stays_in_its_version_without_compatible_versions() {
     let _guard = subscribe();
     let versions = [QUIC_V1, QUIC_V2];
-    for (compatible, switches) in [(&[][..], true), (&[QUIC_V2][..], false)] {
-        let (mut pair, client_ch, switched) =
-            start_switched_connection(&versions, compatible, &[QUIC_V2], switches);
-        assert!(!switched.load(Ordering::SeqCst));
+    for (compatible, mode) in [
+        (&[][..], Switching::ToV2),
+        (&[QUIC_V2][..], Switching::Refuse),
+    ] {
+        let (mut pair, client_ch, switches) =
+            start_switched_connection(&versions, compatible, &[QUIC_V2], mode);
+        assert_eq!(switches.load(Ordering::SeqCst), 0);
         // The server's v2 answer is dropped. Once the client retransmits its v1 Initial, the
         // v2-only server answers with Version Negotiation.
         assert_matches!(
@@ -449,9 +500,10 @@ fn version_information_round_trips() {
     };
     let mut buf = Vec::new();
     params.write(&mut buf);
+    // The start version, then the compatible ones.
     assert_eq!(
         buf,
-        [0x11, 0x0c, 0, 0, 0, 1, 0x6b, 0x33, 0x43, 0xcf, 0, 0, 0, 1]
+        [0x11, 0x0c, 0, 0, 0, 1, 0, 0, 0, 1, 0x6b, 0x33, 0x43, 0xcf]
     );
     let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
     assert_eq!(
@@ -472,8 +524,10 @@ fn malformed_version_information_is_rejected() {
         (Side::Server, &[0x11, 0x03, 0, 0, 1][..]),
         (Side::Server, &[0x11, 0x04, 0, 0, 0, 0][..]),
         (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 0][..]),
-        // A client reading a server's parameter requires it to list the chosen version.
-        (Side::Client, &[0x11, 0x04, 0, 0, 0, 1][..]),
+        // A client must list its Chosen Version among its Available Versions.
+        (Side::Server, &[0x11, 0x04, 0, 0, 0, 1][..]),
+        (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 2][..]),
+        (Side::Client, &[0x11, 0x08, 0, 0, 0, 0, 0, 0, 0, 1][..]),
     ] {
         assert!(
             matches!(
@@ -483,4 +537,138 @@ fn malformed_version_information_is_rejected() {
             "{encoded:02x?}"
         );
     }
+}
+
+#[test]
+fn a_server_may_list_no_available_versions() {
+    // RFC 9368 section 3: a server's Available Versions may be empty.
+    let encoded = [0x11, 0x04, 0, 0, 0, 1];
+    let read = TransportParameters::read(Side::Client, &mut &encoded[..]).unwrap();
+    assert_eq!(
+        read.version_information.map(|info| info.chosen),
+        Some(QUIC_V1)
+    );
+}
+
+#[test]
+fn an_initial_that_fails_authentication_does_not_switch_versions() {
+    let _guard = subscribe();
+    let versions = [QUIC_V1, QUIC_V2];
+    let mut pair = pair_with(
+        endpoint_config(&versions, &[QUIC_V2]),
+        endpoint_config(&versions, &[]),
+    );
+    let (config, switches) = switching_client_config(Switching::Count);
+    let client_ch = pair.begin_connect(config);
+    let now = pair.time;
+    pair.client.drive_outgoing(now);
+    let first = &pair
+        .client
+        .outbound
+        .front()
+        .expect("client sent an Initial")
+        .1;
+    let destination_len = usize::from(first[5]);
+    let source_len = usize::from(first[6 + destination_len]);
+    let client_cid =
+        ConnectionId::new(&first[7 + destination_len..7 + destination_len + source_len]);
+
+    // A v2 Initial to the client, protected with keys of another connection ID.
+    let suite = initial_suite_from_provider(&configured_provider()).unwrap();
+    let forged_keys = initial_keys(
+        Version::V2,
+        ConnectionId::new(&[9; 8]),
+        Side::Server,
+        &suite,
+    );
+    let mut forged = Vec::new();
+    let encode = Header::Initial(InitialHeader {
+        dst_cid: client_cid,
+        src_cid: ConnectionId::new(&[7; 8]),
+        token: Bytes::new(),
+        number: PacketNumber::U8(0),
+        version: QUIC_V2,
+    })
+    .encode(&mut forged);
+    forged.push(0x01); // PING
+    forged.resize(forged.len() + 40, 0);
+    forged.resize(forged.len() + forged_keys.packet.local.tag_len(), 0);
+    encode.finish(
+        &mut forged,
+        &*forged_keys.header.local,
+        Some((0, &*forged_keys.packet.local)),
+    );
+    pair.client
+        .inbound
+        .push_back((now, None, forged.as_slice().into()));
+
+    pair.drive();
+    assert_eq!(switches.load(Ordering::SeqCst), 0);
+    pair.server.assert_accept();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected)
+    );
+}
+
+#[test]
+fn a_switch_rejects_outstanding_early_data() {
+    let _guard = subscribe();
+    let mut pair = pair_with(
+        endpoint_config(&[QUIC_V1, QUIC_V2], &[QUIC_V2]),
+        endpoint_config(&[QUIC_V2], &[QUIC_V2]),
+    );
+    let (config, switches) = switching_client_config(Switching::ToV2);
+
+    // The first connection receives a v2 session ticket.
+    let first = pair.begin_connect(config.clone());
+    deliver_first_flight_as_v2(&mut pair);
+    pair.drive();
+    pair.server.assert_accept();
+    pair.client
+        .connections
+        .get_mut(&first)
+        .unwrap()
+        .close(pair.time, VarInt(0), [][..].into());
+    pair.drive();
+    pair.client.addr = SocketAddr::new(
+        Ipv6Addr::LOCALHOST.into(),
+        CLIENT_PORTS.lock().unwrap().next().unwrap(),
+    );
+
+    // The second starts in v1 with 0-RTT data, and the server moves it to v2.
+    let second = pair.begin_connect(config);
+    assert!(pair.client_conn_mut(second).has_0rtt());
+    let early = pair.client_streams(second).open(Dir::Uni).unwrap();
+    pair.client_send(second, early).write(b"early").unwrap();
+    deliver_first_flight_as_v2(&mut pair);
+    pair.drive();
+
+    assert_eq!(switches.load(Ordering::SeqCst), 2);
+    assert_matches!(
+        pair.client_conn_mut(second).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(pair.client_conn_mut(second).poll(), Some(Event::Connected));
+    assert!(!pair.client_conn_mut(second).accepted_0rtt());
+
+    // The application sends again in 1-RTT, and the data arrives.
+    let server_ch = pair.server.assert_accept();
+    let stream = pair.client_streams(second).open(Dir::Uni).unwrap();
+    pair.client_send(second, stream).write(b"again").unwrap();
+    pair.client_send(second, stream).finish().unwrap();
+    pair.drive();
+    let accepted = pair
+        .server_streams(server_ch)
+        .accept(Dir::Uni)
+        .expect("stream arrived");
+    let mut recv = pair.server_recv(server_ch, accepted);
+    let mut chunks = recv.read(true).unwrap();
+    let chunk = chunks.next(usize::MAX).unwrap().expect("data arrived");
+    assert_eq!(chunk.bytes, &b"again"[..]);
+    let _ = chunks.finalize();
 }

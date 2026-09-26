@@ -2,7 +2,7 @@ use std::{
     cmp,
     collections::VecDeque,
     convert::TryFrom,
-    fmt, io, mem,
+    fmt, io, iter, mem,
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
@@ -247,6 +247,10 @@ pub struct Connection {
     version: u32,
     /// The version this client started in, once a server switched it (RFC 9368)
     original_version: Option<u32>,
+    /// The start version followed by the versions a server may switch this client to
+    switch_candidates: Vec<u32>,
+    /// Whether a version switch discarded this client's 0-RTT keys
+    zero_rtt_dropped_by_switch: bool,
 }
 
 impl Connection {
@@ -284,6 +288,13 @@ impl Connection {
         let active_connection_id_limit = config
             .active_connection_id_limit
             .map_or(CidQueue::LEN as u64, u64::from);
+        let switch_candidates =
+            match side.is_client() && !endpoint_config.compatible_versions.is_empty() {
+                true => iter::once(version)
+                    .chain(endpoint_config.compatible_versions.iter().copied())
+                    .collect(),
+                false => Vec::new(),
+            };
         let mut this = Self {
             endpoint_config,
             crypto,
@@ -375,6 +386,8 @@ impl Connection {
             stats: ConnectionStats::default(),
             version,
             original_version: None,
+            switch_candidates,
+            zero_rtt_dropped_by_switch: false,
         };
         if path_validated {
             this.on_path_validated();
@@ -1390,6 +1403,30 @@ impl Connection {
         self.key_phase_size = self.spaces[SpaceId::Data].sent_with_keys;
     }
 
+    /// Processes `frames` as the payload of a 1-RTT packet from the current path
+    ///
+    /// The packet reuses the number of the latest 1-RTT packet received, which acknowledgement
+    /// tracking has already recorded.
+    #[cfg(test)]
+    pub(crate) fn process_frames_for_test(
+        &mut self,
+        now: Instant,
+        frames: &[u8],
+    ) -> Result<(), TransportError> {
+        let number = self.spaces[SpaceId::Data].rx_packet;
+        let packet = Packet {
+            header: Header::Short {
+                spin: false,
+                key_phase: self.key_phase,
+                dst_cid: ConnectionId::new(&[]),
+                number: PacketNumber::U8(number as u8),
+            },
+            header_data: Bytes::new(),
+            payload: BytesMut::from(frames),
+        };
+        self.process_payload(now, self.path.remote, number, packet)
+    }
+
     /// Whether the connection is in the process of being established
     ///
     /// If this returns `false`, the connection may be either established or closed, signaled by the
@@ -2294,15 +2331,21 @@ impl Connection {
     ) {
         self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
         let mut remaining = Some(data);
-        let mut versions = vec![self.version];
-        if self.may_switch_version() {
-            versions.extend_from_slice(&self.endpoint_config.compatible_versions);
-        }
+        // The candidate list is lent out for this datagram rather than copied.
+        let candidates = match self.may_switch_version() {
+            true => mem::take(&mut self.switch_candidates),
+            false => Vec::new(),
+        };
+        let own = [self.version];
+        let versions: &[u32] = match candidates.is_empty() {
+            true => &own,
+            false => &candidates,
+        };
         while let Some(data) = remaining {
             match PartialDecode::new(
                 data,
                 &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
-                &versions,
+                versions,
                 self.endpoint_config.grease_quic_bit,
             ) {
                 Ok((partial_decode, rest)) => {
@@ -2311,9 +2354,12 @@ impl Connection {
                 }
                 Err(e) => {
                     trace!("malformed header: {}", e);
-                    return;
+                    break;
                 }
             }
+        }
+        if !candidates.is_empty() {
+            self.switch_candidates = candidates;
         }
     }
 
@@ -2325,9 +2371,15 @@ impl Connection {
         partial_decode: PartialDecode,
     ) {
         if let Some(version) = partial_decode.version() {
-            if version != self.version && !self.switch_version(version, &partial_decode) {
-                trace!(version, "dropping packet of another QUIC version");
-                return;
+            if version != self.version {
+                // Nothing changes until the packet authenticates in the new version.
+                let switched = self
+                    .authenticate_switch(version, &partial_decode)
+                    .is_some_and(|keys| self.commit_switch(version, keys));
+                if !switched {
+                    trace!(version, "dropping packet of another QUIC version");
+                    return;
+                }
             }
         }
         if let Some(decoded) = packet_crypto::unprotect_header(
@@ -2652,7 +2704,11 @@ impl Connection {
                             })?;
 
                     if self.has_0rtt() {
-                        if !self.crypto.early_data_accepted().unwrap() {
+                        // 0-RTT keys of the start version cannot protect packets of the
+                        // version a server switched to, so a switch rejects early data.
+                        if self.zero_rtt_dropped_by_switch
+                            || !self.crypto.early_data_accepted().unwrap()
+                        {
                             debug_assert!(self.side.is_client());
                             debug!("0-RTT rejected");
                             self.accepted_0rtt = false;
@@ -2931,9 +2987,11 @@ impl Connection {
                 }
                 Frame::ResetStreamAt(frame) => {
                     if !self.config.reset_stream_at {
-                        return Err(TransportError::PROTOCOL_VIOLATION(
-                            "RESET_STREAM_AT without reset_stream_at support",
-                        ));
+                        // Without the extension the frame type is unknown, and closes the
+                        // connection as any unknown frame type does.
+                        let mut error = TransportError::FRAME_ENCODING_ERROR("invalid frame ID");
+                        error.frame = Some(frame::FrameType::RESET_STREAM_AT);
+                        return Err(error);
                     }
                     if self.streams.received_reset_at(frame)?.should_transmit() {
                         self.spaces[SpaceId::Data].pending.max_data = true;
@@ -3594,32 +3652,45 @@ impl Connection {
             && !self.endpoint_config.compatible_versions.is_empty()
     }
 
-    /// Adopts `version` when a server's first Initial uses it, per RFC 9368 section 2.3
+    /// Returns `version`'s Initial keys if a server's Initial in that version authenticates
+    /// with them, per RFC 9368 section 2.3
     ///
-    /// Initial keys are derived again from the same connection ID with the new version's salt.
-    /// Returns whether the packet may be processed.
-    fn switch_version(&mut self, version: u32, packet: &PartialDecode) -> bool {
+    /// Initial keys come from the same connection ID with the new version's salt: the first
+    /// Initial's Destination Connection ID, or a Retry's Source Connection ID. The packet is
+    /// decrypted on a copy, so connection state is untouched either way.
+    fn authenticate_switch(&self, version: u32, packet: &PartialDecode) -> Option<Keys> {
         if !self.may_switch_version()
             || !packet.is_initial()
             || !self.endpoint_config.compatible_versions.contains(&version)
             || !self.endpoint_config.supported_versions.contains(&version)
         {
-            return false;
+            return None;
         }
+        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
+        let keys = self
+            .crypto
+            .initial_keys_for_version(version, &key_cid, self.side.side())?;
+        let mut trial = packet.clone().finish(Some(&*keys.header.remote)).ok()?;
+        let number = trial
+            .header
+            .number()?
+            .expand(self.spaces[SpaceId::Initial].rx_packet + 1);
+        keys.packet
+            .remote
+            .decrypt(number, &trial.header_data, &mut trial.payload)
+            .ok()?;
+        Some(keys)
+    }
+
+    /// Adopts `version` and its authenticated Initial `keys`
+    ///
+    /// 0-RTT keys of the start version are discarded, and the handshake then treats early
+    /// data as rejected, so it is sent again in 1-RTT packets.
+    fn commit_switch(&mut self, version: u32, keys: Keys) -> bool {
         if !self.crypto.switch_version(version) {
             debug!(version, "crypto session cannot switch QUIC version");
             return false;
         }
-        // Initial keys come from the first Initial's Destination Connection ID, or from the
-        // Source Connection ID of a Retry; the server's own ID may already be in use.
-        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
-        let keys = match self.crypto.initial_keys(&key_cid, self.side.side()) {
-            Ok(keys) => keys,
-            Err(_) => {
-                debug!(version, "no Initial keys for the negotiated QUIC version");
-                return false;
-            }
-        };
         debug!(
             from = self.version,
             to = version,
@@ -3628,6 +3699,9 @@ impl Connection {
         self.spaces[SpaceId::Initial].crypto = Some(keys);
         self.original_version = Some(self.version);
         self.version = version;
+        if self.zero_rtt_crypto.take().is_some() || self.zero_rtt_enabled {
+            self.zero_rtt_dropped_by_switch = true;
+        }
         true
     }
 
@@ -3782,7 +3856,7 @@ impl Connection {
     }
 
     fn peer_supports_ack_frequency(&self) -> bool {
-        self.peer_params.min_ack_delay.is_some() && !self.peer_params.min_ack_delay_draft02
+        self.peer_params.min_ack_delay.is_some()
     }
 
     /// Send an IMMEDIATE_ACK frame to the remote endpoint

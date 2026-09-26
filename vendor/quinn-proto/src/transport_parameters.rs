@@ -8,6 +8,7 @@
 
 use std::{
     convert::TryFrom,
+    iter,
     net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6},
 };
 
@@ -83,6 +84,8 @@ macro_rules! make_struct {
             pub(crate) grease_quic_bit: bool,
             /// The endpoint accepts RESET_STREAM_AT frames (the empty `reset_stream_at`
             /// parameter)
+            ///
+            /// Only outgoing parameters set this; a peer's parameter is not read.
             pub(crate) reset_stream_at: bool,
 
             /// Minimum amount of time in microseconds by which the endpoint is able to delay
@@ -91,10 +94,10 @@ macro_rules! make_struct {
             /// If a value is provided, it implies that the endpoint supports QUIC Acknowledgement
             /// Frequency
             pub(crate) min_ack_delay: Option<VarInt>,
-            /// Whether `min_ack_delay` uses the draft 02 identifier
+            /// Whether `min_ack_delay` is advertised under the draft 02 identifier
             ///
-            /// A peer that advertised only draft 02 is not sent ACK_FREQUENCY or IMMEDIATE_ACK,
-            /// whose draft 07 encodings it may not read.
+            /// Only outgoing parameters set this. A peer's draft 02 parameter is skipped as an
+            /// unknown one, so that peer is never sent draft 07 frames it may not read.
             pub(crate) min_ack_delay_draft02: bool,
             /// `version_information` (RFC 9368 section 3)
             ///
@@ -478,21 +481,6 @@ impl TransportParameters {
                 return Err(Error::Malformed);
             }
             let len = len as usize;
-            if id == MIN_ACK_DELAY_DRAFT02 {
-                // Kept so the value can be written back, but a draft 02 peer does not
-                // receive draft 07 frames; see `min_ack_delay_draft02`.
-                if params.min_ack_delay.is_none() {
-                    let value = r.get::<VarInt>()?;
-                    if len != value.size() {
-                        return Err(Error::Malformed);
-                    }
-                    params.min_ack_delay = Some(value);
-                    params.min_ack_delay_draft02 = true;
-                } else {
-                    r.advance(len);
-                }
-                continue;
-            }
             let Ok(id) = TransportParameterId::try_from(id) else {
                 // unknown transport parameters are ignored
                 r.advance(len);
@@ -549,29 +537,27 @@ impl TransportParameters {
                     {
                         return Err(Error::Malformed);
                     }
+                    // RFC 9368 section 4: a zero Chosen or Available Version is a parsing
+                    // failure. A client lists its Chosen Version among its Available
+                    // Versions; a server's Available Versions may be empty.
                     let chosen = r.get::<u32>()?;
-                    let mut available = 0;
+                    let mut lists_chosen = false;
                     for _ in 1..len / 4 {
-                        if r.get::<u32>()? == 0 {
+                        let available = r.get::<u32>()?;
+                        if available == 0 {
                             return Err(Error::IllegalValue);
                         }
-                        available += 1;
+                        lists_chosen |= available == chosen;
                     }
-                    // RFC 9368 section 3: a server must list its chosen version, and no endpoint
-                    // may choose version 0.
-                    if chosen == 0 || (side.is_client() && available == 0) {
+                    if chosen == 0 || (side.is_server() && !lists_chosen) {
                         return Err(Error::IllegalValue);
                     }
                     params.version_information = Some(VersionInformation::chosen(chosen));
                 }
-                TransportParameterId::ResetStreamAt => match len {
-                    0 if !params.reset_stream_at => params.reset_stream_at = true,
-                    _ => return Err(Error::Malformed),
-                },
-                TransportParameterId::MinAckDelayDraft07 => {
-                    params.min_ack_delay = Some(r.get()?);
-                    params.min_ack_delay_draft02 = false;
-                }
+                // Only written: the endpoint never sends RESET_STREAM_AT, so a peer's
+                // parameter is skipped as upstream skips any unknown one.
+                TransportParameterId::ResetStreamAt => r.advance(len),
+                TransportParameterId::MinAckDelayDraft07 => params.min_ack_delay = Some(r.get()?),
                 _ => {
                     macro_rules! parse {
                         {$($(#[$doc:meta])* $name:ident ($id:ident) = $default:expr,)*} => {
@@ -842,13 +828,21 @@ impl VersionInformation {
 
     /// The local parameter of an endpoint that allows compatible version negotiation
     ///
-    /// Available Versions lists the supported versions in preference order, at most eight.
+    /// Available Versions lists the chosen version, then each compatible version, at most
+    /// eight in all.
     pub(crate) fn local(chosen: u32, config: &EndpointConfig) -> Option<Self> {
         if config.compatible_versions.is_empty() {
             return None;
         }
         let mut info = Self::chosen(chosen);
-        for &version in config.supported_versions.iter().take(Self::MAX_AVAILABLE) {
+        let versions = iter::once(chosen).chain(
+            config
+                .compatible_versions
+                .iter()
+                .copied()
+                .filter(|version| *version != chosen),
+        );
+        for version in versions.take(Self::MAX_AVAILABLE) {
             info.available[usize::from(info.available_len)] = version;
             info.available_len += 1;
         }
@@ -1039,7 +1033,7 @@ mod test {
     }
 
     #[test]
-    fn min_ack_delay_can_use_the_draft02_identifier() {
+    fn draft02_min_ack_delay_is_written_but_not_read() {
         let params = TransportParameters {
             min_ack_delay: Some(VarInt(1_000)),
             min_ack_delay_draft02: true,
@@ -1052,10 +1046,9 @@ mod test {
             [0xc0, 0, 0, 0, 0xff, 0x02, 0xde, 0x1a, 0x02, 0x43, 0xe8]
         );
 
-        // A peer's draft 02 parameter round-trips but is marked as draft 02.
+        // A peer's draft 02 parameter is not read as ACK frequency support.
         let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
-        assert_eq!(read.min_ack_delay, Some(VarInt(1_000)));
-        assert!(read.min_ack_delay_draft02);
+        assert_eq!(read.min_ack_delay, None);
     }
 
     #[test]
@@ -1067,14 +1060,14 @@ mod test {
         let mut buf = Vec::new();
         params.write(&mut buf);
         assert_eq!(buf, [0x1d, 0x00]);
-        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
-        assert!(read.reset_stream_at);
-
-        for malformed in [&[0x1d, 0x01, 0x00][..], &[0x1d, 0x00, 0x1d, 0x00][..]] {
-            assert_eq!(
-                TransportParameters::read(Side::Client, &mut &malformed[..]),
-                Err(Error::Malformed)
-            );
+        // A peer's parameter, well-formed or not, is skipped as an unknown one.
+        for encoded in [
+            &buf[..],
+            &[0x1d, 0x01, 0x00][..],
+            &[0x1d, 0x00, 0x1d, 0x00][..],
+        ] {
+            let read = TransportParameters::read(Side::Client, &mut &encoded[..]).unwrap();
+            assert!(!read.reset_stream_at);
         }
     }
 

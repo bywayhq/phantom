@@ -61,6 +61,16 @@ impl crypto::Session for TlsSession {
         Ok(initial_keys(self.version, *dst_cid, side, &self.suite))
     }
 
+    fn initial_keys_for_version(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Option<Keys> {
+        let version = interpret_version(version).ok()?;
+        Some(initial_keys(version, *dst_cid, side, &self.suite))
+    }
+
     fn handshake_data(&self) -> Option<Box<dyn Any>> {
         if !self.got_handshake_data {
             return None;

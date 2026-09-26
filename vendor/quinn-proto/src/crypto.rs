@@ -81,14 +81,31 @@ pub trait Session: Send + Sync + 'static {
     /// Verify the integrity of a retry packet
     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
 
+    /// Initial keys for another QUIC version, without changing the session
+    ///
+    /// Quinn authenticates a server's first Initial of a compatible version (RFC 9368 section
+    /// 2.3) with these keys before it calls [`Self::switch_version`]. `dst_cid` is the client's
+    /// first Destination Connection ID, or a Retry's Source Connection ID. Returns `None`, the
+    /// default, when the session cannot use `version`.
+    fn initial_keys_for_version(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Option<Keys> {
+        let _ = (version, dst_cid, side);
+        None
+    }
+
     /// Moves a client session to another QUIC version during compatible version negotiation
     ///
     /// RFC 9368 section 2.3 lets a server answer a client's first flight in a different version
-    /// that the client listed as available. Quinn calls this before processing the server's
-    /// first packet of `version`, and only while no key derived from the handshake exists yet.
-    /// Later Initial, Handshake, 1-RTT, and key-update keys, and Retry integrity, must then use
-    /// `version`. Returns `false`, the default, if the session cannot switch; the packet is
-    /// then dropped.
+    /// that the client listed as available. Quinn calls this once a server Initial of `version`
+    /// has authenticated with [`Self::initial_keys_for_version`], and only while no key derived
+    /// from the handshake exists yet. Later Handshake, 1-RTT, and key-update keys, and Retry
+    /// integrity, must then use `version`, and 0-RTT keys must no longer be offered: Quinn treats
+    /// early data as rejected. Returns `false`, the default, if the session cannot switch; the
+    /// packet is then dropped.
     fn switch_version(&mut self, version: u32) -> bool {
         let _ = version;
         false

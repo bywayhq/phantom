@@ -230,7 +230,12 @@ impl Recv {
         let reliable_size = self
             .reliable_reset
             .map_or(reliable_size, |(_, size)| size.min(reliable_size));
-        if reliable_size == 0 || self.stopped || self.assembler.bytes_read() >= reliable_size {
+        // An unordered reader has no prefix to complete, so its stream resets at once.
+        if reliable_size == 0
+            || self.stopped
+            || !self.assembler.is_ordered()
+            || self.assembler.bytes_read() >= reliable_size
+        {
             return Ok(ResetAt::Immediate);
         }
 
@@ -259,11 +264,20 @@ impl Recv {
     /// Returns the number of buffered or never-sent bytes discarded, whose flow control credit
     /// must be released.
     fn complete_reliable_reset(&mut self) -> Option<u64> {
-        let (error_code, reliable_size) = self.reliable_reset?;
+        let (_, reliable_size) = self.reliable_reset?;
         if self.assembler.bytes_read() < reliable_size {
             return None;
         }
-        let discarded = self.end - self.assembler.bytes_read();
+        self.abandon_reliable_reset()
+    }
+
+    /// Resets the stream now, discarding any reliable bytes still unread
+    ///
+    /// Used when the application starts unordered reads, which have no prefix to deliver.
+    /// Returns the number of discarded bytes, as [`Self::complete_reliable_reset`] does.
+    pub(super) fn abandon_reliable_reset(&mut self) -> Option<u64> {
+        let (error_code, _) = self.reliable_reset?;
+        let discarded = self.end.saturating_sub(self.assembler.bytes_read());
         self.state = RecvState::ResetRecvd {
             size: self.end,
             error_code,
@@ -350,13 +364,18 @@ impl<'a> Chunks<'a> {
         };
 
         recv.assembler.ensure_ordering(ordered)?;
+        // A reliable reset delivers an ordered prefix; unordered reads end it at once.
+        let read = match ordered {
+            true => 0,
+            false => recv.abandon_reliable_reset().unwrap_or(0),
+        };
         Ok(Self {
             id,
             ordered,
             streams,
             pending,
             state: ChunksState::Readable(recv),
-            read: 0,
+            read,
         })
     }
 
@@ -378,12 +397,12 @@ impl<'a> Chunks<'a> {
         while let Some(mut chunk) = rs.assembler.read(max_length, self.ordered) {
             self.read += chunk.bytes.len() as u64;
             if let Some(limit) = rs.reliable_limit() {
-                if chunk.offset >= limit {
+                let Some(reliable) = limit.checked_sub(chunk.offset).filter(|len| *len > 0) else {
                     continue;
-                }
+                };
                 chunk
                     .bytes
-                    .truncate(usize::try_from(limit - chunk.offset).unwrap_or(usize::MAX));
+                    .truncate(usize::try_from(reliable).unwrap_or(usize::MAX));
             }
             return Ok(Some(chunk));
         }

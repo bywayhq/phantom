@@ -330,6 +330,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked reset_at
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
+      --locked reset_stream_at
+    cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked draft02
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked tests::quic_v2

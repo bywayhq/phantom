@@ -196,6 +196,39 @@ fn larger_connection_id_limit_accepts_more_peer_cids() {
     );
 }
 
+/// `RESET_STREAM_AT` for the server's first bidirectional stream: error code 0, final size
+/// 4, Reliable Size 0.
+const RESET_STREAM_AT: [u8; 5] = [0x24, 0x01, 0x00, 0x04, 0x00];
+
+#[test]
+fn reset_stream_at_is_an_unknown_frame_unless_advertised() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, _) = pair.connect();
+    let now = pair.time;
+    let error = pair
+        .client_conn_mut(client_ch)
+        .process_frames_for_test(now, &RESET_STREAM_AT)
+        .unwrap_err();
+    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
+    assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
+}
+
+#[test]
+fn reset_stream_at_is_accepted_when_advertised() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let mut transport = TransportConfig::default();
+    transport.reset_stream_at(true);
+    let mut config = client_config();
+    config.transport_config(Arc::new(transport));
+    let (client_ch, _) = pair.connect_with(config);
+    let now = pair.time;
+    pair.client_conn_mut(client_ch)
+        .process_frames_for_test(now, &RESET_STREAM_AT)
+        .unwrap();
+}
+
 #[test]
 fn client_initial_datagrams_are_padded_to_configured_size() {
     let _guard = subscribe();

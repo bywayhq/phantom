@@ -52,19 +52,68 @@ index 4a49717..a8e155d 100644
              .field(
                  "persistent_congestion_threshold",
                  persistent_congestion_threshold,
+diff --git a/src/connection/assembler.rs b/src/connection/assembler.rs
+index 93268e1..cd20c90 100644
+--- a/src/connection/assembler.rs
++++ b/src/connection/assembler.rs
+@@ -56,6 +56,11 @@ impl Assembler {
+         Ok(())
+     }
+ 
++    /// Whether reads are still ordered
++    pub(super) fn is_ordered(&self) -> bool {
++        self.state.is_ordered()
++    }
++
+     /// Get the the next chunk
+     pub(super) fn read(&mut self, max_length: usize, ordered: bool) -> Option<Chunk> {
+         loop {
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
-index 703ad59..9c915de 100644
+index 703ad59..95ea4bf 100644
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
-@@ -2916,6 +2916,16 @@ impl Connection {
+@@ -1387,6 +1387,30 @@ impl Connection {
+         self.key_phase_size = self.spaces[SpaceId::Data].sent_with_keys;
+     }
+ 
++    /// Processes `frames` as the payload of a 1-RTT packet from the current path
++    ///
++    /// The packet reuses the number of the latest 1-RTT packet received, which acknowledgement
++    /// tracking has already recorded.
++    #[cfg(test)]
++    pub(crate) fn process_frames_for_test(
++        &mut self,
++        now: Instant,
++        frames: &[u8],
++    ) -> Result<(), TransportError> {
++        let number = self.spaces[SpaceId::Data].rx_packet;
++        let packet = Packet {
++            header: Header::Short {
++                spin: false,
++                key_phase: self.key_phase,
++                dst_cid: ConnectionId::new(&[]),
++                number: PacketNumber::U8(number as u8),
++            },
++            header_data: Bytes::new(),
++            payload: BytesMut::from(frames),
++        };
++        self.process_payload(now, self.path.remote, number, packet)
++    }
++
+     /// Whether the connection is in the process of being established
+     ///
+     /// If this returns `false`, the connection may be either established or closed, signaled by the
+@@ -2916,6 +2940,18 @@ impl Connection {
                          self.spaces[SpaceId::Data].pending.max_data = true;
                      }
                  }
 +                Frame::ResetStreamAt(frame) => {
 +                    if !self.config.reset_stream_at {
-+                        return Err(TransportError::PROTOCOL_VIOLATION(
-+                            "RESET_STREAM_AT without reset_stream_at support",
-+                        ));
++                        // Without the extension the frame type is unknown, and closes the
++                        // connection as any unknown frame type does.
++                        let mut error = TransportError::FRAME_ENCODING_ERROR("invalid frame ID");
++                        error.frame = Some(frame::FrameType::RESET_STREAM_AT);
++                        return Err(error);
 +                    }
 +                    if self.streams.received_reset_at(frame)?.should_transmit() {
 +                        self.spaces[SpaceId::Data].pending.max_data = true;
@@ -87,7 +136,7 @@ index 8df96ef..4fdf89d 100644
              Frame::Crypto(_) => self.crypto += 1,
              Frame::Datagram(_) => self.datagram += 1,
 diff --git a/src/connection/streams/recv.rs b/src/connection/streams/recv.rs
-index f4e07a5..3d41e53 100644
+index f4e07a5..a98d032 100644
 --- a/src/connection/streams/recv.rs
 +++ b/src/connection/streams/recv.rs
 @@ -18,6 +18,18 @@ pub(super) struct Recv {
@@ -125,7 +174,7 @@ index f4e07a5..3d41e53 100644
      }
  
      /// Process a STREAM frame
-@@ -200,6 +214,70 @@ impl Recv {
+@@ -200,6 +214,84 @@ impl Recv {
          Ok(true)
      }
  
@@ -145,7 +194,12 @@ index f4e07a5..3d41e53 100644
 +        let reliable_size = self
 +            .reliable_reset
 +            .map_or(reliable_size, |(_, size)| size.min(reliable_size));
-+        if reliable_size == 0 || self.stopped || self.assembler.bytes_read() >= reliable_size {
++        // An unordered reader has no prefix to complete, so its stream resets at once.
++        if reliable_size == 0
++            || self.stopped
++            || !self.assembler.is_ordered()
++            || self.assembler.bytes_read() >= reliable_size
++        {
 +            return Ok(ResetAt::Immediate);
 +        }
 +
@@ -174,11 +228,20 @@ index f4e07a5..3d41e53 100644
 +    /// Returns the number of buffered or never-sent bytes discarded, whose flow control credit
 +    /// must be released.
 +    fn complete_reliable_reset(&mut self) -> Option<u64> {
-+        let (error_code, reliable_size) = self.reliable_reset?;
++        let (_, reliable_size) = self.reliable_reset?;
 +        if self.assembler.bytes_read() < reliable_size {
 +            return None;
 +        }
-+        let discarded = self.end - self.assembler.bytes_read();
++        self.abandon_reliable_reset()
++    }
++
++    /// Resets the stream now, discarding any reliable bytes still unread
++    ///
++    /// Used when the application starts unordered reads, which have no prefix to deliver.
++    /// Returns the number of discarded bytes, as [`Self::complete_reliable_reset`] does.
++    pub(super) fn abandon_reliable_reset(&mut self) -> Option<u64> {
++        let (error_code, _) = self.reliable_reset?;
++        let discarded = self.end.saturating_sub(self.assembler.bytes_read());
 +        self.state = RecvState::ResetRecvd {
 +            size: self.end,
 +            error_code,
@@ -196,7 +259,27 @@ index f4e07a5..3d41e53 100644
      pub(super) fn reset_code(&self) -> Option<VarInt> {
          match self.state {
              RecvState::ResetRecvd { error_code, .. } => Some(error_code),
-@@ -297,14 +375,26 @@ impl<'a> Chunks<'a> {
+@@ -272,13 +364,18 @@ impl<'a> Chunks<'a> {
+         };
+ 
+         recv.assembler.ensure_ordering(ordered)?;
++        // A reliable reset delivers an ordered prefix; unordered reads end it at once.
++        let read = match ordered {
++            true => 0,
++            false => recv.abandon_reliable_reset().unwrap_or(0),
++        };
+         Ok(Self {
+             id,
+             ordered,
+             streams,
+             pending,
+             state: ChunksState::Readable(recv),
+-            read: 0,
++            read,
+         })
+     }
+ 
+@@ -297,14 +394,26 @@ impl<'a> Chunks<'a> {
              ChunksState::Finalized => panic!("must not call next() after finalize()"),
          };
  
@@ -204,12 +287,12 @@ index f4e07a5..3d41e53 100644
 +        while let Some(mut chunk) = rs.assembler.read(max_length, self.ordered) {
              self.read += chunk.bytes.len() as u64;
 +            if let Some(limit) = rs.reliable_limit() {
-+                if chunk.offset >= limit {
++                let Some(reliable) = limit.checked_sub(chunk.offset).filter(|len| *len > 0) else {
 +                    continue;
-+                }
++                };
 +                chunk
 +                    .bytes
-+                    .truncate(usize::try_from(limit - chunk.offset).unwrap_or(usize::MAX));
++                    .truncate(usize::try_from(reliable).unwrap_or(usize::MAX));
 +            }
              return Ok(Some(chunk));
          }
@@ -226,7 +309,7 @@ index f4e07a5..3d41e53 100644
                  // At this point if we have `rs` self.state must be `ChunksState::Readable`
                  let recv = match state {
 diff --git a/src/connection/streams/state.rs b/src/connection/streams/state.rs
-index cb1b1dc..cf55fa6 100644
+index cb1b1dc..d561369 100644
 --- a/src/connection/streams/state.rs
 +++ b/src/connection/streams/state.rs
 @@ -8,6 +8,7 @@ use bytes::BufMut;
@@ -300,7 +383,7 @@ index cb1b1dc..cf55fa6 100644
      /// Process incoming `STOP_SENDING` frame
      #[allow(unreachable_pub)] // fuzzing only
      pub fn received_stop_sending(&mut self, id: StreamId, error_code: VarInt) {
-@@ -2336,4 +2393,155 @@ mod tests {
+@@ -2336,4 +2393,208 @@ mod tests {
          assert_eq!(stream.write(&data), Ok(smaller_send_window as usize));
          assert_eq!(stream.write(&data), Err(WriteError::Blocked));
      }
@@ -443,6 +526,59 @@ index cb1b1dc..cf55fa6 100644
 +    }
 +
 +    #[test]
++    fn reset_at_resets_an_unordered_reader_at_once() {
++        let mut client = make(Side::Client);
++        let id = StreamId::new(Side::Server, Dir::Uni, 0);
++        received_bytes(&mut client, id, 2048);
++        let mut pending = Retransmits::default();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(false).unwrap();
++        chunks.next(100).unwrap();
++        let _ = chunks.finalize();
++
++        let _ = client.received_reset_at(reset_at(id, 4096, 1500)).unwrap();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(false).unwrap();
++        assert_eq!(
++            chunks.next(usize::MAX),
++            Err(crate::ReadError::Reset(7u32.into()))
++        );
++        let _ = chunks.finalize();
++    }
++
++    #[test]
++    fn reset_at_ends_when_an_unordered_read_starts() {
++        let mut client = make(Side::Client);
++        let id = StreamId::new(Side::Server, Dir::Uni, 0);
++        let initial_max = client.local_max_data;
++        received_bytes(&mut client, id, 100);
++        let _ = client.received_reset_at(reset_at(id, 3000, 2000)).unwrap();
++
++        let mut pending = Retransmits::default();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(false).unwrap();
++        assert_eq!(
++            chunks.next(usize::MAX),
++            Err(crate::ReadError::Reset(7u32.into()))
++        );
++        let _ = chunks.finalize();
++        // Every byte up to the final size is credited back.
++        assert_eq!(client.local_max_data - initial_max, 3000);
++    }
++
++    #[test]
 +    fn reset_at_rejects_a_final_size_below_received_data() {
 +        let mut client = make(Side::Client);
 +        let id = StreamId::new(Side::Server, Dir::Uni, 0);
@@ -574,21 +710,67 @@ index 01d9a02..e6b9977 100644
 +        assert!(frames.next().unwrap().is_err());
 +    }
  }
+diff --git a/src/tests/transport_limits.rs b/src/tests/transport_limits.rs
+index bc134ca..a57f755 100644
+--- a/src/tests/transport_limits.rs
++++ b/src/tests/transport_limits.rs
+@@ -196,6 +196,39 @@ fn larger_connection_id_limit_accepts_more_peer_cids() {
+     );
+ }
+ 
++/// `RESET_STREAM_AT` for the server's first bidirectional stream: error code 0, final size
++/// 4, Reliable Size 0.
++const RESET_STREAM_AT: [u8; 5] = [0x24, 0x01, 0x00, 0x04, 0x00];
++
++#[test]
++fn reset_stream_at_is_an_unknown_frame_unless_advertised() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let (client_ch, _) = pair.connect();
++    let now = pair.time;
++    let error = pair
++        .client_conn_mut(client_ch)
++        .process_frames_for_test(now, &RESET_STREAM_AT)
++        .unwrap_err();
++    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++    assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
++}
++
++#[test]
++fn reset_stream_at_is_accepted_when_advertised() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.reset_stream_at(true);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    pair.client_conn_mut(client_ch)
++        .process_frames_for_test(now, &RESET_STREAM_AT)
++        .unwrap();
++}
++
+ #[test]
+ fn client_initial_datagrams_are_padded_to_configured_size() {
+     let _guard = subscribe();
 diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
-index 1155171..2c446bc 100644
+index 1155171..a7c8e04 100644
 --- a/src/transport_parameters.rs
 +++ b/src/transport_parameters.rs
-@@ -81,6 +81,9 @@ macro_rules! make_struct {
+@@ -81,6 +81,11 @@ macro_rules! make_struct {
              /// The endpoint is willing to receive QUIC packets containing any value for the fixed
              /// bit
              pub(crate) grease_quic_bit: bool,
 +            /// The endpoint accepts RESET_STREAM_AT frames (the empty `reset_stream_at`
 +            /// parameter)
++            ///
++            /// Only outgoing parameters set this; a peer's parameter is not read.
 +            pub(crate) reset_stream_at: bool,
  
              /// Minimum amount of time in microseconds by which the endpoint is able to delay
              /// sending acknowledgments
-@@ -125,6 +128,7 @@ macro_rules! make_struct {
+@@ -125,6 +130,7 @@ macro_rules! make_struct {
                      max_datagram_frame_size: None,
                      initial_src_cid: None,
                      grease_quic_bit: false,
@@ -596,7 +778,7 @@ index 1155171..2c446bc 100644
                      min_ack_delay: None,
  
                      original_dst_cid: None,
-@@ -174,6 +178,7 @@ impl TransportParameters {
+@@ -174,6 +180,7 @@ impl TransportParameters {
                  .unwrap_or(VarInt(25)),
              max_datagram_frame_size: configured_datagram_frame_size(config),
              grease_quic_bit: endpoint_config.grease_quic_bit,
@@ -604,7 +786,7 @@ index 1155171..2c446bc 100644
              min_ack_delay: Some(
                  VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
              ),
-@@ -378,6 +383,12 @@ impl TransportParameters {
+@@ -378,6 +385,12 @@ impl TransportParameters {
                          w.put_slice(cid);
                      }
                  }
@@ -617,18 +799,17 @@ index 1155171..2c446bc 100644
                  TransportParameterId::GreaseQuicBit => {
                      if self.grease_quic_bit {
                          w.write_var(id as u64);
-@@ -488,6 +499,10 @@ impl TransportParameters {
+@@ -488,6 +501,9 @@ impl TransportParameters {
                      0 => params.grease_quic_bit = true,
                      _ => return Err(Error::Malformed),
                  },
-+                TransportParameterId::ResetStreamAt => match len {
-+                    0 if !params.reset_stream_at => params.reset_stream_at = true,
-+                    _ => return Err(Error::Malformed),
-+                },
++                // Only written: the endpoint never sends RESET_STREAM_AT, so a peer's
++                // parameter is skipped as upstream skips any unknown one.
++                TransportParameterId::ResetStreamAt => r.advance(len),
                  TransportParameterId::MinAckDelayDraft07 => params.min_ack_delay = Some(r.get()?),
                  _ => {
                      macro_rules! parse {
-@@ -644,6 +659,9 @@ pub(crate) enum TransportParameterId {
+@@ -644,6 +660,9 @@ pub(crate) enum TransportParameterId {
      InitialSourceConnectionId = 0x0F,
      RetrySourceConnectionId = 0x10,
  
@@ -638,7 +819,7 @@ index 1155171..2c446bc 100644
      // Smallest possible ID of reserved transport parameter https://datatracker.ietf.org/doc/html/rfc9000#section-22.3
      ReservedTransportParameter = 0x1B,
  
-@@ -659,7 +677,7 @@ pub(crate) enum TransportParameterId {
+@@ -659,7 +678,7 @@ pub(crate) enum TransportParameterId {
  
  impl TransportParameterId {
      /// Array with all supported transport parameter IDs
@@ -647,7 +828,7 @@ index 1155171..2c446bc 100644
          Self::MaxIdleTimeout,
          Self::MaxUdpPayloadSize,
          Self::InitialMaxData,
-@@ -680,6 +698,7 @@ impl TransportParameterId {
+@@ -680,6 +699,7 @@ impl TransportParameterId {
          Self::InitialSourceConnectionId,
          Self::RetrySourceConnectionId,
          Self::GreaseQuicBit,
@@ -655,7 +836,7 @@ index 1155171..2c446bc 100644
          Self::MinAckDelayDraft07,
      ];
  }
-@@ -719,6 +738,7 @@ impl TryFrom<u64> for TransportParameterId {
+@@ -719,6 +739,7 @@ impl TryFrom<u64> for TransportParameterId {
              id if Self::InitialSourceConnectionId == id => Self::InitialSourceConnectionId,
              id if Self::RetrySourceConnectionId == id => Self::RetrySourceConnectionId,
              id if Self::GreaseQuicBit == id => Self::GreaseQuicBit,
@@ -663,7 +844,7 @@ index 1155171..2c446bc 100644
              id if Self::MinAckDelayDraft07 == id => Self::MinAckDelayDraft07,
              _ => return Err(()),
          };
-@@ -901,6 +921,26 @@ mod test {
+@@ -901,6 +922,26 @@ mod test {
          }
      }
  
@@ -676,14 +857,14 @@ index 1155171..2c446bc 100644
 +        let mut buf = Vec::new();
 +        params.write(&mut buf);
 +        assert_eq!(buf, [0x1d, 0x00]);
-+        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
-+        assert!(read.reset_stream_at);
-+
-+        for malformed in [&[0x1d, 0x01, 0x00][..], &[0x1d, 0x00, 0x1d, 0x00][..]] {
-+            assert_eq!(
-+                TransportParameters::read(Side::Client, &mut &malformed[..]),
-+                Err(Error::Malformed)
-+            );
++        // A peer's parameter, well-formed or not, is skipped as an unknown one.
++        for encoded in [
++            &buf[..],
++            &[0x1d, 0x01, 0x00][..],
++            &[0x1d, 0x00, 0x1d, 0x00][..],
++        ] {
++            let read = TransportParameters::read(Side::Client, &mut &encoded[..]).unwrap();
++            assert!(!read.reset_stream_at);
 +        }
 +    }
 +

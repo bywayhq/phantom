@@ -56,6 +56,11 @@ impl Assembler {
         Ok(())
     }
 
+    /// Whether reads are still ordered
+    pub(super) fn is_ordered(&self) -> bool {
+        self.state.is_ordered()
+    }
+
     /// Get the the next chunk
     pub(super) fn read(&mut self, max_length: usize, ordered: bool) -> Option<Chunk> {
         loop {

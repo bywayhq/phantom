@@ -113,9 +113,13 @@ is zero, or already read, resets the stream as `RESET_STREAM` does.
 Otherwise the final size becomes known, reads deliver bytes up to the
 Reliable Size and then report the reset, and flow-control credit for the
 discarded bytes is released when the reset completes or the stream stops. A
-Reliable Size larger than the final size is a `FRAME_ENCODING_ERROR`, and the
-frame is a `PROTOCOL_VIOLATION` when support was not advertised. The endpoint
-never sends the frame.
+Reliable Size larger than the final size is a `FRAME_ENCODING_ERROR`. When
+support was not advertised, the frame closes the connection with
+`FRAME_ENCODING_ERROR`, as any unknown frame type does. A stream read with
+unordered reads cannot keep the reliable bytes in order, so the frame resets
+it at once, and an unordered read that starts while a reliable reset waits
+ends the wait with the reset. A peer's `reset_stream_at` parameter is skipped
+as unknown. The endpoint never sends the frame.
 
 `patches/ack-frequency-draft-02.patch` adds
 `TransportConfig::ack_frequency_draft`. With `AckFrequencyDraft::Draft02`
@@ -124,8 +128,9 @@ instead of draft 07's `0xff04de1b`, and a received `ACK_FREQUENCY` frame is
 read with draft 02's fields: a packet tolerance N becomes an ack-eliciting
 threshold of N - 1, and an Ignore Order byte of 1 or 0 becomes a reordering
 threshold of 0 or 1. A tolerance of 0 or another Ignore Order value is a
-`FRAME_ENCODING_ERROR`. A peer's draft 02 parameter is read and written back,
-but that peer is not sent draft 07 `ACK_FREQUENCY` or `IMMEDIATE_ACK` frames.
+`FRAME_ENCODING_ERROR`. A peer's draft 02 parameter is skipped as unknown, so
+without the default draft 07 parameter the peer is not sent `ACK_FREQUENCY` or
+`IMMEDIATE_ACK` frames.
 
 `patches/quic-v2.patch` implements QUIC version 2 (RFC 9369) and compatible
 version negotiation (RFC 9368) for clients:
@@ -137,24 +142,39 @@ version negotiation (RFC 9368) for clients:
 - `EndpointConfig::compatible_versions` lists the versions a server may move
   a client to. Until the server's first flight yields handshake keys, the
   client accepts an Initial in such a version, asks its crypto session to
-  switch with the new `Session::switch_version`, and derives Initial keys
-  again from the first Initial's Destination Connection ID, or a Retry's
-  Source Connection ID. A server may first acknowledge the client in the
-  original version; aioquic does. The default method refuses, so a provider
+  switch. It first derives that version's Initial keys with the new
+  `Session::initial_keys_for_version`, from the first Initial's Destination
+  Connection ID or a Retry's Source Connection ID, and decrypts the packet
+  with them on a copy. Only a packet that authenticates moves the connection
+  to the new version, through the new `Session::switch_version`; any other is
+  dropped and the client stays in its version. A switch discards the 0-RTT
+  keys, and the handshake treats early data as rejected, so it is sent again
+  in 1-RTT packets. A server may first acknowledge the client in the
+  original version; aioquic does. The default methods refuse, so a provider
   that cannot switch drops the packet.
 - The transport parameters read the peer's `version_information` (`0x11`).
   A client closes with the new `VERSION_NEGOTIATION_ERROR` (`0x11`) when the
   server's Chosen Version differs from the version in use, or when a client
-  that switched gets no `version_information`. An endpoint with compatible
-  versions writes its own, listing its supported versions.
+  that switched gets no `version_information`. A zero Chosen or Available
+  Version is malformed, and a server's Available Versions may be empty. An
+  endpoint with compatible versions writes its own, listing its version and
+  then its compatible versions.
+- Only the client side of compatible version negotiation is implemented. A
+  server never switches a client, and does not check a client's
+  `version_information` against the version it received.
 
 Tests cover the packet-type bits in both versions, a connection and a Retry
 in v2, a client moved from v1 to v2, a switched client that gets no
-`version_information`, and a client that stays in v1. The move is shown with
+`version_information`, a server that lists no Available Versions, a v2
+Initial that fails authentication and leaves the client in v1, a switch
+with 0-RTT data outstanding, and a client that stays in v1. The move is shown with
 a rustls session that handshakes in v2 and protects its first flight with
 v1 Initial keys, because a rustls session cannot change version; the test
 re-protects that flight as v2 for a v2-only server. Phantom's BoringSSL
-provider, which can switch, is checked against aioquic on loopback.
+provider, which can switch, is checked in the workspace test
+`firefox_156_client_follows_a_server_to_version_2` of `phantom-net`, where
+a relay re-protects its v1 Initials for a v2-only Quinn server, and against
+aioquic on loopback.
 
 The ordered canonical source and test deltas are stored in
 `patches/fallible-key-updates.patch`, `patches/fallible-initial-keys.patch`,
@@ -228,6 +248,7 @@ cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_upd
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked datagram_frame_size
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::transport_limits
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked reset_at
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked reset_stream_at
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked draft02
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::quic_v2
 cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
