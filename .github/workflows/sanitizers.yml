@@ -7,10 +7,9 @@ name: Sanitizers
 # runs the crate's own tests and the HTTP/3 loopback tests under
 # AddressSanitizer to cover them.
 #
-# It covers the paths the tests already reach. Two callback-failure paths have
-# no test at all, so this job says nothing about them: a panic across a real
-# BoringSSL call edge, and an `SSL` dropped mid-handshake. See
-# docs/explanation/validation.md.
+# It covers the paths the tests already reach. One callback-failure path has no
+# test, so this job says nothing about it: a panic across a real BoringSSL call
+# edge. See docs/explanation/validation.md.
 #
 # `vendor/**` rather than the QUIC forks by name: an enumerated list silently
 # drops a fork that is renamed or added. The fuzzing workflow does the same.
@@ -69,9 +68,11 @@ jobs:
       matrix:
         include:
           # The crate's own unit tests: key schedule, packet and header
-          # protection, retry, stateless reset, and the secret callbacks'
+          # protection, retry, stateless reset, the secret callbacks'
           # rejection paths (a null cipher, a secret length that disagrees
-          # with the cipher).
+          # with the cipher), and session resumption's failure paths: hostile
+          # post-handshake messages, a declined new-session callback, and a
+          # client dropped at each point of a resumed or 0-RTT handshake.
           - name: phantom-quic-btls
             package: phantom-quic-btls
             filter: ""
@@ -83,12 +84,12 @@ jobs:
             filter: "http3::"
     env:
       RUSTFLAGS: -Zsanitizer=address
-      # Leak detection stays on. It is the only automatic check that the
-      # `CallbackState` owner handed to `SSL_set_ex_data` is freed by the
-      # ex-data destructor, and no test asserts that for a session dropped
-      # mid-handshake. If BoringSSL's one-time initialization turns out to
-      # report leaks here, add an LSAN_OPTIONS suppressions file naming the
-      # frames that were actually observed.
+      # Leak detection stays on. It is the only automatic check that sessions
+      # and the `CallbackState` owner handed to `SSL_set_ex_data` are freed;
+      # the lifecycle tests assert only the owner count. If BoringSSL's
+      # one-time initialization turns out to report leaks here, add an
+      # LSAN_OPTIONS suppressions file naming the frames that were actually
+      # observed.
       #
       # `detect_stack_use_after_return` is deliberately left off. Turned on, a
       # full `http3::` run on a Windows host reported stack-use-after-return in

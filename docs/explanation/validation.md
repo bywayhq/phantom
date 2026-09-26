@@ -2815,6 +2815,22 @@ HTTP/2 receive bounds have raw-peer regressions in
 | A ninth informational response, alone or in a burst of 1,000 | `Http2Error::TooManyInformationalResponses` and one `RST_STREAM(ENHANCE_YOUR_CALM)`, while a sibling request succeeds. Eight may precede a final response |
 | A peer `SETTINGS_HEADER_TABLE_SIZE` of 65,536 or 2^32 - 1 | The same uncapped dynamic-table-size update that Chromium's quiche encoder and Firefox's compressor emit; the connection stays usable. Upstream h2's 4 KiB encoder cap is not ported (see `vendor/http2/PHANTOM.md`) |
 
+Post-handshake TLS input on a QUIC connection has crafted-peer regressions in
+`crates/phantom-quic-btls/src/backend/client_session/tests/post_handshake.rs`.
+Each case completes a real handshake with the loopback BoringSSL server, then
+hands the client the bytes a hostile server would put in application-level
+CRYPTO frames:
+
+| Peer input | Phantom's response |
+| --- | --- |
+| A NewSessionTicket that is empty, truncated, has a nonce or extension longer than its body, an empty ticket, a trailing byte, or a two-byte `early_data` extension | The connection fails with a `decode_error` alert, sent to Quinn as `CRYPTO_ERROR` 0x132, and no session is kept |
+| A ticket whose `early_data` limit is not 0xffffffff (RFC 9001, section 4.6.1), or that repeats an extension | `illegal_parameter`, and no session is kept |
+| A KeyUpdate (RFC 9001, section 6), or a Finished, CertificateRequest, or unassigned message type | `unexpected_message` |
+| An incomplete message, even one whose header promises 16 MiB | Buffered until 16 KiB of application-level data is pending, then the connection fails without an alert |
+| 64 well-formed tickets in one flight | Each becomes a session; only the newest four are kept until the connection collects them |
+| A valid ticket, then a malformed message | The valid ticket's session never reaches the ticket cache and is released with the failed connection; BoringSSL replays the read error for later input, so no later ticket is kept |
+| A ticket with a zero lifetime | Delivered by BoringSSL, then discarded by the ticket cache (RFC 8446, section 4.6.1) |
+
 ### Fuzzing and sanitizers
 
 The [parser fuzzing workflow](../../.github/workflows/fuzz.yml) runs each
@@ -2854,12 +2870,37 @@ workspace run covers it.
 
 Four callback-failure paths carry most of that FFI risk. A null `SSL_CIPHER`
 and a secret length that disagrees with the cipher are both rejected before
-any copy, and both have tests. A panic inside a callback is contained by
+any copy, and both have tests. Dropping the `SSL` mid-handshake runs the
+ex-data destructor, and the tests in
+`crates/phantom-quic-btls/src/backend/client_session/tests/lifecycle.rs`
+check the owner count after a drop mid full handshake as well as at each
+point listed below. A panic inside a callback is contained by
 `catch_unwind`, but the test calls the containment helper directly; nothing
-panics across a real BoringSSL call edge. Dropping the `SSL` mid-handshake
-runs the ex-data destructor; the tests that check the owner counts drop a
-session that never started a handshake. Until those last two have tests,
-running them under a sanitizer proves nothing about them.
+panics across a real BoringSSL call edge, so running under a sanitizer proves
+nothing about that path.
+
+Session resumption adds its own paths through the FFI, each with a test:
+
+- Hostile post-handshake input, in the adversarial table above.
+- The new-session callback declining a session, when the `SSL` has no QUIC
+  callback state or the session pointer is null. It returns 0, and the
+  test then uses and releases the session itself, so a callback that had
+  released it would be reported as a use after free.
+- Dropping a client after `SSL_set_session`, before and after the
+  ClientHello; while it sends early data, with and without the server's
+  ServerHello; after the server rejected early data but before the handshake
+  finished; and while it holds tickets nobody collected. After each drop,
+  the offered session still resumes a later handshake.
+- `SSL_reset_early_data_reject`, which aborts the process unless the
+  handshake waits on an early-data rejection. The client calls it only after
+  `SSL_do_handshake` returned -1 with `SSL_ERROR_EARLY_DATA_REJECTED`, on a
+  connection that offered 0-RTT and had no rejection yet. A unit test covers
+  that condition and the lifecycle test above drives a real rejection.
+- `QuicClientConfig::enable_session_resumption` on a builder whose
+  new-session callback belongs to other code: it fails with
+  `QuicTlsProfileErrorKind::ContextConflict` and changes nothing.
+  `with_tls_profile` refuses `session_tickets` when a later callback replaced
+  Phantom's or client session caching was turned off.
 
 ## Other checks
 

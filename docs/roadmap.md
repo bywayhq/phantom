@@ -271,10 +271,8 @@ a proxy route to a direct connection, silent protocol fallback, automatic
 - Cross-platform debug and release gates, and `unwrap_used` and
   `expect_used` denied once every recoverable path has a typed error.
 - Broader fuzzing, sanitizers, lifecycle regressions, and soak tests,
-  including the QUIC session-resumption FFI in `phantom-quic-btls` on its
-  failure paths and a fuzzing seam for HTTPS-record `h3` selection.
-- Make `enable_session_resumption` refuse a context that already has a
-  new-session callback.
+  including a panic across a real BoringSSL callback in `phantom-quic-btls`
+  and a fuzzing seam for HTTPS-record `h3` selection.
 - Audit the vendored `h3` engine against Hyperium and the
   [`0x676e67/http3`](https://github.com/0x676e67/http3) fork before its next
   refresh: port the QPACK absolute-Base fix and Hyperium's buffered-write fix,
