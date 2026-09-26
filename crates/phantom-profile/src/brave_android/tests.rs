@@ -54,7 +54,9 @@ fn brave_android_153_reuses_the_desktop_recipes() -> TestResult {
     let mut desktop = brave::v154_tls();
     desktop.ech_from_https_records = false;
     assert_eq!(tls, desktop);
-    assert_eq!(v153_http3_tls(), brave::v154_http3_tls());
+    let mut desktop_http3 = brave::v154_http3_tls();
+    desktop_http3.ech_from_https_records = false;
+    assert_eq!(v153_http3_tls(), desktop_http3);
     assert_eq!(v153_http2(), chromium::v154_http2());
     assert_eq!(v153_quic(), chromium::v154_quic());
     assert_eq!(v153_http3(), chromium::v154_http3());

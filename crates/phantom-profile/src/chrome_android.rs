@@ -187,11 +187,13 @@ pub fn v153_http2() -> Http2Settings {
 /// and from the TCP order of [`v153_tls`]. No fixed list reproduces a
 /// per-process order, so this recipe carries the order sent most often,
 /// as the retired Chrome 153 desktop recipe did.
+/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();
     settings.requested_trust_anchor_ids =
         Some(trust_anchor_ids(V153_ANDROID_QUIC_TRUST_ANCHOR_IDS));
+    settings.ech_from_https_records = false;
     settings
 }
 

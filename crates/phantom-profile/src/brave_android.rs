@@ -40,9 +40,12 @@ pub fn v153_tls() -> TlsSettings {
 /// Returns TLS settings for the Brave 1.95.104 for Android HTTP/3 offer.
 ///
 /// The retained Android QUIC ClientHellos equal [`brave::v154_http3_tls`].
+/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
-    brave::v154_http3_tls()
+    let mut settings = brave::v154_http3_tls();
+    settings.ech_from_https_records = false;
+    settings
 }
 
 /// Returns client-hint fields observed from Brave 1.95.104 for Android.

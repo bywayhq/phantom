@@ -137,7 +137,10 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 /// Parses a `phantom-trust-anchor-orders-v1` fixture into its orders, most
 /// frequent first, with the process count of each.
-fn trust_anchor_orders(fixture: &str) -> TestResult<(usize, Vec<(usize, Vec<Vec<u8>>)>)> {
+/// One captured order: how many processes sent it, and its identifiers.
+type CapturedOrder = (usize, Vec<Vec<u8>>);
+
+fn trust_anchor_orders(fixture: &str) -> TestResult<(usize, Vec<CapturedOrder>)> {
     let fields = fixture
         .lines()
         .map(|line| line.split_once('=').ok_or("fixture line is missing `=`"))
