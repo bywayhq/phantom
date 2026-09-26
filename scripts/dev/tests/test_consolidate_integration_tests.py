@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -34,7 +35,13 @@ path = "tests/plain.rs"
 
 TLS_SUPPORT = """\
 pub(super) fn certificate() -> &'static str {
-    "cert"
+    inner::name()
+}
+
+mod inner {
+    pub(super) fn name() -> &'static str {
+        "cert"
+    }
 }
 """
 
@@ -106,6 +113,8 @@ class CrateTestCase(unittest.TestCase):
         return output.getvalue()
 
 
+# A successful run formats each generated `main.rs` with rustfmt.
+@unittest.skipIf(shutil.which("rustfmt") is None, "needs rustfmt on PATH")
 class ConsolidateTests(CrateTestCase):
     def test_moves_each_file_into_its_group(self) -> None:
         self.consolidate()
@@ -146,6 +155,12 @@ class ConsolidateTests(CrateTestCase):
             "use crate::support::tls;", self.read("crates/demo/tests/only/plain.rs")
         )
 
+    def test_a_nested_module_keeps_its_visibility_toward_the_file(self) -> None:
+        self.consolidate()
+        tls = self.read("crates/demo/tests/support/tls.rs")
+        self.assertIn("pub(crate) fn certificate", tls)
+        self.assertIn("    pub(super) fn name", tls)
+
     def test_rewrites_paths_in_tracked_text_files(self) -> None:
         self.consolidate()
         self.assertEqual(
@@ -169,6 +184,8 @@ class ConsolidateTests(CrateTestCase):
         self.assertIn("\nmod late;", main)
         self.assertIn('all(feature = "extra", feature = "more")', main)
 
+
+class RefusalTests(CrateTestCase):
     def test_an_unplaced_file_stops_the_move(self) -> None:
         self.write("crates/demo/tests/stray.rs", "#[test]\nfn runs() {}\n")
         with self.assertRaises(SystemExit) as stop:
@@ -194,13 +211,25 @@ class RepositoryTests(unittest.TestCase):
                 self.assertEqual(
                     stray, [], "run scripts/dev/consolidate_integration_tests.py"
                 )
+                tracked = subprocess.run(
+                    ["git", "ls-files", "--", f"{crate_dir}/tests"],
+                    cwd=REPO,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout.splitlines()
+                depth = len(Path(crate_dir, "tests").parts)
+                binaries = {
+                    Path(f).parts[depth]
+                    for f in tracked
+                    if len(Path(f).parts) > depth + 1
+                } - {"support"}
                 self.assertEqual(
-                    sorted(
-                        p.name
-                        for p in tests.iterdir()
-                        if p.is_dir() and p.name != "support"
-                    ),
+                    sorted(binaries),
                     sorted(groups),
+                    f"the tracked directories under {crate_dir}/tests and its "
+                    "GROUPS entry in consolidate_integration_tests.py name "
+                    "different test binaries",
                 )
 
 

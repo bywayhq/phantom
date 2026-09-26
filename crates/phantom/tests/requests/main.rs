@@ -1,7 +1,10 @@
-//! `phantom-http` integration tests: one request through the public client: fields, bodies, redirects, retries, and timeouts.
+//! Integration tests of `phantom-http`, one module per area of the public API.
 //!
-//! Each module covers one area of the public API. `support` holds the loopback
-//! servers and helpers that the crate's test binaries share.
+//! Covers one request through the public client: fields, bodies, redirects,
+//! retries, and timeouts.
+//!
+//! `support` holds the loopback servers and helpers that the crate's test
+//! binaries share.
 
 #[path = "../support/mod.rs"]
 mod support;

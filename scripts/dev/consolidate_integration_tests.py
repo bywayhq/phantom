@@ -9,7 +9,7 @@ changes, regenerates each `main.rs` and `tests/support/mod.rs`, and rewrites
 `crates/<crate>/tests/<name>` references in tracked text files.
 
 A few binaries rather than one: stable rustc type-checks a crate on one
-thread. With all 51 files in one binary, a one-line test edit took about 50 s
+thread. With every file in one binary, a one-line test edit took about 50 s
 to rebuild with `-j 4`; with five groups it takes about 9 s, and a library
 edit rebuilds the groups in parallel.
 
@@ -25,6 +25,8 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import textwrap
+from collections.abc import Callable
 from pathlib import Path
 
 # Test binary -> (what it covers, its modules), per crate. Keep the groups
@@ -282,13 +284,41 @@ def rewrite_module(
     return cond
 
 
+NESTED_MOD = re.compile(
+    r"^(?P<indent>[ \t]*)(?:pub(?:\([a-z]+\))? )?mod \w+ \{[ \t]*$", re.M
+)
+
+
+def at_top_level(text: str, change: Callable[[str], str]) -> str:
+    """Applies `change` to the text outside nested inline `mod` blocks.
+
+    A block ends at the first `}` line with the indentation of its `mod` line.
+    """
+    parts = []
+    start = 0
+    for block in NESTED_MOD.finditer(text):
+        if block.start() < start:
+            continue
+        end = re.compile(rf"^{re.escape(block['indent'])}\}}[ \t]*$", re.M).search(
+            text, block.end()
+        )
+        if end is None:
+            fail(f"a `mod` block at offset {block.start()} has no closing brace")
+        parts.append(change(text[start : block.start()]))
+        parts.append(text[block.start() : end.end()])
+        start = end.end()
+    parts.append(change(text[start:]))
+    return "".join(parts)
+
+
 def rewrite_support(path: Path, aliases: dict[str, str]) -> None:
     text = read(path)
     for alias, stem in aliases.items():
         text = re.sub(rf"\bcrate::{alias}\b", f"crate::support::{stem}", text)
         text = re.sub(rf"\bsuper::{alias}\b", f"super::{stem}", text)
     # `super` was the including test file; it is now the `support` module.
-    text = text.replace("pub(super)", "pub(crate)")
+    # Inside a nested `mod name {` block, `super` is still this file.
+    text = at_top_level(text, lambda part: part.replace("pub(super)", "pub(crate)"))
     stray = re.search(r"(?<![$\w])crate::(?!support::)\w+", text)
     if stray:
         fail(f"{path}: `{stray.group(0)}` names an item of the including test file")
@@ -408,13 +438,18 @@ def write_main(
     group_dir: Path, crate: str, about: str, module_cfg: dict[str, str | None]
 ) -> None:
     lines = [
-        f"//! `{crate}` integration tests: {about}.",
-        "//!",
-        "//! Each module covers one area of the public API.",
+        f"//! Integration tests of `{crate}`, one module per area of the public API."
     ]
+    lines.append("//!")
+    lines += textwrap.wrap(
+        f"Covers {about}.", width=79, initial_indent="//! ", subsequent_indent="//! "
+    )
     if (group_dir.parent / "support").is_dir():
-        lines[-1] += " `support` holds the loopback"
-        lines.append("//! servers and helpers that the crate's test binaries share.")
+        lines += [
+            "//!",
+            "//! `support` holds the loopback servers and helpers that the crate's test",
+            "//! binaries share.",
+        ]
         lines += ["", '#[path = "../support/mod.rs"]', "mod support;"]
     lines.append("")
     for name in sorted(module_cfg):

@@ -1,7 +1,10 @@
-//! `phantom-http` integration tests: name resolution, connection reuse, pooling, and negotiation across requests.
+//! Integration tests of `phantom-http`, one module per area of the public API.
 //!
-//! Each module covers one area of the public API. `support` holds the loopback
-//! servers and helpers that the crate's test binaries share.
+//! Covers name resolution, connection reuse, pooling, and negotiation across
+//! requests.
+//!
+//! `support` holds the loopback servers and helpers that the crate's test
+//! binaries share.
 
 #[path = "../support/mod.rs"]
 mod support;

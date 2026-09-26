@@ -756,7 +756,7 @@ mod raw_http2 {
     const ACK: u8 = 0x1;
     const END_HEADERS: u8 = 0x4;
 
-    pub(crate) async fn serve<S>(
+    pub(super) async fn serve<S>(
         mut stream: S,
         responses: &Mutex<VecDeque<PlannedResponse>>,
         alt_svc: &HeaderValue,

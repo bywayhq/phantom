@@ -1,7 +1,9 @@
-//! `phantom-http` integration tests: HTTP/3, Alt-Svc upgrades, HTTPS records, and CONNECT-UDP.
+//! Integration tests of `phantom-http`, one module per area of the public API.
 //!
-//! Each module covers one area of the public API. `support` holds the loopback
-//! servers and helpers that the crate's test binaries share.
+//! Covers HTTP/3, Alt-Svc upgrades, HTTPS records, and CONNECT-UDP.
+//!
+//! `support` holds the loopback servers and helpers that the crate's test
+//! binaries share.
 
 #[path = "../support/mod.rs"]
 mod support;
