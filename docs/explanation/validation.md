@@ -2599,14 +2599,19 @@ Replay against Phantom:
   on it after the handshake reach the server on the same connection.
   `rejected_early_data_discards_the_remembered_settings` shows that a server
   that rejects early data and lowers a remembered limit is not closed.
-  `an_early_session_opens_no_stream_between_the_handshake_and_the_answer`
-  shows the early session waiting to open a stream after the handshake
-  completed, refusing after a rejection without allocating a stream, and
-  opening after an acceptance.
-  `a_request_between_the_handshake_and_a_rejection_is_sent_once` holds the
-  restart after a rejection, sends a request in that interval, and the server
-  sees it once, on the new session.
   The gate tests are in `crates/phantom-net/src/http3/tests/early_streams.rs`.
+  `an_early_session_opens_only_on_a_published_acceptance` shows the early
+  session waiting to open a stream after the handshake completed, refusing
+  after a rejection without allocating a stream, waiting on Quinn's
+  acceptance alone, and opening on the published acceptance.
+  `a_request_between_the_handshake_and_a_rejection_is_sent_once` holds the
+  published answer after Quinn's rejection arrives, before HTTP/3 starts
+  again, sends a request in that interval, and the server sees it once, on
+  the new session.
+  `a_handshake_that_completes_after_the_permit_holds_the_stream` completes
+  the handshake, through a hook, after the gate granted a handshake-time
+  permit and before the stream opens; the stream is held and reset unused
+  on the rejection.
   `a_parked_request_does_not_open_before_invalid_metadata_is_found` parks a
   request on stream credit through an accepted handshake whose ALPS then
   fails its checks, and the server never sees it.
@@ -2615,7 +2620,12 @@ Replay against Phantom:
   `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
   credit-wait and handshake-window rejections on a four-worker runtime with
   a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations
-  of each passed.
+  of each passed. It varies when the answer reaches the gate relative to
+  whole polls of the waiting requests and to the answer's publication. It
+  does not reach windows inside one poll, such as the handshake completing
+  between the permit and the open; the hook-driven tests above cover those.
+  `PHANTOM_H3_STRESS_ITERATIONS` and `PHANTOM_H3_STRESS_SEED` set the
+  repetitions and the delay seed, which each failure reports.
   `a_request_waiting_for_stream_credit_does_not_block_a_rejection` holds
   the send lock in a request waiting for 0-RTT stream credit when the
   rejection arrives; both requests fail as unprocessed and the connection

@@ -838,11 +838,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   QUIC to the origin's own host and port failed a race and has not connected
   since, as Chromium's QUIC job does. A resumed alternative can win the race
   before its handshake completes, and a replay-safe request on it is sent as
-  early data. The alternative is confirmed as soon as a response arrives, or
-  once the answer to its early data shows a completed handshake; confirming
-  it no longer waits past the request's deadlines. If the handshake fails,
-  QUIC to the origin is marked recently broken and a request with no body or
-  an owned body is raced again once, without early data. A background
+  early data. The alternative is confirmed once the answer to its early data
+  shows a completed handshake, read within the request's deadlines. If the
+  handshake failed, QUIC to the origin is marked recently broken: a response
+  already received is returned as it is, and a failed request with no body
+  or an owned body is raced again once, without early data. A background
   alternative setup that resumed with early data after losing its race is
   confirmed once its handshake completes; if that handshake fails, nothing is
   marked broken or recently broken, as the connection carried no request.
