@@ -245,11 +245,19 @@ fi
 # builds at it through the build script's BORING_BSSL_PATH and
 # BORING_BSSL_INCLUDE_PATH. That holds only while no package enables a
 # btls-sys feature, which selects BoringSSL patches, and both lockfiles pin
-# the same btls-sys; otherwise every directory builds its own.
+# the same btls-sys; otherwise every directory builds its own. On Linux,
+# phantom-quic-btls enables prefix-symbols, so sharing applies only on
+# Windows and macOS hosts.
+#
+# The shared libraries are built for the host target in the dev profile:
+# OPT_LEVEL=0, and on MSVC the Debug subdirectory that the build script looks
+# for. They are valid only while every gate command builds the dev or test
+# profile for the host, with no --release, --profile, or --target.
 shared_boringssl() {
-  local log="$logs/boringssl.log" manifest sources features out
-  if [[ -n ${BORING_BSSL_PATH:-}${BORING_BSSL_SOURCE_PATH:-} ]]; then
-    echo "gate: BORING_BSSL_PATH or BORING_BSSL_SOURCE_PATH is set; the gate uses it as given" >&2
+  local log="$logs/boringssl.log" manifest sources features out set_vars
+  set_vars=$(compgen -e | grep 'BORING_BSSL_' | tr '\n' ' ')
+  if [[ -n $set_vars ]]; then
+    echo "gate: ${set_vars}set by the caller; each directory builds BoringSSL with them" >&2
     return
   fi
   sources=$(for manifest in Cargo.lock fuzz/Cargo.lock; do
@@ -260,8 +268,8 @@ shared_boringssl() {
     return
   fi
   for manifest in Cargo.toml fuzz/Cargo.toml; do
-    if ! features=$(cargo tree --manifest-path "$manifest" --workspace --all-features --locked \
-      -i btls-sys -e features --prefix none); then
+    if ! features=$("$lock" cargo tree --manifest-path "$manifest" --workspace --all-features \
+      --locked -i btls-sys -e features --prefix none); then
       echo "gate: cargo tree failed for $manifest; each directory builds BoringSSL" >&2
       return
     fi

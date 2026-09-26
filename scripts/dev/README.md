@@ -124,22 +124,29 @@ host crates that bindgen uses are built with different features. That
 happens in the `fuzz/` workspace and in some feature rows, so without
 sharing, a cold gate builds BoringSSL nine times.
 
-The gate therefore builds BoringSSL once in `target/gate/boringssl` and
-points every other build at it through the variables the `btls-sys` build
-script reads: `BORING_BSSL_PATH`, `BORING_BSSL_INCLUDE_PATH`, and
-`BORING_BSSL_ASSUME_PATCHED`. The other builds still generate their own
-bindings, from the shared build's patched headers. The gate builds
-BoringSSL in each directory instead, and says why, when:
+On Windows and macOS hosts, the gate therefore builds BoringSSL once in
+`target/gate/boringssl` and points every other build at it through the
+variables the `btls-sys` build script reads: `BORING_BSSL_PATH`,
+`BORING_BSSL_INCLUDE_PATH`, and `BORING_BSSL_ASSUME_PATCHED`. The other
+builds still generate their own bindings, from the shared build's patched
+headers. On Linux, `phantom-quic-btls` enables the `prefix-symbols` feature
+of `btls-sys`, so every directory builds its own BoringSSL.
 
+The gate builds BoringSSL in each directory instead, and says why, when:
+
+- The caller has set any `BORING_BSSL_` variable. The builds then use the
+  caller's settings unchanged.
 - `Cargo.lock` and `fuzz/Cargo.lock` pin different `btls-sys` sources.
+- `cargo tree` cannot list the `btls-sys` features of either workspace.
 - A package enables a `btls-sys` feature. Features choose which BoringSSL
   patches are applied, so a feature row could need a different library.
 - The shared build fails, which also fails the gate, or leaves no output
   directory.
 
-On a cold gate with other worktrees building at the same time, sharing cut
-the time Cargo reported building from about 1,730 seconds to 680. A warm gate
-has nothing to rebuild either way.
+Cargo rebuilds the shared BoringSSL when the `btls-sys` revision or the
+`CC` and `CXX` variables change, but not when the C or C++ toolchain is
+updated in place. After such an update, run `rm -r target/gate` so that the
+next gate builds from scratch.
 
 ## Cargo lock
 
