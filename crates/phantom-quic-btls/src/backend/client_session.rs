@@ -107,6 +107,8 @@ pub(super) struct ClientSession {
     callbacks: CallbackState,
     handshake_complete: bool,
     offered_session: bool,
+    /// Whether BoringSSL was asked to send 0-RTT data with the offered session.
+    offered_early_data: bool,
     early_data_rejected: bool,
 }
 
@@ -243,6 +245,7 @@ impl ClientSession {
             callbacks,
             handshake_complete: false,
             offered_session: session.is_some(),
+            offered_early_data: early_data,
             early_data_rejected: false,
         })
     }
@@ -491,13 +494,19 @@ impl ClientSession {
                 drain_error_queue();
                 return Ok(HandshakeProgress::NeedsData);
             }
-            if ssl_error == ffi::SSL_ERROR_EARLY_DATA_REJECTED && !self.early_data_rejected {
+            if resets_early_data_reject(
+                result,
+                ssl_error,
+                self.offered_early_data,
+                self.early_data_rejected,
+            ) {
                 // The peer declined 0-RTT; Quinn discards the 0-RTT packets
                 // once `early_data_accepted` reports the rejection.
                 self.early_data_rejected = true;
                 drain_error_queue();
-                // SAFETY: the SSL is live and SSL_do_handshake just reported
-                // the early-data rejection this call resets.
+                // SAFETY: the SSL is live, and the SSL_do_handshake call just
+                // before reported the early-data rejection that BoringSSL
+                // requires; `resets_early_data_reject` states why.
                 unsafe {
                     ffi::SSL_reset_early_data_reject(self.ssl.as_ptr());
                 }
@@ -577,6 +586,27 @@ impl ClientSession {
             None => ClientSessionError::BackendFailure(operation),
         }
     }
+}
+
+/// Whether a handshake result is the early-data rejection that
+/// `SSL_reset_early_data_reject` may clear.
+///
+/// BoringSSL aborts the process unless its handshake is waiting on exactly
+/// that rejection. `SSL_do_handshake` returns -1 and `SSL_get_error` reports
+/// `SSL_ERROR_EARLY_DATA_REJECTED` only in that state. A client that never
+/// offered 0-RTT cannot see a rejection, and one rejection per handshake is
+/// all TLS 1.3 allows, so either of those is treated as a handshake failure
+/// instead of reaching the abort.
+const fn resets_early_data_reject(
+    result: c_int,
+    ssl_error: c_int,
+    offered_early_data: bool,
+    already_rejected: bool,
+) -> bool {
+    result == -1
+        && ssl_error == ffi::SSL_ERROR_EARLY_DATA_REJECTED
+        && offered_early_data
+        && !already_rejected
 }
 
 fn apply_tls_profile(

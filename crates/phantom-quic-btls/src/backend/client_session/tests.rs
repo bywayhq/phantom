@@ -4,7 +4,10 @@ mod support;
 
 use btls_sys as ffi;
 
-use super::{ClientSession, ClientSessionError, HandshakeProgress, encryption_level};
+use super::{
+    ClientSession, ClientSessionError, HandshakeProgress, encryption_level,
+    resets_early_data_reject,
+};
 use crate::backend::callback_state::{CallbackError, EncryptionLevel};
 use support::*;
 
@@ -272,4 +275,23 @@ fn unsupported_read_levels_are_rejected() {
             })
         );
     }
+}
+
+#[test]
+fn early_data_reject_is_reset_only_in_the_state_boringssl_requires() {
+    let rejected = ffi::SSL_ERROR_EARLY_DATA_REJECTED;
+    assert!(resets_early_data_reject(-1, rejected, true, false));
+    // A result other than -1 never comes with a pending rejection.
+    assert!(!resets_early_data_reject(0, rejected, true, false));
+    assert!(!resets_early_data_reject(1, rejected, true, false));
+    assert!(!resets_early_data_reject(
+        -1,
+        ffi::SSL_ERROR_WANT_READ,
+        true,
+        false
+    ));
+    // A client that offered no 0-RTT, or already had it rejected, fails the
+    // handshake instead of reaching BoringSSL's abort.
+    assert!(!resets_early_data_reject(-1, rejected, false, false));
+    assert!(!resets_early_data_reject(-1, rejected, true, true));
 }
