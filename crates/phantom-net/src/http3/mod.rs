@@ -21,6 +21,8 @@ use connection::Session;
 use datagram::{DatagramMonitor, DatagramRouter};
 use driver::{DriverSignal, DriverTask, EarlyAnswer, LateApplicationSettings};
 use early_data::{EarlyData, EarlyDataOutcome, InvalidHandshake};
+#[cfg(test)]
+use early_streams::RaceObserved;
 use early_streams::{HandedOver, Started, Transport, ZeroRttAnswer};
 #[cfg(test)]
 use request::prepare_request;
@@ -492,7 +494,10 @@ async fn connect(
     #[cfg(test)]
     let gate_delay = diagnostics.gate_delay.clone();
     #[cfg(test)]
-    let early_race = diagnostics.early_race;
+    let (early_race, race_observed) = match diagnostics.early_race.clone() {
+        Some((race, observed)) => (Some(race), Some(observed)),
+        None => (None, None),
+    };
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -584,6 +589,9 @@ async fn connect(
     let mut transport = transport;
     #[cfg(test)]
     if gate.is_some() {
+        if let (Some(observed), Some(early)) = (&race_observed, transport.early_session()) {
+            early.observe_for_test(Arc::clone(observed));
+        }
         match early_race {
             Some(EarlyRace::StartAfterHandshake) => {
                 transport.after_open_send_for_test(connection.clone());
@@ -1301,7 +1309,7 @@ pub(super) struct ConnectionDiagnostics {
     pub(super) gate_delay: Option<GateDelay>,
     /// A race with the handshake to force on an early-data connection.
     #[cfg(test)]
-    pub(super) early_race: Option<EarlyRace>,
+    pub(in crate::http3) early_race: Option<(EarlyRace, Arc<RaceObserved>)>,
 }
 
 /// A race with the handshake that tests force on an early-data connection.

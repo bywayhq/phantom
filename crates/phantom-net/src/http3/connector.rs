@@ -63,7 +63,7 @@ pub struct Http3Connector {
     #[cfg(test)]
     gate_delay: Option<super::GateDelay>,
     #[cfg(test)]
-    early_race: Option<super::EarlyRace>,
+    early_race: Option<(super::EarlyRace, Arc<super::RaceObserved>)>,
 }
 
 impl Http3Connector {
@@ -303,7 +303,7 @@ impl Http3Connector {
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
             #[cfg(test)]
-            early_race: self.early_race,
+            early_race: self.early_race.clone(),
         }
     }
 
@@ -411,7 +411,7 @@ impl Http3Connector {
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
             #[cfg(test)]
-            early_race: self.early_race,
+            early_race: self.early_race.clone(),
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -443,10 +443,15 @@ impl Http3Connector {
         self
     }
 
-    /// Forces `race` with the handshake on each early-data connection.
+    /// Forces `race` with the handshake on each early-data connection;
+    /// `observed` records what the race did.
     #[cfg(test)]
-    pub(super) fn with_test_early_race(mut self, race: super::EarlyRace) -> Self {
-        self.early_race = Some(race);
+    pub(super) fn with_test_early_race(
+        mut self,
+        race: super::EarlyRace,
+        observed: Arc<super::RaceObserved>,
+    ) -> Self {
+        self.early_race = Some((race, observed));
         self
     }
 

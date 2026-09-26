@@ -28,7 +28,7 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use bytes::Buf;
+use bytes::{Buf, Bytes};
 use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use h3_datagram::quic_traits::DatagramConnectionExt;
 use tokio::sync::watch;
@@ -159,6 +159,20 @@ impl Transport {
 }
 
 impl Transport {
+    /// Closes the connection because a critical stream is not on its
+    /// number. h3 closes with H3_CLOSED_CRITICAL_STREAM on a failed open,
+    /// which RFC 9114 section 8.1 reserves for a critical stream the peer
+    /// closed; this is a local fault, so the connection closes first with
+    /// H3_INTERNAL_ERROR, and h3's later close has no effect.
+    fn unexpected_stream_number(&mut self) -> StreamErrorIncoming {
+        quic::OpenStreams::<Bytes>::close(
+            &mut self.inner,
+            h3::error::Code::H3_INTERNAL_ERROR,
+            b"critical stream number taken",
+        );
+        StreamErrorIncoming::Unknown(Box::new(UnexpectedStreamNumber))
+    }
+
     /// Whether the session may accept the server's streams: an early session
     /// only once Quinn accepted its early data.
     fn poll_accepts(&self, cx: &mut Context<'_>) -> Poll<()> {
@@ -175,16 +189,16 @@ impl Transport {
     }
 }
 
-impl<B: Buf + Send + 'static> quic::Connection<B> for Transport {
+impl quic::Connection<Bytes> for Transport {
     type RecvStream = h3_quinn::RecvStream;
-    type OpenStreams = Opener<B>;
+    type OpenStreams = Opener<Bytes>;
 
     fn poll_accept_recv(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::RecvStream, ConnectionErrorIncoming>> {
         ready!(self.poll_accepts(cx));
-        quic::Connection::<B>::poll_accept_recv(&mut self.inner, cx)
+        quic::Connection::<Bytes>::poll_accept_recv(&mut self.inner, cx)
     }
 
     fn poll_accept_bidi(
@@ -192,12 +206,12 @@ impl<B: Buf + Send + 'static> quic::Connection<B> for Transport {
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::BidiStream, ConnectionErrorIncoming>> {
         ready!(self.poll_accepts(cx));
-        quic::Connection::<B>::poll_accept_bidi(&mut self.inner, cx)
+        quic::Connection::<Bytes>::poll_accept_bidi(&mut self.inner, cx)
     }
 
     fn opener(&self) -> Self::OpenStreams {
         Opener {
-            inner: quic::Connection::<B>::opener(&self.inner),
+            inner: quic::Connection::<Bytes>::opener(&self.inner),
             gate: self.gate.clone(),
             answered: None,
             held: None,
@@ -209,15 +223,15 @@ impl<B: Buf + Send + 'static> quic::Connection<B> for Transport {
 
 /// The session's own streams (control and QPACK) open when it starts, so
 /// they need no gate.
-impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
-    type BidiStream = h3_quinn::BidiStream<B>;
-    type SendStream = h3_quinn::SendStream<B>;
+impl quic::OpenStreams<Bytes> for Transport {
+    type BidiStream = h3_quinn::BidiStream<Bytes>;
+    type SendStream = h3_quinn::SendStream<Bytes>;
 
     fn poll_open_bidi(
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::BidiStream, StreamErrorIncoming>> {
-        quic::OpenStreams::<B>::poll_open_bidi(&mut self.inner, cx)
+        quic::OpenStreams::<Bytes>::poll_open_bidi(&mut self.inner, cx)
     }
 
     fn poll_open_send(
@@ -230,11 +244,15 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
         {
             ready!(wait.poll(cx));
         }
-        if let Some(stream) = self.handed_over.take()
-            && let Ok(stream) = stream.downcast::<h3_quinn::SendStream<B>>()
-        {
+        if let Some(stream) = self.handed_over.take() {
+            // Only client stream 2 is handed over, and it is this session's
+            // first stream.
+            let expected = self.critical_opened;
             self.critical_opened += 1;
-            return Poll::Ready(Ok(*stream));
+            if expected != 0 || quic::SendStream::<Bytes>::send_id(&stream).index() != 0 {
+                return Poll::Ready(Err(self.unexpected_stream_number()));
+            }
+            return Poll::Ready(Ok(stream));
         }
         // Once the handshake completed, a stream opened here is a 1-RTT
         // stream. After a rejection it would take a stream number the
@@ -267,10 +285,14 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
             && let Some(early) = &self.early
         {
             self.open_after_answer = OpenAfterAnswer::Waiting;
+            early.observed(|observed| observed.open_waited.store(true, Ordering::SeqCst));
             ready!(early.poll_quinn_answer(cx));
             self.open_after_answer = OpenAfterAnswer::Off;
         }
-        let mut stream = ready!(quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx))?;
+        let mut stream = ready!(quic::OpenStreams::<Bytes>::poll_open_send(
+            &mut self.inner,
+            cx
+        ))?;
         // The open was decided before Quinn answered, so the rejection can
         // have landed between the check and the open. Quinn settles its
         // answer when it discards the early streams, so a pending answer
@@ -283,11 +305,17 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
             && early.poll_quinn_answer(cx) == Poll::Ready(false)
         {
             let discarded = matches!(
-                quic::SendStreamUnframed::<B>::poll_stopped(&mut stream, cx),
+                quic::SendStreamUnframed::<Bytes>::poll_stopped(&mut stream, cx),
                 Poll::Ready(Err(_))
             );
             if !discarded {
-                early.hand_over(Box::new(stream));
+                // A live stream opened after the rejection is on the first
+                // number, since Quinn numbers streams afresh on a rejection
+                // and this session opened none since.
+                if quic::SendStream::<Bytes>::send_id(&stream).index() != 0 {
+                    return Poll::Ready(Err(self.unexpected_stream_number()));
+                }
+                early.hand_over(stream);
             }
             return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                 DiscardedSession,
@@ -302,20 +330,8 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
         if self.critical_opened < CRITICAL_STREAMS {
             let expected = self.critical_opened;
             self.critical_opened += 1;
-            if quic::SendStream::<B>::send_id(&stream).index() != expected {
-                // h3 closes with H3_CLOSED_CRITICAL_STREAM on a failed open,
-                // which RFC 9114 section 8.1 reserves for a critical stream
-                // the peer closed; this is a local fault, so the connection
-                // closes first with H3_INTERNAL_ERROR, and h3's later close
-                // has no effect.
-                quic::OpenStreams::<B>::close(
-                    &mut self.inner,
-                    h3::error::Code::H3_INTERNAL_ERROR,
-                    b"critical stream number taken",
-                );
-                return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
-                    UnexpectedStreamNumber,
-                ))));
+            if quic::SendStream::<Bytes>::send_id(&stream).index() != expected {
+                return Poll::Ready(Err(self.unexpected_stream_number()));
             }
         }
         Poll::Ready(Ok(stream))
@@ -328,7 +344,7 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
         {
             return;
         }
-        quic::OpenStreams::<B>::close(&mut self.inner, code, reason);
+        quic::OpenStreams::<Bytes>::close(&mut self.inner, code, reason);
     }
 }
 
@@ -337,6 +353,9 @@ impl<B: Buf + Send + 'static> quic::OpenStreams<B> for Transport {
 pub(super) enum ZeroRttAnswer {
     Waiting(quinn::ZeroRttAccepted),
     Known(bool),
+    /// An answer a test gives.
+    #[cfg(test)]
+    Test(tokio::sync::oneshot::Receiver<bool>),
 }
 
 impl ZeroRttAnswer {
@@ -345,6 +364,12 @@ impl ZeroRttAnswer {
             Self::Known(accepted) => Poll::Ready(*accepted),
             Self::Waiting(answer) => {
                 let accepted = ready!(Pin::new(answer).poll(cx));
+                *self = Self::Known(accepted);
+                Poll::Ready(accepted)
+            }
+            #[cfg(test)]
+            Self::Test(answer) => {
+                let accepted = ready!(Pin::new(answer).poll(cx)).unwrap_or(false);
                 *self = Self::Known(accepted);
                 Poll::Ready(accepted)
             }
@@ -384,11 +409,28 @@ pub(super) struct EarlySession {
     /// A live stream a start that raced the rejection opened; it is the
     /// replacement session's control stream.
     handed_over: std::sync::Mutex<Option<HandedOver>>,
+    /// What the forced races did, for tests.
+    #[cfg(test)]
+    observed: std::sync::OnceLock<Arc<RaceObserved>>,
+}
+
+/// What a forced race did on one connection, for tests that check it
+/// happened.
+#[cfg(test)]
+#[derive(Debug, Default)]
+pub(super) struct RaceObserved {
+    /// The first stream waited for Quinn's answer after the open was
+    /// decided.
+    pub(super) open_waited: AtomicBool,
+    /// A stream opened after the rejection was handed to the new session.
+    pub(super) handed_over: AtomicBool,
+    /// The driver dropped a close the discarded session asked for.
+    pub(super) close_dropped: AtomicBool,
 }
 
 /// A stream the rejected session opened after the rejection, for the
 /// session that replaces it.
-pub(super) type HandedOver = Box<dyn std::any::Any + Send>;
+pub(super) type HandedOver = h3_quinn::SendStream<Bytes>;
 
 /// A close deferred until Quinn's answer is read.
 #[derive(Default)]
@@ -413,6 +455,21 @@ impl EarlySession {
             deferred: std::sync::Mutex::new(DeferredClose::default()),
             answer: std::sync::Mutex::new(answer),
             handed_over: std::sync::Mutex::new(None),
+            #[cfg(test)]
+            observed: std::sync::OnceLock::new(),
+        }
+    }
+
+    /// Records what the forced races do into `observed`.
+    #[cfg(test)]
+    pub(super) fn observe_for_test(&self, observed: Arc<RaceObserved>) {
+        let _ = self.observed.set(observed);
+    }
+
+    #[cfg(test)]
+    pub(super) fn observed(&self, record: impl FnOnce(&RaceObserved)) {
+        if let Some(observed) = self.observed.get() {
+            record(observed);
         }
     }
 
@@ -448,6 +505,8 @@ impl EarlySession {
     }
 
     fn hand_over(&self, stream: HandedOver) {
+        #[cfg(test)]
+        self.observed(|observed| observed.handed_over.store(true, Ordering::SeqCst));
         *self
             .handed_over
             .lock()
@@ -536,16 +595,16 @@ impl HandshakeWait {
     }
 }
 
-impl<B: Buf + Send + 'static> DatagramConnectionExt<B> for Transport {
+impl DatagramConnectionExt<Bytes> for Transport {
     type SendDatagramHandler = h3_quinn::datagram::SendDatagramHandler;
     type RecvDatagramHandler = h3_quinn::datagram::RecvDatagramHandler;
 
     fn send_datagram_handler(&self) -> Self::SendDatagramHandler {
-        DatagramConnectionExt::<B>::send_datagram_handler(&self.inner)
+        DatagramConnectionExt::<Bytes>::send_datagram_handler(&self.inner)
     }
 
     fn recv_datagram_handler(&self) -> Self::RecvDatagramHandler {
-        DatagramConnectionExt::<B>::recv_datagram_handler(&self.inner)
+        DatagramConnectionExt::<Bytes>::recv_datagram_handler(&self.inner)
     }
 }
 

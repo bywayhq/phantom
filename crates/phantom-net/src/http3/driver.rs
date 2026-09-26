@@ -76,10 +76,17 @@ fn poll_early_answer(
     } = early.take()?;
     // A close the session deferred came from a discarded session on a
     // rejection, and is its own on an acceptance.
-    if let Some((code, reason)) = session.answered()
-        && accepted
-    {
-        connection.close(code, &reason);
+    if let Some((code, reason)) = session.answered() {
+        if accepted {
+            connection.close(code, &reason);
+        } else {
+            #[cfg(test)]
+            session.observed(|observed| {
+                observed
+                    .close_dropped
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
     }
     #[cfg(test)]
     let gate = match gate_delay {
