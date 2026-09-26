@@ -286,10 +286,8 @@ impl crypto::Session for QuicServerSession {
     }
 
     fn is_handshaking(&self) -> bool {
-        self.lock()
-            .session
-            .as_ref()
-            .is_ok_and(|session| !session.handshake_complete)
+        // A session that failed to start never completes a handshake.
+        !matches!(&self.lock().session, Ok(session) if session.handshake_complete)
     }
 
     fn read_handshake(&mut self, buffer: &[u8]) -> Result<bool, TransportError> {
@@ -382,6 +380,12 @@ impl ServerSession {
         // SAFETY: `pointer` is live and uniquely owned.
         if unsafe { ffi::SSL_set_max_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
             return Err(failure("server maximum TLS version"));
+        }
+        // SAFETY: the SSL is live, uniquely owned, and has not started a
+        // handshake. Early data stays off: the callbacks reject a 0-RTT read
+        // secret, and this server never accepts 0-RTT.
+        unsafe {
+            ffi::SSL_set_early_data_enabled(pointer, 0);
         }
         // SAFETY: the parameters remain live for the copying setter call.
         if unsafe {

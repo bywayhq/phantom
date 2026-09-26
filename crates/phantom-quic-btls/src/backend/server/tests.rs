@@ -1,5 +1,5 @@
 use std::io::Cursor;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use btls::hpke::HpkeKey;
 use btls::ssl::{
@@ -13,8 +13,8 @@ use quinn_proto::crypto::{self, ClientConfig as _, ServerConfig as _};
 use quinn_proto::transport_parameters::TransportParameters;
 use quinn_proto::{Side, TransportError, TransportErrorCode};
 
-use super::{QuicServerConfig, ServerHandshakeData};
-use crate::{EchOffer, EchOutcome, HandshakeData, QuicClientConfig};
+use super::{QuicServerConfig, QuicServerSession, ServerHandshakeData, ServerSession, ServerState};
+use crate::{EchOffer, EchOutcome, HandshakeData, QuicClientConfig, QuicVersion};
 
 const SERVER_NAME: &str = "foobar.com";
 const OTHER_PUBLIC_NAME: &str = "public.example";
@@ -275,4 +275,56 @@ fn without_an_offer_the_server_sees_the_true_name() {
     assert_eq!(server.server_name(), Some(SERVER_NAME));
     assert!(!client_data(&*handshake.client).ech_accepted());
     assert!(outer_extension(server.client_hello()).is_none());
+}
+
+/// Transport parameters BoringSSL could not carry fail the session before any
+/// FFI call, and the failed session ends the connection with
+/// `INTERNAL_ERROR` on its first input instead of reaching BoringSSL.
+#[test]
+fn a_session_that_fails_to_start_closes_on_its_first_input() {
+    let context = SslContextBuilder::new(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("server context: {error}"))
+        .build();
+    let oversized = vec![0; usize::from(u16::MAX) + 1];
+    let error = ServerSession::new(&context, &oversized)
+        .err()
+        .unwrap_or_else(|| panic!("oversized transport parameters were accepted"));
+    assert_eq!(error, "server transport parameters too long");
+
+    let mut session = QuicServerSession {
+        state: Mutex::new(ServerState::new(QuicVersion::V1, Err(error))),
+    };
+    assert!(crypto::Session::is_handshaking(&session));
+    let error = crypto::Session::read_handshake(&mut session, &[1, 0, 0, 0])
+        .err()
+        .unwrap_or_else(|| panic!("a failed session read handshake data"));
+    assert_eq!(error.code, TransportErrorCode::INTERNAL_ERROR);
+    assert!(crypto::Session::handshake_data(&session).is_none());
+    let mut output = [0; 16];
+    assert!(crypto::Session::export_keying_material(&session, &mut output, b"label", b"").is_err());
+}
+
+/// A context without a certificate fails the server handshake with the TLS
+/// alert BoringSSL chose, carried as a QUIC crypto error.
+#[test]
+fn a_server_without_a_certificate_fails_with_a_crypto_error() {
+    let mut builder = SslContextBuilder::new(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("server context: {error}"));
+    builder.set_alpn_select_callback(|_, offered| {
+        select_next_proto(H3_WIRE, offered).ok_or(AlpnError::NOACK)
+    });
+    let server = QuicServerConfig::new(builder.build());
+    let mut client = Arc::new(client_config())
+        .start_session(1, SERVER_NAME, &parameters(Side::Client))
+        .unwrap_or_else(|error| panic!("client session: {error}"));
+    let mut session = Arc::new(server).start_session(1, &parameters(Side::Server));
+    let mut hello = Vec::new();
+    let _ = client.write_handshake(&mut hello);
+    let error = session
+        .read_handshake(&hello)
+        .err()
+        .unwrap_or_else(|| panic!("a server without a certificate completed"));
+    let code = u64::from(error.code);
+    assert!((0x100..0x200).contains(&code), "{error:?}");
+    assert!(session.is_handshaking());
 }
