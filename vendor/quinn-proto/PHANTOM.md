@@ -222,6 +222,7 @@ and are not part of the patches.
 ```sh
 rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/initial_keys.rs
 rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
+rustfmt --check --edition 2024 --config skip_children=true vendor/quinn-proto/src/tests/transport_limits.rs vendor/quinn-proto/src/tests/quic_v2.rs
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::initial_keys
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_update
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked datagram_frame_size
