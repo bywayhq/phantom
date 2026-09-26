@@ -10,6 +10,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
 
 ## [Unreleased]
 
+- `scripts/capture/snapshot.py` takes the Android browsers. It opens the page
+  with an intent and lets the page drive the rest, so Chrome, Brave, and Edge
+  for Android snapshots take 3 to 8 seconds a run. Opera and Firefox for
+  Android yield the TCP ClientHello only, since neither accepts a
+  certificate override from the launcher.
 Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking

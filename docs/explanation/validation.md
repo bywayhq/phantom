@@ -1489,6 +1489,40 @@ Limits:
 - Snapshots were taken on Windows only; the macOS capture host has not run
   the tool.
 
+#### Android snapshots
+
+Claim: a snapshot of Chrome, Brave, or Edge for Android records the same
+TLS, HTTP/2 startup, QUIC, HTTP/3 SETTINGS, and client-hint values as the
+per-layer Android captures, in seconds and with no typed address-bar entry.
+For Opera and Firefox for Android it records the TCP ClientHello only.
+
+Evidence: on 2026-09-26 `snapshot.py` ran against the Android 17 emulators
+that report a Pixel 7, the x86_64 one on the Windows capture host and, for
+Edge, the arm64 one on the Mac. `snapshot_compare.py` compared each run with
+the fixtures recorded on the same emulators.
+
+| Browser | Seconds per run | Differences from the retained fixtures |
+| --- | --- | --- |
+| Chrome 154.0.8037.57 | 6.3, 5.8, 6.6 | First navigation lacks `sec-fetch-user` |
+| Brave 1.95.104 | 8.1, 8.1, 7.4 | As Chrome; no HTTP/2 startup fixture from this emulator to compare |
+| Edge 153.0.4234.49, arm64 | 2.6, 2.5, 2.6 | As Chrome |
+| Opera 102.1.5206.90382 | 48.4, 71.2 | None in the TCP ClientHello; no other layer recorded |
+| Firefox 156.0.1 | about 10 each, with `--run-timeout 5` | None in the TCP ClientHello against the Android 15 capture, except that one run offered ECH GREASE with ChaCha20-Poly1305, which the retained `client-hello-chacha20-ech.txt` shows as a variant; no other layer recorded |
+
+The Chromium runs used HTTP/3, and their client hints equal the retained
+`navigation.txt`. `sec-fetch-user` is missing because a page opened by an
+intent carries no user activation. The seconds include clearing the app's
+data and the cold start. Opera's first-run screens took 42 to 65 seconds of
+each run before its one connection.
+
+Limits:
+
+- Edge for Android is an arm64 build. On the x86_64 emulator it loaded `/`
+  and the `Critical-CH` retry and then stopped, or connected not at all.
+- Opera and Firefox for Android accept no certificate override from the
+  launcher, so their HTTP/2, HTTP/3, request, and client-hint layers still
+  need the per-layer tools.
+
 ### Recorded coverage losses
 
 Carrying one version per browser retires evidence along with the recipes it
