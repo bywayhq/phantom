@@ -24,7 +24,7 @@ Phantom's claims rest on four kinds of evidence:
 | --- | --- | --- |
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; macOS only for client hints and request fields; no Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; macOS only for client hints and request fields |
-| [Edge 154 recipes](#edge-154-recipes) | Fingerprint snapshots against Edge 153, and one run of each Windows scenario whose request fields carry the brand list | One run per scenario; ECH, cookie crumbs, and H2 startup rest on Edge 153 |
+| [Edge 154 recipes](#edge-154-recipes) | Fingerprint snapshots against Edge 153, and Windows and macOS captures of every scenario whose request fields carry the brand list | One run of the client hints, QUIC resumption, and H3 startup on Windows; ECH and the raw H2 startup rest on Edge 153 |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
 | [macOS recipes](#macos-recipes) | macOS 15.5 arm64 captures of Chrome 154, Edge 154, Opera 135, and Firefox 156 client hints and request fields, replayed by recipe tests | One Apple silicon host; headless only; single-sample parity runs for the other layers |
 | [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 17 emulator captures of the TLS ClientHello and client hints; Android 15 emulator captures of HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
@@ -37,7 +37,7 @@ Phantom's claims rest on four kinds of evidence:
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
-| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
+| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
@@ -267,7 +267,7 @@ entropy.
 
 #### QUIC session resumption
 
-`chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, enable
+`chromium::v154_http3_tls`, and `edge::v154_http3_tls` through it, enable
 `session_tickets`, so a later QUIC connection to an origin resumes the TLS
 session. The recipes rest on Chromium source. At tag `154.0.8037.58`:
 
@@ -470,9 +470,9 @@ CONNECT pseudo-header order and priority in those fixtures differ from the
 navigation's and are carried by the WebSocket recipes and `v156_http2`.
 
 The `edge_154_*` and `firefox_156_*` tests in `phantom-profile` and
-`phantom-net` replay the Edge 154 and Firefox fixtures. TLS and QUIC ClientHellos go through the
-public TLS and H3 connector paths, and H2 startup frames through the public H2
-path. H3, QUIC, H2 request, and client-hint fields are compared against the
+`phantom-net` replay the Edge 154 and Firefox fixtures. TLS and QUIC
+ClientHellos go through the public TLS and H3 connector paths, and H2 startup
+frames through the public H2 path. H3, QUIC, H2 request, and client-hint fields are compared against the
 recipe data.
 
 How to reproduce: the TLS ClientHello (`capture_client_hello`), Edge H2
@@ -489,13 +489,13 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Edge 153.0.4234.48 | `tls` | `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt` |
+| Edge 153.0.4234.48 | `tls` | `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt` |
 | Edge 153.0.4234.48 | `http2` | `client-startup.txt` |
 | Edge 153.0.4234.48 | `http3` | `resumption-streams-accept.txt`, `resumption-streams-reject.txt` |
-| Edge 153.0.4234.48 | `cookies` | `crumbs-h2.txt`, `crumbs-h3.txt` |
 | Edge 154.0.4258.37 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Edge 154.0.4258.37 | `http3` | `client-startup.txt`, `quic-client-hello-1.txt`, `quic-client-hello-2.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
 | Edge 154.0.4258.37 | `client-hints` | `navigation.txt` |
+| Edge 154.0.4258.37 | `cookies` | `crumbs-h1.txt`, `crumbs-h2.txt`, `crumbs-h3.txt` |
 | Edge 154.0.4258.37 | `websocket` | Nine scenarios; see [WebSocket browser evidence](#websocket-browser-evidence) |
 | Edge 154.0.4258.37 | `proxy` | Twenty scenarios; see [Proxy route browser evidence](#proxy-route-browser-evidence) |
 | Firefox 156.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE), `client-hello-chacha20-ech.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
@@ -542,17 +542,19 @@ the `http3` layer twice. All 35 jobs passed on the first attempt in 128
 seconds of wall clock; the three snapshots took 7 seconds. The WebSocket,
 proxy route, and all nine `tls_resumption` scenarios were then run again
 with `repeat` 3, because the replay and capture tests count three runs per
-scenario as for the other browsers; those 38 jobs took 313 seconds. `snapshot.py
---split` wrote the TCP `client-hello.txt`. Against the Edge 153 files, the
-new ones differ in the brand values, timings, ports, and connection counts,
-not in field order, frame shapes, or settings. The TCP resumption
-summaries differ only in how many connections a run opened; early data,
-ticket reuse, and the position of `pre_shared_key` are unchanged.
+scenario as for the other browsers; those 38 jobs took 313 seconds. The
+three `cookie_crumbs` scenarios followed, three runs each, in 16 seconds.
+`snapshot.py --split` wrote the TCP `client-hello.txt`. Against the Edge 153
+files, the new ones differ in the brand values, timings, ports, and
+connection counts, not in field order, frame shapes, HPACK or QPACK
+representations, or settings. The TCP resumption summaries differ only in
+how many connections a run opened; early data, ticket reuse, and the
+position of `pre_shared_key` are unchanged.
 
-No Edge 154 capture repeats the ECH, cookie crumb, raw H2 startup, or
-`resumption-streams-*` scenarios, which need either an administrator policy
-or no changed field. Those Edge 153 fixtures stay, and the tests that replay
-them name Edge 153.
+No Edge 154 capture repeats the ECH, raw H2 startup, or
+`resumption-streams-*` scenarios: ECH needs an administrator policy, and
+the other two carry no brand value. Those Edge 153 fixtures stay, and the
+tests that replay them name Edge 153.
 
 The Mac's Edge was updated from 153.0.4234.48 to 154.0.4258.37 with the
 signed app from Microsoft's official stable pkg, moved into `/Applications`
@@ -568,8 +570,8 @@ hints only in the platform data.
 
 Limits:
 
-- One run of the client-hint, QUIC resumption, and H3 startup scenarios,
-  where Edge 153 had three or five.
+- On Windows, one run of the client hints and of each QUIC resumption
+  scenario, and two H3 startups, where Edge 153 had three or five.
 - The ECH behavior of `edge::v154_tls` and `edge::v154_http3_tls` rests on
   Edge 153 captures and on Edge 154 sending the same ClientHello without an
   HTTPS record.
@@ -1107,9 +1109,9 @@ wall-clock time there.
 
 | Layer | Samples | Result |
 | --- | --- | --- |
-| TLS ClientHello | 3 intent processes | Each equals `edge::v153_tls`: the Chromium ClientHello without trust-anchor IDs |
+| TLS ClientHello | 3 intent processes | Each equals `edge::v154_tls`, the desktop Edge ClientHello that Edge 153 and 154 send alike: the Chromium ClientHello without trust-anchor IDs |
 | HTTP/2 startup | 1 intent process | Byte-identical to the Chrome 154 startup |
-| QUIC ClientHello, QUIC and H3 startup | 1 intent process | Equal to `edge::v153_http3_tls`, `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`. The request fields are as for Chrome for Android opened by intent: no `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
+| QUIC ClientHello, QUIC and H3 startup | 1 intent process | Equal to `edge::v154_http3_tls`, `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`. The request fields are as for Chrome for Android opened by intent: no `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
 | Client hints | 3 typed runs | The Chromium names, order, and delivery; desktop Edge 153's brand list, `"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"`, full version `"153.0.4234.49"`, and a full version list with Chromium `153.0.8010.53`; `?1`, `"Android"`, platform version `"17.0.0"`, model `"Pixel 7"`, an empty architecture and bitness, and form factor `"Mobile"` |
 | WebSocket `accept` and `h1-accept` | 3 typed runs each | Every page load and no-store `fetch()` equals the Edge for Android templates |
 
@@ -1855,18 +1857,18 @@ Limits:
 
 What is claimed: over HTTP/2, the Chromium and Firefox recipes split the
 `cookie` field into one field per cookie at the field's position and encode
-each crumb as Chrome 154, Edge 153, and Firefox 156 do, except for Firefox's
+each crumb as Chrome 154, Edge 154, and Firefox 156 do, except for Firefox's
 name index noted below. Over HTTP/3, the Chromium request recipe splits it and
 its QPACK encoder stream and field sections equal Chrome's and Edge's.
 
 Evidence: `fixtures/cookies/` retains three runs per protocol from headless
-Chrome 154.0.8037.58, Edge 153.0.4234.48, and Firefox 156.0 on Windows 11
+Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0 on Windows 11
 (10.0.26200), each on a fresh profile. A run loads `/start`, whose response
 sets five probe cookies, then navigates to `/page`, which fetches `/fetch` and
 `/done`, so three requests on one connection carry the cookies. The probes
 include crumbs of 19 and 20 bytes. Every run of a browser and protocol agrees.
 
-| Behavior | Chrome 154 and Edge 153 | Firefox 156 |
+| Behavior | Chrome 154 and Edge 154 | Firefox 156 |
 | --- | --- | --- |
 | HTTP/1.1 | One `Cookie` line, joined with `"; "`, last | One `Cookie` line after `Referer` and `Connection`, before `Upgrade-Insecure-Requests` or `Sec-Fetch-Dest` |
 | HTTP/2 split | One `cookie` field per cookie, in jar order, before `priority` | One field per cookie, after `Referer`, before `upgrade-insecure-requests` or `sec-fetch-dest` |
@@ -2027,8 +2029,8 @@ What is claimed: over HTTP/2, `chromium::v154_http2` and `firefox::v156_http2`
 encode request fields as Chrome 154 and Firefox 156 do, down to the byte of
 every HEADERS block: which fields enter the dynamic table, which entry names a
 literal, which strings are Huffman-coded, and when a dynamic-table size update
-starts a block. Edge 153 and 154, Brave 154, and Opera 135 use the Chromium
-recipe and match it too.
+starts a block. Edge 154, Brave 154, and Opera 135 use the Chromium recipe
+and match it too.
 
 Evidence: every client HEADERS block of every HTTP/2 connection in the
 retained cookie and WebSocket captures. Those captures keep each block in hex,
@@ -2040,7 +2042,7 @@ included (see
 | Browser | Connections | HEADERS blocks | Equal to Phantom's |
 | --- | --- | --- | --- |
 | Chrome 154 | 22 | 66 | All |
-| Edge 153 cookies, Edge 154 WebSocket | 21 | 66 | All |
+| Edge 154 | 21 | 66 | All |
 | Brave 154 | 18 | 54 | All |
 | Opera 135 | 20 | 50 | All |
 | Firefox 156 | 27 | 66 | All |
@@ -2119,7 +2121,7 @@ emulators.
 | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Windows | 134 | 334 | 1 | +2 each |
 | Chrome 154 | macOS | 5 | 8 | 1 | +2 each |
-| Edge 153 and 154 | Windows | 156 | 459 | 1 | +2 each |
+| Edge 154 | Windows | 156 | 459 | 1 | +2 each |
 | Edge 154 | macOS | 3 | 9 | 1 | +2 each |
 | Brave 154 | Windows | 45 | 183 | 1 | +2 each |
 | Opera 135 | Windows | 101 | 331 | 1 | +2 each |
@@ -2640,7 +2642,7 @@ submodule commit `f1f2556a`, states the rules the recipe follows:
   returned to the caller.
 
 Phantom implements this as `TlsSettings::ech_from_https_records`, set in
-`chromium::v154_tls` and kept by `edge::v153_tls`. Edge's network stack
+`chromium::v154_tls` and kept by `edge::v154_tls`. Edge's network stack
 source is not public, so for Edge these rules rest on the captures, which
 show the same outer fields and retry, and not on its source. The wait is computed from Phantom's own address
 resolution time, since its addresses come from the operating system. It
@@ -2837,7 +2839,7 @@ pins, `80bf9559`, states the rules the recipe follows:
   and retries, until the record expires.
 
 Phantom implements this through the same `TlsSettings::ech_from_https_records`
-field, set in `chromium::v154_http3_tls` and kept by `edge::v153_http3_tls`
+field, set in `chromium::v154_http3_tls` and kept by `edge::v154_http3_tls`
 and `brave::v154_http3_tls`; `opera::v135_http3_tls` clears it. The
 connector checks the list, waits for the lookup as a TCP connection does,
 and offers ECH through `QuicClientConfig::with_ech`. A rejection is an
@@ -2950,7 +2952,8 @@ bound to it. With 50 ms of added delay the navigation was issued during the
 handshake and arrived in 0-RTT on every Chrome and Edge run.
 
 The same log explains the extra connection at startup in 4 of 5 Chrome
-`accept` runs, and in 4 of 5 Edge 153 runs; the one Edge 154 run had none. A first preconnect opened a fresh session
+`accept` runs, and in 4 of 5 Edge 153 runs; the one Edge 154 run had none.
+A first preconnect opened a fresh session
 (`QUIC_SESSION_ZERO_RTT_STATE NotAttempted`). The pool then logged
 `QUIC_SESSION_POOL_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY`, and a second
 preconnect opened a session that resumed the first session's ticket and

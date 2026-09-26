@@ -313,9 +313,9 @@ Supported:
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
-- Tests replay the retained resumed Chrome 154, Edge 153, and Edge 154
-  connections against Phantom's resumed ClientHello and transport
-  parameters, and check, with the recipes' dynamic QPACK policy, that a resumed connection sends
+- Tests replay the retained resumed Chrome 154 and Edge 154 connections
+  against Phantom's resumed ClientHello and transport parameters, and check,
+  with the recipes' dynamic QPACK policy, that a resumed connection sends
   `GET` as early data and holds `POST`
   ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,

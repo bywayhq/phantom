@@ -103,7 +103,7 @@ anything does.
   Blocker: a fresh-connection capture, and QUIC v2 support; Phantom speaks
   only QUIC v1.
 - macOS beyond client hints and request fields. Delivered: `macos` client
-  hints for Chrome 154, Edge 153, and Opera 135 and `macos` request
+  hints for Chrome 154, Edge 154, and Opera 135 and `macos` request
   templates for Chrome 154 and Firefox 156, from macOS 15.5 captures on an
   Apple silicon Mac, with single runs of the TCP, QUIC, H2, and H3 layers
   replayed against the Windows recipes

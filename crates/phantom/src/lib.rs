@@ -353,9 +353,9 @@ pub mod profile {
     /// Microsoft Edge for Android recipes implemented by the public facade.
     ///
     /// Captured from Edge 153 on an arm64 Android 17 emulator that reports a
-    /// Pixel 7. The TLS recipes are desktop Edge 153's and the H2, QUIC, and
-    /// H3 recipes return the Chromium data; the client hints and request
-    /// identity differ.
+    /// Pixel 7. The TLS recipes are desktop Edge's TLS recipes, which Edge 153
+    /// and 154 send alike, and the H2, QUIC, and H3 recipes return the
+    /// Chromium data; the client hints and request identity differ.
     pub mod edge_android {
         pub use phantom_profile::edge_android::{
             v153_android_client_hints, v153_android_client_hints_for_model,

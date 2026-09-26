@@ -5,9 +5,9 @@
 //! on build `CP3A.260905.009`. Edge for Android reads Chrome's command-line
 //! file, so the Chrome for Android launches and tools apply unchanged.
 //!
-//! The TLS and QUIC ClientHellos equal desktop Edge 153's, which are the
-//! Chromium offers without trust-anchor IDs, and the H2 startup, QUIC
-//! transport parameters, H3 SETTINGS, and request field orders equal the
+//! The TLS and QUIC ClientHellos equal desktop Edge's, which Edge 153 and 154
+//! send alike: the Chromium offers without trust-anchor IDs. The H2 startup,
+//! QUIC transport parameters, H3 SETTINGS, and request field orders equal the
 //! Chromium recipes. Only the client hints and `User-Agent` carry Edge for
 //! Android data.
 //!

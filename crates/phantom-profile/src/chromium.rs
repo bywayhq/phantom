@@ -967,7 +967,7 @@ pub fn v154_http3_tls() -> TlsSettings {
 ///
 /// Each `cookie` field is split into one field per cookie
 /// ([`Http3CookieCrumbs::Split`]). The retained cookie captures
-/// (`fixtures/cookies/`) show Chrome 154 and Edge 153 inserting each crumb
+/// (`fixtures/cookies/`) show Chrome 154 and Edge 154 inserting each crumb
 /// into the QPACK dynamic table with a static name reference and sending it
 /// as an indexed field line, at the position of the joined field.
 #[must_use]

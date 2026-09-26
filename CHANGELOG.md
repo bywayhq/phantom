@@ -259,7 +259,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add an `Http3Unprocessed::EarlyDataRejected` arm. The server did
   not process the request, so handle it as you handle `RequestRejected` and
   `GoAway`.
-- `chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, set
+- `chromium::v154_http3_tls`, and `edge::v154_http3_tls` through it, set
   `session_tickets`. `phantom_quic_btls::QuicClientConfig::with_tls_profile`
   rejects a profile that sets it with `QuicTlsProfileErrorKind::InvalidProfile`
   unless the context was prepared for session resumption, so code that builds
@@ -404,7 +404,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   each has restored its first window, because Firefox processes started
   together can lose their page load.
 - macOS recipes from captures on macOS 15.5 on Apple silicon:
-  `chromium::v154_macos_client_hints`, `edge::v153_macos_client_hints`, and
+  `chromium::v154_macos_client_hints`, `edge::v154_macos_client_hints`, and
   `opera::v135_macos_client_hints` (platform `"macOS"`, platform version
   `"15.5.0"`, architecture `"arm"`), with
   `chromium::v154_macos_navigation_template`,
@@ -861,7 +861,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the longest wait for that report (default 30 seconds).
 - Wire change for the Chrome 154, Edge 153, and Brave 154 HTTP/3 recipes on a
   client with HTTPS record discovery: `chromium::v154_http3_tls` now keeps
-  `ech_from_https_records`, and `edge::v153_http3_tls` and
+  `ech_from_https_records`, and `edge::v154_http3_tls` and
   `brave::v154_http3_tls` inherit it, so a direct QUIC connection to the
   origin's own host and port, for an HTTP/3 alternative found through its
   HTTPS records or an exact HTTP/3 request, sends a real Encrypted Client
@@ -883,7 +883,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   alternatives at another host. To fall back to TCP as Chrome does, use
   `AltSvcPolicy::race`; to keep ECH GREASE on HTTP/3, set
   `settings.ech_from_https_records = false` on the value
-  `chromium::v154_http3_tls`, `edge::v153_http3_tls`, or
+  `chromium::v154_http3_tls`, `edge::v154_http3_tls`, or
   `brave::v154_http3_tls` returns.
 - Wire change for TLS resumption over TCP. The Chrome 154, Edge 153, Brave
   154, and Opera 135 recipes keep at most two tickets per origin, the newest
@@ -905,8 +905,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   proxy connection instead of one per origin. A proxy sees fewer
   connections and TLS handshakes; tunnels on a connection share its
   flow-control windows. Each session keeps its own proxy connections.
-- Wire change for the Edge 153 recipe on a client with HTTPS record
-  discovery: `edge::v153_tls` now keeps `ech_from_https_records` from
+- Wire change for the Edge 154 recipe on a client with HTTPS record
+  discovery: `edge::v154_tls` now keeps `ech_from_https_records` from
   `chromium::v154_tls`, so a direct TLS connection over TCP to an origin
   whose HTTPS record carries `ech` sends a real Encrypted Client Hello instead
   of ECH GREASE, and its TLS handshake waits for the lookup for at most 50 ms
@@ -914,7 +914,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and exact-protocol HTTP/1.1 and HTTP/2 requests and `wss://` WebSocket
   openings. Captures of Edge 153.0.4234.48 navigations show it doing the
   same. To keep GREASE, set
-  `settings.ech_from_https_records = false` on the value `edge::v153_tls`
+  `settings.ech_from_https_records = false` on the value `edge::v154_tls`
   returns.
 - Wire and performance change for HTTP proxies with
   `HttpProxy::with_basic_auth`. After a `407` to an HTTP/1.1 CONNECT
@@ -1132,7 +1132,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   its client-hint placement behind an `Arc`, and the request path parses the
   advertised content codings once instead of once per redirect hop. The
   fields sent on the wire do not change. (`6cdd227`, `f14cb08`)
-- `chromium::v154_http3_tls`, and `edge::v153_http3_tls` through it, enable
+- `chromium::v154_http3_tls`, and `edge::v154_http3_tls` through it, enable
   `session_tickets`, so HTTP/3 connections built from them resume sessions.
   The first ClientHello of a connection is unchanged. A resumed ClientHello
   adds the `pre_shared_key` extension, which changes the wire fingerprint of

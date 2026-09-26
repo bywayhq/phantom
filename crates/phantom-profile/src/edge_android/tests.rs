@@ -39,9 +39,9 @@ fn edge_android_153_client_hints_match_navigation_capture() -> TestResult {
 }
 
 /// Edge for Android sends the Chromium hint names in the Chromium order and
-/// delivery; its brand list is desktop Edge 153's.
+/// delivery, and the Edge 153 brand list it was captured with.
 #[test]
-fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
+fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153_brands() {
     let names = |settings: &crate::ClientHintSettings| {
         settings
             .hints()
@@ -72,7 +72,8 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
 }
 
 /// Apart from the ECH lookup that no Android capture covers, the TLS recipes
-/// are desktop Edge 153's, and the other layers are the Chromium recipes.
+/// are desktop Edge's TLS recipes, which Edge 153 and 154 send alike, and the
+/// other layers are the Chromium recipes.
 #[test]
 fn edge_android_153_reuses_the_desktop_edge_and_chromium_recipes() -> TestResult {
     let mut tls = edge::v154_tls();
