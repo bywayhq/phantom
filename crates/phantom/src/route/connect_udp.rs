@@ -229,8 +229,10 @@ impl ConnectUdpProxy {
     ///
     /// The first CONNECT-UDP request omits credentials. After a 407 response
     /// with a valid Basic challenge, Phantom retries exactly once on a fresh
-    /// proxy connection with `Proxy-Authorization` after the route's fields;
-    /// HTTP/2 and HTTP/3 send it as a never-indexed field. A second 407 fails
+    /// proxy connection with `Proxy-Authorization` after the route's fields.
+    /// HTTP/3 sends it as a never-indexed field; over HTTP/2 the profile's
+    /// [`Http2SensitiveProxyAuthorization`](crate::profile::Http2SensitiveProxyAuthorization)
+    /// decides, and the browser recipes index it. A second 407 fails
     /// with an authentication error. Credentials never appear in `Debug`
     /// output or diagnostics.
     ///

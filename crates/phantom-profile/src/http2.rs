@@ -244,8 +244,8 @@ pub enum Http2TableSizeUpdates {
 ///
 /// Phantom marks the field it generates from a route's proxy credentials
 /// sensitive, and a caller can mark its own. The rule applies to every such
-/// field on the connection, on CONNECT, CONNECT-UDP, and forwarded requests
-/// to an HTTP/2 proxy.
+/// field on an HTTP/2 connection: on CONNECT, CONNECT-UDP, and forwarded
+/// requests to a proxy, and on any request that carries one to an origin.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http2SensitiveProxyAuthorization {

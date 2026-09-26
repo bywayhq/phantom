@@ -22,12 +22,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `FieldIndexing` leaves it to `field_indexing` as though it were not
   marked, while `RequestHeader::sensitive` still hides the value from
   `Debug` output. `chromium::v154_http2` and `firefox::v156_http2` set
-  `FieldIndexing`, which changes the wire on HTTP/2 proxy connections: the
-  generated field on CONNECT, CONNECT-UDP, and forwarded requests, and a
-  caller's own sensitive field, is now a literal with incremental indexing
-  on static name 49 on first use and an index into the dynamic table after
-  that, as Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 send
-  it. Every replayable HEADERS block of the retained `https-proxy-*`
+  `FieldIndexing`, which changes the wire on every HTTP/2 connection that
+  carries a sensitive `proxy-authorization`: the generated field on
+  CONNECT, CONNECT-UDP, and forwarded requests, and a caller's own sensitive
+  field, is now a literal with incremental indexing on static name 49 on
+  first use and an index into the dynamic table after that. Chrome 154,
+  Edge 154, Brave 154, Opera 135, and Firefox 156 send it that way on
+  CONNECT and forwarded requests; neither browser authenticates CONNECT-UDP,
+  so no capture shows that case. Every replayable HEADERS block of the retained `https-proxy-*`
   captures now has the recipe's representations, indexes, and length.
   The credential then sits in the proxy connection's HPACK table, as it
   does in the browsers.
