@@ -369,6 +369,18 @@ their page in 5 of 9 launches; with the lock, 12 of 12 loaded in groups of
 four. Chromium browsers started four at a time loaded 8 of 8 and do not take
 turns. A tool run on its own does not see the variable and launches at once.
 
+On macOS a Chromium launch also receives `--use-mock-keychain`. Without it,
+a fresh profile reads and writes the browser's "Safe Storage" item in the
+login keychain, which the person's own browser profile uses. The switch is
+recorded with the other launch arguments. `startup_capture.py` adds it in
+the same position.
+
+After a run the launcher ends the browser's process group, then kills any
+process whose command line still names the run's temporary profile. A
+process that names another profile, such as the person's own browser, is
+never touched. On macOS, set `TMPDIR` to keep the temporary profiles in a
+directory of your choice.
+
 Fixtures record `launch_mode` (`headless`, `headful`, `manual`,
 `android-typed`, or `android-intent`). Captures made in different modes are
 compared, never assumed equal. A coding agent needs the human's approval before it launches a

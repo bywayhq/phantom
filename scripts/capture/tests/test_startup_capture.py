@@ -39,7 +39,7 @@ class RecordedArgumentTests(unittest.TestCase):
     def assert_reproduces(self, path: str, layer: str, *, port: int = 0) -> None:
         devtools = fixture_field(path, "launch_mode") == "devtools-navigate"
         self.assertEqual(
-            recorded_arguments(layer, port=port, devtools=devtools),
+            recorded_arguments(layer, port=port, devtools=devtools, platform="win32"),
             fixture_field(path, "launch_arguments"),
         )
 
@@ -88,6 +88,14 @@ class LaunchArgumentTests(unittest.TestCase):
         self.assertNotIn(REMOTE_FLAG, arguments)
         self.assertEqual(arguments[1], "--user-data-dir=profile")
         self.assertEqual(launch_mode(False), "command-line")
+
+    def test_macos_launch_keeps_the_profile_off_the_login_keychain(self) -> None:
+        macos = launch_arguments("tls", "profile", devtools=False, platform="darwin")
+        windows = launch_arguments("tls", "profile", devtools=False, platform="win32")
+
+        self.assertIn("--use-mock-keychain", macos)
+        self.assertNotIn("--use-mock-keychain", windows)
+        self.assertEqual([a for a in macos if a != "--use-mock-keychain"], windows)
 
     def test_http3_port_is_outside_the_reserved_range(self) -> None:
         self.assertNotIn(free_udp_port(), RESERVED_UDP)

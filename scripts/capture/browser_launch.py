@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import shlex
 import shutil
@@ -68,6 +69,16 @@ CHROMIUM_FLAGS = (
     "--disable-features=MediaRouter,OptimizationHints",
 )
 
+# Switches a Chromium launch needs on one host OS only. On macOS a fresh
+# profile otherwise reads and writes the browser's "Safe Storage" item in the
+# login keychain, which belongs to the person's own browser profile.
+HOST_CHROMIUM_FLAGS = {"darwin": ("--use-mock-keychain",)}
+
+
+def host_chromium_flags(platform: str = sys.platform) -> tuple[str, ...]:
+    return HOST_CHROMIUM_FLAGS.get(platform, ())
+
+
 # Firefox has no equivalent command-line switches; these preferences disable
 # the same classes of background traffic in the disposable profile.
 FIREFOX_PREFERENCES = (
@@ -102,6 +113,7 @@ def chromium_arguments(
     arguments = ["--headless=new"] if headless else []
     arguments.append(f"--user-data-dir={profile}")
     arguments.extend(CHROMIUM_FLAGS)
+    arguments.extend(host_chromium_flags())
     arguments.extend(extra)
     arguments.append(url)
     return arguments
@@ -484,14 +496,20 @@ def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
             check=False,
         )
     else:
-        os.killpg(process.pid, signal.SIGTERM)
+        signal_process_group(process.pid, signal.SIGTERM)
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
         if sys.platform != "win32":
-            os.killpg(process.pid, signal.SIGKILL)
+            signal_process_group(process.pid, signal.SIGKILL)
         process.kill()
         process.wait(timeout=10)
+
+
+def signal_process_group(pid: int, signum: int) -> None:
+    """Signal the session a launch started; it may already have exited."""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signum)
 
 
 def terminate_profile_processes(profile: Path) -> None:
@@ -499,8 +517,19 @@ def terminate_profile_processes(profile: Path) -> None:
 
     Browsers can re-parent their main process away from the launched process,
     so a process-tree kill alone does not prove the run's browser is gone.
+    Only a process whose command line names this run's profile is killed.
     """
     if sys.platform != "win32":
+        listing = subprocess.run(
+            ["ps", "-axww", "-o", "pid=,command="],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=60,
+        ).stdout.decode(errors="replace")
+        for pid in profile_process_ids(listing, profile, own_pid=os.getpid()):
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
         return
     # The profile path is a mkdtemp name without quotes, so it is safe to embed.
     script = (
@@ -516,3 +545,28 @@ def terminate_profile_processes(profile: Path) -> None:
         check=False,
         timeout=60,
     )
+
+
+def profile_process_ids(listing: str, profile: Path, *, own_pid: int) -> list[int]:
+    """Process ids in a `ps -o pid=,command=` listing that name `profile`.
+
+    A mkdtemp profile name is unique to the run, so a match cannot be a
+    browser the person started. The profile is matched as a whole path
+    component, so `.../profile-x` does not match `.../profile-xy`.
+    """
+    text = str(profile).rstrip("/")
+    ids = []
+    for line in listing.splitlines():
+        pid_text, _, command = line.strip().partition(" ")
+        if not pid_text.isdigit() or int(pid_text) == own_pid:
+            continue
+        start = command.find(text)
+        while start != -1:
+            end = start + len(text)
+            if end == len(command) or not (
+                command[end].isalnum() or command[end] in "-_."
+            ):
+                ids.append(int(pid_text))
+                break
+            start = command.find(text, end)
+    return ids
