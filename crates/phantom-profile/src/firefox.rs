@@ -481,6 +481,8 @@ const V156_NAVIGATION_ACCEPT: &str =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const V156_WINDOWS_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+const V156_MACOS_USER_AGENT: &str =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0";
 
 /// Returns Firefox 156's `Accept-Encoding` entry: `br` and `zstd` are offered
 /// only to a potentially trustworthy URL.
@@ -557,9 +559,30 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// and with the remaining fields in the same order on HTTP/1.1 and HTTP/2.
 #[must_use]
 pub fn v156_windows_navigation_template() -> RequestTemplate {
+    navigation_template(V156_WINDOWS_USER_AGENT)
+}
+
+/// Returns navigation request fields observed from Firefox 156.0 on macOS
+/// 15.5 arm64.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v156_windows_navigation_template`], except `User-Agent`, which is the
+/// value Firefox 156.0 sent in the headless WebSocket and client-hint
+/// captures on macOS 15.5 (24F74) on Apple silicon:
+/// `Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101
+/// Firefox/156.0`. It names `Intel Mac OS X 10.15`, not the host's 15.5 or
+/// its Apple silicon CPU. `Accept-Language` is the capture host's `en-US`
+/// locale.
+#[must_use]
+pub fn v156_macos_navigation_template() -> RequestTemplate {
+    navigation_template(V156_MACOS_USER_AGENT)
+}
+
+/// Builds the Firefox 156 navigation lists with a literal `User-Agent`.
+fn navigation_template(user_agent: &str) -> RequestTemplate {
     RequestTemplate {
         http1_fields: vec![
-            RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("User-Agent", user_agent),
             RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
@@ -574,7 +597,7 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
             replay_proxy_authorization("Proxy-Authorization"),
         ],
         http2_fields: vec![
-            RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("user-agent", user_agent),
             RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
@@ -620,9 +643,25 @@ pub fn v156_windows_navigation_template() -> RequestTemplate {
 /// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included.
 #[must_use]
 pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
+    fetch_no_store_template(V156_WINDOWS_USER_AGENT)
+}
+
+/// Returns same-origin `fetch` request fields observed from Firefox 156.0 on
+/// macOS 15.5 arm64.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v156_windows_fetch_no_store_template`], except `User-Agent`, which
+/// matches [`v156_macos_navigation_template`].
+#[must_use]
+pub fn v156_macos_fetch_no_store_template() -> RequestTemplate {
+    fetch_no_store_template(V156_MACOS_USER_AGENT)
+}
+
+/// Builds the Firefox 156 no-store `fetch` lists with a literal `User-Agent`.
+fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
     RequestTemplate {
         http1_fields: vec![
-            RequestField::literal("User-Agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("User-Agent", user_agent),
             RequestField::literal("Accept", "*/*"),
             RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
@@ -638,7 +677,7 @@ pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
             replay_proxy_authorization("Proxy-Authorization"),
         ],
         http2_fields: vec![
-            RequestField::literal("user-agent", V156_WINDOWS_USER_AGENT),
+            RequestField::literal("user-agent", user_agent),
             RequestField::literal("accept", "*/*"),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),

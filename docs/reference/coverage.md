@@ -820,16 +820,20 @@ shares component data with a capture from another platform:
 
 - Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), Brave 154
   (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
-  come from Windows 11 captures only. No macOS or Linux
-  capture of these builds exists, so platform independence is not claimed
-  for them. The retired Chrome 152 and Firefox 154 captures, which did
+  come from Windows 11 captures. The `macos` client-hint and template
+  recipes of Chrome, Edge, Opera (135.0.5973.66), and Firefox come from
+  macOS 15.5 captures on Apple silicon, whose single TLS, QUIC, H2, and H3
+  parity runs matched the Windows recipes
+  ([Validation](../explanation/validation.md#macos-recipes)). No Linux
+  capture exists, and no other layer is claimed to be platform independent. The retired Chrome 152 and Firefox 154 captures, which did
   compare two platforms, are no longer in the tree.
 - Chrome 153 for Android (153.0.8010.52) recipes come from captures on the
   Android 15 emulator described in
   [Validation](../explanation/validation.md#chrome-for-android-153-recipes).
 - SSE browser captures are from Windows 11 (10.0.26200) only, and WebSocket
-  browser captures from that host and the Android emulator. Phantom does not
-  assume macOS parity for them.
+  browser captures from that host and the Android emulator. The macOS
+  WebSocket captures back request fields only. Phantom does not assume macOS
+  parity for SSE or WebSocket behavior.
 - [Capture normalization](../explanation/validation.md#capture-normalization)
   records what a comparison normalizes.
 

@@ -117,6 +117,44 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
     ])
 }
 
+/// Returns client-hint fields observed from Chrome 154 on macOS 15.5 arm64.
+///
+/// Names, order, delivery, and the brand and version values match
+/// [`v154_windows_client_hints`]; three headless runs of the retained
+/// navigation capture of Chrome 154.0.8037.58 on macOS 15.5 (24F74) on Apple
+/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
+/// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
+/// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
+/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// customized before client creation, for example to carry another macOS
+/// version.
+#[must_use]
+pub fn v154_macos_client_hints() -> ClientHintSettings {
+    use ClientHintDelivery::{AcceptCh, Default};
+
+    ClientHintSettings::new(vec![
+        ClientHint::new(
+            "sec-ch-ua",
+            r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
+            Default,
+        ),
+        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.58""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
+        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-full-version-list",
+            r#""Chromium";v="154.0.8037.58", "Google Chrome";v="154.0.8037.58", "Not A(Brand";v="99.0.0.0""#,
+            AcceptCh,
+        ),
+        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
+    ])
+}
+
 /// Returns the automatic `Cookie` field position for Chrome 154.
 ///
 /// Chrome appends `Cookie` after every other request field it builds:
@@ -653,6 +691,32 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
+}
+
+/// Returns navigation request fields observed from Chrome 154.0.8037.58 on
+/// macOS 15.5 arm64.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v154_windows_navigation_template`], which the headless page loads of
+/// the retained macOS WebSocket captures and the macOS H3 startup capture
+/// match on HTTP/1.1, HTTP/2, and HTTP/3 with [`v154_macos_client_hints`].
+/// `User-Agent` is a required caller slot: every macOS capture ran headless
+/// and sent `HeadlessChrome/154.0.0.0` with `Macintosh; Intel Mac OS X
+/// 10_15_7`, and no headful macOS capture backs a literal value.
+#[must_use]
+pub fn v154_macos_navigation_template() -> RequestTemplate {
+    v154_navigation_template(None)
+}
+
+/// Returns same-origin no-store `fetch` request fields observed from Chrome
+/// 154.0.8037.58 on macOS 15.5 arm64.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v154_windows_fetch_no_store_template`], with `User-Agent` as a required
+/// caller slot for the reason given in [`v154_macos_navigation_template`].
+#[must_use]
+pub fn v154_macos_fetch_no_store_template() -> RequestTemplate {
+    v154_fetch_no_store_template(None)
 }
 
 /// Returns Chromium 154's position of forwarded proxy credentials, on the

@@ -67,6 +67,17 @@ macro_rules! websocket_set {
     };
 }
 
+/// The page and no-store `fetch()` scenarios captured on macOS, three runs
+/// each: one over HTTP/2 and one over plaintext HTTP/1.1.
+macro_rules! macos_websocket_set {
+    ($browser:literal) => {
+        [
+            fixture!("websocket/", $browser, "/macos-15.5-arm64/accept.txt"),
+            fixture!("websocket/", $browser, "/macos-15.5-arm64/h1-accept.txt"),
+        ]
+    };
+}
+
 const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
 const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
@@ -97,6 +108,14 @@ const BRAVE_PROXY: [&str; 20] = [
     fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-secure-hostname.txt"),
 ];
 const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
+const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.8037.58");
+const CHROME_MACOS_HTTP3: &str =
+    fixture!("http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt");
+const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/153.0.4234.48");
+const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.66");
+const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/156.0");
+const OPERA_MACOS_HTTP3: &str =
+    fixture!("http3/opera/135.0.5973.66/macos-15.5-arm64/client-startup.txt");
 const CHROME_ANDROID_WEBSOCKET: [&str; 9] =
     websocket_set!("chrome-android/153.0.8010.52", "android-35-emulator");
 const BRAVE_ANDROID_WEBSOCKET: [&str; 9] =
@@ -294,6 +313,10 @@ fn every_template_recipe_is_valid() {
         opera::v135_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
+        firefox::v156_macos_navigation_template(),
+        firefox::v156_macos_fetch_no_store_template(),
+        chromium::v154_macos_navigation_template(),
+        chromium::v154_macos_fetch_no_store_template(),
         chrome_android::v153_android_navigation_template(),
         chrome_android::v153_android_fetch_no_store_template(),
         brave_android::v153_android_navigation_template(),
@@ -687,6 +710,141 @@ fn firefox_156_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()
     assert_all_match(&template, Protocol::Http1, None, &http1, 6, "firefox h1");
     assert_all_match(&template, Protocol::Http2, None, &http2, 18, "firefox h2");
     Ok(())
+}
+
+/// Chrome, Edge, and Opera on macOS send the fields of their templates, with
+/// the macOS client hints, on page loads and no-store `fetch()` calls alike.
+#[test]
+fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
+    for (navigation, fetch, hints, set, label) in [
+        (
+            chromium::v154_macos_navigation_template(),
+            chromium::v154_macos_fetch_no_store_template(),
+            chromium::v154_macos_client_hints(),
+            &CHROME_MACOS_WEBSOCKET,
+            "chrome macos",
+        ),
+        (
+            edge::v153_windows_navigation_template(),
+            edge::v153_windows_fetch_no_store_template(),
+            edge::v153_macos_client_hints(),
+            &EDGE_MACOS_WEBSOCKET,
+            "edge macos",
+        ),
+        (
+            opera::v135_windows_navigation_template(),
+            opera::v135_windows_fetch_no_store_template(),
+            opera::v135_macos_client_hints(),
+            &OPERA_MACOS_WEBSOCKET,
+            "opera macos",
+        ),
+    ] {
+        let (http1, http2) = observed(&[set], "page", "document")?;
+        assert_all_match(&navigation, Protocol::Http1, Some(&hints), &http1, 3, label);
+        assert_all_match(&navigation, Protocol::Http2, Some(&hints), &http2, 3, label);
+        let (http1, http2) = observed(&[set], "done", "empty")?;
+        assert_all_match(&fetch, Protocol::Http1, Some(&hints), &http1, 3, label);
+        assert_all_match(&fetch, Protocol::Http2, Some(&hints), &http2, 3, label);
+    }
+    // The H3 startups ran with the shared startup launch arguments, which set
+    // no languages, so Edge's system `Accept-Language` keeps its H3 request
+    // out of this comparison.
+    for (template, hints, capture, label) in [
+        (
+            chromium::v154_macos_navigation_template(),
+            chromium::v154_macos_client_hints(),
+            CHROME_MACOS_HTTP3,
+            "chrome macos h3",
+        ),
+        (
+            opera::v135_windows_navigation_template(),
+            opera::v135_macos_client_hints(),
+            OPERA_MACOS_HTTP3,
+            "opera macos h3",
+        ),
+    ] {
+        let http3 = [Capture::parse(capture)?.http3_request()?];
+        assert_all_match(&template, Protocol::Http3, Some(&hints), &http3, 1, label);
+    }
+    Ok(())
+}
+
+#[test]
+fn firefox_156_macos_templates_match_every_captured_request() -> CaptureResult<()> {
+    let navigation = firefox::v156_macos_navigation_template();
+    let (http1, http2) = observed(&[&FIREFOX_MACOS_WEBSOCKET], "page", "document")?;
+    assert_all_match(
+        &navigation,
+        Protocol::Http1,
+        None,
+        &http1,
+        3,
+        "firefox macos h1",
+    );
+    assert_all_match(
+        &navigation,
+        Protocol::Http2,
+        None,
+        &http2,
+        3,
+        "firefox macos h2",
+    );
+    let fetch = firefox::v156_macos_fetch_no_store_template();
+    let (http1, http2) = observed(&[&FIREFOX_MACOS_WEBSOCKET], "done", "empty")?;
+    assert_all_match(&fetch, Protocol::Http1, None, &http1, 3, "firefox macos h1");
+    assert_all_match(&fetch, Protocol::Http2, None, &http2, 3, "firefox macos h2");
+    Ok(())
+}
+
+/// The Windows and macOS Firefox templates differ only in `User-Agent`.
+#[test]
+fn firefox_156_macos_templates_change_only_the_user_agent() {
+    for (windows, macos) in [
+        (
+            firefox::v156_windows_navigation_template(),
+            firefox::v156_macos_navigation_template(),
+        ),
+        (
+            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v156_macos_fetch_no_store_template(),
+        ),
+    ] {
+        let user_agent = |template: &RequestTemplate| {
+            template
+                .http1_fields
+                .iter()
+                .chain(&template.http2_fields)
+                .filter_map(|field| match field {
+                    RequestField::Literal { name, value }
+                        if name.eq_ignore_ascii_case("user-agent") =>
+                    {
+                        Some(value.to_string())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            user_agent(&macos),
+            vec![
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0";
+                2
+            ]
+        );
+        let mut adjusted = windows;
+        for field in adjusted
+            .http1_fields
+            .iter_mut()
+            .chain(adjusted.http2_fields.iter_mut())
+        {
+            if let RequestField::Literal { name, .. } = field
+                && name.eq_ignore_ascii_case("user-agent")
+            {
+                *field = RequestField::literal(name.clone(), user_agent(&macos)[0].clone());
+            }
+        }
+        assert_eq!(adjusted, macos);
+    }
 }
 
 #[test]
