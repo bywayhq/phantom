@@ -476,14 +476,13 @@ async fn forgetting_a_route_leaves_its_open_tunnel_working() -> TestResult<()> {
         let port = proxy.port;
         let accepted = Arc::new(AtomicUsize::new(0));
         let counted = Arc::clone(&accepted);
-        let server = tokio::spawn(async move {
+        let server: tokio::task::JoinHandle<ProxyResult<()>> = tokio::spawn(async move {
+            // Serves until the test aborts it.
             loop {
                 let connection = accept(&proxy.listener, &proxy.acceptor, &[]).await?;
                 counted.fetch_add(1, Ordering::AcqRel);
                 tokio::spawn(serve_all(connection, usize::MAX));
             }
-            #[allow(unreachable_code)]
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
         // Each set of credentials is its own route.

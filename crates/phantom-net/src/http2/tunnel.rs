@@ -107,13 +107,14 @@ impl Http2ExtendedConnectStream {
         self.inner
     }
 
-    /// Retains a value until this stream is completed or dropped.
+    /// Retains a value until this stream is completed or dropped, in place
+    /// of any value retained before.
     #[doc(hidden)]
     pub fn retain_until_stream_complete<T>(&mut self, value: T)
     where
         T: Send + Sync + 'static,
     {
-        self.inner.retain_until_stream_complete(value);
+        self.inner.stream_guard = Some(Box::new(value));
     }
 }
 

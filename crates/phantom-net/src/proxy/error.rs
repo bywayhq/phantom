@@ -333,7 +333,8 @@ impl fmt::Display for HttpConnectError {
             }
             Self::PooledSetupFailed { kind } => write!(
                 formatter,
-                "the shared HTTP/2 proxy connection setup failed ({kind:?})"
+                "the shared HTTP/2 proxy connection setup this tunnel waited for failed: {}",
+                kind.description()
             ),
         }
     }
@@ -351,6 +352,23 @@ impl StdError for HttpConnectError {
 }
 
 impl HttpConnectErrorKind {
+    /// A short phrase naming the category, for error messages.
+    const fn description(self) -> &'static str {
+        match self {
+            Self::InvalidConfiguration => "invalid proxy configuration",
+            Self::InvalidRequest => "invalid CONNECT request",
+            Self::Authentication => "proxy authentication failure",
+            Self::RuntimeUnavailable => "no Tokio runtime",
+            Self::Connect => "proxy connect failure",
+            Self::Tls => "proxy TLS failure",
+            Self::UnsupportedProtocol => "unsupported proxy protocol",
+            Self::Io => "proxy I/O failure",
+            Self::InvalidResponse => "invalid proxy response",
+            Self::Rejected => "proxy rejection",
+            Self::Http2 => "proxy HTTP/2 failure",
+        }
+    }
+
     pub(super) const fn trace_name(self) -> &'static str {
         match self {
             Self::InvalidConfiguration => "invalid_configuration",
