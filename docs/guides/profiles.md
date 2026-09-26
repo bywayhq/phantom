@@ -83,13 +83,17 @@ fn profiles() -> [ClientProfile; 5] {
 }
 ```
 
-- Phantom carries one version per browser: Chrome 154 (`chromium::v154_*`),
-  Edge 153 (`edge::v153_*`), Brave 154 (`brave::v154_*`), Opera 135
-  (`opera::v135_*`), Firefox 156 (`firefox::v156_*`), and Chrome 153 for
-  Android (`chrome_android::v153_*`, captured on an Android emulator). The
+- Phantom carries one version per browser. The desktop modules are Chrome 154
+  (`chromium::v154_*`), Edge 153 (`edge::v153_*`), Brave 154
+  (`brave::v154_*`), Opera 135 (`opera::v135_*`), and Firefox 156
+  (`firefox::v156_*`). The Android modules, captured on an emulator, are
+  Chrome 153 (`chrome_android::v153_*`), Brave 153 (`brave_android::v153_*`),
+  Opera 102 (`opera_android::v102_*`), and Firefox 156
+  (`firefox_android::v156_tls`). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
-  components each one has; Firefox has no QUIC, HTTP/3, or client-hint
-  recipe, and Chrome for Android has no TCP or HTTP/1.1 connection recipe.
+  components each one has. Firefox has no QUIC, HTTP/3, or client-hint
+  recipe; no Android browser has a TCP or HTTP/1.1 connection recipe; Opera
+  for Android has only TLS and client hints, and Firefox for Android only TLS.
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin

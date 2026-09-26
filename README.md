@@ -35,8 +35,9 @@ command-line switches, so no other layer could be captured. Firefox 156 for
 Android has a TLS recipe only, equal to desktop Firefox's.
 
 Every captured recipe comes from captures of one build per browser: Windows
-11 for the desktop browsers, and an Android 15 emulator for Chrome and Brave
-for Android.
+11 for the desktop browsers (`chromium`, `edge`, `brave`, `opera`, and
+`firefox`), and an Android 15 emulator for the Android ones
+(`chrome_android`, `brave_android`, `opera_android`, and `firefox_android`).
 [Coverage](docs/reference/coverage.md) is the full support contract, and
 [Validation](docs/explanation/validation.md) lists the evidence for each row.
 

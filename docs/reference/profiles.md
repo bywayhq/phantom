@@ -82,8 +82,9 @@ the host operating system or the browser name.
 | `windows` or `android` in the name | `chromium::v154_windows_client_hints`, `chrome_android::v153_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
 Every recipe comes from captures on one platform: Windows 11 for `chromium`,
-`edge`, and `firefox`, and the Android 15 emulator for `chrome_android`. Each
-recipe's rustdoc names its single capture build and platform.
+`edge`, `brave`, `opera`, and `firefox`, and the Android 15 emulator for
+`chrome_android`, `brave_android`, `opera_android`, and `firefox_android`.
+Each recipe's rustdoc names its single capture build and platform.
 
 ## TCP socket options
 
