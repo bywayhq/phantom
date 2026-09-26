@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import platform
 import re
 import shutil
@@ -28,6 +29,7 @@ import sys
 import tempfile
 import threading
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from .browser_launch import (
@@ -60,6 +62,8 @@ SPKI_PLACEHOLDER = "<certificate-spki>"
 EXAMPLES = {"tls": "capture_client_hello", "http2": "capture_http2_tls"}
 # Windows reserves these UDP ports on the capture host.
 RESERVED_UDP = range(49841, 50960)
+# The line chrome_http3.py writes to standard error once it has bound.
+LISTENING_LINE = re.compile(rb"^listening on [^\n]*\n", re.MULTILINE)
 
 
 def launch_arguments(
@@ -207,23 +211,41 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
     return True
 
 
-def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> bool:
+@dataclass(frozen=True)
+class Listening:
+    """What `wait_until_listening` saw on the server's standard error."""
+
+    reported: bool
+    # Bytes read past the listening line, or everything read when there was
+    # none. communicate() with a timeout reads the pipe's descriptor on POSIX,
+    # so it never returns these; put them in front of what it returns.
+    stderr: bytes
+
+
+def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Listening:
     """Wait up to `limit` seconds for chrome_http3.py to report its bind.
 
     Returns early when the server exits without the line. A server that has
-    not reported by `limit` is killed. The reader has stopped before this
-    returns, so the caller can read the rest of standard error.
+    not reported by `limit` is killed. The reader reads the pipe's descriptor
+    without a buffer and has stopped before this returns, so every byte it
+    read is in the result and the rest is left for communicate().
     """
     assert server.stderr is not None
-    stream = server.stderr
+    descriptor = server.stderr.fileno()
     finished = threading.Event()
-    listening: list[bool] = []
+    seen = bytearray()
+    reported: list[int] = []
 
     def read() -> None:
         try:
-            for line in iter(stream.readline, b""):
-                if line.startswith(b"listening on "):
-                    listening.append(True)
+            while True:
+                chunk = os.read(descriptor, 4096)
+                if not chunk:
+                    return
+                seen.extend(chunk)
+                line = LISTENING_LINE.search(seen)
+                if line is not None:
+                    reported.append(line.end())
                     return
         finally:
             finished.set()
@@ -231,10 +253,12 @@ def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> bool:
     reader = threading.Thread(target=read, daemon=True)
     reader.start()
     finished.wait(limit)
-    if not listening and server.poll() is None:
+    if not reported and server.poll() is None:
         server.kill()
     reader.join()
-    return bool(listening)
+    if reported:
+        return Listening(True, bytes(seen[reported[0] :]))
+    return Listening(False, bytes(seen))
 
 
 def quic_run(
@@ -279,10 +303,12 @@ def quic_run(
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )
-    if not wait_until_listening(server, args.server_start):
+    listening = wait_until_listening(server, args.server_start)
+    if not listening.reported:
         server.kill()
         _, stderr = server.communicate()
         shutil.rmtree(material, ignore_errors=True)
+        stderr = listening.stderr + stderr
         print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
         return False
     browser = Browser(
@@ -305,6 +331,7 @@ def quic_run(
         browser.stop()
         shutil.rmtree(material, ignore_errors=True)
     if server.returncode != 0:
+        stderr = listening.stderr + stderr
         print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
         return False
     return True

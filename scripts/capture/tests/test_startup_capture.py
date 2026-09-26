@@ -131,34 +131,43 @@ def server(script: str) -> subprocess.Popen[bytes]:
 
 
 class ListeningWaitTests(unittest.TestCase):
-    def test_a_late_listening_line_ends_the_wait(self) -> None:
+    def test_a_late_listening_line_ends_the_wait_and_keeps_later_output(
+        self,
+    ) -> None:
         process = server(
             "import sys, time; "
             "print('warming up', file=sys.stderr, flush=True); "
             "time.sleep(0.5); "
-            "print('listening on 127.0.0.1:1', file=sys.stderr, flush=True); "
-            "print('after', file=sys.stderr, flush=True)"
+            "sys.stderr.write('listening on 127.0.0.1:1\\nafter\\n'); "
+            "sys.stderr.flush(); "
+            "time.sleep(0.2); "
+            "print('later', file=sys.stderr, flush=True)"
         )
 
-        self.assertTrue(wait_until_listening(process, 30))
+        listening = wait_until_listening(process, 30)
         _, rest = process.communicate(timeout=30)
 
-        self.assertIn(b"after", rest)
+        self.assertTrue(listening.reported)
+        # The line after the listening line arrives in the same read.
+        output = (listening.stderr + rest).replace(b"\r\n", b"\n")
+        self.assertEqual(output, b"after\nlater\n")
 
     def test_a_server_that_exits_without_the_line_ends_the_wait_early(self) -> None:
         process = server("import sys; print('no', file=sys.stderr); sys.exit(3)")
         begin = time.monotonic()
 
-        self.assertFalse(wait_until_listening(process, 30))
+        listening = wait_until_listening(process, 30)
 
         self.assertLess(time.monotonic() - begin, 20)
+        self.assertFalse(listening.reported)
+        self.assertEqual(listening.stderr.replace(b"\r\n", b"\n"), b"no\n")
         process.communicate(timeout=30)
         self.assertEqual(process.returncode, 3)
 
     def test_a_silent_server_is_stopped_at_the_limit(self) -> None:
         process = server("import time; time.sleep(60)")
 
-        self.assertFalse(wait_until_listening(process, 0.5))
+        self.assertFalse(wait_until_listening(process, 0.5).reported)
 
         process.communicate(timeout=30)
         self.assertIsNotNone(process.returncode)
