@@ -87,6 +87,9 @@ class CrateTestCase(unittest.TestCase):
         self.write("crates/demo/tests/plain.rs", PLAIN)
         self.write("docs/testing.md", "Run crates/demo/tests/plain.rs.\n")
         self.run_git("init", "-q")
+        # A host with core.autocrlf=true would warn about each LF file.
+        self.run_git("config", "core.autocrlf", "false")
+        self.run_git("config", "core.safecrlf", "false")
         self.run_git("add", ".")
         cwd = Path.cwd()
         os.chdir(self.root)
