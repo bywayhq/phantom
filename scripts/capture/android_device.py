@@ -49,9 +49,13 @@ class AndroidBrowser:
     command_line_file: str | None = None
     # GeckoView reads `<package>-geckoview-config.yaml` there instead.
     gecko_config: bool = False
-    # A cleared profile opens first-run screens the browser offers no switch
-    # to skip; the launcher steps through them (see `onboarding_taps`).
-    onboarding: bool = False
+    # The activity of first-run screens a cleared profile opens and that no
+    # switch skips; the launcher steps through them (see `onboarding_taps`).
+    onboarding_activity: str | None = None
+
+    @property
+    def onboarding(self) -> bool:
+        return self.onboarding_activity is not None
 
     @property
     def configuration_path(self) -> str | None:
@@ -72,7 +76,11 @@ ANDROID_BROWSERS = {
     "brave-android": AndroidBrowser(
         "com.brave.browser", "Brave", command_line_file="chrome-command-line"
     ),
-    "opera-android": AndroidBrowser("com.opera.browser", "Opera", onboarding=True),
+    "opera-android": AndroidBrowser(
+        "com.opera.browser",
+        "Opera",
+        onboarding_activity="com.opera.android.startup.WelcomeActivity",
+    ),
     "firefox-android": AndroidBrowser(
         "org.mozilla.firefox", "Mozilla Firefox", gecko_config=True
     ),
@@ -186,27 +194,36 @@ def wait_button_center(dump: str) -> tuple[int, int] | None:
 ONBOARDING_LABELS = ("Next", "Skip", "Start browsing")
 ONBOARDING_DECLINE_SCREEN = "Data collection"
 ONBOARDING_LAST = "Start browsing"
-ONBOARDING_IDLE = 20.0
+ONBOARDING_TIMEOUT = 300.0
 
 
-def onboarding_taps(dump: str) -> list[tuple[int, int]] | None:
-    """Return the taps that advance a first-run screen, or None if none shows.
+def onboarding_taps(dump: str) -> tuple[str, list[tuple[int, int]]] | None:
+    """Return the label and taps that advance a first-run screen, or None.
 
-    On Opera's consent screen, "Customize" is chosen over "Allow"; on the
-    customize screen every checked box is unchecked before "Confirm".
+    Only nodes centred on the screen count: a pager renders its later pages
+    off screen. On Opera's consent screen, "Customize" is chosen over
+    "Allow"; on the customize screen every checked box is unchecked before
+    "Confirm".
     """
     try:
         root = ElementTree.fromstring(dump)
     except ElementTree.ParseError:
         return None
 
+    def bounds(node: ElementTree.Element) -> list[int]:
+        return [int(value) for value in re.findall(r"\d+", node.get("bounds", ""))]
+
     def center(node: ElementTree.Element) -> tuple[int, int]:
-        left, top, right, bottom = (
-            int(value) for value in re.findall(r"\d+", node.get("bounds", ""))
-        )
+        left, top, right, bottom = bounds(node)
         return (left + right) // 2, (top + bottom) // 2
 
-    nodes = list(root.iter("node"))
+    widths = [bounds(node) for node in root.iter("node")]
+    width = max((box[2] for box in widths if len(box) == 4), default=0)
+    nodes = [
+        node
+        for node in root.iter("node")
+        if len(bounds(node)) == 4 and 0 <= center(node)[0] < width
+    ]
     texts = {node.get("text", ""): node for node in nodes}
     if ONBOARDING_DECLINE_SCREEN in texts and "Confirm" in texts:
         taps = [
@@ -214,12 +231,12 @@ def onboarding_taps(dump: str) -> list[tuple[int, int]] | None:
             for node in nodes
             if node.get("checkable") == "true" and node.get("checked") == "true"
         ]
-        return [*taps, center(texts["Confirm"])]
+        return "Confirm", [*taps, center(texts["Confirm"])]
     if "Customize" in texts and "Allow" in texts:
-        return [center(texts["Customize"])]
+        return "Customize", [center(texts["Customize"])]
     for label in ONBOARDING_LABELS:
         if label in texts:
-            return [center(texts[label])]
+            return label, [center(texts[label])]
     return None
 
 
@@ -396,30 +413,38 @@ class AndroidSession:
         )
 
     def finish_onboarding(self) -> None:
-        """Tap through first-run screens until the last one is dismissed.
+        """Tap through first-run screens until the browser leaves them.
 
-        The screens end with "Start browsing". A browser that shows no
-        first-run label for `ONBOARDING_IDLE` seconds is taken to have none;
-        a splash screen alone does not end the wait.
+        A screen's accessibility tree can stay empty for a while, so the
+        focused activity, not the dump, decides when the screens are over:
+        after "Start browsing", or once the focus has left the first-run
+        activity on two checks in a row.
         """
-        deadline = time.monotonic() + self.launch.typing_timeout
-        idle_since = time.monotonic()
-        while time.monotonic() - idle_since < ONBOARDING_IDLE:
+        activity = self.launch.browser.onboarding_activity
+        deadline = time.monotonic() + ONBOARDING_TIMEOUT
+        away = 0
+        while away < 2:
             if time.monotonic() >= deadline:
                 raise TypingFailed("the first-run screens did not finish")
             time.sleep(self.launch.onboarding_delay)
+            focus = self.device.shell("dumpsys", "window", check=False)
+            focused = [line for line in focus.splitlines() if "mCurrentFocus" in line]
+            if activity is not None and not any(activity in line for line in focused):
+                away += 1
+                continue
+            away = 0
             self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
             dump = self.device.shell("cat", WINDOW_DUMP, check=False)
-            taps = onboarding_taps(dump)
-            if taps is None:
+            step = onboarding_taps(dump)
+            if step is None:
                 continue
+            label, taps = step
             for x, y in taps:
                 self.device.shell("input", "tap", str(x), str(y))
                 time.sleep(0.5)
-            if ONBOARDING_LAST in dump:
+            if label == ONBOARDING_LAST:
                 time.sleep(self.launch.onboarding_delay)
                 return
-            idle_since = time.monotonic()
 
     def focused_text(self) -> str | None:
         """The text of the focused field on screen, from a window dump.

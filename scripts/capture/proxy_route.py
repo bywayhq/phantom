@@ -19,6 +19,7 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 
+from .android_device import ANDROID_BROWSERS
 from .browser_launch import (
     BROWSERS,
     CHROMIUM_BROWSERS,
@@ -1204,6 +1205,14 @@ def launch_plan(
             firefox_preferences=tuple(preferences),
             profile_files=files,
         )
+    if browser in ANDROID_BROWSERS:
+        # An Android browser that reads no switches can reach only the
+        # device's own loopback, through adb reverse, without a proxy.
+        if scenario.proxy != "none" or scenario.origin != "loopback":
+            raise ValueError(
+                f"{browser} takes no switches, so it cannot run this scenario"
+            )
+        return LaunchPlan(browser=browser, executable=executable, headless=headless)
     return LaunchPlan(browser="manual", executable=None, headless=False)
 
 

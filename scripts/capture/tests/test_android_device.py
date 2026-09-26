@@ -388,21 +388,34 @@ class AndroidSessionTests(unittest.TestCase):
 
     def test_onboarding_customizes_instead_of_allowing_data_collection(self) -> None:
         consent = (
-            '<hierarchy><node text="Customize" bounds="[42,2169][525,2295]" />'
+            '<hierarchy><node text="" bounds="[0,0][1080,2400]" />'
+            '<node text="Customize" bounds="[42,2169][525,2295]" />'
             '<node text="Allow" bounds="[555,2169][1038,2295]" /></hierarchy>'
         )
 
-        self.assertEqual(onboarding_taps(consent), [(283, 2232)])
+        self.assertEqual(onboarding_taps(consent), ("Customize", [(283, 2232)]))
 
     def test_onboarding_unchecks_every_box_before_confirming(self) -> None:
         customize = (
-            '<hierarchy><node text="Data collection" bounds="[0,0][10,10]" />'
+            '<hierarchy><node text="" bounds="[0,0][1080,2400]" />'
+            '<node text="Data collection" bounds="[0,0][10,10]" />'
             '<node text="" checkable="true" checked="true" bounds="[943,947][1069,1073]" />'
             '<node text="" checkable="true" checked="false" bounds="[943,1159][1069,1285]" />'
             '<node text="Confirm" bounds="[42,2169][1038,2295]" /></hierarchy>'
         )
 
-        self.assertEqual(onboarding_taps(customize), [(1006, 1010), (540, 2232)])
+        self.assertEqual(
+            onboarding_taps(customize), ("Confirm", [(1006, 1010), (540, 2232)])
+        )
+
+    def test_onboarding_ignores_pages_rendered_off_screen(self) -> None:
+        pager = (
+            '<hierarchy><node text="" bounds="[0,0][1080,2400]" />'
+            '<node text="Next" bounds="[42,2169][1038,2295]" />'
+            '<node text="Start browsing" bounds="[1122,2169][2118,2295]" /></hierarchy>'
+        )
+
+        self.assertEqual(onboarding_taps(pager), ("Next", [(540, 2232)]))
 
     def test_onboarding_is_done_when_no_first_run_label_shows(self) -> None:
         self.assertIsNone(

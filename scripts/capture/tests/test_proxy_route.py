@@ -729,6 +729,31 @@ class LaunchTests(unittest.TestCase):
             https,
         )
 
+    def test_android_browser_without_switches_runs_only_the_direct_loopback_page(
+        self,
+    ) -> None:
+        plan = launch_plan(
+            "opera-android",
+            Path("adb"),
+            False,
+            SCENARIOS["direct-loopback"],
+            self.server,
+            CERTIFICATE,
+        )
+
+        self.assertEqual(plan.browser, "opera-android")
+        self.assertEqual(plan.extra_arguments, ())
+        for name in ("direct-hostname", "http-proxy-loopback"):
+            with self.assertRaises(ValueError):
+                launch_plan(
+                    "opera-android",
+                    Path("adb"),
+                    False,
+                    SCENARIOS[name],
+                    self.server,
+                    CERTIFICATE,
+                )
+
     def test_firefox_tls_proxy_uses_pac_and_a_profile_override(self) -> None:
         plan = launch_plan(
             "firefox",

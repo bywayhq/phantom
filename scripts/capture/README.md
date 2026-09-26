@@ -168,6 +168,17 @@ Android runs use run timeouts of 240 seconds.
 | `opera-android` | `com.opera.browser` | None; the launch refuses switches |
 | `firefox-android` | `org.mozilla.firefox` | `/data/local/tmp/org.mozilla.firefox-geckoview-config.yaml`, preferences only |
 
+Opera for Android reads no command-line file, so the launcher refuses
+switches for it: a tool can capture it only on the device's own loopback
+without a certificate, as `client_hints.py` and `proxy_route.py --scenario
+direct-loopback` do. A cleared Opera profile opens first-run screens that no
+switch skips. The launcher steps through them from `uiautomator` dumps while
+Opera's `WelcomeActivity` has the focus: Next, Skip, Customize rather than
+Allow on the data-collection screen, every checked box unchecked before
+Confirm, and Start browsing. The dumps of these screens can be empty for a
+while or list pages not yet shown, so this can stall; the launch then fails
+rather than type into the wrong screen.
+
 A Chromium command-line file holds `--disable-fre`, `CHROMIUM_FLAGS`, and
 the tool's switches. Android has no headless mode and no `--user-data-dir`.
 The GeckoView file holds the Firefox baseline preferences and the tool's
