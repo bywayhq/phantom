@@ -88,7 +88,7 @@ emulator otherwise routes the guest's TCP through the host's `HTTP_PROXY`:
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   ANDROID_SDK_ROOT=C:/code/tools/android-sdk \
   /c/code/tools/android-sdk/emulator/emulator -avd phantom-api35-play \
-  -no-snapshot -no-boot-anim -no-metrics
+  -memory 4096 -no-snapshot -no-boot-anim -no-metrics
 ```
 
 Add `-no-window -no-audio` to run it without a window. Never pass
@@ -139,7 +139,11 @@ opened and the intent needs no typing.
 
 A loaded device drops injected keys while the address bar fetches
 suggestions, and the address bar appends a selected inline completion to what
-was typed. Checking the field after each chunk handles both. On the capture
+was typed. Checking the field after each chunk handles both. An "isn't
+responding" dialog, which a busy emulator shows for System UI, takes the
+focus; the launcher taps its Wait button and refocuses the address bar.
+With 2.5 GB of RAM the guest's system server died during long capture
+sessions, so start the emulator with 4 GB. On the capture
 host a typed entry takes about 90 seconds while other builds run, so the
 Android runs use run timeouts of 240 seconds.
 

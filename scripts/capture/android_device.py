@@ -95,6 +95,8 @@ KEYCODE_A = "29"
 KEYCODE_DEL = "67"
 TYPING_CHUNK = 6
 WINDOW_DUMP = "/sdcard/phantom-window.xml"
+# The Wait button of Android's "isn't responding" dialog, which takes focus.
+ANR_WAIT_BUTTON = "android:id/aerr_wait"
 _LOOPBACK_PORT = re.compile(r"(?:127\.0\.0\.1|localhost|\[::1\]):(\d{1,5})\b")
 
 
@@ -156,6 +158,23 @@ def focused_field_text(dump: str) -> str | None:
     for node in root.iter("node"):
         if node.get("focused") == "true":
             return node.get("text", "")
+    return None
+
+
+def wait_button_center(dump: str) -> tuple[int, int] | None:
+    """Return the center of an "isn't responding" dialog's Wait button, if shown."""
+    try:
+        root = ElementTree.fromstring(dump)
+    except ElementTree.ParseError:
+        return None
+    for node in root.iter("node"):
+        if node.get("resource-id") == ANR_WAIT_BUTTON:
+            numbers = [
+                int(value) for value in re.findall(r"\d+", node.get("bounds", ""))
+            ]
+            if len(numbers) == 4:
+                left, top, right, bottom = numbers
+                return (left + right) // 2, (top + bottom) // 2
     return None
 
 
@@ -320,9 +339,19 @@ class AndroidSession:
             self.device.shell("input", "keyevent", KEYCODE_ENTER)
 
     def focused_text(self) -> str | None:
-        """The text of the focused field on screen, from a window dump."""
+        """The text of the focused field on screen, from a window dump.
+
+        An overloaded device can show an "isn't responding" dialog, which
+        takes the focus. Wait is tapped, which only dismisses the dialog, and
+        None is returned so the caller refocuses the address bar.
+        """
         self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
         dumped = self.device.shell("cat", WINDOW_DUMP, check=False)
+        wait = wait_button_center(dumped)
+        if wait is not None:
+            self.device.shell("input", "tap", str(wait[0]), str(wait[1]))
+            time.sleep(1.0)
+            return None
         return focused_field_text(dumped)
 
     def type_url(self) -> None:

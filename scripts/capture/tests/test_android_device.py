@@ -362,6 +362,29 @@ class AndroidSessionTests(unittest.TestCase):
             ("shell", "am", "force-stop", browser.package), device.commands[-6:]
         )
 
+    def test_typed_entry_taps_wait_on_a_not_responding_dialog(self) -> None:
+        url = "http://127.0.0.1:9450/"
+        dialog = (
+            '<hierarchy><node text="Close app" focused="true" />'
+            '<node text="Wait" resource-id="android:id/aerr_wait" '
+            'bounds="[70,1304][1010,1430]" /></hierarchy>'
+        )
+        device = RecordingDevice()
+        screens = iter([dialog, screen("http:/"), screen(url)])
+        device.next_screen = lambda: next(screens)  # type: ignore[attr-defined]
+        launch = AndroidLaunch(
+            ANDROID_BROWSERS["chrome-android"], url, settle=0, typing_delay=0
+        )
+
+        with AndroidSession(device, launch):  # type: ignore[arg-type]
+            commands = list(device.commands)
+
+        tap = commands.index(("shell", "input", "tap", "540", "1367"))
+        self.assertEqual(
+            commands[tap + 1], ("shell", "input", "keycombination", "113", "40")
+        )
+        self.assertEqual(commands[-1], ("shell", "input", "keyevent", "66"))
+
     def test_focused_field_text_reads_only_the_focused_node(self) -> None:
         dump = (
             "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy>"
