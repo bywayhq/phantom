@@ -21,8 +21,8 @@ An agent that uses Phantom as a library, rather than changing it, should read
 - Documentation follows
   [Writing the documentation](docs/internals/documentation.md); check it with
   `python scripts/docs/check_docs.py`.
-- Run the full integration gate with `scripts/dev/gate.sh`, and a lane's
-  checks with `scripts/dev/gate.sh --quick`; see
+- The integration owner runs the full gate with `scripts/dev/gate.sh`; a
+  lane may run `scripts/dev/gate.sh --quick` before handoff. See
   [Verification and handoff](#verification-and-handoff).
 
 ## Before editing
@@ -46,9 +46,12 @@ Use a sibling worktree only when independent work can proceed concurrently.
   branch, and never edits the integration checkout or another lane.
 - Serialize Cargo across worktrees with the lock helper. A lane normally stops
   after source and static checks; the integration checkout owns workspace
-  compilation and broad gates. A focused pre-integration build, when
-  assigned, uses the worktree's own `target/`. Never share a Cargo target
-  directory between divergent worktrees.
+  compilation and the full gate. A lane may run `scripts/dev/gate.sh --quick`
+  as its focused pre-handoff check; it builds in the worktree's
+  `target/gate/lint` and `target/gate/test`, beside `target/debug`, so budget
+  the disk for them. A focused pre-integration build, when assigned, also
+  uses the worktree's own `target/`. Never share a Cargo target directory
+  between divergent worktrees.
 - A lane commits in logical steps and hands off; it does not rebase onto or
   merge into `main` itself.
 - The integration owner rebases the lane onto `main`, reviews every commit,

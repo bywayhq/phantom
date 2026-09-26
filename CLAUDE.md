@@ -13,8 +13,9 @@
   evidence), and `/phantom-docs` (write or review documentation). The
   `gate-reviewer` subagent reviews a lane diff against AGENTS.md before
   integration.
-- A lane checks its work with `scripts/dev/gate.sh --quick`; the integration
-  checkout runs the full `scripts/dev/gate.sh` on the rebased branch.
+- A lane may run `scripts/dev/gate.sh --quick` as its pre-handoff check; only
+  the integration checkout runs the full `scripts/dev/gate.sh`, on the
+  rebased branch.
 - The Bash tool times out after at most ten minutes, and waiting for the Cargo
   lock counts toward it. Run the gate or a long `cargo test` in the
   background, write its output to a log, and read the log and the per-step
