@@ -284,34 +284,28 @@ pub(super) async fn send_once_raced(
                     Ok(connection.early_data_handshake_failed().await)
                 })
                 .await;
-            match handshake_failed {
-                Ok(false) => {
-                    client.confirm_alt_svc(&request.endpoint, route, &alternative);
-                    return result;
-                }
-                Ok(true) if result.is_ok() => {
-                    // The connection closed after the response: nothing to
-                    // send again, but QUIC to the origin failed its handshake.
-                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
-                    return result;
-                }
-                Ok(true) => {}
-                Err(_) => return result,
-            }
-            // Chromium fails the requests of a session whose handshake failed
-            // with ERR_QUIC_HANDSHAKE_FAILED and marks QUIC to the origin
-            // recently broken; HttpNetworkTransaction::HandleIOError then
-            // restarts the transaction, which races again without early data
-            // (`RetryReason::kQuicHandshakeFailed`,
-            // `net/http/http_network_transaction.cc` lines 2077-2078 and
-            // 2222-2233 at 154.0.8037.58).
-            client.mark_origin_quic_recently_broken(&request.endpoint, route);
             let replayable = matches!(
                 &*body,
                 RequestBodySource::Absent | RequestBodySource::Bytes(_)
             );
-            if !races_again(alternative.allows_early_data(), replayable) {
-                return result;
+            match after_early_win(
+                handshake_failed.ok(),
+                result.is_ok(),
+                alternative.allows_early_data(),
+                replayable,
+            ) {
+                EarlyWinStep::Return => return result,
+                EarlyWinStep::Confirm => {
+                    client.confirm_alt_svc(&request.endpoint, route, &alternative);
+                    return result;
+                }
+                EarlyWinStep::MarkRecentlyBroken => {
+                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
+                    return result;
+                }
+                EarlyWinStep::RaceAgain => {
+                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
+                }
             }
             tracing::debug!(
                 outcome = "handshake_failed",
@@ -384,6 +378,48 @@ pub(super) async fn send_once_raced(
 /// alternative confirmed, since no handshake completed.
 const fn confirms_orphan(handshake_failed: bool) -> bool {
     !handshake_failed
+}
+
+/// What follows a request on a raced alternative that won on early data.
+#[derive(Debug, Eq, PartialEq)]
+enum EarlyWinStep {
+    /// The answer is unknown within the deadlines: return the result as it is.
+    Return,
+    /// The handshake completed: confirm the alternative.
+    Confirm,
+    /// The handshake failed: mark QUIC to the origin recently broken and
+    /// return the result.
+    MarkRecentlyBroken,
+    /// The handshake failed and the request may be raced once more: mark QUIC
+    /// to the origin recently broken and race again without early data.
+    RaceAgain,
+}
+
+/// Decides [`EarlyWinStep`] from whether the handshake failed (`None` when
+/// the answer did not arrive within the deadlines), whether the request got
+/// a response, whether its race allowed early data, and whether its body can
+/// be sent again.
+///
+/// Chromium fails the requests of a session whose handshake failed with
+/// `ERR_QUIC_HANDSHAKE_FAILED` and marks QUIC to the origin recently broken;
+/// `HttpNetworkTransaction::HandleIOError` then restarts the transaction,
+/// which races again without early data (`RetryReason::kQuicHandshakeFailed`,
+/// `net/http/http_network_transaction.cc` lines 2077-2078 and 2222-2233 at
+/// 154.0.8037.58). A response already received is not sent again.
+const fn after_early_win(
+    handshake_failed: Option<bool>,
+    responded: bool,
+    allowed_early_data: bool,
+    replayable: bool,
+) -> EarlyWinStep {
+    match handshake_failed {
+        None => EarlyWinStep::Return,
+        Some(false) => EarlyWinStep::Confirm,
+        Some(true) if !responded && races_again(allowed_early_data, replayable) => {
+            EarlyWinStep::RaceAgain
+        }
+        Some(true) => EarlyWinStep::MarkRecentlyBroken,
+    }
 }
 
 /// Returns whether a request whose raced alternative failed its handshake

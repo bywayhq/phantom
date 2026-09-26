@@ -376,3 +376,45 @@ fn the_orphan_rule_confirms_only_after_a_completed_handshake() {
     assert!(confirms_orphan(false));
     assert!(!confirms_orphan(true));
 }
+
+#[test]
+fn a_raced_early_win_is_confirmed_marked_or_raced_again_by_its_handshake() {
+    use super::{EarlyWinStep, after_early_win};
+
+    // An answer that did not arrive within the deadlines changes nothing.
+    assert_eq!(
+        after_early_win(None, false, true, true),
+        EarlyWinStep::Return
+    );
+    assert_eq!(
+        after_early_win(None, true, true, true),
+        EarlyWinStep::Return
+    );
+    // A completed handshake confirms, with or without a response.
+    assert_eq!(
+        after_early_win(Some(false), true, true, true),
+        EarlyWinStep::Confirm
+    );
+    assert_eq!(
+        after_early_win(Some(false), false, true, true),
+        EarlyWinStep::Confirm
+    );
+    // A response on a handshake that then failed is kept and not sent again.
+    assert_eq!(
+        after_early_win(Some(true), true, true, true),
+        EarlyWinStep::MarkRecentlyBroken
+    );
+    // A failed request is raced again once, with a replayable body.
+    assert_eq!(
+        after_early_win(Some(true), false, true, true),
+        EarlyWinStep::RaceAgain
+    );
+    assert_eq!(
+        after_early_win(Some(true), false, false, true),
+        EarlyWinStep::MarkRecentlyBroken
+    );
+    assert_eq!(
+        after_early_win(Some(true), false, true, false),
+        EarlyWinStep::MarkRecentlyBroken
+    );
+}
