@@ -1,8 +1,8 @@
 diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
-index f0e5f477..426fb6e1 100644
+index f0e5f477..c39e5035 100644
 --- a/h3/src/client/builder.rs
 +++ b/h3/src/client/builder.rs
-@@ -266,6 +266,30 @@ impl Builder {
+@@ -266,6 +266,32 @@ impl Builder {
          self
      }
  
@@ -18,13 +18,15 @@ index f0e5f477..426fb6e1 100644
 +    }
 +
 +    /// Defers the local QPACK encoder stream type until the first field
-+    /// section is encoded with encoder instructions.
++    /// section that is prepared while encoder instructions are queued.
 +    ///
 +    /// The stream is still reserved during connection setup, so its identifier
 +    /// and critical-stream lifecycle remain unchanged. Instructions queued
-+    /// before that field section, such as the dynamic table capacity, are
-+    /// held and written with it, after the stream type, so a connection that
-+    /// encodes no field section never writes to the stream.
++    /// before any field section, such as the dynamic table capacity, are
++    /// held. With that field section, the type and every queued instruction,
++    /// its own inserts included, are written ahead of its HEADERS. A
++    /// connection that prepares no field section, or never queues an
++    /// instruction, never writes to the stream.
 +    pub fn defer_qpack_encoder_stream(&mut self, enabled: bool) -> &mut Self {
 +        self.config.defer_qpack_encoder_stream = enabled;
 +        self
@@ -33,7 +35,7 @@ index f0e5f477..426fb6e1 100644
      /// Create a new HTTP/3 client from a `quic` connection
      pub async fn build<C, O, B>(
          &mut self,
-@@ -343,6 +367,16 @@ mod tests {
+@@ -343,6 +369,16 @@ mod tests {
          assert!(builder.config.defer_qpack_decoder_stream);
      }
  
@@ -51,7 +53,7 @@ index f0e5f477..426fb6e1 100644
          let settings = configured_settings(builder);
          let mut bytes = Vec::new();
 diff --git a/h3/src/client/outbound_qpack.rs b/h3/src/client/outbound_qpack.rs
-index 6091958e..29807dec 100644
+index 6091958e..bf4361be 100644
 --- a/h3/src/client/outbound_qpack.rs
 +++ b/h3/src/client/outbound_qpack.rs
 @@ -30,6 +30,7 @@ pub(crate) fn channel() -> (Driver, Sender) {
@@ -62,18 +64,19 @@ index 6091958e..29807dec 100644
          },
          Sender { commands, ready_rx },
      )
-@@ -142,6 +143,10 @@ pub(crate) struct Driver {
+@@ -142,6 +143,11 @@ pub(crate) struct Driver {
      publications: Vec<PendingPublication>,
      commands_closed: bool,
      configuration: Option<(usize, usize)>,
 +    /// The encoder stream type, while it is deferred. Nothing is written
-+    /// until a field section needs instructions; the type then precedes
-+    /// every instruction held until that point.
++    /// until a field section is prepared while instructions are queued; the
++    /// type then precedes every queued instruction, the table capacity
++    /// included.
 +    held_header: Option<Bytes>,
  }
  
  impl Driver {
-@@ -188,6 +193,26 @@ impl Driver {
+@@ -188,6 +194,26 @@ impl Driver {
          self.ready.send_replace(true);
      }
  
@@ -100,7 +103,7 @@ index 6091958e..29807dec 100644
      pub(crate) fn poll<S, B>(
          &mut self,
          encoder: &mut Encoder,
-@@ -203,7 +228,11 @@ impl Driver {
+@@ -203,7 +229,11 @@ impl Driver {
          let mut commands = 0;
  
          loop {
@@ -113,7 +116,7 @@ index 6091958e..29807dec 100644
                  match send.poll_send(cx, &mut self.instructions) {
                      Poll::Ready(Ok(0)) => return Poll::Ready(Err(PollError::WriteZero)),
                      Poll::Ready(Ok(written)) => sent = sent.saturating_add(written),
-@@ -212,7 +241,7 @@ impl Driver {
+@@ -212,7 +242,7 @@ impl Driver {
                  }
              }
  
@@ -122,7 +125,7 @@ index 6091958e..29807dec 100644
                  cx.waker().wake_by_ref();
                  return Poll::Pending;
              }
-@@ -365,6 +394,106 @@ pub(crate) enum PollError {
+@@ -365,6 +395,106 @@ pub(crate) enum PollError {
  #[cfg(test)]
  mod tests {
      use super::*;

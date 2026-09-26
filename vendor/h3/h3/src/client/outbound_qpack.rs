@@ -144,8 +144,9 @@ pub(crate) struct Driver {
     commands_closed: bool,
     configuration: Option<(usize, usize)>,
     /// The encoder stream type, while it is deferred. Nothing is written
-    /// until a field section needs instructions; the type then precedes
-    /// every instruction held until that point.
+    /// until a field section is prepared while instructions are queued; the
+    /// type then precedes every queued instruction, the table capacity
+    /// included.
     held_header: Option<Bytes>,
 }
 

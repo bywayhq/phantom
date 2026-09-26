@@ -278,13 +278,15 @@ impl Builder {
     }
 
     /// Defers the local QPACK encoder stream type until the first field
-    /// section is encoded with encoder instructions.
+    /// section that is prepared while encoder instructions are queued.
     ///
     /// The stream is still reserved during connection setup, so its identifier
     /// and critical-stream lifecycle remain unchanged. Instructions queued
-    /// before that field section, such as the dynamic table capacity, are
-    /// held and written with it, after the stream type, so a connection that
-    /// encodes no field section never writes to the stream.
+    /// before any field section, such as the dynamic table capacity, are
+    /// held. With that field section, the type and every queued instruction,
+    /// its own inserts included, are written ahead of its HEADERS. A
+    /// connection that prepares no field section, or never queues an
+    /// instruction, never writes to the stream.
     pub fn defer_qpack_encoder_stream(&mut self, enabled: bool) -> &mut Self {
         self.config.defer_qpack_encoder_stream = enabled;
         self

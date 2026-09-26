@@ -93,12 +93,13 @@ pub enum Http3QpackStreamOrder {
 pub enum Http3QpackEncoderStream {
     /// Write the encoder stream type when the HTTP/3 connection starts.
     Eager,
-    /// Reserve the stream but write its type only with the first encoder
-    /// instructions that a request's field section needs.
+    /// Reserve the stream but write its type only with the first request
+    /// field section that is prepared while encoder instructions are queued.
     ///
-    /// Instructions queued earlier, such as the dynamic table capacity, wait
-    /// for that field section. A connection that sends no request, or whose
-    /// requests need no instructions, never writes to the stream.
+    /// The type is then written with every queued instruction, such as the
+    /// dynamic table capacity and that field section's own inserts, ahead of
+    /// its HEADERS. A connection that sends no request, or never queues an
+    /// instruction, never writes to the stream.
     OnFirstInstruction,
 }
 

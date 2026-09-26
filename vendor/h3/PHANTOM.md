@@ -227,11 +227,12 @@ lines 32-51 at the revision Chromium 154 pins).
 `h3::client::Builder::qpack_decoder_stream_first` opens the decoder stream
 second and the encoder stream third. `defer_qpack_encoder_stream` reserves the
 encoder stream but holds its type in the outbound QPACK driver. Instructions
-queued before the first field section that needs them, such as the table
-capacity from peer or remembered SETTINGS, are held too, and all of them are
-written after the type ahead of that field section's HEADERS. A connection
-that encodes no such field section never writes to the stream. Both default to
-upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
+queued before any field section, such as the table capacity from peer or
+remembered SETTINGS, are held too. With the first field section that is
+prepared while instructions are queued, the type and every queued
+instruction, its own inserts included, are written ahead of its HEADERS. A
+connection that prepares no field section, or never queues an instruction,
+never writes to the stream. Both default to upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
 delta and its regression tests.
 
 ## Remembered SETTINGS for early data
