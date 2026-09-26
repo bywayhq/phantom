@@ -25,6 +25,12 @@
 #   -h, --help        Show this help.
 set -uo pipefail
 
+# Empty arrays under `set -u` and `mapfile` need bash 4.4 or later.
+if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
+  echo "gate: needs bash 4.4 or later, not $BASH_VERSION (on macOS: brew install bash)" >&2
+  exit 69
+fi
+
 usage() {
   sed -n '/^# Usage:/,/^# *-h, --help/s/^# \{0,1\}//p' "${BASH_SOURCE[0]}"
 }
@@ -48,9 +54,10 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-for value in "$slots" ${jobs:+"$jobs"} ${test_threads:+"$test_threads"}; do
+export PHANTOM_CARGO_SLOTS=${PHANTOM_CARGO_SLOTS:-$slots}
+for value in "$PHANTOM_CARGO_SLOTS" ${jobs:+"$jobs"} ${test_threads:+"$test_threads"}; do
   if ! [[ $value =~ ^[1-9][0-9]*$ ]]; then
-    echo "gate: counts must be positive integers, not '$value'" >&2
+    echo "gate: counts and PHANTOM_CARGO_SLOTS must be positive integers, not '$value'" >&2
     exit 64
   fi
 done
@@ -62,7 +69,27 @@ fi
 root=$(git rev-parse --show-toplevel) || exit 1
 cd "$root" || exit 1
 lock="$root/scripts/dev/with-cargo-lock.sh"
-export PHANTOM_CARGO_SLOTS=${PHANTOM_CARGO_SLOTS:-$slots}
+workflow=.github/workflows/ci.yml
+# Plain diagnostics, so the log scan below sees `warning:` at a line start.
+export CARGO_TERM_COLOR=never
+
+# The files that differ from the merge base with --base (committed, staged,
+# unstaged, or untracked). Found before anything runs, so a missing or wrong
+# base stops the gate instead of selecting no tests.
+changed_files=""
+if [[ $quick == true && ${#packages[@]} -eq 0 ]]; then
+  if ! merge_base=$(git merge-base HEAD "$base" 2>/dev/null); then
+    echo "gate: no merge base between HEAD and '$base'; pass --base REF or -p PACKAGE" >&2
+    exit 64
+  fi
+  if ! changed_files=$(git -c core.safecrlf=false diff --name-only "$merge_base") ||
+    ! untracked=$(git ls-files --others --exclude-standard); then
+    echo "gate: could not list the files changed since $base" >&2
+    exit 1
+  fi
+  changed_files+=$'\n'$untracked
+fi
+
 if [[ -z $jobs ]]; then
   cpus=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 4)
   # Twice the fair share: a build spends much of its time compiling one crate
@@ -106,22 +133,37 @@ run_step() {
   printf '%s %s\n' "$status" "$(($(date +%s) - start))" >"$logs/$name.status"
 }
 
-# feature_rows JOB TARGET: checks each optional feature row of the CI job JOB
-# (features or msrv) in target/gate/TARGET. The rows are read from the
-# workflow, so the gate and CI cannot drift apart. Every row runs; the status
-# is 1 when any row fails. The rows take one Cargo slot for the whole batch:
-# each is a check of a few seconds, and queueing for a slot before every row
-# spent several minutes behind the other chains' long builds.
+# feature_rows JOB TARGET: runs each `cargo check` or `cargo clippy` command
+# of the CI job JOB (features or msrv) in target/gate/TARGET. The rows are
+# read from the workflow, so the gate and CI cannot drift apart, and the gate
+# fails when the job has a check or clippy command that the row pattern does
+# not match. The MSRV job's workspace check is the msrv-workspace step. Every
+# row runs; the status is 1 when any row fails. The rows take one Cargo slot
+# for the whole batch: each takes a few seconds, and queueing for a slot
+# before every row spent several minutes behind the other chains' builds.
 feature_rows() {
-  local job=$1 target=$2 pattern rows toolchain=""
+  local job=$1 target=$2 block line listed parsed=0 rows=() toolchain=""
+  [[ $job == msrv ]] && toolchain="+$msrv"
+  block=$(awk -v start="  $job:" '
+    { sub(/\r$/, "") }
+    $0 == start { inside = 1; next }
+    inside && /^  [A-Za-z0-9_-]+:$/ { exit }
+    inside { print }' "$workflow")
   # shellcheck disable=SC2016 # $MSRV is literal workflow text.
-  case $job in
-    features) pattern='s/^ +cargo check (-p .* --locked)\r?$/\1/p' ;;
-    msrv) pattern='s/^ +cargo "\+\$MSRV" check (-p .* --locked)\r?$/\1/p'; toolchain="+$msrv" ;;
-  esac
-  mapfile -t rows < <(sed -nE "$pattern" .github/workflows/ci.yml)
-  if [[ ${#rows[@]} -eq 0 ]]; then
-    echo "gate: no $job feature rows found in .github/workflows/ci.yml"
+  local any='cargo +("\+\$MSRV" +)?(check|clippy)( |$)'
+  # shellcheck disable=SC2016
+  local row='^ +(run: +)?cargo ("\+\$MSRV" )?((check|clippy) .*--locked( -- -D warnings)?)$'
+  listed=$(grep -cE -- "$any" <<<"$block")
+  while IFS= read -r line; do
+    [[ $line =~ $row ]] || continue
+    parsed=$((parsed + 1))
+    if [[ $job == msrv && ${BASH_REMATCH[3]} == 'check --workspace --all-targets --locked' ]]; then
+      continue
+    fi
+    rows+=("${BASH_REMATCH[3]}")
+  done <<<"$block"
+  if ((listed != parsed || ${#rows[@]} == 0)); then
+    echo "gate: the $job job in $workflow has $listed cargo check or clippy commands, but the gate parsed $parsed as feature rows"
     return 1
   fi
   # shellcheck disable=SC2016 # The script expands its own arguments.
@@ -130,22 +172,19 @@ feature_rows() {
     shift 2
     for row in "$@"; do
       read -ra args <<<"$row"
-      printf "\n\$ cargo %scheck -j %s %s\n" "${toolchain:+$toolchain }" "$jobs" "$row"
-      cargo ${toolchain:+"$toolchain"} check -j "$jobs" "${args[@]}" || status=1
+      printf "\n\$ cargo %s%s -j %s %s\n" "${toolchain:+$toolchain }" "${args[0]}" "$jobs" \
+        "${args[*]:1}"
+      cargo ${toolchain:+"$toolchain"} "${args[0]}" -j "$jobs" "${args[@]:1}" || status=1
     done
     exit "$status"' _ "$toolchain" "$jobs" "${rows[@]}"
 }
 
-# changed_packages: prints the workspace packages whose files differ from the
-# merge base with $base (committed, staged, unstaged, or untracked), or `*`
-# when a change outside crates/ can affect every package.
+# changed_packages: prints the workspace packages that own a file in
+# $changed_files, or `*` when a change outside crates/ can affect every
+# package.
 changed_packages() {
-  local merge_base path dir name
-  merge_base=$(git merge-base HEAD "$base") || return 1
-  {
-    git -c core.safecrlf=false diff --name-only "$merge_base"
-    git ls-files --others --exclude-standard
-  } | sort -u | while IFS= read -r path; do
+  local path dir name
+  sort -u <<<"$changed_files" | while IFS= read -r path; do
     case $path in
       crates/*/*)
         dir=${path#crates/}
@@ -160,23 +199,29 @@ changed_packages() {
   done | sort -u
 }
 
-# Each chain runs in a process group of its own, so an interrupted gate stops
-# the whole chain, Cargo and the lock helper included, and no orphaned build
-# keeps a lock slot.
+# Each chain runs in a process group of its own, so a gate stopped by HUP,
+# INT, or TERM stops the whole chain, Cargo and the lock helper included, and
+# no orphaned build keeps a lock slot. The group IDs are also written to
+# target/gate/logs/chains.pids: a gate killed without running this trap
+# (SIGKILL, or a timeout that kills only the gate's own process group) leaves
+# its chains running, and scripts/dev/README.md shows how to stop them.
 set -m
 pids=()
 launch() {
   "$@" &
   pids+=($!)
+  echo "$!" >>"$logs/chains.pids"
 }
 stop_chains() {
   local pid
   for pid in "${pids[@]}"; do
     kill -TERM -- "-$pid" 2>/dev/null
   done
-  exit 130
+  exit "$1"
 }
-trap stop_chains INT TERM
+trap 'stop_chains 129' HUP
+trap 'stop_chains 130' INT
+trap 'stop_chains 143' TERM
 
 gate_start=$(date +%s)
 steps=(fmt)

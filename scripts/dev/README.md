@@ -41,8 +41,9 @@ green exit status does not prove that Cargo passed. Search the gate output for
 ## Integration gate
 
 `gate.sh` runs the gate from
-[AGENTS.md](../../AGENTS.md#verification-and-handoff). `cargo fmt --check`
-runs first and stops the gate when it fails. The other steps run as
+[AGENTS.md](../../AGENTS.md#verification-and-handoff). It needs bash 4.4 or
+later; macOS ships bash 3.2, so install a newer one (`brew install bash`).
+`cargo fmt --check` runs first and stops the gate when it fails. The other steps run as
 concurrent chains:
 
 | Chain | Target directory | Steps |
@@ -50,13 +51,16 @@ concurrent chains:
 | Tests | `target/gate/test` | `cargo nextest run`, `cargo test --doc`, then the tests of the `fuzz/` crate |
 | Lint | `target/gate/lint`, then `target/gate/doc` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
-| Features | `target/gate/features` | The Features job's rows |
+| Features | `target/gate/features` | The Features job's rows, `cargo check` or `cargo clippy` as the job writes them |
 | Python | none | ruff, the three unittest suites, the docs checker, and the tool-pin check |
 
 The feature rows are read from `.github/workflows/ci.yml`, so the gate checks
-the rows CI checks. No two chains share a target directory, so chains do not
-wait on one another's Cargo build lock; the first run builds each directory
-from scratch, and later runs are incremental. Only Clippy builds in
+the rows CI checks. The gate fails if either job has a `cargo check` or
+`cargo clippy` command it cannot parse as a row. No two chains share a target
+directory, so chains do not wait on one another's Cargo build lock. The first
+run builds each directory from scratch, and later runs reuse what is already
+built there; `with-cargo-lock.sh` turns off incremental compilation, so a
+changed crate is rebuilt whole. Only Clippy builds in
 `target/gate/lint`: the `btls-sys` build script reruns whenever
 `RUSTC_WORKSPACE_WRAPPER` changes, and Clippy sets it while other Cargo
 commands do not, so sharing a directory rebuilds BoringSSL on each switch.
@@ -71,7 +75,8 @@ scripts/dev/gate.sh --quick -p phantom-net
 
 `--quick` runs formatting, Clippy, the docs checker, and nextest on the
 crates changed since the merge base with `main` (`--base REF` for another
-branch) and the crates that depend on them. A change to a manifest, the lock
+branch) and the crates that depend on them. It stops with an error when that
+merge base cannot be found. A change to a manifest, the lock
 file, `vendor/`, `fixtures/`, or `.config/` tests the whole workspace. A `-p`
 list tests exactly those packages.
 
@@ -92,6 +97,19 @@ to `--slots` (default 4). Each Cargo command gets `-j` jobs
 crate and leaves cores idle); `--test-threads` sets how many tests
 nextest runs at once. Without `cargo-nextest`, the tests step runs
 `cargo test` instead.
+
+Each chain runs in a process group of its own. When the gate receives `HUP`,
+`INT`, or `TERM`, it stops every chain, and each lock helper releases its
+slot. A gate killed without that chance, by `SIGKILL` or by a timeout that
+kills only the gate's own process group, leaves its chains running and
+holding slots. Stop them with the group IDs the gate recorded:
+
+```sh
+while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.pids
+```
+
+A lock whose holder died without releasing it is reclaimed by the next
+waiting command, as [below](#cargo-lock) describes.
 
 ## Cargo lock
 
