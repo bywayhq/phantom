@@ -404,6 +404,17 @@ pub fn v156_http2() -> Http2Settings {
 /// 1006, on every run, so its refusal is not retried. In the `accept-deflate`
 /// captures it sends a zero-length text message uncompressed, with RSV1 clear
 /// and an empty payload, while compressing every non-empty message.
+///
+/// The 20-second handshake timeout is Firefox's default, not a capture:
+/// `WebSocketChannel` starts its open timer once the HTTP channel opens,
+/// cancels it in `CallStartWebsocketData` when the handshake completes, and
+/// aborts the connection with `NS_ERROR_NET_TIMEOUT_EXTERNAL` when it fires
+/// (`netwerk/protocol/websocket/WebSocketChannel.cpp` lines 1200, 1403-1420,
+/// 2974-2980, and 3342-3351 at `FIREFOX_156_0_RELEASE`). The value is the
+/// `network.websocket.timeout.open` preference, 20 seconds by default
+/// (`modules/libpref/init/all.js` line 1325). Firefox resolves the host for
+/// its per-host admission queue before that timer starts; Phantom's deadline
+/// includes that lookup.
 #[must_use]
 pub fn v156_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -450,6 +461,7 @@ pub fn v156_websocket() -> WebSocketSettings {
         ],
         permessage_deflate_offer: Vec::new(),
         empty_message_compression: WebSocketEmptyMessageCompression::Uncompressed,
+        handshake_timeout: Some(Duration::from_secs(20)),
     }
 }
 

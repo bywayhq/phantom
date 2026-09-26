@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use super::{
     WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -224,6 +224,32 @@ fn validation_rejects_invalid_deflate_offers() {
         settings.validate().map_err(|error| error.field()),
         Err("permessage_deflate_offer")
     );
+}
+
+#[test]
+fn recipes_carry_the_browser_handshake_timers() {
+    // Chromium's kHandshakeTimeoutIntervalInSeconds and Firefox's
+    // network.websocket.timeout.open default; see the recipe docs.
+    assert_eq!(
+        chromium::v154_websocket().handshake_timeout,
+        Some(Duration::from_secs(240))
+    );
+    assert_eq!(
+        firefox::v156_websocket().handshake_timeout,
+        Some(Duration::from_secs(20))
+    );
+}
+
+#[test]
+fn validation_rejects_a_zero_handshake_timeout() {
+    let mut settings = chromium::v154_websocket();
+    settings.handshake_timeout = Some(Duration::ZERO);
+    assert_eq!(
+        settings.validate().map_err(|error| error.field()),
+        Err("handshake_timeout")
+    );
+    settings.handshake_timeout = None;
+    assert!(settings.validate().is_ok());
 }
 
 #[derive(Default)]

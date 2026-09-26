@@ -19,6 +19,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `WebSocketSettings` gained the public field `handshake_timeout`
+  (`Option<Duration>`), the browser's own opening-handshake timer, so struct
+  literals that name every field no longer compile. `chromium::v154_websocket`
+  sets 240 seconds, Chromium's `kHandshakeTimeoutIntervalInSeconds`, and
+  `firefox::v156_websocket` sets 20 seconds, Firefox's
+  `network.websocket.timeout.open` default. `WebSocketSettings::validate`
+  rejects `Some(Duration::ZERO)`.
+  Migrate: add `handshake_timeout: None` to a `WebSocketSettings` literal to
+  keep no limit, or copy the value from a recipe.
 - The Edge recipes move to Edge 154.0.4258.37 on Windows 11 and macOS 15.5:
   `edge::v153_tls`, `v153_http3_tls`, `v153_windows_client_hints`,
   `v153_macos_client_hints`, `v153_windows_navigation_template`, and

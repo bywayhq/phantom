@@ -511,6 +511,15 @@ pub fn v154_http2() -> Http2Settings {
 /// data frame had been sent on the refused stream. The `accept-deflate`
 /// captures show a zero-length text message compressed into one byte with RSV1
 /// set.
+///
+/// The 240-second handshake timeout is Chromium's own constant, not a
+/// capture: `WebSocketStreamRequestImpl::Start` starts a one-shot timer of
+/// `kHandshakeTimeoutIntervalInSeconds` before the opening request starts,
+/// `PerformUpgrade` stops it once the handshake stream is upgraded, and
+/// `OnTimeout` cancels the request with `ERR_TIMED_OUT`
+/// (`net/websockets/websocket_stream.cc` lines 60-64, 248-262, and 338-340
+/// at tag `154.0.8037.58`). The source comment sets it equal to the TCP
+/// connect timeout so that a page cannot tell which step timed out.
 #[must_use]
 pub fn v154_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -548,6 +557,7 @@ pub fn v154_websocket() -> WebSocketSettings {
         ],
         permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
         empty_message_compression: WebSocketEmptyMessageCompression::Compressed,
+        handshake_timeout: Some(Duration::from_secs(240)),
     }
 }
 

@@ -1,6 +1,6 @@
 //! Backend-neutral WebSocket opening fields and connection choice.
 
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, time::Duration};
 
 use crate::TlsSettings;
 
@@ -320,6 +320,15 @@ pub struct WebSocketSettings {
     /// It applies only while `permessage-deflate` is in use; without it every
     /// message is sent with RSV1 clear.
     pub empty_message_compression: WebSocketEmptyMessageCompression,
+    /// The longest one opening handshake may take, from the start of the
+    /// connect until the accepting response is validated, or `None` for no
+    /// limit.
+    ///
+    /// This is the browser's own fixed opening timer, not caller policy. It
+    /// covers name resolution, proxy setup, TLS, the opening request, and its
+    /// response as one deadline, and it applies to every WebSocket the client
+    /// opens with this profile unless the caller replaces it for one connect.
+    pub handshake_timeout: Option<Duration>,
 }
 
 impl WebSocketSettings {
@@ -328,10 +337,16 @@ impl WebSocketSettings {
     /// # Errors
     ///
     /// Returns [`InvalidWebSocketSettings`] for an ALPN list that cannot carry
-    /// an HTTP/1.1 Upgrade, a template that is not usable by its protocol, or
-    /// an invalid compression offer.
+    /// an HTTP/1.1 Upgrade, a template that is not usable by its protocol, an
+    /// invalid compression offer, or a zero handshake timeout.
     pub fn validate(&self) -> Result<(), InvalidWebSocketSettings> {
         self.connection.validate()?;
+        if self.handshake_timeout == Some(Duration::ZERO) {
+            return Err(InvalidWebSocketSettings::new(
+                "handshake_timeout",
+                "a handshake timeout must be positive; None sets no limit",
+            ));
+        }
         validate_template(&self.http1_fields, "http1_fields", false)?;
         validate_template(&self.http2_fields, "http2_fields", true)?;
         validate_deflate_offer(&self.permessage_deflate_offer)
