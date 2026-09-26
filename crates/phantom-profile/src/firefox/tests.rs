@@ -1,4 +1,4 @@
-use super::{v156_http2, v156_tls};
+use super::{v156_http2, v156_http3, v156_http3_request, v156_http3_tls, v156_quic, v156_tls};
 use crate::http2::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
     Http2StreamSettings, session_capture::SessionCapture,
@@ -252,4 +252,12 @@ fn firefox_156_macos_http2_session_capture_matches_the_recipe()
         assert_eq!(run, navigation);
     }
     Ok(())
+}
+
+#[test]
+fn http3_recipes_are_valid_profile_data() {
+    assert_eq!(v156_http3_tls().validate(), Ok(()));
+    assert_eq!(v156_quic().validate(), Ok(()));
+    assert_eq!(v156_http3().validate(), Ok(()));
+    assert_eq!(v156_http3_request().validate(), Ok(()));
 }

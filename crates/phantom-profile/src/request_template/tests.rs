@@ -666,8 +666,65 @@ fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult
     let (http1, http2) = observed(&[&FIREFOX_SSE, &FIREFOX_WEBSOCKET], "page", "document")?;
     assert_all_match(&template, Protocol::Http1, None, &http1, 170, "firefox h1");
     assert_all_match(&template, Protocol::Http2, None, &http2, 18, "firefox h2");
-    assert_eq!(template.http3_fields, None);
     Ok(())
+}
+
+const FIREFOX_156_H3_COOKIES: &str = include_str!(concat!(
+    "../../../../fixtures/cookies/firefox/156.0/windows-11-26200/",
+    "crumbs-h3.txt"
+));
+const FIREFOX_156_H3_SNAPSHOT: &str = include_str!(concat!(
+    "../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/",
+    "snapshot-1.txt"
+));
+
+/// Returns the ordinary field names of one captured HTTP/3 request, without
+/// the fields the client generates.
+fn captured_http3_order(fixture: &str, key: &str) -> Vec<String> {
+    let prefix = format!("{key}_field_order=");
+    let line = fixture
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix.as_str()))
+        .unwrap_or_else(|| panic!("fixture lacks {prefix}"));
+    line.split(',')
+        .filter(|name| !name.starts_with(':') && *name != "alt-used" && *name != "cookie")
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Returns the HTTP/3 list's field names; a template without one has none.
+fn http3_names(template: &RequestTemplate, omit: &[&str]) -> Vec<String> {
+    template
+        .http3_fields
+        .iter()
+        .flatten()
+        .filter_map(RequestField::name)
+        .filter(|name| !omit.contains(name))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn firefox_156_http3_templates_follow_the_captured_field_order() {
+    let navigation = firefox::v156_windows_navigation_template();
+    // Run 0's first request is a typed navigation with no referrer.
+    for run in 0..3 {
+        assert_eq!(
+            captured_http3_order(FIREFOX_156_H3_COOKIES, &format!("run_{run}_request_0")),
+            http3_names(&navigation, &["referer"]),
+        );
+    }
+    let fetch = firefox::v156_windows_fetch_no_store_template();
+    for run in 0..3 {
+        assert_eq!(
+            captured_http3_order(FIREFOX_156_H3_COOKIES, &format!("run_{run}_request_2")),
+            http3_names(&fetch, &[]),
+        );
+    }
+    assert_eq!(
+        captured_http3_order(FIREFOX_156_H3_SNAPSHOT, "request_3"),
+        http3_names(&fetch, &[]),
+    );
 }
 
 #[test]
@@ -881,6 +938,7 @@ fn firefox_156_macos_templates_change_only_the_user_agent() {
             .http1_fields
             .iter_mut()
             .chain(adjusted.http2_fields.iter_mut())
+            .chain(adjusted.http3_fields.iter_mut().flatten())
         {
             if let RequestField::Literal { name, .. } = field
                 && name.eq_ignore_ascii_case("user-agent")

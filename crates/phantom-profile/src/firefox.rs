@@ -12,8 +12,18 @@ use crate::{
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
+    http3::{
+        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+        Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+        Http3SettingOrder, Http3Settings,
+    },
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
+    },
+    quic::{
+        QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
+        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
     },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
@@ -518,6 +528,251 @@ pub fn v156_proxy_connect() -> ProxyConnectTemplate {
     }
 }
 
+/// Returns TLS settings for the Firefox 156 HTTP/3 offer on Windows 11.
+///
+/// Firefox's QUIC stack, neqo, runs its handshake on NSS with a configuration
+/// of its own, so the QUIC ClientHello differs from [`v156_tls`]. The retained
+/// Firefox 156.0.1 QUIC ClientHellos (`fixtures/http3/firefox/156.0.1/`, three
+/// fresh processes and the first connection of each resumption run) offer TLS
+/// 1.3 alone, the three TLS 1.3 cipher suites in the TCP order, the `h3` ALPN
+/// protocol, and the TCP groups, key shares, status request, and ECH GREASE
+/// (with a 240-byte payload and one of the two AEADs). They differ from the
+/// TCP offer in these fields:
+///
+/// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes
+///   and adds ML-DSA-44, ML-DSA-65, and ML-DSA-87 after the RSA-PSS schemes;
+/// - `delegated_credentials` adds the three ML-DSA schemes after ECDSA-SHA1;
+/// - `compress_certificate` lists zlib, zstd, then brotli;
+/// - no `ec_point_formats`, `session_ticket`, or `signed_certificate_timestamp`;
+/// - the extension order changes on every connection
+///   ([`ClientHelloExtensionOrder::Permuted`]).
+///
+/// Three differences from Firefox remain, all in BoringSSL:
+///
+/// - Firefox keeps `quic_transport_parameters` and then
+///   `encrypted_client_hello` last and permutes only the extensions before
+///   them. BoringSSL's permutation also moves those two, so a Phantom
+///   ClientHello can place them anywhere.
+/// - Firefox sends `record_size_limit` (16385) over QUIC, where TLS has no
+///   records. Phantom's BoringSSL refuses the extension on a QUIC
+///   connection, so `record_size_limit` is `None` and the extension is
+///   absent.
+/// - Firefox sends the TLS 1.2 `extended_master_secret` and
+///   `renegotiation_info` extensions although it offers only TLS 1.3.
+///   BoringSSL omits both from a TLS 1.3-only ClientHello, and QUIC requires
+///   TLS 1.3.
+///
+/// `session_tickets` is enabled because Firefox resumes QUIC sessions: in the
+/// retained resumption captures a resumed ClientHello adds `early_data` and,
+/// last, `pre_shared_key`, as [`v156_quic`] allows.
+#[must_use]
+pub fn v156_http3_tls() -> TlsSettings {
+    let mut settings = v156_tls();
+    settings.min_version = TlsVersion::Tls13;
+    settings.max_version = TlsVersion::Tls13;
+    settings.cipher_suites = vec![
+        CipherSuite::Aes128GcmSha256,
+        CipherSuite::Chacha20Poly1305Sha256,
+        CipherSuite::Aes256GcmSha384,
+    ];
+    settings.signature_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::EcdsaSecp521r1Sha512,
+        SignatureScheme::EcdsaSha1,
+        SignatureScheme::RsaPssRsaeSha256,
+        SignatureScheme::RsaPssRsaeSha384,
+        SignatureScheme::RsaPssRsaeSha512,
+        SignatureScheme::MlDsa44,
+        SignatureScheme::MlDsa65,
+        SignatureScheme::MlDsa87,
+        SignatureScheme::RsaPkcs1Sha256,
+        SignatureScheme::RsaPkcs1Sha384,
+        SignatureScheme::RsaPkcs1Sha512,
+        SignatureScheme::RsaPkcs1Sha1,
+    ];
+    settings.delegated_credential_schemes = vec![
+        SignatureScheme::EcdsaSecp256r1Sha256,
+        SignatureScheme::EcdsaSecp384r1Sha384,
+        SignatureScheme::EcdsaSecp521r1Sha512,
+        SignatureScheme::EcdsaSha1,
+        SignatureScheme::MlDsa44,
+        SignatureScheme::MlDsa65,
+        SignatureScheme::MlDsa87,
+    ];
+    settings.certificate_compression = vec![
+        CertificateCompression::Zlib,
+        CertificateCompression::Zstd,
+        CertificateCompression::Brotli,
+    ];
+    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
+    settings.request_signed_certificate_timestamps = false;
+    settings.record_size_limit = None;
+    settings.extension_order = ClientHelloExtensionOrder::Permuted;
+    settings
+}
+
+/// Returns QUIC transport settings observed from Firefox 156.0.1 on Windows 11.
+///
+/// Every parameter, its identifier and length widths, its value width, and
+/// the fixed order come from the retained Firefox 156.0.1 QUIC ClientHellos:
+/// three fresh processes and, in the resumption capture, fifteen more
+/// connections, all with the same layout. The order is neqo's
+/// transport-parameter table order.
+///
+/// - The receive windows differ by stream class: 12 MiB for streams Firefox
+///   opens, 1 MiB for streams the server opens, 24 MiB for the connection.
+/// - `max_ack_delay` is 20 ms and `active_connection_id_limit` is 8.
+/// - The Source Connection ID is 3 bytes.
+/// - `version_information` lists a reserved version first, then QUIC v2, then
+///   QUIC v1. A fresh connection chooses v1; the aioquic capture server then
+///   moved every such connection to v2 by compatible version negotiation.
+///   Phantom follows a server that does so. A connection that presents a
+///   ticket starts in the version of the connection that received it, as
+///   every resumed Firefox connection started in v2.
+/// - The empty `reset_stream_at` parameter (`0x1d`) and draft 02's
+///   `min_ack_delay` (`0xff02de1a`, 1000 microseconds, an 8-byte identifier)
+///   precede `max_datagram_frame_size` (65535).
+/// - `max_udp_payload_size`, `grease_quic_bit`, and a reserved parameter are
+///   absent.
+///
+/// Every Initial datagram Firefox sent was 1252 bytes, and the first
+/// Initial's Destination Connection ID had a length drawn as neqo's
+/// `ConnectionId::generate_initial` draws it: `max(8, 5 + (b & (b >> 4)))`
+/// for a random byte `b` (`neqo-transport/src/cid.rs`). The diagnostic run
+/// that measured the sizes saw 11 and 17 bytes.
+///
+/// A resumed Firefox connection offers early data, so `early_data` is set;
+/// it takes effect with TLS settings that enable session tickets, such as
+/// [`v156_http3_tls`]. No resumed connection sent `initial_rtt_us`.
+#[must_use]
+pub fn v156_quic() -> QuicTransportSettings {
+    use QuicTransportParameterKind as Kind;
+    use QuicVarIntWidth::{Eight, Four, One, Two};
+
+    let parameter = |kind, id_width| QuicTransportParameter {
+        kind,
+        id_width,
+        length_width: One,
+    };
+
+    QuicTransportSettings {
+        max_idle_timeout_ms: 30_000,
+        max_udp_payload_size: 65_527,
+        initial_max_data: 25_165_824,
+        initial_max_stream_data_bidi_local: 12_582_912,
+        initial_max_stream_data_bidi_remote: 1_048_576,
+        initial_max_stream_data_uni: 1_048_576,
+        initial_max_streams_bidi: 100,
+        initial_max_streams_uni: 100,
+        max_datagram_frame_size: Some(65_535),
+        max_ack_delay_ms: 20,
+        active_connection_id_limit: 8,
+        min_ack_delay_us: Some(1_000),
+        reset_stream_at: true,
+        initial_datagram_size: Some(1_252),
+        initial_destination_connection_id: Some(QuicConnectionIdLength::MaskedRandom {
+            minimum: 8,
+            base: 5,
+        }),
+        wire_parameters: vec![
+            parameter(Kind::MaxIdleTimeout { value_width: Four }, One),
+            parameter(Kind::InitialMaxData { value_width: Four }, One),
+            parameter(
+                Kind::InitialMaxStreamDataBidiLocal { value_width: Four },
+                One,
+            ),
+            parameter(
+                Kind::InitialMaxStreamDataBidiRemote { value_width: Four },
+                One,
+            ),
+            parameter(Kind::InitialMaxStreamDataUni { value_width: Four }, One),
+            parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One),
+            parameter(Kind::InitialMaxStreamsUni { value_width: Two }, One),
+            parameter(Kind::MaxAckDelay { value_width: One }, One),
+            parameter(Kind::ActiveConnectionIdLimit { value_width: One }, One),
+            parameter(Kind::InitialSourceConnectionId { length: 3 }, One),
+            parameter(
+                Kind::VersionInformation(QuicVersionInformation {
+                    available_version_count: 2,
+                    grease: QuicVersionGrease::First,
+                }),
+                One,
+            ),
+            parameter(Kind::ResetStreamAt, One),
+            parameter(
+                Kind::MinAckDelay {
+                    draft: QuicAckFrequencyDraft::Draft02,
+                    value_width: Two,
+                },
+                Eight,
+            ),
+            parameter(Kind::MaxDatagramFrameSize { value_width: Four }, One),
+        ],
+        parameter_order: QuicTransportParameterOrder::Fixed,
+        early_data: true,
+    }
+}
+
+/// Returns HTTP/3 settings observed from Firefox 156.0.1 on Windows 11.
+///
+/// The six settings and their order come from the retained Firefox 156.0.1
+/// control streams: a 64 KiB QPACK table, 20 blocked streams, draft 02's
+/// `SETTINGS_ENABLE_WEBTRANSPORT` set to 0, the draft (`0xffd277`) and final
+/// `SETTINGS_H3_DATAGRAM` set to 1, and `SETTINGS_ENABLE_CONNECT_PROTOCOL`
+/// set to 1, each with a minimal-width value. The same control-stream write
+/// carries one reserved frame after SETTINGS; its first STREAM frame held 35
+/// to 39 bytes, 11 to 15 more than the type and SETTINGS, as neqo's
+/// `HFrame::Grease` gives with an 8-byte type and 0 to 7 payload bytes.
+///
+/// The resumption capture that records client unidirectional streams shows
+/// the control stream as client stream 2, the QPACK encoder stream as 6, and
+/// the decoder stream as 10, each with its type in the first frame. The
+/// encoder stream's first frame carried the Set Dynamic Table Capacity
+/// instruction for the server's 4096-byte table with the type. The QPACK
+/// encoding follows neqo: see [`Http3QpackEncoding::DynamicUnmatchedNames`],
+/// whose unit test reproduces the captured encoder stream and field sections.
+#[must_use]
+pub fn v156_http3() -> Http3Settings {
+    Http3Settings {
+        initial_settings: vec![
+            Http3Setting::QpackMaxTableCapacity(65_536),
+            Http3Setting::QpackBlockedStreams(20),
+            Http3Setting::EnableWebTransportDraft02(false),
+            Http3Setting::H3DatagramDraft04(true),
+            Http3Setting::H3Datagram(true),
+            Http3Setting::EnableConnectProtocol(true),
+        ],
+        setting_order: Http3SettingOrder::Fixed,
+        qpack_encoding: Http3QpackEncoding::DynamicUnmatchedNames,
+        qpack_decoder_stream: Http3QpackDecoderStream::Eager,
+        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
+        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
+        reserved_frame_after_settings: true,
+    }
+}
+
+/// Returns HTTP/3 request ordering observed from Firefox 156.0.1 on Windows 11.
+///
+/// Every captured HTTP/3 request sends `:method`, `:scheme`, `:authority`,
+/// and `:path` in that order. No capture backs an HTTP/3 extended CONNECT,
+/// so [`Http3RequestSettings::extended_connect_pseudo_header_order`] is
+/// `None`. The retained cookie captures (`fixtures/cookies/firefox/`) show
+/// one joined `cookie` field over HTTP/3 ([`Http3CookieCrumbs::Whole`]).
+#[must_use]
+pub fn v156_http3_request() -> Http3RequestSettings {
+    Http3RequestSettings {
+        pseudo_header_order: vec![
+            Http3PseudoHeader::Method,
+            Http3PseudoHeader::Scheme,
+            Http3PseudoHeader::Authority,
+            Http3PseudoHeader::Path,
+        ],
+        extended_connect_pseudo_header_order: None,
+        cookie_crumbs: Http3CookieCrumbs::Whole,
+    }
+}
+
 const V156_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
 const V156_PLAINTEXT_ACCEPT_ENCODING: &str = "gzip, deflate";
 const V156_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
@@ -581,8 +836,12 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// retained SSE and WebSocket captures and the HTTP/2 order from the page
 /// requests of the WebSocket captures; every run agrees. Firefox sends
 /// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
-/// There is no Firefox HTTP/3 recipe, so [`RequestTemplate::http3_fields`] is
-/// `None`. Each captured HTTP/2 page request carries HEADERS priority weight
+/// The HTTP/3 list comes from the retained Firefox 156.0.1 HTTP/3 snapshots
+/// and cookie captures: the HTTP/2 order without `te`, with a `referer`
+/// caller slot after `accept-encoding`, where a script navigation carries
+/// it. Firefox sends `Alt-Used` after `accept-encoding` on most requests to
+/// an origin it reached through an Alt-Svc alternative; Phantom generates
+/// that field and appends it last. Each captured HTTP/2 page request carries HEADERS priority weight
 /// 42, not exclusive, on stream 0, which is also [`v156_http2`]'s connection
 /// priority.
 ///
@@ -655,7 +914,19 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
             replay_proxy_authorization("proxy-authorization"),
             RequestField::literal("te", "trailers"),
         ],
-        http3_fields: None,
+        http3_fields: Some(vec![
+            RequestField::literal("user-agent", user_agent),
+            RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
+            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            accept_encoding("accept-encoding"),
+            RequestField::caller("referer"),
+            RequestField::literal("upgrade-insecure-requests", "1"),
+            RequestField::trustworthy_only("sec-fetch-dest", "document"),
+            RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
+            RequestField::trustworthy_only("sec-fetch-site", "none"),
+            RequestField::trustworthy_only("sec-fetch-user", "?1"),
+            RequestField::literal("priority", "u=0, i"),
+        ]),
         http2_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 42,
@@ -736,7 +1007,19 @@ fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
             replay_proxy_authorization("proxy-authorization"),
             RequestField::literal("te", "trailers"),
         ],
-        http3_fields: None,
+        http3_fields: Some(vec![
+            RequestField::literal("user-agent", user_agent),
+            RequestField::literal("accept", "*/*"),
+            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            accept_encoding("accept-encoding"),
+            RequestField::caller("referer"),
+            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
+            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
+            RequestField::literal("priority", "u=4"),
+            RequestField::literal("pragma", "no-cache"),
+            RequestField::literal("cache-control", "no-cache"),
+        ]),
         http2_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 22,
