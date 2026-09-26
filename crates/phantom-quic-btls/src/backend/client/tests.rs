@@ -2,7 +2,8 @@ use super::*;
 
 #[test]
 fn version_validation_happens_before_io() {
-    assert_eq!(interpret_version(QUIC_VERSION_1), Ok(QuicVersion::V1));
+    assert_eq!(interpret_version(0x0000_0001), Ok(QuicVersion::V1));
+    assert_eq!(interpret_version(0x6b33_43cf), Ok(QuicVersion::V2));
     assert_eq!(
         interpret_version(0xff00_001d),
         Err(ConnectError::UnsupportedVersion)

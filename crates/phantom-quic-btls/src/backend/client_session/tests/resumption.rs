@@ -638,3 +638,72 @@ fn preparing_a_context_twice_still_resumes() {
     handshake(&config, &server_context);
     assert!(resumed(handshake(&config, &server_context).as_ref()));
 }
+
+#[test]
+fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2() {
+    let server_context = server_context();
+    let profiled = test_ok(
+        QuicClientConfig::with_transport_profile(
+            resumption_client_context().0,
+            phantom_profile::firefox::v156_quic(),
+        ),
+        "Firefox transport profile",
+    );
+    let config = Arc::new(
+        test_ok(
+            profiled.with_tls_profile(&resuming_tls_settings()),
+            "resuming TLS profile",
+        )
+        .with_isolated_session_cache(),
+    );
+    let debug = |config: &Arc<QuicClientConfig>| {
+        let mut client = quinn_proto::ClientConfig::new(Arc::clone(config) as _);
+        config.configure_client(&mut client, SERVER_NAME);
+        // `ClientConfig` exposes its version only through `Debug`.
+        let debug = format!("{client:?}");
+        let digits = debug
+            .rsplit_once("version: ")
+            .map(|(_, rest)| {
+                rest.chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect::<String>()
+            })
+            .unwrap_or_default();
+        digits.parse::<u32>().ok()
+    };
+    // Without a ticket the connection starts in QUIC v1.
+    assert_eq!(debug(&config), Some(1));
+
+    // Quinn's parameters for the Firefox profile: those of the retained capture.
+    let snapshot = include_str!(
+        "../../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt"
+    );
+    let encoded = test_some(
+        snapshot
+            .lines()
+            .find_map(|line| line.strip_prefix("h3.transport_parameters_hex=")),
+        "captured transport parameters",
+    );
+    let encoded = (0..encoded.len())
+        .step_by(2)
+        .map(|index| u8::from_str_radix(&encoded[index..index + 2], 16))
+        .collect::<Result<Vec<_>, _>>();
+    let encoded = test_ok(encoded, "hexadecimal transport parameters");
+    let parameters = test_ok(
+        TransportParameters::read(Side::Server, &mut Cursor::new(encoded)),
+        "Firefox transport parameters",
+    );
+    let client = test_ok(
+        crypto::ClientConfig::start_session(
+            Arc::clone(&config),
+            0x6b33_43cf,
+            SERVER_NAME,
+            &parameters,
+        ),
+        "version 2 client session",
+    );
+    let server = test_ok(RawServer::new(&server_context), "server session");
+    drop(handshake_with(client, server));
+    assert!(config.has_ticket_for(SERVER_NAME));
+    assert_eq!(debug(&config), Some(0x6b33_43cf));
+}

@@ -7,7 +7,7 @@ use crate::hkdf::expand_label;
 use crate::secret::{
     AES_128_KEY_LEN, AES_256_KEY_LEN, CHACHA20_KEY_LEN, QUIC_NONCE_LEN, SHA256_LEN, Secret,
 };
-use crate::{CryptoError, HeaderProtectionKey, PacketProtectionKey, Result};
+use crate::{CryptoError, HeaderProtectionKey, PacketProtectionKey, QuicVersion, Result};
 
 #[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_AES_128_GCM_SHA256: u16 = 0x1301;
@@ -116,7 +116,8 @@ struct KeyMaterial {
 }
 
 impl KeyMaterial {
-    fn derive(suite: CipherSuite, traffic_secret: &[u8]) -> Result<Self> {
+    fn derive(suite: CipherSuite, traffic_secret: &[u8], version: QuicVersion) -> Result<Self> {
+        let labels = version.labels();
         let expected = suite.digest().output_len();
         if traffic_secret.len() != expected {
             return Err(CryptoError::InvalidKeyLength {
@@ -130,7 +131,7 @@ impl KeyMaterial {
         expand_label(
             suite.digest(),
             traffic_secret,
-            b"quic key",
+            labels.key,
             &[],
             &mut key.as_mut_slice()[..key_len],
         )?;
@@ -138,7 +139,7 @@ impl KeyMaterial {
         expand_label(
             suite.digest(),
             traffic_secret,
-            b"quic iv",
+            labels.iv,
             &[],
             iv.as_mut_slice(),
         )?;
@@ -146,7 +147,7 @@ impl KeyMaterial {
         expand_label(
             suite.digest(),
             traffic_secret,
-            b"quic hp",
+            labels.hp,
             &[],
             &mut header.as_mut_slice()[..key_len],
         )?;
@@ -171,11 +172,13 @@ impl KeyMaterial {
     }
 }
 
-pub(crate) fn derive_direction_keys(
+/// Derives packet and header keys with the labels of `version` (RFC 9369 section 3.3.2).
+pub(crate) fn derive_version_keys(
     suite: CipherSuite,
     traffic_secret: &[u8],
+    version: QuicVersion,
 ) -> Result<DirectionKeys> {
-    KeyMaterial::derive(suite, traffic_secret)?.into_keys(suite)
+    KeyMaterial::derive(suite, traffic_secret, version)?.into_keys(suite)
 }
 
 #[allow(dead_code, reason = "QUIC traffic-secret storage")]
@@ -200,14 +203,15 @@ impl TrafficSecret {
         }
     }
 
-    fn next(&self) -> Result<Self> {
+    fn next(&self, version: QuicVersion) -> Result<Self> {
+        let label = version.labels().ku;
         match self {
             Self::Sha256(secret) => {
                 let mut next = Secret::<SHA256_LEN>::zeroed();
                 expand_label(
                     HkdfDigest::Sha256,
                     secret.as_slice(),
-                    b"quic ku",
+                    label,
                     &[],
                     next.as_mut_slice(),
                 )?;
@@ -218,7 +222,7 @@ impl TrafficSecret {
                 expand_label(
                     HkdfDigest::Sha384,
                     secret.as_slice(),
-                    b"quic ku",
+                    label,
                     &[],
                     next.as_mut_slice(),
                 )?;
@@ -262,6 +266,7 @@ impl fmt::Debug for PacketKeyPair {
 #[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
 pub(crate) struct TrafficKeySchedule {
     suite: CipherSuite,
+    version: QuicVersion,
     local: TrafficSecret,
     remote: TrafficSecret,
     #[cfg(test)]
@@ -322,6 +327,7 @@ impl TrafficKeySchedule {
         };
         Ok(Self {
             suite,
+            version: QuicVersion::V1,
             local,
             remote,
             #[cfg(test)]
@@ -352,6 +358,7 @@ impl TrafficKeySchedule {
         }
         Ok(Self {
             suite,
+            version: QuicVersion::V1,
             local,
             remote,
             #[cfg(test)]
@@ -361,13 +368,19 @@ impl TrafficKeySchedule {
         })
     }
 
+    /// Uses the packet protection and key-update labels of `version`.
+    pub(crate) fn with_version(mut self, version: QuicVersion) -> Self {
+        self.version = version;
+        self
+    }
+
     pub(crate) fn keys(&self) -> Result<TrafficKeys> {
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::CurrentLocalKeys, 0)?;
-        let local = derive_direction_keys(self.suite, self.local.as_slice())?;
+        let local = derive_version_keys(self.suite, self.local.as_slice(), self.version)?;
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::CurrentRemoteKeys, 0)?;
-        let remote = derive_direction_keys(self.suite, self.remote.as_slice())?;
+        let remote = derive_version_keys(self.suite, self.remote.as_slice(), self.version)?;
         Ok(TrafficKeys { local, remote })
     }
 
@@ -386,18 +399,18 @@ impl TrafficKeySchedule {
         };
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::NextLocalSecret, attempt)?;
-        let next_local = self.local.next()?;
+        let next_local = self.local.next(self.version)?;
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::NextRemoteSecret, attempt)?;
-        let next_remote = self.remote.next()?;
+        let next_remote = self.remote.next(self.version)?;
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::NextLocalPacketKey, attempt)?;
-        let local =
-            KeyMaterial::derive(self.suite, next_local.as_slice())?.into_packet_key(self.suite)?;
+        let local = KeyMaterial::derive(self.suite, next_local.as_slice(), self.version)?
+            .into_packet_key(self.suite)?;
         #[cfg(test)]
         self.fail_derivation(TestDerivationStage::NextRemotePacketKey, attempt)?;
-        let remote =
-            KeyMaterial::derive(self.suite, next_remote.as_slice())?.into_packet_key(self.suite)?;
+        let remote = KeyMaterial::derive(self.suite, next_remote.as_slice(), self.version)?
+            .into_packet_key(self.suite)?;
         self.local = next_local;
         self.remote = next_remote;
         Ok(PacketKeyPair { local, remote })

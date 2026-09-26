@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::backend::{HkdfDigest, hkdf_extract_sha256};
 use crate::hkdf::expand_label;
-use crate::key_schedule::{CipherSuite, derive_direction_keys};
+use crate::key_schedule::{CipherSuite, derive_version_keys};
 use crate::secret::{SHA256_LEN, Secret};
 use crate::{CryptoError, DirectionKeys, EndpointSide, QuicVersion, Result};
 
@@ -53,8 +53,9 @@ pub fn derive_initial_keys(
 
     let (client_secret, server_secret) =
         derive_initial_secrets(version, destination_connection_id)?;
-    let client = derive_direction_keys(CipherSuite::Aes128GcmSha256, client_secret.as_slice())?;
-    let server = derive_direction_keys(CipherSuite::Aes128GcmSha256, server_secret.as_slice())?;
+    let suite = CipherSuite::Aes128GcmSha256;
+    let client = derive_version_keys(suite, client_secret.as_slice(), version)?;
+    let server = derive_version_keys(suite, server_secret.as_slice(), version)?;
     let (local, remote) = match side {
         EndpointSide::Client => (client, server),
         EndpointSide::Server => (server, client),

@@ -1,11 +1,13 @@
-use std::{collections::BTreeSet, error::Error as StdError, fmt, time::Duration};
+use std::{collections::BTreeSet, error::Error as StdError, fmt, sync::Arc, time::Duration};
 
 use phantom_profile::quic::{
-    GoogleConnectionOption, QuicTransportParameter, QuicTransportParameterKind,
-    QuicTransportParameterOrder, QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
+    GoogleConnectionOption, QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
+    QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+    QuicVarIntWidth, QuicVersionGrease,
 };
 use quinn_proto::{
-    EndpointConfig, RandomConnectionIdGenerator, TransportConfig, VarInt,
+    AckFrequencyDraft, ConnectionId, ConnectionIdGenerator, EndpointConfig,
+    RandomConnectionIdGenerator, TransportConfig, VarInt,
     transport_parameters::TransportParameters,
 };
 
@@ -20,8 +22,13 @@ use wire::{
     is_reserved_transport_parameter,
 };
 
-const QUIC_V1: u32 = 0x0000_0001;
 const MIN_ACK_DELAY_DRAFT_07: u64 = 0xff04_de1b;
+/// The only `min_ack_delay` the runtime can honor: Quinn's 1 ms timer granularity.
+const RUNTIME_MIN_ACK_DELAY_US: u64 = 1_000;
+const RESET_STREAM_AT: u64 = 0x1d;
+const VERSION_INFORMATION: u64 = 0x11;
+/// The versions the runtime implements, most preferred first.
+const RUNTIME_VERSIONS: [QuicVersion; 2] = [QuicVersion::V2, QuicVersion::V1];
 const MAX_TRANSPORT_PARAMETERS_LEN: usize = u16::MAX as usize;
 const INITIAL_MAX_STREAMS_BIDI: u64 = 0x08;
 
@@ -67,9 +74,25 @@ impl TransportParameterProfile {
             };
         let receive_window = varint("initial_max_data", settings.initial_max_data)?;
         let stream_receive_window = varint(
-            "initial_max_stream_data",
+            "initial_max_stream_data_bidi_local",
             settings.initial_max_stream_data_bidi_local,
         )?;
+        let bidi_remote_stream_receive_window = varint(
+            "initial_max_stream_data_bidi_remote",
+            settings.initial_max_stream_data_bidi_remote,
+        )?;
+        let uni_stream_receive_window = varint(
+            "initial_max_stream_data_uni",
+            settings.initial_max_stream_data_uni,
+        )?;
+        let active_connection_id_limit = u8::try_from(settings.active_connection_id_limit)
+            .map_err(|_| {
+                profile_error(
+                    "active_connection_id_limit",
+                    "value cannot be represented by Quinn",
+                )
+            })?;
+        let versions = self.runtime_versions();
         let max_bidi_streams = varint(
             "initial_max_streams_bidi",
             settings.initial_max_streams_bidi,
@@ -98,20 +121,104 @@ impl TransportParameterProfile {
                     "value is outside Quinn's supported range",
                 )
             })?;
+        // Oldest first, so the version a connection starts in leads the list.
+        let supported = versions
+            .iter()
+            .rev()
+            .map(|version| version.wire())
+            .collect();
+        let compatible = versions
+            .iter()
+            .filter(|version| **version != QuicVersion::V1)
+            .map(|version| version.wire())
+            .collect();
         endpoint
             .cid_generator(move || Box::new(RandomConnectionIdGenerator::new(cid_len)))
             .grease_quic_bit(false)
-            .supported_versions(vec![QUIC_V1]);
+            .supported_versions(supported)
+            .compatible_versions(compatible);
         transport
             .max_idle_timeout(idle_timeout)
             .receive_window(receive_window)
             .stream_receive_window(stream_receive_window)
+            .bidi_remote_stream_receive_window(Some(bidi_remote_stream_receive_window))
+            .uni_stream_receive_window(Some(uni_stream_receive_window))
             .max_concurrent_bidi_streams(max_bidi_streams)
-            .max_concurrent_uni_streams(max_uni_streams);
+            .max_concurrent_uni_streams(max_uni_streams)
+            .reset_stream_at(settings.reset_stream_at)
+            .ack_frequency_draft(self.ack_frequency_draft());
+        transport
+            .max_ack_delay(Duration::from_millis(settings.max_ack_delay_ms))
+            .map_err(|error| profile_error("max_ack_delay_ms", error.to_string()))?;
+        transport
+            .active_connection_id_limit(Some(active_connection_id_limit))
+            .map_err(|error| profile_error("active_connection_id_limit", error.to_string()))?;
+        if let Some(size) = settings.initial_datagram_size {
+            transport.initial_mtu(size);
+            transport
+                .min_initial_datagram_size(size)
+                .map_err(|error| profile_error("initial_datagram_size", error.to_string()))?;
+        }
         transport
             .advertised_datagram_frame_size(datagram_buffer_size, datagram_frame_size)
             .map_err(|error| profile_error("max_datagram_frame_size", error.to_string()))?;
         Ok(())
+    }
+
+    /// Returns the generator of a client's first Destination Connection ID, when the
+    /// profile sets its length.
+    pub(crate) fn initial_destination_connection_id(
+        &self,
+    ) -> Option<Arc<dyn Fn() -> ConnectionId + Send + Sync>> {
+        let policy = self.settings.initial_destination_connection_id?;
+        Some(Arc::new(move || {
+            let length = match policy {
+                QuicConnectionIdLength::Fixed(length) => length,
+                QuicConnectionIdLength::MaskedRandom { minimum, base } => {
+                    // One random byte from Quinn's generator drives the length.
+                    let byte = RandomConnectionIdGenerator::new(1).generate_cid()[0];
+                    minimum.max(base + (byte & (byte >> 4)))
+                }
+                _ => 20,
+            };
+            RandomConnectionIdGenerator::new(usize::from(length)).generate_cid()
+        }))
+    }
+
+    /// Whether `version_information` lists `version` as available.
+    pub(crate) fn lists_version(&self, version: QuicVersion) -> bool {
+        self.runtime_versions().contains(&version)
+    }
+
+    /// Versions listed in `version_information`, most preferred first.
+    fn runtime_versions(&self) -> &'static [QuicVersion] {
+        let count = self
+            .settings
+            .wire_parameters
+            .iter()
+            .find_map(|parameter| match &parameter.kind {
+                QuicTransportParameterKind::VersionInformation(settings) => {
+                    Some(usize::from(settings.available_version_count))
+                }
+                _ => None,
+            })
+            .unwrap_or(1)
+            .clamp(1, RUNTIME_VERSIONS.len());
+        &RUNTIME_VERSIONS[RUNTIME_VERSIONS.len() - count..]
+    }
+
+    fn ack_frequency_draft(&self) -> AckFrequencyDraft {
+        self.settings
+            .wire_parameters
+            .iter()
+            .find_map(|parameter| match &parameter.kind {
+                QuicTransportParameterKind::MinAckDelay {
+                    draft: QuicAckFrequencyDraft::Draft02,
+                    ..
+                } => Some(AckFrequencyDraft::Draft02),
+                _ => None,
+            })
+            .unwrap_or(AckFrequencyDraft::Draft07)
     }
 
     /// Whether a connection that resumes a session offers early data.
@@ -128,15 +235,26 @@ impl TransportParameterProfile {
     fn validate_provider_support(&self) -> Result<(), QuicTransportProfileError> {
         use QuicTransportParameterKind as Kind;
 
-        if self.settings.initial_max_stream_data_bidi_local
-            != self.settings.initial_max_stream_data_bidi_remote
-            || self.settings.initial_max_stream_data_bidi_local
-                != self.settings.initial_max_stream_data_uni
+        if self
+            .settings
+            .min_ack_delay_us
+            .is_some_and(|value| value != RUNTIME_MIN_ACK_DELAY_US)
         {
             return Err(profile_error(
-                "initial_max_stream_data",
-                "Quinn requires one receive window for all local stream classes",
+                "min_ack_delay_us",
+                "the runtime can only advertise 1000 microseconds",
             ));
+        }
+        if let Some(policy) = self.settings.initial_destination_connection_id {
+            match policy {
+                QuicConnectionIdLength::Fixed(_) | QuicConnectionIdLength::MaskedRandom { .. } => {}
+                _ => {
+                    return Err(profile_error(
+                        "initial_destination_connection_id",
+                        "provider does not support this length policy",
+                    ));
+                }
+            }
         }
         match self.settings.parameter_order {
             QuicTransportParameterOrder::Fixed | QuicTransportParameterOrder::Permuted => {}
@@ -150,14 +268,16 @@ impl TransportParameterProfile {
         for parameter in &self.settings.wire_parameters {
             match &parameter.kind {
                 Kind::VersionInformation(settings) => {
-                    if settings.available_version_count != 1 {
+                    if usize::from(settings.available_version_count) > RUNTIME_VERSIONS.len() {
                         return Err(profile_error(
                             "version_information",
-                            "provider requires exactly one available QUIC version",
+                            "provider implements QUIC v1 and v2 only",
                         ));
                     }
                     match settings.grease {
-                        QuicVersionGrease::Omit | QuicVersionGrease::Permuted => {}
+                        QuicVersionGrease::Omit
+                        | QuicVersionGrease::Permuted
+                        | QuicVersionGrease::First => {}
                         _ => {
                             return Err(profile_error(
                                 "version_information",
@@ -187,10 +307,22 @@ impl TransportParameterProfile {
                 | Kind::InitialMaxStreamDataUni { .. }
                 | Kind::InitialMaxStreamsBidi { .. }
                 | Kind::InitialMaxStreamsUni { .. }
+                | Kind::MaxAckDelay { .. }
+                | Kind::ActiveConnectionIdLimit { .. }
                 | Kind::InitialSourceConnectionId { .. }
                 | Kind::MaxDatagramFrameSize { .. }
+                | Kind::ResetStreamAt
                 | Kind::InitialRtt
                 | Kind::Grease(_) => {}
+                Kind::MinAckDelay { draft, .. } => match draft {
+                    QuicAckFrequencyDraft::Draft02 | QuicAckFrequencyDraft::Draft07 => {}
+                    _ => {
+                        return Err(profile_error(
+                            "min_ack_delay_us",
+                            "provider does not support this ACK frequency draft",
+                        ));
+                    }
+                },
                 _ => {
                     return Err(profile_error(
                         "wire_parameters",
@@ -275,6 +407,16 @@ impl TransportParameterProfile {
     ) -> Result<(), QuicTransportProfileError> {
         let mut expected = BTreeSet::new();
         for parameter in &self.settings.wire_parameters {
+            if parameter.kind == QuicTransportParameterKind::ResetStreamAt {
+                if !stock.value(RESET_STREAM_AT)?.is_empty() {
+                    return Err(profile_error(
+                        "reset_stream_at",
+                        "Quinn encoded a malformed reset_stream_at parameter",
+                    ));
+                }
+                expected.insert(RESET_STREAM_AT);
+                continue;
+            }
             let Some((identifier, expected_value)) = self.expected_stock_value(parameter)? else {
                 continue;
             };
@@ -305,6 +447,7 @@ impl TransportParameterProfile {
         for identifier in stock.values.keys().copied() {
             if expected.contains(&identifier)
                 || identifier == MIN_ACK_DELAY_DRAFT_07
+                || identifier == VERSION_INFORMATION
                 || is_reserved_transport_parameter(identifier)
             {
                 continue;
@@ -342,6 +485,16 @@ impl TransportParameterProfile {
             Kind::InitialMaxStreamsUni { .. } => {
                 Some((0x09, self.settings.initial_max_streams_uni))
             }
+            Kind::MaxAckDelay { .. } => Some((0x0b, self.settings.max_ack_delay_ms)),
+            Kind::ActiveConnectionIdLimit { .. } => {
+                Some((0x0e, self.settings.active_connection_id_limit))
+            }
+            Kind::MinAckDelay { draft, .. } => Some((
+                min_ack_delay_identifier(*draft)?,
+                self.settings.min_ack_delay_us.ok_or_else(|| {
+                    profile_error("min_ack_delay_us", "wire parameter has no semantic value")
+                })?,
+            )),
             Kind::InitialSourceConnectionId { length } => Some((0x0f, u64::from(*length))),
             Kind::MaxDatagramFrameSize { .. } => Some((
                 0x20,
@@ -353,6 +506,7 @@ impl TransportParameterProfile {
                 })?,
             )),
             Kind::VersionInformation(_)
+            | Kind::ResetStreamAt
             | Kind::GoogleConnectionOptions(_)
             | Kind::InitialRtt
             | Kind::Grease(_) => None,
@@ -412,6 +566,20 @@ impl TransportParameterProfile {
             Kind::InitialMaxStreamsUni { value_width } => {
                 encoded_scalar(0x09, self.settings.initial_max_streams_uni, *value_width)
             }
+            Kind::MaxAckDelay { value_width } => {
+                encoded_scalar(0x0b, self.settings.max_ack_delay_ms, *value_width)
+            }
+            Kind::ActiveConnectionIdLimit { value_width } => {
+                encoded_scalar(0x0e, self.settings.active_connection_id_limit, *value_width)
+            }
+            Kind::ResetStreamAt => Ok((RESET_STREAM_AT, Vec::new())),
+            Kind::MinAckDelay { draft, value_width } => encoded_scalar(
+                min_ack_delay_identifier(*draft)?,
+                self.settings.min_ack_delay_us.ok_or_else(|| {
+                    profile_error("min_ack_delay_us", "wire parameter has no semantic value")
+                })?,
+                *value_width,
+            ),
             Kind::InitialSourceConnectionId { .. } => Ok((0x0f, stock.value(0x0f)?.to_vec())),
             Kind::VersionInformation(settings) => self
                 .version_information(
@@ -476,22 +644,41 @@ impl TransportParameterProfile {
         available_version_count: u8,
         entropy: &mut WireEntropy,
     ) -> Result<Vec<u8>, QuicTransportProfileError> {
-        if available_version_count != 1 {
+        let count = usize::from(available_version_count);
+        if count == 0 || count > RUNTIME_VERSIONS.len() {
             return Err(profile_error(
                 "version_information",
-                "provider currently supports exactly one available QUIC version",
+                "provider implements QUIC v1 and v2 only",
             ));
         }
-        let chosen = match version {
-            QuicVersion::V1 => QUIC_V1,
-        };
-        let mut available = vec![chosen];
-        if matches!(grease, QuicVersionGrease::Permuted) {
+        let listed = &RUNTIME_VERSIONS[RUNTIME_VERSIONS.len() - count..];
+        if !listed.contains(&version) {
+            return Err(profile_error(
+                "version_information",
+                "the chosen version is not listed as available",
+            ));
+        }
+        let mut available: Vec<u32> = listed.iter().map(|version| version.wire()).collect();
+        let reserved = |entropy: &mut WireEntropy| -> Result<u32, QuicTransportProfileError> {
             let raw = u32::from_be_bytes(entropy.take_array()?);
-            available.push((raw & 0xf0f0_f0f0) | 0x0a0a_0a0a);
-            entropy.shuffle(&mut available)?;
+            Ok((raw & 0xf0f0_f0f0) | 0x0a0a_0a0a)
+        };
+        match grease {
+            QuicVersionGrease::Omit => {}
+            QuicVersionGrease::Permuted => {
+                available.push(reserved(entropy)?);
+                entropy.shuffle(&mut available)?;
+            }
+            QuicVersionGrease::First => available.insert(0, reserved(entropy)?),
+            _ => {
+                return Err(profile_error(
+                    "version_information",
+                    "provider does not support this version GREASE policy",
+                ));
+            }
         }
 
+        let chosen = version.wire();
         let mut value = Vec::with_capacity(4 + available.len() * 4);
         value.extend_from_slice(&chosen.to_be_bytes());
         for available in available {
@@ -516,6 +703,19 @@ impl TransportParameterProfile {
                     "profile omitted the required parameter",
                 )
             })
+    }
+}
+
+fn min_ack_delay_identifier(
+    draft: QuicAckFrequencyDraft,
+) -> Result<u64, QuicTransportProfileError> {
+    match draft {
+        QuicAckFrequencyDraft::Draft02 => Ok(0xff02_de1a),
+        QuicAckFrequencyDraft::Draft07 => Ok(MIN_ACK_DELAY_DRAFT_07),
+        _ => Err(profile_error(
+            "min_ack_delay_us",
+            "provider does not support this ACK frequency draft",
+        )),
     }
 }
 
@@ -558,7 +758,11 @@ fn field_for_identifier(identifier: u64) -> &'static str {
         0x07 => "initial_max_stream_data_uni",
         0x08 => "initial_max_streams_bidi",
         0x09 => "initial_max_streams_uni",
+        0x0b => "max_ack_delay_ms",
+        0x0e => "active_connection_id_limit",
         0x0f => "initial_source_connection_id",
+        0x1d => "reset_stream_at",
+        0xff02_de1a | MIN_ACK_DELAY_DRAFT_07 => "min_ack_delay_us",
         0x20 => "max_datagram_frame_size",
         0x3127 => "initial_rtt",
         _ => "wire_parameters",

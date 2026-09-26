@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, error::Error, time::Duration};
 
 use phantom_profile::{
-    chromium,
-    quic::{QuicTransportParameterKind, QuicTransportSettings},
+    chromium, firefox,
+    quic::{QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportSettings},
 };
 use quinn_proto::{Side, transport_parameters::TransportParameters};
 
@@ -168,16 +168,95 @@ fn strict_parser_rejects_truncation_and_duplicates() {
 }
 
 #[test]
-fn constructor_rejects_quinn_incompatible_stream_windows() {
-    let mut settings = chromium::v154_quic();
-    settings.initial_max_stream_data_bidi_remote -= 1;
+fn constructor_accepts_a_window_per_stream_class() -> Result<(), Box<dyn Error>> {
+    let settings = firefox::v156_quic();
+    assert_ne!(
+        settings.initial_max_stream_data_bidi_local,
+        settings.initial_max_stream_data_bidi_remote
+    );
+    TransportParameterProfile::new(settings)?;
+    Ok(())
+}
+
+#[test]
+fn constructor_rejects_a_min_ack_delay_the_runtime_cannot_honor() {
+    let mut settings = firefox::v156_quic();
+    settings.min_ack_delay_us = Some(2_000);
 
     let error = match TransportParameterProfile::new(settings) {
-        Ok(_) => panic!("Quinn-incompatible stream windows were accepted"),
+        Ok(_) => panic!("an unsupported min_ack_delay was accepted"),
         Err(error) => error,
     };
 
-    assert_eq!(error.field(), "initial_max_stream_data");
+    assert_eq!(error.field(), "min_ack_delay_us");
+}
+
+#[test]
+fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
+-> Result<(), Box<dyn Error>> {
+    let profile = TransportParameterProfile::new(firefox::v156_quic())?;
+    for (version, chosen) in [(QuicVersion::V1, 1_u32), (QuicVersion::V2, 0x6b33_43cf)] {
+        let mut entropy = fixture_entropy();
+        let value = profile.version_information(
+            version,
+            phantom_profile::quic::QuicVersionGrease::First,
+            2,
+            &mut entropy,
+        )?;
+        let words = value
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|word| u32::from_be_bytes(*word))
+            .collect::<Vec<_>>();
+        assert_eq!(words.len(), 4);
+        assert_eq!(words[0], chosen);
+        assert_eq!(words[1] & 0x0f0f_0f0f, 0x0a0a_0a0a);
+        assert_eq!(words[2..], [0x6b33_43cf, 1]);
+    }
+
+    let chrome = TransportParameterProfile::new(chromium::v154_quic())?;
+    let mut entropy = fixture_entropy();
+    let error = match chrome.version_information(
+        QuicVersion::V2,
+        phantom_profile::quic::QuicVersionGrease::Permuted,
+        1,
+        &mut entropy,
+    ) {
+        Ok(_) => panic!("a version the profile does not list was chosen"),
+        Err(error) => error,
+    };
+    assert_eq!(error.field(), "version_information");
+    Ok(())
+}
+
+#[test]
+fn masked_random_destination_ids_favor_the_minimum_length() -> Result<(), Box<dyn Error>> {
+    let profile = TransportParameterProfile::new(firefox::v156_quic())?;
+    let provider = profile
+        .initial_destination_connection_id()
+        .ok_or("the Firefox recipe sets the Initial Destination Connection ID length")?;
+    let mut shortest = 0;
+    for _ in 0..2_000 {
+        let length = provider().len();
+        assert!((8..=20).contains(&length), "length {length}");
+        shortest += usize::from(length == 8);
+    }
+    // The length is 8 when bits 2 and 3 of `b & (b >> 4)` are clear: (3/4)^2 = 0.5625.
+    assert!(shortest > 1_000, "{shortest} of 2000 IDs had 8 bytes");
+
+    let mut settings = firefox::v156_quic();
+    settings.initial_destination_connection_id = Some(QuicConnectionIdLength::Fixed(12));
+    let provider = TransportParameterProfile::new(settings)?
+        .initial_destination_connection_id()
+        .ok_or("a fixed length is a policy")?;
+    assert_eq!(provider().len(), 12);
+    assert!(
+        TransportParameterProfile::new(chromium::v154_quic())?
+            .initial_destination_connection_id()
+            .is_none()
+    );
+    Ok(())
 }
 
 #[test]

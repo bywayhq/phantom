@@ -23,7 +23,7 @@ use crate::ech::{EchOffer, EchOutcome};
 use crate::key_schedule::TestDerivationFailure;
 use crate::key_schedule::{
     CipherSuite as QuicCipherSuite, PacketKeyPair, TrafficKeySchedule, TrafficKeys, TrafficSecret,
-    derive_direction_keys,
+    derive_version_keys,
 };
 use crate::resumption::{ApplicationState, ResumptionTicket, SessionCache};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
@@ -31,7 +31,6 @@ use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integri
 use phantom_profile::quic::QuicTransportSettings;
 use quinn_proto::{EndpointConfig, TransportConfig};
 
-const QUIC_VERSION_1: u32 = 0x0000_0001;
 const H3_PROTOCOL: &[u8] = b"h3";
 
 /// Immutable BoringSSL configuration for Quinn client sessions.
@@ -360,6 +359,28 @@ impl QuicClientConfig {
             profile.configure_quinn(endpoint, transport)?;
         }
         Ok(())
+    }
+
+    /// Applies this profile's per-connection settings to a Quinn client configuration.
+    ///
+    /// Sets the length of the first Initial's Destination Connection ID when the profile sets
+    /// one. A connection that will present a session ticket starts in the QUIC version of the
+    /// connection that received that ticket, when the profile lists that version as available;
+    /// otherwise the connection starts in QUIC v1.
+    pub fn configure_client(&self, config: &mut quinn_proto::ClientConfig, server_name: &str) {
+        let Some(profile) = &self.transport_profile else {
+            return;
+        };
+        if let Some(provider) = profile.initial_destination_connection_id() {
+            config.initial_dst_cid_provider(provider);
+        }
+        let resumed_version = self
+            .sessions
+            .as_ref()
+            .filter(|_| self.offer_tickets)
+            .and_then(|sessions| sessions.version(server_name))
+            .filter(|version| profile.lists_version(*version));
+        config.version(resumed_version.unwrap_or(QuicVersion::V1).wire());
     }
 
     /// Returns whether the configured QUIC transport accepts DATAGRAM frames.
@@ -883,7 +904,7 @@ impl SessionState {
         if self.handshake_keys.is_none()
             && let Some(pair) = self.backend.take_secret_pair(EncryptionLevel::Handshake)?
         {
-            self.handshake_keys = Some(keys_from_pair(pair)?.0);
+            self.handshake_keys = Some(keys_from_pair(pair, self.version)?.0);
         }
         if self.application_keys.is_none()
             && let Some(pair) = self
@@ -891,9 +912,9 @@ impl SessionState {
                 .take_secret_pair(EncryptionLevel::Application)?
         {
             #[cfg(test)]
-            let derived = keys_from_pair_with_failure(pair, self.derivation_failure);
+            let derived = keys_from_pair_with_failure(pair, self.version, self.derivation_failure);
             #[cfg(not(test))]
-            let derived = keys_from_pair(pair);
+            let derived = keys_from_pair(pair, self.version);
             let (keys, schedule) = derived?;
             self.application_keys = Some(keys);
             self.application_schedule = Some(schedule);
@@ -935,6 +956,7 @@ impl SessionState {
             for session in issued {
                 let ticket = ResumptionTicket {
                     session,
+                    version: self.version,
                     peer_transport_parameters: self
                         .peer_transport_parameters
                         .as_deref()
@@ -976,6 +998,11 @@ impl Default for OutboundHandshake {
 }
 
 impl OutboundHandshake {
+    /// Whether keys beyond the Initial level were handed to Quinn.
+    pub(super) fn level_advanced(&self) -> bool {
+        self.level != EncryptionLevel::Initial
+    }
+
     pub(super) fn stage(&mut self, chunk: HandshakeChunk) {
         self.queues[level_index(chunk.level)].push_back(chunk.bytes);
     }
@@ -1042,7 +1069,7 @@ impl crypto::Session for QuicSession {
         let state = self.lock();
         let (suite, secret) = state.early_secret.as_ref()?;
         let suite = QuicCipherSuite::from_id(*suite).ok()?;
-        let (header, packet) = derive_direction_keys(suite, secret.as_slice())
+        let (header, packet) = derive_version_keys(suite, secret.as_slice(), state.version)
             .ok()?
             .into_parts();
         Some((Box::new(header), Box::new(packet)))
@@ -1137,6 +1164,25 @@ impl crypto::Session for QuicSession {
             .unwrap_or(false)
     }
 
+    /// Adopts a version a server chose by compatible version negotiation (RFC 9368).
+    ///
+    /// BoringSSL hands out traffic secrets, and this session turns them into packet keys with
+    /// the labels of its version, so a switch is sound only before the first handshake secret.
+    fn switch_version(&mut self, version: u32) -> bool {
+        let mut state = self.lock();
+        let Some(version) = QuicVersion::from_wire(version) else {
+            return false;
+        };
+        if state.handshake_keys.is_some()
+            || state.application_keys.is_some()
+            || state.outbound.level_advanced()
+        {
+            return false;
+        }
+        state.version = version;
+        true
+    }
+
     fn export_keying_material(
         &self,
         output: &mut [u8],
@@ -1173,21 +1219,27 @@ impl From<ClientSessionError> for AdapterError {
     }
 }
 
-pub(super) fn keys_from_pair(pair: SecretPair) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
+pub(super) fn keys_from_pair(
+    pair: SecretPair,
+    version: QuicVersion,
+) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
     let schedule =
         TrafficKeySchedule::from_local_remote(pair.cipher_suite, pair.local, pair.remote)
-            .map_err(|_| AdapterError::Crypto)?;
+            .map_err(|_| AdapterError::Crypto)?
+            .with_version(version);
     keys_from_schedule(schedule)
 }
 
 #[cfg(test)]
 fn keys_from_pair_with_failure(
     pair: SecretPair,
+    version: QuicVersion,
     failure: Option<TestDerivationFailure>,
 ) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
     let schedule =
         TrafficKeySchedule::from_local_remote(pair.cipher_suite, pair.local, pair.remote)
-            .map_err(|_| AdapterError::Crypto)?;
+            .map_err(|_| AdapterError::Crypto)?
+            .with_version(version);
     if let Some(failure) = failure {
         schedule.inject_derivation_failure(failure);
     }
@@ -1240,10 +1292,7 @@ pub(super) fn packet_pair_into_quinn(keys: PacketKeyPair) -> KeyPair<Box<dyn cry
 }
 
 fn interpret_version(version: u32) -> Result<QuicVersion, ConnectError> {
-    match version {
-        QUIC_VERSION_1 => Ok(QuicVersion::V1),
-        _ => Err(ConnectError::UnsupportedVersion),
-    }
+    QuicVersion::from_wire(version).ok_or(ConnectError::UnsupportedVersion)
 }
 
 fn validate_server_name_inner(server_name: &str) -> Result<(), InvalidServerName> {

@@ -30,7 +30,6 @@ use super::quic_callbacks::install_on_ssl;
 use crate::key_schedule::TrafficKeySchedule;
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, retry_integrity_tag};
 
-const QUIC_VERSION_1: u32 = 0x0000_0001;
 /// Largest ClientHello the server keeps for [`ServerHandshakeData`].
 const MAX_CLIENT_HELLO: usize = 64 * 1024;
 const MAX_TRANSPORT_PARAMETERS: usize = u16::MAX as usize;
@@ -94,7 +93,7 @@ impl crypto::ServerConfig for QuicServerConfig {
 }
 
 fn supported_version(version: u32) -> Option<QuicVersion> {
-    (version == QUIC_VERSION_1).then_some(QuicVersion::V1)
+    QuicVersion::from_wire(version)
 }
 
 /// What the server learned from a client's ClientHello.
@@ -228,14 +227,18 @@ impl ServerState {
                 .callbacks
                 .take_secret_pair(EncryptionLevel::Handshake)
         {
-            self.handshake_keys = Some(keys_from_pair(pair).map_err(|_| key_failure())?.0);
+            self.handshake_keys = Some(
+                keys_from_pair(pair, self.version)
+                    .map_err(|_| key_failure())?
+                    .0,
+            );
         }
         if self.application_keys.is_none()
             && let Some(pair) = session
                 .callbacks
                 .take_secret_pair(EncryptionLevel::Application)
         {
-            let (keys, schedule) = keys_from_pair(pair).map_err(|_| key_failure())?;
+            let (keys, schedule) = keys_from_pair(pair, self.version).map_err(|_| key_failure())?;
             self.application_keys = Some(keys);
             self.application_schedule = Some(schedule);
         }

@@ -3,8 +3,12 @@ use super::*;
 #[test]
 fn rfc_9001_chacha20_material_and_update_are_exact() {
     let secret = hex::<32>("9ac312a7f877468ebe69422748ad00a15443f18203a07d6060f688f30f21632b");
-    let material = KeyMaterial::derive(CipherSuite::ChaCha20Poly1305Sha256, &secret)
-        .unwrap_or_else(|error| panic!("RFC fixture derivation failed: {error}"));
+    let material = KeyMaterial::derive(
+        CipherSuite::ChaCha20Poly1305Sha256,
+        &secret,
+        QuicVersion::V1,
+    )
+    .unwrap_or_else(|error| panic!("RFC fixture derivation failed: {error}"));
     assert_eq!(
         &material.key.as_slice()[..material.key_len],
         &hex::<32>("c6d98ff3441c3fe1b2182094f69caa2ed4b716b65488960a7a984979fb23e1c8")
@@ -21,7 +25,7 @@ fn rfc_9001_chacha20_material_and_update_are_exact() {
     let traffic_secret = TrafficSecret::new(HkdfDigest::Sha256, &secret)
         .unwrap_or_else(|error| panic!("RFC fixture secret failed: {error}"));
     let next = traffic_secret
-        .next()
+        .next(QuicVersion::V1)
         .unwrap_or_else(|error| panic!("RFC fixture update failed: {error}"));
     assert_eq!(
         next.as_slice(),
@@ -34,7 +38,7 @@ fn sha384_material_and_repeated_updates_are_exact() {
     // RFC 8446 HKDF-Expand-Label with IKM 00..2f.
     // See docs/internals/http3.md for the fixture boundary.
     let secret: [u8; SHA384_LEN] = core::array::from_fn(|index| index as u8);
-    let material = KeyMaterial::derive(CipherSuite::Aes256GcmSha384, &secret)
+    let material = KeyMaterial::derive(CipherSuite::Aes256GcmSha384, &secret, QuicVersion::V1)
         .unwrap_or_else(|error| panic!("SHA-384 fixture derivation failed: {error}"));
     assert_eq!(
         &material.key.as_slice()[..material.key_len],
@@ -52,7 +56,7 @@ fn sha384_material_and_repeated_updates_are_exact() {
     let initial = TrafficSecret::new(HkdfDigest::Sha384, &secret)
         .unwrap_or_else(|error| panic!("SHA-384 fixture secret failed: {error}"));
     let first = initial
-        .next()
+        .next(QuicVersion::V1)
         .unwrap_or_else(|error| panic!("first SHA-384 update failed: {error}"));
     assert_eq!(
         first.as_slice(),
@@ -61,7 +65,7 @@ fn sha384_material_and_repeated_updates_are_exact() {
         )
     );
     let second = first
-        .next()
+        .next(QuicVersion::V1)
         .unwrap_or_else(|error| panic!("second SHA-384 update failed: {error}"));
     assert_eq!(
         second.as_slice(),

@@ -26,6 +26,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use btls::ssl::SslSession;
 
+use crate::QuicVersion;
+
 /// Largest application state stored with a ticket, in bytes.
 ///
 /// HTTP/3 stores the server's SETTINGS frame, which the vendored engine keeps
@@ -76,6 +78,8 @@ struct CachedSession {
 #[derive(Clone)]
 pub(crate) struct ResumptionTicket {
     pub(crate) session: SslSession,
+    /// The QUIC version of the connection that received the ticket.
+    pub(crate) version: QuicVersion,
     pub(crate) peer_transport_parameters: Option<Box<[u8]>>,
     pub(crate) application_state: Option<Arc<[u8]>>,
 }
@@ -272,6 +276,20 @@ impl SessionCache {
         let ticket = cached.ticket.clone();
         sessions.push_back(cached);
         Some(ticket)
+    }
+
+    /// Returns the QUIC version of the connection that received the session
+    /// [`Self::take`] would return for `server_name`.
+    pub(crate) fn version(&self, server_name: &str) -> Option<QuicVersion> {
+        let now = unix_time();
+        let state = self.state();
+        state
+            .sessions
+            .iter()
+            .rev()
+            .filter(|cached| !is_expired(&cached.ticket.session, now))
+            .find(|cached| server_names_match(&cached.server_name, server_name))
+            .map(|cached| cached.ticket.version)
     }
 
     /// Returns whether an unexpired session for `server_name` is retained.

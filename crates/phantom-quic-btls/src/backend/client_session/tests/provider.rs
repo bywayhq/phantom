@@ -584,3 +584,58 @@ fn key_share_groups(mut extension: &[u8]) -> Vec<u16> {
     }
     groups
 }
+
+#[test]
+fn switch_version_rekeys_initial_packets_before_handshake_keys_exist() {
+    let config = Arc::new(QuicClientConfig::new(client_context(true).0));
+    let mut client = test_ok(
+        crypto::ClientConfig::start_session(
+            config,
+            0x0000_0001,
+            SERVER_NAME,
+            &client_transport_parameters(),
+        ),
+        "Quinn client session",
+    );
+    let destination = ConnectionId::new(&[0x83, 0x94, 0xc8, 0xf0, 0x3e, 0x51, 0x57, 0x08]);
+    assert!(!client.switch_version(0xff00_001d));
+    assert!(client.switch_version(0x6b33_43cf));
+
+    let switched = test_ok(
+        client
+            .initial_keys(&destination, Side::Client)
+            .map_err(|_| "initial keys"),
+        "version 2 Initial keys",
+    );
+    let expected = test_ok(
+        crate::derive_initial_keys(
+            crate::QuicVersion::V2,
+            &destination,
+            crate::EndpointSide::Client,
+        ),
+        "RFC 9369 Initial keys",
+    );
+    let mut sealed = [0x5a_u8; 48];
+    let mut reference = sealed;
+    switched.packet.local.encrypt(0, &mut sealed, 16);
+    crypto::PacketKey::encrypt(expected.local().packet(), 0, &mut reference, 16);
+    assert_eq!(sealed, reference);
+
+    // Once the server's first flight yields handshake keys, the version is fixed.
+    let server_context = server_context();
+    let mut server = test_ok(RawServer::new(&server_context), "server session");
+    let mut client_initial = Vec::new();
+    assert!(client.write_handshake(&mut client_initial).is_none());
+    test_ok(
+        server.provide_current_level(&client_initial),
+        "server ClientHello input",
+    );
+    test_ok(server.drive(), "server first flight");
+    for chunk in test_ok(server.drain_output(), "server first flight output") {
+        test_ok(
+            client.read_handshake(&chunk.bytes),
+            "client reads server flight",
+        );
+    }
+    assert!(!client.switch_version(0x0000_0001));
+}
