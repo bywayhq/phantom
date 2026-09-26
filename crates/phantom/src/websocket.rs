@@ -427,7 +427,10 @@ impl WebSocketRequestBuilder {
             WebSocketSelection::Exact(protocol) => Some(protocol),
             WebSocketSelection::ProfilePolicy => None,
         };
-        match crate::timeout::within(limit, self.connect_inner(span)).await {
+        // Pinned here and passed by reference, so the attempt is stored once
+        // in this future rather than again inside `within`'s.
+        let attempt = std::pin::pin!(self.connect_inner(span));
+        match crate::timeout::within(limit, attempt).await {
             Ok(Some(result)) => result,
             Ok(None) => {
                 tracing::debug!(
