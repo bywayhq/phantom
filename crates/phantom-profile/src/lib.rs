@@ -37,7 +37,8 @@ pub use http3::{
     Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
 };
 pub use proxy_connect::{
-    Http2RejectedConnect, InvalidProxyConnectTemplate, ProxyConnectField, ProxyConnectTemplate,
+    Http2ProxyConnections, Http2RejectedConnect, InvalidProxyConnectTemplate, ProxyConnectField,
+    ProxyConnectTemplate,
 };
 pub use request_template::{
     InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,

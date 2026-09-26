@@ -110,6 +110,33 @@ pub enum Http2RejectedConnect {
     LeaveOpen,
 }
 
+/// Which requests share an HTTP/2 connection to an HTTPS proxy.
+///
+/// Every variant shares a connection only between requests on the same proxy
+/// route with the same credentials, and opens another connection when the
+/// shared one is full or the proxy has sent `GOAWAY`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2ProxyConnections {
+    /// Forwarded `http://` requests, CONNECT tunnels, and WebSocket tunnels
+    /// are streams of one connection.
+    ///
+    /// Chrome 154, Edge 153, Brave 154, and Opera 135 send a page's
+    /// navigation, its `fetch()`, and every CONNECT it opens on one
+    /// connection in the `https-proxy-*` captures.
+    #[default]
+    Shared,
+    /// Forwarded `http://` requests, CONNECT tunnels for other requests, and
+    /// CONNECT tunnels for WebSocket openings each share a connection only
+    /// among themselves.
+    ///
+    /// Firefox 156 opens three connections for one page in the
+    /// `https-proxy-*` captures: one for the navigation and `fetch()`, one
+    /// for the `https://` CONNECTs, and one for the `ws://` and `wss://`
+    /// CONNECTs.
+    ByPurpose,
+}
+
 /// Ordered CONNECT fields for each HTTP proxy transport.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProxyConnectTemplate {
@@ -120,6 +147,8 @@ pub struct ProxyConnectTemplate {
     pub http2_fields: Vec<ProxyConnectField>,
     /// What the client sends on an HTTP/2 CONNECT stream the proxy rejected.
     pub http2_rejected: Http2RejectedConnect,
+    /// Which requests share an HTTP/2 connection to the proxy.
+    pub http2_connections: Http2ProxyConnections,
 }
 
 impl ProxyConnectTemplate {

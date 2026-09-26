@@ -16,7 +16,9 @@ use crate::{
         Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
         Http3SettingOrder, Http3Settings,
     },
-    proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
+    proxy_connect::{
+        Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
+    },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
@@ -502,6 +504,12 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// After an HTTP/2 CONNECT is challenged, Chrome and Edge end the challenged
 /// stream with an empty END_STREAM DATA frame before the replay
 /// (`https-proxy-auth-secure-hostname`).
+///
+/// A page's navigation, `fetch()`, and every CONNECT it opens, for
+/// `https://`, `ws://`, and `wss://` origins, are streams of one HTTP/2
+/// connection to the proxy in every `https-proxy-*` capture of Chrome, Edge,
+/// Brave, and Opera, so the recipe shares one connection among them
+/// ([`Http2ProxyConnections::Shared`]).
 #[must_use]
 pub fn v154_proxy_connect() -> ProxyConnectTemplate {
     ProxyConnectTemplate {
@@ -516,6 +524,7 @@ pub fn v154_proxy_connect() -> ProxyConnectTemplate {
             ProxyConnectField::proxy_authorization("proxy-authorization"),
         ],
         http2_rejected: Http2RejectedConnect::EndStream,
+        http2_connections: Http2ProxyConnections::Shared,
     }
 }
 

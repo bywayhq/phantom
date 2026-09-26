@@ -10,7 +10,9 @@ use crate::{
         Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority,
         Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
     },
-    proxy_connect::{Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate},
+    proxy_connect::{
+        Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
+    },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::{
@@ -430,6 +432,11 @@ pub fn v156_websocket() -> WebSocketSettings {
 ///
 /// After an HTTP/2 CONNECT is challenged, Firefox sends nothing more on the
 /// challenged stream (`https-proxy-auth-secure-hostname`).
+///
+/// In every `https-proxy-*` capture, Firefox opens three HTTP/2 connections
+/// to the proxy for one page: one for the navigation and `fetch()`, one for
+/// the `https://` CONNECTs, and one for the `ws://` and `wss://` CONNECTs,
+/// so the recipe keeps the three apart ([`Http2ProxyConnections::ByPurpose`]).
 #[must_use]
 pub fn v156_proxy_connect() -> ProxyConnectTemplate {
     ProxyConnectTemplate {
@@ -445,6 +452,7 @@ pub fn v156_proxy_connect() -> ProxyConnectTemplate {
             ProxyConnectField::proxy_authorization("proxy-authorization"),
         ],
         http2_rejected: Http2RejectedConnect::LeaveOpen,
+        http2_connections: Http2ProxyConnections::ByPurpose,
     }
 }
 
