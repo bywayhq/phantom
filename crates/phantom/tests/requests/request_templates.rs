@@ -1279,11 +1279,11 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
 async fn template_without_http3_order_rejects_http3_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
     let client = Client::builder(profile).build()?;
+    let mut template = firefox::v156_windows_fetch_no_store_template();
+    template.http3_fields = None;
     let error = client
         .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
-        .template(&PreparedRequestTemplate::new(
-            firefox::v156_windows_fetch_no_store_template(),
-        )?)
+        .template(&PreparedRequestTemplate::new(template)?)
         .send()
         .await
         .err()
@@ -1301,7 +1301,9 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
     let client = Client::builder(profile)
         .alt_svc(NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?)
         .build()?;
-    let template = PreparedRequestTemplate::new(firefox::v156_windows_navigation_template())?;
+    let mut template = firefox::v156_windows_navigation_template();
+    template.http3_fields = None;
+    let template = PreparedRequestTemplate::new(template)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     let url = format!("https://127.0.0.1:{port}/");
