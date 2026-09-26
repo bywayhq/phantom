@@ -16,7 +16,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 
 - One-line git or path dependency with no `[patch]` table
   ([Adding Phantom to a project](guides/downstream.md)).
-- Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 recipes from
+- Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 recipes from
   retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
@@ -36,7 +36,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   with its first instructions
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Requests sent again on the same connection after a server rejects early
-  data, as the Chrome 154 and Edge 153 captures show
+  data, as the Chrome 154 and Edge 154 captures show
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
@@ -46,7 +46,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the
-  origin, with the Chrome 154, Edge 153, and Brave 154 recipes
+  origin, with the Chrome 154, Edge 154, and Brave 154 recipes
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence),
   [over QUIC](explanation/validation.md#real-ech-over-quic-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and

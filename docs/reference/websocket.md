@@ -25,7 +25,7 @@ the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
 
 | Route | Rule |
 | --- | --- |
-| `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. This is what Chrome 154, Edge 153, and Firefox 156 send ([proxy route evidence](../explanation/validation.md#proxy-route-browser-evidence)). The CONNECT carries the route's CONNECT fields, or the profile's [proxy CONNECT fields](profiles.md#proxy-connect-fields) with the opening's `User-Agent`, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
+| `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. This is what Chrome 154, Edge 154, and Firefox 156 send ([proxy route evidence](../explanation/validation.md#proxy-route-browser-evidence)). The CONNECT carries the route's CONNECT fields, or the profile's [proxy CONNECT fields](profiles.md#proxy-connect-fields) with the opening's `User-Agent`, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
 | SOCKS5 | After the tunnel is up, `ws://` sends the same origin-form Upgrade as a direct connection. `socks5://` resolves the origin locally; `socks5h://` sends the canonical DNS name to the proxy. Username and password authentication applies only to SOCKS negotiation. |
 | H2 through a proxy | Phantom opens a dedicated tunnel, then runs origin TLS, the HTTP/2 preface, and extended CONNECT inside it, as on a direct route. The origin must still enable extended CONNECT. |
 | Proxy credentials | Literal `Proxy-Authorization` fields are rejected. With Basic credentials on the proxy, the first connection to that proxy starts anonymously and replays once over the same route, only after a strict `407` Basic challenge: on the challenged connection when the `407` leaves it open, and on a new one otherwise. Once the proxy accepts the credentials, later tunnels to it send them on the first CONNECT. |
@@ -108,7 +108,7 @@ the chosen connection is a typed error.
 
 | Recipe | Pooled capable H2 session | No H2 session | Session without the setting |
 | --- | --- | --- | --- |
-| `chromium::v154_websocket` (Chrome 154 and Edge 153) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
+| `chromium::v154_websocket` (Chrome 154 and Edge 154) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
 | `firefox::v156_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade |
 
 | Recipe | Refused CONNECT stream | Empty message with deflate |

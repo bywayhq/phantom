@@ -17,7 +17,7 @@ presented as a complete client match.
 | Browser | TCP | TLS | H1 | H2 | QUIC | H3 | Client hints | Request templates | WebSocket opening |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Edge 153 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Edge 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured | Captured | Captured | Not covered | Not covered | Not sent by Firefox | Captured | Captured |
@@ -147,7 +147,7 @@ Not modeled:
 Supported:
 
 - Typed, ordered profiles.
-- Recipes backed by retained captures: Chrome 154, Edge 153, Brave 154,
+- Recipes backed by retained captures: Chrome 154, Edge 154, Brave 154,
   Opera 135, and Firefox 156 from Windows captures, and Chrome 154, Edge
   153, Brave 153, Opera 102, and Firefox 156 for Android from Android
   emulator captures. Phantom carries one version per browser. For a desktop
@@ -284,7 +284,7 @@ Supported:
   serializer with randomized permitted order and [GREASE](glossary.md#grease).
 - A reusable connection lifecycle owned by H3.
 - TLS 1.3 session resumption when the H3 TLS settings enable
-  `session_tickets`, as the Chrome 154 and Edge 153 recipes do. Each client
+  `session_tickets`, as the Chrome 154 and Edge 154 recipes do. Each client
   pool entry (exact origin and route) keeps its own cache of at most four
   tickets, filled only by authenticated connections and presented only for the
   same verified server name. Tickets are single-use and expire at the server's
@@ -292,14 +292,14 @@ Supported:
   presented a ticket and failed is repeated once with a full handshake on the
   same route.
 - Early (0-RTT) data on resumed connections, offered by the Chrome 154 and
-  Edge 153 recipes through `QuicTransportSettings::early_data`.
+  Edge 154 recipes through `QuicTransportSettings::early_data`.
   `ClientBuilder::http3_early_data` overrides the profile either way. A
   request's first new connection offers early data when it presents a ticket
   that permits it, but only a request with a safe method, no body, and no
   trailers is sent before the handshake completes; any other request waits
   for it. If the server rejects the early data, HTTP/3 starts again on the
   same connection after the handshake, without the remembered SETTINGS, and
-  the request is sent on it, as Chrome 154 and Edge 153 resend; a failed
+  the request is sent on it, as Chrome 154 and Edge 154 resend; a failed
   handshake or invalid handshake metadata fails the waiting requests.
   Concurrent requests to a resumed origin share one connection while its
   early data is unanswered.
@@ -307,15 +307,15 @@ Supported:
   them, in the same cache and under the same isolation as the ticket. A
   connection that offers early data starts from them, so under the recipes'
   dynamic QPACK policy a replay-safe request leaves in 0-RTT packets, as in
-  resumed Chrome 154 and Edge 153 connections. Server SETTINGS that change a
+  resumed Chrome 154 and Edge 154 connections. Server SETTINGS that change a
   remembered QPACK table capacity, or omit or lower another remembered value,
   close the connection with `H3_SETTINGS_ERROR` (RFC 9114, section 7.2.4.2).
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
-- Tests replay the retained resumed Chrome 154 and Edge 153 connections
-  against Phantom's resumed ClientHello and transport parameters, and check,
-  with the recipes' dynamic QPACK policy, that a resumed connection sends
+- Tests replay the retained resumed Chrome 154, Edge 153, and Edge 154
+  connections against Phantom's resumed ClientHello and transport
+  parameters, and check, with the recipes' dynamic QPACK policy, that a resumed connection sends
   `GET` as early data and holds `POST`
   ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
@@ -326,7 +326,7 @@ Supported:
 
 Known gaps:
 
-- After a server rejects early data, Chrome 154 and Edge 153 retransmit the
+- After a server rejects early data, Chrome 154 and Edge 154 retransmit the
   same encoder-stream and request bytes, encoded from the remembered
   SETTINGS. Phantom's new session encodes from the server's SETTINGS, and
   keeps a connection open whose server lowered a remembered limit, which
@@ -367,7 +367,7 @@ Supported requests and routes:
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
   and `ech` kept as raw bytes), and a malformed record is a typed error.
-  With the Chrome 154, Edge 153, or Brave 154 recipe, a direct HTTP/1.1 or
+  With the Chrome 154, Edge 154, or Brave 154 recipe, a direct HTTP/1.1 or
   HTTP/2 connection, negotiated or exact, and a `wss://` opening encrypt the
   ClientHello with the record's `ech`, waiting up to 50 ms after address
   resolution for the lookup, not at all when the address comes from the
@@ -645,20 +645,20 @@ Supported WebSocket (`websocket` feature):
   The peer capability gate applies, with no route or H1 fallback.
 - `ws://` through an HTTP proxy as a CONNECT tunnel (HTTP/1.1 transport) or
   CONNECT stream (HTTP/2 transport) with the direct Upgrade inside, as Chrome
-  154, Edge 153, and Firefox 156 send it.
+  154, Edge 154, and Firefox 156 send it.
 - Ordered, customizable handshakes, and Basic authentication to an HTTP
   proxy when it sends a challenge to the CONNECT.
 - Typed opt-in `permessage-deflate` (`websocket-deflate` feature), including
-  the per-profile empty-message rule: Chrome 154 and Edge 153 compress a
+  the per-profile empty-message rule: Chrome 154 and Edge 154 compress a
   zero-length message and set RSV1, Firefox 156 sends it with RSV1 clear.
 - Client cookies, bounded messages, `Stream`/`Sink`, and strict response
   validation for each protocol.
-- A profile WebSocket connection policy with Chrome 154/Edge 153 and Firefox
+- A profile WebSocket connection policy with Chrome 154/Edge 154 and Firefox
   156 recipes. Depending on the recipe, it reuses a capable H2 session or
   opens either an `http/1.1`-only Upgrade connection or a new H2 connection.
   It uses the captured CONNECT pseudo-header order, priority, field templates,
   and deflate offers. A recipe also carries what its client does when the peer
-  refuses the CONNECT stream: Chrome 154 and Edge 153 reopen once on the same
+  refuses the CONNECT stream: Chrome 154 and Edge 154 reopen once on the same
   session, Firefox 156 reopens nothing. See
   [Profile connection policy](websocket.md#profile-connection-policy).
 
@@ -714,22 +714,22 @@ Supported HTTP proxies:
   their own trust settings, including one bounded Basic retry after a challenge
   and credentials on the first CONNECT once the proxy has accepted them.
 - CONNECT fields from the profile, on both proxy transports, in the order
-  Chrome 154, Edge 153, and Firefox 156 send them, with the tunnelled
+  Chrome 154, Edge 154, and Firefox 156 send them, with the tunnelled
   request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
   proxy connection per session, proxy, and set of credentials, as Chrome
-  154, Edge 153, and Firefox 156 open them. A tunnel past the proxy's
+  154, Edge 154, and Firefox 156 open them. A tunnel past the proxy's
   `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection, as in the
   browsers; after the proxy's `GOAWAY` or close, the next tunnel opens a new
   one. `ClientBuilder::max_http2_proxy_connections_per_route` opts into
   more connections per route, a departure from the browsers. The profile's
   ALPN is offered unchanged, and a selection mismatch is a typed error with
   no fallback. A Basic `407` is answered with one replay on a new
-  stream of the challenged connection, as Chrome 154, Edge 153, and Firefox
+  stream of the challenged connection, as Chrome 154, Edge 154, and Firefox
   156 do.
 - `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
-  `http`, in the profile's pseudo-header order, as Chrome 154, Edge 153, and
+  `http`, in the profile's pseudo-header order, as Chrome 154, Edge 154, and
   Firefox 156 send them. Forwarded requests share one proxy connection; with
   the Chromium recipe, CONNECT and WebSocket tunnels share it too, and with
   the Firefox recipe each of the three has its own, as in the captures.
@@ -836,11 +836,12 @@ the naming rules.
 Each recipe records the platform its captures came from, and no recipe
 shares component data with a capture from another platform:
 
-- Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), Brave 154
+- Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37), Brave 154
   (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
   come from Windows 11 captures. The `macos` client-hint and template
-  recipes of Chrome, Edge, Opera, and Firefox, at the same builds, come from
-  macOS 15.5 captures on Apple silicon. Single retained macOS runs of the TCP
+  recipes of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures
+  on Apple silicon, at the same builds except Edge, whose Mac runs Edge
+  153.0.4234.48. Single retained macOS runs of the TCP
   ClientHello and resumption and the H2 session for all four, and of the
   QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
   Windows recipes in the replay tests
@@ -871,9 +872,10 @@ How the recipes differ:
   one ascending order, which every captured process emits; Chromium commit
   `942bda4298c1` sorts the list before encoding it. The `sec-ch-ua` brand
   list is `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`.
-- Edge 153 matches the Chromium H2, QUIC, and H3 recipes and omits
-  trust-anchor IDs. So `edge::` carries only `v153_tls`, `v153_http3_tls`,
-  `v153_windows_client_hints`, and its request templates.
+- Edge 154 matches the Chromium H2, QUIC, and H3 recipes and omits
+  trust-anchor IDs. So `edge::` carries only `v154_tls`, `v154_http3_tls`,
+  `v154_windows_client_hints`, its request templates, and the Edge 153
+  `v153_macos_client_hints`.
 - Brave 154 matches the Chromium H2, QUIC, H3, WebSocket, and proxy CONNECT
   recipes and omits trust-anchor IDs. `brave::` carries `v154_tls`, which
   keeps Chrome's ECH from HTTPS records, `v154_http3_tls`,
@@ -905,10 +907,11 @@ How the recipes differ:
   captured model `"Pixel 7"`), `v154_android_client_hints_for_model` for
   another model, and navigation and fetch templates with Chrome's reduced
   Android `User-Agent`.
-- `edge_android::v153_*` carries desktop Edge 153's TLS recipes with ECH
-  from HTTPS records off, returns the Chromium H2, QUIC, H3, and H3 request
-  recipes, and carries `v153_android_client_hints()` with desktop Edge's
-  brand list and the `"Pixel 7"` model, `v153_android_client_hints_for_model`,
+- `edge_android::v153_*` carries desktop Edge's TLS recipes, which Edge 153
+  and Edge 154 send alike, with ECH from HTTPS records off, returns the
+  Chromium H2, QUIC, H3, and H3 request recipes, and carries
+  `v153_android_client_hints()` with desktop Edge 153's brand list and the
+  `"Pixel 7"` model, `v153_android_client_hints_for_model`,
   and navigation and fetch templates with Edge for Android's `User-Agent`.
   It has no WebSocket recipe.
 - `firefox::v156_*` covers TLS, TCP, H2, WebSocket, cookie placement, and the
@@ -920,7 +923,7 @@ Request templates:
 - The navigation templates match every retained page request:
   - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
     WebSocket captures), and H3 (the H3 startup capture);
-  - Edge 153, Brave 154, Opera 135, and Brave 153 for Android over H1, H2,
+  - Edge 154, Brave 154, Opera 135, and Brave 153 for Android over H1, H2,
     and H3;
   - Chrome 154 and Edge 153 for Android over H1 and H2 (the WebSocket
     captures); and
@@ -969,7 +972,7 @@ Randomized fields:
   and differed between processes, a hash-iteration order rather than a
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
-- The Chrome 154, Edge 153, Brave 154, Opera 135, and Chrome 154, Edge 153,
+- The Chrome 154, Edge 154, Brave 154, Opera 135, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those
   browsers does. Tests compare it exactly.

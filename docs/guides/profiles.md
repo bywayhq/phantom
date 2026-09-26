@@ -32,18 +32,18 @@ fn profiles() -> [ClientProfile; 5] {
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
-    // Edge 153: its own TLS and client hints; its H2, QUIC, and H3 match the
+    // Edge 154: its own TLS and client hints; its H2, QUIC, and H3 match the
     // Chromium recipes. It borrows Chromium's HTTP/1.1 connection bound.
-    let edge = ClientProfile::new(edge::v153_tls())
+    let edge = ClientProfile::new(edge::v154_tls())
         .with_http1(chromium::v154_http1())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            edge::v153_http3_tls(),
+            edge::v154_http3_tls(),
             chromium::v154_quic(),
             chromium::v154_http3(),
             chromium::v154_http3_request(),
         ))
-        .with_client_hints(edge::v153_windows_client_hints());
+        .with_client_hints(edge::v154_windows_client_hints());
 
     // Brave 154 and Opera 135 follow the same pattern with their own TLS,
     // H3 TLS, and client hints.
@@ -84,7 +84,7 @@ fn profiles() -> [ClientProfile; 5] {
 ```
 
 - Phantom carries one version per browser. The desktop modules are Chrome 154
-  (`chromium::v154_*`), Edge 153 (`edge::v153_*`), Brave 154
+  (`chromium::v154_*`), Edge 154 (`edge::v154_*`), Brave 154
   (`brave::v154_*`), Opera 135 (`opera::v135_*`), and Firefox 156
   (`firefox::v156_*`). The Android modules, captured on emulators, are
   Chrome 154 (`chrome_android::v154_*`), Edge 153 (`edge_android::v153_*`),

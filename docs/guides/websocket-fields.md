@@ -69,7 +69,7 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 - After negotiation every text and binary message is compressed; control
   frames never are.
 - Empty messages are compressed with RSV1 set by default, as Chrome 154 and
-  Edge 153 do. `compress_empty_messages(false)` sends them uncompressed, as
+  Edge 154 do. `compress_empty_messages(false)` sends them uncompressed, as
   Firefox 156 does. `PerMessageDeflate::from_profile` takes the offer and
   this rule from a recipe.
 

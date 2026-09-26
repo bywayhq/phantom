@@ -113,7 +113,7 @@ has the exact Chrome 154 commands and launch arguments to repeat.
 ## Step 2: retain the fixtures
 
 Place each file at `fixtures/<area>/<browser>/<exact-version>/<host>/`, for
-example `fixtures/tls/edge/153.0.4234.48/windows-11-26200/client-hello.txt`.
+example `fixtures/tls/edge/154.0.4258.37/windows-11-26200/client-hello.txt`.
 Each fixture's header records the browser, exact version, operating system,
 launch mode, and launch arguments, with the profile path replaced by a
 placeholder.
@@ -145,7 +145,7 @@ module needs a `pub mod` line in `crates/phantom-profile/src/lib.rs`.
   on, and states what it shares with another recipe and why.
 - A complete recipe set is self-contained, as `chromium::v154_*` and
   `firefox::v156_*` are. A fork may build on the current Chromium recipes and
-  change only what its captures show. `edge::v153_tls` is
+  change only what its captures show. `edge::v154_tls` is
   `chromium::v154_tls()` with `requested_trust_anchor_ids` set to `None`.
 - Leave `User-Agent` in a request template as a required caller slot
   (`RequestField::required_caller`) when no headful capture backs a literal

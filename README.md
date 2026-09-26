@@ -20,7 +20,7 @@ protocol or route. Phantom is maintained by
 
 ## What Phantom matches
 
-| Layer | Chrome 154 | Edge 153 | Brave 154 | Opera 135 | Firefox 156 | Chrome 154 for Android | Edge 153 for Android | Brave 153 for Android |
+| Layer | Chrome 154 | Edge 154 | Brave 154 | Opera 135 | Firefox 156 | Chrome 154 for Android | Edge 153 for Android | Brave 153 for Android |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -104,7 +104,7 @@ No Cargo feature is enabled by default:
 | Feature | Adds |
 | --- | --- |
 | `cookies` | A cookie jar owned by the client, with size limits |
-| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the Chrome 154, Edge 153, and Brave 154 recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; adds the `hickory-resolver` dependency |
+| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the Chrome 154, Edge 154, and Brave 154 recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; adds the `hickory-resolver` dependency |
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 | `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |

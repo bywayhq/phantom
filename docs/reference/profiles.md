@@ -36,7 +36,7 @@ recaptured and reverified.
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
-| Edge 153 | `edge::v153_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v153_windows_client_hints`, `v153_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
+| Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`; `v153_macos_client_hints` from Edge 153 | Chromium | Windows; macOS (Edge 153) for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows; macOS for templates |
@@ -237,8 +237,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
 | `chromium::v154_macos_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `chromium::v154_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
-| `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
-| `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `edge::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `edge::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `brave::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `opera::v135_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
@@ -420,7 +420,7 @@ replace it.
 | Recipe | HTTP/1.1 proxy | HTTP/2 proxy, after `:method` and `:authority` |
 | --- | --- | --- |
 | None (no `with_proxy_connect`) | `Host`, then `Proxy-Authorization` | `proxy-authorization` |
-| `chromium::v154_proxy_connect` (Chrome 154, Edge 153, Brave 154, and Opera 135) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+| `chromium::v154_proxy_connect` (Chrome 154, Edge 154, Brave 154, and Opera 135) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 | `firefox::v156_proxy_connect` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 
 - `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`

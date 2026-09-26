@@ -76,7 +76,7 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
   to an origin starts it, a sequential client sends that request to the
   origin, and a racing client starts origin setup at once and H3 setup only
   if the records list `h3`. Later requests use the cached result. With the
-  Chrome 154, Edge 153, or Brave 154 recipe, whose `ech_from_https_records`
+  Chrome 154, Edge 154, or Brave 154 recipe, whose `ech_from_https_records`
   is set, a direct TLS handshake to the origin waits up to 50 ms after address
   resolution for the lookup and encrypts its ClientHello with the record's
   `ech`, as those browsers do.

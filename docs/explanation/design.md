@@ -542,7 +542,7 @@ selected protocol or route, and never falls back to a direct connection.
 
 ### Shared HTTP/2 proxy connections
 
-Chrome 154, Edge 153, and Firefox 156 open several CONNECT tunnels as
+Chrome 154, Edge 154, and Firefox 156 open several CONNECT tunnels as
 streams of one HTTP/2 connection to a proxy
 ([evidence](validation.md#proxy-route-browser-evidence)), so Phantom does
 too. Each session keeps its own `Http2ProxyPool`, and each HTTPS proxy

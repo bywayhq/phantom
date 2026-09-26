@@ -301,7 +301,7 @@ connection, with a GREASE parameter.
 ## Trust anchor IDs
 
 A TLS extension that lists identifiers of the trust anchors a client holds.
-Chrome 154 sends 28 in ascending order; Edge 153 omits the extension.
+Chrome 154 sends 28 in ascending order; Edge 154 omits the extension.
 
 ## Next
 
