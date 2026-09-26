@@ -2628,22 +2628,24 @@ Replay against Phantom:
   the same with the early data accepted: the session opens its last two
   streams in 1-RTT, the server reads the same three types on streams 2, 6,
   and 10, and two requests succeed. Both tests write the QPACK stream types
-  when the session starts, so the server sees every type. No test reaches a
-  rejection between reading Quinn's answer and opening a stream, which the
-  stream-number check covers.
-  Three tests force races that a multi-threaded runtime can produce on
-  its own, through hooks.
+  when the session starts, so the server sees every type.
+  Two tests force races that a multi-threaded runtime can produce on its
+  own, through hooks, and check that the hook's race happened.
   `a_stream_opened_after_a_rejection_at_start_goes_to_the_new_session`
   opens the early session's control stream only after Quinn rejected the
-  early data; the stream is live on client stream 2 and becomes the new
+  early data, a rejection between reading Quinn's answer and opening the
+  stream; the stream is live on client stream 2 and becomes the new
   session's control stream.
   `a_discarded_session_polled_before_the_answer_keeps_the_connection` makes
   the driver poll the early session before it reads the rejection; the
-  session's close is dropped and HTTP/3 starts again. Both check the
-  server's stream types on client streams 2, 6, and 10 and a request.
+  session's close is held and dropped, and HTTP/3 starts again. Both check
+  the server's stream types on client streams 2, 6, and 10 and a request.
   `an_early_session_accepts_server_streams_only_after_an_acceptance` shows
-  a rejected session leaving a server stream to its replacement. Each test
-  fails with its fix removed. A Linux run pinned to four CPUs under load
+  that a transport whose early data Quinn rejected accepts no server
+  stream, and one whose early data Quinn accepted does.
+  `an_acceptance_wakes_a_waiting_server_stream_accept` holds Quinn's answer
+  while the transport waits to accept a server stream; the acceptance wakes
+  it. The first three tests fail with their fix removed. A Linux run pinned to four CPUs under load
   failed about half of the stress runs below before these fixes, with the
   three failures these tests reproduce. After them, 1,500 iterations of
   each scenario passed on the same setup, 552 of the handshake-window ones
