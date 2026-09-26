@@ -81,13 +81,14 @@ x86_64 system image, build `AE3A.240806.036`. The browsers come from the Play
 Store, signed in with a throwaway account, so each is the build Play serves to
 that device, which can trail the version Google's release API lists.
 
-Start the emulator from Git Bash with the proxy variables cleared. The
-emulator otherwise routes the guest's TCP through the host's `HTTP_PROXY`:
+Set `ANDROID_SDK_ROOT` to the Android SDK directory; on the capture host it
+is `C:/code/tools/android-sdk`. Start the emulator from Git Bash with the
+proxy variables cleared. The emulator otherwise routes the guest's TCP
+through the host's `HTTP_PROXY`:
 
 ```sh
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  ANDROID_SDK_ROOT=C:/code/tools/android-sdk \
-  /c/code/tools/android-sdk/emulator/emulator -avd phantom-api35-play \
+  "$ANDROID_SDK_ROOT/emulator/emulator" -avd phantom-api35-play \
   -memory 4096 -no-snapshot -no-boot-anim -no-metrics
 ```
 
@@ -110,6 +111,16 @@ lists the device as `unauthorized`, create the host's public key with
 `adb pubkey ~/.android/adbkey > ~/.android/adbkey.pub` and restart the
 emulator.
 
+Every run stops the browsers in the table below, ends cached apps, and
+clears the tested browser's app data, which on a personal phone erases its
+tabs, history, and sign-ins. The launcher therefore refuses a device that does
+not report `ro.kernel.qemu` or `ro.boot.qemu` as `1`, which every emulator
+does. To run on a phone set aside for captures, set
+`PHANTOM_ANDROID_ALLOW_PHYSICAL_DEVICE=1`, or pass `--allow-physical-device` to
+`android_run.py`. `startup_capture.py` and `chrome_ech.py` take desktop
+browsers only, and `proxy_route.py` refuses the authentication scenarios for
+an Android browser.
+
 Pass `--browser <name>-android`, the adb executable as `--browser-path`, and
 the device serial in `ANDROID_SERIAL`:
 
@@ -117,7 +128,7 @@ the device serial in `ANDROID_SERIAL`:
 ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
   python -m scripts.capture.client_hints \
   --browser chrome-android \
-  --browser-path C:/code/tools/android-sdk/platform-tools/adb.exe \
+  --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb" \
   --client-version 153.0.8010.52 \
   --operating-system "Android 15 (API 35) sdk_gphone64_x86_64 emulator AE3A.240806.036" \
   --repeat 3 \
@@ -193,7 +204,7 @@ runs one launch as above and stops the browser after `--hold` seconds:
 ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
   python -m scripts.capture.android_run \
   --browser chrome-android \
-  --adb C:/code/tools/android-sdk/platform-tools/adb.exe \
+  --adb "$ANDROID_SDK_ROOT/platform-tools/adb" \
   --entry intent \
   --switch=--disable-quic \
   "--switch=--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost" \

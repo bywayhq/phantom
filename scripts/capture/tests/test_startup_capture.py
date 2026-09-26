@@ -1,4 +1,6 @@
+import io
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 from scripts.capture.startup_capture import (
@@ -8,6 +10,7 @@ from scripts.capture.startup_capture import (
     free_udp_port,
     launch_arguments,
     launch_mode,
+    main,
     recorded_arguments,
 )
 
@@ -88,3 +91,27 @@ class LaunchArgumentTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AndroidBrowserRefusalTests(unittest.TestCase):
+    def test_android_browsers_are_refused(self) -> None:
+        for browser in ("chrome-android", "brave-android", "edge-android"):
+            with (
+                self.subTest(browser=browser),
+                redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                main(
+                    [
+                        "--browser",
+                        browser,
+                        "--browser-path",
+                        "adb",
+                        "--client-version",
+                        "1",
+                        "--layer",
+                        "tls",
+                        "--output-dir",
+                        "out",
+                    ]
+                )

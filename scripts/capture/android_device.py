@@ -18,6 +18,7 @@ gets an `adb reverse` for that port, which forwards TCP only.
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
@@ -29,6 +30,9 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 EMULATOR_HOST_LOOPBACK = "10.0.2.2"
+# Properties an Android emulator sets to 1; a phone sets neither.
+EMULATOR_PROPERTIES = ("ro.kernel.qemu", "ro.boot.qemu")
+ALLOW_PHYSICAL_DEVICE_VARIABLE = "PHANTOM_ANDROID_ALLOW_PHYSICAL_DEVICE"
 DEVICE_DIRECTORY = "/data/local/tmp"
 ENTRIES = ("typed", "intent")
 
@@ -302,6 +306,9 @@ class AndroidLaunch:
     typing_attempts: int = 3
     # Seconds between first-run screen checks.
     onboarding_delay: float = 3.0
+    # A run clears browser data, so a device that is not an emulator is
+    # refused unless this is set.
+    allow_physical_device: bool = False
 
     def __post_init__(self) -> None:
         if self.entry not in ENTRIES:
@@ -324,8 +331,23 @@ class AndroidLaunch:
         return None
 
 
+class PhysicalDeviceRefused(RuntimeError):
+    """The device is not an emulator, and a run would clear its browser data."""
+
+
+def allowed_on_physical_device() -> bool:
+    """Whether the environment opts in to runs on a phone or tablet."""
+    return os.environ.get(ALLOW_PHYSICAL_DEVICE_VARIABLE) == "1"
+
+
 class AndroidSession:
-    """One browser run on a cleared profile, stopped and cleaned up on exit."""
+    """One browser run on a cleared profile, stopped and cleaned up on exit.
+
+    A run stops every browser in `ANDROID_BROWSERS`, ends cached processes,
+    and clears the tested browser's app data. On a personal phone that erases
+    the owner's tabs, history, and sign-ins, so the session refuses any device
+    that does not report itself as an emulator, unless the launch allows it.
+    """
 
     def __init__(self, device: AdbDevice, launch: AndroidLaunch) -> None:
         self.device = device
@@ -345,6 +367,7 @@ class AndroidSession:
         launch = self.launch
         package = launch.browser.package
         configuration = launch.configuration()
+        self.require_emulator()
         for other in ANDROID_BROWSERS.values():
             self.device.shell("am", "force-stop", other.package)
         # Ends cached background processes, so the browser has the memory.
@@ -445,6 +468,19 @@ class AndroidSession:
             if label == ONBOARDING_LAST:
                 time.sleep(self.launch.onboarding_delay)
                 return
+
+    def require_emulator(self) -> None:
+        """Refuse a device that is not an emulator, unless allowed."""
+        if self.launch.allow_physical_device or allowed_on_physical_device():
+            return
+        for name in EMULATOR_PROPERTIES:
+            if self.device.shell("getprop", name, check=False).strip() == "1":
+                return
+        raise PhysicalDeviceRefused(
+            "the adb device is not an emulator; a run clears browser data. "
+            f"Set {ALLOW_PHYSICAL_DEVICE_VARIABLE}=1 or pass "
+            "--allow-physical-device to run on it anyway"
+        )
 
     def focused_text(self) -> str | None:
         """The text of the focused field on screen, from a window dump.

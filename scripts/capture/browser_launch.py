@@ -188,6 +188,8 @@ class LaunchPlan:
     # How an Android browser reaches the page: "typed" into the address bar,
     # or "intent", which opens it without user activation.
     android_entry: str = "typed"
+    # A run clears browser data; allow a device that is not an emulator.
+    android_allow_physical_device: bool = False
 
     @property
     def launch_mode(self) -> str:
@@ -258,6 +260,7 @@ class LaunchedBrowser:
             tuple(arguments[:-1]),
             preferences,
             entry=self.plan.android_entry,
+            allow_physical_device=self.plan.android_allow_physical_device,
         )
 
     def __enter__(self) -> LaunchedBrowser:

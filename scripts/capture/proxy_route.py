@@ -1116,6 +1116,10 @@ def launch_plan(
     server: CaptureServer,
     certificate: Certificate,
 ) -> LaunchPlan:
+    if browser in ANDROID_BROWSERS and scenario.auth:
+        # The credential goes in over the remote protocol, whose port the tool
+        # reads from a desktop profile directory.
+        raise ValueError(f"{browser} cannot run the proxy authentication scenarios")
     listen = server.addresses["origin"][0]
     http_proxy = server.addresses["http-proxy"]
     https_port = server.addresses["https-proxy"][1]

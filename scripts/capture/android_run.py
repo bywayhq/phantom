@@ -33,11 +33,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--entry", choices=("typed", "intent"), default="typed")
     parser.add_argument("--hold", type=float, default=8.0)
     parser.add_argument("--print-arguments", action="store_true")
+    parser.add_argument(
+        "--allow-physical-device",
+        action="store_true",
+        help="run on a device that is not an emulator; its browser data is cleared",
+    )
     args = parser.parse_args(argv)
     if args.browser is None:
         parser.error("--browser is required")
     plan = LaunchPlan(
-        args.browser, args.adb, False, tuple(args.switch), android_entry=args.entry
+        args.browser,
+        args.adb,
+        False,
+        tuple(args.switch),
+        android_entry=args.entry,
+        android_allow_physical_device=args.allow_physical_device,
     )
     if args.print_arguments:
         print(plan.recorded_arguments(args.url), flush=True)

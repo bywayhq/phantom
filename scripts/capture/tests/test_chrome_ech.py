@@ -225,3 +225,29 @@ class ChromeEchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AndroidBrowserRefusalTests(unittest.TestCase):
+    def test_android_browsers_are_refused(self) -> None:
+        for browser in ("chrome-android", "brave-android", "edge-android"):
+            with (
+                self.subTest(browser=browser),
+                redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                main(
+                    [
+                        "--browser",
+                        browser,
+                        "--browser-path",
+                        "adb",
+                        "--client-version",
+                        "1",
+                        "--scenario",
+                        "accept",
+                        "--capture-binary",
+                        "capture",
+                        "--output",
+                        "out.txt",
+                    ]
+                )

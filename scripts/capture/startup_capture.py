@@ -31,8 +31,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .browser_launch import (
-    CHROMIUM_BROWSERS,
     CLIENT_NAMES,
+    DESKTOP_CHROMIUM_BROWSERS,
     terminate_process_tree,
     terminate_profile_processes,
 )
@@ -278,7 +278,9 @@ def quic_run(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--browser", choices=CHROMIUM_BROWSERS, required=True)
+    # Android browsers take their switches through a device file instead; see
+    # `android_run.py`.
+    parser.add_argument("--browser", choices=DESKTOP_CHROMIUM_BROWSERS, required=True)
     parser.add_argument("--browser-path", type=Path, required=True)
     parser.add_argument("--client")
     parser.add_argument("--client-version", required=True)

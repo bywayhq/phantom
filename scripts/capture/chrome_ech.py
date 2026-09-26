@@ -36,7 +36,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from .browser_launch import CHROMIUM_BROWSERS, LaunchedBrowser, LaunchPlan
+from .browser_launch import DESKTOP_CHROMIUM_BROWSERS, LaunchedBrowser, LaunchPlan
 from .fixture_file import write_text_fixture
 
 HOSTNAME = "server.phantom.test"
@@ -278,7 +278,8 @@ def port_number(text: str) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--browser", choices=CHROMIUM_BROWSERS, required=True)
+    # The DoH preferences go into a desktop profile's `Local State` file.
+    parser.add_argument("--browser", choices=DESKTOP_CHROMIUM_BROWSERS, required=True)
     parser.add_argument("--browser-path", type=Path, required=True)
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", required=True)

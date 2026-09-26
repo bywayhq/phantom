@@ -754,6 +754,18 @@ class LaunchTests(unittest.TestCase):
                     CERTIFICATE,
                 )
 
+    def test_android_browsers_refuse_proxy_authentication_scenarios(self) -> None:
+        for browser in ("chrome-android", "opera-android"):
+            with self.subTest(browser=browser), self.assertRaises(ValueError):
+                launch_plan(
+                    browser,
+                    Path("adb"),
+                    False,
+                    SCENARIOS["http-proxy-auth-loopback"],
+                    self.server,
+                    CERTIFICATE,
+                )
+
     def test_firefox_tls_proxy_uses_pac_and_a_profile_override(self) -> None:
         plan = launch_plan(
             "firefox",
