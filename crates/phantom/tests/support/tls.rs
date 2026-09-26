@@ -215,7 +215,7 @@ impl TestIdentity {
 ///
 /// Test servers and relays tear down after the client under test hangs up;
 /// Linux reports that write as a broken pipe or reset, Windows as an abort.
-pub fn is_peer_gone(error: &io::Error) -> bool {
+pub(crate) fn is_peer_gone(error: &io::Error) -> bool {
     matches!(
         error.kind(),
         io::ErrorKind::BrokenPipe

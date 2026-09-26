@@ -2,14 +2,14 @@ use std::io;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-pub struct Frame {
-    pub kind: u8,
-    pub flags: u8,
-    pub stream_id: u32,
-    pub payload: Vec<u8>,
+pub(crate) struct Frame {
+    pub(crate) kind: u8,
+    pub(crate) flags: u8,
+    pub(crate) stream_id: u32,
+    pub(crate) payload: Vec<u8>,
 }
 
-pub async fn accept_client_preface<T>(stream: &mut T) -> io::Result<()>
+pub(crate) async fn accept_client_preface<T>(stream: &mut T) -> io::Result<()>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -33,7 +33,7 @@ where
     stream.flush().await
 }
 
-pub async fn read_frame<T>(stream: &mut T) -> io::Result<Frame>
+pub(crate) async fn read_frame<T>(stream: &mut T) -> io::Result<Frame>
 where
     T: AsyncRead + Unpin,
 {
@@ -50,7 +50,7 @@ where
     })
 }
 
-pub async fn read_request_headers<T>(stream: &mut T, stream_id: u32) -> io::Result<()>
+pub(crate) async fn read_request_headers<T>(stream: &mut T, stream_id: u32) -> io::Result<()>
 where
     T: AsyncRead + Unpin,
 {
@@ -68,7 +68,7 @@ where
     }
 }
 
-pub async fn write_frame<T>(
+pub(crate) async fn write_frame<T>(
     stream: &mut T,
     kind: u8,
     flags: u8,
