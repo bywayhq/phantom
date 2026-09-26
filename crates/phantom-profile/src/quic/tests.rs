@@ -1,7 +1,8 @@
 use super::{
-    GoogleConnectionOption, MAX_STREAM_COUNT, MAX_VARINT, QuicTransportGrease,
-    QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
-    QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
+    GoogleConnectionOption, MAX_STREAM_COUNT, MAX_VARINT, QuicAckFrequencyDraft,
+    QuicConnectionIdLength, QuicTransportGrease, QuicTransportParameter,
+    QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+    QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
 };
 
 fn parameter(
@@ -27,6 +28,12 @@ fn minimal_valid_settings() -> QuicTransportSettings {
         initial_max_streams_bidi: 0,
         initial_max_streams_uni: 0,
         max_datagram_frame_size: None,
+        max_ack_delay_ms: 25,
+        active_connection_id_limit: 2,
+        min_ack_delay_us: None,
+        reset_stream_at: false,
+        initial_datagram_size: None,
+        initial_destination_connection_id: None,
         wire_parameters: vec![parameter(
             QuicTransportParameterKind::InitialSourceConnectionId { length: 0 },
             QuicVarIntWidth::One,
@@ -277,4 +284,117 @@ fn initial_rtt_needs_a_two_byte_identifier_and_room_for_any_varint() {
         QuicVarIntWidth::One,
     ));
     assert_eq!(validation_result(&settings), Err("wire_parameters"));
+}
+
+#[test]
+fn new_semantic_values_enforce_their_limits() {
+    let mut settings = minimal_valid_settings();
+    settings.max_ack_delay_ms = 1 << 14;
+    assert_eq!(validation_result(&settings), Err("max_ack_delay_ms"));
+
+    for limit in [1, 9] {
+        let mut settings = minimal_valid_settings();
+        settings.active_connection_id_limit = limit;
+        assert_eq!(
+            validation_result(&settings),
+            Err("active_connection_id_limit")
+        );
+    }
+
+    let mut settings = minimal_valid_settings();
+    settings.min_ack_delay_us = Some(25_001);
+    assert_eq!(validation_result(&settings), Err("min_ack_delay_us"));
+
+    for size in [1_199, 65_528] {
+        let mut settings = minimal_valid_settings();
+        settings.initial_datagram_size = Some(size);
+        assert_eq!(validation_result(&settings), Err("initial_datagram_size"));
+    }
+
+    for length in [
+        QuicConnectionIdLength::Fixed(7),
+        QuicConnectionIdLength::Fixed(21),
+        QuicConnectionIdLength::MaskedRandom {
+            minimum: 7,
+            base: 5,
+        },
+        QuicConnectionIdLength::MaskedRandom {
+            minimum: 8,
+            base: 6,
+        },
+    ] {
+        let mut settings = minimal_valid_settings();
+        settings.initial_destination_connection_id = Some(length);
+        assert_eq!(
+            validation_result(&settings),
+            Err("initial_destination_connection_id")
+        );
+    }
+}
+
+#[test]
+fn new_parameters_follow_their_semantic_values() {
+    let mut settings = minimal_valid_settings();
+    settings.max_ack_delay_ms = 20;
+    assert_eq!(validation_result(&settings), Err("wire_parameters"));
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::MaxAckDelay {
+            value_width: QuicVarIntWidth::One,
+        },
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(validation_result(&settings), Ok(()));
+
+    let mut settings = minimal_valid_settings();
+    settings.reset_stream_at = true;
+    assert_eq!(validation_result(&settings), Err("reset_stream_at"));
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::ResetStreamAt,
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(validation_result(&settings), Ok(()));
+    settings.reset_stream_at = false;
+    assert_eq!(validation_result(&settings), Err("reset_stream_at"));
+
+    let mut settings = minimal_valid_settings();
+    let min_ack_delay = parameter(
+        QuicTransportParameterKind::MinAckDelay {
+            draft: QuicAckFrequencyDraft::Draft02,
+            value_width: QuicVarIntWidth::Two,
+        },
+        QuicVarIntWidth::Eight,
+        QuicVarIntWidth::One,
+    );
+    settings.wire_parameters.push(min_ack_delay.clone());
+    assert_eq!(validation_result(&settings), Err("wire_parameters"));
+    settings.min_ack_delay_us = Some(1_000);
+    assert_eq!(validation_result(&settings), Ok(()));
+
+    // A draft 02 identifier does not fit a four-byte varint.
+    let mut settings = minimal_valid_settings();
+    settings.min_ack_delay_us = Some(1_000);
+    settings.wire_parameters.push(QuicTransportParameter {
+        id_width: QuicVarIntWidth::Four,
+        ..min_ack_delay
+    });
+    assert_eq!(
+        validation_result(&settings),
+        Err("wire_parameters.id_width")
+    );
+}
+
+#[test]
+fn version_information_can_lead_with_the_reserved_version() {
+    let mut settings = minimal_valid_settings();
+    settings.wire_parameters.push(parameter(
+        QuicTransportParameterKind::VersionInformation(QuicVersionInformation {
+            available_version_count: 2,
+            grease: QuicVersionGrease::First,
+        }),
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::One,
+    ));
+    assert_eq!(validation_result(&settings), Ok(()));
 }

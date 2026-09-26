@@ -939,6 +939,7 @@ pub fn v154_http3() -> Http3Settings {
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
         qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
         qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
+        reserved_frame_after_settings: false,
     }
 }
 
@@ -1080,6 +1081,12 @@ pub fn v154_quic() -> QuicTransportSettings {
         initial_max_streams_bidi: 100,
         initial_max_streams_uni: 103,
         max_datagram_frame_size: Some(65_536),
+        max_ack_delay_ms: 25,
+        active_connection_id_limit: 2,
+        min_ack_delay_us: None,
+        reset_stream_at: false,
+        initial_datagram_size: None,
+        initial_destination_connection_id: None,
         wire_parameters: vec![
             parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One, One),
             parameter(

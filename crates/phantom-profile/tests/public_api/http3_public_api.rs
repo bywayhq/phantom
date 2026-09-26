@@ -20,6 +20,7 @@ fn downstream_code_can_build_and_customize_an_http3_profile() {
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
         qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
         qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
+        reserved_frame_after_settings: false,
     };
     let mut request = Http3RequestSettings {
         pseudo_header_order: vec![

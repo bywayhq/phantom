@@ -18,6 +18,7 @@ fn settings() -> Http3Settings {
         qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
         qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
         qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
+        reserved_frame_after_settings: false,
     }
 }
 
@@ -160,5 +161,37 @@ fn assert_request_field(
     assert_eq!(
         result.as_ref().map_err(InvalidHttp3RequestSettings::field),
         Err(expected_field)
+    );
+}
+
+#[test]
+fn draft_settings_keep_to_what_the_runtime_implements() {
+    let mut settings = settings();
+    settings.initial_settings.extend([
+        Http3Setting::EnableConnectProtocol(true),
+        Http3Setting::EnableWebTransportDraft02(false),
+        Http3Setting::H3DatagramDraft04(true),
+    ]);
+    assert_eq!(settings.validate(), Ok(()));
+
+    let mut webtransport = settings.clone();
+    webtransport
+        .initial_settings
+        .retain(|setting| !matches!(setting, Http3Setting::EnableWebTransportDraft02(_)));
+    webtransport
+        .initial_settings
+        .push(Http3Setting::EnableWebTransportDraft02(true));
+    assert_eq!(
+        webtransport.validate().map_err(|error| error.field()),
+        Err("initial_settings.enable_webtransport")
+    );
+
+    let mut draft_only = settings;
+    draft_only
+        .initial_settings
+        .retain(|setting| !matches!(setting, Http3Setting::H3Datagram(_)));
+    assert_eq!(
+        draft_only.validate().map_err(|error| error.field()),
+        Err("initial_settings.h3_datagram_draft04")
     );
 }

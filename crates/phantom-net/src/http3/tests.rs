@@ -562,6 +562,7 @@ fn test_settings() -> Http3Settings {
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
         qpack_encoder_stream: Http3QpackEncoderStream::Eager,
         qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
+        reserved_frame_after_settings: false,
     }
 }
 

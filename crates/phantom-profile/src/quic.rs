@@ -8,6 +8,10 @@ const MIN_UDP_PAYLOAD_SIZE: u64 = 1_200;
 const MAX_UDP_PAYLOAD_SIZE: u64 = 65_527;
 const MAX_CONNECTION_ID_LENGTH: u8 = 20;
 const MAX_CAPTURED_GREASE_PAYLOAD_LENGTH: u8 = 15;
+const DEFAULT_MAX_ACK_DELAY_MS: u64 = 25;
+const MAX_ACK_DELAY_LIMIT_MS: u64 = 1 << 14;
+const DEFAULT_ACTIVE_CONNECTION_ID_LIMIT: u64 = 2;
+const MIN_INITIAL_DESTINATION_CONNECTION_ID_LENGTH: u8 = 8;
 
 /// Width of one QUIC variable-length integer on the wire.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -71,12 +75,20 @@ pub enum QuicVersionGrease {
     Omit,
     /// Permute the reserved version with runtime-supported versions.
     Permuted,
+    /// Place the reserved version first, before the runtime-supported versions.
+    First,
 }
 
 /// Wire policy for RFC 9368 Version Information.
 ///
 /// The selected version and the versions actually supported by the transport
 /// remain runtime-owned and are deliberately absent from this profile type.
+///
+/// Phantom's QUIC runtime implements QUIC v1 and QUIC v2 (RFC 9369) and lists
+/// them most preferred first: v2, then v1. A count of 1 lists v1 alone and
+/// keeps every connection in v1. A count of 2 lists v2 and v1 and lets a server
+/// move a connection that started in v1 to v2 by compatible version
+/// negotiation (RFC 9368 section 2.3).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct QuicVersionInformation {
     /// Number of non-reserved versions the runtime must place after the chosen version.
@@ -86,6 +98,65 @@ pub struct QuicVersionInformation {
     pub available_version_count: u8,
     /// Whether and where to add one runtime-generated reserved version.
     pub grease: QuicVersionGrease,
+}
+
+/// Draft of the QUIC ACK frequency extension whose `min_ack_delay` is advertised.
+///
+/// The drafts use different transport parameter identifiers and give the
+/// fields of the `ACK_FREQUENCY` frame (`0xaf`) different meanings; the runtime
+/// reads frames from the peer in the advertised draft.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum QuicAckFrequencyDraft {
+    /// draft-ietf-quic-ack-frequency-02: identifier `0xff02de1a`.
+    Draft02,
+    /// draft-ietf-quic-ack-frequency-07: identifier `0xff04de1b`.
+    Draft07,
+}
+
+impl QuicAckFrequencyDraft {
+    const fn identifier(self) -> u64 {
+        match self {
+            Self::Draft02 => 0xff02_de1a,
+            Self::Draft07 => 0xff04_de1b,
+        }
+    }
+}
+
+/// Length policy for the random Destination Connection ID of a client's first Initial.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum QuicConnectionIdLength {
+    /// Always this many random bytes, from 8 through 20.
+    Fixed(u8),
+    /// `max(minimum, base + (b & (b >> 4)))` random bytes for one random byte `b`.
+    ///
+    /// The masked term is 0 to 15 and is small more often than large, so short
+    /// lengths dominate.
+    MaskedRandom {
+        /// Shortest length, at least 8.
+        minimum: u8,
+        /// Length before the masked term is added; `base + 15` must not exceed 20.
+        base: u8,
+    },
+}
+
+impl QuicConnectionIdLength {
+    fn validate(self) -> Result<(), InvalidQuicTransportSettings> {
+        let (shortest, longest) = match self {
+            Self::Fixed(length) => (length, length),
+            Self::MaskedRandom { minimum, base } => (minimum, minimum.max(base.saturating_add(15))),
+        };
+        if shortest < MIN_INITIAL_DESTINATION_CONNECTION_ID_LENGTH
+            || longest > MAX_CONNECTION_ID_LENGTH
+        {
+            return Err(InvalidQuicTransportSettings::new(
+                "initial_destination_connection_id",
+                "Initial Destination Connection IDs must be 8 to 20 bytes",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// A named Google QUIC connection option with understood semantics.
@@ -154,6 +225,17 @@ pub enum QuicTransportParameterKind {
         /// Width of the integer value.
         value_width: QuicVarIntWidth,
     },
+    /// `max_ack_delay` (`0x0b`), from [`QuicTransportSettings::max_ack_delay_ms`].
+    MaxAckDelay {
+        /// Width of the integer value.
+        value_width: QuicVarIntWidth,
+    },
+    /// `active_connection_id_limit` (`0x0e`), from
+    /// [`QuicTransportSettings::active_connection_id_limit`].
+    ActiveConnectionIdLimit {
+        /// Width of the integer value.
+        value_width: QuicVarIntWidth,
+    },
     /// `initial_source_connection_id` (`0x0f`).
     ///
     /// The connection ID bytes are supplied by the running QUIC connection.
@@ -165,6 +247,16 @@ pub enum QuicTransportParameterKind {
     VersionInformation(QuicVersionInformation),
     /// `max_datagram_frame_size` (`0x20`).
     MaxDatagramFrameSize {
+        /// Width of the integer value.
+        value_width: QuicVarIntWidth,
+    },
+    /// The empty `reset_stream_at` parameter (`0x1d`), sent when
+    /// [`QuicTransportSettings::reset_stream_at`] is set.
+    ResetStreamAt,
+    /// `min_ack_delay`, from [`QuicTransportSettings::min_ack_delay_us`].
+    MinAckDelay {
+        /// ACK frequency draft, which selects the identifier.
+        draft: QuicAckFrequencyDraft,
         /// Width of the integer value.
         value_width: QuicVarIntWidth,
     },
@@ -198,9 +290,13 @@ impl QuicTransportParameterKind {
             Self::InitialMaxStreamDataUni { .. } => ParameterIdentity::InitialMaxStreamDataUni,
             Self::InitialMaxStreamsBidi { .. } => ParameterIdentity::InitialMaxStreamsBidi,
             Self::InitialMaxStreamsUni { .. } => ParameterIdentity::InitialMaxStreamsUni,
+            Self::MaxAckDelay { .. } => ParameterIdentity::MaxAckDelay,
+            Self::ActiveConnectionIdLimit { .. } => ParameterIdentity::ActiveConnectionIdLimit,
             Self::InitialSourceConnectionId { .. } => ParameterIdentity::InitialSourceConnectionId,
             Self::VersionInformation(_) => ParameterIdentity::VersionInformation,
             Self::MaxDatagramFrameSize { .. } => ParameterIdentity::MaxDatagramFrameSize,
+            Self::ResetStreamAt => ParameterIdentity::ResetStreamAt,
+            Self::MinAckDelay { .. } => ParameterIdentity::MinAckDelay,
             Self::GoogleConnectionOptions(_) => ParameterIdentity::GoogleConnectionOptions,
             Self::InitialRtt => ParameterIdentity::InitialRtt,
             Self::Grease(_) => ParameterIdentity::Grease,
@@ -217,9 +313,13 @@ impl QuicTransportParameterKind {
             Self::InitialMaxStreamDataUni { .. } => Some(0x07),
             Self::InitialMaxStreamsBidi { .. } => Some(0x08),
             Self::InitialMaxStreamsUni { .. } => Some(0x09),
+            Self::MaxAckDelay { .. } => Some(0x0b),
+            Self::ActiveConnectionIdLimit { .. } => Some(0x0e),
             Self::InitialSourceConnectionId { .. } => Some(0x0f),
             Self::VersionInformation(_) => Some(0x11),
             Self::MaxDatagramFrameSize { .. } => Some(0x20),
+            Self::ResetStreamAt => Some(0x1d),
+            Self::MinAckDelay { draft, .. } => Some(draft.identifier()),
             Self::GoogleConnectionOptions(_) => Some(0x3128),
             Self::InitialRtt => Some(0x3127),
             Self::Grease(_) => None,
@@ -262,6 +362,34 @@ pub struct QuicTransportSettings {
     pub initial_max_streams_uni: u64,
     /// Maximum accepted DATAGRAM frame size, or `None` to omit DATAGRAM support.
     pub max_datagram_frame_size: Option<u64>,
+    /// Largest delay, in milliseconds, before acknowledging an ack-eliciting packet.
+    ///
+    /// Below 2^14. The protocol default, 25, needs no wire entry.
+    pub max_ack_delay_ms: u64,
+    /// Number of the peer's connection IDs the endpoint stores, from 2 through 8.
+    ///
+    /// The protocol default, 2, needs no wire entry.
+    pub active_connection_id_limit: u64,
+    /// Smallest ACK delay, in microseconds, the endpoint can honor when a peer
+    /// asks for one with ACK_FREQUENCY, or `None` to leave the ACK frequency
+    /// extension unadvertised.
+    ///
+    /// The runtime's timer granularity is 1000 microseconds, the only value it
+    /// can advertise.
+    pub min_ack_delay_us: Option<u64>,
+    /// Whether the endpoint accepts `RESET_STREAM_AT` frames
+    /// (draft-ietf-quic-reliable-stream-reset), which deliver a stream's
+    /// first bytes before a reset.
+    pub reset_stream_at: bool,
+    /// UDP payload size of each client datagram that carries an Initial
+    /// packet, which is also the path MTU the connection starts with.
+    ///
+    /// `None` keeps the runtime's 1200-byte Initial datagrams.
+    pub initial_datagram_size: Option<u16>,
+    /// Length of the random Destination Connection ID of the first Initial.
+    ///
+    /// `None` keeps the runtime's 20 random bytes.
+    pub initial_destination_connection_id: Option<QuicConnectionIdLength>,
     /// Parameters to advertise and their fixed/template wire order.
     pub wire_parameters: Vec<QuicTransportParameter>,
     /// Whether to preserve or permute the configured parameter order.
@@ -304,6 +432,37 @@ impl QuicTransportSettings {
         validate_stream_count("initial_max_streams_uni", self.initial_max_streams_uni)?;
         if let Some(value) = self.max_datagram_frame_size {
             validate_varint("max_datagram_frame_size", value)?;
+        }
+        if self.max_ack_delay_ms >= MAX_ACK_DELAY_LIMIT_MS {
+            return Err(InvalidQuicTransportSettings::new(
+                "max_ack_delay_ms",
+                "max_ack_delay must be below 16384 milliseconds",
+            ));
+        }
+        if !(2..=8).contains(&self.active_connection_id_limit) {
+            return Err(InvalidQuicTransportSettings::new(
+                "active_connection_id_limit",
+                "active_connection_id_limit must be 2 through 8",
+            ));
+        }
+        if let Some(value) = self.min_ack_delay_us
+            && value > self.max_ack_delay_ms * 1_000
+        {
+            return Err(InvalidQuicTransportSettings::new(
+                "min_ack_delay_us",
+                "min_ack_delay must not exceed max_ack_delay",
+            ));
+        }
+        if let Some(size) = self.initial_datagram_size
+            && !(MIN_UDP_PAYLOAD_SIZE..=self.max_udp_payload_size).contains(&u64::from(size))
+        {
+            return Err(InvalidQuicTransportSettings::new(
+                "initial_datagram_size",
+                "Initial datagrams must be 1200 bytes up to max_udp_payload_size",
+            ));
+        }
+        if let Some(length) = self.initial_destination_connection_id {
+            length.validate()?;
         }
         self.validate_wire_parameters()
     }
@@ -366,6 +525,22 @@ impl QuicTransportSettings {
             }
             QuicTransportParameterKind::InitialMaxStreamsUni { value_width } => {
                 validate_value_width(*value_width, self.initial_max_streams_uni)?
+            }
+            QuicTransportParameterKind::MaxAckDelay { value_width } => {
+                validate_value_width(*value_width, self.max_ack_delay_ms)?
+            }
+            QuicTransportParameterKind::ActiveConnectionIdLimit { value_width } => {
+                validate_value_width(*value_width, self.active_connection_id_limit)?
+            }
+            QuicTransportParameterKind::ResetStreamAt => 0,
+            QuicTransportParameterKind::MinAckDelay { value_width, .. } => {
+                let value = self.min_ack_delay_us.ok_or_else(|| {
+                    InvalidQuicTransportSettings::new(
+                        "wire_parameters",
+                        "MinAckDelay requires min_ack_delay_us",
+                    )
+                })?;
+                validate_value_width(*value_width, value)?
             }
             QuicTransportParameterKind::InitialSourceConnectionId { length } => {
                 if *length > MAX_CONNECTION_ID_LENGTH {
@@ -443,6 +618,14 @@ impl QuicTransportSettings {
                 self.initial_max_streams_uni != 0,
                 ParameterIdentity::InitialMaxStreamsUni,
             ),
+            (
+                self.max_ack_delay_ms != DEFAULT_MAX_ACK_DELAY_MS,
+                ParameterIdentity::MaxAckDelay,
+            ),
+            (
+                self.active_connection_id_limit != DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+                ParameterIdentity::ActiveConnectionIdLimit,
+            ),
         ];
         for (required, identity) in required_non_defaults {
             if required && !identities.contains(&identity) {
@@ -473,6 +656,24 @@ impl QuicTransportSettings {
                 ));
             }
             Some(_) | None => {}
+        }
+        for (configured, identity, field, message) in [
+            (
+                self.reset_stream_at,
+                ParameterIdentity::ResetStreamAt,
+                "reset_stream_at",
+                "ResetStreamAt must be advertised exactly when reset_stream_at is set",
+            ),
+            (
+                self.min_ack_delay_us.is_some(),
+                ParameterIdentity::MinAckDelay,
+                "min_ack_delay_us",
+                "MinAckDelay must be advertised exactly when min_ack_delay_us is set",
+            ),
+        ] {
+            if configured != identities.contains(&identity) {
+                return Err(InvalidQuicTransportSettings::new(field, message));
+            }
         }
 
         Ok(())
@@ -529,9 +730,13 @@ enum ParameterIdentity {
     InitialMaxStreamDataUni,
     InitialMaxStreamsBidi,
     InitialMaxStreamsUni,
+    MaxAckDelay,
+    ActiveConnectionIdLimit,
     InitialSourceConnectionId,
     VersionInformation,
     MaxDatagramFrameSize,
+    ResetStreamAt,
+    MinAckDelay,
     GoogleConnectionOptions,
     InitialRtt,
     Grease,

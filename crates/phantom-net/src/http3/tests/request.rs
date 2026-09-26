@@ -762,6 +762,7 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
         qpack_decoder_stream: Http3QpackDecoderStream::Eager,
         qpack_encoder_stream: Http3QpackEncoderStream::Eager,
         qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
+        reserved_frame_after_settings: false,
     };
     let mut invalid_request_settings = chromium::v154_http3_request();
     invalid_request_settings.pseudo_header_order[3] = Http3PseudoHeader::Method;

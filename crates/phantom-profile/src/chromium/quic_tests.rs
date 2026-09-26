@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use super::v154_quic;
 use crate::quic::{
-    GoogleConnectionOption, QuicTransportParameterKind, QuicTransportParameterOrder,
-    QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
+    GoogleConnectionOption, QuicAckFrequencyDraft, QuicTransportParameterKind,
+    QuicTransportParameterOrder, QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
 };
 
 const EDGE_154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
@@ -263,6 +263,12 @@ fn assert_quic_settings_match_startup(
                 assert_quic_scalar(&observed, 0x01, *value_width, settings.max_idle_timeout_ms)?
             }
             Kind::InitialRtt => return Err("a fresh capture carried initial_rtt_us".into()),
+            Kind::MaxAckDelay { .. }
+            | Kind::ActiveConnectionIdLimit { .. }
+            | Kind::ResetStreamAt
+            | Kind::MinAckDelay { .. } => {
+                return Err("Chrome sent no such parameter".into());
+            }
         }
     }
     assert!(captured.is_empty());
@@ -287,6 +293,13 @@ fn parameter_matches(kind: &QuicTransportParameterKind, observed_id: u64) -> boo
         Kind::MaxDatagramFrameSize { .. } => observed_id == 0x20,
         Kind::MaxIdleTimeout { .. } => observed_id == 0x01,
         Kind::InitialRtt => observed_id == 0x3127,
+        Kind::MaxAckDelay { .. } => observed_id == 0x0b,
+        Kind::ActiveConnectionIdLimit { .. } => observed_id == 0x0e,
+        Kind::ResetStreamAt => observed_id == 0x1d,
+        Kind::MinAckDelay { draft, .. } => match draft {
+            QuicAckFrequencyDraft::Draft02 => observed_id == 0xff02_de1a,
+            QuicAckFrequencyDraft::Draft07 => observed_id == 0xff04_de1b,
+        },
     }
 }
 

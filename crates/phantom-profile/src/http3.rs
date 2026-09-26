@@ -17,6 +17,20 @@ pub enum Http3Setting {
     QpackBlockedStreams(u64),
     /// SETTINGS_H3_DATAGRAM (`0x33`).
     H3Datagram(bool),
+    /// SETTINGS_ENABLE_CONNECT_PROTOCOL (`0x08`, RFC 9220).
+    ///
+    /// A client's value has no effect: an HTTP/3 server never sends requests.
+    EnableConnectProtocol(bool),
+    /// SETTINGS_ENABLE_WEBTRANSPORT (`0x2b603742`) of draft-ietf-webtrans-http3-02.
+    ///
+    /// Only `false` is valid: Phantom does not implement WebTransport.
+    EnableWebTransportDraft02(bool),
+    /// The draft SETTINGS_H3_DATAGRAM (`0xffd277`) of
+    /// draft-ietf-masque-h3-datagram-04 and later drafts.
+    ///
+    /// The drafts carry HTTP Datagrams in the RFC 9297 format, so `true` is
+    /// valid only alongside [`Self::H3Datagram`] set to `true`.
+    H3DatagramDraft04(bool),
     /// One reserved setting generated from two independent random `u32` values.
     ///
     /// The identifier is `31 * N + 33`; the second value is sent directly.
@@ -30,6 +44,9 @@ impl Http3Setting {
             Self::MaxFieldSectionSize(_) => SettingKind::MaxFieldSectionSize,
             Self::QpackBlockedStreams(_) => SettingKind::QpackBlockedStreams,
             Self::H3Datagram(_) => SettingKind::H3Datagram,
+            Self::EnableConnectProtocol(_) => SettingKind::EnableConnectProtocol,
+            Self::EnableWebTransportDraft02(_) => SettingKind::EnableWebTransportDraft02,
+            Self::H3DatagramDraft04(_) => SettingKind::H3DatagramDraft04,
             Self::RandomizedGrease => SettingKind::RandomizedGrease,
         }
     }
@@ -41,6 +58,9 @@ enum SettingKind {
     MaxFieldSectionSize,
     QpackBlockedStreams,
     H3Datagram,
+    EnableConnectProtocol,
+    EnableWebTransportDraft02,
+    H3DatagramDraft04,
     RandomizedGrease,
 }
 
@@ -61,7 +81,22 @@ pub enum Http3QpackEncoding {
     /// Encode requests without using the peer's dynamic table.
     Stateless,
     /// Wait for peer SETTINGS and use the connection-owned dynamic table.
+    ///
+    /// Every field without an exact static-table match is inserted, with a
+    /// name reference when one exists, and encoder-stream strings use Huffman
+    /// coding only when it is shorter (Chromium's QPACK encoder).
     Dynamic,
+    /// Wait for peer SETTINGS and insert only fields whose name matches no
+    /// table entry.
+    ///
+    /// Exact static and then exact dynamic matches are indexed; a static name
+    /// match, preferred to a dynamic one, becomes a literal with a name
+    /// reference. A field whose name matches nothing is inserted with a
+    /// literal name and indexed, while the blocked-stream limit allows; once
+    /// an insert fails, the rest of that field section is sent as literals.
+    /// Every encoder-stream string is Huffman-coded (neqo's QPACK encoder, as
+    /// in Firefox).
+    DynamicUnmatchedNames,
 }
 
 /// Stream-type emission policy for the local QPACK decoder stream.
@@ -136,6 +171,11 @@ pub struct Http3Settings {
     pub qpack_encoder_stream: Http3QpackEncoderStream,
     /// Opening order, and so stream identifiers, of the local QPACK streams.
     pub qpack_stream_order: Http3QpackStreamOrder,
+    /// Whether the control stream carries one reserved frame right after SETTINGS.
+    ///
+    /// The frame type is `0x1f * N + 0x21` for a random `N` below 2^57, and
+    /// the payload is 0 to 7 random bytes (RFC 9114 section 7.2.8).
+    pub reserved_frame_after_settings: bool,
 }
 
 impl Http3Settings {
@@ -154,6 +194,22 @@ impl Http3Settings {
             kinds.push(kind);
 
             match *setting {
+                Http3Setting::EnableWebTransportDraft02(true) => {
+                    return Err(InvalidHttp3Settings::new(
+                        "initial_settings.enable_webtransport",
+                        "WebTransport is not implemented",
+                    ));
+                }
+                Http3Setting::H3DatagramDraft04(true)
+                    if !self
+                        .initial_settings
+                        .contains(&Http3Setting::H3Datagram(true)) =>
+                {
+                    return Err(InvalidHttp3Settings::new(
+                        "initial_settings.h3_datagram_draft04",
+                        "the draft HTTP Datagram setting requires H3Datagram(true)",
+                    ));
+                }
                 Http3Setting::QpackMaxTableCapacity(value) if value > MAX_QPACK_TABLE_CAPACITY => {
                     return Err(InvalidHttp3Settings::new(
                         "initial_settings.qpack_max_table_capacity",
