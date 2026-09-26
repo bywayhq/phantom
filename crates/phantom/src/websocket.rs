@@ -677,7 +677,30 @@ fn trustworthy_host(host: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{OriginForm, ResolvedWebSocket, WebSocketTransport};
+    use super::{OriginForm, ResolvedWebSocket, WebSocketRequestBuilder, WebSocketTransport};
+
+    /// `connect` boxes each attempt, so its own future stays small; the
+    /// boxed attempt holds the connectors' futures for a new connection. See
+    /// `phantom_testkit::future_size`.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn opening_a_websocket_stays_within_the_setup_budget() {
+        use phantom_testkit::future_size::{SETUP_FUTURE_BUDGET, assert_within, future_size};
+
+        assert_within(
+            SETUP_FUTURE_BUDGET,
+            &[
+                (
+                    "WebSocketRequestBuilder::connect",
+                    future_size(&WebSocketRequestBuilder::connect),
+                ),
+                (
+                    "WebSocketRequestBuilder::connect_within_timeout",
+                    future_size(&WebSocketRequestBuilder::connect_within_timeout),
+                ),
+            ],
+        );
+    }
 
     #[test]
     fn only_a_secure_or_local_websocket_url_is_trustworthy()
