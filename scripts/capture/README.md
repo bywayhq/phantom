@@ -68,6 +68,12 @@ connection, every request's fields in wire order as
 | `h2.` | The frames before the first HEADERS, `initial_settings`, `connection_window_update`, and every client frame | No: the `phantom-http2-tls-v2` fields of those names, without the ALPS and limit fields |
 | `h3.` | Transport parameters, SETTINGS, and the first HTTP/3 request | No: the fields of `phantom-http3-client-startup-v2`, but its request is the script navigation to `/next`, not a first navigation |
 
+Each QUIC connection also records up to eight of the client's Initial
+datagrams in arrival order, one
+`quic_connection_<i>_initial_datagram_<n>=size:<bytes>,version:<hex>,destination_cid_length:<n>,source_cid_length:<n>`
+line each, after `quic_connection_<i>_initial_datagram_count`. A datagram
+counts when its first packet is a version 1 or version 2 Initial.
+
 `--split <snapshot> --output-dir <directory>` writes the two drop-in
 fixtures. The tool exits 1 when a run timed out, did not use HTTP/3, or has
 an `*_error` line (a part it could not parse); `--allow-partial` keeps it at

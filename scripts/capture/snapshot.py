@@ -86,6 +86,9 @@ DECOY_FORCE_QUIC_PORT = 9
 MAX_REQUEST_HEAD = 64 * 1024
 MAX_REQUESTS = 32
 MAX_STREAM_CAPTURE = 1024 * 1024
+MAX_INITIAL_DATAGRAMS = 8
+# Initial packet type bits by QUIC version: v1 (RFC 9000) and v2 (RFC 9369).
+INITIAL_PACKET_TYPES = {0x0000_0001: 0, 0x6B33_43CF: 1}
 MAX_PORT_ATTEMPTS = 64
 RETIRE_DRAIN_SECONDS = 1.0
 PARTIAL_MARKERS = {("timed_out", "true"), ("http3", "not-used")}
@@ -162,7 +165,46 @@ class QuicRecord:
     # was decoded, and its decoded fields.
     first_request: object | None = None
     first_headers: list[tuple[bytes, bytes]] | None = None
+    # The client's datagrams that start with an Initial packet, in arrival
+    # order, up to MAX_INITIAL_DATAGRAMS.
+    initial_datagrams: list[InitialDatagram] = field(default_factory=list)
     failure: str | None = None
+
+
+@dataclass(frozen=True)
+class InitialDatagram:
+    """The size and header of one client datagram led by an Initial packet."""
+
+    size: int
+    version: int
+    destination_cid_length: int
+    source_cid_length: int
+
+
+def initial_datagram(data: bytes) -> InitialDatagram | None:
+    """Return the header lengths of a datagram whose first packet is an Initial.
+
+    The packet type bits sit outside header protection. QUIC v1 marks an
+    Initial with type 0, and QUIC v2 (RFC 9369) with type 1.
+    """
+    if len(data) < 7 or not data[0] & 0x80:
+        return None
+    version = int.from_bytes(data[1:5], "big")
+    packet_type = (data[0] & 0x30) >> 4
+    if packet_type != INITIAL_PACKET_TYPES.get(version):
+        return None
+    destination = data[5]
+    if len(data) < 7 + destination:
+        return None
+    return InitialDatagram(len(data), version, destination, data[6 + destination])
+
+
+def initial_datagram_line(datagram: InitialDatagram) -> str:
+    return (
+        f"size:{datagram.size},version:0x{datagram.version:08x},"
+        f"destination_cid_length:{datagram.destination_cid_length},"
+        f"source_cid_length:{datagram.source_cid_length}"
+    )
 
 
 @dataclass
@@ -430,6 +472,13 @@ def quic_protocol(run: SnapshotRun):
             self.index = len(run.quic_connections)
             run.quic_connections.append(self.record)
             self.http: H3Connection | None = None
+
+        def datagram_received(self, data, addr) -> None:
+            if len(self.record.initial_datagrams) < MAX_INITIAL_DATAGRAMS:
+                datagram = initial_datagram(bytes(data))
+                if datagram is not None:
+                    self.record.initial_datagrams.append(datagram)
+            super().datagram_received(data, addr)
 
         def quic_event_received(self, event) -> None:
             try:
@@ -907,6 +956,15 @@ def render_snapshot(run: SnapshotRun, capture: CaptureMetadata) -> str:
             f"client_hello:{'complete' if record.client_hello else 'none'},"
             f"failure:{record.failure or 'none'}"
         )
+        lines.append(
+            f"quic_connection_{index}_initial_datagram_count="
+            f"{len(record.initial_datagrams)}"
+        )
+        for number, datagram in enumerate(record.initial_datagrams):
+            lines.append(
+                f"quic_connection_{index}_initial_datagram_{number}="
+                + initial_datagram_line(datagram)
+            )
     analyses: dict = {}
     lines.append(f"request_count={len(run.requests)}")
     for index, request in enumerate(run.requests):

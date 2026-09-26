@@ -21,9 +21,11 @@ from scripts.capture.http2_session import (
 )
 from scripts.capture.snapshot import (
     FORMAT,
+    InitialDatagram,
     SnapshotRun,
     client_hello_records,
     hello_message,
+    initial_datagram,
     launch_plan,
     page_url,
     problems,
@@ -330,6 +332,15 @@ class ScriptedRunTests(unittest.TestCase):
         self.assertEqual(values["hints_second_navigation"], "next")
         self.assertEqual(values["hint_0"], 'default|sec-ch-ua|"Scripted";v="1"')
 
+    def test_initial_datagrams_record_their_size_and_connection_ids(self) -> None:
+        count = int(self.values["quic_connection_0_initial_datagram_count"])
+        self.assertGreaterEqual(count, 1)
+        self.assertRegex(
+            self.values["quic_connection_0_initial_datagram_0"],
+            r"^size:1[0-9]{3},version:0x00000001,"
+            r"destination_cid_length:[0-9]+,source_cid_length:[0-9]+$",
+        )
+
     def test_split_writes_only_the_drop_in_fixtures(self) -> None:
         sections = split_snapshot(self.text)
         self.assertEqual(
@@ -399,3 +410,22 @@ class PortTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InitialDatagramTests(unittest.TestCase):
+    def test_reads_version_1_and_version_2_initials(self) -> None:
+        v1 = bytes([0xC3]) + (1).to_bytes(4, "big") + bytes([11]) + bytes(11)
+        v1 += bytes([3]) + bytes(3)
+        self.assertEqual(
+            initial_datagram(v1 + bytes(1200 - len(v1))),
+            InitialDatagram(1200, 1, 11, 3),
+        )
+        v2 = bytes([0xD3]) + (0x6B3343CF).to_bytes(4, "big") + bytes([8]) + bytes(9)
+        datagram = initial_datagram(v2)
+        self.assertIsNotNone(datagram)
+        self.assertEqual(datagram.version, 0x6B3343CF)
+
+    def test_other_packets_are_not_initials(self) -> None:
+        handshake = bytes([0xE3]) + (1).to_bytes(4, "big") + bytes([8]) + bytes(9)
+        self.assertIsNone(initial_datagram(handshake))
+        self.assertIsNone(initial_datagram(bytes([0x43]) + bytes(40)))
