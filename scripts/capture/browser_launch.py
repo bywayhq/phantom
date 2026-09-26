@@ -16,7 +16,7 @@ import threading
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .android_device import (
@@ -28,6 +28,9 @@ from .android_device import (
     AndroidSession,
     android_launch_mode,
     device_arguments,
+)
+from .android_device import (
+    ENTRIES as ANDROID_ENTRIES,
 )
 
 DESKTOP_CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
@@ -170,6 +173,28 @@ def check_browser_switches(
         parser.error("--browser-switch applies to Chromium browsers only")
     if any(not switch.startswith("--") for switch in args.browser_switch):
         parser.error("each --browser-switch must start with --")
+
+
+def add_android_entry_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--android-entry",
+        choices=ANDROID_ENTRIES,
+        default="typed",
+        help="how an Android browser opens the page: typed into the address "
+        "bar, or by a VIEW intent, which carries no user activation",
+    )
+
+
+def check_android_entry(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    if args.android_entry != "typed" and args.browser not in ANDROID_BROWSERS:
+        parser.error("--android-entry applies to Android browsers only")
+
+
+def with_android_entry(plan: LaunchPlan, entry: str) -> LaunchPlan:
+    """`plan` opening its page by `entry`; a desktop plan is unchanged."""
+    return replace(plan, android_entry=entry) if plan.android else plan
 
 
 def render_preferences(preferences: Sequence[tuple[str, bool | int | str]]) -> str:

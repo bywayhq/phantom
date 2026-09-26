@@ -554,7 +554,12 @@ record `launch_mode=android-typed`. A page that another app opens through a
 with `android_entry="intent"` opens the page
 that way instead and records `android-intent`; the TLS, HTTP/2 startup, and
 QUIC captures use it, because those layers do not depend on how the page was
-opened and the intent needs no typing.
+opened and the intent needs no typing. `quic_resumption.py`,
+`http2_websocket.py`, and `proxy_route.py` take `--android-entry intent` for
+the same launch. Use it when the fixture's evidence is what the page's script
+sends, such as resumed connections or WebSocket openings, and keep the typed
+default when a page-load request is compared with a template. An intent run
+of these tools takes 5 to 7 seconds on the capture host.
 
 A loaded device drops injected keys while the address bar fetches
 suggestions, and the address bar appends a selected inline completion to what

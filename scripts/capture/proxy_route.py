@@ -25,9 +25,12 @@ from .browser_launch import (
     CHROMIUM_BROWSERS,
     LaunchedBrowser,
     LaunchPlan,
+    add_android_entry_option,
     browser_arguments,
+    check_android_entry,
     enter_browser,
     render_preferences,
+    with_android_entry,
 )
 from .browser_remote import ChromiumAuthDriver, Credentials, FirefoxAuthDriver
 from .fixture_file import write_text_fixture
@@ -1362,13 +1365,16 @@ async def run(args: argparse.Namespace) -> None:
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name in names:
             scenario = SCENARIOS[name]
-            plan = launch_plan(
-                args.browser,
-                args.browser_path,
-                not args.headful,
-                scenario,
-                server,
-                certificate,
+            plan = with_android_entry(
+                launch_plan(
+                    args.browser,
+                    args.browser_path,
+                    not args.headful,
+                    scenario,
+                    server,
+                    certificate,
+                ),
+                args.android_entry,
             )
             runs = await capture_scenario(
                 server,
@@ -1420,7 +1426,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--run-timeout", type=float, default=20.0)
     parser.add_argument("--observation", type=float, default=1.0)
     parser.add_argument("--output-dir", type=Path, required=True)
+    add_android_entry_option(parser)
     args = parser.parse_args(argv)
+    check_android_entry(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})

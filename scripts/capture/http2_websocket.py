@@ -22,9 +22,12 @@ from .browser_launch import (
     CHROMIUM_BROWSERS,
     BrowserDriver,
     LaunchPlan,
+    add_android_entry_option,
     add_browser_switch_option,
+    check_android_entry,
     check_browser_switches,
     render_preferences,
+    with_android_entry,
 )
 from .fixture_file import write_text_fixture
 from .http2_session import (
@@ -592,7 +595,10 @@ async def run(args: argparse.Namespace) -> None:
     try:
         tls = "{}:{}".format(*server.tls_address)
         plain = "{}:{}".format(*server.plain_address)
-        plan = launch_plan(args, certificate, args.listen, server.tls_address[1])
+        plan = with_android_entry(
+            launch_plan(args, certificate, args.listen, server.tls_address[1]),
+            args.android_entry,
+        )
         names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name in names:
@@ -650,8 +656,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     add_browser_switch_option(parser)
+    add_android_entry_option(parser)
     args = parser.parse_args(argv)
     check_browser_switches(parser, args)
+    check_android_entry(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})

@@ -20,7 +20,9 @@ from scripts.capture.browser_launch import (
     PROFILE_PLACEHOLDER,
     LaunchedBrowser,
     LaunchPlan,
+    add_android_entry_option,
     add_browser_switch_option,
+    check_android_entry,
     check_browser_switches,
     chromium_arguments,
     firefox_arguments,
@@ -29,6 +31,7 @@ from scripts.capture.browser_launch import (
     profile_process_ids,
     recorded_arguments,
     render_preferences,
+    with_android_entry,
 )
 
 URL = "http://127.0.0.1:9450/run/token"
@@ -184,6 +187,34 @@ class BrowserLaunchTests(unittest.TestCase):
             self.assertEqual(
                 plan.recorded_arguments(URL), chrome.recorded_arguments(URL)
             )
+
+    def test_android_entry_option_switches_only_android_plans_to_intent(
+        self,
+    ) -> None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--browser")
+        add_android_entry_option(parser)
+        args = parser.parse_args(
+            ["--browser", "chrome-android", "--android-entry", "intent"]
+        )
+        check_android_entry(parser, args)
+        android = LaunchPlan("chrome-android", Path("adb"), headless=True)
+        desktop = LaunchPlan("chrome", Path("chrome.exe"), headless=True)
+
+        self.assertEqual(android.launch_mode, "android-typed")
+        self.assertEqual(
+            with_android_entry(android, args.android_entry).launch_mode,
+            "android-intent",
+        )
+        self.assertIs(with_android_entry(desktop, args.android_entry), desktop)
+        desktop_args = parser.parse_args(
+            ["--browser", "chrome", "--android-entry", "intent"]
+        )
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit),
+        ):
+            check_android_entry(parser, desktop_args)
 
     def test_manual_plan_never_starts_a_process(self) -> None:
         plan = LaunchPlan("manual", None, headless=False)

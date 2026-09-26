@@ -51,7 +51,14 @@ from aioquic.quic.events import (
 )
 from aioquic.quic.packet import QuicPacketType, pull_quic_header
 
-from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
+from .browser_launch import (
+    CHROMIUM_BROWSERS,
+    BrowserDriver,
+    LaunchPlan,
+    add_android_entry_option,
+    check_android_entry,
+    with_android_entry,
+)
 from .fixture_file import write_text_fixture
 from .http2_session import HOSTNAME, Certificate, generate_certificate
 from .http3_wire import (
@@ -858,18 +865,22 @@ async def capture_run(
     timeout: float,
     field_trial_config: bool,
     netlog: Path | None = None,
+    android_entry: str = "typed",
 ) -> RunResult:
     certificate = generate_certificate(HOSTNAME)
     async with serving(scenario, listen_host, certificate) as (run, port):
-        plan = launch_plan(
-            browser,
-            executable,
-            headless=headless,
-            listen_host=listen_host,
-            port=port,
-            certificate=certificate,
-            field_trial_config=field_trial_config,
-            netlog=netlog,
+        plan = with_android_entry(
+            launch_plan(
+                browser,
+                executable,
+                headless=headless,
+                listen_host=listen_host,
+                port=port,
+                certificate=certificate,
+                field_trial_config=field_trial_config,
+                netlog=netlog,
+            ),
+            android_entry,
         )
         url = f"https://{HOSTNAME}:{port}/"
         recorded = (
@@ -1167,7 +1178,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         default="resumption",
         help="write <prefix>-<scenario>.txt instead of resumption-<scenario>.txt",
     )
+    add_android_entry_option(parser)
     args = parser.parse_args(argv)
+    check_android_entry(parser, args)
     if aioquic.__version__ != SUPPORTED_AIOQUIC:
         parser.error(
             f"aioquic {SUPPORTED_AIOQUIC} is required, found {aioquic.__version__}"
@@ -1200,6 +1213,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                     netlog=None
                     if args.netlog_dir is None
                     else args.netlog_dir.resolve() / f"{name}-{index}.json",
+                    android_entry=args.android_entry,
                 )
             )
             results.append(result)
@@ -1210,7 +1224,10 @@ def main(argv: Sequence[str] | None = None) -> None:
                 file=sys.stderr,
                 flush=True,
             )
-        plan = LaunchPlan(args.browser, args.browser_path, not args.headful)
+        plan = with_android_entry(
+            LaunchPlan(args.browser, args.browser_path, not args.headful),
+            args.android_entry,
+        )
         fixture = render_fixture(
             scenario,
             results,
