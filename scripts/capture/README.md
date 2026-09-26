@@ -59,13 +59,14 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
 | --- | --- |
 | `--jobs N` | Run at most `N` jobs at once. The default is a quarter of the logical CPUs, at most 8 |
 | `--retries N` | Run a failed job up to `N` more times (default 1) |
-| `--force` | Also run jobs whose outputs are already complete |
+| `--force` | Also run jobs that the work directory records as complete |
 | `--only PREFIX` | Run only jobs whose id starts with `PREFIX`; repeat it for more |
 | `--dry-run` | Print each job's id and command line, then stop |
-| `--work-dir DIR` | Where attempt logs, temporary directories, and NetLogs go (default `<temp>/phantom-run-matrix-<manifest name>`) |
+| `--work-dir DIR` | Where completion records, attempt logs, temporary directories, and NetLogs go (default `<temp>/phantom-run-matrix-<manifest name>`) |
 | `--results PATH` | Where to write the results file (default `<work-dir>/results.json`) |
 
-The runner exits with status 1 if any job failed.
+The runner exits with status 1 if any job failed, and with status 130 after
+Ctrl+C.
 
 ### Manifest
 
@@ -111,8 +112,8 @@ The runner exits with status 1 if any job failed.
 | `captures[].repeat` | `--repeat` for this capture |
 | `captures[].output_dir` | Directory for the fixtures. `{browser}`, `{version}`, `{tool}`, and `{scenario}` are replaced; a relative path is relative to the repository root |
 | `captures[].args` | More arguments for the tool, such as `["--navigate", "devtools"]`. The runner refuses the arguments it sets itself |
-| `captures[].exclusive` | `true` runs each job of the capture with no other job. `false` lets a timing tool share the host |
-| `captures[].timeout` | Seconds before an attempt is stopped. The default is twice the tool's run budget times `repeat`, plus 60 |
+| `captures[].exclusive` | `true` runs each job of the capture with no other job. `false` lets a tool whose evidence depends on timing share the host; see [Parallel safety](#parallel-safety) |
+| `captures[].timeout` | Seconds before an attempt is stopped. The default is twice the tool's run budget times `repeat`, plus 60. A Firefox job that shares the host also gets `repeat` times `--jobs` times 15 seconds for launch turns |
 
 The runner refuses a manifest with an unknown key, a browser a tool does not
 support, an unknown scenario, or two jobs that would write the same file.
@@ -120,69 +121,98 @@ support, an unknown scenario, or two jobs that would write the same file.
 | Tool | Files per job | Browsers | Runs alone |
 | --- | --- | --- | --- |
 | `client_hints` | `navigation.txt` | All five | No |
-| `tls_resumption` | `resumption-<scenario>.txt` | All five | No |
-| `quic_resumption` | `<prefix>-<scenario>.txt`, where `--fixture-prefix` sets `<prefix>` (default `resumption`) | All five | No |
-| `cookie_crumbs` | `crumbs-<scenario>.txt` | All five | No |
-| `http2_websocket` | `<scenario>.txt` | All five | No |
-| `proxy_route` | `<scenario>.txt` | All five | No |
+| `tls_resumption` | `resumption-<scenario>.txt` | All five | By default: the fixtures keep connection counts, ticket order, and which requests arrive in early data |
+| `quic_resumption` | `<prefix>-<scenario>.txt`, where `--fixture-prefix` sets `<prefix>` (default `resumption`) | All five | By default: the fixtures keep connection counts and which requests travel in 0-RTT |
+| `cookie_crumbs` | `crumbs-<scenario>.txt` | All five | By default: the fixtures keep connections and the order of QPACK encoder-stream inserts |
+| `http2_websocket` | `<scenario>.txt` | All five | By default: the fixtures keep retries, connection counts, and frame order |
+| `proxy_route` | `<scenario>.txt` | All five | By default: the fixtures keep connection and tunnel counts, and browsers retry failed tunnels |
 | `sse_reconnect` | `<scenario>.txt` | All five | By default: the fixtures keep reconnect delays |
-| `alt_svc_race` | `<scenario>.txt` | Chrome, Edge | By default: the fixtures keep race delays |
+| `alt_svc_race` | `<scenario>.txt` | Chrome, Edge | Always: it binds UDP and TCP ports drawn from the fixed range 20000-39999, and the fixtures keep race delays |
 | `startup_capture` | For run `n`: `client-hello-<n>.txt` (`tls`), `client-startup-<n>.txt` (`http2`), or `client-startup-<n>.txt` and `quic-client-hello-<n>.txt` (`http3`) | Chromium browsers | No |
 | `chrome_ech` | `ech-<scenario>.txt`, or `ech-quic-<scenario>.txt` with `--quic`; `repeat` must be 1 | Chromium browsers | Always: the origin listens on `127.0.0.1:443`, and `--dns-from-policy` needs a machine-wide Edge policy |
 
 `startup_capture` at the `tls` and `http2` layers and `chrome_ech` run Cargo
 examples, which must be built first; pass `--capture-binary` in `args`.
 `alt_svc_race` gets a NetLog directory of its own inside the work directory.
+It picks its port from 20000-39999 rather than from port 0, because Windows
+excludes UDP and TCP ranges separately; two runs could draw the same number,
+so it never shares the host.
 Android browsers and `manual` are not supported; see
 [Android browsers](#android-browsers).
 
 ### Resume and retry
 
-A job is complete when every file it writes exists, ends with a newline, and
-has no `run_<n>_timed_out=true` line. Several tools record a run that timed
-out in the fixture instead of failing, and no retained fixture holds one. The
-runner skips complete jobs, so a second run of the same manifest runs only
-what is missing or failed. An attempt passes only if the tool exits with
-status 0 and rewrites every file after the attempt starts, so an older fixture
-never passes for a failed attempt.
+The work directory keeps a completion record for each job that passed: the
+job's parameters (tool, browser, executable path, `--client-version`,
+`--operating-system`, scenario, `repeat`, extra arguments, and output paths),
+whether it shared the host, the concurrency, and the SHA-256 of each file it
+wrote. The runner skips a job only when its record matches the manifest and
+every file still has the recorded digest. The record is removed when the job
+starts and written only when an attempt passes, so a fixture from a failed
+attempt, from other parameters, or written by hand is captured again and
+overwritten. Resuming needs the same `--work-dir`.
+
+An attempt passes when the tool exits with status 0 and rewrites every file
+after the attempt starts, and each file ends with a newline and has no
+`run_<n>_timed_out=true` line. Several tools record a run that timed out in the
+fixture instead of failing, and no retained fixture holds one.
 
 A failed attempt is run again at once. Each attempt's standard output and
-standard error go to `<work-dir>/logs/<job>.<attempt>.log`. An attempt that
-reaches its timeout is stopped with its process tree and every process whose
-command line names its temporary directory.
+standard error go to `<work-dir>/logs/<job>.<attempt>.log`.
+
+On Windows each attempt's processes, the browsers included, belong to a Job
+Object that ends them when it closes. On other systems the tool leads a new
+process group. When an attempt ends, passes, fails, or reaches its timeout,
+the runner closes its job, ends every process whose command line names the
+attempt's temporary directory, and removes that directory. If the runner
+itself exits, Windows closes the jobs and ends their processes.
+
+Ctrl+C starts no more jobs or retries, ends every running attempt the same
+way, prints the summary, and writes the results file. A job that was running
+is reported as `stopped`, and one that had not started as `not-run`.
 
 At the end the runner prints one line per job (status, attempts, seconds, and
 the last failure) and a total, then writes the results file: the concurrency,
-the wall-clock seconds, and each job's tool, browser, scenario, outputs, and
-attempts with their seconds, failure, and log path.
+whether it was interrupted, the wall-clock seconds, and each job's tool,
+browser, scenario, whether it shared the host, outputs, and attempts with
+their seconds, failure, and log path. Keep it with the capture's notes: the
+fixture formats have no field for the concurrency a capture ran under.
 
 ### Parallel safety
 
 Jobs that run at the same time share nothing the runner or the tools write:
 
 - Each attempt gets its own directory as `TMP`, `TEMP`, and `TMPDIR`, so
-  browser profiles and certificate files from `tempfile` land there. The
-  runner removes it after the attempt.
-- Every listener binds loopback port 0. `startup_capture` picks the HTTP/3
-  port by binding port 0 and releasing it; if another process takes the port
-  first, the attempt fails and is retried.
+  browser profiles and certificate files from `tempfile` land there.
+- Every listener binds loopback port 0, except `alt_svc_race`, which runs
+  alone. `startup_capture` picks the HTTP/3 port by binding port 0 and
+  releasing it; if another process takes the port first, the attempt fails
+  and is retried.
 - Output files cannot overlap: the manifest check refuses it.
-- Desktop Firefox launches take turns, as [Browser launcher](#browser-launcher)
-  describes.
-- A tool that uses machine-wide state runs with no other job. `chrome_ech` is
-  the one such tool today.
+- Desktop Firefox launches take turns while other jobs run, as
+  [Browser launcher](#browser-launcher) describes.
+- A tool that uses machine-wide state always runs with no other job:
+  `chrome_ech` and `alt_svc_race`.
 
-Timing tools run alone by default because they retain delays that a loaded
-host would stretch. Other tools retain timings too, such as the millisecond
-fields of `tls_resumption`, but their evidence is the order and content of
-what the browser sent. On the capture host (16 cores, 32 threads), 15 jobs of
-`client_hints` and `tls_resumption` for all five browsers, 45 browser runs,
-took 125 seconds with `--jobs 1`, 26 to 30 seconds with `--jobs 8`, and 22
-seconds with `--jobs 16`. Each job took about 25% longer at 8 and about 70%
-longer at 16, and at 16 `tls_resumption --scenario methods-http1` recorded 7
-rather than 8 connections in more runs than it did alone. Keep the default
-unless a capture's evidence does not depend on timing. Measured September
-2026.
+A job runs alone by default when its tool's fixtures keep connection counts,
+connection or request order, or delays, because load on the host can change
+them. Only `client_hints` and `startup_capture` share the host by default.
+Use `--jobs 1`, or keep the default, for a capture whose evidence is a count,
+an order, or a timing. Set `"exclusive": false` only for a capture whose
+evidence is the content of what the browser sent, such as a ClientHello or
+field values.
+
+On the capture host (16 cores, 32 threads), 15 jobs of `client_hints` and
+`tls_resumption` for Chrome 154, Edge 154, Brave 154, Opera 135, and
+Firefox 156, 45 browser runs, took 127 seconds with `--jobs 1` and 111 seconds
+with the default `--jobs 8`, where the `tls_resumption` jobs ran alone. With
+`"exclusive": false` for `tls_resumption` they took 26 seconds at `--jobs 8`,
+and each job took about 25% longer than alone. The number of resumed
+ClientHellos, and in `methods-http1` whether a run had 7 or 8 connections,
+differed between these three passes, including between runs made alone, so
+the passes do not show whether sharing the host changes them. The runner has
+been run with up to 16 jobs; at 16 each job took about 70% longer than
+alone. Measured September 2026.
 
 ### Add a tool to the runner
 
@@ -197,12 +227,16 @@ A tool can run under the runner when it:
    `browser_launch.py`;
 4. writes each fixture with `write_text_fixture`, and either exits with a
    nonzero status when a run fails or records it as
-   `run_<n>_timed_out=true`.
+   `run_<n>_timed_out=true`;
+5. launches browsers from a coroutine through `BrowserDriver` or
+   `enter_browser`, so a Firefox launch waiting its turn does not stop the
+   tool's event loop.
 
 Then add a `Tool` entry to `TOOLS` in `run_matrix.py` with the module, the
 browsers it supports, the files a job writes, a run budget in seconds, and
-`global_state` or `timing` if it must run alone. Add a manifest test for its
-file names to `tests/test_run_matrix.py`.
+`global_state` if it uses machine-wide state, or `timing` if its evidence
+includes counts, order, or delays. Add a manifest test for its file names to
+`tests/test_run_matrix.py`.
 
 ## Browser launcher
 
@@ -234,11 +268,15 @@ that turns off the same classes of traffic, including updates, captive-portal
 and connectivity checks, telemetry, Safe Browsing, DNS over HTTPS, and
 proxies.
 
-When `run_matrix.py` runs tools side by side, it sets
-`PHANTOM_CAPTURE_LOCK_DIR`, and desktop Firefox launches then take turns. Each
-holds a lock file in that directory until `sessionCheckpoints.json` in its
-profile records `sessionstore-windows-restored`, which Firefox writes at about
-the moment it requests the page, or for at most 15 seconds. On the capture
+When `run_matrix.py` runs a job beside others, it sets
+`PHANTOM_CAPTURE_LOCK_DIR` for that job, and desktop Firefox launches then
+take turns. Each holds a lock file in that directory until
+`sessionCheckpoints.json` in its profile records
+`sessionstore-windows-restored`, which Firefox writes at about the moment it
+requests the page, until the process exits, or for at most 15 seconds. The
+wait runs in a worker thread, so the tool's server answers the page while
+Firefox starts. Jobs that run alone, and every job under `--jobs 1`, do not
+get the variable. On the capture
 host, Firefox 156 processes started three at a time at the same moment loaded
 their page in 5 of 9 launches; with the lock, 12 of 12 loaded in groups of
 four. Chromium browsers started four at a time loaded 8 of 8 and do not take

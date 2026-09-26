@@ -2,15 +2,21 @@
 
 It takes the arguments the runner passes to a scenario tool and writes one
 `resumption-<scenario>.txt` fixture. Scenario names select the behavior:
-`fail-once` fails its first attempt (tracked by a file in the output
-directory), `fail` always exits 1, `hang` sleeps past any test timeout,
-`timed-out` writes a fixture with a timed-out run, and anything else succeeds.
+
+- `fail-once` fails its first attempt, tracked by a file in the output
+  directory;
+- `fail` always exits 1;
+- `hang` starts a sleeping child, writes the child's process id to
+  `grandchild.pid` in the output directory, and sleeps past any test timeout;
+- `timed-out` writes a fixture with a timed-out run;
+- anything else succeeds.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -40,6 +46,8 @@ def main() -> int:
     print(f"lock_dir={os.environ.get('PHANTOM_CAPTURE_LOCK_DIR', '')}", flush=True)
     time.sleep(args.sleep)
     if args.scenario == "hang":
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
+        (args.output_dir / "grandchild.pid").write_text(str(child.pid))
         time.sleep(600)
     if args.scenario == "fail":
         return 1

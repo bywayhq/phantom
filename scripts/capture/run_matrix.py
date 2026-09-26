@@ -13,6 +13,7 @@ another job. A job whose tool needs machine-wide state runs alone.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -27,11 +28,9 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .browser_launch import (
-    LAUNCH_LOCK_DIRECTORY,
-    terminate_process_tree,
-    terminate_profile_processes,
-)
+from .browser_launch import FIREFOX_START_LIMIT_SECONDS, LAUNCH_LOCK_DIRECTORY
+from .fixture_file import write_atomically
+from .process_container import ProcessContainer, popen_options, stop_processes_naming
 
 # Shared by every runner on the host, so launches take turns across runners
 # too. Each job's TEMP points elsewhere, so the path is fixed here.
@@ -140,6 +139,8 @@ TOOLS = {
             DESKTOP_BROWSERS,
             scenario_file("resumption-{scenario}.txt"),
             run_seconds=8,
+            timing="its fixtures keep connection counts, ticket order, and "
+            "which requests arrive in early data",
         ),
         Tool(
             "quic_resumption",
@@ -147,6 +148,8 @@ TOOLS = {
             DESKTOP_BROWSERS,
             quic_resumption_outputs,
             run_seconds=8,
+            timing="its fixtures keep connection counts and which requests "
+            "travel in 0-RTT",
         ),
         Tool(
             "cookie_crumbs",
@@ -154,6 +157,8 @@ TOOLS = {
             DESKTOP_BROWSERS,
             scenario_file("crumbs-{scenario}.txt"),
             run_seconds=5,
+            timing="its fixtures keep connections and the order of QPACK "
+            "encoder-stream inserts",
         ),
         Tool(
             "http2_websocket",
@@ -161,6 +166,7 @@ TOOLS = {
             DESKTOP_BROWSERS,
             scenario_file("{scenario}.txt"),
             run_seconds=8,
+            timing="its fixtures keep retries, connection counts, and frame order",
         ),
         Tool(
             "proxy_route",
@@ -168,6 +174,8 @@ TOOLS = {
             DESKTOP_BROWSERS,
             scenario_file("{scenario}.txt"),
             run_seconds=8,
+            timing="its fixtures keep connection and tunnel counts, and browsers "
+            "retry failed tunnels",
         ),
         Tool(
             "sse_reconnect",
@@ -175,7 +183,7 @@ TOOLS = {
             DESKTOP_BROWSERS,
             scenario_file("{scenario}.txt"),
             run_seconds=120,
-            timing="its fixtures retain reconnect delays",
+            timing="its fixtures keep reconnect delays",
         ),
         Tool(
             "alt_svc_race",
@@ -184,7 +192,8 @@ TOOLS = {
             scenario_file("{scenario}.txt"),
             netlog_dir=True,
             run_seconds=60,
-            timing="its fixtures retain race delays",
+            global_state="it binds UDP and TCP ports drawn from the fixed range "
+            "20000-39999, and its fixtures keep race delays",
         ),
         Tool(
             "startup_capture",
@@ -509,6 +518,79 @@ def output_problem(job: Job, *, since: float | None = None) -> str | None:
     return None
 
 
+def job_parameters(job: Job) -> dict[str, object]:
+    """Everything the manifest decides about what a job's fixtures contain."""
+    return {
+        "tool": job.tool.name,
+        "module": job.tool.module,
+        "browser": job.browser.name,
+        "browser_path": job.browser.path,
+        "client_version": job.browser.version,
+        "scenario": job.scenario,
+        "repeat": job.repeat,
+        "arguments": list(job.arguments),
+        "outputs": [str(output) for output in job.outputs],
+    }
+
+
+def file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class CompletionRecords:
+    """The jobs a work directory saw pass, with their parameters and outputs.
+
+    A job is skipped only when its record matches its parameters and every
+    output still has the recorded digest. The record is removed before a job
+    runs and written only when an attempt passes, so a fixture from a failed
+    attempt, from other parameters, or written by hand never counts.
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self.directory = directory
+
+    def path(self, job: Job) -> Path:
+        return self.directory / f"{slug(job.id)}.json"
+
+    def mismatch(self, job: Job) -> str | None:
+        """Why `job` must run, or None when its record still holds."""
+        try:
+            record = json.loads(self.path(job).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return "no completion record"
+        if not isinstance(record, dict):
+            return "no completion record"
+        if record.get("parameters") != job_parameters(job):
+            return "parameters differ from the completion record"
+        digests = record.get("outputs")
+        if not isinstance(digests, dict):
+            return "no completion record"
+        for output in job.outputs:
+            try:
+                digest = file_digest(output)
+            except OSError:
+                return f"missing {output}"
+            if digests.get(str(output)) != digest:
+                return f"changed after the completion record: {output}"
+        return None
+
+    def forget(self, job: Job) -> None:
+        self.path(job).unlink(missing_ok=True)
+
+    def remember(self, job: Job, *, shared_host: bool, concurrency: int) -> None:
+        self.directory.mkdir(parents=True, exist_ok=True)
+        record = {
+            "job": job.id,
+            "parameters": job_parameters(job),
+            "shared_host": shared_host,
+            "concurrency": concurrency,
+            "outputs": {str(output): file_digest(output) for output in job.outputs},
+        }
+        write_atomically(
+            self.path(job), json.dumps(record, indent=2) + "\n", encoding="utf-8"
+        )
+
+
 # -- Execution ----------------------------------------------------------------
 
 
@@ -523,8 +605,12 @@ class Attempt:
 @dataclass
 class JobResult:
     job: Job
-    status: str  # "ok", "failed", or "skipped"
+    # "ok", "failed", "skipped", "stopped" (interrupted while it ran), or
+    # "not-run" (interrupted before it started).
+    status: str
     attempts: list[Attempt] = field(default_factory=list)
+    # Whether other jobs could run beside it.
+    shared_host: bool = False
 
     @property
     def seconds(self) -> float:
@@ -535,14 +621,61 @@ def slug(job_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", job_id)
 
 
-def kill_job_processes(process: subprocess.Popen[bytes], temporary: Path) -> None:
-    terminate_process_tree(process)
-    # A browser whose launcher already exited keeps the job's profile path on
-    # its command line.
-    terminate_profile_processes(temporary)
+def end_attempt(container: ProcessContainer, temporary: Path) -> None:
+    container.close()
+    # A browser outside the container still names the attempt's directory.
+    stop_processes_naming(temporary)
 
 
-def run_attempt(job: Job, attempt: int, work_dir: Path) -> Attempt:
+class Attempts:
+    """The attempts running now, so a stop can end every one of them."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.running: dict[str, tuple[ProcessContainer, Path]] = {}
+        self.stopped = threading.Event()
+
+    def add(self, name: str, container: ProcessContainer, temporary: Path) -> bool:
+        """Track an attempt; False once a stop has begun."""
+        with self.lock:
+            if self.stopped.is_set():
+                return False
+            self.running[name] = (container, temporary)
+            return True
+
+    def remove(self, name: str) -> None:
+        with self.lock:
+            self.running.pop(name, None)
+
+    def stop(self) -> None:
+        """Start no more attempts and end every running attempt's processes."""
+        with self.lock:
+            self.stopped.set()
+            running = list(self.running.values())
+        for container, temporary in running:
+            end_attempt(container, temporary)
+
+
+def attempt_timeout(job: Job, *, shared_host: bool, limit: int) -> float:
+    """The job's timeout, plus the longest its Firefox launches can wait.
+
+    Each launch that takes turns can wait for every other running job's
+    launch and then its own, each up to the Firefox start limit.
+    """
+    if not shared_host or job.browser.name != "firefox":
+        return job.timeout
+    return job.timeout + job.repeat * limit * FIREFOX_START_LIMIT_SECONDS
+
+
+def run_attempt(
+    job: Job,
+    attempt: int,
+    work_dir: Path,
+    *,
+    shared_host: bool,
+    limit: int,
+    attempts: Attempts,
+) -> Attempt:
     """Run one attempt of `job` as a subprocess and check its outputs."""
     name = f"{slug(job.id)}.{attempt}"
     temporary = work_dir / "tmp" / name
@@ -557,11 +690,15 @@ def run_attempt(job: Job, attempt: int, work_dir: Path) -> Attempt:
     job.output_dir.mkdir(parents=True, exist_ok=True)
     environment = {
         **os.environ,
-        LAUNCH_LOCK_DIRECTORY: str(LOCK_DIRECTORY),
         "TMP": str(temporary),
         "TEMP": str(temporary),
         "TMPDIR": str(temporary),
     }
+    # Launches take turns only while other jobs can launch at the same time.
+    environment.pop(LAUNCH_LOCK_DIRECTORY, None)
+    if shared_host:
+        environment[LAUNCH_LOCK_DIRECTORY] = str(LOCK_DIRECTORY)
+    timeout = attempt_timeout(job, shared_host=shared_host, limit=limit)
     started = time.time()
     begin = time.perf_counter()
     detail = ""
@@ -572,16 +709,27 @@ def run_attempt(job: Job, attempt: int, work_dir: Path) -> Attempt:
             stdout=output,
             stderr=subprocess.STDOUT,
             env=environment,
+            **popen_options(),
         )
+        container = ProcessContainer(process)
+        if not attempts.add(name, container, temporary):
+            end_attempt(container, temporary)
         try:
-            code = process.wait(timeout=job.timeout)
+            code = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            kill_job_processes(process, temporary)
             code = None
-            detail = f"timed out after {job.timeout:g}s"
+            detail = f"timed out after {timeout:g}s"
+        finally:
+            attempts.remove(name)
+            end_attempt(container, temporary)
     seconds = time.perf_counter() - begin
     shutil.rmtree(temporary, ignore_errors=True)
-    if code is not None and code != 0:
+    if not container.contained:
+        with log.open("ab") as output:
+            output.write(b"run_matrix: Windows refused the job object\n")
+    if code != 0 and attempts.stopped.is_set():
+        detail = "stopped"
+    elif code is not None and code != 0:
         detail = f"exit status {code}"
     if not detail:
         detail = output_problem(job, since=started) or ""
@@ -589,14 +737,24 @@ def run_attempt(job: Job, attempt: int, work_dir: Path) -> Attempt:
 
 
 def run_with_retry(
-    job: Job, attempt: Callable[[Job, int], Attempt], retries: int
+    job: Job,
+    attempt: Callable[[Job, int], Attempt],
+    retries: int,
+    stopped: threading.Event | None = None,
 ) -> JobResult:
+    stopped = stopped or threading.Event()
     result = JobResult(job, "failed")
     for number in range(1, retries + 2):
+        if stopped.is_set():
+            result.status = "stopped" if result.attempts else "not-run"
+            break
         outcome = attempt(job, number)
         result.attempts.append(outcome)
         if outcome.ok:
             result.status = "ok"
+            break
+        if stopped.is_set():
+            result.status = "stopped"
             break
     return result
 
@@ -616,19 +774,25 @@ def schedule(
     *,
     limit: int,
     report: Callable[[JobResult], None] = lambda _result: None,
+    stopped: threading.Event | None = None,
+    on_interrupt: Callable[[], None] = lambda: None,
 ) -> list[JobResult]:
     """Run `jobs` in order, at most `limit` at once, each exclusive job alone.
 
     Jobs start in the given order: a job waits for a free slot, and an
     exclusive job also waits until nothing else runs and holds every slot.
+    Once `stopped` is set no job starts; Ctrl+C calls `on_interrupt`, which
+    should set it and end the running attempts. Jobs that never started are
+    reported as "not-run".
     """
     if limit < 1:
         raise ValueError("the concurrency limit must be positive")
+    stopped = stopped or threading.Event()
     condition = threading.Condition()
     running = 0
     exclusive_running = False
     results: dict[int, JobResult] = {}
-    threads = []
+    threads: list[threading.Thread] = []
 
     def worker(index: int, job: Job) -> None:
         nonlocal running, exclusive_running
@@ -644,23 +808,47 @@ def schedule(
             report(result)
             condition.notify_all()
 
-    for index, job in enumerate(jobs):
-        with condition:
-            while (
-                exclusive_running or running >= limit or (job.exclusive and running > 0)
-            ):
-                condition.wait()
-            running += 1
-            exclusive_running = job.exclusive
-        thread = threading.Thread(target=worker, args=(index, job), daemon=True)
-        thread.start()
-        threads.append(thread)
-    for thread in threads:
-        thread.join()
-    return [results[index] for index in range(len(jobs))]
+    def dispatch() -> None:
+        nonlocal running, exclusive_running
+        for index, job in enumerate(jobs):
+            with condition:
+                # Short waits keep Ctrl+C deliverable on Windows.
+                while not stopped.is_set() and (
+                    exclusive_running
+                    or running >= limit
+                    or (job.exclusive and running > 0)
+                ):
+                    condition.wait(0.2)
+                if stopped.is_set():
+                    return
+                running += 1
+                exclusive_running = job.exclusive
+            thread = threading.Thread(target=worker, args=(index, job), daemon=True)
+            # Listed first, so a Ctrl+C right after the start still joins it.
+            threads.append(thread)
+            thread.start()
+
+    def join() -> None:
+        # Dispatch has ended, so a thread not started yet never will be; its
+        # job is reported as not run.
+        for thread in threads:
+            while thread.ident is not None and thread.is_alive():
+                thread.join(0.2)
+
+    try:
+        dispatch()
+        join()
+    except KeyboardInterrupt:
+        on_interrupt()
+        join()
+    return [
+        results.get(index, JobResult(job, "not-run")) for index, job in enumerate(jobs)
+    ]
 
 
 # -- Reporting ----------------------------------------------------------------
+
+STATUSES = ("ok", "failed", "skipped", "stopped", "not-run")
 
 
 def summary_table(results: Sequence[JobResult], wall: float) -> str:
@@ -672,25 +860,31 @@ def summary_table(results: Sequence[JobResult], wall: float) -> str:
             f"{result.job.id:<{width}}  {result.status:<7}  "
             f"{len(result.attempts):>8}  {result.seconds:>7.1f}  {last}"
         )
-    counts = {
-        status: sum(result.status == status for result in results)
-        for status in ("ok", "failed", "skipped")
-    }
+    counts = ", ".join(
+        f"{sum(result.status == status for result in results)} {status}"
+        for status in STATUSES
+    )
     retried = sum(len(result.attempts) > 1 for result in results)
     job_seconds = sum(result.seconds for result in results)
     lines.append(
-        f"{counts['ok']} ok, {counts['failed']} failed, {counts['skipped']} skipped, "
-        f"{retried} retried; job time {job_seconds:.1f}s, wall clock {wall:.1f}s"
+        f"{counts}, {retried} retried; job time {job_seconds:.1f}s, "
+        f"wall clock {wall:.1f}s"
     )
     return "\n".join(lines)
 
 
 def results_document(
-    results: Sequence[JobResult], *, manifest: Path, limit: int, wall: float
+    results: Sequence[JobResult],
+    *,
+    manifest: Path,
+    limit: int,
+    wall: float,
+    interrupted: bool = False,
 ) -> dict[str, object]:
     return {
         "manifest": str(manifest),
         "concurrency": limit,
+        "interrupted": interrupted,
         "wall_seconds": round(wall, 3),
         "jobs": [
             {
@@ -701,6 +895,7 @@ def results_document(
                 "scenario": result.job.scenario,
                 "repeat": result.job.repeat,
                 "exclusive": result.job.exclusive,
+                "shared_host": result.shared_host,
                 "status": result.status,
                 "seconds": round(result.seconds, 3),
                 "outputs": [str(output) for output in result.job.outputs],
@@ -733,15 +928,35 @@ def run_manifest(
     retries: int,
     force: bool,
     attempt: Callable[[Job, int], Attempt] | None = None,
+    attempts: Attempts | None = None,
     log: Callable[[str], None] = lambda line: print(line, file=sys.stderr, flush=True),
 ) -> tuple[list[JobResult], float]:
-    """Skip complete jobs unless `force`, run the rest, and time the batch."""
-    attempt = attempt or (lambda job, number: run_attempt(job, number, work_dir))
+    """Skip jobs whose records hold unless `force`, run the rest, and time it.
+
+    `attempts.stop()`, or Ctrl+C, ends the running attempts and starts no more;
+    the results then hold "stopped" and "not-run" jobs.
+    """
+    attempts = attempts or Attempts()
+    records = CompletionRecords(work_dir / "completed")
+
+    def shared(job: Job) -> bool:
+        return limit > 1 and not job.exclusive
+
+    attempt = attempt or (
+        lambda job, number: run_attempt(
+            job,
+            number,
+            work_dir,
+            shared_host=shared(job),
+            limit=limit,
+            attempts=attempts,
+        )
+    )
     begin = time.perf_counter()
     skipped = []
     pending = []
     for job in jobs:
-        if not force and output_problem(job) is None:
+        if not force and records.mismatch(job) is None:
             skipped.append(JobResult(job, "skipped"))
         else:
             pending.append(job)
@@ -757,11 +972,21 @@ def run_manifest(
             f"{result.seconds:.1f}s {detail}".rstrip()
         )
 
+    def run_job(job: Job) -> JobResult:
+        records.forget(job)
+        result = run_with_retry(job, attempt, retries, attempts.stopped)
+        result.shared_host = shared(job)
+        if result.status == "ok":
+            records.remember(job, shared_host=result.shared_host, concurrency=limit)
+        return result
+
     ran = schedule(
         order_jobs(pending),
-        lambda job: run_with_retry(job, attempt, retries),
+        run_job,
         limit=limit,
         report=report,
+        stopped=attempts.stopped,
+        on_interrupt=attempts.stop,
     )
     wall = time.perf_counter() - begin
     by_id = {result.job.id: result for result in [*skipped, *ran]}
@@ -801,7 +1026,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         for job in order_jobs(jobs):
             mode = "exclusive" if job.exclusive else "shared"
-            print(f"{job.id} ({mode}): {shlex.join(job.command('python'))}")
+            netlog = (
+                Path("<work-dir>") / "netlog" / slug(job.id)
+                if job.tool.netlog_dir
+                else None
+            )
+            print(f"{job.id} ({mode}): {shlex.join(job.command('python', netlog))}")
         return 0
     work_dir = args.work_dir or Path(tempfile.gettempdir()) / (
         "phantom-run-matrix-" + args.manifest.stem
@@ -815,20 +1045,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         file=sys.stderr,
         flush=True,
     )
+    attempts = Attempts()
     results, wall = run_manifest(
         jobs,
         work_dir=work_dir,
         limit=args.jobs,
         retries=args.retries,
         force=args.force,
+        attempts=attempts,
     )
+    interrupted = attempts.stopped.is_set()
     print(summary_table(results, wall))
     results_path = args.results or work_dir / "results.json"
     results_path.parent.mkdir(parents=True, exist_ok=True)
-    results_path.write_text(
+    write_atomically(
+        results_path,
         json.dumps(
             results_document(
-                results, manifest=args.manifest, limit=args.jobs, wall=wall
+                results,
+                manifest=args.manifest,
+                limit=args.jobs,
+                wall=wall,
+                interrupted=interrupted,
             ),
             indent=2,
         )
@@ -836,6 +1074,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"results: {results_path}", file=sys.stderr)
+    if interrupted:
+        return 130
     return 0 if all(result.status != "failed" for result in results) else 1
 
 

@@ -90,8 +90,8 @@ has the exact Chrome 154 commands and launch arguments to repeat.
 - To capture several areas or browsers in one command, list them in a
   manifest for
   [`run_matrix.py`](../../scripts/capture/README.md#run-captures-from-a-manifest),
-  which runs the Python tools side by side, skips fixtures already complete,
-  and retries a failed job once.
+  which runs the Python tools side by side where their evidence allows,
+  skips jobs it recorded as passed, and retries a failed job once.
 - Take several fresh processes per layer. The Chrome 154 set used 61 TLS
   processes, 3 for H2 and QUIC, and 2 to 10 runs per scenario elsewhere, and
   Validation reports each count.
