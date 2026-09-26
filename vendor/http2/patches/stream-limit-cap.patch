@@ -1,5 +1,5 @@
 diff --git a/src/client.rs b/src/client.rs
-index e20ecf9e..0230a8f0 100644
+index e20ecf9e..7c7839b0 100644
 --- a/src/client.rs
 +++ b/src/client.rs
 @@ -329,6 +329,9 @@ pub struct Builder {
@@ -20,16 +20,18 @@ index e20ecf9e..0230a8f0 100644
              settings: Default::default(),
              #[cfg(feature = "unstable")]
              initial_peer_settings: None,
-@@ -1034,6 +1038,22 @@ impl Builder {
+@@ -1034,6 +1038,24 @@ impl Builder {
          self
      }
  
 +    /// Lowers a SETTINGS_MAX_CONCURRENT_STREAMS value stated by the peer to
 +    /// at most `cap` before it becomes the limit on locally initiated streams.
 +    ///
-+    /// A stated value at or below `cap` applies unchanged. The cap does not
-+    /// apply to [`initial_max_send_streams`], which holds only until the peer
-+    /// states a value, and it changes nothing on the wire.
++    /// A stated value at or below `cap` applies unchanged. Initial peer
++    /// SETTINGS that omit the setting, which otherwise lift the limit to
++    /// `usize::MAX`, lift it to `cap`. The cap does not apply to
++    /// [`initial_max_send_streams`], which holds only until the peer's
++    /// SETTINGS, and it changes nothing on the wire.
 +    ///
 +    /// The default is `usize::MAX`, which applies every stated value
 +    /// unchanged.
@@ -43,7 +45,7 @@ index e20ecf9e..0230a8f0 100644
      /// Sets the maximum number of concurrent locally reset streams.
      ///
      /// When a stream is explicitly reset, the HTTP/2 specification requires
-@@ -1559,6 +1579,7 @@ where
+@@ -1559,6 +1581,7 @@ where
                  next_stream_id: builder.stream_id,
                  initial_max_send_streams: builder.initial_max_send_streams,
                  retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
@@ -52,10 +54,10 @@ index e20ecf9e..0230a8f0 100644
                  reset_stream_duration: builder.reset_stream_duration,
                  reset_stream_max: builder.reset_stream_max,
 diff --git a/src/client/tests.rs b/src/client/tests.rs
-index 07d73917..411c5d76 100644
+index 07d73917..0a918aeb 100644
 --- a/src/client/tests.rs
 +++ b/src/client/tests.rs
-@@ -1180,6 +1180,45 @@ async fn initial_stream_id_numbers_requests_from_it() {
+@@ -1180,6 +1180,68 @@ async fn initial_stream_id_numbers_requests_from_it() {
      .expect("initial stream id test timed out");
  }
  
@@ -98,6 +100,29 @@ index 07d73917..411c5d76 100644
 +    .expect("stream limit cap test timed out");
 +}
 +
++#[tokio::test]
++async fn settings_without_a_limit_lift_it_only_to_the_cap() {
++    timeout(Duration::from_secs(5), async {
++        let (client_io, mut peer) = duplex(64 * 1024);
++        let mut builder = super::Builder::new();
++        builder.max_send_streams_cap(2);
++        let (sender, connection) = builder
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        read_client_preface(&mut peer).await;
++        let initial = read_raw_frame(&mut peer).await;
++        assert_eq!((initial.kind, initial.flags), (4, 0));
++        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
++        read_settings_ack(&mut peer).await;
++        assert_eq!(sender.current_max_send_streams(), 2);
++        driver.abort();
++    })
++    .await
++    .expect("stream limit cap without a limit test timed out");
++}
++
  /// Opens a client whose peer has not sent SETTINGS, limited to `limit`
  /// streams until then, and sends `limit + 1` requests. The response futures
  /// are returned so that no stream is cancelled while the test runs.
@@ -122,7 +147,7 @@ index 6c99be3c..f9cec88f 100644
                  local_next_stream_id: config.next_stream_id,
                  local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),
 diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
-index 5c07f334..4b3917e9 100644
+index 5c07f334..0e19c0a5 100644
 --- a/src/proto/streams/counts.rs
 +++ b/src/proto/streams/counts.rs
 @@ -41,6 +41,10 @@ pub(super) struct Counts {
@@ -144,15 +169,18 @@ index 5c07f334..4b3917e9 100644
              num_send_streams: 0,
              max_recv_streams: config.remote_max_initiated.unwrap_or(usize::MAX),
              num_recv_streams: 0,
-@@ -253,7 +258,7 @@ impl Counts {
+@@ -253,9 +258,9 @@ impl Counts {
  
      pub fn apply_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
          match settings.max_concurrent_streams() {
 -            Some(val) => self.max_send_streams = val as usize,
 +            Some(val) => self.max_send_streams = (val as usize).min(self.max_send_streams_cap),
              None if is_initial && !self.retain_initial_max_send_streams => {
-                 self.max_send_streams = usize::MAX
+-                self.max_send_streams = usize::MAX
++                self.max_send_streams = self.max_send_streams_cap
              }
+             None => {}
+         }
 @@ -371,6 +376,7 @@ mod tests {
              &Config {
                  initial_max_send_streams: 0,
@@ -162,15 +190,16 @@ index 5c07f334..4b3917e9 100644
                  local_next_stream_id: 2.into(),
                  local_push_enabled: false,
 diff --git a/src/proto/streams/mod.rs b/src/proto/streams/mod.rs
-index 53f6a8a7..ed2f2e28 100644
+index 53f6a8a7..a0c81df0 100644
 --- a/src/proto/streams/mod.rs
 +++ b/src/proto/streams/mod.rs
-@@ -45,6 +45,10 @@ pub struct Config {
+@@ -45,6 +45,11 @@ pub struct Config {
      /// instead of lifting the limit.
      pub retain_initial_max_send_streams: bool,
  
-+    /// Highest peer-stated SETTINGS_MAX_CONCURRENT_STREAMS applied as the
-+    /// send limit; a larger stated value is lowered to it.
++    /// Highest send limit a peer's SETTINGS can set: a larger stated value is
++    /// lowered to it, and initial SETTINGS without the setting lift the limit
++    /// only to it.
 +    pub max_send_streams_cap: usize,
 +
      /// Max amount of DATA bytes to buffer per stream.

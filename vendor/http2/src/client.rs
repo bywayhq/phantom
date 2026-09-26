@@ -1045,9 +1045,11 @@ impl Builder {
     /// Lowers a SETTINGS_MAX_CONCURRENT_STREAMS value stated by the peer to
     /// at most `cap` before it becomes the limit on locally initiated streams.
     ///
-    /// A stated value at or below `cap` applies unchanged. The cap does not
-    /// apply to [`initial_max_send_streams`], which holds only until the peer
-    /// states a value, and it changes nothing on the wire.
+    /// A stated value at or below `cap` applies unchanged. Initial peer
+    /// SETTINGS that omit the setting, which otherwise lift the limit to
+    /// `usize::MAX`, lift it to `cap`. The cap does not apply to
+    /// [`initial_max_send_streams`], which holds only until the peer's
+    /// SETTINGS, and it changes nothing on the wire.
     ///
     /// The default is `usize::MAX`, which applies every stated value
     /// unchanged.

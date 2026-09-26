@@ -46,8 +46,9 @@ pub struct Config {
     /// instead of lifting the limit.
     pub retain_initial_max_send_streams: bool,
 
-    /// Highest peer-stated SETTINGS_MAX_CONCURRENT_STREAMS applied as the
-    /// send limit; a larger stated value is lowered to it.
+    /// Highest send limit a peer's SETTINGS can set: a larger stated value is
+    /// lowered to it, and initial SETTINGS without the setting lift the limit
+    /// only to it.
     pub max_send_streams_cap: usize,
 
     /// Read-idle time after which a PING follows the next request HEADERS or

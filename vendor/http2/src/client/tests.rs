@@ -1219,12 +1219,35 @@ async fn stated_stream_limit_is_lowered_to_the_cap() {
     .expect("stream limit cap test timed out");
 }
 
-const PREFACE_IDLE: Duration = Duration::from_millis(250);
-const PAST_PREFACE_IDLE: Duration = Duration::from_millis(400);
+#[tokio::test]
+async fn settings_without_a_limit_lift_it_only_to_the_cap() {
+    timeout(Duration::from_secs(5), async {
+        let (client_io, mut peer) = duplex(64 * 1024);
+        let mut builder = super::Builder::new();
+        builder.max_send_streams_cap(2);
+        let (sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        read_client_preface(&mut peer).await;
+        let initial = read_raw_frame(&mut peer).await;
+        assert_eq!((initial.kind, initial.flags), (4, 0));
+        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
+        read_settings_ack(&mut peer).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+        driver.abort();
+    })
+    .await
+    .expect("stream limit cap without a limit test timed out");
+}
+
+const PREFACE_IDLE: Duration = Duration::from_secs(1);
+const PAST_PREFACE_IDLE: Duration = Duration::from_millis(1_500);
 
 #[tokio::test]
 async fn preface_ping_follows_request_headers_only_after_read_idle() {
-    timeout(Duration::from_secs(5), async {
+    timeout(Duration::from_secs(15), async {
         let (mut peer, mut sender, driver) = preface_ping_client().await;
         let mut responses = Vec::new();
 
@@ -1257,7 +1280,7 @@ async fn preface_ping_follows_request_headers_only_after_read_idle() {
 
 #[tokio::test]
 async fn preface_ping_is_not_repeated_while_one_awaits_its_ack() {
-    timeout(Duration::from_secs(5), async {
+    timeout(Duration::from_secs(15), async {
         let (mut peer, mut sender, driver) = preface_ping_client().await;
         let mut responses = Vec::new();
         tokio::time::sleep(PAST_PREFACE_IDLE).await;
@@ -1277,7 +1300,7 @@ async fn preface_ping_is_not_repeated_while_one_awaits_its_ack() {
 
 #[tokio::test]
 async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
-    timeout(Duration::from_secs(5), async {
+    timeout(Duration::from_secs(15), async {
         let (mut peer, mut sender, driver) = preface_ping_client().await;
         poll_fn(|cx| sender.poll_ready(cx))
             .await

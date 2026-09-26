@@ -203,6 +203,19 @@ where
         me.actions.send.recv_frame_for_preface_ping(ack)
     }
 
+    /// Writes a preface PING that is due, ahead of any other frame.
+    pub fn poll_preface_ping<T>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
+        let mut me = self.inner.lock();
+        me.actions.send.poll_preface_ping(cx, dst)
+    }
+
     pub fn clear_expired_reset_streams(&mut self) {
         let mut me = self.inner.lock();
         let me = &mut *me;
@@ -1050,6 +1063,9 @@ impl Inner {
     {
         let mut send_buffer = send_buffer.inner.lock();
         let send_buffer = &mut *send_buffer;
+
+        // A due preface PING directly follows its request frame.
+        ready!(self.actions.send.poll_preface_ping(cx, dst))?;
 
         // Send WINDOW_UPDATE frames first
         //

@@ -545,18 +545,20 @@ Phantom relies on.
 `stream-limit-cap.patch` adds the client builder option
 `max_send_streams_cap`. A `SETTINGS_MAX_CONCURRENT_STREAMS` value the peer
 states is lowered to the cap before it becomes the send limit, as Chromium's
-`kMaxConcurrentStreamLimit` of 256 lowers it (source links above). The
-initial limit is not capped, and nothing on the wire changes. The default,
-`usize::MAX`, applies every stated value unchanged, and servers never set it.
+`kMaxConcurrentStreamLimit` of 256 lowers it (source links above). Initial
+peer SETTINGS that omit the setting, which upstream answers by lifting the
+limit to `usize::MAX`, lift it only to the cap. The initial limit is not
+capped, and nothing on the wire changes. The default, `usize::MAX`, applies
+every stated value unchanged, and servers never set it.
 Firefox's `Http2Session` has no such cap: it applies the stated value as is
 (`netwerk/protocol/http/Http2Session.cpp:1877-1878` at tag
 `FIREFOX_156_0_RELEASE`,
 <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L1877-L1878>).
 The patch changes `src/client.rs`, `src/server.rs`, `src/proto/connection.rs`,
-and `src/proto/streams/{counts,mod}.rs`. Its regression in
-`src/client/tests.rs` caps at 2 a peer that states 1,000: two requests open,
+and `src/proto/streams/{counts,mod}.rs`. Its regressions in
+`src/client/tests.rs` cap at 2 a peer that states 1,000: two requests open,
 the third waits through a PING round trip, and a later stated 1 applies
-unchanged.
+unchanged. Initial SETTINGS without the setting lift the limit to 2.
 
 ## Preface PING
 
@@ -592,41 +594,44 @@ Chromium tag `154.0.8037.58` and the quiche revision it pins,
 - <https://github.com/chromium/chromium/blob/154.0.8037.58/net/http/http_network_session.h#L88>
 - <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/core/spdy_framer.cc#L505-L515>
 
-Two loopback captures of Chrome 154.0.8037.58 on Windows 11 show the same
-order. After 11.5 seconds without a read, a `fetch` on the page's connection
-sent HEADERS and then a PING with payload `0000000000000001`. A `fetch` 9
-seconds after that PING's ACK sent none. A `POST` after a further 11.5 seconds
-sent HEADERS, a PING with payload `0000000000000002`, and then its DATA
-frame. The [validation record](../../docs/explanation/validation.md#http2-preface-ping-evidence)
+A loopback capture of Chrome 154.0.8037.58 on Windows 11, retained as
+`fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt`,
+shows the same order. After 11.5 seconds without a read, a `fetch` on the
+page's connection sent HEADERS and then a PING with payload
+`0000000000000001`. A `fetch` 9 seconds after that PING's ACK sent none. A
+`POST` after a further 11.5 seconds sent HEADERS, a PING with payload
+`0000000000000002`, and then its DATA frame. The
+[validation record](../../docs/explanation/validation.md#http2-preface-ping-evidence)
 has the frames.
 
-`preface-ping.patch` adds the client builder option `preface_ping(idle)`.
-The client records the time of every frame it reads. When the send path
-buffers a request HEADERS frame (one that carries `:method`, so not
-trailers) or a DATA frame with a non-empty payload, and the last read is more
-than `idle` ago and no earlier preface PING awaits its ACK, a PING becomes
-due. The send loop buffers it before it pops another frame, and only once the
-codec is ready, which a DATA payload written after its frame head holds back
-until the whole frame is out. Payloads count up from 1. An ACK with the
-in-flight payload clears it and is not passed on to the ordinary PING
-handling, which would log it as unsolicited.
+`preface-ping.patch` adds the client builder option `preface_ping(idle)`. The
+client records the time of every frame it reads. When the send path buffers a
+request HEADERS frame (one that carries `:method`, so not trailers) or a DATA
+frame with a non-empty payload, and the last read is more than `idle` ago and
+no earlier preface PING awaits its ACK, a PING becomes due. Every path that
+writes a frame calls the preface PING first: the send loop before it pops
+another frame, `Streams::poll_complete` before its WINDOW_UPDATE and
+RST_STREAM frames, and the connection before its PING and SETTINGS
+acknowledgements. The PING is buffered once the codec is ready, which a DATA
+payload written after its frame head holds back until the whole frame is out,
+so the PING directly follows its request frame. Payloads count up from 1. An
+ACK with the in-flight payload clears it and is not passed on to the ordinary
+PING handling, which would log it as unsolicited.
 
-Three parts of Chromium's behavior are not modeled. Chromium also waits for
-the status check it schedules 10 seconds after each PING; with `idle` at 10
-seconds that wait ends before the idle time can pass again, because the ACK
-is itself a read. A PING unanswered for 10 seconds closes Chromium's session
-with `ERR_HTTP2_PING_FAILED`, while this client keeps the connection and
-sends no further preface PING on it. And a PING ACK or SETTINGS ACK that the
-connection queues while the codec is full can be written between the
-request frame and the PING. The default sends no PING, and servers never set
+Two parts of Chromium's behavior are not modeled. Chromium also waits for the
+status check it schedules 10 seconds after each PING; with `idle` at 10
+seconds that wait ends before the idle time can pass again, because the ACK is
+itself a read. A PING unanswered for 10 seconds closes Chromium's session with
+`ERR_HTTP2_PING_FAILED`, while this client keeps the connection and sends no
+further preface PING on it. The default sends no PING, and servers never set
 it. The patch adds `src/proto/streams/preface_ping.rs` and changes
 `src/client.rs`, `src/server.rs`, `src/proto/connection.rs`, and
 `src/proto/streams/{counts,mod,prioritize,send,streams}.rs`. Its regressions
-in `src/client/tests.rs` use a 250 ms idle time against a raw peer: no PING
-after the first request, PING 1 right after HEADERS once 400 ms pass without
-a read, none right after its ACK, PING 2 after the next idle period, none
-while PING 1 is unanswered, and PING 1 right after a 4,096-byte DATA frame
-but none after an empty END_STREAM DATA frame.
+in `src/client/tests.rs` use a 1 s idle time against a raw peer: no PING after
+the first request, PING 1 right after HEADERS once 1.5 s pass without a read,
+none right after its ACK, PING 2 after the next idle period, none while PING 1
+is unanswered, and PING 1 right after a 4,096-byte DATA frame but none after
+an empty END_STREAM DATA frame.
 
 ## Refreshing the vendor copy
 

@@ -366,6 +366,18 @@ impl Send {
         self.prioritize.recv_frame_for_preface_ping(ack)
     }
 
+    pub fn poll_preface_ping<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        self.prioritize.poll_preface_ping(cx, dst)
+    }
+
     pub fn poll_complete<T, B>(
         &mut self,
         cx: &mut Context,

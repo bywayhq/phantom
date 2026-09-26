@@ -119,6 +119,33 @@ impl Prioritize {
         }
     }
 
+    /// Writes the PING due after the last request frame, if any, as soon as
+    /// the codec can take a frame. Every path that writes a frame on the
+    /// connection calls this first, so the PING directly follows its request
+    /// frame.
+    pub(super) fn poll_preface_ping<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        if !self
+            .preface_ping
+            .as_ref()
+            .map_or(false, PrefacePing::is_due)
+        {
+            return Poll::Ready(Ok(()));
+        }
+        ready!(dst.poll_ready(cx))?;
+        if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
+            dst.buffer(ping.into()).expect("invalid frame");
+        }
+        dst.poll_ready(cx)
+    }
+
     pub(crate) fn max_buffer_size(&self) -> usize {
         self.max_buffer_size
     }
@@ -537,12 +564,9 @@ impl Prioritize {
         tracing::trace!("poll_complete");
 
         loop {
-            // The codec is ready here, and a PING owed to the frame buffered
-            // last must follow it before any other frame.
-            if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
-                dst.buffer(ping.into()).expect("invalid frame");
-                ready!(dst.poll_ready(cx))?;
-            }
+            // A PING owed to the frame buffered last must follow it before
+            // any other frame.
+            ready!(self.poll_preface_ping(cx, dst))?;
 
             if let Some(mut stream) = self.pop_pending_open(store, counts) {
                 self.pending_send.push_front(&mut stream);

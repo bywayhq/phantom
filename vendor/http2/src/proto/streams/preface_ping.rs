@@ -9,7 +9,8 @@ use std::time::{Duration, Instant};
 /// A PING is due after request HEADERS, or after a DATA frame with a
 /// non-empty payload, when the last frame read from the peer is older than
 /// `idle` and no earlier such PING awaits its ACK. It is written before any
-/// other frame. The first PING carries the big-endian 64-bit value 1 and each
+/// other frame, WINDOW_UPDATE, RST_STREAM, and PING and SETTINGS
+/// acknowledgements included. The first PING carries the big-endian 64-bit value 1 and each
 /// later one the next value. The ACK is matched by payload.
 #[derive(Debug)]
 pub(super) struct PrefacePing {
@@ -64,6 +65,10 @@ impl PrefacePing {
         self.next_payload = self.next_payload.wrapping_add(1);
         self.in_flight = Some(payload);
         self.due = Some(payload);
+    }
+
+    pub(super) fn is_due(&self) -> bool {
+        self.due.is_some()
     }
 
     /// Takes the PING due after the last request frame, if any.

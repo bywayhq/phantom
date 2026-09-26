@@ -260,7 +260,7 @@ impl Counts {
         match settings.max_concurrent_streams() {
             Some(val) => self.max_send_streams = (val as usize).min(self.max_send_streams_cap),
             None if is_initial && !self.retain_initial_max_send_streams => {
-                self.max_send_streams = usize::MAX
+                self.max_send_streams = self.max_send_streams_cap
             }
             None => {}
         }

@@ -228,6 +228,11 @@ where
         #[cfg(feature = "tracing")]
         let _e = self.inner.span.enter();
         let _span = tracing::trace_span!("poll_ready");
+        // A due preface PING goes first, so it directly follows the request
+        // frame that made it due.
+        if self.preface_ping {
+            ready!(self.inner.streams.poll_preface_ping(cx, &mut self.codec))?;
+        }
         // The order of these calls don't really matter too much
         ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
         ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;

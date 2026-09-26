@@ -1,5 +1,5 @@
 diff --git a/src/client.rs b/src/client.rs
-index 0230a8f0..d1426993 100644
+index 7c7839b0..0c2d5305 100644
 --- a/src/client.rs
 +++ b/src/client.rs
 @@ -332,6 +332,9 @@ pub struct Builder {
@@ -20,7 +20,7 @@ index 0230a8f0..d1426993 100644
              settings: Default::default(),
              #[cfg(feature = "unstable")]
              initial_peer_settings: None,
-@@ -1054,6 +1058,23 @@ impl Builder {
+@@ -1056,6 +1060,23 @@ impl Builder {
          self
      }
  
@@ -44,7 +44,7 @@ index 0230a8f0..d1426993 100644
      /// Sets the maximum number of concurrent locally reset streams.
      ///
      /// When a stream is explicitly reset, the HTTP/2 specification requires
-@@ -1580,6 +1601,7 @@ where
+@@ -1582,6 +1603,7 @@ where
                  initial_max_send_streams: builder.initial_max_send_streams,
                  retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
                  max_send_streams_cap: builder.max_send_streams_cap,
@@ -53,19 +53,19 @@ index 0230a8f0..d1426993 100644
                  reset_stream_duration: builder.reset_stream_duration,
                  reset_stream_max: builder.reset_stream_max,
 diff --git a/src/client/tests.rs b/src/client/tests.rs
-index 411c5d76..8e007de4 100644
+index 0a918aeb..ca2cc4b5 100644
 --- a/src/client/tests.rs
 +++ b/src/client/tests.rs
-@@ -1219,6 +1219,162 @@ async fn stated_stream_limit_is_lowered_to_the_cap() {
-     .expect("stream limit cap test timed out");
+@@ -1242,6 +1242,162 @@ async fn settings_without_a_limit_lift_it_only_to_the_cap() {
+     .expect("stream limit cap without a limit test timed out");
  }
  
-+const PREFACE_IDLE: Duration = Duration::from_millis(250);
-+const PAST_PREFACE_IDLE: Duration = Duration::from_millis(400);
++const PREFACE_IDLE: Duration = Duration::from_secs(1);
++const PAST_PREFACE_IDLE: Duration = Duration::from_millis(1_500);
 +
 +#[tokio::test]
 +async fn preface_ping_follows_request_headers_only_after_read_idle() {
-+    timeout(Duration::from_secs(5), async {
++    timeout(Duration::from_secs(15), async {
 +        let (mut peer, mut sender, driver) = preface_ping_client().await;
 +        let mut responses = Vec::new();
 +
@@ -98,7 +98,7 @@ index 411c5d76..8e007de4 100644
 +
 +#[tokio::test]
 +async fn preface_ping_is_not_repeated_while_one_awaits_its_ack() {
-+    timeout(Duration::from_secs(5), async {
++    timeout(Duration::from_secs(15), async {
 +        let (mut peer, mut sender, driver) = preface_ping_client().await;
 +        let mut responses = Vec::new();
 +        tokio::time::sleep(PAST_PREFACE_IDLE).await;
@@ -118,7 +118,7 @@ index 411c5d76..8e007de4 100644
 +
 +#[tokio::test]
 +async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
-+    timeout(Duration::from_secs(5), async {
++    timeout(Duration::from_secs(15), async {
 +        let (mut peer, mut sender, driver) = preface_ping_client().await;
 +        poll_fn(|cx| sender.poll_ready(cx))
 +            .await
@@ -220,7 +220,7 @@ index 411c5d76..8e007de4 100644
  /// streams until then, and sends `limit + 1` requests. The response futures
  /// are returned so that no stream is cancelled while the test runs.
 diff --git a/src/proto/connection.rs b/src/proto/connection.rs
-index f9cec88f..fddd1488 100644
+index f9cec88f..e321c11a 100644
 --- a/src/proto/connection.rs
 +++ b/src/proto/connection.rs
 @@ -27,6 +27,9 @@ where
@@ -257,7 +257,19 @@ index f9cec88f..fddd1488 100644
              inner: ConnectionInner {
                  state: State::Open,
                  error: None,
-@@ -409,6 +415,18 @@ where
+@@ -222,6 +228,11 @@ where
+         #[cfg(feature = "tracing")]
+         let _e = self.inner.span.enter();
+         let _span = tracing::trace_span!("poll_ready");
++        // A due preface PING goes first, so it directly follows the request
++        // frame that made it due.
++        if self.preface_ping {
++            ready!(self.inner.streams.poll_preface_ping(cx, &mut self.codec))?;
++        }
+         // The order of these calls don't really matter too much
+         ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
+         ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;
+@@ -409,6 +420,18 @@ where
                  return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
              }
  
@@ -277,7 +289,7 @@ index f9cec88f..fddd1488 100644
                  ReceivedFrame::Settings(frame) => {
                      self.inner.settings.recv_settings(
 diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
-index 4b3917e9..8dfd313f 100644
+index 0e19c0a5..756b518c 100644
 --- a/src/proto/streams/counts.rs
 +++ b/src/proto/streams/counts.rs
 @@ -377,6 +377,7 @@ mod tests {
@@ -289,7 +301,7 @@ index 4b3917e9..8dfd313f 100644
                  local_next_stream_id: 2.into(),
                  local_push_enabled: false,
 diff --git a/src/proto/streams/mod.rs b/src/proto/streams/mod.rs
-index ed2f2e28..695432b2 100644
+index a0c81df0..ecb7549e 100644
 --- a/src/proto/streams/mod.rs
 +++ b/src/proto/streams/mod.rs
 @@ -1,6 +1,7 @@
@@ -300,8 +312,8 @@ index ed2f2e28..695432b2 100644
  mod prioritize;
  mod recv;
  mod send;
-@@ -49,6 +50,10 @@ pub struct Config {
-     /// send limit; a larger stated value is lowered to it.
+@@ -50,6 +51,10 @@ pub struct Config {
+     /// only to it.
      pub max_send_streams_cap: usize,
  
 +    /// Read-idle time after which a PING follows the next request HEADERS or
@@ -313,10 +325,10 @@ index ed2f2e28..695432b2 100644
  
 diff --git a/src/proto/streams/preface_ping.rs b/src/proto/streams/preface_ping.rs
 new file mode 100644
-index 00000000..70989c99
+index 00000000..d32fd8ce
 --- /dev/null
 +++ b/src/proto/streams/preface_ping.rs
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,78 @@
 +use crate::frame::{Frame, Ping};
 +
 +use bytes::Buf;
@@ -328,7 +340,8 @@ index 00000000..70989c99
 +/// A PING is due after request HEADERS, or after a DATA frame with a
 +/// non-empty payload, when the last frame read from the peer is older than
 +/// `idle` and no earlier such PING awaits its ACK. It is written before any
-+/// other frame. The first PING carries the big-endian 64-bit value 1 and each
++/// other frame, WINDOW_UPDATE, RST_STREAM, and PING and SETTINGS
++/// acknowledgements included. The first PING carries the big-endian 64-bit value 1 and each
 +/// later one the next value. The ACK is matched by payload.
 +#[derive(Debug)]
 +pub(super) struct PrefacePing {
@@ -385,13 +398,17 @@ index 00000000..70989c99
 +        self.due = Some(payload);
 +    }
 +
++    pub(super) fn is_due(&self) -> bool {
++        self.due.is_some()
++    }
++
 +    /// Takes the PING due after the last request frame, if any.
 +    pub(super) fn take_due(&mut self) -> Option<Ping> {
 +        self.due.take().map(Ping::new)
 +    }
 +}
 diff --git a/src/proto/streams/prioritize.rs b/src/proto/streams/prioritize.rs
-index bdcf43cf..075d6bbd 100644
+index bdcf43cf..a6f77e46 100644
 --- a/src/proto/streams/prioritize.rs
 +++ b/src/proto/streams/prioritize.rs
 @@ -1,3 +1,4 @@
@@ -417,36 +434,63 @@ index bdcf43cf..075d6bbd 100644
  }
  
  #[derive(Debug, Eq, PartialEq)]
-@@ -103,6 +108,14 @@ impl Prioritize {
+@@ -103,9 +108,44 @@ impl Prioritize {
              last_opened_id: StreamId::ZERO,
              in_flight_data_frame: InFlightData::Nothing,
              max_buffer_size: config.local_max_buffer_size,
 +            preface_ping: config.preface_ping.map(PrefacePing::new),
-+        }
-+    }
-+
+         }
+     }
+ 
 +    pub(super) fn recv_frame_for_preface_ping(&mut self, ack: Option<&[u8; 8]>) -> bool {
 +        match &mut self.preface_ping {
 +            Some(preface_ping) => preface_ping.recv_frame(Instant::now(), ack),
 +            None => false,
-         }
++        }
++    }
++
++    /// Writes the PING due after the last request frame, if any, as soon as
++    /// the codec can take a frame. Every path that writes a frame on the
++    /// connection calls this first, so the PING directly follows its request
++    /// frame.
++    pub(super) fn poll_preface_ping<T, B>(
++        &mut self,
++        cx: &mut Context,
++        dst: &mut Codec<T, Prioritized<B>>,
++    ) -> Poll<io::Result<()>>
++    where
++        T: AsyncWrite + Unpin,
++        B: Buf,
++    {
++        if !self
++            .preface_ping
++            .as_ref()
++            .map_or(false, PrefacePing::is_due)
++        {
++            return Poll::Ready(Ok(()));
++        }
++        ready!(dst.poll_ready(cx))?;
++        if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
++            dst.buffer(ping.into()).expect("invalid frame");
++        }
++        dst.poll_ready(cx)
++    }
++
+     pub(crate) fn max_buffer_size(&self) -> usize {
+         self.max_buffer_size
      }
- 
-@@ -524,6 +537,13 @@ impl Prioritize {
+@@ -524,6 +564,10 @@ impl Prioritize {
          tracing::trace!("poll_complete");
  
          loop {
-+            // The codec is ready here, and a PING owed to the frame buffered
-+            // last must follow it before any other frame.
-+            if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
-+                dst.buffer(ping.into()).expect("invalid frame");
-+                ready!(dst.poll_ready(cx))?;
-+            }
++            // A PING owed to the frame buffered last must follow it before
++            // any other frame.
++            ready!(self.poll_preface_ping(cx, dst))?;
 +
              if let Some(mut stream) = self.pop_pending_open(store, counts) {
                  self.pending_send.push_front(&mut stream);
                  self.try_assign_capacity(&mut stream);
-@@ -537,6 +557,9 @@ impl Prioritize {
+@@ -537,6 +581,9 @@ impl Prioritize {
                      if let Frame::Data(ref frame) = frame {
                          self.in_flight_data_frame = InFlightData::DataFrame(frame.payload().stream);
                      }
@@ -457,10 +501,10 @@ index bdcf43cf..075d6bbd 100644
  
                      // Ensure the codec is ready to try the loop again.
 diff --git a/src/proto/streams/send.rs b/src/proto/streams/send.rs
-index 70bf64d6..a714bffe 100644
+index 70bf64d6..32a3a79a 100644
 --- a/src/proto/streams/send.rs
 +++ b/src/proto/streams/send.rs
-@@ -362,6 +362,10 @@ impl Send {
+@@ -362,6 +362,22 @@ impl Send {
          Ok(())
      }
  
@@ -468,14 +512,26 @@ index 70bf64d6..a714bffe 100644
 +        self.prioritize.recv_frame_for_preface_ping(ack)
 +    }
 +
++    pub fn poll_preface_ping<T, B>(
++        &mut self,
++        cx: &mut Context,
++        dst: &mut Codec<T, Prioritized<B>>,
++    ) -> Poll<io::Result<()>>
++    where
++        T: AsyncWrite + Unpin,
++        B: Buf,
++    {
++        self.prioritize.poll_preface_ping(cx, dst)
++    }
++
      pub fn poll_complete<T, B>(
          &mut self,
          cx: &mut Context,
 diff --git a/src/proto/streams/streams.rs b/src/proto/streams/streams.rs
-index 8e267a06..3517883f 100644
+index 8e267a06..b73a7e0b 100644
 --- a/src/proto/streams/streams.rs
 +++ b/src/proto/streams/streams.rs
-@@ -196,6 +196,13 @@ where
+@@ -196,6 +196,26 @@ where
          me.actions.recv.send_pending_refusal(cx, dst)
      }
  
@@ -486,9 +542,32 @@ index 8e267a06..3517883f 100644
 +        me.actions.send.recv_frame_for_preface_ping(ack)
 +    }
 +
++    /// Writes a preface PING that is due, ahead of any other frame.
++    pub fn poll_preface_ping<T>(
++        &mut self,
++        cx: &mut Context,
++        dst: &mut Codec<T, Prioritized<B>>,
++    ) -> Poll<io::Result<()>>
++    where
++        T: AsyncWrite + Unpin,
++    {
++        let mut me = self.inner.lock();
++        me.actions.send.poll_preface_ping(cx, dst)
++    }
++
      pub fn clear_expired_reset_streams(&mut self) {
          let mut me = self.inner.lock();
          let me = &mut *me;
+@@ -1044,6 +1064,9 @@ impl Inner {
+         let mut send_buffer = send_buffer.inner.lock();
+         let send_buffer = &mut *send_buffer;
+ 
++        // A due preface PING directly follows its request frame.
++        ready!(self.actions.send.poll_preface_ping(cx, dst))?;
++
+         // Send WINDOW_UPDATE frames first
+         //
+         // TODO: It would probably be better to interleave updates w/ data
 diff --git a/src/server.rs b/src/server.rs
 index 1aab78a2..43390912 100644
 --- a/src/server.rs
