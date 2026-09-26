@@ -345,6 +345,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   its own fixture. Desktop Firefox launches beside other jobs take turns until
   each has restored its first window, because Firefox processes started
   together can lose their page load.
+- macOS recipes from captures on macOS 15.5 on Apple silicon:
+  `chromium::v154_macos_client_hints`, `edge::v153_macos_client_hints`, and
+  `opera::v135_macos_client_hints` (platform `"macOS"`, platform version
+  `"15.5.0"`, architecture `"arm"`), with
+  `chromium::v154_macos_navigation_template`,
+  `chromium::v154_macos_fetch_no_store_template`,
+  `firefox::v156_macos_navigation_template`, and
+  `firefox::v156_macos_fetch_no_store_template`. The Chrome templates leave
+  `User-Agent` to the caller, because every macOS capture ran headless; the
+  Firefox templates carry the macOS `User-Agent`. On macOS, Edge and Opera
+  send the fields of their Windows templates. Every other layer is the
+  Windows recipe, which single macOS parity runs matched. The captures are
+  under `fixtures/*/*/*/macos-15.5-arm64/`.
+- `client_hints.py` and `http2_websocket.py` take `--browser-switch` to add a
+  recorded Chromium switch to the launch.
 - Encrypted Client Hello over QUIC. `phantom_quic_btls::EchOffer` and
   `EchOutcome`, with `QuicClientConfig::with_ech`, offer an `ECHConfigList`
   on one connection and report whether the server accepted it, rejected it

@@ -251,16 +251,18 @@ pub mod profile {
     pub mod chromium {
         pub use phantom_profile::chromium::{
             v154_cookie_placement, v154_dns_cache, v154_http1, v154_http2, v154_http3,
-            v154_http3_request, v154_http3_tls, v154_proxy_connect, v154_quic, v154_tcp, v154_tls,
-            v154_websocket, v154_windows_client_hints, v154_windows_fetch_no_store_template,
-            v154_windows_navigation_template,
+            v154_http3_request, v154_http3_tls, v154_macos_client_hints,
+            v154_macos_fetch_no_store_template, v154_macos_navigation_template, v154_proxy_connect,
+            v154_quic, v154_tcp, v154_tls, v154_websocket, v154_windows_client_hints,
+            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
         };
     }
 
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v156_cookie_placement, v156_dns_cache, v156_http1, v156_http2, v156_proxy_connect,
+            v156_cookie_placement, v156_dns_cache, v156_http1, v156_http2,
+            v156_macos_fetch_no_store_template, v156_macos_navigation_template, v156_proxy_connect,
             v156_tcp, v156_tls, v156_websocket, v156_windows_fetch_no_store_template,
             v156_windows_navigation_template,
         };
@@ -285,7 +287,7 @@ pub mod profile {
     /// identity differ.
     pub mod opera {
         pub use phantom_profile::opera::{
-            v135_http3_tls, v135_tls, v135_windows_client_hints,
+            v135_http3_tls, v135_macos_client_hints, v135_tls, v135_windows_client_hints,
             v135_windows_fetch_no_store_template, v135_windows_navigation_template,
         };
     }
@@ -297,7 +299,7 @@ pub mod profile {
     /// identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{
-            v153_http3_tls, v153_tls, v153_windows_client_hints,
+            v153_http3_tls, v153_macos_client_hints, v153_tls, v153_windows_client_hints,
             v153_windows_fetch_no_store_template, v153_windows_navigation_template,
         };
     }

@@ -35,11 +35,11 @@ recaptured and reverified.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints` | `v154_websocket` | Windows |
-| Edge 153 | `edge::v153_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v153_windows_client_hints` | Chromium | Windows |
+| Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
+| Edge 153 | `edge::v153_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v153_windows_client_hints`, `v153_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
-| Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
-| Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
+| Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows; macOS for templates |
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
@@ -79,12 +79,17 @@ the host operating system or the browser name.
 | Name form | Example | Means |
 | --- | --- | --- |
 | No platform | `chromium::v154_tls`, `firefox::v156_http2` | The recipe carries no platform-specific data. It does not mean more than one platform was captured. |
-| `windows` or `android` in the name | `chromium::v154_windows_client_hints`, `chrome_android::v153_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
+| `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v153_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
-Every recipe comes from captures on one platform: Windows 11 for `chromium`,
-`edge`, `brave`, `opera`, and `firefox`, and the Android 15 emulator for
-`chrome_android`, `brave_android`, `opera_android`, and `firefox_android`.
-Each recipe's rustdoc names its single capture build and platform.
+Every recipe comes from captures on one platform: Windows 11 for the
+`chromium`, `edge`, `brave`, `opera`, and `firefox` recipes without `macos`
+in the name, macOS 15.5 on Apple silicon for those with it, and the Android
+15 emulator for `chrome_android`, `brave_android`, `opera_android`, and
+`firefox_android`. Each recipe's rustdoc names its capture build and
+platform. On macOS, Edge and Opera send the fields of their `windows`
+request templates, so those two have `macos` client hints but no `macos`
+templates; the other layers are the unnamed recipes, which the macOS parity
+runs matched ([Validation](../explanation/validation.md#macos-recipes)).
 
 ## TCP socket options
 

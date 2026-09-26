@@ -95,6 +95,45 @@ pub fn v135_windows_client_hints() -> ClientHintSettings {
     ])
 }
 
+/// Returns client-hint fields observed from Opera 135 on macOS 15.5 arm64.
+///
+/// Names, order, delivery, and brand list match
+/// [`v135_windows_client_hints`]. The values come from three agreeing
+/// headless runs of Opera 135.0.5973.66, the build installed on the macOS
+/// 15.5 (24F74) capture host, which also reports the Chromium
+/// 151.0.7922.176 base. Besides that build number, only the platform data
+/// differs from Windows: `sec-ch-ua-platform` is `"macOS"`,
+/// `sec-ch-ua-platform-version` is `"15.5.0"`, and `sec-ch-ua-arch` is
+/// `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and `sec-ch-ua-wow64`
+/// stays `?0`. The returned value is owned and may be customized before
+/// client creation.
+#[must_use]
+pub fn v135_macos_client_hints() -> ClientHintSettings {
+    use ClientHintDelivery::{AcceptCh, Default};
+
+    ClientHintSettings::new(vec![
+        ClientHint::new(
+            "sec-ch-ua",
+            r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#,
+            Default,
+        ),
+        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
+        ClientHint::new("sec-ch-ua-full-version", r#""135.0.5973.66""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
+        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-full-version-list",
+            r#""Not=A?Brand";v="99.0.0.0", "Opera";v="135.0.5973.66", "Chromium";v="151.0.7922.176""#,
+            AcceptCh,
+        ),
+        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
+    ])
+}
+
 /// Returns navigation request fields observed from Opera 135.0.5973.92 on Windows 11.
 ///
 /// Opera sends the fields of [`chromium::v154_windows_navigation_template`]
@@ -106,6 +145,10 @@ pub fn v135_windows_client_hints() -> ClientHintSettings {
 /// captures show the Chromium change for a URL that is not potentially
 /// trustworthy: to `origin.phantom.test` Opera sends no `Sec-Fetch-*` field
 /// and `Accept-Encoding: gzip, deflate`.
+///
+/// The template also matches the Opera 135.0.5973.66 captures on macOS 15.5
+/// arm64 on HTTP/1.1 and HTTP/2, with [`v135_macos_client_hints`], so there
+/// is no separate macOS template.
 #[must_use]
 pub fn v135_windows_navigation_template() -> RequestTemplate {
     chromium::v154_navigation_template(None)
@@ -119,7 +162,7 @@ pub fn v135_windows_navigation_template() -> RequestTemplate {
 /// with `User-Agent` as a required caller slot for the reason given in
 /// [`v135_windows_navigation_template`]. No capture backs this request kind on
 /// HTTP/3, and none shows where hints requested through `Accept-CH` go on a
-/// fetch.
+/// fetch. The macOS 15.5 arm64 captures match it as well.
 #[must_use]
 pub fn v135_windows_fetch_no_store_template() -> RequestTemplate {
     chromium::v154_fetch_no_store_template(None)

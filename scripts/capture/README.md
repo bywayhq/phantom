@@ -369,6 +369,12 @@ their page in 5 of 9 launches; with the lock, 12 of 12 loaded in groups of
 four. Chromium browsers started four at a time loaded 8 of 8 and do not take
 turns. A tool run on its own does not see the variable and launches at once.
 
+`client_hints.py` and `http2_websocket.py` take `--browser-switch=<switch>`,
+repeatable, for a Chromium browser. The switch is appended to the launch
+arguments and recorded with them. On macOS, Edge takes `Accept-Language`
+from the system's language list and ignores `--lang`, so its captures pass
+`--browser-switch=--accept-lang=en-US`.
+
 On macOS a Chromium launch also receives `--use-mock-keychain`. Without it,
 a fresh profile reads and writes the browser's "Safe Storage" item in the
 login keychain, which the person's own browser profile uses. The switch is

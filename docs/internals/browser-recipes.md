@@ -29,9 +29,11 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
 - Phantom carries one version per browser: the current stable build on the
   capture host, or for an Android browser the build Play serves to the
   capture emulator. A new version replaces the old one.
-- Captures come from the Windows 11 development host, and Android captures
-  from the emulator on it. A Windows capture never backs a macOS or Linux
-  recipe, and an emulator capture is not a phone capture.
+- Captures come from the Windows 11 development host, Android captures from
+  the emulator on it, and macOS captures from one macOS 15.5 Mac on Apple
+  silicon, under the host directory `macos-15.5-arm64`. A Windows capture
+  never backs a macOS or Linux recipe, and an emulator capture is not a
+  phone capture.
 - Launching a local browser needs the human's approval for the session, as
   the `browser-capture` skill in `.claude/skills/` states.
 
@@ -134,7 +136,10 @@ module needs a `pub mod` line in `crates/phantom-profile/src/lib.rs`.
   `v154_tcp`, and `v154_cookie_placement`. Recipes whose values carry
   platform data keep the platform in the name:
   `v154_windows_client_hints`, `v154_windows_navigation_template`, and
-  `v154_windows_fetch_no_store_template`.
+  `v154_windows_fetch_no_store_template`, or `v154_macos_client_hints` for
+  macOS. Where a platform's captures equal another platform's recipe, reuse
+  it and say so in its rustdoc instead of adding a copy, as the Edge and
+  Opera templates do for macOS.
 - The rustdoc of each function names the exact build and host it was captured
   on, and states what it shares with another recipe and why.
 - A complete recipe set is self-contained, as `chromium::v154_*` and

@@ -95,6 +95,44 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
     ])
 }
 
+/// Returns client-hint fields observed from Edge 153 on macOS 15.5 arm64.
+///
+/// Names, order, delivery, and the brand and version values match
+/// [`v153_windows_client_hints`]; three headless runs of the retained
+/// navigation capture of Edge 153.0.4234.48 on macOS 15.5 (24F74) on Apple
+/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
+/// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
+/// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
+/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// customized before client creation, for example to carry another macOS
+/// version.
+#[must_use]
+pub fn v153_macos_client_hints() -> ClientHintSettings {
+    use ClientHintDelivery::{AcceptCh, Default};
+
+    ClientHintSettings::new(vec![
+        ClientHint::new(
+            "sec-ch-ua",
+            r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+            Default,
+        ),
+        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
+        ClientHint::new("sec-ch-ua-full-version", r#""153.0.4234.48""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
+        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-full-version-list",
+            r#""Microsoft Edge";v="153.0.4234.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53""#,
+            AcceptCh,
+        ),
+        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
+    ])
+}
+
 /// Returns navigation request fields observed from Edge 153.0.4234.48 on Windows 11.
 ///
 /// Edge sends the fields of [`chromium::v154_windows_navigation_template`] in
@@ -109,6 +147,12 @@ pub fn v153_windows_client_hints() -> ClientHintSettings {
 /// The retained Edge proxy route captures show the Chromium change for a URL
 /// that is not potentially trustworthy too: to `origin.phantom.test` Edge
 /// sends no `Sec-Fetch-*` field and `Accept-Encoding: gzip, deflate`.
+///
+/// The template also matches the Edge 153.0.4234.48 captures on macOS 15.5
+/// arm64 on HTTP/1.1 and HTTP/2, with [`v153_macos_client_hints`], so there
+/// is no separate macOS template. On macOS Edge takes `Accept-Language` from
+/// the system language list and ignores `--lang`; those captures ran with
+/// `--accept-lang=en-US`, which gives this template's `en-US,en;q=0.9`.
 #[must_use]
 pub fn v153_windows_navigation_template() -> RequestTemplate {
     chromium::v154_navigation_template(None)
@@ -124,7 +168,8 @@ pub fn v153_windows_navigation_template() -> RequestTemplate {
 /// [`v153_windows_navigation_template`].
 /// No capture backs this request kind on HTTP/3. As with Chrome, no capture
 /// shows where hints requested through `Accept-CH` go on a fetch, so a
-/// requested hint cannot be sent with this template.
+/// requested hint cannot be sent with this template. The macOS 15.5 arm64
+/// captures match it as well, as for [`v153_windows_navigation_template`].
 #[must_use]
 pub fn v153_windows_fetch_no_store_template() -> RequestTemplate {
     chromium::v154_fetch_no_store_template(None)
