@@ -465,6 +465,9 @@ impl WebSocketRequestBuilder {
         }
     }
 
+    /// Each protocol's opening is boxed where it is chosen, so the connection
+    /// setup it holds stays off the attempt's future; see
+    /// `phantom_testkit::future_size`.
     async fn connect_inner(mut self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
         // A tunnel's CONNECT copies fields such as `User-Agent` from the
         // opening, as browsers do.
@@ -478,11 +481,10 @@ impl WebSocketRequestBuilder {
         }
         match self.selection {
             WebSocketSelection::Exact(HttpProtocol::Http1) => {
-                self.connect_http1(Http1UpgradeConnector::Profile).await
+                Box::pin(self.connect_http1(Http1UpgradeConnector::Profile)).await
             }
             WebSocketSelection::Exact(HttpProtocol::Http2) => {
-                self.connect_http2(Http2Target::NewConnection, request_span)
-                    .await
+                Box::pin(self.connect_http2(Http2Target::NewConnection, request_span)).await
             }
             WebSocketSelection::Exact(protocol) => {
                 Err(WebSocketError::protocol_unavailable(protocol))
@@ -532,16 +534,11 @@ impl WebSocketRequestBuilder {
                     Ok(true) => {
                         request_span.record("connection", "http2_session");
                         self.headers = std::mem::take(&mut self.http2_headers);
-                        return self
-                            .connect_http2(
-                                Http2Target::Session(
-                                    session,
-                                    Box::new(permit),
-                                    refused_stream_retry,
-                                ),
-                                request_span,
-                            )
-                            .await;
+                        return Box::pin(self.connect_http2(
+                            Http2Target::Session(session, Box::new(permit), refused_stream_retry),
+                            request_span,
+                        ))
+                        .await;
                     }
                     Ok(false) => with_incapable_session,
                     // The session failed before its peer settings were known,
@@ -555,12 +552,11 @@ impl WebSocketRequestBuilder {
             WebSocketNewConnection::Http2ExtendedConnect => {
                 request_span.record("connection", "new_http2");
                 self.headers = std::mem::take(&mut self.http2_headers);
-                self.connect_http2(Http2Target::NewConnection, request_span)
-                    .await
+                Box::pin(self.connect_http2(Http2Target::NewConnection, request_span)).await
             }
             WebSocketNewConnection::Http1Upgrade => {
                 request_span.record("connection", "new_http1");
-                self.connect_http1(Http1UpgradeConnector::PolicyAlpn).await
+                Box::pin(self.connect_http1(Http1UpgradeConnector::PolicyAlpn)).await
             }
             _ => Err(WebSocketError::invalid_request(
                 "profile WebSocket policy names an unsupported connection",
@@ -679,9 +675,9 @@ fn trustworthy_host(host: &str) -> bool {
 mod tests {
     use super::{OriginForm, ResolvedWebSocket, WebSocketRequestBuilder, WebSocketTransport};
 
-    /// `connect` boxes each attempt, so its own future stays small; the
-    /// boxed attempt holds the connectors' futures for a new connection. See
-    /// `phantom_testkit::future_size`.
+    /// `connect` boxes each attempt, and the attempt boxes the protocol
+    /// opening it chooses, which holds the connectors' futures for a new
+    /// connection. See `phantom_testkit::future_size`.
     #[cfg(debug_assertions)]
     #[test]
     fn opening_a_websocket_stays_within_the_setup_budget() {
@@ -697,6 +693,14 @@ mod tests {
                 (
                     "WebSocketRequestBuilder::connect_within_timeout",
                     future_size(&WebSocketRequestBuilder::connect_within_timeout),
+                ),
+                (
+                    "WebSocketRequestBuilder::connect_http1",
+                    future_size(&WebSocketRequestBuilder::connect_http1),
+                ),
+                (
+                    "WebSocketRequestBuilder::connect_http2",
+                    future_size(&WebSocketRequestBuilder::connect_http2),
                 ),
             ],
         );
