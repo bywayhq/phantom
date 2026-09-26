@@ -15,13 +15,25 @@ mod ech_support;
 #[path = "support/tls.rs"]
 mod tls_support;
 
-use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{
+    net::Ipv4Addr,
+    num::NonZeroUsize,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
 
-use btls::{hpke::HpkeKey, ssl::SslEchKeys};
+use btls::{
+    hpke::HpkeKey,
+    ssl::{SslAcceptor, SslContext, SslEchKeys},
+};
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, ResponseInfo,
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client, HttpProtocol, RequestErrorKind,
+    ResponseInfo,
     dns::HttpsRecordResolver,
     profile::{ClientProfile, Http3ClientSettings, chromium},
 };
@@ -30,13 +42,13 @@ use phantom_testkit::{
     dns::DnsServer,
     tls::{ClientHelloSummary, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list},
 };
-use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, task::JoinHandle, time::timeout};
 
 use ech_support::{
-    ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, https_rdata_with_alpn, origin_identity,
-    record_server,
+    ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor, https_rdata_with_alpn,
+    origin_identity, record_server, try_handshake,
 };
-use tls_support::{TestIdentity, TestResult};
+use tls_support::{H1_ALPN, TestIdentity, TestResult, read_head};
 
 const H3_ALPN: &[u8] = b"\x02h3";
 /// The QUIC `CRYPTO_ERROR` for the TLS `ech_required` alert (121).
@@ -51,32 +63,86 @@ struct Observed {
     ech_accepted: bool,
     server_name: Option<String>,
     closed_with: Option<u64>,
+    session_resumed: bool,
+}
+
+/// The origin's ECH keys: `config_id` under `key`, with the public name.
+fn ech_keys(config_id: u8, key: &EchTestKey) -> TestResult<SslEchKeys> {
+    let mut keys = SslEchKeys::builder()?;
+    keys.add_key(
+        true,
+        &ech_config(config_id, key, PUBLIC_NAME),
+        HpkeKey::dhkem_p256_sha256(&key.private_key)?,
+    )?;
+    Ok(keys.build())
 }
 
 /// A loopback HTTP/3 origin that records each connection's handshake and
 /// answers one request on each completed connection, then closes it.
+///
+/// With [`Self::spawn_with_tcp`] it also serves HTTP/1.1 over TCP on the same
+/// port, from a BoringSSL origin with the same ECH keys, and counts those
+/// connections.
 struct QuicOrigin {
     port: u16,
+    context: SslContext,
     stop: oneshot::Sender<()>,
     task: JoinHandle<TestResult<Vec<Observed>>>,
+    tcp: Option<(Arc<AtomicUsize>, JoinHandle<()>)>,
 }
 
 impl QuicOrigin {
     fn spawn(identity: &TestIdentity, config_id: u8, key: &EchTestKey) -> TestResult<Self> {
+        let endpoint_context = Self::context(identity, config_id, key)?;
+        let endpoint = Self::endpoint(&endpoint_context, 0)?;
+        Ok(Self::start(endpoint, endpoint_context, None))
+    }
+
+    /// Serves HTTP/3 and, on the same port, HTTP/1.1 over TCP.
+    async fn spawn_with_tcp(
+        identity: &TestIdentity,
+        config_id: u8,
+        key: &EchTestKey,
+    ) -> TestResult<Self> {
+        let context = Self::context(identity, config_id, key)?;
+        let acceptor = ech_acceptor(identity, H1_ALPN, config_id, key)?;
+        let mut last_error = None;
+        // A free UDP port may be taken for TCP; try a few.
+        for _ in 0..16 {
+            let endpoint = Self::endpoint(&context, 0)?;
+            let port = endpoint.local_addr()?.port();
+            match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
+                Ok(listener) => {
+                    let served = Arc::new(AtomicUsize::new(0));
+                    let tcp = tokio::spawn(serve_tcp(listener, acceptor, Arc::clone(&served)));
+                    return Ok(Self::start(endpoint, context, Some((served, tcp))));
+                }
+                Err(error) => last_error = Some(error),
+            }
+        }
+        Err(format!("no port was free for both UDP and TCP: {last_error:?}").into())
+    }
+
+    fn context(identity: &TestIdentity, config_id: u8, key: &EchTestKey) -> TestResult<SslContext> {
         let builder = identity.acceptor_builder(H3_ALPN)?;
-        let mut keys = SslEchKeys::builder()?;
-        keys.add_key(
-            true,
-            &ech_config(config_id, key, PUBLIC_NAME),
-            HpkeKey::dhkem_p256_sha256(&key.private_key)?,
-        )?;
-        builder.set_ech_keys(&keys.build())?;
-        let crypto = QuicServerConfig::new(builder.build().into_context());
-        let endpoint = quinn::Endpoint::server(
+        builder.set_ech_keys(&ech_keys(config_id, key)?)?;
+        Ok(builder.build().into_context())
+    }
+
+    fn endpoint(context: &SslContext, port: u16) -> TestResult<quinn::Endpoint> {
+        let crypto = QuicServerConfig::new(context.clone());
+        Ok(quinn::Endpoint::server(
             quinn::ServerConfig::with_crypto(Arc::new(crypto)),
-            (Ipv4Addr::LOCALHOST, 0).into(),
-        )?;
-        let port = endpoint.local_addr()?.port();
+            (Ipv4Addr::LOCALHOST, port).into(),
+        )?)
+    }
+
+    fn start(
+        endpoint: quinn::Endpoint,
+        context: SslContext,
+        tcp: Option<(Arc<AtomicUsize>, JoinHandle<()>)>,
+    ) -> Self {
+        let port = endpoint.local_addr().map_or(0, |address| address.port());
         let (stop, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
             let mut observed = Vec::new();
@@ -97,16 +163,64 @@ impl QuicOrigin {
             }
             Ok(observed)
         });
-        Ok(Self { port, stop, task })
+        Self {
+            port,
+            context,
+            stop,
+            task,
+            tcp,
+        }
+    }
+
+    /// Replaces the ECH keys new QUIC connections are decrypted with.
+    fn rotate_keys(&self, config_id: u8, key: &EchTestKey) -> TestResult<()> {
+        self.context.set_ech_keys(&ech_keys(config_id, key)?)?;
+        Ok(())
     }
 
     fn url(&self, path: &str) -> String {
         format!("https://{ORIGIN_NAME}:{}{path}", self.port)
     }
 
-    async fn finish(self) -> TestResult<Vec<Observed>> {
+    /// Returns what each QUIC connection showed and how many TCP
+    /// connections were served a response.
+    async fn finish(self) -> TestResult<(Vec<Observed>, usize)> {
         let _ = self.stop.send(());
-        self.task.await?
+        let observed = self.task.await??;
+        let served = match self.tcp {
+            Some((served, task)) => {
+                task.abort();
+                served.load(Ordering::SeqCst)
+            }
+            None => 0,
+        };
+        Ok((observed, served))
+    }
+}
+
+/// Serves `HTTP/1.1 200` on each TCP connection whose handshake completes
+/// with ECH accepted or without ECH, and counts them. A connection rejected
+/// under the public name is aborted by the client, which retries.
+async fn serve_tcp(listener: TcpListener, acceptor: SslAcceptor, served: Arc<AtomicUsize>) {
+    while let Ok((tcp, _)) = listener.accept().await {
+        let acceptor = acceptor.clone();
+        let served = Arc::clone(&served);
+        tokio::spawn(async move {
+            let Ok((seen, Some(mut tls))) = try_handshake(tcp, &acceptor).await else {
+                return;
+            };
+            if !seen.ech_accepted && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME) {
+                return;
+            }
+            if read_head(&mut tls).await.is_err() {
+                return;
+            }
+            let response = b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok";
+            if tls.write_all(response).await.is_ok() {
+                served.fetch_add(1, Ordering::SeqCst);
+                let _ = tls.shutdown().await;
+            }
+        });
     }
 }
 
@@ -126,12 +240,19 @@ async fn observe(incoming: quinn::Incoming) -> TestResult<(Observed, Option<quin
         }
         Err(error) => return Err(error.into()),
     };
+    // Resumption is known only once the handshake has completed.
+    let session_resumed = connection
+        .as_ref()
+        .and_then(quinn::Connection::handshake_data)
+        .and_then(|data| data.downcast::<ServerHandshakeData>().ok())
+        .is_some_and(|data| data.session_resumed());
     Ok((
         Observed {
             outer_server_name,
             ech_accepted: data.ech_accepted(),
             server_name: data.server_name().map(str::to_owned),
             closed_with,
+            session_resumed,
         },
         connection,
     ))
@@ -182,6 +303,16 @@ fn profile(ech_from_https_records: bool) -> ClientProfile {
 /// A client whose HTTPS record lookups go to `dns` for the stand-in name,
 /// and which reaches `localhost` on the IPv4 loopback the origin listens on.
 fn client(identity: &TestIdentity, dns: &DnsServer, profile: ClientProfile) -> TestResult<Client> {
+    client_with(identity, dns, profile, AltSvcPolicy::sequential())
+}
+
+/// [`client`] with the given Alt-Svc policy.
+fn client_with(
+    identity: &TestIdentity,
+    dns: &DnsServer,
+    profile: ClientProfile,
+    policy: AltSvcPolicy,
+) -> TestResult<Client> {
     let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
     let records = HttpsRecordResolver::from_fn(move |_, port| {
         let upstream = upstream.clone();
@@ -190,6 +321,7 @@ fn client(identity: &TestIdentity, dns: &DnsServer, profile: ClientProfile) -> T
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .alt_svc(NonZeroUsize::MIN.saturating_add(7))
+        .alt_svc_policy(policy)
         .https_record_discovery(records)
         .resolve(ORIGIN_NAME, [Ipv4Addr::LOCALHOST.into()])
         .build()?)
@@ -208,6 +340,17 @@ async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
 }
 
 async fn get(client: &Client, protocol: Option<HttpProtocol>, url: &str) -> TestResult<()> {
+    get_as(client, protocol, url, HttpProtocol::Http3).await
+}
+
+/// Sends a GET, exact when `protocol` is set, and checks it was answered
+/// over `expected`.
+async fn get_as(
+    client: &Client,
+    protocol: Option<HttpProtocol>,
+    url: &str,
+    expected: HttpProtocol,
+) -> TestResult<()> {
     let response = match protocol {
         Some(protocol) => client.get(protocol, url)?.send().await?,
         None => client.get_negotiated(url)?.send().await?,
@@ -216,7 +359,7 @@ async fn get(client: &Client, protocol: Option<HttpProtocol>, url: &str) -> Test
         .extensions()
         .get::<ResponseInfo>()
         .ok_or("response omitted protocol metadata")?;
-    assert_eq!(info.protocol(), HttpProtocol::Http3);
+    assert_eq!(info.protocol(), expected);
     response.into_body().collect().await?;
     Ok(())
 }
@@ -234,7 +377,7 @@ async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
             tokio::time::sleep(SETTLE).await;
         }
 
-        let observed = origin.finish().await?;
+        let (observed, _) = origin.finish().await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         Ok(())
@@ -256,7 +399,7 @@ async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
         tokio::time::sleep(SETTLE).await;
         get(&client, None, &origin.url("/second")).await?;
 
-        let observed = origin.finish().await?;
+        let (observed, _) = origin.finish().await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         assert_eq!(dns.queries().len(), 1);
@@ -289,7 +432,7 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
         assert_eq!(second.kind(), RequestErrorKind::Tls);
         tokio::time::sleep(SETTLE).await;
 
-        let observed = origin.finish().await?;
+        let (observed, _) = origin.finish().await?;
         let rejected = observed
             .iter()
             .filter(|seen| seen.closed_with == Some(ECH_REQUIRED))
@@ -320,11 +463,89 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
         get(&client, Some(HttpProtocol::Http3), &origin.url("/first")).await?;
         tokio::time::sleep(SETTLE).await;
 
-        let observed = origin.finish().await?;
+        let (observed, _) = origin.finish().await?;
         assert_eq!(observed.len(), 1);
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
         assert!(dns.queries().is_empty());
+        Ok(())
+    })
+    .await
+}
+
+/// A connection that presented a session ticket and whose ECH is rejected
+/// fails without a second attempt: the pool repeats a ticketed connection
+/// with a full handshake only after other handshake failures.
+#[tokio::test]
+async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let dns = published_record().await?;
+        let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
+        let client = client(&identity, &dns, profile(true))?;
+
+        // The first connection caches the record and a ticket; the second
+        // resumes with ECH accepted, so the client holds a fresh ticket.
+        for path in ["/first", "/second"] {
+            get(&client, Some(HttpProtocol::Http3), &origin.url(path)).await?;
+            tokio::time::sleep(SETTLE).await;
+        }
+        origin.rotate_keys(2, &TEST_ECH_KEYS[1])?;
+        let error = client
+            .get(HttpProtocol::Http3, &origin.url("/third"))?
+            .send()
+            .await
+            .err()
+            .ok_or("a rejected ECH offer connected")?;
+        assert_eq!(error.kind(), RequestErrorKind::Tls);
+        tokio::time::sleep(SETTLE).await;
+
+        let (observed, _) = origin.finish().await?;
+        assert_eq!(observed.len(), 3, "{observed:?}");
+        assert_accepted(&observed[1]);
+        assert!(observed[1].session_resumed, "{observed:?}");
+        assert_eq!(observed[2].closed_with, Some(ECH_REQUIRED));
+        assert_eq!(observed[2].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+        Ok(())
+    })
+    .await
+}
+
+/// A racing client whose HTTPS-record alternative is rejected sends the
+/// request to the origin over TCP, marks the alternative broken, and does
+/// not try QUIC again while it stays broken.
+#[tokio::test]
+async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let dns = published_record().await?;
+        // The origin holds configuration 2; the record publishes 1.
+        let origin = QuicOrigin::spawn_with_tcp(&identity, 2, &TEST_ECH_KEYS[1]).await?;
+        let race = AltSvcRace::new(
+            Duration::from_millis(300),
+            AltSvcBrokenBackoff::CHROMIUM_153,
+        );
+        let client = client_with(&identity, &dns, profile(true), AltSvcPolicy::race(race))?;
+
+        // An exact HTTP/1.1 request caches the record without touching QUIC.
+        get_as(
+            &client,
+            Some(HttpProtocol::Http1),
+            &origin.url("/warm"),
+            HttpProtocol::Http1,
+        )
+        .await?;
+        tokio::time::sleep(SETTLE).await;
+        for path in ["/raced", "/after"] {
+            get_as(&client, None, &origin.url(path), HttpProtocol::Http1).await?;
+            tokio::time::sleep(SETTLE).await;
+        }
+
+        let (observed, tcp_served) = origin.finish().await?;
+        assert_eq!(observed.len(), 1, "{observed:?}");
+        assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
+        assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+        assert_eq!(tcp_served, 3);
         Ok(())
     })
     .await
