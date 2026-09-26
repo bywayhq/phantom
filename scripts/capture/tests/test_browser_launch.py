@@ -1,5 +1,8 @@
+import asyncio
 import os
 import shlex
+import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -231,6 +234,99 @@ class FirefoxStartTests(unittest.TestCase):
             browser_launch.wait_for_firefox_start(Path(directory), FakeProcess(0))
 
             self.assertLess(time.monotonic() - begin, 1)
+
+
+class ExitedFirefox(LaunchedBrowser):
+    """A Firefox launch whose process has already exited; nothing starts."""
+
+    exits = 0
+    exited = threading.Event()
+
+    def _start(self, profile: Path):
+        return FakeProcess(0)
+
+    def __exit__(self, *details: object) -> None:
+        type(self).exits += 1
+        type(self).exited.set()
+        if self.profile is not None:
+            shutil.rmtree(self.profile, ignore_errors=True)
+
+
+class EnterBrowserTests(unittest.TestCase):
+    """A launch that waits its turn must not stall the tool's server."""
+
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        os.environ[browser_launch.LAUNCH_LOCK_DIRECTORY] = self.directory.name
+        self.addCleanup(os.environ.pop, browser_launch.LAUNCH_LOCK_DIRECTORY, None)
+        self.plan = LaunchPlan("firefox", Path("firefox.exe"), True)
+        self.held = threading.Event()
+        self.release = threading.Event()
+
+        def hold() -> None:
+            with browser_launch.launch_turn("firefox"):
+                self.held.set()
+                self.release.wait(10)
+
+        self.holder = threading.Thread(target=hold)
+        self.holder.start()
+        self.held.wait(10)
+        self.addCleanup(self.holder.join, 10)
+        self.addCleanup(self.release.set)
+
+    def test_the_server_answers_while_a_firefox_launch_waits(self) -> None:
+        async def scenario() -> tuple[bytes, bool]:
+            async def answer(reader, writer) -> None:
+                await reader.readline()
+                writer.write(b"ok\n")
+                await writer.drain()
+                writer.close()
+
+            server = await asyncio.start_server(answer, "127.0.0.1", 0)
+            port = server.sockets[0].getsockname()[1]
+            reply: list[bytes] = []
+
+            def client() -> None:
+                with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+                    sock.sendall(b"page\n")
+                    reply.append(sock.recv(16))
+                # The lock is still held, so the launch is still waiting.
+                reply.append(b"released")
+                self.release.set()
+
+            threading.Thread(target=client, daemon=True).start()
+            browser = await browser_launch.enter_browser(
+                ExitedFirefox(self.plan, "http://127.0.0.1/")
+            )
+            browser.__exit__(None, None, None)
+            server.close()
+            await server.wait_closed()
+            return b"".join(reply[:1]), reply[-1:] == [b"released"]
+
+        answered, released_by_client = asyncio.run(scenario())
+
+        self.assertEqual(answered, b"ok\n")
+        self.assertTrue(released_by_client)
+
+    def test_a_cancelled_launch_is_removed_once_it_starts(self) -> None:
+        ExitedFirefox.exits = 0
+        ExitedFirefox.exited.clear()
+
+        async def scenario() -> None:
+            task = asyncio.create_task(
+                browser_launch.enter_browser(ExitedFirefox(self.plan, "about:blank"))
+            )
+            await asyncio.sleep(0.2)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            self.release.set()
+
+        asyncio.run(scenario())
+
+        self.assertTrue(ExitedFirefox.exited.wait(10))
+        self.assertEqual(ExitedFirefox.exits, 1)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import shlex
 import shutil
@@ -9,6 +10,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -212,6 +214,11 @@ class LaunchPlan:
         return self.browser in ANDROID_BROWSERS
 
     @property
+    def takes_turns(self) -> bool:
+        """Whether a launch waits for the machine-wide Firefox launch lock."""
+        return self.browser == "firefox" and bool(os.environ.get(LAUNCH_LOCK_DIRECTORY))
+
+    @property
     def client_name(self) -> str:
         return CLIENT_NAMES[self.browser]
 
@@ -289,6 +296,9 @@ class LaunchedBrowser:
             else:
                 self.process = self._start(self.profile)
         except BaseException:
+            if self.process is not None:
+                terminate_process_tree(self.process)
+                self.process = None
             shutil.rmtree(self.profile, ignore_errors=True)
             self.profile = None
             raise
@@ -348,12 +358,49 @@ class BrowserDriver:
         if self.plan.browser == "manual":
             print(f"open {self.url}", file=sys.stderr, flush=True)
         else:
-            self.browser = LaunchedBrowser(self.plan, self.url).__enter__()
+            self.browser = await enter_browser(LaunchedBrowser(self.plan, self.url))
         return self
 
     async def __aexit__(self, *details: object) -> None:
         if self.browser is not None:
             self.browser.__exit__(*details)
+
+
+async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
+    """Launch `browser` from a coroutine without stalling its event loop.
+
+    A launch that takes turns can wait many seconds for the launch lock and
+    for Firefox to start. That wait runs in a worker thread, so the tool's
+    loopback server keeps answering, including the page Firefox requests
+    before its start checkpoint is written. Other launches only spawn a
+    process and stay on the loop, as before.
+    """
+    if not browser.plan.takes_turns:
+        return browser.__enter__()
+    guard = threading.Lock()
+    state = {"entered": False, "abandoned": False}
+
+    def enter() -> LaunchedBrowser:
+        browser.__enter__()
+        with guard:
+            state["entered"] = True
+            abandoned = state["abandoned"]
+        if abandoned:
+            browser.__exit__(None, None, None)
+        return browser
+
+    future = asyncio.get_running_loop().run_in_executor(None, enter)
+    try:
+        return await asyncio.shield(future)
+    except asyncio.CancelledError:
+        # The launch finishes in its thread; whichever side sees it last
+        # removes the browser.
+        with guard:
+            state["abandoned"] = True
+            entered = state["entered"]
+        if entered:
+            browser.__exit__(None, None, None)
+        raise
 
 
 @contextmanager

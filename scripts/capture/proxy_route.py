@@ -26,6 +26,7 @@ from .browser_launch import (
     LaunchedBrowser,
     LaunchPlan,
     browser_arguments,
+    enter_browser,
     render_preferences,
 )
 from .browser_remote import ChromiumAuthDriver, Credentials, FirefoxAuthDriver
@@ -1277,9 +1278,13 @@ class ProxyBrowserDriver:
             print(f"open {self.url}", file=sys.stderr, flush=True)
             return self
         if not self.auth:
-            self.browser = ProxyLaunchedBrowser(self.plan, self.url).__enter__()
+            self.browser = await enter_browser(
+                ProxyLaunchedBrowser(self.plan, self.url)
+            )
             return self
-        self.browser = ProxyLaunchedBrowser(self.plan, REMOTE_START_URL).__enter__()
+        self.browser = await enter_browser(
+            ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
+        )
         credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
         if self.plan.browser in CHROMIUM_BROWSERS:
             self.remote = ChromiumAuthDriver(credentials, self.note)
