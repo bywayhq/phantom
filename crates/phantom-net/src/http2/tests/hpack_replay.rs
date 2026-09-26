@@ -66,7 +66,7 @@ macro_rules! fixture {
 const CHROME_COOKIES: (&str, &str) =
     fixture!("cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h2.txt");
 const EDGE_COOKIES: (&str, &str) =
-    fixture!("cookies/edge/153.0.4234.48/windows-11-26200/crumbs-h2.txt");
+    fixture!("cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h2.txt");
 const FIREFOX_COOKIES: (&str, &str) =
     fixture!("cookies/firefox/156.0/windows-11-26200/crumbs-h2.txt");
 
@@ -125,7 +125,7 @@ async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> 
 
 #[tokio::test]
 async fn edge_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    // Edge 153 uses the Chromium recipe (`phantom_profile::edge`).
+    // Edge 154 uses the Chromium recipe (`phantom_profile::edge`).
     replay_all(&[EDGE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
 }
 

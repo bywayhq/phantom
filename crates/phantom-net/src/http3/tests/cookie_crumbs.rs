@@ -21,7 +21,7 @@ const CHROME: &str = include_str!(
     "../../../../../fixtures/cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h3.txt"
 );
 const EDGE: &str = include_str!(
-    "../../../../../fixtures/cookies/edge/153.0.4234.48/windows-11-26200/crumbs-h3.txt"
+    "../../../../../fixtures/cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h3.txt"
 );
 /// The capture server's `SETTINGS_QPACK_BLOCKED_STREAMS` (aioquic 1.3.0).
 const CAPTURE_BLOCKED_STREAMS: usize = 16;
@@ -33,7 +33,7 @@ fn chrome_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
 
 #[test]
 fn edge_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
-    // Edge 153 replays against the Chromium recipes (`phantom_profile::edge`).
+    // Edge 154 replays against the Chromium recipes (`phantom_profile::edge`).
     assert_replay_matches(&Capture::parse(EDGE)?)
 }
 

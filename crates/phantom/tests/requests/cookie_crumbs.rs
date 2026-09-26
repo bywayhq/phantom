@@ -46,7 +46,7 @@ const CHROME: &str = include_str!(concat!(
 ));
 const EDGE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/cookies/edge/153.0.4234.48/windows-11-26200/crumbs-h2.txt"
+    "/../../fixtures/cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h2.txt"
 ));
 const FIREFOX: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -67,7 +67,7 @@ async fn chrome_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResu
 
 #[tokio::test]
 async fn edge_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
-    // Edge 153 replays against the Chromium recipes (`phantom::profile::edge`).
+    // Edge 154 replays against the Chromium recipes (`phantom::profile::edge`).
     let capture = Capture::parse(EDGE)?;
     let observed = replay(
         &capture,
