@@ -706,4 +706,28 @@ fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2(
     drop(handshake_with(client, server));
     assert!(config.has_ticket_for(SERVER_NAME));
     assert_eq!(debug(&config), Some(0x6b33_43cf));
+
+    // A connection in QUIC v1 does not present the ticket a v2 connection
+    // received; a connection in v2 does.
+    let start = |version| {
+        test_ok(
+            crypto::ClientConfig::start_session(
+                Arc::clone(&config),
+                version,
+                SERVER_NAME,
+                &parameters,
+            ),
+            "client session",
+        )
+    };
+    let fresh = handshake_with(
+        start(0x0000_0001),
+        test_ok(RawServer::new(&server_context), "server session"),
+    );
+    assert!(!resumed(fresh.as_ref()));
+    let resumed_v2 = handshake_with(
+        start(0x6b33_43cf),
+        test_ok(RawServer::new(&server_context), "server session"),
+    );
+    assert!(resumed(resumed_v2.as_ref()));
 }

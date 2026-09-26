@@ -522,7 +522,7 @@ impl crypto::ClientConfig for QuicClientConfig {
             .as_ref()
             .filter(|_| self.offer_tickets)
             .and_then(|sessions| {
-                let ticket = sessions.take(server_name)?;
+                let ticket = sessions.take_for_version(server_name, version)?;
                 Some((ticket, sessions.round_trip_time(server_name)))
             });
         // Only a connection that presents a ticket advertises a round-trip

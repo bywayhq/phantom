@@ -256,19 +256,32 @@ impl SessionCache {
         });
     }
 
-    /// Returns the most recent unexpired session for `server_name`.
-    ///
-    /// A session BoringSSL marks single-use is removed. Every TLS 1.3 session
-    /// is single-use, to prevent correlation (RFC 8446, Appendix C.4), so for
-    /// QUIC a lookup always consumes the ticket it returns.
+    /// Takes a ticket that a QUIC v1 connection received.
+    #[cfg(test)]
     pub(crate) fn take(&self, server_name: &str) -> Option<ResumptionTicket> {
+        self.take_for_version(server_name, QuicVersion::V1)
+    }
+
+    /// Returns the most recent unexpired session for `server_name` that a
+    /// connection in `version` received.
+    ///
+    /// A ticket from a connection in another QUIC version is not presented
+    /// (RFC 9369 section 3.4). A session BoringSSL marks single-use is
+    /// removed. Every TLS 1.3 session is single-use, to prevent correlation
+    /// (RFC 8446, Appendix C.4), so for QUIC a lookup always consumes the
+    /// ticket it returns.
+    pub(crate) fn take_for_version(
+        &self,
+        server_name: &str,
+        version: QuicVersion,
+    ) -> Option<ResumptionTicket> {
         let now = unix_time();
         let mut state = self.state();
         let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
-        let position = sessions
-            .iter()
-            .rposition(|cached| server_names_match(&cached.server_name, server_name))?;
+        let position = sessions.iter().rposition(|cached| {
+            cached.ticket.version == version && server_names_match(&cached.server_name, server_name)
+        })?;
         if sessions[position].ticket.session.should_be_single_use() {
             return sessions.remove(position).map(|cached| cached.ticket);
         }
@@ -278,8 +291,8 @@ impl SessionCache {
         Some(ticket)
     }
 
-    /// Returns the QUIC version of the connection that received the session
-    /// [`Self::take`] would return for `server_name`.
+    /// Returns the QUIC version of the connection that received the newest
+    /// unexpired session for `server_name`.
     pub(crate) fn version(&self, server_name: &str) -> Option<QuicVersion> {
         let now = unix_time();
         let state = self.state();
