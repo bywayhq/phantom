@@ -1561,7 +1561,8 @@ impl Http1TlsConnector {
     /// an HTTPS proxy.
     ///
     /// The proxy connector's protocol selects an HTTP/1.1 CONNECT tunnel or an
-    /// RFC 9113 section 8.5 CONNECT stream on a dedicated HTTP/2 connection.
+    /// RFC 9113 section 8.5 CONNECT stream on an HTTP/2 connection, shared
+    /// when the connector has an [`Http2ProxyPool`](crate::proxy::Http2ProxyPool).
     /// The origin-form Upgrade is sent inside it exactly as on a direct
     /// connection, with no origin TLS handshake. Origin and CONNECT requests
     /// are validated before proxy I/O.

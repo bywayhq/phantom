@@ -19,6 +19,7 @@ mod credential_cache;
 mod http2_challenge;
 mod http2_challenge_frames;
 mod http2_connect;
+mod http2_pool;
 mod http2_raw_proxy;
 mod https_connect;
 mod socks5;

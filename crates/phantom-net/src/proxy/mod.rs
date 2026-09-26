@@ -6,6 +6,7 @@ mod connect_udp;
 mod credential_cache;
 mod error;
 mod http2_connect;
+mod http2_pool;
 mod http_connect;
 mod https_connect;
 mod socks5;
@@ -23,6 +24,10 @@ pub use http_connect::{
     connect_http_tunnel_direct_with_basic_auth,
 };
 pub(crate) use http_connect::{http_connect_tunnel, http_connect_tunnel_with_basic_auth};
+pub use http2_pool::{
+    Http2ProxyPool, MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE, MAX_HTTP2_PROXY_POOL_ROUTES,
+    MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION,
+};
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};
 pub use socks5::{
     Socks5Auth, Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct,

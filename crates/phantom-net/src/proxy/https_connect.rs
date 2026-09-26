@@ -1,5 +1,7 @@
 use std::{
-    fmt, io,
+    fmt,
+    future::Future,
+    io,
     pin::Pin,
     sync::{Mutex, PoisonError},
     task::{Context, Poll},
@@ -18,6 +20,7 @@ use super::{
     http2_connect::{
         self, Http2ChallengeOutcome, Http2Replay, PreparedBasicHttp2Connect, PreparedHttp2Connect,
     },
+    http2_pool::{ConnectionSettingsId, Http2ProxyPool, PooledConnection, RouteKey},
 };
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
@@ -44,9 +47,11 @@ pub enum HttpsProxyProtocol {
     /// The proxy must select `http/1.1` or omit ALPN.
     #[default]
     Http1,
-    /// RFC 9113 section 8.5 CONNECT on a dedicated HTTP/2 connection per
-    /// tunnel, and HTTP/2 forwarding of plaintext `http://` requests.
+    /// RFC 9113 section 8.5 CONNECT, and HTTP/2 forwarding of plaintext
+    /// `http://` requests.
     ///
+    /// Each tunnel is a stream of a connection from the connector's
+    /// [`Http2ProxyPool`], or of its own connection when none is attached.
     /// The proxy must select `h2`. HTTP/1.1 absolute-form forwarding is not
     /// available in this mode.
     Http2,
@@ -67,6 +72,10 @@ pub struct HttpsProxyConnector {
     tcp: Option<TcpSettings>,
     host_resolver: Option<HostResolver>,
     proxy_credentials: Option<ProxyCredentialCache>,
+    http2_pool: Option<Http2ProxyPool>,
+    /// Replaced whenever a setting that shapes a proxy connection changes,
+    /// so a shared pool keeps connections opened with other settings apart.
+    connection_settings: ConnectionSettingsId,
 }
 
 impl HttpsProxyConnector {
@@ -113,6 +122,8 @@ impl HttpsProxyConnector {
             tcp: None,
             host_resolver: None,
             proxy_credentials: None,
+            http2_pool: None,
+            connection_settings: ConnectionSettingsId::default(),
         }
     }
 
@@ -124,6 +135,7 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_http2_settings(mut self, settings: &Http2Settings) -> Self {
         self.http2 = Some(settings.clone());
+        self.connection_settings = ConnectionSettingsId::default();
         self
     }
 
@@ -150,6 +162,7 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);
+        self.connection_settings = ConnectionSettingsId::default();
         self
     }
 
@@ -161,6 +174,23 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
         self.proxy_credentials = Some(cache);
+        self
+    }
+
+    /// Opens HTTP/2 tunnels as streams of connections from `pool`, as
+    /// browsers do, instead of one connection per tunnel.
+    ///
+    /// A tunnel shares a connection only with tunnels to the same proxy
+    /// host, port, and server name, for the same Basic credentials or none,
+    /// from a connector with the same TLS, TCP, HTTP/2, and name-resolution
+    /// settings: changing one of those on a clone keeps its connections
+    /// apart. [`Self::connect_forward_http2_with_credentials`] draws from the
+    /// same pool. Clones of this connector, including
+    /// [`Self::with_isolated_session_cache`], share `pool`. It has no effect
+    /// in [`HttpsProxyProtocol::Http1`] mode.
+    #[must_use]
+    pub fn with_http2_proxy_pool(mut self, pool: Http2ProxyPool) -> Self {
+        self.http2_pool = Some(pool);
         self
     }
 
@@ -179,6 +209,7 @@ impl HttpsProxyConnector {
     #[must_use]
     pub fn with_host_resolver(mut self, resolver: HostResolver) -> Self {
         self.host_resolver = Some(resolver);
+        self.connection_settings = ConnectionSettingsId::default();
         self
     }
 
@@ -221,6 +252,9 @@ impl HttpsProxyConnector {
     }
 
     /// Returns a connector clone with a fresh isolated TLS session cache.
+    ///
+    /// The clone keeps this connector's [`Http2ProxyPool`], so its HTTP/2
+    /// tunnels may use a connection this connector opened.
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
         Self {
@@ -232,6 +266,8 @@ impl HttpsProxyConnector {
             tcp: self.tcp,
             host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
+            http2_pool: self.http2_pool.clone(),
+            connection_settings: self.connection_settings.clone(),
         }
     }
 
@@ -248,8 +284,27 @@ impl HttpsProxyConnector {
             .await
     }
 
-    /// Opens one HTTP/2 connection to the proxy for forwarding plaintext
-    /// `http://` requests.
+    /// Returns an HTTP/2 connection to the proxy for forwarding plaintext
+    /// `http://` requests that carry no proxy credentials.
+    ///
+    /// The same as [`Self::connect_forward_http2_with_credentials`] without
+    /// credentials.
+    ///
+    /// # Errors
+    ///
+    /// As for [`Self::connect_forward_http2_with_credentials`].
+    pub async fn connect_forward_http2(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+    ) -> Result<Http2Connection, HttpConnectError> {
+        self.connect_forward_http2_with_credentials(proxy_host, proxy_port, proxy_server_name, None)
+            .await
+    }
+
+    /// Returns an HTTP/2 connection to the proxy for forwarding plaintext
+    /// `http://` requests that carry `credentials`.
     ///
     /// The connection uses this connector's TLS offer and HTTP/2 settings, so
     /// its SETTINGS, priority, pseudo-header order, and HPACK choices are the
@@ -258,23 +313,36 @@ impl HttpsProxyConnector {
     /// must select `h2`; any other ALPN result is an error, never a switch to
     /// HTTP/1.1.
     ///
+    /// This call sends no credentials. With an [`Http2ProxyPool`] attached,
+    /// `credentials` choose which pooled connection is returned, one that
+    /// tunnels and other forwarding for the same credentials may also use.
+    /// Without a pool, every call opens a connection.
+    ///
     /// # Errors
     ///
     /// Returns [`HttpConnectError::ForwardingRequiresHttp2`] in
     /// [`HttpsProxyProtocol::Http1`] mode and a configuration error for a
     /// missing `h2` offer or HTTP/2 settings, all before proxy I/O; otherwise
     /// a connect, TLS, ALPN, or HTTP/2 setup error.
-    pub async fn connect_forward_http2(
+    pub async fn connect_forward_http2_with_credentials(
         &self,
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
+        credentials: Option<&HttpBasicCredentials>,
     ) -> Result<Http2Connection, HttpConnectError> {
         if self.protocol != HttpsProxyProtocol::Http2 {
             return Err(HttpConnectError::ForwardingRequiresHttp2);
         }
-        self.connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
-            .await
+        self.http2_builder()?;
+        let target = ProxyTarget {
+            host: proxy_host,
+            port: proxy_port,
+            server_name: proxy_server_name,
+            credentials,
+        };
+        // The pool counts tunnels only; forwarded requests are short.
+        Ok(self.http2_connection(&target).await?.into_connection())
     }
 
     pub(crate) async fn connect_tunnel(
@@ -296,12 +364,22 @@ impl HttpsProxyConnector {
             .await
             .map(HttpsProxyTunnel::http1),
             HttpsProxyProtocol::Http2 => trace_connect("https_h2", async {
-                let request = PreparedHttp2Connect::new(authority, headers)?;
+                let request = &PreparedHttp2Connect::new(authority, headers)?;
                 self.http2_builder()?;
-                let connection = self
-                    .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
+                let target = ProxyTarget {
+                    host: proxy_host,
+                    port: proxy_port,
+                    server_name: proxy_server_name,
+                    credentials: None,
+                };
+                let rejected = self.http2_rejected;
+                let (mut stream, connection) = self
+                    .on_http2_connection(&target, |connection| async move {
+                        http2_connect::establish(&connection, request, rejected).await
+                    })
                     .await?;
-                http2_connect::establish(&connection, &request, self.http2_rejected).await
+                connection.attach(&mut stream);
+                Ok(stream)
             })
             .await
             .map(HttpsProxyTunnel::http2),
@@ -337,14 +415,14 @@ impl HttpsProxyConnector {
             HttpsProxyProtocol::Http2 => trace_connect("https_h2", async {
                 let requests = PreparedBasicHttp2Connect::new(authority, headers, credentials)?;
                 self.http2_builder()?;
-                self.http2_basic_auth_exchange(
-                    &plan,
-                    &requests,
-                    proxy_host,
-                    proxy_port,
-                    proxy_server_name,
-                )
-                .await
+                let target = ProxyTarget {
+                    host: proxy_host,
+                    port: proxy_port,
+                    server_name: proxy_server_name,
+                    credentials: Some(credentials),
+                };
+                self.http2_basic_auth_exchange(&plan, &requests, &target)
+                    .await
             })
             .await
             .map(HttpsProxyTunnel::http2),
@@ -354,24 +432,24 @@ impl HttpsProxyConnector {
     /// Runs one challenge-driven HTTP/2 CONNECT exchange.
     ///
     /// The replay after a `407` is a new stream on the challenged connection,
-    /// and moves to a new connection only when the proxy closed or refused
+    /// and moves to another connection only when the proxy closed or refused
     /// it before processing the replay.
     async fn http2_basic_auth_exchange(
         &self,
         plan: &BasicAuthPlan<'_>,
         requests: &PreparedBasicHttp2Connect,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
+        target: &ProxyTarget<'_>,
     ) -> Result<Http2ConnectStream, HttpConnectError> {
+        let rejected = self.http2_rejected;
         // The connection that carried a `407`, and its challenged stream when
         // the profile leaves it open.
-        let challenged = Mutex::new(None::<(Http2Connection, Option<Http2RejectedStream>)>);
+        let challenged = Mutex::new(None::<(TunnelConnection, Option<Http2RejectedStream>)>);
         plan.run(
             |attempt| {
                 let challenged = &challenged;
                 async move {
                     record_authentication_attempts(attempt, plan.preemptive());
+                    let authenticated = &requests.authenticated;
                     if attempt.is_retry() {
                         let kept = challenged
                             .lock()
@@ -379,9 +457,9 @@ impl HttpsProxyConnector {
                             .take();
                         if let Some((connection, held)) = kept {
                             match http2_connect::replay_on_challenged(
-                                &connection,
-                                &requests.authenticated,
-                                self.http2_rejected,
+                                connection.connection(),
+                                authenticated,
+                                rejected,
                             )
                             .await
                             {
@@ -390,53 +468,107 @@ impl HttpsProxyConnector {
                                         if let Some(held) = held {
                                             stream.hold_rejected_stream(held);
                                         }
+                                        connection.attach(&mut stream);
                                         AuthStep::Done(stream)
                                     });
                                 }
-                                Http2Replay::Unprocessed => {}
+                                // The proxy closed or refused this connection,
+                                // so no later tunnel is handed it.
+                                Http2Replay::Unprocessed => connection.retire(),
                             }
                         }
-                        let connection = self
-                            .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
+                        let (mut stream, connection) = self
+                            .on_http2_connection(target, |connection| async move {
+                                http2_connect::establish_authenticated(
+                                    &connection,
+                                    authenticated,
+                                    rejected,
+                                )
+                                .await
+                            })
                             .await?;
-                        return http2_connect::establish_authenticated(
-                            &connection,
-                            &requests.authenticated,
-                            self.http2_rejected,
-                        )
-                        .await
-                        .map(AuthStep::Done);
+                        connection.attach(&mut stream);
+                        return Ok(AuthStep::Done(stream));
                     }
-                    let connection = self
-                        .connect_http2_proxy(proxy_host, proxy_port, proxy_server_name)
-                        .await?;
                     let request = if attempt.sends_credentials() {
-                        &requests.authenticated
+                        authenticated
                     } else {
                         &requests.anonymous
                     };
-                    Ok(
-                        match http2_connect::establish_challenge(
-                            &connection,
-                            request,
-                            self.http2_rejected,
-                        )
-                        .await?
-                        {
-                            Http2ChallengeOutcome::Tunnel(stream) => AuthStep::Done(stream),
-                            Http2ChallengeOutcome::Retry(held) => {
-                                *challenged.lock().unwrap_or_else(PoisonError::into_inner) =
-                                    Some((connection, held));
-                                AuthStep::Challenged
-                            }
-                        },
-                    )
+                    let (outcome, connection) = self
+                        .on_http2_connection(target, |connection| async move {
+                            http2_connect::establish_challenge(&connection, request, rejected).await
+                        })
+                        .await?;
+                    Ok(match outcome {
+                        Http2ChallengeOutcome::Tunnel(mut stream) => {
+                            connection.attach(&mut stream);
+                            AuthStep::Done(stream)
+                        }
+                        Http2ChallengeOutcome::Retry(held) => {
+                            *challenged.lock().unwrap_or_else(PoisonError::into_inner) =
+                                Some((connection, held));
+                            AuthStep::Challenged
+                        }
+                    })
                 }
             },
             HttpConnectError::is_challenge_failure,
             || HttpConnectError::AuthenticationRejected,
         )
         .await
+    }
+
+    /// Returns the connection one HTTP/2 tunnel or forwarding caller uses: a
+    /// pooled one when a pool is attached, otherwise a new one.
+    async fn http2_connection(
+        &self,
+        target: &ProxyTarget<'_>,
+    ) -> Result<TunnelConnection, HttpConnectError> {
+        let open = || self.connect_http2_proxy(target.host, target.port, target.server_name);
+        match &self.http2_pool {
+            Some(pool) => {
+                let key = RouteKey::new(
+                    &self.connection_settings,
+                    target.host,
+                    target.port,
+                    target.server_name,
+                    target.credentials,
+                );
+                pool.acquire(key, open).await.map(TunnelConnection::Pooled)
+            }
+            None => open().await.map(TunnelConnection::Dedicated),
+        }
+    }
+
+    /// Runs one CONNECT exchange on the connection
+    /// [`Self::http2_connection`] returns.
+    ///
+    /// When the proxy did not process the CONNECT on a connection that had
+    /// carried streams before, such as after a `GOAWAY` that crossed it, the
+    /// connection is retired and the exchange runs once more on another.
+    async fn on_http2_connection<T, F, Fut>(
+        &self,
+        target: &ProxyTarget<'_>,
+        exchange: F,
+    ) -> Result<(T, TunnelConnection), HttpConnectError>
+    where
+        F: Fn(Http2Connection) -> Fut,
+        Fut: Future<Output = Result<T, HttpConnectError>>,
+    {
+        let connection = self.http2_connection(target).await?;
+        match exchange(connection.connection().clone()).await {
+            Err(HttpConnectError::ProxyHttp2(error))
+                if connection.is_reused() && http2_connect::is_unprocessed(&error) =>
+            {
+                connection.retire();
+                drop(connection);
+                let connection = self.http2_connection(target).await?;
+                let value = exchange(connection.connection().clone()).await?;
+                Ok((value, connection))
+            }
+            result => result.map(|value| (value, connection)),
+        }
     }
 
     async fn connect_proxy_tls(
@@ -476,13 +608,10 @@ impl HttpsProxyConnector {
         Ok(stream)
     }
 
-    /// Opens one dedicated HTTP/2 connection to the proxy.
+    /// Opens one HTTP/2 connection to the proxy.
     ///
-    /// A tunnel never shares its connection with another tunnel, so its
-    /// lifetime is bounded by the one tunnel stream that holds it. The
-    /// replay after a `407` is a new stream on the challenged connection,
-    /// whose challenged stream has already ended. A forwarding connection
-    /// belongs to its caller's pool.
+    /// Every tunnel stream on it holds a lease, so it stays open while any
+    /// tunnel on it is open, and while a pool or forwarding caller holds it.
     async fn connect_http2_proxy(
         &self,
         proxy_host: &str,
@@ -562,6 +691,57 @@ impl HttpsProxyConnector {
         validate_http2(settings)
             .and_then(|()| translate_settings(settings).map_err(Http2TlsError::Http2))
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+    }
+}
+
+/// The proxy endpoint and route credentials that choose a pooled connection.
+struct ProxyTarget<'a> {
+    host: &'a str,
+    port: u16,
+    server_name: &'a str,
+    credentials: Option<&'a HttpBasicCredentials>,
+}
+
+/// The HTTP/2 proxy connection one tunnel uses.
+enum TunnelConnection {
+    /// A connection opened for this tunnel alone.
+    Dedicated(Http2Connection),
+    /// A connection from the connector's pool, counted for this tunnel.
+    Pooled(PooledConnection),
+}
+
+impl TunnelConnection {
+    fn connection(&self) -> &Http2Connection {
+        match self {
+            Self::Dedicated(connection) => connection,
+            Self::Pooled(pooled) => &pooled.connection,
+        }
+    }
+
+    fn is_reused(&self) -> bool {
+        matches!(self, Self::Pooled(pooled) if pooled.reused)
+    }
+
+    /// Stops a pool from handing this connection to later tunnels.
+    fn retire(&self) {
+        if let Self::Pooled(pooled) = self {
+            pooled.retire();
+        }
+    }
+
+    /// Counts `stream` against its pooled connection until the stream ends.
+    fn attach(self, stream: &mut Http2ConnectStream) {
+        if let Self::Pooled(pooled) = self {
+            let (_, tunnel) = pooled.into_tunnel();
+            stream.retain_until_stream_complete(tunnel);
+        }
+    }
+
+    fn into_connection(self) -> Http2Connection {
+        match self {
+            Self::Dedicated(connection) => connection,
+            Self::Pooled(pooled) => pooled.into_tunnel().0,
+        }
     }
 }
 

@@ -900,6 +900,13 @@ pub(super) struct ConnectionLease {
     _inner: Arc<ConnectionInner>,
 }
 
+impl ConnectionLease {
+    /// Returns whether the connection driver has stopped.
+    pub(super) fn is_closed(&self) -> bool {
+        self._inner.driver.is_finished()
+    }
+}
+
 struct ConnectionInner {
     // Option lets Drop close the final sender before supervising the driver.
     sender: Option<client::SendRequest<Bytes>>,

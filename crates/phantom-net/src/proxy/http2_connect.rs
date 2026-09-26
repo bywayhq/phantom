@@ -185,7 +185,7 @@ pub(super) async fn replay_on_challenged(
 /// `GOAWAY`, which fails a stream only when the stream is above its
 /// last-stream-id or never opened (RFC 9113 section 6.8), or a
 /// `REFUSED_STREAM` reset (RFC 9113 section 8.7).
-fn is_unprocessed(error: &Http2TlsError) -> bool {
+pub(super) fn is_unprocessed(error: &Http2TlsError) -> bool {
     let Http2TlsError::Http2(Http2Error::Protocol(error)) = error else {
         return false;
     };

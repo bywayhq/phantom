@@ -113,7 +113,7 @@ impl Http2ExtendedConnectStream {
     where
         T: Send + Sync + 'static,
     {
-        self.inner.stream_guard = Some(Box::new(value));
+        self.inner.retain_until_stream_complete(value);
     }
 }
 
@@ -169,7 +169,7 @@ pub(crate) struct Http2ConnectStream {
     stream_guard: Option<Box<dyn Any + Send + Sync>>,
     // Declared before the lease so it drops while the connection is open.
     held_rejection: Option<Http2RejectedStream>,
-    _lease: ConnectionLease,
+    lease: ConnectionLease,
 }
 
 impl Http2ConnectStream {
@@ -187,8 +187,16 @@ impl Http2ConnectStream {
             send_complete: false,
             stream_guard: None,
             held_rejection: None,
-            _lease: lease,
+            lease,
         }
+    }
+
+    /// Retains a value until this stream is completed or dropped.
+    pub(crate) fn retain_until_stream_complete<T>(&mut self, value: T)
+    where
+        T: Send + Sync + 'static,
+    {
+        self.stream_guard = Some(Box::new(value));
     }
 
     /// Keeps a rejected stream of the same connection open until this
@@ -339,7 +347,9 @@ impl AsyncWrite for Http2ConnectStream {
 
 impl Drop for Http2ConnectStream {
     fn drop(&mut self) {
-        if !self.send_complete {
+        // A reset on a connection whose driver has stopped would only queue a
+        // frame nobody writes, and keeps the stream in the vendored store.
+        if !self.send_complete && !self.lease.is_closed() {
             self.send.send_reset(Reason::CANCEL);
         }
     }
