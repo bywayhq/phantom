@@ -99,3 +99,31 @@ pub(crate) fn profile_hints(
         .map(|hint| (hint.delivery(), hint.name(), hint.value()))
         .collect()
 }
+
+/// Returns the `(name, value)` of each hint of `other` whose value differs
+/// from the hint at the same position in `base`, after checking that both
+/// carry the same names in the same order.
+pub(crate) fn changed_hints(
+    base: &ClientHintSettings,
+    other: &ClientHintSettings,
+) -> Vec<(String, String)> {
+    let names = |settings: &ClientHintSettings| {
+        settings
+            .hints()
+            .iter()
+            .map(|hint| hint.name().to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(names(base), names(other));
+    base.hints()
+        .iter()
+        .zip(other.hints())
+        .filter(|(base, other)| base.value() != other.value())
+        .map(|(_, other)| {
+            (
+                other.name().to_owned(),
+                String::from_utf8_lossy(other.value()).into_owned(),
+            )
+        })
+        .collect()
+}

@@ -28,12 +28,17 @@ const PSK_KEY_EXCHANGE_MODES: u16 = 0x002d;
 
 macro_rules! fixture {
     ($browser:literal, $version:literal, $name:literal) => {
+        fixture!($browser, $version, "windows-11-26200", $name)
+    };
+    ($browser:literal, $version:literal, $host:literal, $name:literal) => {
         include_str!(concat!(
             "../../../../../fixtures/tls/",
             $browser,
             "/",
             $version,
-            "/windows-11-26200/resumption-",
+            "/",
+            $host,
+            "/resumption-",
             $name,
             ".txt"
         ))
@@ -46,6 +51,14 @@ const BRAVE_SEQUENTIAL: &str = fixture!("brave", "154.1.96.59", "sequential");
 const OPERA_SEQUENTIAL: &str = fixture!("opera", "135.0.5973.92", "sequential");
 const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0", "sequential");
 const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0", "no-early-data");
+const CHROME_MACOS_SEQUENTIAL: &str =
+    fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
+const EDGE_MACOS_SEQUENTIAL: &str =
+    fixture!("edge", "153.0.4234.48", "macos-15.5-arm64", "sequential");
+const OPERA_MACOS_SEQUENTIAL: &str =
+    fixture!("opera", "135.0.5973.92", "macos-15.5-arm64", "sequential");
+const FIREFOX_MACOS_SEQUENTIAL: &str =
+    fixture!("firefox", "156.0", "macos-15.5-arm64", "sequential");
 
 #[tokio::test]
 async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> TestResult<()> {
@@ -54,6 +67,10 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
         (edge::v153_tls(), EDGE_SEQUENTIAL),
         (brave::v154_tls(), BRAVE_SEQUENTIAL),
         (opera::v135_tls(), OPERA_SEQUENTIAL),
+        // One macOS 15.5 arm64 run per browser.
+        (chromium::v154_tls(), CHROME_MACOS_SEQUENTIAL),
+        (edge::v153_tls(), EDGE_MACOS_SEQUENTIAL),
+        (opera::v135_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
         let (fresh, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
         let captured = resumed_client_hellos(fixture)?;
@@ -102,7 +119,9 @@ async fn firefox_resumed_client_hello_lacks_only_the_early_data_firefox_offers()
     let settings = firefox::v156_tls();
     let (_, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
     let resumed_types = resumed.summary()?.extension_types().to_vec();
-    let captured = resumed_client_hellos(FIREFOX_SEQUENTIAL)?;
+    // The Windows runs and one macOS 15.5 arm64 run.
+    let mut captured = resumed_client_hellos(FIREFOX_SEQUENTIAL)?;
+    captured.extend(resumed_client_hellos(FIREFOX_MACOS_SEQUENTIAL)?);
     assert!(!captured.is_empty());
     for expected in &captured {
         let mut expected_types = ClientHelloSummary::from_handshake_bytes(expected)?

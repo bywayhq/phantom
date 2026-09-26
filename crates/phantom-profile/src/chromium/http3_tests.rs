@@ -477,3 +477,38 @@ fn brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers()
     assert_eq!(connections, 116);
     Ok(())
 }
+
+/// The macOS 15.5 arm64 startups send the Chromium H3 control stream, and
+/// Chrome's and Opera's requests equal their Windows startups apart from
+/// persona fields. Edge's startup ran without a language switch and sent the
+/// Mac's system `Accept-Language`, so only its field names are compared.
+#[test]
+fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    const CHROME: &str = include_str!(
+        "../../../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt"
+    );
+    const EDGE: &str = include_str!(
+        "../../../../fixtures/http3/edge/153.0.4234.48/macos-15.5-arm64/client-startup.txt"
+    );
+    const OPERA: &str = include_str!(
+        "../../../../fixtures/http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt"
+    );
+    for fixture in [CHROME, EDGE, OPERA] {
+        assert_eq!(
+            fixture_field(fixture, "operating_system")?,
+            "macOS 15.5 (24F74) arm64"
+        );
+        assert_settings_match_control_stream(fixture, v154_http3(), v154_http3_request())?;
+    }
+    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, CHROME)?;
+    assert_request_fields_match_except_persona(OPERA_135_WINDOWS_FIXTURE, OPERA)?;
+    let names = |fixture| -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        Ok(request_fields(fixture)?
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect())
+    };
+    assert_eq!(names(EDGE)?, names(EDGE_153_WINDOWS_FIXTURE)?);
+    Ok(())
+}
