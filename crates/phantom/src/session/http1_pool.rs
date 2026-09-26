@@ -523,6 +523,22 @@ impl PoolEntry {
         };
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");
+        // Boxed: opening a connection awaits the largest connector futures,
+        // which would otherwise enlarge the future of every request, including
+        // one that reuses a pooled connection.
+        let connection = Box::pin(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+        Ok(reservation.into_lease(connection))
+    }
+
+    /// Opens a connection for [`Self::acquire`] in `mode` over `route`.
+    async fn open(
+        &self,
+        connector: &Http1TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
+        endpoint: &Endpoint,
+        route: &Route,
+        mode: Http1ConnectionMode,
+    ) -> Result<Http1Connection, RequestError> {
         let connection = match mode {
             Http1ConnectionMode::Forward => {
                 let Route::HttpProxy(proxy) = route else {
@@ -686,7 +702,7 @@ impl PoolEntry {
                 }
             }
         };
-        Ok(reservation.into_lease(connection))
+        Ok(connection)
     }
 }
 

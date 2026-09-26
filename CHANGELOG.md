@@ -1091,6 +1091,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   adds the `pre_shared_key` extension, which changes the wire fingerprint of
   every resumed connection. (`278645f`)
 
+- A request needs less memory and, in a debug build, less stack. In a debug
+  build the future that `RequestBuilder::send` boxes shrinks from 27,008 to
+  14,880 bytes, and the per-attempt allocation an HTTP/1.1, HTTP/2, or
+  negotiated request makes to acquire a connection shrinks from 30-32 KB
+  to under 200 bytes. A request phase with a timeout no longer allocates for
+  the operation it times. Opening a pooled HTTP/1.1, HTTP/2, or negotiated
+  connection now makes one allocation for its setup, and an HTTP/3 request
+  makes one for its send.
+
 ### Fixed
 
 - Dropping an HTTP/2 tunnel after its connection closed no longer queues a

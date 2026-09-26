@@ -203,3 +203,14 @@ async fn fresh_connection_at_the_bound_closes_an_idle_connection() -> TestResult
     assert_eq!(connections.open(), 0);
     Ok(())
 }
+
+/// A request awaits `acquire` whether it reuses a connection or opens one,
+/// so only `open`, which a new connection boxes, may hold the connectors'
+/// futures.
+#[cfg(debug_assertions)]
+#[test]
+fn acquire_leaves_connection_setup_off_the_request_future() {
+    // A reuse holds only the arguments and the boxed setup.
+    let size = phantom_testkit::future_size::future_size(&super::PoolEntry::acquire);
+    assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
+}

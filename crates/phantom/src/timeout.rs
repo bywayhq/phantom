@@ -211,16 +211,16 @@ impl TimeoutBudget {
         })
     }
 
-    pub(crate) async fn run<Output, Operation>(
+    pub(crate) fn run<Output, Operation>(
         self,
         phase: TimeoutPhase,
         protocol: Option<HttpProtocol>,
         operation: Operation,
-    ) -> Result<Output, RequestError>
+    ) -> impl Future<Output = Result<Output, RequestError>>
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        self.phase(phase, protocol)?.run(operation).await
+        run_until(self.deadline(phase), protocol, operation)
     }
 
     pub(crate) fn phase(
@@ -320,38 +320,55 @@ pub(crate) struct PhaseTimeout {
 }
 
 impl PhaseTimeout {
-    pub(crate) async fn run<Output, Operation>(
+    pub(crate) fn run<Output, Operation>(
         self,
         operation: Operation,
-    ) -> Result<Output, RequestError>
+    ) -> impl Future<Output = Result<Output, RequestError>>
     where
         Operation: Future<Output = Result<Output, RequestError>>,
     {
-        let Some(deadline) = self.deadline else {
-            return operation.await;
-        };
-        let mut operation = Box::pin(operation);
-        let mut timer = DeadlineTimer::new(deadline.at)?;
-        poll_fn(|context| {
-            if let Poll::Ready(result) = operation.as_mut().poll(context) {
-                return Poll::Ready(result);
-            }
-            match timer.poll_expired(context) {
-                Poll::Ready(Ok(())) => {
-                    tracing::debug!(
-                        timeout_phase = deadline.phase.trace_name(),
-                        protocol = self.protocol.map(HttpProtocol::trace_name),
-                        "request phase timed out"
-                    );
-                    return Poll::Ready(Err(RequestError::timeout(deadline.phase, self.protocol)));
-                }
-                Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
-                Poll::Pending => {}
-            }
-            Poll::Pending
-        })
-        .await
+        run_until(Ok(self.deadline), self.protocol, operation)
     }
+}
+
+/// Runs `operation` until `deadline`, when there is one.
+///
+/// The `run` methods return this future instead of awaiting it: an async
+/// function holds a future it takes and awaits twice, as the argument and as
+/// the awaited value, so each async layer between a request and its
+/// operation would add another copy of the operation to the request's
+/// future.
+async fn run_until<Output, Operation>(
+    deadline: Result<Option<Deadline>, RequestError>,
+    protocol: Option<HttpProtocol>,
+    operation: Operation,
+) -> Result<Output, RequestError>
+where
+    Operation: Future<Output = Result<Output, RequestError>>,
+{
+    let Some(deadline) = deadline? else {
+        return operation.await;
+    };
+    let mut timer = DeadlineTimer::new(deadline.at)?;
+    let mut operation = std::pin::pin!(operation);
+    poll_fn(|context| {
+        if let Poll::Ready(result) = operation.as_mut().poll(context) {
+            return Poll::Ready(result);
+        }
+        match timer.poll_expired(context) {
+            Poll::Ready(Ok(())) => {
+                tracing::debug!(
+                    timeout_phase = deadline.phase.trace_name(),
+                    protocol = protocol.map(HttpProtocol::trace_name),
+                    "request phase timed out"
+                );
+                Poll::Ready(Err(RequestError::timeout(deadline.phase, protocol)))
+            }
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    })
+    .await
 }
 
 #[derive(Clone, Copy)]

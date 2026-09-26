@@ -953,6 +953,21 @@ impl PoolEntry {
             outcome = "connect",
             "negotiated HTTP pool opening connection"
         );
+        // Boxed: opening a connection awaits the largest connector futures,
+        // which would otherwise enlarge the future of every request, including
+        // one that reuses a pooled connection.
+        let connection = Box::pin(self.open(connector, https_proxy, endpoint, route)).await?;
+        Ok(reservation.finish(connection.into()))
+    }
+
+    /// Opens a connection for [`Self::acquire`] over `route`.
+    async fn open(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1Or2Connection, RequestError> {
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
@@ -1057,7 +1072,7 @@ impl PoolEntry {
                 return Err(RequestError::unsupported_negotiated_route());
             }
         };
-        Ok(reservation.finish(connection.into()))
+        Ok(connection)
     }
 }
 

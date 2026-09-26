@@ -6,6 +6,9 @@
 /// A scripted loopback DNS responder that records queries.
 pub mod dns;
 
+/// Sizes of async functions' futures, for tests that bound a call's stack use.
+pub mod future_size;
+
 /// Helpers for capturing an HTTP/2 client connection preface and initial frames.
 pub mod http2;
 

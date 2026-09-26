@@ -1268,4 +1268,57 @@ mod tests {
         assert_eq!(request.url, url);
         Ok(())
     }
+
+    /// A request's future holds every future on its path inline, and a debug
+    /// build's poll frames grow with them; see `phantom_testkit::future_size`.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn request_futures_stay_within_the_stack_budget() {
+        use phantom_testkit::future_size::{assert_within_budget, future_size};
+
+        use super::{RequestBuilder, alt_svc_attempt, attempt};
+        use crate::session::{
+            http1_or_2_pool::Http1Or2Pool, http1_pool::Http1Pool, http2_pool::Http2Pool,
+            http3_pool::Http3Pool,
+        };
+
+        assert_within_budget(&[
+            ("RequestBuilder::send", future_size(&RequestBuilder::send)),
+            (
+                "RequestBuilder::send_inner",
+                future_size(&RequestBuilder::send_inner),
+            ),
+            ("send_once", future_size(&attempt::send_once)),
+            ("send_once_origin", future_size(&attempt::send_once_origin)),
+            ("dispatch", future_size(&attempt::dispatch)),
+            (
+                "send_once_alt_svc",
+                future_size(&alt_svc_attempt::send_once_alt_svc),
+            ),
+            (
+                "send_once_raced",
+                future_size(&alt_svc_attempt::send_once_raced),
+            ),
+            (
+                "Http1Pool::send_request",
+                future_size(&Http1Pool::send_request),
+            ),
+            (
+                "Http2Pool::send_request",
+                future_size(&Http2Pool::send_request),
+            ),
+            (
+                "Http1Or2Pool::send_request",
+                future_size(&Http1Or2Pool::send_request),
+            ),
+            (
+                "Http3Pool::send_request",
+                future_size(&Http3Pool::send_request),
+            ),
+            (
+                "Http3Pool::send_request_on_lease",
+                future_size(&Http3Pool::send_request_on_lease),
+            ),
+        ]);
+    }
 }

@@ -805,27 +805,26 @@ async fn dispatch_on_lease(
         .http3
         .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    client
-        .state
-        .http3
-        .send_request_on_lease(
-            leased,
-            connector,
-            method,
-            request.endpoint.authority().as_str(),
-            request.target.clone(),
-            headers,
-            trailers,
-            client_hints,
-            body,
-            timeout_budget,
-            retries,
-        )
-        .await
-        .map(|(response, sent_headers)| DispatchOutcome {
-            response,
-            sent_headers,
-        })
+    // Boxed for the reason `dispatch_attempt` boxes its HTTP/3 send: a
+    // raced request holds this path and the origin's in one future.
+    Box::pin(client.state.http3.send_request_on_lease(
+        leased,
+        connector,
+        method,
+        request.endpoint.authority().as_str(),
+        request.target.clone(),
+        headers,
+        trailers,
+        client_hints,
+        body,
+        timeout_budget,
+        retries,
+    ))
+    .await
+    .map(|(response, sent_headers)| DispatchOutcome {
+        response,
+        sent_headers,
+    })
 }
 
 /// The candidate that finished setup first. When the origin wins, `loser`

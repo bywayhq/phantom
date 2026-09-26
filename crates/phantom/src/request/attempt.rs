@@ -899,30 +899,30 @@ async fn dispatch_attempt(
                 .http3
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-            client
-                .state
-                .http3
-                .send_request(
-                    connector,
-                    client.inner.connect_udp_proxy.as_deref(),
-                    endpoint,
-                    route,
-                    http3_transport,
-                    method,
-                    endpoint.authority().as_str(),
-                    target,
-                    request_headers,
-                    request_trailers,
-                    client_hints,
-                    body,
-                    timeout_budget,
-                    retries,
-                )
-                .await
-                .map(|(response, sent_headers)| DispatchOutcome {
-                    response,
-                    sent_headers,
-                })
+            // Boxed: HTTP/3's send future is the largest of the three
+            // protocols', and inline it would enlarge the future of every
+            // HTTP/1.1 and HTTP/2 request as well.
+            Box::pin(client.state.http3.send_request(
+                connector,
+                client.inner.connect_udp_proxy.as_deref(),
+                endpoint,
+                route,
+                http3_transport,
+                method,
+                endpoint.authority().as_str(),
+                target,
+                request_headers,
+                request_trailers,
+                client_hints,
+                body,
+                timeout_budget,
+                retries,
+            ))
+            .await
+            .map(|(response, sent_headers)| DispatchOutcome {
+                response,
+                sent_headers,
+            })
         }
     }
 }

@@ -530,6 +530,22 @@ impl PoolEntry {
         };
 
         debug!(outcome = "connect", "HTTP/2 client pool opening connection");
+        // Boxed: opening a connection awaits the largest connector futures,
+        // which would otherwise enlarge the future of every request, including
+        // one that reuses a pooled connection.
+        let connection = Box::pin(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+        Ok(reservation.finish(connection))
+    }
+
+    /// Opens a connection for [`Self::acquire`] in `mode` over `route`.
+    async fn open(
+        &self,
+        connector: &Http2TlsConnector,
+        https_proxy: Option<&HttpsProxyConnector>,
+        endpoint: &Endpoint,
+        route: &Route,
+        mode: Http2ConnectionMode,
+    ) -> Result<Http2Connection, RequestError> {
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
@@ -656,7 +672,7 @@ impl PoolEntry {
                     .map_err(RequestError::http2_connection_setup)?,
             },
         };
-        Ok(reservation.finish(connection))
+        Ok(connection)
     }
 
     async fn invalidate(&self, token: &Arc<()>) {
@@ -864,5 +880,16 @@ mod tests {
         drop(permit);
         assert_eq!(replacement.admission.available_active(), 1);
         Ok(())
+    }
+
+    /// A request awaits `acquire` whether it reuses a connection or opens one,
+    /// so only `open`, which a new connection boxes, may hold the connectors'
+    /// futures.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn acquire_leaves_connection_setup_off_the_request_future() {
+        // A reuse holds only the arguments and the boxed setup.
+        let size = phantom_testkit::future_size::future_size(&super::PoolEntry::acquire);
+        assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
     }
 }
