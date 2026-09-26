@@ -6,64 +6,11 @@
 //! flight as it can carry, and a new stream goes to the connection with the
 //! fewest.
 
-use std::{
-    num::NonZeroUsize,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
+use std::num::NonZeroUsize;
 
 use phantom_net::http2::Http2Connection;
-use tokio::sync::Notify;
 
-/// The streams in flight on one pooled HTTP/2 connection.
-#[derive(Clone, Debug, Default)]
-pub(super) struct StreamCount {
-    count: Arc<AtomicUsize>,
-    /// Woken when a stream ends, so a request waiting for a connection setup
-    /// can take the room that stream freed instead.
-    ended: Option<Arc<Notify>>,
-}
-
-impl StreamCount {
-    /// Counts streams and wakes `ended`'s waiters whenever one ends.
-    pub(super) fn notifying(ended: Arc<Notify>) -> Self {
-        Self {
-            count: Arc::default(),
-            ended: Some(ended),
-        }
-    }
-
-    fn get(&self) -> usize {
-        self.count.load(Ordering::Acquire)
-    }
-
-    /// Counts one more stream until the returned guard drops.
-    pub(super) fn open(&self) -> OpenStream {
-        self.count.fetch_add(1, Ordering::AcqRel);
-        OpenStream {
-            count: Arc::clone(&self.count),
-            ended: self.ended.clone(),
-        }
-    }
-}
-
-/// One stream counted against its connection until it ends.
-#[derive(Debug)]
-pub(super) struct OpenStream {
-    count: Arc<AtomicUsize>,
-    ended: Option<Arc<Notify>>,
-}
-
-impl Drop for OpenStream {
-    fn drop(&mut self) {
-        self.count.fetch_sub(1, Ordering::AcqRel);
-        if let Some(ended) = &self.ended {
-            ended.notify_waiters();
-        }
-    }
-}
+use super::stream_count::StreamCount;
 
 /// What a request should do with a pool key's HTTP/2 connections.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -144,7 +91,8 @@ mod tests {
     use phantom_profile::chromium;
     use tokio::io::{DuplexStream, duplex};
 
-    use super::{Choice, Http2Spread, StreamCount};
+    use super::{Choice, Http2Spread};
+    use crate::session::stream_count::StreamCount;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

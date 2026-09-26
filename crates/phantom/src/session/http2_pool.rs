@@ -19,7 +19,8 @@ use tracing::debug;
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
-    http2_connections::{Choice, Http2Spread, OpenStream, StreamCount},
+    http2_connections::{Choice, Http2Spread},
+    stream_count::{OpenStream, StreamCount},
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{

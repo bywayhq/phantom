@@ -27,8 +27,9 @@ use tracing::{Span, debug};
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
-    http2_connections::{Choice, Http2Spread, OpenStream, StreamCount},
+    http2_connections::{Choice, Http2Spread},
     http2_pool::{is_graceful_goaway, send_on},
+    stream_count::{OpenStream, StreamCount},
 };
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route, Socks5DnsMode,

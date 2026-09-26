@@ -16,6 +16,7 @@ pub(crate) mod http1_pool;
 mod http2_connections;
 pub(crate) mod http2_pool;
 pub(crate) mod http3_pool;
+mod stream_count;
 
 pub use alt_svc::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
