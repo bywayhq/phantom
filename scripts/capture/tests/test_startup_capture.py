@@ -1,4 +1,7 @@
 import io
+import subprocess
+import sys
+import time
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -12,6 +15,7 @@ from scripts.capture.startup_capture import (
     launch_mode,
     main,
     recorded_arguments,
+    wait_until_listening,
 )
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures"
@@ -115,3 +119,46 @@ class AndroidBrowserRefusalTests(unittest.TestCase):
                         "out",
                     ]
                 )
+
+
+def server(script: str) -> subprocess.Popen[bytes]:
+    """A stand-in for chrome_http3.py that runs `script`."""
+    return subprocess.Popen(
+        [sys.executable, "-c", script],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+
+class ListeningWaitTests(unittest.TestCase):
+    def test_a_late_listening_line_ends_the_wait(self) -> None:
+        process = server(
+            "import sys, time; "
+            "print('warming up', file=sys.stderr, flush=True); "
+            "time.sleep(0.5); "
+            "print('listening on 127.0.0.1:1', file=sys.stderr, flush=True); "
+            "print('after', file=sys.stderr, flush=True)"
+        )
+
+        self.assertTrue(wait_until_listening(process, 30))
+        _, rest = process.communicate(timeout=30)
+
+        self.assertIn(b"after", rest)
+
+    def test_a_server_that_exits_without_the_line_ends_the_wait_early(self) -> None:
+        process = server("import sys; print('no', file=sys.stderr); sys.exit(3)")
+        begin = time.monotonic()
+
+        self.assertFalse(wait_until_listening(process, 30))
+
+        self.assertLess(time.monotonic() - begin, 20)
+        process.communicate(timeout=30)
+        self.assertEqual(process.returncode, 3)
+
+    def test_a_silent_server_is_stopped_at_the_limit(self) -> None:
+        process = server("import time; time.sleep(60)")
+
+        self.assertFalse(wait_until_listening(process, 0.5))
+
+        process.communicate(timeout=30)
+        self.assertIsNotNone(process.returncode)

@@ -208,19 +208,33 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
 
 
 def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> bool:
-    """Wait up to `limit` seconds for chrome_http3.py to report its bind."""
+    """Wait up to `limit` seconds for chrome_http3.py to report its bind.
+
+    Returns early when the server exits without the line. A server that has
+    not reported by `limit` is killed. The reader has stopped before this
+    returns, so the caller can read the rest of standard error.
+    """
     assert server.stderr is not None
     stream = server.stderr
-    ready = threading.Event()
+    finished = threading.Event()
+    listening: list[bool] = []
 
     def read() -> None:
-        for line in iter(stream.readline, b""):
-            if line.startswith(b"listening on "):
-                ready.set()
-                return
+        try:
+            for line in iter(stream.readline, b""):
+                if line.startswith(b"listening on "):
+                    listening.append(True)
+                    return
+        finally:
+            finished.set()
 
-    threading.Thread(target=read, daemon=True).start()
-    return ready.wait(limit)
+    reader = threading.Thread(target=read, daemon=True)
+    reader.start()
+    finished.wait(limit)
+    if not listening and server.poll() is None:
+        server.kill()
+    reader.join()
+    return bool(listening)
 
 
 def quic_run(
