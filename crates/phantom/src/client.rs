@@ -1419,6 +1419,7 @@ mod tests {
             proxy_server_authentication: _,
             route: _,
             preemptive_proxy_authentication: _,
+            http2_proxy_connections_per_route: _,
             dns_cache: _,
             host_overrides: _,
             address_resolver: _,
