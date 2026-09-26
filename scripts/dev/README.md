@@ -51,7 +51,7 @@ concurrent chains:
 | Chain | Target directory | Steps |
 | --- | --- | --- |
 | Tests | `target/gate/test` | `cargo nextest run`, `cargo test --doc`, then the tests of the `fuzz/` crate |
-| Lint | `target/gate/lint`, then `target/gate/doc` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
+| Lint | `target/gate/lint` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
 | Features | `target/gate/features` | The Features job's rows, `cargo check` or `cargo clippy` as the job writes them |
 | Python | none | ruff, the four unittest suites, the docs checker, and the tool-pin check |
@@ -62,13 +62,7 @@ the rows CI checks. The gate fails if either job has a `cargo check` or
 directory, so chains do not wait on one another's Cargo build lock. The first
 run builds each directory from scratch, and later runs reuse what is already
 built there; `with-cargo-lock.sh` turns off incremental compilation, so a
-changed crate is rebuilt whole. Only Clippy builds in
-`target/gate/lint`: the `btls-sys` build script reruns whenever
-`RUSTC_WORKSPACE_WRAPPER` changes, and Clippy sets it while other Cargo
-commands do not, so sharing a directory rebuilds BoringSSL on each switch.
-Your own `target/` has the same problem: run Clippy with
-`CARGO_TARGET_DIR=target/clippy` so that `cargo test` afterwards does not
-spend two minutes rebuilding BoringSSL.
+changed crate is rebuilt whole.
 The four Cargo chains match the default of four slots, so the gate does not
 queue behind itself.
 

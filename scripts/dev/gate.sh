@@ -326,11 +326,6 @@ python=(uv run --no-project --python 3.10)
 
 # Each chain runs in the background, its steps in order. The full gate has
 # four Cargo chains, one per default slot, so it does not queue behind itself.
-#
-# Only Clippy runs in target/gate/lint. The btls-sys build script declares
-# RUSTC_WORKSPACE_WRAPPER, which Clippy sets and other Cargo commands do not,
-# as a rerun trigger, so a directory shared by Clippy and any other command
-# rebuilds BoringSSL on every switch between them.
 chain_tests() {
   if [[ ${#scope[@]} -eq 0 ]]; then
     echo "no Rust package changed since $base" >"$logs/nextest.log"
@@ -348,7 +343,7 @@ chain_lint() {
   [[ $quick == true ]] && return
   run_step fuzz-clippy lint cargo clippy -j "$jobs" --manifest-path fuzz/Cargo.toml \
     --all-targets --locked -- -D warnings
-  RUSTDOCFLAGS="-D warnings" run_step rustdoc doc \
+  RUSTDOCFLAGS="-D warnings" run_step rustdoc lint \
     cargo doc -j "$jobs" --workspace --all-features --no-deps --locked
 }
 chain_msrv() {
