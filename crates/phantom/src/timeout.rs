@@ -172,6 +172,14 @@ pub enum TimeoutPhase {
     ReadIdle,
     /// The absolute whole-operation deadline.
     Total,
+    /// A WebSocket opening handshake, from the start of the connect until
+    /// the accepting response is validated.
+    ///
+    /// This one deadline covers name resolution, proxy setup, TLS, the
+    /// opening request, and its response, as a browser's handshake timer
+    /// does. `WebSocketRequestBuilder::handshake_timeout` sets it, with the
+    /// `websocket` feature.
+    WebSocketHandshake,
 }
 
 impl TimeoutPhase {
@@ -182,6 +190,7 @@ impl TimeoutPhase {
             Self::ResponseHead => "response_head",
             Self::ReadIdle => "read_idle",
             Self::Total => "total",
+            Self::WebSocketHandshake => "websocket_handshake",
         }
     }
 }
@@ -292,7 +301,7 @@ impl TimeoutBudget {
             TimeoutPhase::PoolAdmission => self.policy.pool_admission,
             TimeoutPhase::Connect => self.policy.connect,
             TimeoutPhase::ResponseHead => self.policy.response_head,
-            TimeoutPhase::ReadIdle | TimeoutPhase::Total => None,
+            TimeoutPhase::ReadIdle | TimeoutPhase::Total | TimeoutPhase::WebSocketHandshake => None,
         };
         let phase_deadline = duration
             .map(|duration| {
@@ -454,7 +463,7 @@ impl ResponseTimeouts {
 }
 
 /// Waits until `deadline`, or fails when the current runtime cannot time it.
-#[cfg(feature = "sse")]
+#[cfg(any(feature = "sse", feature = "websocket"))]
 pub(crate) async fn sleep_until(deadline: Instant) -> Result<(), RequestError> {
     let mut timer = DeadlineTimer::new(deadline)?;
     poll_fn(|context| timer.poll_expired(context)).await

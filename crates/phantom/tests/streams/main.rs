@@ -15,6 +15,8 @@ mod sse_browser_reconnect;
 #[cfg(feature = "websocket")]
 mod websocket;
 #[cfg(feature = "websocket")]
+mod websocket_handshake;
+#[cfg(feature = "websocket")]
 mod websocket_http2;
 #[cfg(feature = "websocket")]
 mod websocket_http2_proxy;

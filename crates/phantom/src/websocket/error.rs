@@ -5,7 +5,7 @@ use tokio_tungstenite::tungstenite::{Error as EngineError, error::ProtocolError}
 
 use phantom_net::http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError};
 
-use crate::{HttpProtocol, RequestError, RequestErrorKind, ResponseBody};
+use crate::{HttpProtocol, RequestError, RequestErrorKind, ResponseBody, TimeoutPhase};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
@@ -39,6 +39,10 @@ pub enum WebSocketErrorKind {
     Http2,
     /// Generating the opening-handshake nonce failed.
     Random,
+    /// The opening handshake did not finish within its handshake timeout.
+    ///
+    /// [`WebSocketError::timeout_phase`] names the phase.
+    Timeout,
     /// The server returned an ordinary HTTP response instead of upgrading.
     HandshakeRejected,
     /// The server's `101` response did not satisfy the WebSocket handshake.
@@ -63,6 +67,10 @@ pub struct WebSocketError {
     message: &'static str,
     source: Option<BoxError>,
     response: Option<Box<Response<ResponseBody>>>,
+    timeout_phase: Option<TimeoutPhase>,
+    /// Set when connection setup failed before any byte reached the origin,
+    /// so a caller-enabled handshake retry may open another connection.
+    retryable_setup: bool,
 }
 
 impl WebSocketError {
@@ -139,12 +147,19 @@ impl WebSocketError {
             RequestErrorKind::Http1 => WebSocketErrorKind::Http1,
             RequestErrorKind::Http2 => WebSocketErrorKind::Http2,
             RequestErrorKind::Http3 => WebSocketErrorKind::Protocol,
-            RequestErrorKind::Timeout => match source.protocol() {
-                Some(HttpProtocol::Http2) => WebSocketErrorKind::Http2,
-                _ => WebSocketErrorKind::Http1,
-            },
+            RequestErrorKind::Timeout => WebSocketErrorKind::Timeout,
         };
-        Self::with_source(kind, "WebSocket transport failed", source)
+        let timeout_phase = source.timeout_phase();
+        let retryable_setup = source.is_retryable_connection_setup();
+        let message = match timeout_phase {
+            Some(_) => "WebSocket opening handshake timed out",
+            None => "WebSocket transport failed",
+        };
+        Self {
+            timeout_phase,
+            retryable_setup,
+            ..Self::with_source(kind, message, source)
+        }
     }
 
     pub(super) fn rejected(response: Response<ResponseBody>) -> Self {
@@ -153,6 +168,8 @@ impl WebSocketError {
             message: "server rejected the WebSocket opening handshake",
             source: None,
             response: Some(Box::new(response)),
+            timeout_phase: None,
+            retryable_setup: false,
         }
     }
 
@@ -215,6 +232,8 @@ impl WebSocketError {
             message,
             source: None,
             response: None,
+            timeout_phase: None,
+            retryable_setup: false,
         }
     }
 
@@ -228,6 +247,8 @@ impl WebSocketError {
             message,
             source: Some(Box::new(source)),
             response: None,
+            timeout_phase: None,
+            retryable_setup: false,
         }
     }
 
@@ -235,6 +256,22 @@ impl WebSocketError {
     #[must_use]
     pub fn kind(&self) -> WebSocketErrorKind {
         self.kind
+    }
+
+    /// Returns the phase that timed out, when this is a
+    /// [`WebSocketErrorKind::Timeout`] failure.
+    ///
+    /// A handshake timeout reports [`TimeoutPhase::WebSocketHandshake`].
+    #[must_use]
+    pub fn timeout_phase(&self) -> Option<TimeoutPhase> {
+        self.timeout_phase
+    }
+
+    /// Returns whether connection setup failed before any byte of the
+    /// opening reached the origin, which a
+    /// [`WebSocketRetryPolicy`](super::WebSocketRetryPolicy) may retry.
+    pub(super) fn is_retryable_connection_setup(&self) -> bool {
+        self.retryable_setup
     }
 
     /// Returns the rejecting HTTP response, when the server did not upgrade.
@@ -257,6 +294,7 @@ impl fmt::Debug for WebSocketError {
             .field("kind", &self.kind)
             .field("message", &self.message)
             .field("has_source", &self.source.is_some())
+            .field("timeout_phase", &self.timeout_phase)
             .field(
                 "response_status",
                 &self.response.as_deref().map(Response::status),

@@ -74,6 +74,8 @@ impl WebSocketRequestBuilder {
             route,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate,
+            handshake_timeout: _,
+            retry_policy: _,
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         // RFC 8441 carries only `wss://` here: plaintext H2 (h2c) is not
@@ -315,7 +317,7 @@ impl WebSocketRequestBuilder {
                 }
             },
         }
-        .map_err(RequestError::http2)
+        .map_err(RequestError::http2_connection_setup)
         .map_err(WebSocketError::request)?;
 
         finish_http2(

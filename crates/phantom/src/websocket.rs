@@ -3,13 +3,14 @@
 use std::{
     fmt,
     net::{Ipv4Addr, Ipv6Addr},
+    time::Duration,
 };
 
 use phantom_net::{http1::OriginForm, request::RequestHeader};
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, Route,
+    Client, HttpProtocol, RequestError, Route, TimeoutPhase,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
     request::secure_context::is_potentially_trustworthy_host,
 };
@@ -22,6 +23,7 @@ mod handshake;
 mod http1;
 mod http2;
 mod message;
+mod retry;
 mod trace;
 
 #[cfg(feature = "websocket-deflate")]
@@ -32,6 +34,7 @@ pub use connection::WebSocket;
 pub use error::{WebSocketError, WebSocketErrorKind};
 pub use handshake::WebSocketHeader;
 pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
+pub use retry::WebSocketRetryPolicy;
 
 use handshake::{default_headers, default_http2_headers, fill_or_append, profile_headers};
 use phantom_net::http2::Http2Connection;
@@ -44,12 +47,14 @@ use trace::OperationOutcome;
 /// [`Client::websocket_with_profile_policy`]. Unless changed, the builder
 /// uses the profile's WebSocket field template (or Phantom's default opening
 /// fields when the profile has none), [`WebSocketLimits::default`], the
-/// client's route, and no compression.
+/// client's route, no compression, the profile's handshake timeout (none
+/// when the profile has no WebSocket recipe), and no retry.
 ///
 /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
 /// [`RetryPolicy`](crate::RetryPolicy), and
 /// [`RedirectPolicy`](crate::RedirectPolicy) do not apply to a WebSocket
-/// connect. The client's profile, route, trust roots, and cookie jar do.
+/// connect; [`Self::handshake_timeout`] and [`Self::retry_policy`] take their
+/// place. The client's profile, route, trust roots, and cookie jar do apply.
 #[must_use = "WebSocket builders do nothing until connect is awaited"]
 pub struct WebSocketRequestBuilder {
     client: Client,
@@ -65,6 +70,8 @@ pub struct WebSocketRequestBuilder {
     route: Option<Route>,
     #[cfg(feature = "websocket-deflate")]
     permessage_deflate: Option<PerMessageDeflate>,
+    handshake_timeout: Option<Duration>,
+    retry_policy: WebSocketRetryPolicy,
 }
 
 /// How the connect step chooses the protocol and connection.
@@ -105,7 +112,9 @@ impl fmt::Debug for WebSocketRequestBuilder {
             .field("header_count", &self.headers.len())
             .field("selection", &self.selection)
             .field("limits", &self.limits)
-            .field("route_override", &self.route.is_some());
+            .field("route_override", &self.route.is_some())
+            .field("handshake_timeout", &self.handshake_timeout)
+            .field("retry_policy", &self.retry_policy);
         #[cfg(feature = "websocket-deflate")]
         debug.field("permessage_deflate", &self.permessage_deflate.is_some());
         debug.finish_non_exhaustive()
@@ -135,6 +144,7 @@ impl WebSocketRequestBuilder {
             .as_ref()
             .ok_or_else(WebSocketError::profile_policy_unavailable)?;
         let request = ResolvedWebSocket::new(uri)?;
+        let handshake_timeout = settings.handshake_timeout;
         let headers = profile_headers(&settings.http1_fields, request.trustworthy)?;
         let http2_headers = profile_headers(&settings.http2_fields, request.trustworthy)?;
         Ok(Self {
@@ -148,6 +158,8 @@ impl WebSocketRequestBuilder {
             route: None,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate: None,
+            handshake_timeout,
+            retry_policy: WebSocketRetryPolicy::none(),
         })
     }
 
@@ -162,6 +174,11 @@ impl WebSocketRequestBuilder {
         }
         let request = ResolvedWebSocket::new(uri)?;
         let trustworthy = request.trustworthy;
+        let handshake_timeout = client
+            .inner
+            .websocket
+            .as_ref()
+            .and_then(|settings| settings.handshake_timeout);
         let headers = match (protocol, client.inner.websocket.as_ref()) {
             (HttpProtocol::Http1, Some(settings)) => {
                 profile_headers(&settings.http1_fields, trustworthy)?
@@ -186,6 +203,8 @@ impl WebSocketRequestBuilder {
             route: None,
             #[cfg(feature = "websocket-deflate")]
             permessage_deflate: None,
+            handshake_timeout,
+            retry_policy: WebSocketRetryPolicy::none(),
         })
     }
 
@@ -258,6 +277,39 @@ impl WebSocketRequestBuilder {
         self
     }
 
+    /// Replaces the handshake timeout for this connect; `None` removes it.
+    ///
+    /// The default is the profile recipe's
+    /// [`handshake_timeout`](phantom_profile::WebSocketSettings::handshake_timeout),
+    /// the browser's own timer: 240 seconds in `chromium::v154_websocket` and
+    /// 20 seconds in `firefox::v156_websocket`. A profile without a
+    /// WebSocket recipe has none. The deadline starts when [`Self::connect`]
+    /// is first polled and ends when the accepting response is validated, so
+    /// it covers pooled-session admission, name resolution, proxy setup, TLS,
+    /// the opening request, and its response on every route and protocol.
+    /// When it passes, `connect` fails with [`WebSocketErrorKind::Timeout`]
+    /// and [`WebSocketError::timeout_phase`] returns
+    /// [`TimeoutPhase::WebSocketHandshake`]. A timeout needs a Tokio runtime
+    /// with time enabled; without one, `connect` fails with
+    /// [`WebSocketErrorKind::RuntimeUnavailable`]. A duration the runtime
+    /// clock cannot represent fails with [`WebSocketErrorKind::InvalidRequest`]
+    /// before any I/O.
+    pub fn handshake_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.handshake_timeout = timeout;
+        self
+    }
+
+    /// Opens a new connection after a connection-setup failure, as `policy`
+    /// allows.
+    ///
+    /// The default is [`WebSocketRetryPolicy::none`], which opens once as a
+    /// browser does. See [`WebSocketRetryPolicy`] for which failures are
+    /// retried; none that follows a response from the server is.
+    pub fn retry_policy(mut self, policy: WebSocketRetryPolicy) -> Self {
+        self.retry_policy = policy;
+        self
+    }
+
     /// Performs the ordered opening handshake over the selected exact protocol.
     ///
     /// HTTP/1.1 sends an Upgrade and requires `101`. HTTP/2 sends RFC 8441
@@ -268,11 +320,13 @@ impl WebSocketRequestBuilder {
     ///
     /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
     /// [`RetryPolicy`](crate::RetryPolicy), and
-    /// [`RedirectPolicy`](crate::RedirectPolicy) do not apply; bound the
-    /// future with a timer if needed. Dropping this future cancels the
-    /// in-flight operation. There are no implicit redirects, reconnects, or
-    /// protocol fallbacks. Configured Basic proxy authentication permits one
-    /// challenge-driven retry on a fresh connection.
+    /// [`RedirectPolicy`](crate::RedirectPolicy) do not apply;
+    /// [`Self::handshake_timeout`] bounds each attempt, and
+    /// [`Self::retry_policy`] allows new attempts after connection-setup
+    /// failures. Dropping this future cancels the in-flight operation. There
+    /// are no implicit redirects, reconnects, or protocol fallbacks.
+    /// Configured Basic proxy authentication permits one challenge-driven
+    /// retry on a fresh connection.
     ///
     /// # Errors
     ///
@@ -291,6 +345,7 @@ impl WebSocketRequestBuilder {
     ///   setup, TLS, or the HTTP exchange fails;
     /// - [`WebSocketErrorKind::Capacity`] when a pooled HTTP/2 session's
     ///   per-origin waiting bound is full;
+    /// - [`WebSocketErrorKind::Timeout`] when the handshake timeout passes;
     /// - [`WebSocketErrorKind::HandshakeRejected`] when the server answers
     ///   with an ordinary response, including a redirect; read it with
     ///   [`WebSocketError::response`];
@@ -312,16 +367,89 @@ impl WebSocketRequestBuilder {
             connection = field::Empty,
             route = route.trace_name(),
             refused_stream_retry = field::Empty,
+            handshake_retries = field::Empty,
             outcome = field::Empty,
             error_kind = field::Empty,
         );
         let outcome = OperationOutcome::new(&span);
-        let result = self.connect_inner(&span).instrument(span.clone()).await;
+        let result = self.connect_with_retries(&span).await;
         match &result {
             Ok(_) => outcome.finish("ok", None),
             Err(error) => outcome.finish("error", Some(error.kind())),
         }
         result
+    }
+
+    /// Opens the WebSocket, and again after each connection-setup failure
+    /// the retry policy allows.
+    async fn connect_with_retries(self, span: &Span) -> Result<WebSocket, WebSocketError> {
+        let policy = self.retry_policy;
+        if policy.max_connection_failures().is_none() {
+            return Box::pin(self.connect_within_timeout(span))
+                .instrument(span.clone())
+                .await;
+        }
+        // Each attempt consumes a builder, so the next one is copied before it
+        // starts; the copy draws a fresh opening key when it is prepared.
+        let mut next = Some(self);
+        retry::open_with_retries(policy, span, |_| {
+            let builder = next.take();
+            next = builder.as_ref().map(Self::copy_for_retry);
+            let span = span.clone();
+            async move {
+                let builder = builder.ok_or_else(|| {
+                    WebSocketError::invalid_request("WebSocket retry has no attempt left")
+                })?;
+                Box::pin(builder.connect_within_timeout(&span))
+                    .instrument(span.clone())
+                    .await
+            }
+        })
+        .await
+    }
+
+    /// Runs one opening attempt within the handshake timeout, when set.
+    async fn connect_within_timeout(self, span: &Span) -> Result<WebSocket, WebSocketError> {
+        let Some(limit) = self.handshake_timeout else {
+            return self.connect_inner(span).await;
+        };
+        let protocol = match self.selection {
+            WebSocketSelection::Exact(protocol) => Some(protocol),
+            WebSocketSelection::ProfilePolicy => None,
+        };
+        match crate::timeout::within(limit, self.connect_inner(span)).await {
+            Ok(Some(result)) => result,
+            Ok(None) => {
+                tracing::debug!(
+                    timeout_phase = TimeoutPhase::WebSocketHandshake.trace_name(),
+                    protocol = protocol.map(HttpProtocol::trace_name),
+                    "WebSocket opening handshake timed out"
+                );
+                Err(WebSocketError::request(RequestError::timeout(
+                    TimeoutPhase::WebSocketHandshake,
+                    protocol,
+                )))
+            }
+            Err(error) => Err(WebSocketError::request(error)),
+        }
+    }
+
+    /// Copies everything one attempt needs, for the attempt after it.
+    fn copy_for_retry(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            selection: self.selection,
+            request: self.request.clone(),
+            headers: self.headers.clone(),
+            http2_headers: self.http2_headers.clone(),
+            replaced_policy_headers: self.replaced_policy_headers,
+            limits: self.limits,
+            route: self.route.clone(),
+            #[cfg(feature = "websocket-deflate")]
+            permessage_deflate: self.permessage_deflate.clone(),
+            handshake_timeout: self.handshake_timeout,
+            retry_policy: self.retry_policy,
+        }
     }
 
     async fn connect_inner(mut self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
@@ -450,6 +578,7 @@ fn opening_field_value(headers: &[WebSocketHeader], name: &str) -> Option<Reques
     })
 }
 
+#[derive(Clone)]
 struct ResolvedWebSocket {
     endpoint: Endpoint,
     target: OriginForm,

@@ -25,9 +25,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   sets 240 seconds, Chromium's `kHandshakeTimeoutIntervalInSeconds`, and
   `firefox::v156_websocket` sets 20 seconds, Firefox's
   `network.websocket.timeout.open` default. `WebSocketSettings::validate`
-  rejects `Some(Duration::ZERO)`.
+  rejects `Some(Duration::ZERO)`. A WebSocket opened by a client whose
+  profile has one of these recipes now fails with
+  `WebSocketErrorKind::Timeout` after that long, where it waited without a
+  limit.
   Migrate: add `handshake_timeout: None` to a `WebSocketSettings` literal to
-  keep no limit, or copy the value from a recipe.
+  keep no limit, or copy the value from a recipe. Call
+  `WebSocketRequestBuilder::handshake_timeout(None)` to open one WebSocket
+  without the recipe's limit.
 - The Edge recipes move to Edge 154.0.4258.37 on Windows 11 and macOS 15.5:
   `edge::v153_tls`, `v153_http3_tls`, `v153_windows_client_hints`,
   `v153_macos_client_hints`, `v153_windows_navigation_template`, and
@@ -400,6 +405,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `WebSocketRequestBuilder::handshake_timeout` bounds one WebSocket opening,
+  from the start of `connect` until the accepting response is validated, on
+  every route and protocol and on a pooled HTTP/2 session. It defaults to
+  the profile recipe's `handshake_timeout` and to no limit without a recipe;
+  `None` removes it. When it passes, `connect` fails with the new
+  `WebSocketErrorKind::Timeout`, and the new `WebSocketError::timeout_phase`
+  returns the new `TimeoutPhase::WebSocketHandshake`.
+- `WebSocketRetryPolicy` and `WebSocketRequestBuilder::retry_policy` open a
+  WebSocket again, with a bounded number of attempts and a fixed delay, after
+  a connection-setup failure that sent nothing to the origin: a failed name
+  lookup, a failed TCP connect to the origin or proxy, or a SOCKS5 proxy that
+  could not connect or resolve. TLS failures, proxy rejections, timeouts,
+  and any answer from the server, `101` and `2xx` included, are returned at
+  once. It is off by default; browsers do not retry an opening.
 - `scripts/capture/run_matrix.py` runs desktop browser captures from one JSON
   manifest of tools, browsers, scenarios, and repeat counts. It runs up to
   `--jobs` tool invocations at once, each with its own temporary directory

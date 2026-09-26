@@ -211,7 +211,7 @@ pub use websocket::{
 #[cfg(feature = "websocket")]
 pub use websocket::{
     WebSocket, WebSocketCloseFrame, WebSocketError, WebSocketErrorKind, WebSocketHeader,
-    WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder,
+    WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder, WebSocketRetryPolicy,
 };
 
 /// Policy for authenticating a TLS server certificate.

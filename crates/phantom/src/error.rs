@@ -633,6 +633,7 @@ impl RequestError {
             TimeoutPhase::ResponseHead => "request response head timed out",
             TimeoutPhase::ReadIdle => "request response body became idle",
             TimeoutPhase::Total => "request total deadline elapsed",
+            TimeoutPhase::WebSocketHandshake => "WebSocket opening handshake timed out",
         };
         Self {
             kind: RequestErrorKind::Timeout,
