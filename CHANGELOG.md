@@ -321,8 +321,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - The `server` feature of `phantom-quic-btls` adds `QuicServerConfig`, a
   Quinn server crypto provider on a BoringSSL context, and
   `ServerHandshakeData`, which reports the ClientHello, the server name,
-  ECH acceptance, and resumption. It exists for loopback tests and capture tools, holds ECH
-  keys, and offers no 0-RTT or client authentication.
+  ECH acceptance, and resumption. It exists for loopback tests and capture
+  tools, holds ECH keys, and offers no 0-RTT or client authentication.
 - `chrome_ech.py --quic` and `capture_ech_client_hello --quic` record a
   browser's QUIC connections to an origin whose HTTPS record lists `h3` and
   carries `ech`, from a loopback QUIC server that decrypts ECH. The fixture
@@ -683,16 +683,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Hello when the first record listing `h3` carries `ech`, as those browsers
   do. The connection starts once the lookup ends, at most 50 ms after
   address resolution. After a rejection it closes with `ech_required` and
-  is not repeated over QUIC, as in the captures; a racing client's request
-  goes to the origin over TCP, which retries its own rejection once, and
-  the alternative is marked broken. An exact HTTP/3 request that used to
-  succeed with GREASE now fails with `RequestErrorKind::Tls` when the
-  origin rejects the record's configuration, and, since the retry
-  configurations are not kept, every later exact HTTP/3 request to that
-  origin fails the same way until the cached record expires, after its TTL
-  or at most one day. `opera::v135_http3_tls` clears the field, so Opera is
-  unchanged, as are proxy routes and Alt-Svc alternatives at another host.
-  To keep ECH GREASE on HTTP/3, set
+  is not repeated over QUIC, as in the captures, and the alternative is
+  marked broken. A racing client's request goes to the origin over TCP,
+  which retries its own rejection once, as Chrome's does. Under the default
+  `AltSvcPolicy::sequential()`, an alternative's setup failure ends the
+  request, so a negotiated request that used to succeed with GREASE now
+  fails with `RequestErrorKind::Tls` when the origin rejects the record's
+  configuration; later requests go over TCP while the alternative is
+  broken, and the next request after each broken period fails again. An
+  exact HTTP/3 request fails the same way on every attempt. Since the retry
+  configurations are not kept, this lasts until the cached record expires,
+  after its TTL or at most one day. `opera::v135_http3_tls` clears the
+  field, so Opera is unchanged, as are proxy routes and Alt-Svc
+  alternatives at another host. To fall back to TCP as Chrome does, use
+  `AltSvcPolicy::race`; to keep ECH GREASE on HTTP/3, set
   `settings.ech_from_https_records = false` on the value
   `chromium::v154_http3_tls`, `edge::v153_http3_tls`, or
   `brave::v154_http3_tls` returns.

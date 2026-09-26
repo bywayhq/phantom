@@ -449,7 +449,12 @@ macro_rules! client_option_setters {
         /// 5-50 ms, then offers the record's `ech`. An HTTP/3 profile that sets
         /// the field does the same on a direct QUIC connection to the origin's
         /// own host and port, which starts once the lookup ends within that
-        /// bound; a rejected QUIC connection is not repeated.
+        /// bound; a rejected QUIC connection is not repeated. Exact HTTP/3
+        /// requests, and negotiated ones under
+        /// [`AltSvcPolicy::sequential`](crate::AltSvcPolicy::sequential), then
+        /// keep failing on the stale configuration until the cached record
+        /// expires; set `ech_from_https_records = false` on the profile's
+        /// HTTP/3 TLS settings to send ECH GREASE instead.
         ///
         /// Results are cached per origin for the records' TTL, capped at one day,
         /// or 60 seconds when there is no TTL, as after a failed lookup. The

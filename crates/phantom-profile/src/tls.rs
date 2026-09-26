@@ -418,7 +418,11 @@ pub struct TlsSettings {
     /// own host and port: an HTTP/3 alternative found through HTTPS records
     /// and an exact HTTP/3 request. Such a connection starts once the lookup
     /// ends, within the same bound, and uses the first record that lists
-    /// `h3`. After an ECH rejection it fails and is not repeated.
+    /// `h3`. After an ECH rejection it fails and is not repeated. Exact
+    /// HTTP/3 requests, and negotiated ones under the sequential Alt-Svc
+    /// policy, therefore keep failing on a stale configuration until the
+    /// cached record expires; set this field to `false` to send ECH GREASE
+    /// instead.
     ///
     /// Without a record, or when that record has no usable `ech`, the
     /// connection sends ECH GREASE. Proxy routes, Alt-Svc alternatives at

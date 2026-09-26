@@ -1985,7 +1985,9 @@ keeps GREASE. It also proves that a connection which presented a session
 ticket, after a resumed connection had its ECH accepted, is not repeated
 with a full handshake when the origin's rotated keys reject it, and that a
 racing client serves a rejected alternative's request from the origin over
-TCP and opens no QUIC connection for the next request.
+TCP and opens no QUIC connection for the next request, while a sequential
+client fails that request with `RequestErrorKind::Tls` and serves the next
+one over TCP without another QUIC connection.
 
 Chrome source at tag `154.0.8037.58`, with quiche at the revision its `DEPS`
 pins, `80bf9559`, states the rules the recipe follows:
@@ -2044,13 +2046,22 @@ Limits:
   in the other.
 - The captures used one record, with `alpn=h3,h2` and a target of `.`, and
   loopback port 443.
+- Under the default `AltSvcPolicy::sequential()`, an HTTPS-record
+  alternative's setup failure ends the request, where Chrome falls back to
+  TCP. A negotiated request to an origin that rejects the record's
+  configuration fails with `RequestErrorKind::Tls`, where it used to
+  succeed with GREASE. Later requests use TCP while the alternative is
+  broken, and the first request after each broken period fails again, until
+  the record expires, for at most its TTL, capped at one day.
+  `AltSvcPolicy::race` falls back to TCP as Chrome does.
 - An exact HTTP/3 request has no Chrome counterpart and no fallback: after
-  a rejection it fails with `RequestErrorKind::Tls`, where it used to
-  succeed with GREASE, and every later exact request to the origin offers
-  the same stale configuration and fails until the record expires, for at
-  most its TTL, capped at one day. Marking the alternative broken does not
-  stop an exact request. Set `ech_from_https_records = false` on the value
-  `chromium::v154_http3_tls` returns to send GREASE instead.
+  a rejection it fails with `RequestErrorKind::Tls`, and every later exact
+  request to the origin offers the same stale configuration and fails until
+  the record expires. Marking the alternative broken does not stop an exact
+  request.
+- Setting `ech_from_https_records = false` on the value
+  `chromium::v154_http3_tls` returns sends GREASE on HTTP/3 and avoids both
+  failures.
 
 ### QUIC resumption and 0-RTT evidence
 

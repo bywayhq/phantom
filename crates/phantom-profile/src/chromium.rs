@@ -838,6 +838,11 @@ pub fn v154_http3() -> Http3Settings {
 /// public name, with the extension set of its ECH GREASE QUIC ClientHello.
 /// After a rejection it did not open another QUIC connection with the
 /// server's retry configurations; the request went over TCP instead.
+/// Phantom's exact HTTP/3 requests, and negotiated requests under the
+/// sequential Alt-Svc policy, have no such fallback and keep failing on a
+/// stale configuration until the cached record expires. Set
+/// `ech_from_https_records = false` on the returned value to send ECH
+/// GREASE instead.
 #[must_use]
 pub fn v154_http3_tls() -> TlsSettings {
     let mut settings = v154_tls();
