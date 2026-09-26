@@ -596,14 +596,15 @@ impl PoolEntry {
         transport: Http3TransportTarget<'_>,
         control: Http3SetupControl<'_>,
     ) -> Result<Http3Connection, RequestError> {
-        let connect = self.connect(
+        // Pinned in place: `within` would otherwise hold a second copy.
+        let connect = pin!(self.connect(
             connector,
             connect_udp_proxy,
             endpoint,
             route,
             transport,
             control.early_data,
-        );
+        ));
         match control.attempt_limit {
             // A runtime without a time driver fails the attempt instead of
             // panicking.
