@@ -237,12 +237,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `QuicClientConfig` with `with_transport_profile` from `chromium::v154_quic`
   and should not offer early data calls `without_early_data` on it.
 
-- Wire change for HTTP/3 connections from the Chrome 154 and Edge 153
-  recipes. The QPACK encoder stream is now client stream 10 and the decoder
-  stream client stream 6, and the encoder stream's type is written with its
-  first instructions, ahead of the first request's HEADERS, instead of when
-  the connection starts. A connection that sends no request writes only its
-  control stream, as Chrome 154 and Edge 153 do.
+- Wire change for HTTP/3 connections from the Chrome 154, Edge 153, Brave
+  154, and Opera 135 recipes, which share `chromium::v154_http3`. The QPACK
+  encoder stream is now client stream 10 and the decoder stream client
+  stream 6, and the encoder stream's type is written with its first
+  instructions, ahead of the first request's HEADERS, instead of when the
+  connection starts. A connection that sends no request writes only its
+  control stream, as these browsers do.
   `phantom_profile::Http3Settings` gains the public fields
   `qpack_encoder_stream` (`Http3QpackEncoderStream`) and `qpack_stream_order`
   (`Http3QpackStreamOrder`), which `chromium::v154_http3` sets to

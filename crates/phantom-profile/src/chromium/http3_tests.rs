@@ -358,3 +358,83 @@ fn chromium_captures_open_qpack_streams_in_the_recipe_order()
     assert_eq!(connections, 69);
     Ok(())
 }
+
+/// Brave 154 and Opera 135, which reuse [`v154_http3`], were captured before
+/// the capture tool recorded stream types, so their resumption fixtures keep
+/// only the stream numbers each connection used. Those numbers show the
+/// same order: every connection writes client stream 2; a connection that
+/// carried a request also writes stream 10, and stream 6 only with it; an
+/// idle connection writes nothing else.
+#[test]
+fn brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers()
+-> Result<(), Box<dyn std::error::Error>> {
+    const FIXTURES: [&str; 6] = [
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-accept.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-accept-delayed.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-reject.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept-delayed.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-reject.txt"
+        )),
+    ];
+    let mut connections = 0;
+    for fixture in FIXTURES {
+        let fields = fixture
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .collect::<std::collections::HashMap<_, _>>();
+        let mut requested = std::collections::HashSet::new();
+        for (key, value) in &fields {
+            if let Some(rest) = key.strip_prefix("run_")
+                && let Some((run, request)) = rest.split_once("_request_")
+                && request.parse::<usize>().is_ok()
+            {
+                let connection = value
+                    .split(',')
+                    .find_map(|field| field.strip_prefix("connection:"))
+                    .ok_or("request line names no connection")?;
+                requested.insert(format!("run_{run}_connection_{connection}"));
+            }
+        }
+        for (key, spaces) in &fields {
+            let Some(prefix) = key.strip_suffix("_stream_spaces") else {
+                continue;
+            };
+            connections += 1;
+            let mut unidirectional = spaces
+                .split(',')
+                .filter_map(|entry| entry.split_once(':'))
+                .filter_map(|(stream, _)| stream.parse::<u64>().ok())
+                .filter(|stream| stream % 4 == 2)
+                .collect::<Vec<_>>();
+            unidirectional.sort_unstable();
+            if requested.contains(prefix) {
+                assert!(
+                    unidirectional == [2, 10] || unidirectional == [2, 6, 10],
+                    "{prefix}: {unidirectional:?}"
+                );
+            } else {
+                assert_eq!(unidirectional, [2], "{prefix}");
+            }
+        }
+    }
+    assert_eq!(connections, 116);
+    Ok(())
+}

@@ -2024,6 +2024,12 @@ Replay against Phantom:
   `early_data_needs_a_ticket_stored_with_application_state` and
   `held_tickets_are_bounded_and_dropped_with_oversized_state` cover the
   bounds.
+- The Brave 154 and Opera 135 resumption fixtures predate the stream-type
+  fields but keep each connection's stream numbers, and
+  `brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers` checks
+  them in all 116 connections: every connection wrote client stream 2, one
+  that carried a request also wrote stream 10 and sometimes stream 6, and an
+  idle one wrote nothing else. Their stream types are not recorded.
 - `chromium_captures_open_qpack_streams_in_the_recipe_order`, in
   `crates/phantom-profile/src/chromium/http3_tests.rs`, reads the four
   `resumption-streams-*` fixtures, checks the stream order and types above,
