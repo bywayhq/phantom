@@ -148,6 +148,9 @@ class ListeningWaitTests(unittest.TestCase):
         _, rest = process.communicate(timeout=30)
 
         self.assertTrue(listening.reported)
+        self.assertEqual(
+            listening.line.replace(b"\r\n", b"\n"), b"listening on 127.0.0.1:1\n"
+        )
         # The line after the listening line arrives in the same read.
         output = (listening.stderr + rest).replace(b"\r\n", b"\n")
         self.assertEqual(output, b"after\nlater\n")

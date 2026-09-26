@@ -62,7 +62,7 @@ SPKI_PLACEHOLDER = "<certificate-spki>"
 EXAMPLES = {"tls": "capture_client_hello", "http2": "capture_http2_tls"}
 # Windows reserves these UDP ports on the capture host.
 RESERVED_UDP = range(49841, 50960)
-# The line chrome_http3.py writes to standard error once it has bound.
+# The line a capture listener writes to standard error once it has bound.
 LISTENING_LINE = re.compile(rb"^listening on [^\n]*\n", re.MULTILINE)
 
 
@@ -184,12 +184,15 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    assert listener.stderr is not None
-    line = listener.stderr.readline().decode(errors="replace")
+    listening = wait_until_listening(listener, args.server_start)
+    line = listening.line.decode(errors="replace")
     match = re.search(r"listening on 127\.0\.0\.1:(\d+)", line)
     if match is None:
         listener.kill()
+        _, stderr = listener.communicate()
+        stderr = listening.stderr + stderr
         print(f"listener did not start: {line.strip()}", file=sys.stderr)
+        print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
         return False
     url = f"https://{HOSTNAME}:{match.group(1)}/"
     browser = Browser(
@@ -205,6 +208,7 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
     finally:
         browser.stop()
     if listener.returncode != 0:
+        stderr = listening.stderr + stderr
         print(stderr.decode(errors="replace").strip(), file=sys.stderr)
         return False
     write_atomically(output, stdout.decode("ascii"), encoding="ascii")
@@ -216,6 +220,8 @@ class Listening:
     """What `wait_until_listening` saw on the server's standard error."""
 
     reported: bool
+    # The listening line itself, or empty when there was none.
+    line: bytes
     # Bytes read past the listening line, or everything read when there was
     # none. communicate() with a timeout reads the pipe's descriptor on POSIX,
     # so it never returns these; put them in front of what it returns.
@@ -223,7 +229,10 @@ class Listening:
 
 
 def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Listening:
-    """Wait up to `limit` seconds for chrome_http3.py to report its bind.
+    """Wait up to `limit` seconds for a capture listener to report its bind.
+
+    chrome_http3.py and the TLS and HTTP/2 capture examples each write a line
+    that starts with `listening on` to standard error once bound.
 
     Returns early when the server exits without the line. A server that has
     not reported by `limit` is killed. The reader reads the pipe's descriptor
@@ -245,7 +254,7 @@ def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Liste
                 seen.extend(chunk)
                 line = LISTENING_LINE.search(seen)
                 if line is not None:
-                    reported.append(line.end())
+                    reported.extend(line.span())
                     return
         finally:
             finished.set()
@@ -257,8 +266,9 @@ def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Liste
         server.kill()
     reader.join()
     if reported:
-        return Listening(True, bytes(seen[reported[0] :]))
-    return Listening(False, bytes(seen))
+        start, end = reported
+        return Listening(True, bytes(seen[start:end]), bytes(seen[end:]))
+    return Listening(False, b"", bytes(seen))
 
 
 def quic_run(

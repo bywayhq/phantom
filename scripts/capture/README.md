@@ -693,9 +693,9 @@ Use `--layer http3` for the QUIC ClientHello and HTTP/3 startup, and
 for TLS, `client-startup-<n>.txt` for HTTP/2, and `client-startup-<n>.txt`
 with `quic-client-hello-<n>.txt` for HTTP/3; retain a run under the names in
 [Validation](../../docs/explanation/validation.md#brave-154-and-opera-135-recipes).
-`chrome_http3.py` prints `listening on <address>` on standard error once it
-has bound, and the tool launches the browser when it reads that line. It
-gives up after `--server-start` seconds (default 30).
+Each listener prints a line starting with `listening on <address>` on
+standard error once it has bound, and the tool launches the browser when it
+reads that line. It gives up after `--server-start` seconds (default 30).
 
 ## QUIC resumption and 0-RTT
 
