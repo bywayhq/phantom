@@ -14,7 +14,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .browser_launch import BROWSERS, BrowserDriver, LaunchPlan
+from .browser_launch import (
+    BROWSERS,
+    BrowserDriver,
+    LaunchPlan,
+    add_browser_switch_option,
+    check_browser_switches,
+)
 from .fixture_file import write_text_fixture
 
 FORMAT = "phantom-client-hints-v2"
@@ -308,6 +314,7 @@ async def run(args: argparse.Namespace) -> None:
         browser=args.browser,
         executable=args.browser_path,
         headless=not args.headful,
+        extra_arguments=tuple(args.browser_switch),
     )
     host, port = args.listen.rsplit(":", 1)
     server = HintServer()
@@ -351,7 +358,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--repeat", type=int, default=3)
     parser.add_argument("--run-timeout", type=float, default=30.0)
     parser.add_argument("--output", type=Path, required=True)
+    add_browser_switch_option(parser)
     args = parser.parse_args(argv)
+    check_browser_switches(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
     if args.repeat < 1:

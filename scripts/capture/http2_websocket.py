@@ -22,6 +22,8 @@ from .browser_launch import (
     CHROMIUM_BROWSERS,
     BrowserDriver,
     LaunchPlan,
+    add_browser_switch_option,
+    check_browser_switches,
     render_preferences,
 )
 from .fixture_file import write_text_fixture
@@ -557,6 +559,7 @@ def launch_plan(
                 "--ignore-certificate-errors-spki-list="
                 + certificate.spki_sha256_base64,
                 "--disable-quic",
+                *args.browser_switch,
             ),
         )
     if args.browser == "firefox":
@@ -646,7 +649,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="do not write a certificate override into the Firefox profile",
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    add_browser_switch_option(parser)
     args = parser.parse_args(argv)
+    check_browser_switches(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})

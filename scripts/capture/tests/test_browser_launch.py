@@ -1,4 +1,7 @@
+import argparse
 import asyncio
+import contextlib
+import io
 import os
 import shlex
 import shutil
@@ -17,6 +20,8 @@ from scripts.capture.browser_launch import (
     PROFILE_PLACEHOLDER,
     LaunchedBrowser,
     LaunchPlan,
+    add_browser_switch_option,
+    check_browser_switches,
     chromium_arguments,
     firefox_arguments,
     firefox_user_js,
@@ -47,6 +52,27 @@ class BrowserLaunchTests(unittest.TestCase):
                 URL,
             ],
         )
+
+    def test_browser_switches_are_chromium_only_and_must_be_switches(
+        self,
+    ) -> None:
+        def parse(*argv: str) -> argparse.Namespace:
+            parser = argparse.ArgumentParser()
+            parser.add_argument("--browser")
+            add_browser_switch_option(parser)
+            args = parser.parse_args(argv)
+            with contextlib.redirect_stderr(io.StringIO()):
+                check_browser_switches(parser, args)
+            return args
+
+        args = parse("--browser", "edge", "--browser-switch=--accept-lang=en-US")
+        self.assertEqual(args.browser_switch, ["--accept-lang=en-US"])
+        for argv in (
+            ("--browser", "firefox", "--browser-switch=--accept-lang=en-US"),
+            ("--browser", "chrome", "--browser-switch=accept-lang"),
+        ):
+            with self.subTest(argv), self.assertRaises(SystemExit):
+                parse(*argv)
 
     def test_only_macos_adds_the_mock_keychain_switch(self) -> None:
         self.assertEqual(host_chromium_flags("darwin"), ("--use-mock-keychain",))
