@@ -23,6 +23,7 @@ Run every command from the repository root; the Python tools need Python
 | A QUIC ClientHello and HTTP/3 startup | [`chrome_http3.py`](#http3-startup) | `fixtures/http3/` |
 | Any of those three, with the browser launched for you | [`startup_capture.py`](#connection-startup-launches) | `fixtures/tls/`, `fixtures/http2/`, `fixtures/http3/` |
 | QUIC session resumption and 0-RTT requests | [`quic_resumption.py`](#quic-resumption-and-0-rtt) | `fixtures/http3/` |
+| TLS 1.3 session resumption over TCP, and TCP early data | [`tls_resumption.py`](#tls-resumption-over-tcp) | `fixtures/tls/` |
 | Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
 | EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
@@ -399,6 +400,76 @@ profile. It also receives
 `network.http.http3.disable_when_third_party_roots_found=false`: without it,
 Firefox verifies the overridden certificate and then closes the HTTP/3
 connection because the chain ends at a third-party root.
+
+## TLS resumption over TCP
+
+`tls_resumption.py` records how a browser resumes TLS 1.3 sessions over TCP:
+the resumed ClientHello, which ticket each connection presents, whether it
+offers and sends early data, and which requests arrive in early data. It
+writes one `format=phantom-tls-resumption-v1` fixture per scenario, named
+`resumption-<scenario>.txt`.
+
+Capture Chrome on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   python -m scripts.capture.tls_resumption   --browser chrome   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe"   --client-version 154.0.8037.58   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --repeat 3   --output-dir fixtures/tls/chrome/154.0.8037.58/windows-11-26200
+```
+
+Use the other browsers' paths from [Browser launcher](#browser-launcher) and
+[QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt). The tool refuses an
+aioquic version other than 1.3.0.
+
+The server is aioquic's TLS 1.3 handshake with a TLS record layer in the
+tool, on two loopback TCP listeners bound to port 0 (`a` and `b`). It serves
+`server.phantom.test` and `top.partition.test`, each with its own
+self-signed certificate, so a browser cannot pool one name's connection for
+the other. After each handshake the server sends its own NewSessionTickets,
+each with a 64-byte random identity and, unless the scenario says otherwise,
+`max_early_data_size` 0xffffffff. It accepts early data whenever a client
+offers it with a known ticket. It closes a connection after answering
+`/retire` or `/done`, after a slow response, or after an HTTP/2 `GOAWAY`.
+Each page step waits 300 ms before the next, so every step starts on a new
+connection.
+
+| Scenario | ALPN | Tickets | Question |
+| --- | --- | --- | --- |
+| `sequential` | `h2` | 2 per connection | Resumed ClientHello, early data, and which of two tickets a new connection uses |
+| `sequential-http1` | `http/1.1` | 2 per connection | The same with HTTP/1.1 |
+| `no-early-data` | `h2` | 2 per connection, without early data | Resumed ClientHello when the ticket does not permit early data |
+| `issue-once` | `h2` | 8 on the first connection to complete a handshake | How many tickets a browser keeps for one origin, in which order it uses them, and whether it reuses one |
+| `parallel` | `http/1.1` | 2 per connection | Tickets used by six connections opened at once for six slow requests |
+| `origins` | `h2` | 2 per connection | Whether a ticket learned on listener `a` is offered to listener `b`, the same host on another port |
+| `methods` | `h2` | 2 per connection | Which of `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE`, issued together, travel in early data; then a lone `POST` |
+| `methods-http1` | `http/1.1` | 2 per connection | The same with HTTP/1.1 |
+| `partition` | `h2` | 2 per connection | Whether a ticket learned while `server.phantom.test` is the top-level site is offered when a `top.partition.test` page fetches it, and after returning |
+
+For each connection the fixture keeps:
+
+- the listener, server name, offered and selected ALPN, and timings;
+- the tickets the ClientHello offered, named `connection_<n>.ticket_<i>` after
+  the connection that issued them, and whether the server resumed one;
+- whether early data was offered and accepted, how many early-data bytes
+  arrived, and the tickets the connection was issued;
+- the extension order, key-share groups, PSK modes, PSK identity and binder
+  lengths, the `session_ticket` extension length, and how the ClientHello
+  differs from the run's first one.
+
+For each request it keeps the connection, method, host, path, body length,
+and whether it arrived in early data. Run 0 also keeps each raw ClientHello
+and each request's field names in order. Summary lines count ClientHellos
+that offered a PSK, resumed, and offered or sent early data, and any ticket a
+browser offered twice.
+
+Traffic keys stay in memory; no TLS secret or key log is written.
+
+Chromium receives `--host-resolver-rules` that map both names to the
+listener address and every other name to `~NOTFOUND`, both certificates'
+`--ignore-certificate-errors-spki-list`, `--disable-quic`, and
+`--disable-field-trial-config`. `--netlog-dir` adds `--log-net-log` for
+diagnosis; NetLogs are not fixture inputs. Firefox receives
+`network.dns.localDomains` naming both hosts, `network.dns.disableIPv6=true`,
+`network.http.http3.enable=false`, and a `cert_override.txt` covering both
+names on both ports.
 
 ## Alt-Svc racing
 
