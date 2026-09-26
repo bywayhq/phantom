@@ -1167,6 +1167,7 @@ fn endpoint_with_socket(
     let mut transport_config = quinn::TransportConfig::default();
     crypto
         .configure_transport(&mut endpoint_config, &mut transport_config)
+        .and_then(|()| crypto.configure_path(&mut transport_config, remote.ip()))
         .map_err(|error| {
             Http3Error::with_source(
                 Http3ErrorKind::Configuration,

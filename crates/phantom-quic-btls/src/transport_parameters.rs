@@ -1,4 +1,6 @@
-use std::{collections::BTreeSet, error::Error as StdError, fmt, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeSet, error::Error as StdError, fmt, net::IpAddr, sync::Arc, time::Duration,
+};
 
 use phantom_profile::quic::{
     GoogleConnectionOption, QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
@@ -23,6 +25,8 @@ use wire::{
 };
 
 const MIN_ACK_DELAY_DRAFT_07: u64 = 0xff04_de1b;
+const IPV4_UDP_HEADERS: u16 = 20 + 8;
+const IPV6_UDP_HEADERS: u16 = 40 + 8;
 /// The only `min_ack_delay` the runtime can honor: Quinn's 1 ms timer granularity.
 const RUNTIME_MIN_ACK_DELAY_US: u64 = 1_000;
 const RESET_STREAM_AT: u64 = 0x1d;
@@ -153,12 +157,6 @@ impl TransportParameterProfile {
         transport
             .active_connection_id_limit(Some(active_connection_id_limit))
             .map_err(|error| profile_error("active_connection_id_limit", error.to_string()))?;
-        if let Some(size) = settings.initial_datagram_size {
-            transport.initial_mtu(size);
-            transport
-                .min_initial_datagram_size(size)
-                .map_err(|error| profile_error("initial_datagram_size", error.to_string()))?;
-        }
         transport
             .advertised_datagram_frame_size(datagram_buffer_size, datagram_frame_size)
             .map_err(|error| profile_error("max_datagram_frame_size", error.to_string()))?;
@@ -219,6 +217,36 @@ impl TransportParameterProfile {
                 _ => None,
             })
             .unwrap_or(AckFrequencyDraft::Draft07)
+    }
+
+    /// Applies the profile's initial path MTU for a peer at `remote`.
+    ///
+    /// The UDP payload of Initial datagrams is the MTU less the IP and UDP
+    /// headers of `remote`'s address family, as neqo's PMTUD computes it
+    /// (`neqo-transport/src/pmtud.rs`).
+    pub(crate) fn configure_path(
+        &self,
+        transport: &mut TransportConfig,
+        remote: IpAddr,
+    ) -> Result<(), QuicTransportProfileError> {
+        let Some(mtu) = self.settings.initial_path_mtu else {
+            return Ok(());
+        };
+        let headers = match remote {
+            IpAddr::V4(_) => IPV4_UDP_HEADERS,
+            IpAddr::V6(_) => IPV6_UDP_HEADERS,
+        };
+        let size = mtu.checked_sub(headers).ok_or_else(|| {
+            profile_error(
+                "initial_path_mtu",
+                "the path MTU is smaller than the headers",
+            )
+        })?;
+        transport.initial_mtu(size);
+        transport
+            .min_initial_datagram_size(size)
+            .map_err(|error| profile_error("initial_path_mtu", error.to_string()))?;
+        Ok(())
     }
 
     /// Whether a connection that resumes a session offers early data.

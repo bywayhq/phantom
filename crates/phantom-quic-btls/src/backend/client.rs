@@ -361,6 +361,22 @@ impl QuicClientConfig {
         Ok(())
     }
 
+    /// Applies the profile's initial path MTU for a peer at `remote`, whose
+    /// address family sets the IP header size.
+    ///
+    /// Call it after [`Self::configure_transport`] on the transport of an
+    /// endpoint that connects to `remote`.
+    pub fn configure_path(
+        &self,
+        transport: &mut TransportConfig,
+        remote: IpAddr,
+    ) -> Result<(), QuicTransportProfileError> {
+        if let Some(profile) = &self.transport_profile {
+            profile.configure_path(transport, remote)?;
+        }
+        Ok(())
+    }
+
     /// Applies this profile's per-connection settings to a Quinn client configuration.
     ///
     /// Sets the length of the first Initial's Destination Connection ID when the profile sets

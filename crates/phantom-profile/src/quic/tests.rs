@@ -32,7 +32,7 @@ fn minimal_valid_settings() -> QuicTransportSettings {
         active_connection_id_limit: 2,
         min_ack_delay_us: None,
         reset_stream_at: false,
-        initial_datagram_size: None,
+        initial_path_mtu: None,
         initial_destination_connection_id: None,
         wire_parameters: vec![parameter(
             QuicTransportParameterKind::InitialSourceConnectionId { length: 0 },
@@ -305,10 +305,16 @@ fn new_semantic_values_enforce_their_limits() {
     settings.min_ack_delay_us = Some(25_001);
     assert_eq!(validation_result(&settings), Err("min_ack_delay_us"));
 
-    for size in [1_199, 65_528] {
+    // The MTU must leave 1200-byte Initial datagrams over IPv6. Every `u16`
+    // above that fits the largest `max_udp_payload_size` over IPv4.
+    for (mtu, expected) in [
+        (1_247, Err("initial_path_mtu")),
+        (1_248, Ok(())),
+        (u16::MAX, Ok(())),
+    ] {
         let mut settings = minimal_valid_settings();
-        settings.initial_datagram_size = Some(size);
-        assert_eq!(validation_result(&settings), Err("initial_datagram_size"));
+        settings.initial_path_mtu = Some(mtu);
+        assert_eq!(validation_result(&settings), expected, "{mtu}");
     }
 
     for length in [

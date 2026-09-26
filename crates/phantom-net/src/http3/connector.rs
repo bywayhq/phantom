@@ -1,6 +1,11 @@
 //! Profiled direct HTTP/3 connector.
 
-use std::{error::Error as StdError, fmt, sync::Arc};
+use std::{
+    error::Error as StdError,
+    fmt,
+    net::{Ipv4Addr, Ipv6Addr},
+    sync::Arc,
+};
 
 use bytes::Bytes;
 use http::{Method, Response};
@@ -1572,6 +1577,10 @@ fn validate_quic_runtime(crypto: &Arc<QuicClientConfig>) -> Result<(), Http3Conn
     let mut transport = quinn::TransportConfig::default();
     crypto
         .configure_transport(&mut endpoint, &mut transport)
+        .and_then(|()| {
+            crypto.configure_path(&mut transport, Ipv4Addr::LOCALHOST.into())?;
+            crypto.configure_path(&mut transport, Ipv6Addr::LOCALHOST.into())
+        })
         .map_err(Http3ConnectorError::quic_runtime)
 }
 

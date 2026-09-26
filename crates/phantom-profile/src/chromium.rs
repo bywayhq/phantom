@@ -1085,7 +1085,7 @@ pub fn v154_quic() -> QuicTransportSettings {
         active_connection_id_limit: 2,
         min_ack_delay_us: None,
         reset_stream_at: false,
-        initial_datagram_size: None,
+        initial_path_mtu: None,
         initial_destination_connection_id: None,
         wire_parameters: vec![
             parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One, One),

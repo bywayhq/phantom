@@ -98,7 +98,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   use `..Http2StreamSettings::default()`.
 - `QuicTransportSettings` gained the public fields `max_ack_delay_ms`,
   `active_connection_id_limit`, `min_ack_delay_us`, `reset_stream_at`,
-  `initial_datagram_size`, and `initial_destination_connection_id`, so struct
+  `initial_path_mtu`, and `initial_destination_connection_id`, so struct
   literals that name every field no longer compile. The protocol defaults
   (25, 2, `None`, `false`, `None`, `None`) keep the wire as before;
   `chromium::v154_quic` uses them. The runtime now stores as many of the
@@ -108,7 +108,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `initial_max_stream_data_bidi_local`, `_bidi_remote`, and `_uni` are now
   accepted, where the QUIC runtime required one value for all three.
   Migrate: add `max_ack_delay_ms: 25, active_connection_id_limit: 2,
-  min_ack_delay_us: None, reset_stream_at: false, initial_datagram_size:
+  min_ack_delay_us: None, reset_stream_at: false, initial_path_mtu:
   None, initial_destination_connection_id: None` to a
   `QuicTransportSettings` literal.
 - `Http3Settings` gained the public field `reserved_frame_after_settings`.
@@ -533,20 +533,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `phantom_quic_btls::QuicVersion` gained `V2`, `wire`, and `from_wire`, and
   `QuicClientConfig::configure_client` applies a profile's per-connection
   settings (the first Destination Connection ID's length and the start
-  version) to a Quinn `ClientConfig`; call it when building Quinn endpoints
-  directly.
+  version) to a Quinn `ClientConfig`, and `QuicClientConfig::configure_path`
+  applies the initial path MTU for the peer's address family to a Quinn
+  `TransportConfig`; call both when building Quinn endpoints directly.
 - `phantom-quinn-proto` 0.11.18-phantom.2 adds `TransportConfig::max_ack_delay`,
   `active_connection_id_limit`, `bidi_remote_stream_receive_window`,
   `uni_stream_receive_window`, `min_initial_datagram_size`,
   `reset_stream_at`, and `ack_frequency_draft`, `EndpointConfig::compatible_versions`,
-  and `crypto::Session::switch_version`; `phantom-quinn` 0.11.12-phantom.2
+  and `crypto::Session::initial_keys_for_version` and `switch_version`;
+  `phantom-quinn` 0.11.12-phantom.2
   follows it. `phantom-h3` 0.0.8-phantom.5 adds the client builder options
   `reserved_frame_after_settings`, `qpack_insert_policy`, and
   `qpack_huffman`. Each is off or unchanged by default.
 - QUIC profile data for `max_ack_delay`, `active_connection_id_limit`, the
   empty `reset_stream_at` parameter, draft 02 and draft 07 `min_ack_delay`
   (`QuicAckFrequencyDraft`), a leading reserved version
-  (`QuicVersionGrease::First`), the size of Initial datagrams, and the length
+  (`QuicVersionGrease::First`), the initial path MTU, which sets the size of
+  Initial datagrams for each address family, and the length
   of the first Destination Connection ID (`QuicConnectionIdLength`). The
   runtime honors each: it acknowledges within the advertised delay, stores
   that many connection IDs, delivers the reliable part of a stream reset by

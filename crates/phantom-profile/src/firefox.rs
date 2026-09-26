@@ -636,12 +636,15 @@ pub fn v156_http3_tls() -> TlsSettings {
 /// - `max_udp_payload_size`, `grease_quic_bit`, and a reserved parameter are
 ///   absent.
 ///
-/// In a diagnostic run against the snapshot server, not retained, every
-/// Initial datagram Firefox sent was 1252 bytes, and the first Initials'
-/// Destination Connection IDs were 11 and 17 bytes. The recipe draws that
-/// length as neqo's `ConnectionId::generate_initial` does:
-/// `max(8, 5 + (b & (b >> 4)))` for a random byte `b`
-/// (`neqo-transport/src/cid.rs`).
+/// The five snapshots record every Initial datagram Firefox sent over IPv4
+/// loopback: 1252 bytes each, a 1280-byte path MTU less the IPv4 and UDP
+/// headers, as neqo 0.30.1 computes it (`neqo-transport/src/pmtud.rs`). The
+/// recipe sets that MTU, so Initial datagrams are 1252 bytes over IPv4 and
+/// 1232 over IPv6. The first Initials' Destination Connection IDs were 8, 8,
+/// 8, 9, and 11 bytes. The recipe draws that length as neqo's
+/// `ConnectionId::generate_initial` does: `max(8, 5 + (b & (b >> 4)))` for a
+/// random byte `b` (`neqo-transport/src/cid.rs` lines 54 to 59 in neqo
+/// 0.30.1, the version Firefox 156.0.1 vendors).
 ///
 /// A resumed Firefox connection offers early data, so `early_data` is set;
 /// it takes effect with TLS settings that enable session tickets, such as
@@ -671,7 +674,7 @@ pub fn v156_quic() -> QuicTransportSettings {
         active_connection_id_limit: 8,
         min_ack_delay_us: Some(1_000),
         reset_stream_at: true,
-        initial_datagram_size: Some(1_252),
+        initial_path_mtu: Some(1_280),
         initial_destination_connection_id: Some(QuicConnectionIdLength::MaskedRandom {
             minimum: 8,
             base: 5,

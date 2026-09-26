@@ -9,6 +9,10 @@ const MAX_UDP_PAYLOAD_SIZE: u64 = 65_527;
 const MAX_CONNECTION_ID_LENGTH: u8 = 20;
 const MAX_CAPTURED_GREASE_PAYLOAD_LENGTH: u8 = 15;
 const DEFAULT_MAX_ACK_DELAY_MS: u64 = 25;
+/// IPv4 and UDP header bytes.
+const IPV4_UDP_HEADERS: u64 = 20 + 8;
+/// IPv6 and UDP header bytes.
+const IPV6_UDP_HEADERS: u64 = 40 + 8;
 const MAX_ACK_DELAY_LIMIT_MS: u64 = 1 << 14;
 const DEFAULT_ACTIVE_CONNECTION_ID_LIMIT: u64 = 2;
 const MIN_INITIAL_DESTINATION_CONNECTION_ID_LENGTH: u8 = 8;
@@ -381,11 +385,13 @@ pub struct QuicTransportSettings {
     /// (draft-ietf-quic-reliable-stream-reset), which deliver a stream's
     /// first bytes before a reset.
     pub reset_stream_at: bool,
-    /// UDP payload size of each client datagram that carries an Initial
-    /// packet, which is also the path MTU the connection starts with.
+    /// IP packet size the connection starts with, headers included.
     ///
-    /// `None` keeps the runtime's 1200-byte Initial datagrams.
-    pub initial_datagram_size: Option<u16>,
+    /// Every client datagram that carries an Initial packet is padded to it.
+    /// The UDP payload is this size less the IP and UDP headers: 28 bytes over
+    /// IPv4 and 48 over IPv6. `None` keeps the runtime's 1200-byte Initial
+    /// datagrams.
+    pub initial_path_mtu: Option<u16>,
     /// Length of the random Destination Connection ID of the first Initial.
     ///
     /// `None` keeps the runtime's 20 random bytes.
@@ -453,12 +459,14 @@ impl QuicTransportSettings {
                 "min_ack_delay must not exceed max_ack_delay",
             ));
         }
-        if let Some(size) = self.initial_datagram_size
-            && !(MIN_UDP_PAYLOAD_SIZE..=self.max_udp_payload_size).contains(&u64::from(size))
+        if let Some(mtu) = self.initial_path_mtu
+            && !(MIN_UDP_PAYLOAD_SIZE + IPV6_UDP_HEADERS
+                ..=self.max_udp_payload_size + IPV4_UDP_HEADERS)
+                .contains(&u64::from(mtu))
         {
             return Err(InvalidQuicTransportSettings::new(
-                "initial_datagram_size",
-                "Initial datagrams must be 1200 bytes up to max_udp_payload_size",
+                "initial_path_mtu",
+                "the path MTU must leave 1200-byte Initial datagrams over IPv6 and at most max_udp_payload_size over IPv4",
             ));
         }
         if let Some(length) = self.initial_destination_connection_id {
