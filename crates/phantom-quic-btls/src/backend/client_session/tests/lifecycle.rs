@@ -1,4 +1,4 @@
-//! Dropping a client at each point of a resumed handshake.
+//! Dropping a client mid-handshake or while holding uncollected sessions.
 //!
 //! Every case checks that dropping the `SSL` ran the ex-data destructor, which
 //! leaves only the test's own `CallbackState` handle. Cases that offered a

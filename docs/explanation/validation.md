@@ -2823,7 +2823,7 @@ CRYPTO frames:
 
 | Peer input | Phantom's response |
 | --- | --- |
-| A NewSessionTicket that is empty, truncated, has a nonce or extension longer than its body, an empty ticket, a trailing byte, or a two-byte `early_data` extension | The connection fails with a `decode_error` alert, sent to Quinn as `CRYPTO_ERROR` 0x132, and no session is kept |
+| A NewSessionTicket with an empty or truncated body, a nonce or extension longer than the body, an empty ticket field, a trailing byte, or a two-byte `early_data` extension | The connection fails with a `decode_error` alert, sent to Quinn as `CRYPTO_ERROR` 0x132, and no session is kept |
 | A ticket whose `early_data` limit is not 0xffffffff (RFC 9001, section 4.6.1), or that repeats an extension | `illegal_parameter`, and no session is kept |
 | A KeyUpdate (RFC 9001, section 6), or a Finished, CertificateRequest, or unassigned message type | `unexpected_message` |
 | An incomplete message, even one whose header promises 16 MiB | Buffered until 16 KiB of application-level data is pending, then the connection fails without an alert |

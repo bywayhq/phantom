@@ -176,9 +176,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `session_tickets`. `phantom_quic_btls::QuicClientConfig::with_tls_profile`
   rejects a profile that sets it with `QuicTlsProfileErrorKind::InvalidProfile`
   unless the context was prepared for session resumption, so code that builds
-  a `QuicClientConfig` directly from either recipe now fails. The `phantom`
-  client and `phantom_net::http3::Http3Connector` prepare their contexts and
-  are not affected. The commit that changed the recipes, `278645f`, lacks the
+  a `QuicClientConfig` directly from either recipe now fails. It also fails
+  with `ContextConflict` when a new-session callback set after preparation
+  replaced Phantom's, and with `InvalidProfile` when client session caching
+  was turned off after preparation. The `phantom` client and
+  `phantom_net::http3::Http3Connector` prepare their contexts and are not
+  affected. The commit that changed the recipes, `278645f`, lacks the
   `!` breaking marker; the check it trips came from `f084850`.
   Migrate: call `QuicClientConfig::enable_session_resumption(&mut builder)?`
   on the `SslContextBuilder` before building the context you pass to
@@ -520,6 +523,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `session_resumed`. `phantom_quic_btls::QuicClientConfig` gains
   `enable_session_resumption`, `with_isolated_session_cache`,
   `without_ticket_offers`, `has_ticket_for`, and `resumes_sessions`.
+  `enable_session_resumption` refuses a builder whose new-session callback
+  belongs to other code: it fails with the new
+  `QuicTlsProfileErrorKind::ContextConflict` and leaves the builder
+  unchanged. Calling it twice succeeds.
   (`f084850`, `278645f`)
 - `ClientBuilder::http3_early_data(true)` lets a new resumed HTTP/3
   connection send a replay-safe request (`GET`, `HEAD`, `OPTIONS`, or `TRACE`
@@ -817,15 +824,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   CONNECT tunnel cannot carry QUIC, so the request never moves to HTTP/3. On
   a CONNECT-UDP route it fails with `UnsupportedRoute`, as a negotiated
   request without a template does. A direct or SOCKS5 route still refuses it.
-- `phantom_quic_btls::QuicClientConfig::enable_session_resumption` no longer
-  replaces a new-session callback that other code set on the builder, which
-  cut that callback off without notice. It fails with the new
-  `QuicTlsProfileErrorKind::ContextConflict` and leaves the builder
-  unchanged; calling it twice still succeeds. With `session_tickets`,
-  `with_tls_profile` fails with `ContextConflict` when a callback set after
-  preparation replaced Phantom's, and with `InvalidProfile` when client
-  session caching was turned off, because neither context would deliver a
-  ticket. The `phantom` client and `Http3Connector` are not affected.
 
 ### Removed
 
