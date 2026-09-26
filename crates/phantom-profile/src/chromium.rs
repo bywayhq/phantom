@@ -9,9 +9,9 @@ use crate::{
     http1::Http1Settings,
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
-        Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
-        Http2UnindexedMatch,
+        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
+        Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
+        Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
     http3::{
         Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
@@ -509,6 +509,7 @@ pub fn v154_http2() -> Http2Settings {
             unindexed_match: Http2UnindexedMatch::Index,
             indexing_limit: Http2IndexingLimit::Unlimited,
             table_size_updates: Http2TableSizeUpdates::WhenChanged,
+            sensitive_proxy_authorization: Http2SensitiveProxyAuthorization::FieldIndexing,
         },
         streams: Http2StreamSettings {
             first_stream_id: 1,
