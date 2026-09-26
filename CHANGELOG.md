@@ -320,6 +320,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Http3Connector::early_data_settled_on` now return `Ok` for such a
   connection, which stays reusable; only a request that went out as early
   data still fails with `Http3Unprocessed::EarlyDataRejected`.
+  A rejection that arrives while the early HTTP/3 session is still starting
+  is handled the same way. Invalid handshake metadata on any HTTP/3
+  connection now closes it explicitly: with `H3_GENERAL_PROTOCOL_ERROR` for a
+  missing `h3` ALPN or malformed ALPS `ACCEPT_CH`, and with
+  `H3_SETTINGS_ERROR` for invalid ALPS SETTINGS.
   Migrate: code that opened a new connection when `early_data_settled`
   returned `EarlyDataRejected` can send the request on the same connection
   once `early_data_settled` returns `Ok`.

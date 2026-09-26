@@ -2619,8 +2619,9 @@ Replay against Phantom:
   shows the rejection waking such a request.
   `a_rejection_while_the_early_session_starts_keeps_the_connection` holds
   the early session's first writes until the handshake completed with a
-  rejection; the connection starts HTTP/3 again and carries a request. The
-  stress test below found this case.
+  rejection; the connection reports the rejected early data, starts HTTP/3
+  again on client streams 2, 6, and 10, and carries a request. The stress
+  test below found this case.
   `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
   credit-wait and handshake-window rejections on a four-worker runtime with
   a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations
@@ -2628,8 +2629,11 @@ Replay against Phantom:
   whole polls of the waiting requests and to the answer's publication. It
   does not reach windows inside one poll, such as the handshake completing
   between the permit and the open; the hook-driven tests above cover those.
-  `PHANTOM_H3_STRESS_ITERATIONS` and `PHANTOM_H3_STRESS_SEED` set the
-  repetitions and the delay seed, which each failure reports.
+  A connection whose rejection arrived while its early session was still
+  starting is checked as such and counted apart. `PHANTOM_H3_STRESS_ITERATIONS`
+  and `PHANTOM_H3_STRESS_SEED` set the repetitions and the delay seed, which
+  each failure and the counts report; the seed reproduces the injected delays
+  only, not the runtime's scheduling.
   `a_request_waiting_for_stream_credit_does_not_block_a_rejection` holds
   the send lock in a request waiting for 0-RTT stream credit when the
   rejection arrives; both requests fail as unprocessed and the connection

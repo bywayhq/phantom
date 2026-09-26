@@ -639,10 +639,22 @@ session on the connection instead.
   answer first, and then uses the new session. `send_prepared_request`
   reports only a request that took the sender before the answer as
   unprocessed.
-- A rejection can arrive while the early session is still writing its first
-  bytes on streams it opened in 0-RTT. Those writes then fail; the session
-  leaves the close to `connect`, which starts HTTP/3 on the connection as on
-  one without early data, with the same metadata checks.
+- A rejection can arrive while the early session is still starting. Its
+  writes on streams opened in 0-RTT then fail, and once the handshake has
+  completed it opens no further control or QPACK stream, so no 1-RTT stream
+  takes a number. A close the session asks for after the handshake goes to
+  `connect`: on a rejection it starts HTTP/3 on the connection with the
+  metadata checks every session applies, opens its streams as client
+  streams 2, 6, and 10, and publishes the rejection, so
+  `sent_early_data` is true and `early_data_accepted` is `Some(false)`. On
+  any other failure `connect` closes with the code the session chose. If the
+  handshake completes between that check and an open, which no test reaches,
+  the stream opened in 1-RTT keeps its number and the new session's streams
+  follow it.
+- Every session applies the same start checks, in `check_start` and
+  `apply_peer_alps`: a missing `h3` ALPN or malformed ALPS `ACCEPT_CH`
+  closes the connection with `H3_GENERAL_PROTOCOL_ERROR`, and invalid ALPS
+  SETTINGS close it with `H3_SETTINGS_ERROR`.
 - The datagram router forgets the discarded session's stream order when the
   new session replaces it, and `peer_extensions` reads the new session's
   SETTINGS.
