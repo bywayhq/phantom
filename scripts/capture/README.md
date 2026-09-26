@@ -91,6 +91,19 @@ env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
   -memory 4096 -no-snapshot -no-boot-anim -no-metrics
 ```
 
+The emulator offers Wi-Fi and a cellular network. Chromium sends
+`initial_rtt_us` on a fresh QUIC connection when the cellular one is the
+default, which the recipes do not model, so turn mobile data off inside the
+emulator before a capture and check that Wi-Fi is connected:
+
+```sh
+adb -s emulator-5554 shell svc data disable
+adb -s emulator-5554 shell cmd wifi status
+```
+
+If Wi-Fi drops and `dumpsys connectivity` reports no default network,
+`svc wifi disable` followed by `svc wifi enable` restores it.
+
 Add `-no-window -no-audio` to run it without a window. Never pass
 `-wipe-data`: it signs the Play account out and removes the browsers. If adb
 lists the device as `unauthorized`, create the host's public key with

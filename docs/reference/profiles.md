@@ -38,6 +38,7 @@ build that can be recaptured and reverified.
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
 | Chrome 153 for Android | `chrome_android::v153_*` | Yes | Chromium | Chromium QUIC and H3; own trust-anchor orders | `v153_android_client_hints` | Chromium | Android emulator |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
@@ -93,7 +94,7 @@ resolved addresses.
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
-| Chrome for Android | Not covered | Not covered | Not covered |
+| Chrome and Brave for Android | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
@@ -105,7 +106,7 @@ resolved addresses.
 - No capture shows Edge's, Brave's, or Opera's socket options, and no
   browser source has been read for them.
 - The Android emulator ends the device's TCP connections and opens new ones
-  from the host, so no Chrome for Android socket option reaches a capture.
+  from the host, so no Android browser's socket option reaches a capture.
 
 | Rule | Value or outcome |
 | --- | --- |
@@ -134,7 +135,7 @@ for each origin and route.
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
 | Edge, Brave, Opera | Not covered | Their values have not been read from a source or a capture |
-| Chrome for Android | Not covered | No Android source reading or capture backs a value |
+| Chrome and Brave for Android | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
   the limit.
@@ -181,7 +182,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
-| Chrome for Android | Not covered | Not covered | Not covered |
+| Chrome and Brave for Android | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
   TTL, or through the caller's `AddressResolver`, which returns none. Both
@@ -219,6 +220,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `opera::v135_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
+| `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
+| `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `chrome_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Chrome 153 for Android value |
 | `chrome_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 153 for Android value |
 
@@ -236,7 +239,7 @@ Each recipe's rustdoc cites the source lines. Evidence:
   on a navigation omits `application/signed-exchange;v=b3;q=0.7`,
   `Sec-GPC: 1` follows `Accept`, and `Accept-Language` is a
   required caller slot.
-- The Chrome for Android navigation template models a URL typed into the
+- The Chrome and Brave for Android navigation templates model a URL typed into the
   address bar. A page that another app opens through an Android intent has
   no user activation, and Chrome then leaves out `Sec-Fetch-User`; no
   template covers that case.

@@ -4,7 +4,7 @@ use super::{
     client_hint_placement,
 };
 use crate::{
-    ClientHintSettings, brave, chrome_android, chromium,
+    ClientHintSettings, brave, brave_android, chrome_android, chromium,
     client_hints::navigation_capture::NavigationCapture, edge, firefox, opera,
 };
 
@@ -99,6 +99,8 @@ const BRAVE_PROXY: [&str; 20] = [
 const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
 const CHROME_ANDROID_WEBSOCKET: [&str; 9] =
     websocket_set!("chrome-android/153.0.8010.52", "android-35-emulator");
+const BRAVE_ANDROID_WEBSOCKET: [&str; 9] =
+    websocket_set!("brave-android/153.1.95.104", "android-35-emulator");
 const CHROME_HEADFUL_SSE: &str =
     fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
 const CHROME_HEADLESS_SSE: &str =
@@ -116,6 +118,8 @@ const BRAVE_CLIENT_HINTS: &str =
     fixture!("client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt");
 const OPERA_CLIENT_HINTS: &str =
     fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
+const BRAVE_ANDROID_CLIENT_HINTS: &str =
+    fixture!("client-hints/brave-android/153.1.95.104/android-35-emulator/navigation.txt");
 const CHROME_ANDROID_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt");
 /// Which protocol list of a template a capture is compared with.
@@ -292,6 +296,8 @@ fn every_template_recipe_is_valid() {
         firefox::v156_windows_fetch_no_store_template(),
         chrome_android::v153_android_navigation_template(),
         chrome_android::v153_android_fetch_no_store_template(),
+        brave_android::v153_android_navigation_template(),
+        brave_android::v153_android_fetch_no_store_template(),
     ] {
         assert_eq!(template.validate(), Ok(()));
     }
@@ -536,6 +542,30 @@ fn brave_154_accept_language_is_one_drawn_value_per_session() -> CaptureResult<(
 }
 
 #[test]
+fn brave_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = brave_android::v153_android_navigation_template();
+    let hints = brave_android::v153_android_client_hints();
+    let (http1, http2) = observed(&[&BRAVE_ANDROID_WEBSOCKET], "page", "document")?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        6,
+        "brave android h1",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "brave android h2",
+    );
+    Ok(())
+}
+
+#[test]
 fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     let template = firefox::v156_windows_navigation_template();
     let (http1, http2) = observed(&[&FIREFOX_SSE, &FIREFOX_WEBSOCKET], "page", "document")?;
@@ -578,6 +608,12 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             &CHROME_ANDROID_WEBSOCKET,
             "chrome android",
         ),
+        (
+            brave_android::v153_android_fetch_no_store_template(),
+            brave_android::v153_android_client_hints(),
+            &BRAVE_ANDROID_WEBSOCKET,
+            "brave android",
+        ),
     ] {
         let (http1, http2) = observed(&[set], "done", "empty")?;
         assert_all_match(&template, Protocol::Http1, Some(&hints), &http1, 6, label);
@@ -615,6 +651,8 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
         (opera::v135_windows_navigation_template(), true),
         (opera::v135_windows_fetch_no_store_template(), false),
         (chrome_android::v153_android_navigation_template(), true),
+        (brave_android::v153_android_navigation_template(), true),
+        (brave_android::v153_android_fetch_no_store_template(), false),
         (
             chrome_android::v153_android_fetch_no_store_template(),
             false,
@@ -628,7 +666,7 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 
 #[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
-    let cases: [(RequestTemplate, &[&str], &str, u16); 12] = [
+    let cases: [(RequestTemplate, &[&str], &str, u16); 14] = [
         (
             chromium::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
@@ -701,6 +739,18 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             "empty",
             220,
         ),
+        (
+            brave_android::v153_android_navigation_template(),
+            &BRAVE_ANDROID_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            brave_android::v153_android_fetch_no_store_template(),
+            &BRAVE_ANDROID_WEBSOCKET,
+            "empty",
+            220,
+        ),
     ];
     for (template, set, destination, weight) in cases {
         let mut priorities = Vec::new();
@@ -760,6 +810,11 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
             CHROME_ANDROID_CLIENT_HINTS,
             chrome_android::v153_android_client_hints(),
             chrome_android::v153_android_navigation_template(),
+        ),
+        (
+            BRAVE_ANDROID_CLIENT_HINTS,
+            brave_android::v153_android_client_hints(),
+            brave_android::v153_android_navigation_template(),
         ),
     ] {
         use crate::ClientHintDelivery::Default;
@@ -1454,16 +1509,49 @@ const CHROME_ANDROID_DIRECT: [(&str, bool); 2] = [
         true,
     ),
 ];
+const BRAVE_ANDROID_DIRECT: [(&str, bool); 2] = [
+    (
+        fixture!("proxy/brave-android/153.1.95.104/android-35-emulator/direct-hostname.txt"),
+        false,
+    ),
+    (
+        fixture!("proxy/brave-android/153.1.95.104/android-35-emulator/direct-loopback.txt"),
+        true,
+    ),
+];
 
 /// Every page load in the Android direct proxy-route captures is the
 /// navigation template for its origin: to `127.0.0.1` with the default
 /// hints and the trustworthy fields, and to `origin.phantom.test` without
-/// hints, `Sec-Fetch-*`, or the `br` and `zstd` codings.
+/// hints, `Sec-Fetch-*`, or the `br` and `zstd` codings. A caller slot is
+/// compared by name only.
 #[test]
-fn chrome_android_153_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()>
-{
-    let template = chrome_android::v153_android_navigation_template();
-    let hints = chrome_android::v153_android_client_hints();
+fn android_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()> {
+    for (template, hints, fixtures, version) in [
+        (
+            chrome_android::v153_android_navigation_template(),
+            chrome_android::v153_android_client_hints(),
+            CHROME_ANDROID_DIRECT,
+            "153.0.8010.52",
+        ),
+        (
+            brave_android::v153_android_navigation_template(),
+            brave_android::v153_android_client_hints(),
+            BRAVE_ANDROID_DIRECT,
+            "153.1.95.104",
+        ),
+    ] {
+        assert_direct_pages_match(&template, &hints, &fixtures, version)?;
+    }
+    Ok(())
+}
+
+fn assert_direct_pages_match(
+    template: &RequestTemplate,
+    hints: &ClientHintSettings,
+    fixtures: &[(&str, bool)],
+    version: &str,
+) -> CaptureResult<()> {
     let default_hints: Vec<(&str, String)> = hints
         .hints()
         .iter()
@@ -1475,21 +1563,28 @@ fn chrome_android_153_navigation_follows_origin_trust_in_the_direct_captures() -
             )
         })
         .collect();
-    for (fixture, trustworthy) in CHROME_ANDROID_DIRECT {
-        let mut expected: Vec<(String, String)> = Vec::new();
+    for &(fixture, trustworthy) in fixtures {
+        // `None` as the value marks a caller slot: only the name is compared.
+        let mut expected: Vec<(String, Option<String>)> = Vec::new();
         for field in &template.http1_fields {
-            if *field == RequestField::ClientHints {
-                if trustworthy {
-                    expected.extend(
-                        default_hints
-                            .iter()
-                            .map(|(name, value)| ((*name).to_owned(), value.clone())),
-                    );
+            match field {
+                RequestField::ClientHints => {
+                    if trustworthy {
+                        expected.extend(
+                            default_hints
+                                .iter()
+                                .map(|(name, value)| ((*name).to_owned(), Some(value.clone()))),
+                        );
+                    }
                 }
-                continue;
-            }
-            if let (Some(name), Some(value)) = (field.name(), field.default_value(trustworthy)) {
-                expected.push((name.to_owned(), value.to_owned()));
+                RequestField::Caller { name, .. } => expected.push((name.to_string(), None)),
+                _ => {
+                    if let (Some(name), Some(value)) =
+                        (field.name(), field.default_value(trustworthy))
+                    {
+                        expected.push((name.to_owned(), Some(value.to_owned())));
+                    }
+                }
             }
         }
         let fields: std::collections::BTreeMap<&str, &str> = fixture
@@ -1502,7 +1597,7 @@ fn chrome_android_153_navigation_follows_origin_trust_in_the_direct_captures() -
                 .copied()
                 .ok_or_else(|| format!("capture omitted {key}").into())
         };
-        assert_eq!(value("client_version")?, "153.0.8010.52");
+        assert_eq!(value("client_version")?, version);
         assert_eq!(value("launch_mode")?, "android-typed");
         let mut pages = 0;
         for run in 0..value("repeat_count")?.parse::<usize>()? {
@@ -1526,11 +1621,23 @@ fn chrome_android_153_navigation_follows_origin_trust_in_the_direct_captures() -
                     observed.first().map(|(name, _)| name.as_str()),
                     Some("Host")
                 );
-                assert_eq!(observed[1..], expected[..], "trustworthy: {trustworthy}");
+                assert_eq!(
+                    observed.len(),
+                    expected.len() + 1,
+                    "{version} {trustworthy}"
+                );
+                for ((name, seen), (expected_name, expected_value)) in
+                    observed[1..].iter().zip(&expected)
+                {
+                    assert_eq!(name, expected_name, "{version} trustworthy: {trustworthy}");
+                    if let Some(expected_value) = expected_value {
+                        assert_eq!(seen, expected_value, "{version} {name}");
+                    }
+                }
                 pages += 1;
             }
         }
-        assert_eq!(pages, 3);
+        assert_eq!(pages, 3, "{version}");
     }
     Ok(())
 }

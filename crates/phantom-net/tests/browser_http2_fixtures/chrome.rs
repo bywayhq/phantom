@@ -1,4 +1,4 @@
-use phantom_profile::{chrome_android, chromium::v154_http2};
+use phantom_profile::{brave_android, chrome_android, chromium::v154_http2};
 
 use super::{
     TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
@@ -109,4 +109,18 @@ async fn chrome_android_153_http2_recipe_matches_android_capture() -> TestResult
     assert_eq!(chrome_android::v153_http2(), v154_http2());
     assert_raw_startup(&fixture).await?;
     assert_public_startup_matches_fixture(&fixture, chrome_android::v153_http2()).await
+}
+
+/// Brave for Android starts HTTP/2 with the desktop Chromium frames.
+#[tokio::test]
+async fn brave_android_153_http2_recipe_matches_android_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(include_str!(concat!(
+        "../../../../fixtures/http2/brave-android/153.1.95.104/",
+        "android-35-emulator/client-startup.txt"
+    )))?;
+    assert_eq!(fixture.browser, "Brave");
+    assert_eq!(fixture.browser_version, "153.1.95.104");
+    assert_eq!(fixture.launch_mode, "android-intent");
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, brave_android::v153_http2()).await
 }

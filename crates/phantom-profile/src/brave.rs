@@ -25,7 +25,7 @@ use crate::{
 
 /// Brave's navigation `Accept` value: Chrome's without the
 /// `application/signed-exchange` entry.
-const V154_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
+pub(crate) const V154_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
 image/avif,image/webp,image/apng,*/*;q=0.8";
 
 /// Returns TLS settings captured from Brave 154.1.96.59 on Windows 11.
@@ -152,7 +152,10 @@ pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
 /// Applies Brave's request-field differences to a Chromium template: an
 /// optional replacement `Accept` value, `Sec-GPC: 1` after `Accept`, and a
 /// required caller `Accept-Language`.
-fn with_brave_fields(mut template: RequestTemplate, accept: Option<&str>) -> RequestTemplate {
+pub(crate) fn with_brave_fields(
+    mut template: RequestTemplate,
+    accept: Option<&str>,
+) -> RequestTemplate {
     let apply = |fields: Vec<RequestField>, gpc: &str| {
         let mut output = Vec::with_capacity(fields.len() + 1);
         for field in fields {

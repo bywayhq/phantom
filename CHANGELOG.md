@@ -392,6 +392,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `cookie` into crumbs on H2 and H3, which no Android capture checks. There
   is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
   cookie-placement recipe.
+- Brave for Android recipes in `brave_android`, captured from Brave 1.95.104
+  (Chromium 153) on the same emulator: `v153_tls` (desktop Brave's
+  ClientHello without ECH from HTTPS records), `v153_http3_tls`,
+  `v153_android_client_hints`, `v153_android_navigation_template`, and
+  `v153_android_fetch_no_store_template`, with desktop Brave's request-field
+  changes and a caller `Accept-Language`, and `v153_http2`, `v153_quic`,
+  `v153_http3`, `v153_http3_request`, and `v153_websocket`, which return the
+  Chromium recipes.
 - Android capture support in `scripts/capture`: `--browser chrome-android`,
   `edge-android`, `brave-android`, `opera-android`, and `firefox-android`
   launch the browser on an adb device with a cleared profile, its debug

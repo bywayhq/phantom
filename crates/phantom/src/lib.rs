@@ -302,6 +302,19 @@ pub mod profile {
         };
     }
 
+    /// Brave for Android recipes implemented by the public facade.
+    ///
+    /// Captured from Brave 1.95.104 (Chromium 153) on an Android 15 emulator.
+    /// The TLS recipes and request-field differences equal desktop Brave's;
+    /// the H2, QUIC, H3, and WebSocket recipes return the Chromium data.
+    pub mod brave_android {
+        pub use phantom_profile::brave_android::{
+            v153_android_client_hints, v153_android_fetch_no_store_template,
+            v153_android_navigation_template, v153_http2, v153_http3, v153_http3_request,
+            v153_http3_tls, v153_quic, v153_tls, v153_websocket,
+        };
+    }
+
     /// Chrome for Android recipes implemented by the public facade.
     ///
     /// Captured from Chrome 153 on an Android 15 emulator. The H2, QUIC, H3,

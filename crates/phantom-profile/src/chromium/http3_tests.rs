@@ -119,6 +119,20 @@ fn opera_135_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std:
     assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, OPERA_135_WINDOWS_FIXTURE)
 }
 
+/// Brave for Android shares the Chromium control stream and pseudo-header
+/// order; its request fields are compared with its navigation template in
+/// the request-template tests.
+#[test]
+fn brave_android_153_h3_capture_matches_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = include_str!(
+        "../../../../fixtures/http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt"
+    );
+    assert_eq!(fixture_field(fixture, "client")?, "Brave");
+    assert_eq!(crate::brave_android::v153_http3(), v154_http3());
+    assert_settings_match_control_stream(fixture, v154_http3(), v154_http3_request())
+}
+
 /// Chrome 153 for Android shares the desktop control stream and request
 /// order; only persona values differ.
 #[test]

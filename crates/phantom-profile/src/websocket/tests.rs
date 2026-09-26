@@ -62,6 +62,8 @@ const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
 const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
 const CHROME_ANDROID: [&str; 9] =
     fixture_set!("chrome-android", "153.0.8010.52", "android-35-emulator");
+const BRAVE_ANDROID: [&str; 9] =
+    fixture_set!("brave-android", "153.1.95.104", "android-35-emulator");
 
 #[test]
 fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResult {
@@ -97,6 +99,23 @@ fn chrome_android_153_websocket_capture_matches_the_chromium_recipe() -> TestRes
         &crate::chrome_android::v153_websocket(),
         &crate::chrome_android::v153_http2(),
         &chromium::v154_tls(),
+    )?;
+    assert_eq!(summary.reused_sessions, 15);
+    assert_eq!(summary.new_http2_connections, 0);
+    assert_eq!(summary.http1_upgrade_connections, 6);
+    assert_eq!(summary.empty_messages, 6);
+    assert_eq!(summary.refused_stream_runs, 3);
+    Ok(())
+}
+
+#[test]
+fn brave_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResult {
+    let summary = assert_recipe_matches(
+        &BRAVE_ANDROID,
+        "Brave",
+        &crate::brave_android::v153_websocket(),
+        &crate::brave_android::v153_http2(),
+        &crate::brave_android::v153_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);
@@ -771,50 +790,68 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
 /// The Android direct captures show the same `ws://` rule: the recipe's
 /// HTTP/1.1 template for a `127.0.0.1` origin and for `origin.phantom.test`.
 #[test]
-fn chrome_android_153_websocket_recipe_follows_origin_trust_in_the_direct_captures() -> TestResult {
-    let recipe = crate::chrome_android::v153_websocket();
-    let offer = render_offer(&recipe.permessage_deflate_offer);
-    let mut openings = [0_usize; 2];
-    for input in [
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"
-        )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"
-        )),
+fn android_websocket_recipes_follow_origin_trust_in_the_direct_captures() -> TestResult {
+    for (recipe, fixtures) in [
+        (
+            crate::chrome_android::v153_websocket(),
+            [
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"
+                )),
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"
+                )),
+            ],
+        ),
+        (
+            crate::brave_android::v153_websocket(),
+            [
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../fixtures/proxy/brave-android/153.1.95.104/android-35-emulator/direct-hostname.txt"
+                )),
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../fixtures/proxy/brave-android/153.1.95.104/android-35-emulator/direct-loopback.txt"
+                )),
+            ],
+        ),
     ] {
-        let fields: BTreeMap<&str, &str> = input
-            .lines()
-            .filter_map(|line| line.split_once('='))
-            .collect();
-        let value = |key: &str| -> TestResult<&str> {
-            fields
-                .get(key)
-                .copied()
-                .ok_or_else(|| format!("capture omitted {key}").into())
-        };
-        assert_eq!(value("client_version")?, "153.0.8010.52");
-        let trustworthy = value("scenario")? == "direct-loopback";
-        for run in 0..value("repeat_count")?.parse::<usize>()? {
-            for index in 0..value(&format!("run_{run}_request_count"))?.parse::<usize>()? {
-                let prefix = format!("run_{run}_request_{index}");
-                if attribute(value(&prefix)?, "kind")? != "websocket" {
-                    continue;
+        let offer = render_offer(&recipe.permessage_deflate_offer);
+        let mut openings = [0_usize; 2];
+        for input in fixtures {
+            let fields: BTreeMap<&str, &str> = input
+                .lines()
+                .filter_map(|line| line.split_once('='))
+                .collect();
+            let value = |key: &str| -> TestResult<&str> {
+                fields
+                    .get(key)
+                    .copied()
+                    .ok_or_else(|| format!("capture omitted {key}").into())
+            };
+            let trustworthy = value("scenario")? == "direct-loopback";
+            for run in 0..value("repeat_count")?.parse::<usize>()? {
+                for index in 0..value(&format!("run_{run}_request_count"))?.parse::<usize>()? {
+                    let prefix = format!("run_{run}_request_{index}");
+                    if attribute(value(&prefix)?, "kind")? != "websocket" {
+                        continue;
+                    }
+                    let mut observed = Vec::new();
+                    for field in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
+                        let line = decode_hex(value(&format!("{prefix}_header_{field}"))?)?;
+                        let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+                        observed.push((name.to_owned(), value.to_owned()));
+                    }
+                    assert_template(&recipe.http1_fields, &observed, &offer, trustworthy, &[])?;
+                    openings[usize::from(trustworthy)] += 1;
                 }
-                let mut observed = Vec::new();
-                for field in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
-                    let line = decode_hex(value(&format!("{prefix}_header_{field}"))?)?;
-                    let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
-                    observed.push((name.to_owned(), value.to_owned()));
-                }
-                assert_template(&recipe.http1_fields, &observed, &offer, trustworthy, &[])?;
-                openings[usize::from(trustworthy)] += 1;
             }
         }
+        assert_eq!(openings, [3, 3]);
     }
-    assert_eq!(openings, [3, 3]);
     Ok(())
 }
 

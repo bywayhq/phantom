@@ -1,6 +1,8 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
-use phantom_profile::{TlsSettings, brave, chrome_android, chromium::v154_tls, edge, opera};
+use phantom_profile::{
+    TlsSettings, brave, brave_android, chrome_android, chromium::v154_tls, edge, opera,
+};
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
 use super::{capture_client_hello_from, capture_client_hellos_from, client_hello_fixture};
@@ -33,6 +35,10 @@ const CHROME_ANDROID_153_FIXTURE: &str = include_str!(concat!(
 const CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome-android/153.0.8010.52/",
     "android-35-emulator/trust-anchor-orders.txt"
+));
+const BRAVE_ANDROID_153_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/brave-android/153.1.95.104/",
+    "android-35-emulator/client-hello.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
@@ -135,6 +141,12 @@ fn decode_ids(encoded: &str) -> Result<Vec<Vec<u8>>, std::num::ParseIntError> {
         .collect()
 }
 
+/// Brave for Android sends the desktop Brave ClientHello: no trust-anchor IDs.
+#[tokio::test]
+async fn brave_android_153_tls_recipe_matches_android_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(BRAVE_ANDROID_153_FIXTURE, &brave_android::v153_tls(), None).await
+}
+
 /// Edge 153 sends the Chromium ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
@@ -166,6 +178,7 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         brave::v154_tls(),
         opera::v135_tls(),
         chrome_android::v153_tls(),
+        brave_android::v153_tls(),
     ] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {

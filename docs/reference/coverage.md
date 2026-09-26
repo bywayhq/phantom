@@ -21,6 +21,7 @@ presented as a complete client match.
 | Brave 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured | Captured | Captured | Not covered | Not covered | Not sent by Firefox | Captured | Captured |
+| Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Chrome 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 
 - **Captured**: a [recipe](glossary.md#recipe) or
@@ -34,8 +35,8 @@ Read the matrix with these conditions:
 
 - Every desktop capture comes from one Windows 11 build (10.0.26200). No macOS
   or Linux capture of these builds exists, so platform independence is not
-  claimed. The Chrome for Android captures come from an Android 15 emulator
-  on that host, not from a phone.
+  claimed. The Chrome and Brave for Android captures come from an Android 15
+  emulator on that host, not from a phone, with Wi-Fi as its default network.
 - H1's captured part is the request field order that request templates
   carry. The Chrome and Firefox recipes set a connection bound
   (`Http1Settings`) of 6 per origin and route, from browser source; without
@@ -43,14 +44,14 @@ Read the matrix with these conditions:
 - Edge's, Brave's, and Opera's H2, QUIC, H3, and WebSocket layers use the
   Chromium recipes, which equal their captures on every compared field.
   Opera 135 is built on Chromium 151 and is compared with the Chrome 154
-  recipes, the only Chromium version Phantom carries. So do Chrome for
-  Android's.
-- The emulator's network hides the device's TCP connections, so Chrome for
-  Android has no TCP, HTTP/1.1 connection, or address-cache recipe.
+  recipes, the only Chromium version Phantom carries. So do Chrome's and
+  Brave's for Android.
+- The emulator's network hides the device's TCP connections, so the Android
+  browsers have no TCP, HTTP/1.1 connection, or address-cache recipe.
 - Firefox's H2 recipe rests on H2 session captures, not on raw startup bytes.
 - Navigation templates cover H1, H2, and H3 for Chrome, Edge, Brave, Opera,
-  and Chrome for Android, and H1 and H2 for Firefox. Fetch templates cover H1
-  and H2 for all six.
+  and Chrome and Brave for Android, and H1 and H2 for Firefox. Fetch
+  templates cover H1 and H2 for all seven.
 - Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
   156 over plaintext H1 only.
 
@@ -136,8 +137,8 @@ Supported:
 
 - Typed, ordered profiles.
 - Recipes backed by retained captures: Chrome 154, Edge 153, Brave 154,
-  Opera 135, and Firefox 156 from Windows captures, and Chrome 153 for
-  Android from Android emulator captures. Phantom carries one version per browser, the
+  Opera 135, and Firefox 156 from Windows captures, and Chrome 153 and Brave
+  153 for Android from Android emulator captures. Phantom carries one version per browser, the
   current stable build on the capture host. See
   [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
@@ -842,6 +843,11 @@ How the recipes differ:
   its TCP ClientHello has no GREASE signature algorithm. `opera::` carries
   `v135_tls`, `v135_http3_tls`, `v135_windows_client_hints`, and its request
   templates, which equal the Chromium templates apart from `User-Agent`.
+- `brave_android::v153_*` returns the Chromium H2, QUIC, H3, H3 request,
+  and WebSocket recipes and desktop Brave's H3 TLS recipe, which the Android
+  captures equal, and carries desktop Brave's TCP ClientHello without ECH from
+  HTTPS records, `v153_android_client_hints`, and templates with desktop
+  Brave's request-field changes and the Android `User-Agent`.
 - `chrome_android::v153_*` returns the Chromium H2, QUIC, H3, H3 request,
   and WebSocket recipes, which the Android captures equal, and carries its
   own TLS recipes (the trust-anchor orders differ and ECH from HTTPS records
@@ -857,8 +863,8 @@ Request templates:
 - The navigation templates match every retained page request:
   - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
     WebSocket captures), and H3 (the H3 startup capture);
-  - Edge 153, Brave 154, Opera 135, and Chrome 153 for Android over H1, H2,
-    and H3; and
+  - Edge 153, Brave 154, Opera 135, and Chrome 153 and Brave 153 for
+    Android over H1, H2, and H3; and
   - Firefox 156 over H1 and H2.
 
   The fetch templates match every retained no-store report `fetch` in the
@@ -904,8 +910,8 @@ Randomized fields:
   and differed between processes, a hash-iteration order rather than a
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
-- The Chrome 154, Edge 153, Brave 154, Opera 135, and Chrome 153 for Android
-  recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
+- The Chrome 154, Edge 153, Brave 154, Opera 135, and Chrome 153 and Brave
+  153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those
   browsers does. Tests compare it exactly.
 - Chrome 153 for Android does not sort its trust-anchor IDs. Every captured

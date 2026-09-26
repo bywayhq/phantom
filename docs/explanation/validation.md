@@ -26,6 +26,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
 | [Chrome for Android 153 recipes](#chrome-for-android-153-recipes) | Android 15 emulator captures of TLS, H2, QUIC, H3, client hints, templates, and WebSocket openings, replayed by recipe tests | An emulator, not a phone; no TCP layer; Play served 153 while 155 was stable |
+| [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
@@ -720,7 +721,28 @@ These captures show what this build did on two boots of one emulator. They
 do not show why the TCP order stays fixed, why the typed runs' QUIC orders
 differ, or whether a phone or another device keeps the TCP order.
 
-#### Capture commands and launches
+#### Network type and `initial_rtt_us`
+
+The emulator offers a Wi-Fi network and a cellular (HSPA) one, and Android
+picks the default. With Wi-Fi as the default, no fresh QUIC connection of
+Chrome or Brave for Android sent `initial_rtt_us` (`0x3127`), as on
+Windows: the retained startups, and 6 fresh connections taken with mobile
+data switched off (`svc data disable`) to check this. With the cellular
+network as the default, which the emulator chose after a restart, every
+fresh connection sent it, set to 400000 microseconds: 13 of 13 Chrome and
+12 of 12 Brave startups. Two Chrome startups before the restart sent it
+too, with no record of the default network at the time.
+
+The recipes model Wi-Fi: `chromium::v154_quic` sends `initial_rtt_us` only
+on a resumed connection. `network/client-startup-cellular.txt` under
+`http3` retains one cellular Chrome startup, and
+`chrome_android_153_cellular_startup_adds_only_initial_rtt` checks that it
+differs from the recipe only by that parameter. The QUIC trust-anchor
+orders above include cellular runs; the order does not depend on the
+network. Every capture retained after the finding, and every Brave for
+Android capture, ran with mobile data off.
+
+#### Chrome for Android capture commands
 
 How to reproduce: start the emulator and pass the Android browser names as
 the [capture README](../../scripts/capture/README.md#android-browsers)
@@ -772,6 +794,56 @@ Limits:
   checks.
 - One build, served by a staged rollout, which trails the stable version
   Google lists.
+
+### Brave for Android 153 recipes
+
+What is claimed: the `brave_android::v153_*` recipes reproduce Brave 1.95.104
+for Android, built on Chromium 153, as captured on the Android 15 emulator of
+the [Chrome for Android section](#chrome-for-android-153-recipes). Fixtures
+name the build `153.1.95.104`, the desktop form, because Android reports
+only `1.95.104`.
+
+Evidence: Brave 1.95.104 is the build the Play Store served to the emulator
+on 2026-09-25. Brave for Android reads Chrome's command-line file, so the
+Chrome launches, switches, and tools apply unchanged; a cleared Brave profile
+shows no first-run screen.
+
+| Layer | Samples | Result |
+| --- | --- | --- |
+| TLS ClientHello | 20 intent processes | Equal to the desktop Brave 154 ClientHello (`brave::v154_tls`): no trust-anchor IDs, and every other compared field, ECH GREASE included |
+| HTTP/2 startup | 3 intent processes | Byte-identical to the Chrome 154 and Brave 154 startups |
+| QUIC ClientHello, QUIC and H3 startup | 13 intent and 4 typed processes | Equal to `brave::v154_http3_tls`, `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`; see [Network type and `initial_rtt_us`](#network-type-and-initial_rtt_us) |
+| QUIC resumption | 3 typed runs each of `accept` and `reject` | `reject` equals desktop Brave's summary. In `accept`, every later connection resumed and offered early data; a few concurrent requests went in 1-RTT, where desktop Brave sent them in 0-RTT |
+| Client hints | 3 typed runs | The desktop Brave names, order, and delivery (no `sec-ch-ua-full-version` or `sec-ch-ua-form-factors`); Android values, an empty model, and versions reduced to `.0.0.0` |
+| Request fields | 9 WebSocket scenarios and 2 direct proxy-route scenarios, 3 typed runs each | The desktop Brave differences from Chrome: `Accept` without signed exchanges, `Sec-GPC: 1` after `Accept`, and an `Accept-Language` `q` value drawn per session (all five values from `0.5` to `0.9` appear, one per run) |
+| WebSocket openings | 9 scenarios, 3 runs each | Equal to `chromium::v154_websocket` with the same connection choices and counts as Chrome |
+
+`brave_android::v153_tls` is `brave::v154_tls` with
+`ech_from_https_records` off, for the reason given for Chrome for Android;
+`v153_http3_tls` is `brave::v154_http3_tls`. The H2, QUIC, H3, and WebSocket
+functions return the Chromium recipes. The templates apply desktop Brave's
+changes to the Chromium templates with Chrome's reduced Android
+`User-Agent`, which Brave sent on every request; `Accept-Language` stays a
+caller slot.
+
+How to reproduce: the commands of the
+[Chrome for Android capture commands](#chrome-for-android-capture-commands)
+with `--browser brave-android`.
+
+Retained fixtures, each under
+`fixtures/<area>/brave-android/153.1.95.104/android-35-emulator/`:
+
+| Area | Files |
+| --- | --- |
+| `tls` | `client-hello.txt` |
+| `http2` | `client-startup.txt` |
+| `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-reject.txt` |
+| `client-hints` | `navigation.txt` |
+| `websocket` | Nine scenarios |
+| `proxy` | `direct-loopback.txt`, `direct-hostname.txt` |
+
+Limits: those of Chrome for Android on the same emulator, and one Brave
+build, which Play served while its desktop build was 154.
 
 ### TCP socket option evidence
 

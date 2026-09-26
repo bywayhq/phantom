@@ -34,7 +34,7 @@ use phantom::{
     ResponseInfo, Route, Socks5Proxy,
     profile::{
         ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate, brave,
-        chrome_android, chromium, edge, firefox, opera,
+        brave_android, chrome_android, chromium, edge, firefox, opera,
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -70,6 +70,12 @@ const BRAVE_H3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client
 const OPERA_H1: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/h1-accept.txt");
 const OPERA_H2: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt");
 const OPERA_H3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
+const BRAVE_ANDROID_H1: &str =
+    fixture!("websocket/brave-android/153.1.95.104/android-35-emulator/h1-accept.txt");
+const BRAVE_ANDROID_H2: &str =
+    fixture!("websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt");
+const BRAVE_ANDROID_H3: &str =
+    fixture!("http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt");
 const CHROME_ANDROID_H1: &str =
     fixture!("websocket/chrome-android/153.0.8010.52/android-35-emulator/h1-accept.txt");
 const CHROME_ANDROID_H2: &str =
@@ -125,6 +131,16 @@ fn opera() -> Browser {
         http1_capture: OPERA_H1,
         http2_capture: OPERA_H2,
         http3_capture: Some(OPERA_H3),
+    }
+}
+
+fn brave_android() -> Browser {
+    Browser {
+        http2: brave_android::v153_http2(),
+        hints: Some(brave_android::v153_android_client_hints()),
+        http1_capture: BRAVE_ANDROID_H1,
+        http2_capture: BRAVE_ANDROID_H2,
+        http3_capture: Some(BRAVE_ANDROID_H3),
     }
 }
 
@@ -469,6 +485,28 @@ async fn opera_navigation_sends_the_captured_page_request() -> TestResult<()> {
         opera::v135_windows_navigation_template,
         Kind::Navigation,
         ALL,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn brave_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
+    assert_reproduces(
+        brave_android(),
+        brave_android::v153_android_navigation_template,
+        Kind::Navigation,
+        ALL,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn brave_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
+    assert_reproduces(
+        brave_android(),
+        brave_android::v153_android_fetch_no_store_template,
+        Kind::Fetch,
+        TCP,
     )
     .await
 }

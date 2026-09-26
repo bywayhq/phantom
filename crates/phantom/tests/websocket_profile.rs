@@ -62,6 +62,10 @@ const CHROME_ANDROID_ACCEPT: &str =
     fixture!("chrome-android/153.0.8010.52/android-35-emulator/accept.txt");
 const CHROME_ANDROID_FRESH: &str =
     fixture!("chrome-android/153.0.8010.52/android-35-emulator/fresh-origin.txt");
+const BRAVE_ANDROID_ACCEPT: &str =
+    fixture!("brave-android/153.1.95.104/android-35-emulator/accept.txt");
+const BRAVE_ANDROID_FRESH: &str =
+    fixture!("brave-android/153.1.95.104/android-35-emulator/fresh-origin.txt");
 const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0/windows-11-26200/accept.txt");
 const FIREFOX_FRESH: &str = fixture!("firefox/156.0/windows-11-26200/fresh-origin.txt");
 const FIREFOX_NO_CONNECT: &str = fixture!("firefox/156.0/windows-11-26200/no-connect-protocol.txt");
@@ -93,6 +97,7 @@ async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shap
         (CHROME_ACCEPT, "Google Chrome"),
         (EDGE_ACCEPT, "Microsoft Edge"),
         (CHROME_ANDROID_ACCEPT, "Google Chrome"),
+        (BRAVE_ANDROID_ACCEPT, "Brave"),
     ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("client")?, client_name);
@@ -145,6 +150,7 @@ async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> Test
         (CHROME_ACCEPT, &chromium_method),
         (EDGE_ACCEPT, &chromium_method),
         (CHROME_ANDROID_ACCEPT, &chromium_method),
+        (BRAVE_ANDROID_ACCEPT, &chromium_method),
         (FIREFOX_ACCEPT, &firefox_method),
     ] {
         let capture = Capture::parse(fixture)?;
@@ -175,7 +181,12 @@ async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> Test
 
 #[tokio::test]
 async fn chromium_without_a_session_upgrades_on_a_new_http1_only_connection() -> TestResult<()> {
-    for fixture in [CHROME_FRESH, EDGE_FRESH, CHROME_ANDROID_FRESH] {
+    for fixture in [
+        CHROME_FRESH,
+        EDGE_FRESH,
+        CHROME_ANDROID_FRESH,
+        BRAVE_ANDROID_FRESH,
+    ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("scenario")?, "fresh-origin");
         bounded(async {

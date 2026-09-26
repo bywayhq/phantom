@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{brave, chrome_android, chromium, edge, opera};
+use phantom_profile::{brave, brave_android, chrome_android, chromium, edge, opera};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -150,6 +150,28 @@ fn chrome_android_153_quic_client_hello_recipe_matches_android_capture() -> Test
         assert_connector_matches_quic_client_hello(
             &connector,
             CHROME_ANDROID_153_H3_STARTUP,
+            client_hello,
+        )?;
+    }
+    Ok(())
+}
+
+/// Brave for Android offers the desktop Brave QUIC ClientHello.
+#[test]
+fn brave_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &brave_android::v153_http3_tls(),
+        &brave_android::v153_quic(),
+        &brave_android::v153_http3(),
+        &brave_android::v153_http3_request(),
+    )?;
+    for client_hello in [
+        BRAVE_ANDROID_153_H3_CLIENT_HELLO_1,
+        BRAVE_ANDROID_153_H3_CLIENT_HELLO_2,
+    ] {
+        assert_connector_matches_quic_client_hello(
+            &connector,
+            BRAVE_ANDROID_153_H3_STARTUP,
             client_hello,
         )?;
     }
@@ -668,5 +690,17 @@ const CHROME_ANDROID_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
 ));
 const CHROME_ANDROID_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
+    "android-35-emulator/quic-client-hello-2.txt"
+));
+const BRAVE_ANDROID_153_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave-android/153.1.95.104/",
+    "android-35-emulator/client-startup.txt"
+));
+const BRAVE_ANDROID_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave-android/153.1.95.104/",
+    "android-35-emulator/quic-client-hello-1.txt"
+));
+const BRAVE_ANDROID_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/brave-android/153.1.95.104/",
     "android-35-emulator/quic-client-hello-2.txt"
 ));

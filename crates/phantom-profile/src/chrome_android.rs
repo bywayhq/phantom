@@ -98,7 +98,7 @@ const V153_ANDROID_QUIC_TRUST_ANCHOR_IDS: &[&[u8]] = &[
 ///
 /// Chrome's reduced Android string: the platform is always `Android 10; K`
 /// and the version is `153.0.0.0`, whatever the device and build.
-const V153_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
+pub(crate) const V153_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 
 /// Returns client-hint fields observed from Chrome 153 for Android.

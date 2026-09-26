@@ -1,6 +1,7 @@
 //! Client-neutral profile wire settings.
 
 pub mod brave;
+pub mod brave_android;
 pub mod chrome_android;
 pub mod chromium;
 pub mod client_hints;
