@@ -255,9 +255,15 @@ Supported:
   each connection takes the profile's first stream (1 for Chromium, 3 for
   Firefox), and until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS` the
   connection opens at most the profile's assumed number of streams (100 in
-  both recipes). A profile that states neither starts at stream 1 with no
-  limit before the peer's SETTINGS
+  both recipes). A stated limit above the profile's cap is lowered to it (256
+  for Chromium, no cap for Firefox). A profile that states none of these
+  starts at stream 1 with no limit before the peer's SETTINGS and no cap
   ([HTTP/2 stream numbering evidence](../explanation/validation.md#http2-stream-numbering-evidence)).
+- A preface PING on a read-idle connection: when the profile sets an idle
+  time (10 seconds for Chromium, none for Firefox), a connection that has
+  read nothing for longer sends a PING right after the next request HEADERS
+  or non-empty DATA frame, with a payload that counts up from 1
+  ([HTTP/2 preface PING evidence](../explanation/validation.md#http2-preface-ping-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.

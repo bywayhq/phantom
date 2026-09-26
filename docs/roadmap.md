@@ -146,11 +146,6 @@ anything does.
 
 #### Wire fidelity
 
-- Chromium's ceiling on a stated HTTP/2 stream limit. Evidence: source
-  only; `SpdySession` lowers a peer's `SETTINGS_MAX_CONCURRENT_STREAMS`
-  above 256 to 256, and every capture server states 100
-  ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
-  Blocker: a vendored `http2` seam that caps the peer's stated limit.
 - Early data over TCP for the Firefox recipe. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where Firefox 156 offers `early_data` on every resumption whose ticket
@@ -164,9 +159,15 @@ anything does.
   sends a never-indexed literal. Blocker: a profile setting and a
   `RequestHeader` marker that hides a value from `Debug` without choosing
   the never-indexed form.
-- Chromium's preface `PING` on a pooled connection idle past its
-  at-risk-of-loss time. Evidence: not yet gathered; comparable clients
-  reproduce it. Blocker: none recorded.
+- Chromium's ending of a session whose preface `PING` goes unanswered for
+  10 seconds. Evidence: source only
+  ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence));
+  Phantom sends the `PING` but keeps the connection. Blocker: none recorded.
+- Firefox's read-timeout `PING`. Evidence: source only; `Http2Session`
+  sends a `PING` after `network.http.http2.ping-threshold`, 58 seconds,
+  without a read (`Http2Session.cpp:436-503` at `FIREFOX_156_0_RELEASE`).
+  Blocker: a capture showing whether an idle pooled Firefox connection
+  receives the timer tick.
 - Trust-anchor identifier order: per process, as the retained 60-process
   capture shows, or per connection. Blocker: a capture of many connections
   from one process.
