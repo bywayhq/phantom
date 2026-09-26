@@ -932,10 +932,11 @@ async fn bind_shared_origin_port(
         let bind = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
         let endpoint = match h3_endpoint(identity, bind) {
             Ok(endpoint) => endpoint,
-            Err(error) => {
+            Err(error) if shared_port::is_unavailable_boxed(error.as_ref()) => {
                 last_error = Some(error.to_string());
                 continue;
             }
+            Err(error) => return Err(error),
         };
         let mut endpoints = vec![endpoint];
         match h3_endpoint(identity, SocketAddr::new(Ipv6Addr::LOCALHOST.into(), port)) {
@@ -944,10 +945,11 @@ async fn bind_shared_origin_port(
                 if error
                     .downcast_ref::<std::io::Error>()
                     .is_some_and(|error| error.kind() == std::io::ErrorKind::AddrNotAvailable) => {}
-            Err(error) => {
+            Err(error) if shared_port::is_unavailable_boxed(error.as_ref()) => {
                 last_error = Some(error.to_string());
                 continue;
             }
+            Err(error) => return Err(error),
         }
         match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
             Ok(listener) => return Ok((listener, endpoints)),

@@ -17,11 +17,12 @@ use std::{
 
 /// The first candidate port.
 const FIRST: u32 = 20_000;
-/// How many ports the candidates span. The span ends below 49152, where the
-/// dynamic range starts on Windows and Linux: under a full workspace test
-/// run, TCP clients leave many `TIME_WAIT` sockets on dynamic ports, and
-/// binding a listener there fails with `AddrInUse`.
-const SPAN: u32 = 29_000;
+/// How many ports the candidates span. The span ends at 32767, below the
+/// ephemeral range of Linux (32768 and up) and the dynamic range of Windows
+/// (49152 and up): under a full workspace test run, TCP clients leave many
+/// `TIME_WAIT` sockets on ephemeral ports, and binding a listener there fails
+/// with `AddrInUse`.
+const SPAN: u32 = 12_768;
 /// The distance between consecutive candidates. It is prime and does not
 /// divide `SPAN`, so the candidates visit every port of the span before one
 /// repeats.
@@ -43,7 +44,7 @@ pub(crate) fn candidates() -> impl Iterator<Item = u16> {
     (0..ATTEMPTS).filter_map(move |_| {
         let step = NEXT.fetch_add(1, Ordering::Relaxed) % SPAN;
         let offset = (seed % SPAN + step * STRIDE % SPAN) % SPAN;
-        // Always a port number: the span ends below 49152.
+        // Always a port number: the span ends at 32767.
         u16::try_from(FIRST + offset).ok()
     })
 }
@@ -55,4 +56,12 @@ pub(crate) fn is_unavailable(error: &io::Error) -> bool {
         error.kind(),
         io::ErrorKind::AddrInUse | io::ErrorKind::PermissionDenied
     )
+}
+
+/// Like [`is_unavailable`], for a bind whose error is boxed, such as a QUIC
+/// endpoint's.
+pub(crate) fn is_unavailable_boxed(error: &(dyn std::error::Error + 'static)) -> bool {
+    error
+        .downcast_ref::<io::Error>()
+        .is_some_and(is_unavailable)
 }

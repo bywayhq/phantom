@@ -105,10 +105,11 @@ impl QuicOrigin {
         for port in shared_port::candidates() {
             let endpoint = match Self::endpoint(&context, port) {
                 Ok(endpoint) => endpoint,
-                Err(error) => {
+                Err(error) if shared_port::is_unavailable_boxed(error.as_ref()) => {
                     last_error = Some(error.to_string());
                     continue;
                 }
+                Err(error) => return Err(error),
             };
             match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
                 Ok(listener) => {
