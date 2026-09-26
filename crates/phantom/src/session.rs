@@ -446,7 +446,10 @@ macro_rules! client_option_setters {
         /// requests and of `wss://` WebSocket openings. Each such connection
         /// starts the origin's lookup when none is cached, and its TLS handshake
         /// waits for it at most 20% of the address resolution time, clamped to
-        /// 5-50 ms, then offers the record's `ech`.
+        /// 5-50 ms, then offers the record's `ech`. An HTTP/3 profile that sets
+        /// the field does the same on a direct QUIC connection to the origin's
+        /// own host and port, which starts once the lookup ends within that
+        /// bound; a rejected QUIC connection is not repeated.
         ///
         /// Results are cached per origin for the records' TTL, capped at one day,
         /// or 60 seconds when there is no TTL, as after a failed lookup. The
@@ -742,6 +745,14 @@ impl ClientOptions {
         .with_max_connections(self.max_http2_connections_per_origin);
         #[cfg(feature = "https-records")]
         http2.set_https_records(https_records.clone());
+        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let mut http3 = http3_pool::Http3Pool::new(
+            self.max_retained_http3_connections,
+            self.max_concurrent_http3_requests_per_origin,
+            self.max_pending_http3_requests_per_origin,
+        );
+        #[cfg(feature = "https-records")]
+        http3.set_https_records(https_records.clone());
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
@@ -749,11 +760,7 @@ impl ClientOptions {
             http1,
             http1_or_2,
             http2,
-            http3: http3_pool::Http3Pool::new(
-                self.max_retained_http3_connections,
-                self.max_concurrent_http3_requests_per_origin,
-                self.max_pending_http3_requests_per_origin,
-            ),
+            http3,
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             alt_svc_policy: self.alt_svc_policy,
             #[cfg(feature = "https-records")]

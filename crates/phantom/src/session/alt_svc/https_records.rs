@@ -124,6 +124,20 @@ impl RecordSummary {
             })
             .and_then(|endpoint| endpoint.ech.clone())
     }
+
+    /// Returns the `ech` value a QUIC connection to the origin uses.
+    ///
+    /// `QuicSessionPool::DirectJob::DoAttemptSession`
+    /// (`net/quic/quic_session_pool_direct_job.cc` lines 191-231) takes the
+    /// first endpoint that `SelectQuicVersion` accepts, which for an HTTPS
+    /// record is one listing `h3` (`net/quic/quic_session_pool.cc` lines
+    /// 1656-1691), and the session offers that endpoint's `ech`.
+    fn quic_ech(&self) -> Option<EchConfigList> {
+        self.endpoints
+            .iter()
+            .find(|endpoint| endpoint.protocols.iter().any(|id| **id == *H3_ALPN))
+            .and_then(|endpoint| endpoint.ech.clone())
+    }
 }
 
 /// What the cache knows about an origin's HTTPS records.
@@ -209,6 +223,24 @@ impl HttpsRecordDiscovery {
                 State::Unavailable => return None,
             };
             summary.tcp_ech(&alpn)
+        }
+    }
+
+    /// Returns the `ech` value a direct QUIC connection to `origin` uses,
+    /// once the origin's lookup has finished, as [`Self::tcp_ech`] does for
+    /// TCP.
+    pub(crate) fn quic_ech(
+        &self,
+        origin: &Endpoint,
+    ) -> impl Future<Output = Option<EchConfigList>> + Send + 'static {
+        let state = self.state(origin);
+        async move {
+            let summary = match state {
+                State::Ready(summary) => summary,
+                State::Pending(pending) => pending.summary().await?,
+                State::Unavailable => return None,
+            };
+            summary.quic_ech()
         }
     }
 

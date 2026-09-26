@@ -46,7 +46,18 @@ pub(crate) struct Observed {
 
 /// A ServiceMode record at the owner name with `alpn=h2` and `ech`.
 pub(crate) fn https_rdata(ech_config_list: &[u8]) -> Vec<u8> {
-    let mut rdata = vec![0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x03, 0x02, b'h', b'2'];
+    https_rdata_with_alpn(&[b"h2"], ech_config_list)
+}
+
+/// A ServiceMode record at the owner name with `alpn` and `ech`.
+pub(crate) fn https_rdata_with_alpn(alpn: &[&[u8]], ech_config_list: &[u8]) -> Vec<u8> {
+    let alpn = alpn
+        .iter()
+        .flat_map(|id| std::iter::once(id.len() as u8).chain(id.iter().copied()))
+        .collect::<Vec<_>>();
+    let mut rdata = vec![0x00, 0x01, 0x00, 0x00, 0x01];
+    rdata.extend_from_slice(&(alpn.len() as u16).to_be_bytes());
+    rdata.extend_from_slice(&alpn);
     rdata.extend_from_slice(&5_u16.to_be_bytes());
     rdata.extend_from_slice(&(ech_config_list.len() as u16).to_be_bytes());
     rdata.extend_from_slice(ech_config_list);

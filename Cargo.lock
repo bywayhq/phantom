@@ -1391,6 +1391,7 @@ dependencies = [
  "phantom-http2",
  "phantom-net",
  "phantom-profile",
+ "phantom-quic-btls",
  "phantom-quinn",
  "phantom-testkit",
  "phantom-tokio-btls",

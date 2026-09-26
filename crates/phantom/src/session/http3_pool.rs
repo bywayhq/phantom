@@ -63,6 +63,8 @@ pub(crate) struct Http3Pool {
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     state: Mutex<PoolState>,
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl Http3Pool {
@@ -76,7 +78,19 @@ impl Http3Pool {
             max_active,
             max_pending,
             state: Mutex::new(PoolState::default()),
+            #[cfg(feature = "https-records")]
+            https_records: None,
         }
+    }
+
+    /// Gives direct connections to an origin's own location the client's
+    /// HTTPS-record lookups, for profiles that offer ECH from HTTPS records.
+    #[cfg(feature = "https-records")]
+    pub(super) fn set_https_records(
+        &mut self,
+        discovery: Option<super::alt_svc::HttpsRecordDiscovery>,
+    ) {
+        self.https_records = discovery;
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
@@ -342,7 +356,11 @@ impl Http3Pool {
             debug!(outcome = "evicted", "HTTP/3 pool entry evicted");
         }
         let admission = state.admission(&key, self.max_active, self.max_pending);
-        let entry = Arc::new(PoolEntry::new(admission));
+        let entry = Arc::new(PoolEntry::new(
+            admission,
+            #[cfg(feature = "https-records")]
+            self.https_records.clone(),
+        ));
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -423,10 +441,18 @@ struct PoolEntry {
     http3_proxy: OnceLock<Http3Connector>,
     /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
     tcp_proxy: OnceLock<HttpsProxyConnector>,
+    /// The client's HTTPS-record lookups, when it makes them.
+    #[cfg(feature = "https-records")]
+    https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
 
 impl PoolEntry {
-    fn new(admission: Arc<Admission>) -> Self {
+    fn new(
+        admission: Arc<Admission>,
+        #[cfg(feature = "https-records")] https_records: Option<
+            super::alt_svc::HttpsRecordDiscovery,
+        >,
+    ) -> Self {
         Self {
             slots: Mutex::new(VecDeque::new()),
             turns: std::sync::Mutex::new(Vec::new()),
@@ -435,6 +461,8 @@ impl PoolEntry {
             origin_early: OnceLock::new(),
             http3_proxy: OnceLock::new(),
             tcp_proxy: OnceLock::new(),
+            #[cfg(feature = "https-records")]
+            https_records,
         }
     }
 
@@ -611,6 +639,40 @@ impl PoolEntry {
         }
     }
 
+    /// Opens a direct connection to `transport`, offering the `ech` value of
+    /// the origin's HTTPS record when the profile does and `transport` is
+    /// the origin's own host and port.
+    ///
+    /// Chromium's QUIC session attempt takes the `ech` of the first HTTPS
+    /// record that lists `h3` for the host and port it connects to
+    /// (`QuicSessionPool::DirectJob::DoAttemptSession`,
+    /// `net/quic/quic_session_pool_direct_job.cc` lines 191-231, and
+    /// `QuicChromiumClientSession::GetSSLConfig`,
+    /// `net/quic/quic_chromium_client_session.cc` lines 1760-1790, at
+    /// `154.0.8037.58`). Phantom looks up HTTPS records only for the origin,
+    /// so an Alt-Svc alternative elsewhere offers ECH GREASE.
+    async fn connect_direct(
+        &self,
+        connector: &Http3Connector,
+        endpoint: &Endpoint,
+        transport: Http3TransportTarget<'_>,
+    ) -> Result<Http3Connection, phantom_net::http3::Http3ConnectorError> {
+        #[cfg(feature = "https-records")]
+        if connector.ech_from_https_records()
+            && transport.port == endpoint.port()
+            && transport.host.eq_ignore_ascii_case(endpoint.host())
+            && let Some(discovery) = &self.https_records
+        {
+            let ech = discovery.quic_ech(endpoint);
+            return connector
+                .connect_direct_with_ech(transport.host, transport.port, endpoint.host(), ech)
+                .await;
+        }
+        connector
+            .connect_direct(transport.host, transport.port, endpoint.host())
+            .await
+    }
+
     /// Opens one connection with the given connectors, without retrying.
     async fn connect_with(
         &self,
@@ -622,8 +684,8 @@ impl PoolEntry {
         connect_udp_proxy: Option<&ConnectUdpConnectors>,
     ) -> Result<Http3Connection, SetupFailure> {
         Ok(match route {
-            Route::Direct => connector
-                .connect_direct(transport.host, transport.port, endpoint.host())
+            Route::Direct => self
+                .connect_direct(connector, endpoint, transport)
                 .await
                 .map_err(SetupFailure::Origin)?,
             Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => connector
@@ -728,6 +790,11 @@ impl SetupFailure {
             Self::Origin(error) | Self::ConnectUdp(error) => error,
             Self::Other(_) => return false,
         };
+        // A rejected Encrypted Client Hello is not a ticket problem, and
+        // Chrome 154 does not repeat a QUIC connection after it.
+        if error.ech_failure().is_some() {
+            return false;
+        }
         match error.kind() {
             Http3ConnectorErrorKind::Handshake => true,
             Http3ConnectorErrorKind::Proxy => std::error::Error::source(error)

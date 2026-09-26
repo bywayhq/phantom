@@ -52,6 +52,7 @@ h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-
 h3-quinn.workspace = true
 http-body-util = "0.1.3"
 http2 = { workspace = true, features = ["unstable"] }
+phantom-quic-btls = { version = "=0.1.0", path = "../phantom-quic-btls", features = ["server"] }
 phantom-testkit = { path = "../phantom-testkit" }
 quinn = { workspace = true, features = ["rustls-ring"] }
 rcgen = "=0.14.10"
