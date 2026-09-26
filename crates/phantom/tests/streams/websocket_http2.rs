@@ -449,13 +449,14 @@ fn decode_client_frame(wire: &[u8]) -> io::Result<Option<ClientFrame>> {
     }))
 }
 
-struct RecordingIo<T> {
+/// Records every byte read from the wrapped stream.
+pub(crate) struct RecordingIo<T> {
     inner: T,
     read: Arc<Mutex<Vec<u8>>>,
 }
 
 impl<T> RecordingIo<T> {
-    fn new(inner: T, read: Arc<Mutex<Vec<u8>>>) -> Self {
+    pub(crate) fn new(inner: T, read: Arc<Mutex<Vec<u8>>>) -> Self {
         Self { inner, read }
     }
 }

@@ -2067,9 +2067,11 @@ Loopback tests in `crates/phantom/tests/streams/websocket_handshake.rs`:
 | `handshake_timeout_fires_while_an_http_proxy_holds_the_connect` | An unanswered proxy CONNECT times out for H1 and H2 |
 | `handshake_timeout_fires_while_a_socks5_proxy_holds_the_greeting` | An unanswered SOCKS5 greeting times out |
 | `handshake_timeout_fires_while_an_extended_connect_is_unanswered` | An H2 extended CONNECT with no response times out |
-| `handshake_timeout_covers_a_stream_on_a_pooled_http2_session` | A profile-policy stream on a pooled H2 session times out |
+| `handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_frees_it` | A profile-policy stream on a pooled H2 session times out, is reset with `RST_STREAM(CANCEL)`, and releases its admission; a request and a WebSocket on the same session then succeed |
 | `recipe_handshake_timeout_applies_unless_the_caller_removes_it` | The recipe's timer applies by default, and `handshake_timeout(None)` removes it |
 | `no_handshake_timeout_applies_without_a_recipe` | A profile without a WebSocket recipe has no limit |
+| `an_unusable_handshake_timeout_fails_before_any_io` | A zero timeout and one beyond the clock fail with `InvalidRequest` without connecting |
+| `a_recipe_timeout_beyond_the_clock_fails_the_build` | A recipe timeout beyond the clock fails `build` with `InvalidProfile` |
 | `retry_opens_a_new_connection_after_a_failed_lookup` | A failed lookup is retried and the second opening succeeds |
 | `retry_covers_a_failed_proxy_lookup_and_an_http2_origin` | A failed proxy lookup is retried for an H2 opening through an HTTP proxy |
 | `an_exhausted_retry_budget_returns_the_last_setup_failure` | The budget bounds the attempts, and no policy means one attempt |

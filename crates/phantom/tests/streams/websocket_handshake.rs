@@ -13,17 +13,19 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
 use bytes::Bytes;
-use http::Response;
+use http::{Method, Response, Version};
+use http_body_util::BodyExt;
 use phantom::{
-    AddressResolver, Client, HttpProtocol, HttpProxy, Route, Socks5Proxy, TimeoutPhase,
-    WebSocketError, WebSocketErrorKind, WebSocketRequestBuilder, WebSocketRetryPolicy,
+    AddressResolver, BuildErrorKind, Client, HttpProtocol, HttpProxy, Route, Socks5Proxy,
+    TimeoutPhase, WebSocketError, WebSocketErrorKind, WebSocketRequestBuilder,
+    WebSocketRetryPolicy,
     profile::{ClientProfile, Http2PseudoHeader, WebSocketSettings, chromium},
 };
 use tokio::{
@@ -39,7 +41,12 @@ use tls_support::{
 };
 use websocket_support::{bounded, header_value, websocket_accept};
 
+use crate::websocket_http2::RecordingIo;
+use crate::websocket_profile::server::client_resets;
+
 const LIMIT: Duration = Duration::from_millis(200);
+/// HTTP/2 `CANCEL` error code (RFC 9113, section 7).
+const CANCEL: u32 = 0x8;
 
 /// Accepts one connection and holds it open without answering.
 fn hold_one_connection(listener: TcpListener) -> JoinHandle<TestResult<()>> {
@@ -300,43 +307,87 @@ async fn handshake_timeout_fires_while_an_extended_connect_is_unanswered() -> Te
 }
 
 #[tokio::test]
-async fn handshake_timeout_covers_a_stream_on_a_pooled_http2_session() -> TestResult<()> {
+async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_frees_it()
+-> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
+        let wire = Arc::new(Mutex::new(Vec::new()));
+        let server_wire = Arc::clone(&wire);
+        // One connection only: a second one would go unanswered and fail
+        // the test by its deadline.
         let server = tokio::spawn(async move {
-            let stream = accept_tls(listener, acceptor).await?;
+            let (tcp, _) = listener.accept().await?;
+            let stream = tls_support::accept_tls_stream(tcp, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
             builder.enable_connect_protocol();
-            let mut connection = builder.handshake::<_, Bytes>(stream).await?;
-            let (_, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("connection closed before the page request")??;
-            respond.send_response(Response::builder().status(200).body(())?, true)?;
-            let mut held = Vec::new();
-            while let Some(accepted) = connection.accept().await {
-                held.push(accepted?);
+            let mut connection = builder
+                .handshake::<_, Bytes>(RecordingIo::new(stream, server_wire))
+                .await?;
+            let mut connects = 0;
+            let mut unanswered = Vec::new();
+            let mut accepted = Vec::new();
+            while let Some(stream) = connection.accept().await {
+                let (request, mut respond) = stream?;
+                if request.method() != Method::CONNECT {
+                    respond.send_response(Response::builder().status(200).body(())?, true)?;
+                    continue;
+                }
+                connects += 1;
+                if connects == 1 {
+                    unanswered.push((request, respond));
+                } else {
+                    let send =
+                        respond.send_response(Response::builder().status(200).body(())?, false)?;
+                    accepted.push((request, send));
+                }
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
         let profile = http2_profile().with_websocket(chromium::v154_websocket());
+        // One stream per origin, so a permit the timed-out stream kept would
+        // hold every later request.
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
+            .max_concurrent_http2_requests_per_origin(NonZeroUsize::MIN)
             .build()?;
-        let page = client
-            .get_negotiated(&format!("https://{address}/page"))?
-            .send()
+        let page = format!("https://{address}/page");
+        let socket_uri = format!("wss://{address}/");
+
+        let response = client.get_negotiated(&page)?.send().await?;
+        assert_eq!(response.status(), 200);
+        response.into_body().collect().await?;
+        expect_handshake_timeout(client.websocket_with_profile_policy(&socket_uri)?, None).await?;
+
+        let response = timeout(Duration::from_secs(2), async {
+            client.get_negotiated(&page)?.send().await
+        })
+        .await
+        .map_err(|_| "the timed-out stream kept its admission permit")??;
+        assert_eq!(response.status(), 200);
+        response.into_body().collect().await?;
+        let socket = client
+            .websocket_with_profile_policy(&socket_uri)?
+            .connect()
             .await?;
-        assert_eq!(page.status(), 200);
-        drop(page);
-        expect_handshake_timeout(
-            client.websocket_with_profile_policy(&format!("wss://{address}/"))?,
-            None,
-        )
-        .await?;
+        assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
+
+        // Streams 1 and 5 carry the page, 3 the timed-out CONNECT, and 7 the
+        // WebSocket that opened.
+        let started = Instant::now();
+        loop {
+            let resets = client_resets(&wire.lock().map_err(|_| "wire lock poisoned")?);
+            if resets.contains(&(3, CANCEL)) {
+                break;
+            }
+            if started.elapsed() > Duration::from_secs(2) {
+                return Err(format!("no RST_STREAM(CANCEL) on stream 3: {resets:?}").into());
+            }
+            sleep(Duration::from_millis(10)).await;
+        }
+        drop(socket);
         server.abort();
         Ok(())
     })
@@ -678,4 +729,47 @@ async fn no_retry_follows_a_tls_failure_or_a_handshake_timeout() -> TestResult<(
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn an_unusable_handshake_timeout_fails_before_any_io() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let client = client_builder(&identity, false).build()?;
+        for limit in [Duration::ZERO, Duration::MAX] {
+            let error = expect_error(
+                client
+                    .websocket(&format!("ws://{address}/"))?
+                    .handshake_timeout(Some(limit))
+                    .connect()
+                    .await,
+            )?;
+            assert_eq!(
+                error.kind(),
+                WebSocketErrorKind::InvalidRequest,
+                "{limit:?}"
+            );
+        }
+        match timeout(Duration::from_millis(300), listener.accept()).await {
+            Err(_) => Ok(()),
+            Ok(_) => Err("an unusable handshake timeout still connected".into()),
+        }
+    })
+    .await
+}
+
+#[test]
+fn a_recipe_timeout_beyond_the_clock_fails_the_build() -> TestResult<()> {
+    let settings = WebSocketSettings {
+        handshake_timeout: Some(Duration::MAX),
+        ..chromium::v154_websocket()
+    };
+    let error = match Client::builder(http2_profile().with_websocket(settings)).build() {
+        Ok(_) => return Err("a recipe timeout beyond the clock built a client".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+    Ok(())
 }
