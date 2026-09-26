@@ -66,6 +66,9 @@ changed crate is rebuilt whole. Only Clippy builds in
 `target/gate/lint`: the `btls-sys` build script reruns whenever
 `RUSTC_WORKSPACE_WRAPPER` changes, and Clippy sets it while other Cargo
 commands do not, so sharing a directory rebuilds BoringSSL on each switch.
+Your own `target/` has the same problem: run Clippy with
+`CARGO_TARGET_DIR=target/clippy` so that `cargo test` afterwards does not
+spend two minutes rebuilding BoringSSL.
 The four Cargo chains match the default of four slots, so the gate does not
 queue behind itself.
 
