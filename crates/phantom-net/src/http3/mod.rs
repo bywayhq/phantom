@@ -593,8 +593,17 @@ async fn connect(
     let (suppressed_close, zero_rtt) = match starting.map(|starting| starting.finish()) {
         Some(Started {
             deferred_close,
-            answer,
+            answer: Some(answer),
         }) => (deferred_close, Some(answer)),
+        // The answer is taken once, here, so this does not happen; a start
+        // without it cannot tell a rejection from an acceptance.
+        Some(Started { answer: None, .. }) => {
+            connection.close(H3_INTERNAL_ERROR, b"early-data answer lost");
+            return Err(Http3Error::without_source(
+                Http3ErrorKind::Protocol,
+                "the early-data answer was lost while HTTP/3 started",
+            ));
+        }
         None => (None, None),
     };
     let mut rejected_at_start = None;

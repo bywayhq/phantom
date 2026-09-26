@@ -53,8 +53,8 @@ pub(super) struct Transport {
     starting: Option<Arc<Starting>>,
     /// How many of the session's critical streams have opened.
     critical_opened: u64,
-    /// Makes each stream the session opens for itself after its first wait
-    /// until this connection's handshake completes, for tests.
+    /// Makes every stream the session opens for itself after its first one
+    /// wait until the handshake completes, for tests.
     #[cfg(test)]
     wait_for_handshake: Option<HandshakeWait>,
 }
@@ -193,6 +193,16 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
             let expected = self.critical_opened;
             self.critical_opened += 1;
             if quic::SendStream::<B>::send_id(&stream).index() != expected {
+                // h3 closes with H3_CLOSED_CRITICAL_STREAM on a failed open,
+                // which RFC 9114 section 8.1 reserves for a critical stream
+                // the peer closed; this is a local fault, so the connection
+                // closes first with H3_INTERNAL_ERROR, and h3's later close
+                // has no effect.
+                quic::OpenStreams::<B>::close(
+                    &mut self.inner,
+                    h3::error::Code::H3_INTERNAL_ERROR,
+                    b"critical stream number taken",
+                );
                 return Poll::Ready(Err(StreamErrorIncoming::Unknown(Box::new(
                     UnexpectedStreamNumber,
                 ))));
@@ -258,7 +268,8 @@ pub(super) struct Starting {
 pub(super) struct Started {
     /// The close the session asked for after its handshake completed.
     pub(super) deferred_close: Option<(quinn::VarInt, Vec<u8>)>,
-    pub(super) answer: ZeroRttAnswer,
+    /// Quinn's answer, which only a start that ended twice lacks.
+    pub(super) answer: Option<ZeroRttAnswer>,
 }
 
 impl Starting {
@@ -277,15 +288,18 @@ impl Starting {
     /// Resolves to Quinn's answer once it is known, or to `None` at once
     /// while the handshake runs. Once the handshake data is in and the
     /// answer is not, it waits: Quinn answers when the same handshake
-    /// completes.
+    /// completes. Without an answer, which only an ended start lacks, it
+    /// resolves to `Some(false)` so no stream opens; `finish` then fails the
+    /// start.
     fn poll_answer(
         &self,
         connection: &quinn::Connection,
         cx: &mut Context<'_>,
     ) -> Poll<Option<bool>> {
-        let Ok(mut answer) = self.answer.lock() else {
-            return Poll::Ready(Some(false));
-        };
+        let mut answer = self
+            .answer
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(answer) = answer.as_mut() else {
             return Poll::Ready(Some(false));
         };
@@ -306,9 +320,10 @@ impl Starting {
         let Ok(code) = quinn::VarInt::from_u64(code.value()) else {
             return false;
         };
-        if let Ok(mut deferred) = self.deferred.lock() {
-            deferred.get_or_insert_with(|| (code, reason.to_vec()));
-        }
+        self.deferred
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_or_insert_with(|| (code, reason.to_vec()));
         true
     }
 
@@ -318,14 +333,13 @@ impl Starting {
         let deferred_close = self
             .deferred
             .lock()
-            .ok()
-            .and_then(|mut deferred| deferred.take());
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         let answer = self
             .answer
             .lock()
-            .ok()
-            .and_then(|mut answer| answer.take())
-            .unwrap_or(ZeroRttAnswer::Known(false));
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
         Started {
             deferred_close,
             answer,

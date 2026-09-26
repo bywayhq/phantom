@@ -351,6 +351,47 @@ async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
     Ok(())
 }
 
+/// A session whose control stream would open on a stream number another
+/// stream already took fails to start, and the connection closes with
+/// `H3_INTERNAL_ERROR`: the peer closed no critical stream, so
+/// `H3_CLOSED_CRITICAL_STREAM` would misreport the fault.
+#[tokio::test(flavor = "current_thread")]
+async fn a_taken_critical_stream_number_closes_with_internal_error() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = trusting_connector(&identity)?;
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, false)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (closed, closed_on_server) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        if let Some(incoming) = endpoint.accept().await
+            && let Ok(connection) = incoming.await
+        {
+            let _ = closed.send(connection.closed().await);
+        }
+    });
+    // The connection's own session already took client streams 2, 6 and
+    // 10, so a second session's control stream opens on 14.
+    let connection = connect(&connector, address).await?;
+    let mut second = Transport::new(connection.quinn().clone());
+    let opened =
+        poll_fn(|cx| h3::quic::OpenStreams::<Bytes>::poll_open_send(&mut second, cx)).await;
+    assert!(opened.is_err());
+    let reason = timeout(TEST_TIMEOUT, closed_on_server).await??;
+    match reason {
+        quinn::ConnectionError::ApplicationClosed(close) => {
+            assert_eq!(close.error_code, quinn::VarInt::from_u32(0x0102));
+        }
+        other => return Err(format!("unexpected close: {other}").into()),
+    }
+
+    drop(connection);
+    server.abort();
+    Ok(())
+}
+
 /// How a rejection scenario's connection met the rejection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Rejection {
