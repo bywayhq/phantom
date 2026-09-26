@@ -244,7 +244,18 @@ pub enum Http2Error {
         /// Maximum accepted interim responses before the final response.
         maximum: usize,
     },
-    /// The connection was polled outside a Tokio runtime.
+    /// A PING sent under the profile's
+    /// [`preface_ping_after`](phantom_profile::Http2Settings::preface_ping_after)
+    /// went unanswered, with nothing read from the peer, for its
+    /// [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout).
+    ///
+    /// The connection sent `GOAWAY` with `PROTOCOL_ERROR` and closed, so every
+    /// request on it fails with this error. Chromium reports the same event
+    /// as `ERR_HTTP2_PING_FAILED`.
+    PingTimeout,
+    /// The connection was polled outside a Tokio runtime, or the timer a
+    /// profile's [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout)
+    /// needs could not be started.
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.
     Protocol(Http2ProtocolError),
@@ -373,6 +384,8 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "HTTP/2 response sent more than {maximum} informational responses; stream reset"
             ),
+            Self::PingTimeout => formatter
+                .write_str("HTTP/2 PING went unanswered; the connection was closed with GOAWAY"),
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 connections require a Tokio runtime")
             }
@@ -398,6 +411,9 @@ impl Http2Error {
     pub(super) fn protocol(error: ::http2::Error) -> Self {
         if error.is_header_list_too_large() {
             return Self::ResponseHeaderListTooLarge;
+        }
+        if error.is_ping_timeout() {
+            return Self::PingTimeout;
         }
         if error.is_too_many_informational_responses() {
             return Self::TooManyInformationalResponses {
@@ -449,6 +465,7 @@ impl Http2Error {
             Self::MissingResponseHeaderOrder => "missing_response_header_order",
             Self::ResponseHeaderListTooLarge => "response_header_list_too_large",
             Self::TooManyInformationalResponses { .. } => "too_many_informational_responses",
+            Self::PingTimeout => "ping_timeout",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }

@@ -1673,11 +1673,12 @@ fn prepare_headers(
 }
 
 fn invalidates_http2_connection(error: &Http2Error) -> bool {
-    matches!(
-        error,
-        Http2Error::Protocol(error)
-            if error.kind() != Http2ProtocolErrorKind::StreamReset
-    )
+    match error {
+        Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
+        // The connection closed itself after an unanswered PING.
+        Http2Error::PingTimeout => true,
+        _ => false,
+    }
 }
 
 #[cfg(test)]

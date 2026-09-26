@@ -369,6 +369,7 @@ pub fn v156_http2() -> Http2Settings {
             max_concurrent_streams_cap: None,
         },
         preface_ping_after: None,
+        ping_timeout: None,
     }
 }
 

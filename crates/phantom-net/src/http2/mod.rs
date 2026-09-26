@@ -21,6 +21,8 @@ use phantom_profile::{
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
+use crate::shutdown_timer;
+
 mod alps;
 mod alt_svc;
 mod upload;
@@ -672,6 +674,23 @@ fn pseudo_order(
     Ok(order.build())
 }
 
+/// Sleeps on the runtime-neutral deadline service, so a PING timeout needs no
+/// Tokio time driver.
+fn ping_sleep(
+    duration: std::time::Duration,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+    let deadline = shutdown_timer::after(duration);
+    Box::pin(async move {
+        // The service was running when the connection was built and never
+        // stops, and the duration fits the clock, so scheduling does not
+        // fail. Should it, the deadline counts as reached, as the TCP
+        // fallback timer's does.
+        if let Ok(deadline) = deadline {
+            let _ = deadline.await;
+        }
+    })
+}
+
 fn translate_settings_with_pseudo_order(
     settings: &Http2Settings,
     configured_pseudo_order: &[Http2PseudoHeader],
@@ -707,6 +726,20 @@ fn translate_settings_with_pseudo_order(
     }
     if let Some(idle) = settings.preface_ping_after {
         client.preface_ping(idle);
+    }
+    if let Some(timeout) = settings.ping_timeout {
+        // Validation rejects these, but a caller may translate settings it
+        // has not validated; the timer would expire at once.
+        if settings.preface_ping_after.is_none()
+            || timeout.is_zero()
+            || std::time::Instant::now().checked_add(timeout).is_none()
+        {
+            return Err(Http2Error::UnsupportedSetting);
+        }
+        if !shutdown_timer::is_available() {
+            return Err(Http2Error::RuntimeUnavailable);
+        }
+        client.preface_ping_timeout(timeout, client::PingTimer::new(ping_sleep));
     }
     let mut order = SettingsOrder::builder();
 

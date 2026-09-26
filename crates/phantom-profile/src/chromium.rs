@@ -453,6 +453,15 @@ pub fn v154_http1() -> Http1Settings {
 /// shows the PING right after the HEADERS of a request sent after 11.5 idle
 /// seconds.
 ///
+/// A PING that goes unanswered while nothing is read for 10 seconds closes
+/// the connection. Sending it schedules `SpdySession::CheckPingStatus` after
+/// `kHungIntervalSeconds`, 10 (`:102`, `:2500-2510`); the check closes the
+/// session with `ERR_HTTP2_PING_FAILED` when the ACK is still missing and
+/// nothing has been read since the PING or for 10 seconds, and otherwise
+/// checks again 10 seconds after the last read (`:2512-2538`). Closing sends
+/// `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
+/// `Failed ping.` (`:2719-2738`) and fails every stream (`:2753`).
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -505,6 +514,7 @@ pub fn v154_http2() -> Http2Settings {
             max_concurrent_streams_cap: Some(256),
         },
         preface_ping_after: Some(Duration::from_secs(10)),
+        ping_timeout: Some(Duration::from_secs(10)),
     }
 }
 

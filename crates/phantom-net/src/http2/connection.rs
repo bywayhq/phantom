@@ -457,7 +457,7 @@ impl Http2Connection {
         let terminal_outcome = match &result {
             Ok(Http2ExtendedConnectOutcome::Accepted { .. }) => "accepted",
             Ok(Http2ExtendedConnectOutcome::Rejected(_)) => "rejected",
-            Err(Http2Error::Protocol(_)) => "protocol_error",
+            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);
@@ -530,7 +530,7 @@ impl Http2Connection {
         let terminal_outcome = match &result {
             Ok(Http2ClassicConnectOutcome::Accepted { .. }) => "accepted",
             Ok(Http2ClassicConnectOutcome::Rejected { .. }) => "rejected",
-            Err(Http2Error::Protocol(_)) => "protocol_error",
+            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);
@@ -845,7 +845,7 @@ impl Http2Connection {
         .await;
         let terminal_outcome = match &result {
             Ok(_) => "ok",
-            Err(Http2Error::Protocol(_)) => "protocol_error",
+            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);

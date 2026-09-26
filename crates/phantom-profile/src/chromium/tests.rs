@@ -237,6 +237,7 @@ fn chrome_154_http2_recipe_matches_windows_captures() -> Result<(), Box<dyn std:
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;
@@ -319,6 +320,7 @@ fn chrome_154_macos_http2_session_capture_matches_the_recipe()
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;

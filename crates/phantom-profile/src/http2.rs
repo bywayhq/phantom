@@ -1,6 +1,10 @@
 //! Backend-neutral HTTP/2 profile settings.
 
-use std::{error::Error, fmt, time::Duration};
+use std::{
+    error::Error,
+    fmt,
+    time::{Duration, Instant},
+};
 
 const MAX_WINDOW_SIZE: u32 = (1 << 31) - 1;
 const MAX_STREAM_ID: u32 = (1 << 31) - 1;
@@ -365,6 +369,17 @@ pub struct Http2Settings {
     /// 64-bit big-endian value 1, and each later one carries the next value.
     /// `None` sends no such PING.
     pub preface_ping_after: Option<Duration>,
+    /// How long a PING sent under [`Self::preface_ping_after`] may go
+    /// unanswered with nothing read from the peer before the connection
+    /// closes.
+    ///
+    /// The time runs from the PING or from the last frame read, whichever is
+    /// later; only the ACK stops it. When it runs out, the client sends
+    /// `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
+    /// `Failed ping.`, then closes the connection, and every request still
+    /// open on it fails. `None` keeps a connection whose PING is never
+    /// answered. A value requires [`Self::preface_ping_after`].
+    pub ping_timeout: Option<Duration>,
 }
 
 impl Http2Settings {
@@ -388,6 +403,7 @@ impl Http2Settings {
         }
 
         validate_streams(self.streams)?;
+        validate_ping_timeout(self.preface_ping_after, self.ping_timeout)?;
 
         if let Some(priority) = self.headers_priority {
             validate_priority(
@@ -425,6 +441,34 @@ fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Sett
         return Err(InvalidHttp2Settings::new(
             "streams.max_concurrent_streams_cap",
             "a stream limit cap must be at least 1",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_ping_timeout(
+    preface_ping_after: Option<Duration>,
+    ping_timeout: Option<Duration>,
+) -> Result<(), InvalidHttp2Settings> {
+    let Some(timeout) = ping_timeout else {
+        return Ok(());
+    };
+    if preface_ping_after.is_none() {
+        return Err(InvalidHttp2Settings::new(
+            "ping_timeout",
+            "a PING timeout applies only to a preface PING; set preface_ping_after",
+        ));
+    }
+    if timeout.is_zero() {
+        return Err(InvalidHttp2Settings::new(
+            "ping_timeout",
+            "a PING timeout must be positive; None sets no limit",
+        ));
+    }
+    if Instant::now().checked_add(timeout).is_none() {
+        return Err(InvalidHttp2Settings::new(
+            "ping_timeout",
+            "the PING timeout exceeds the clock range",
         ));
     }
     Ok(())

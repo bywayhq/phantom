@@ -1,9 +1,11 @@
 //! The PING a Chromium profile sends right after a request frame on a
 //! connection that has read nothing for longer than its idle time, against a
-//! loopback peer and the retained Chrome 154 capture.
+//! loopback peer and the retained Chrome 154 capture, and the close that
+//! follows when the PING goes unanswered.
 //!
-//! The recipe's 10-second idle time is shortened to 1 second so the tests run
-//! quickly; everything else is the Chrome 154 recipe.
+//! The recipe's 10-second idle time is shortened to 1 second, and its
+//! 10-second PING timeout to 1 to 3 seconds, so the tests run quickly;
+//! everything else is the Chrome 154 recipe.
 
 use std::{future::Future, net::Ipv4Addr, time::Duration};
 
@@ -19,7 +21,7 @@ use tokio::{
 };
 
 use super::{TestResult, target};
-use crate::http2::Http2Connection;
+use crate::http2::{Http2Connection, Http2Error};
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const DATA: u8 = 0x0;
@@ -27,6 +29,7 @@ const HEADERS: u8 = 0x1;
 const SETTINGS: u8 = 0x4;
 const PING: u8 = 0x6;
 const GOAWAY: u8 = 0x7;
+const WINDOW_UPDATE: u8 = 0x8;
 const ACK: u8 = 0x1;
 const END_STREAM: u8 = 0x1;
 const END_HEADERS: u8 = 0x4;
@@ -63,6 +66,123 @@ fn recipes_state_the_preface_ping_idle_time() {
         Some(Duration::from_secs(10))
     );
     assert_eq!(firefox::v156_http2().preface_ping_after, None);
+}
+
+/// The Chrome 154 recipe closes a connection whose PING goes unanswered for
+/// 10 seconds without a read; Firefox 156 sends no such PING to time.
+#[test]
+fn recipes_state_the_ping_timeout() {
+    assert_eq!(
+        chromium::v154_http2().ping_timeout,
+        Some(Duration::from_secs(10))
+    );
+    assert_eq!(firefox::v156_http2().ping_timeout, None);
+}
+
+/// A PING the peer never answers closes the connection once nothing has been
+/// read for the timeout: `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`,
+/// and `Failed ping.`, then the end of the byte stream. The open request
+/// fails with [`Http2Error::PingTimeout`], and the connection takes no more.
+#[tokio::test]
+async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> TestResult<()> {
+    idle_peer_test(async {
+        let mut settings = chromium::v154_http2();
+        settings.preface_ping_after = Some(IDLE);
+        settings.ping_timeout = Some(Duration::from_secs(2));
+        let (mut peer, connection) = start(&settings).await?;
+        tokio::time::sleep(PAST_IDLE).await;
+        let open = tokio::spawn({
+            let connection = connection.clone();
+            let target = target()?;
+            async move {
+                connection
+                    .send_request(Method::GET, "example.test", target, Vec::new(), None)
+                    .await
+                    .map(drop)
+            }
+        });
+        let ping = read_ping_after_headers(&mut peer).await?;
+        assert_eq!(ping, 1_u64.to_be_bytes());
+        let ping_read = tokio::time::Instant::now();
+
+        let (kind, flags, stream, payload) = read_frame(&mut peer).await?;
+        let waited = ping_read.elapsed();
+        assert_eq!((kind, flags, stream), (GOAWAY, 0, 0));
+        assert_eq!(payload.get(..8), Some(&[0, 0, 0, 0, 0, 0, 0, 1][..]));
+        assert_eq!(payload.get(8..), Some(&b"Failed ping."[..]));
+        assert!(
+            waited >= Duration::from_secs(1) && waited < Duration::from_secs(4),
+            "GOAWAY after {waited:?}"
+        );
+        assert_closed(&mut peer).await?;
+
+        assert!(matches!(open.await?, Err(Http2Error::PingTimeout)));
+        assert!(!connection.is_reusable());
+        let later = connection
+            .send_request(Method::GET, "example.test", target()?, Vec::new(), None)
+            .await;
+        assert!(later.is_err(), "a closed connection accepted a request");
+        Ok(())
+    })
+    .await
+}
+
+/// Any frame read restarts the timeout; only the ACK stops it. With a
+/// 3-second timeout and a `WINDOW_UPDATE` 2 seconds after the PING, the
+/// connection closes 5 seconds after the PING, not 3.
+#[tokio::test]
+async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
+    idle_peer_test(async {
+        let mut settings = chromium::v154_http2();
+        settings.preface_ping_after = Some(IDLE);
+        settings.ping_timeout = Some(Duration::from_secs(3));
+        let (mut peer, connection) = start(&settings).await?;
+        let mut requests = JoinSet::new();
+        tokio::time::sleep(PAST_IDLE).await;
+        request(&connection, &mut requests)?;
+        read_ping_after_headers(&mut peer).await?;
+        let ping_read = tokio::time::Instant::now();
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        write_frame(&mut peer, WINDOW_UPDATE, 0, 0, &1_u32.to_be_bytes()).await?;
+        let (kind, _, _, _) = read_frame(&mut peer).await?;
+        let waited = ping_read.elapsed();
+        assert_eq!(kind, GOAWAY);
+        assert!(
+            waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
+            "GOAWAY after {waited:?}"
+        );
+        requests.abort_all();
+        Ok(())
+    })
+    .await
+}
+
+/// An acknowledged PING leaves the connection open past the timeout.
+#[tokio::test]
+async fn an_acknowledged_ping_keeps_the_connection() -> TestResult<()> {
+    idle_peer_test(async {
+        let mut settings = chromium::v154_http2();
+        settings.preface_ping_after = Some(IDLE);
+        settings.ping_timeout = Some(Duration::from_secs(1));
+        let (mut peer, connection) = start(&settings).await?;
+        let mut requests = JoinSet::new();
+        tokio::time::sleep(PAST_IDLE).await;
+        request(&connection, &mut requests)?;
+        let ping = read_ping_after_headers(&mut peer).await?;
+        write_frame(&mut peer, PING, ACK, 0, &ping).await?;
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        assert!(connection.is_reusable());
+        request(&connection, &mut requests)?;
+        assert_eq!(
+            read_request(&mut peer).await?,
+            (3, Some(2_u64.to_be_bytes()))
+        );
+        requests.abort_all();
+        Ok(())
+    })
+    .await
 }
 
 /// A request sent within the idle time carries no PING; one sent after it is
@@ -108,6 +228,7 @@ async fn settings_without_a_preface_ping_send_none_after_read_idle() -> TestResu
     idle_peer_test(async {
         let mut settings = chromium::v154_http2();
         settings.preface_ping_after = None;
+        settings.ping_timeout = None;
         let (mut peer, connection) = start(&settings).await?;
         let mut requests = JoinSet::new();
         request(&connection, &mut requests)?;
@@ -364,6 +485,48 @@ async fn read_request(peer: &mut TcpStream) -> TestResult<(u32, Option<[u8; 8]>)
             _ => {}
         }
         first = false;
+    }
+}
+
+/// Reads up to the next request HEADERS without writing anything, and
+/// returns the payload of the PING the client wrote right after them.
+async fn read_ping_after_headers(peer: &mut TcpStream) -> TestResult<[u8; 8]> {
+    loop {
+        let (kind, _, _, _) = read_frame(peer).await?;
+        match kind {
+            HEADERS => break,
+            SETTINGS | WINDOW_UPDATE => {}
+            _ => return Err(format!("unexpected frame type {kind} before HEADERS").into()),
+        }
+    }
+    let (kind, flags, _, payload) = read_frame(peer).await?;
+    if (kind, flags) != (PING, 0) {
+        return Err(format!("frame type {kind} followed the HEADERS, not a PING").into());
+    }
+    Ok(payload
+        .try_into()
+        .map_err(|_| "PING payload is not 8 bytes")?)
+}
+
+/// Requires the client to end the byte stream after its GOAWAY. Windows can
+/// report the close as a reset or an abort rather than an orderly end.
+async fn assert_closed(peer: &mut TcpStream) -> TestResult<()> {
+    let mut rest = Vec::new();
+    match timeout(Duration::from_secs(2), peer.read_to_end(&mut rest)).await {
+        Err(_) => Err("the client kept the connection open after GOAWAY".into()),
+        Ok(Ok(_)) if rest.is_empty() => Ok(()),
+        Ok(Ok(_)) => Err(format!("the client wrote {} bytes after GOAWAY", rest.len()).into()),
+        Ok(Err(error))
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::BrokenPipe
+            ) =>
+        {
+            Ok(())
+        }
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 

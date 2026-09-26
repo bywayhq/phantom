@@ -109,6 +109,7 @@ fn opera_135_http2_session_capture_matches_the_chromium_recipe()
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     for run in observed {
@@ -181,6 +182,7 @@ fn opera_135_macos_http2_session_capture_matches_the_chromium_recipe()
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;

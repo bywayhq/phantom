@@ -356,11 +356,13 @@ struct PoolState {
 }
 
 fn invalidates_connection(error: &Http2Error) -> bool {
-    matches!(
-        error,
-        Http2Error::Protocol(error)
-            if error.kind() != Http2ProtocolErrorKind::StreamReset
-    )
+    match error {
+        Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
+        // The connection closed itself, as Chromium's SpdySession leaves the
+        // pool on ERR_HTTP2_PING_FAILED.
+        Http2Error::PingTimeout => true,
+        _ => false,
+    }
 }
 
 pub(super) fn is_graceful_goaway(error: &Http2Error) -> bool {

@@ -1324,6 +1324,7 @@ mod tests {
     fn local_http2_failures_are_not_unprocessed() {
         for error in [
             RequestError::http2_stream(Http2Error::RequestBodyClosed),
+            RequestError::http2_stream(Http2Error::PingTimeout),
             RequestError::http2_stream(Http2Error::RuntimeUnavailable),
             RequestError::http2(Http2TlsError::Connect(io_error())),
             RequestError::http1(Http1TlsError::Http1(Http1Error::ConnectionClosed)),

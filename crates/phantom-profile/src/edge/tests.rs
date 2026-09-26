@@ -108,6 +108,7 @@ fn edge_154_http2_session_capture_matches_the_chromium_recipe()
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     for run in observed {
@@ -186,6 +187,7 @@ fn edge_154_macos_http2_session_capture_matches_the_chromium_recipe()
             ..settings.streams
         },
         preface_ping_after: None,
+        ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;

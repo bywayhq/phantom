@@ -3,6 +3,8 @@ use super::{
     Http2StreamSettings, InvalidHttp2Settings,
 };
 
+use std::time::Duration;
+
 fn settings() -> Http2Settings {
     Http2Settings {
         initial_settings: vec![
@@ -22,6 +24,7 @@ fn settings() -> Http2Settings {
         hpack: Http2HpackSettings::default(),
         streams: Http2StreamSettings::default(),
         preface_ping_after: None,
+        ping_timeout: None,
     }
 }
 
@@ -76,6 +79,21 @@ fn rejects_a_zero_stream_limit_cap() -> Result<(), Box<dyn std::error::Error>> {
     assert_field(settings.validate(), "streams.max_concurrent_streams_cap");
     settings.streams.max_concurrent_streams_cap = Some(1);
     settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn ping_timeout_must_be_positive_and_needs_a_preface_ping() -> Result<(), Box<dyn std::error::Error>>
+{
+    let mut settings = settings();
+    settings.ping_timeout = Some(Duration::from_secs(10));
+    assert_field(settings.validate(), "ping_timeout");
+    settings.preface_ping_after = Some(Duration::from_secs(10));
+    settings.validate()?;
+    settings.ping_timeout = Some(Duration::ZERO);
+    assert_field(settings.validate(), "ping_timeout");
+    settings.ping_timeout = Some(Duration::MAX);
+    assert_field(settings.validate(), "ping_timeout");
     Ok(())
 }
 

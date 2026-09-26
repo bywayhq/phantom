@@ -22,9 +22,10 @@ use http::{Method, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, HttpProtocol, RedirectPolicy, RequestError, RequestErrorKind, ResponseInfo,
-    RetryPolicy, profile::ClientProfile,
+    RetryPolicy,
+    profile::{ClientProfile, chromium},
 };
-use phantom_net::http2::{Http2ProtocolError, Http2ProtocolErrorKind};
+use phantom_net::http2::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
@@ -35,7 +36,7 @@ use tokio::{
 use tokio_btls::SslStream;
 use tracing::instrument::WithSubscriber;
 
-use h2_support::{accept_client_preface, read_request_headers, write_frame};
+use h2_support::{accept_client_preface, read_frame, read_request_headers, write_frame};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H2_ALPN, TestIdentity, client_builder, is_peer_gone, tls_settings};
 use tracing_support::OutcomeSubscriber;
@@ -43,7 +44,10 @@ use tracing_support::OutcomeSubscriber;
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+const HEADERS: u8 = 0x1;
+const PING: u8 = 0x6;
 const GOAWAY: u8 = 0x7;
+const END_STREAM_AND_HEADERS: u8 = 0x5;
 const NO_ERROR: u32 = 0x0;
 const INTERNAL_ERROR: u32 = 0x2;
 const ENHANCE_YOUR_CALM: u32 = 0xb;
@@ -91,6 +95,10 @@ enum Script {
     GoAway { last_stream_id: u32, code: u32 },
     /// Serves requests with an HTTP/2 server in order, one reply each.
     Serve(Vec<Reply>),
+    /// Answers stream 1 with an empty `200`, then reads stream 3's HEADERS
+    /// and the PING after them without answering either, and requires the
+    /// client's `GOAWAY(0, PROTOCOL_ERROR, "Failed ping.")`.
+    IgnorePing,
 }
 
 /// Requests observed across every scripted connection.
@@ -123,6 +131,7 @@ impl ScriptedHttp2Server {
                     Script::Serve(replies) => {
                         serve(stream, connection, replies, &observed, &mut handlers).await?;
                     }
+                    Script::IgnorePing => ignore_ping(stream).await?,
                 }
             }
             let finished = tokio::select! {
@@ -196,6 +205,36 @@ async fn send_goaway(
     Ok(())
 }
 
+/// Plays [`Script::IgnorePing`], then drains the socket until the client
+/// closes it.
+async fn ignore_ping(mut stream: SslStream<TcpStream>) -> TestResult<()> {
+    accept_client_preface(&mut stream).await?;
+    read_request_headers(&mut stream, 1).await?;
+    // `:status: 200` is static table entry 8.
+    write_frame(&mut stream, HEADERS, END_STREAM_AND_HEADERS, 1, &[0x88]).await?;
+    stream.flush().await?;
+    read_request_headers(&mut stream, 3).await?;
+    let ping = read_frame(&mut stream).await?;
+    if (ping.kind, ping.flags) != (PING, 0) {
+        return Err("the request HEADERS were not followed by a PING".into());
+    }
+    let go_away = loop {
+        let frame = read_frame(&mut stream).await?;
+        if frame.kind == GOAWAY {
+            break frame;
+        }
+    };
+    let mut expected = vec![0, 0, 0, 0, 0, 0, 0, 1];
+    expected.extend_from_slice(b"Failed ping.");
+    if go_away.payload != expected {
+        return Err("the client's GOAWAY was not GOAWAY(0, PROTOCOL_ERROR, Failed ping.)".into());
+    }
+    tokio::spawn(async move {
+        let _ = tokio::io::copy(&mut stream, &mut tokio::io::sink()).await;
+    });
+    Ok(())
+}
+
 /// Serves one reply per accepted request. The connection keeps being driven
 /// while request handlers read bodies, and afterwards until the client
 /// releases it, so queued resets and responses are flushed.
@@ -255,6 +294,19 @@ async fn accept_tls(
     let mut stream = SslStream::new(ssl, tcp)?;
     Pin::new(&mut stream).accept().await?;
     Ok(stream)
+}
+
+/// A Chromium-recipe client whose preface PING follows 1 second without a
+/// read and closes the connection when unanswered for 2 seconds.
+fn short_ping_timeout_client(identity: &TestIdentity) -> TestResult<Client> {
+    let mut http2 = chromium::v154_http2();
+    http2.preface_ping_after = Some(Duration::from_secs(1));
+    http2.ping_timeout = Some(Duration::from_secs(2));
+    Ok(
+        Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?,
+    )
 }
 
 fn http2_client(identity: &TestIdentity) -> TestResult<Client> {
@@ -403,6 +455,74 @@ async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
         Ok(())
     })
     .await
+}
+
+/// A request whose connection closes after an unanswered PING fails with
+/// [`Http2Error::PingTimeout`] and is not replayed, even with unprocessed
+/// replay enabled: the client closed the connection, so nothing says the
+/// peer did not process the request. The pool drops the connection, and the
+/// next request opens a new one.
+#[tokio::test]
+async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connection() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let server = ScriptedHttp2Server::start(
+            &identity,
+            vec![Script::IgnorePing, Script::Serve(vec![Reply::Status(204)])],
+        )
+        .await?;
+        let client = short_ping_timeout_client(&identity)?;
+        let first = client
+            .request(HttpProtocol::Http2, Method::GET, &server.url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(first.status(), StatusCode::OK);
+        first.into_body().collect().await?;
+
+        tokio::time::sleep(Duration::from_millis(1_500)).await;
+        let error = expect_error(
+            client
+                .request(HttpProtocol::Http2, Method::GET, &server.url("/unanswered"))?
+                .retry_policy(replay_policy(1)?)
+                .send()
+                .await,
+            "a request on a connection closed by a PING timeout succeeded",
+        )?;
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        assert!(
+            source_chain_has_ping_timeout(&error),
+            "missing Http2Error::PingTimeout: {error:?}"
+        );
+
+        let next = client
+            .request(HttpProtocol::Http2, Method::GET, &server.url("/next"))?
+            .send()
+            .await?;
+        assert_eq!(next.status(), StatusCode::NO_CONTENT);
+        next.into_body().collect().await?;
+        drop(client);
+
+        assert_eq!(
+            server.finish().await?,
+            [Observed::new(1, Method::GET, "/next", b"")]
+        );
+        Ok(())
+    })
+    .await
+}
+
+fn source_chain_has_ping_timeout(error: &RequestError) -> bool {
+    let mut current: Option<&(dyn Error + 'static)> = Some(error);
+    while let Some(error) = current {
+        if matches!(
+            error.downcast_ref::<Http2Error>(),
+            Some(Http2Error::PingTimeout)
+        ) {
+            return true;
+        }
+        current = error.source();
+    }
+    false
 }
 
 #[tokio::test]

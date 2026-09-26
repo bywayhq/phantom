@@ -35,6 +35,12 @@ pub(crate) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleEr
     Ok(receiver)
 }
 
+/// Returns whether deadlines can be scheduled. Once the service thread has
+/// started it runs for the life of the process, so a `true` stays true.
+pub(crate) fn is_available() -> bool {
+    SERVICE.get_or_init(start_service).is_some()
+}
+
 fn start_service() -> Option<Sender<Deadline>> {
     let (sender, receiver) = mpsc::channel();
     thread::Builder::new()

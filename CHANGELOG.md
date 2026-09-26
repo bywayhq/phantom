@@ -30,6 +30,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   keep no limit, or copy the value from a recipe. Call
   `WebSocketRequestBuilder::handshake_timeout(None)` to open one WebSocket
   without the recipe's limit.
+- `Http2Settings` gained the public field `ping_timeout: Option<Duration>`,
+  so struct literals that name every field no longer compile, and
+  `phantom_net::http2::Http2Error` gained the variant `PingTimeout`, so
+  exhaustive matches on it no longer compile. When set, a PING sent under
+  `preface_ping_after` that goes unanswered while nothing is read from the
+  peer for that long closes the connection with `GOAWAY` (last stream ID 0,
+  `PROTOCOL_ERROR`, debug data `Failed ping.`). Requests open on it fail with
+  `Http2Error::PingTimeout`, which is not replayed, and the pool drops the
+  connection. `chromium::v154_http2`, and so every Chromium-family recipe,
+  sets 10 seconds, Chromium's `kHungIntervalSeconds`; `firefox::v156_http2`
+  sets `None`. `Http2Settings::validate` rejects a zero timeout, one the
+  clock cannot represent, and a timeout without `preface_ping_after`, so
+  setting `preface_ping_after` to `None` on a Chromium recipe now also needs
+  `ping_timeout: None`. A process that cannot start Phantom's timer thread
+  fails such a connection with `Http2Error::RuntimeUnavailable`.
+  Migrate: add `ping_timeout: None` to an `Http2Settings` literal to keep
+  connections whose PING is never answered, or copy the field from
+  `chromium::v154_http2`; add an arm for `Http2Error::PingTimeout` to an
+  exhaustive match.
 - `Http2Settings` gained the public field `preface_ping_after:
   Option<Duration>`, so struct literals that name every field no longer
   compile. When set, a connection that has read nothing from the peer for
