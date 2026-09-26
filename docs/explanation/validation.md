@@ -42,7 +42,7 @@ Phantom's claims rest on four kinds of evidence:
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
-| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source and a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
+| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source and a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom | One Windows build; the PING after a DATA frame, the 10-second boundary, and the close after an unanswered PING rest on source |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -2387,6 +2387,14 @@ one awaits its ACK, and the ACK, like any frame read, restarts the idle time.
 Every Chromium-family recipe shares `chromium::v154_http2`, so each sends the
 PING. `firefox::v156_http2` sends none.
 
+When the PING goes unanswered and nothing is read from the peer for 10
+seconds, counted from the PING or from the last frame read, whichever is
+later, the Chromium recipe closes the connection as Chrome 154 does: it sends
+`GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
+`Failed ping.`, then closes. Every request still open on the connection
+fails with `Http2Error::PingTimeout`, and the client's pool drops the
+connection, so the next request opens a new one.
+
 Evidence: Chromium source at tag `154.0.8037.58` and loopback captures of
 Chrome 154.0.8037.58 on Windows 11, one of them retained. `SpdySession::MaybeSendPrefacePing`
 (`net/spdy/spdy_session.cc:2446-2456`) queues a PING when ping-based
@@ -2404,6 +2412,19 @@ quiche's `SpdyFramer::SerializePing` at the pinned revision `80bf9559d3a4`.
 Firefox 156 sends a PING of its own only from its read-timeout tick and on a
 network change (`netwerk/protocol/http/Http2Session.cpp:436-503`,
 `:4190-4212` at tag `FIREFOX_156_0_RELEASE`).
+
+Sending the PING posts `SpdySession::CheckPingStatus` to run after
+`kHungIntervalSeconds`, 10 (`:102`, `:2500-2510`). The check does nothing if
+the ACK has arrived. Otherwise, if nothing has been read since the check was
+posted or for 10 seconds, it drains the session with `ERR_HTTP2_PING_FAILED`;
+if not, it runs again 10 seconds after the last read (`:2512-2538`).
+`DoDrainSession` (`:2701-2757`) takes the session out of the pool
+(`:1360-1366`), queues `GOAWAY` with last stream ID 0, the code
+`MapNetErrorToGoAwayStatus` gives, `PROTOCOL_ERROR` (`:547-564`), and the
+description as debug data, and `StartGoingAway` (`:1368-1417`) fails every
+stream with the error and drops their queued frames, sending no RST_STREAM.
+Once the GOAWAY is written, the pool destroys the session (`:2082-2093`),
+which disconnects the socket (`:893`).
 
 `scripts/capture/http2_preface_ping.py` serves one page over TLS and HTTP/2
 on loopback to headless Chrome, with `--disable-quic`. The page fetches `/a`,
@@ -2442,6 +2463,16 @@ next idle period, and none with the setting off. The vendored `http2`
 crate's tests add the PING after a 4,096-byte DATA frame, none after an
 empty END_STREAM DATA frame, and none while PING 1 is unanswered.
 
+The same file checks the close with the timeout shortened: a PING
+unanswered for 2 seconds brings that GOAWAY between 1 and 4 seconds after the
+peer reads the PING, then the end of the byte stream, and the open request
+fails with `Http2Error::PingTimeout`. A WINDOW_UPDATE 2 seconds into a
+3-second timeout moves the GOAWAY to between 4 and 8 seconds after the PING,
+and an acknowledged PING leaves the connection usable 2 seconds past a
+1-second timeout. `crates/phantom/tests/requests/unprocessed_replay.rs`
+checks through the client that the failed request is not replayed, even with
+unprocessed replay on, and that the next request opens a new connection.
+
 How to reproduce:
 
 ```sh
@@ -2452,6 +2483,8 @@ uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --output-dir fixtures/http2/chrome/154.0.8037.58/windows-11-26200
 cargo test -p phantom-net --lib http2::tests::preface_ping
+cargo test -p phantom-http --test requests \
+  unprocessed_replay::ping_timeout_fails_the_request_without_replay_and_retires_the_connection
 ```
 
 Limits:
@@ -2460,11 +2493,21 @@ Limits:
 - The capture shows no PING after a DATA frame alone; a `POST` after an idle
   period gets its PING from the HEADERS. That case and the exact 10-second
   boundary rest on source.
-- Chrome closes a session whose PING goes unanswered for 10 seconds
-  (`ERR_HTTP2_PING_FAILED`). Phantom keeps the connection and sends no
-  further preface PING on it.
-- Phantom restarts the idle time when a whole frame is read; Chrome restarts
-  it on every socket read, including part of a frame.
+- No capture shows the close after an unanswered PING; it rests on source.
+- Chrome retries a request that fails with `ERR_HTTP2_PING_FAILED` before
+  its response headers, whatever its method, up to twice on a new connection
+  (`HttpNetworkTransaction::HandleIOError`,
+  `net/http/http_network_transaction.cc:2073-2074`, `:2222-2232`, with
+  `kMaxRetryAttempts` of 2 at `:108`). Phantom does not replay it: the
+  client closed the connection itself, so nothing shows that the server did
+  not process the request.
+- Phantom restarts the idle time and the PING timeout when a whole frame is
+  read; Chrome restarts both on every socket read, including part of a
+  frame.
+- After the GOAWAY, Phantom ends the TLS stream with `close_notify` before
+  closing TCP. Chrome's `SSLClientSocketImpl::Disconnect`
+  (`net/socket/ssl_client_socket_impl.cc:400-418`) closes the transport
+  without one.
 
 ### Alt-Svc racing evidence
 

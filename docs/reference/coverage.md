@@ -266,7 +266,11 @@ Supported:
 - A preface PING on a read-idle connection: when the profile sets an idle
   time (10 seconds for Chromium, none for Firefox), a connection that has
   read nothing for longer sends a PING right after the next request HEADERS
-  or non-empty DATA frame, with a payload that counts up from 1
+  or non-empty DATA frame, with a payload that counts up from 1. When the
+  profile also sets a PING timeout (10 seconds for Chromium), a PING left
+  unanswered with nothing read for that long closes the connection with
+  `GOAWAY(PROTOCOL_ERROR)`; its requests fail with
+  `Http2Error::PingTimeout` and are not replayed
   ([HTTP/2 preface PING evidence](../explanation/validation.md#http2-preface-ping-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.

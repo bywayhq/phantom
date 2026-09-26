@@ -155,10 +155,13 @@ anything does.
   sends a never-indexed literal. Blocker: a profile setting and a
   `RequestHeader` marker that hides a value from `Debug` without choosing
   the never-indexed form.
-- Chromium's ending of a session whose preface `PING` goes unanswered for
-  10 seconds. Evidence: source only
+- Chromium's retry of a request whose session ended with
+  `ERR_HTTP2_PING_FAILED`: up to twice on a new connection, whatever the
+  method. Evidence: source only
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence));
-  Phantom sends the `PING` but keeps the connection. Blocker: none recorded.
+  Phantom closes the connection as Chromium does but fails the request.
+  Blocker: a replay class for requests the client cannot show were
+  unprocessed, which the unprocessed-replay policy does not cover.
 - Firefox's read-timeout `PING`. Evidence: source only; `Http2Session`
   sends a `PING` after `network.http.http2.ping-threshold`, 58 seconds,
   without a read (`Http2Session.cpp:436-503` at `FIREFOX_156_0_RELEASE`).
