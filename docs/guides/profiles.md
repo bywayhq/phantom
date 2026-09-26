@@ -99,9 +99,10 @@ fn profiles() -> [ClientProfile; 5] {
   and Firefox 156 (`firefox_android::v156_tls`). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
   components each one has. Firefox has no client-hint recipe, and its
-  QUIC and HTTP/3 recipes come from Firefox 156.0.1; no Android browser has a TCP or HTTP/1.1 connection recipe; Edge
-  for Android has no WebSocket recipe; Opera for Android has only TLS and
-  client hints, and Firefox for Android only TLS.
+  QUIC and HTTP/3 recipes come from Firefox 156.0.1. No Android browser has
+  a TCP or HTTP/1.1 connection recipe; Edge for Android has no WebSocket
+  recipe; Opera for Android has only TLS and client hints, and Firefox for
+  Android only TLS.
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin

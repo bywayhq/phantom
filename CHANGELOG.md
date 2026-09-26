@@ -100,8 +100,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `active_connection_id_limit`, `min_ack_delay_us`, `reset_stream_at`,
   `initial_datagram_size`, and `initial_destination_connection_id`, so struct
   literals that name every field no longer compile. The protocol defaults
-  (25, 2, `None`, `false`, `None`, `None`) keep the wire and the runtime as
-  before; `chromium::v154_quic` uses them. Distinct values for
+  (25, 2, `None`, `false`, `None`, `None`) keep the wire as before;
+  `chromium::v154_quic` uses them. The runtime now stores as many of the
+  peer's connection IDs as `active_connection_id_limit` advertises, so a
+  peer that issues more than 2 to a Chromium-profile connection gets
+  `CONNECTION_ID_LIMIT_ERROR`, where Phantom stored up to 5. Distinct values for
   `initial_max_stream_data_bidi_local`, `_bidi_remote`, and `_uni` are now
   accepted, where the QUIC runtime required one value for all three.
   Migrate: add `max_ack_delay_ms: 25, active_connection_id_limit: 2,
@@ -526,8 +529,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   available versions offers v2 and v1, follows a server that moves the
   connection from v1 to v2 (RFC 9368 compatible version negotiation), and
   starts a connection that presents a session ticket in the version of the
-  connection that received it. `phantom_quic_btls::QuicVersion` gained `V2`,
-  `wire`, and `from_wire`.
+  connection that received it, presenting only tickets from that version.
+  `phantom_quic_btls::QuicVersion` gained `V2`, `wire`, and `from_wire`, and
+  `QuicClientConfig::configure_client` applies a profile's per-connection
+  settings (the first Destination Connection ID's length and the start
+  version) to a Quinn `ClientConfig`; call it when building Quinn endpoints
+  directly.
+- `phantom-quinn-proto` 0.11.18-phantom.2 adds `TransportConfig::max_ack_delay`,
+  `active_connection_id_limit`, `bidi_remote_stream_receive_window`,
+  `uni_stream_receive_window`, `min_initial_datagram_size`,
+  `reset_stream_at`, and `ack_frequency_draft`, `EndpointConfig::compatible_versions`,
+  and `crypto::Session::switch_version`; `phantom-quinn` 0.11.12-phantom.2
+  follows it. `phantom-h3` 0.0.8-phantom.5 adds the client builder options
+  `reserved_frame_after_settings`, `qpack_insert_policy`, and
+  `qpack_huffman`. Each is off or unchanged by default.
 - QUIC profile data for `max_ack_delay`, `active_connection_id_limit`, the
   empty `reset_stream_at` parameter, draft 02 and draft 07 `min_ack_delay`
   (`QuicAckFrequencyDraft`), a leading reserved version

@@ -636,11 +636,12 @@ pub fn v156_http3_tls() -> TlsSettings {
 /// - `max_udp_payload_size`, `grease_quic_bit`, and a reserved parameter are
 ///   absent.
 ///
-/// Every Initial datagram Firefox sent was 1252 bytes, and the first
-/// Initial's Destination Connection ID had a length drawn as neqo's
-/// `ConnectionId::generate_initial` draws it: `max(8, 5 + (b & (b >> 4)))`
-/// for a random byte `b` (`neqo-transport/src/cid.rs`). The diagnostic run
-/// that measured the sizes saw 11 and 17 bytes.
+/// In a diagnostic run against the snapshot server, not retained, every
+/// Initial datagram Firefox sent was 1252 bytes, and the first Initials'
+/// Destination Connection IDs were 11 and 17 bytes. The recipe draws that
+/// length as neqo's `ConnectionId::generate_initial` does:
+/// `max(8, 5 + (b & (b >> 4)))` for a random byte `b`
+/// (`neqo-transport/src/cid.rs`).
 ///
 /// A resumed Firefox connection offers early data, so `early_data` is set;
 /// it takes effect with TLS settings that enable session tickets, such as

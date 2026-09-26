@@ -1430,9 +1430,10 @@ Tests replay the captures:
   and value, apart from the connection ID bytes and the reserved version.
   The control stream carries the captured SETTINGS frame byte for byte and
   one reserved frame, and streams 2, 6, and 10 carry types 0, 2, and 3.
-- `firefox_156_initial_datagrams_match_windows_capture` receives the two
-  Initial datagrams on a bare UDP socket: 1252 bytes each, version 1, a
-  3-byte Source Connection ID, and an 8- to 20-byte Destination one.
+- `firefox_156_initial_datagrams_have_the_measured_sizes` receives the two
+  Initial datagrams on a bare UDP socket: 1252 bytes each, the size the
+  diagnostic run measured, version 1, a 3-byte Source Connection ID, and an
+  8- to 20-byte Destination one.
 - `firefox_cookie_fields_match_the_captured_qpack_bytes` encodes the four
   requests of the Firefox 156.0 HTTP/3 cookie capture through the request
   recipe and the QPACK encoding; the encoder stream and all four field

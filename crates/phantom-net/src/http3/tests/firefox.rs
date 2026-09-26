@@ -246,8 +246,10 @@ fn control_prefix_complete(bytes: &[u8], settings_len: usize) -> TestResult<bool
     Ok(bytes.len() >= offset + usize::try_from(length)?)
 }
 
+/// The sizes come from a diagnostic run against the snapshot server that was
+/// not retained; see the Firefox 156 HTTP/3 recipe in Validation.
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_initial_datagrams_match_windows_capture() -> TestResult<()> {
+async fn firefox_156_initial_datagrams_have_the_measured_sizes() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = connector(&identity)?;
     let socket = UdpSocket::bind("127.0.0.1:0").await?;
