@@ -11,8 +11,8 @@ use crate::{
     host_resolver::HostResolver,
     http1::{Http1Connection, Http1Error},
     http2::{
-        Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected, translate_settings,
-        validate_http2,
+        Http2Builder, Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected,
+        translate_settings, validate_http2,
     },
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
@@ -706,7 +706,7 @@ impl Http1Or2TlsConnector {
 
 async fn select_connection<S>(
     stream: crate::tls::TlsStream<S>,
-    client: ::http2::client::Builder,
+    client: Http2Builder,
 ) -> Result<Http1Or2Connection, Http1Or2TlsError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,

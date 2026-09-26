@@ -184,7 +184,7 @@ fn request_priority_overrides_replace_only_the_stream_dependency() -> Result<(),
         exclusive: true,
     };
     assert_eq!(
-        priority_overrides(fetch)?,
+        priority_overrides(fetch, 1)?,
         HeadersFrameOverrides::new().stream_dependency(StreamDependency::new(
             StreamId::zero(),
             219,
@@ -197,7 +197,7 @@ fn request_priority_overrides_replace_only_the_stream_dependency() -> Result<(),
         exclusive: false,
     };
     assert_eq!(
-        priority_overrides(lowest)?,
+        priority_overrides(lowest, 1)?,
         HeadersFrameOverrides::new().stream_dependency(StreamDependency::new(
             StreamId::zero(),
             0,
@@ -207,21 +207,35 @@ fn request_priority_overrides_replace_only_the_stream_dependency() -> Result<(),
 
     for (dependency_stream_id, weight) in [(0, 0), (0, 257), (0x8000_0000, 220)] {
         assert!(matches!(
-            priority_overrides(Http2Priority {
-                dependency_stream_id,
-                weight,
-                exclusive: true,
-            }),
+            priority_overrides(
+                Http2Priority {
+                    dependency_stream_id,
+                    weight,
+                    exclusive: true,
+                },
+                1
+            ),
             Err(Http2Error::InvalidPriority { .. })
         ));
     }
-    assert!(matches!(
-        priority_overrides(Http2Priority {
-            dependency_stream_id: 1,
-            weight: 220,
-            exclusive: true,
-        }),
-        Err(Http2Error::InvalidPriorityDependency { stream_id: 1 })
-    ));
+    Ok(())
+}
+
+/// A per-request dependency on the connection's first stream is refused,
+/// whichever stream that is; the other odd stream is an ordinary dependency.
+#[test]
+fn request_priority_refuses_a_dependency_on_the_first_stream() -> Result<(), Http2Error> {
+    let on = |dependency_stream_id| Http2Priority {
+        dependency_stream_id,
+        weight: 220,
+        exclusive: true,
+    };
+    for (first, other) in [(1, 3), (3, 1)] {
+        assert!(matches!(
+            priority_overrides(on(first), first),
+            Err(Http2Error::InvalidPriorityDependency { stream_id }) if stream_id == first
+        ));
+        priority_overrides(on(other), first)?;
+    }
     Ok(())
 }

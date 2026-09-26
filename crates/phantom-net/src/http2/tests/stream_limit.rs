@@ -9,7 +9,7 @@
 use std::net::Ipv4Addr;
 
 use http::Method;
-use phantom_profile::{Http2Settings, Http2StreamSettings, chromium, firefox};
+use phantom_profile::{Http2Priority, Http2Settings, Http2StreamSettings, chromium, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -74,6 +74,37 @@ async fn an_even_first_stream_id_is_refused() -> TestResult<()> {
         Err(Http2Error::InvalidSettings(_))
     ));
     Ok(())
+}
+
+/// A per-request priority that depends on the connection's first stream is
+/// refused before any I/O: stream 3 under the Firefox recipe.
+#[tokio::test]
+async fn a_request_priority_on_the_first_stream_is_refused() -> TestResult<()> {
+    bounded_peer_test(async {
+        let (client, _peer) = tokio::io::duplex(64 * 1024);
+        let connection = Http2Connection::connect(client, &firefox::v156_http2()).await?;
+        let result = connection
+            .send_request_body_with_trailers_and_priority(
+                Method::GET,
+                "example.test",
+                target()?,
+                Vec::new(),
+                None,
+                Vec::new(),
+                Http2Priority {
+                    dependency_stream_id: 3,
+                    weight: 220,
+                    exclusive: true,
+                },
+            )
+            .await;
+        assert!(matches!(
+            result,
+            Err(Http2Error::InvalidPriorityDependency { stream_id: 3 })
+        ));
+        Ok(())
+    })
+    .await
 }
 
 async fn expect_assumed_limit(settings: Http2Settings, first: u32, limit: u32) -> TestResult<()> {

@@ -9,9 +9,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Connection, Http2Error, Http2ExtendedConnectOutcome, OperationOutcome,
-    OriginForm, PreparedRequest, RequestHeader, alps, translate_extended_connect_settings,
-    translate_settings, validate_extended_connect,
+    Http2Body, Http2Builder, Http2Connection, Http2Error, Http2ExtendedConnectOutcome,
+    OperationOutcome, OriginForm, PreparedRequest, RequestHeader, alps,
+    translate_extended_connect_settings, translate_settings, validate_extended_connect,
 };
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
@@ -1374,7 +1374,7 @@ impl Http2TlsConnector {
         authority: &str,
         target: &OriginForm,
         headers: &[RequestHeader],
-    ) -> Result<::http2::client::Builder, Http2TlsError> {
+    ) -> Result<Http2Builder, Http2TlsError> {
         self.http2.validate().map_err(Http2Error::InvalidSettings)?;
         let client = translate_extended_connect_settings(&self.http2)?;
         validate_extended_connect(authority, target, headers)?;
@@ -1385,7 +1385,7 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        client: ::http2::client::Builder,
+        client: Http2Builder,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
@@ -1431,7 +1431,7 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        client: ::http2::client::Builder,
+        client: Http2Builder,
     ) -> Result<Http2Connection, Http2TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1444,7 +1444,7 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        client: ::http2::client::Builder,
+        client: Http2Builder,
     ) -> Result<Http2Connection, Http2TlsError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1457,7 +1457,7 @@ impl Http2TlsConnector {
         &self,
         stream: S,
         server_name: &str,
-        client: ::http2::client::Builder,
+        client: Http2Builder,
         extended_connect: bool,
     ) -> Result<Http2Connection, Http2TlsError>
     where
@@ -1524,7 +1524,7 @@ impl Http2TlsConnector {
 
 pub(crate) async fn connect_selected<S>(
     stream: TlsStream<S>,
-    client: ::http2::client::Builder,
+    client: Http2Builder,
 ) -> Result<Http2Connection, Http2TlsError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1536,7 +1536,7 @@ where
 /// CONNECT requests built with the profile's extended CONNECT order.
 pub(crate) async fn connect_selected_extended<S>(
     stream: TlsStream<S>,
-    client: ::http2::client::Builder,
+    client: Http2Builder,
 ) -> Result<Http2Connection, Http2TlsError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1546,7 +1546,7 @@ where
 
 async fn connect_selected_kind<S>(
     stream: TlsStream<S>,
-    mut client: ::http2::client::Builder,
+    mut client: Http2Builder,
     extended_connect: bool,
 ) -> Result<Http2Connection, Http2TlsError>
 where
@@ -1574,7 +1574,7 @@ where
     );
     let (initial_settings, accept_ch) = peer_settings.into_parts();
     if let Some(settings) = initial_settings {
-        client.initial_peer_settings(settings);
+        client.client.initial_peer_settings(settings);
     }
 
     if extended_connect {
@@ -1611,7 +1611,7 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
 /// connection preface is written.
 async fn connect_over_tls<S>(
     stream: TlsStream<S>,
-    client: ::http2::client::Builder,
+    client: Http2Builder,
     extended_connect: bool,
 ) -> Result<Http2Connection, Http2TlsError>
 where

@@ -365,7 +365,7 @@ struct PreparedRequest {
     request: Request<()>,
     body: Option<RequestBody>,
     trailers: Option<PreparedRequestTrailers>,
-    client: client::Builder,
+    client: Http2Builder,
 }
 
 impl PreparedRequest {
@@ -497,13 +497,13 @@ impl Drop for OperationOutcome {
     }
 }
 
-pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<client::Builder, Http2Error> {
+pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<Http2Builder, Http2Error> {
     translate_settings_with_pseudo_order(settings, &settings.pseudo_header_order, false)
 }
 
 pub(crate) fn translate_extended_connect_settings(
     settings: &Http2Settings,
-) -> Result<client::Builder, Http2Error> {
+) -> Result<Http2Builder, Http2Error> {
     let order = settings
         .extended_connect_pseudo_header_order
         .as_deref()
@@ -535,8 +535,12 @@ pub(crate) fn extended_connect_overrides(
 
 /// Builds the HEADERS override that gives one ordinary request its own
 /// priority, leaving the connection's pseudo-header order in place.
+///
+/// A dependency on `first_stream_id`, the connection's first stream, is
+/// refused, as it is for the connection's own priority.
 pub(crate) fn priority_overrides(
     priority: Http2Priority,
+    first_stream_id: u32,
 ) -> Result<HeadersFrameOverrides, Http2Error> {
     // Settings validation guards the connection priority; this per-request
     // value arrives unvalidated, and the backend panics on a 32-bit stream ID.
@@ -546,7 +550,8 @@ pub(crate) fn priority_overrides(
             weight: priority.weight,
         });
     }
-    Ok(HeadersFrameOverrides::new().stream_dependency(stream_dependency(priority, 1)?))
+    Ok(HeadersFrameOverrides::new()
+        .stream_dependency(stream_dependency(priority, first_stream_id)?))
 }
 
 /// Builds the connection's HPACK encoder identity from profile settings.
@@ -671,7 +676,7 @@ fn translate_settings_with_pseudo_order(
     settings: &Http2Settings,
     configured_pseudo_order: &[Http2PseudoHeader],
     extended_connect: bool,
-) -> Result<client::Builder, Http2Error> {
+) -> Result<Http2Builder, Http2Error> {
     let first_stream_id = settings.streams.first_stream_id;
     // The backend panics on an even first stream ID. Validation rejects one,
     // but a caller may translate settings it has not validated.
@@ -743,7 +748,21 @@ fn translate_settings_with_pseudo_order(
     if let Some(dependency) = headers_dependency {
         client.headers_stream_dependency(dependency);
     }
-    Ok(client)
+    Ok(Http2Builder {
+        client: Box::new(client),
+        first_stream_id,
+    })
+}
+
+/// A backend client builder translated from profile settings, with the
+/// profile's first stream ID, which the backend builder does not report.
+///
+/// The builder is boxed because connection setup futures hold it across
+/// awaits, and debug builds of the deepest setup paths are close to the test
+/// threads' stack size.
+pub(crate) struct Http2Builder {
+    pub(crate) client: Box<client::Builder>,
+    pub(crate) first_stream_id: u32,
 }
 
 mod body;

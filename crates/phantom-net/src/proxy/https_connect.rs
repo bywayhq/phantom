@@ -26,9 +26,9 @@ use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
     host_resolver::HostResolver,
     http2::{
-        Http2ConnectStream, Http2Connection, Http2RejectedStream, Http2TlsError, connect_selected,
-        connect_selected_extended, translate_extended_connect_settings, translate_settings,
-        validate_http2,
+        Http2Builder, Http2ConnectStream, Http2Connection, Http2RejectedStream, Http2TlsError,
+        connect_selected, connect_selected_extended, translate_extended_connect_settings,
+        translate_settings, validate_http2,
     },
     tls::{ServerAuthentication, TlsConnector, TlsStream},
 };
@@ -666,9 +666,7 @@ impl HttpsProxyConnector {
     }
 
     /// Validates HTTP/2 extended CONNECT support before proxy I/O.
-    pub(super) fn http2_extended_builder(
-        &self,
-    ) -> Result<::http2::client::Builder, HttpConnectError> {
+    pub(super) fn http2_extended_builder(&self) -> Result<Http2Builder, HttpConnectError> {
         if !self.offers_h2 {
             return Err(HttpConnectError::MissingH2Alpn);
         }
@@ -683,7 +681,7 @@ impl HttpsProxyConnector {
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
 
-    fn http2_builder(&self) -> Result<::http2::client::Builder, HttpConnectError> {
+    fn http2_builder(&self) -> Result<Http2Builder, HttpConnectError> {
         if !self.offers_h2 {
             return Err(HttpConnectError::MissingH2Alpn);
         }

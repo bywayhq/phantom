@@ -20,7 +20,7 @@ use crate::accept_ch::AcceptCh;
 use crate::request::{RequestBody, RequestBodyMetadata};
 
 use super::{
-    Http2Body, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
+    Http2Body, Http2Builder, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
     OperationOutcome, OriginForm, RequestHeader,
     driver::DriverTask,
     extended_connect_overrides, prepare_extended_connect, prepare_request, priority_overrides,
@@ -211,8 +211,11 @@ impl Http2Connection {
     /// # Errors
     ///
     /// Returns [`Http2Error`] for a priority weight outside 1..=256, a
-    /// dependency stream ID wider than 31 bits or equal to 1, or any failure of
+    /// dependency stream ID wider than 31 bits or equal to the profile's first
+    /// stream ([`Http2StreamSettings::first_stream_id`]), or any failure of
     /// [`Self::send_request_body_with_trailers`].
+    ///
+    /// [`Http2StreamSettings::first_stream_id`]: phantom_profile::Http2StreamSettings::first_stream_id
     #[allow(clippy::too_many_arguments)]
     pub async fn send_request_body_with_trailers_and_priority(
         &self,
@@ -224,7 +227,7 @@ impl Http2Connection {
         trailers: Vec<RequestHeader>,
         priority: Http2Priority,
     ) -> Result<Response<Http2Body>, Http2Error> {
-        let overrides = priority_overrides(priority)?;
+        let overrides = priority_overrides(priority, self.inner.first_stream_id)?;
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let mut request = prepare_request(method, authority, target, headers, metadata)?;
@@ -258,7 +261,9 @@ impl Http2Connection {
         trailers: Vec<RequestHeader>,
         priority: Option<Http2Priority>,
     ) -> Result<Response<Http2Body>, Http2Error> {
-        let overrides = priority.map(priority_overrides).transpose()?;
+        let overrides = priority
+            .map(|priority| priority_overrides(priority, self.inner.first_stream_id))
+            .transpose()?;
         PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
         let metadata = body.as_ref().map(RequestBody::metadata);
         let mut request = prepare_request(method, authority, target, headers, metadata)?;
@@ -663,7 +668,7 @@ impl Http2Connection {
 
     pub(super) async fn connect_with_builder<T>(
         stream: T,
-        client: client::Builder,
+        client: Http2Builder,
     ) -> Result<Self, Http2Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -673,7 +678,7 @@ impl Http2Connection {
 
     pub(super) async fn connect_with_builder_and_accept_ch<T>(
         stream: T,
-        client: client::Builder,
+        client: Http2Builder,
         accept_ch: AcceptCh,
     ) -> Result<Self, Http2Error>
     where
@@ -684,7 +689,7 @@ impl Http2Connection {
 
     pub(super) async fn connect_extended_with_builder_and_accept_ch<T>(
         stream: T,
-        client: client::Builder,
+        client: Http2Builder,
         accept_ch: AcceptCh,
     ) -> Result<Self, Http2Error>
     where
@@ -695,7 +700,7 @@ impl Http2Connection {
 
     async fn connect_with_builder_kind<T>(
         stream: T,
-        client: client::Builder,
+        client: Http2Builder,
         extended_connect: bool,
     ) -> Result<Self, Http2Error>
     where
@@ -712,7 +717,7 @@ impl Http2Connection {
 
     async fn connect_with_builder_kind_and_accept_ch<T>(
         stream: T,
-        client: client::Builder,
+        client: Http2Builder,
         accept_ch: AcceptCh,
         extended_connect: bool,
     ) -> Result<Self, Http2Error>
@@ -721,6 +726,10 @@ impl Http2Connection {
     {
         let runtime =
             tokio::runtime::Handle::try_current().map_err(|_| Http2Error::RuntimeUnavailable)?;
+        let Http2Builder {
+            client,
+            first_stream_id,
+        } = client;
         let (sender, connection) = client
             .handshake(stream)
             .await
@@ -732,6 +741,7 @@ impl Http2Connection {
                 driver,
                 accept_ch,
                 extended_connect,
+                first_stream_id,
             }),
         })
     }
@@ -927,6 +937,9 @@ struct ConnectionInner {
     driver: DriverTask,
     accept_ch: AcceptCh,
     extended_connect: bool,
+    /// The profile's first stream ID, against which a per-request priority
+    /// dependency is checked.
+    first_stream_id: u32,
 }
 
 impl ConnectionInner {
