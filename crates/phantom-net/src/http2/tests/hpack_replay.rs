@@ -139,105 +139,33 @@ const FIREFOX_WEBSOCKET: &[(&str, &str)] = &[
 /// Every `https-proxy-*` capture in one `fixtures/proxy/` directory.
 macro_rules! proxy_fixtures {
     ($directory:literal) => {
-        &[
+        proxy_fixtures!(
+            $directory;
+            "https-proxy-hostname",
+            "https-proxy-loopback",
+            "https-proxy-secure-hostname",
+            "https-proxy-auth-hostname",
+            "https-proxy-auth-loopback",
+            "https-proxy-auth-nostore-hostname",
+            "https-proxy-auth-nostore-loopback",
+            "https-proxy-auth-remembered-hostname",
+            "https-proxy-auth-secure-hostname"
+        )
+    };
+    ($directory:literal; $($scenario:literal),+) => {
+        &[$(
             (
-                concat!("proxy/", $directory, "/https-proxy-hostname.txt"),
+                concat!("proxy/", $directory, "/", $scenario, ".txt"),
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),
                     "/../../fixtures/proxy/",
                     $directory,
-                    "/https-proxy-hostname.txt"
+                    "/",
+                    $scenario,
+                    ".txt"
                 )),
-            ),
-            (
-                concat!("proxy/", $directory, "/https-proxy-loopback.txt"),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-loopback.txt"
-                )),
-            ),
-            (
-                concat!("proxy/", $directory, "/https-proxy-secure-hostname.txt"),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-secure-hostname.txt"
-                )),
-            ),
-            (
-                concat!("proxy/", $directory, "/https-proxy-auth-hostname.txt"),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-hostname.txt"
-                )),
-            ),
-            (
-                concat!("proxy/", $directory, "/https-proxy-auth-loopback.txt"),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-loopback.txt"
-                )),
-            ),
-            (
-                concat!(
-                    "proxy/",
-                    $directory,
-                    "/https-proxy-auth-nostore-hostname.txt"
-                ),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-nostore-hostname.txt"
-                )),
-            ),
-            (
-                concat!(
-                    "proxy/",
-                    $directory,
-                    "/https-proxy-auth-nostore-loopback.txt"
-                ),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-nostore-loopback.txt"
-                )),
-            ),
-            (
-                concat!(
-                    "proxy/",
-                    $directory,
-                    "/https-proxy-auth-remembered-hostname.txt"
-                ),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-remembered-hostname.txt"
-                )),
-            ),
-            (
-                concat!(
-                    "proxy/",
-                    $directory,
-                    "/https-proxy-auth-secure-hostname.txt"
-                ),
-                include_str!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/",
-                    $directory,
-                    "/https-proxy-auth-secure-hostname.txt"
-                )),
-            ),
-        ]
+            )
+        ),+]
     };
 }
 
