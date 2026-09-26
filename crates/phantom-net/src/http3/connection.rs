@@ -268,7 +268,8 @@ impl Http3Connection {
     /// before it grants more with `MAX_STREAMS` frames. A server that grants
     /// one back as each stream closes keeps this many open at once. `None`
     /// before the handshake completes, as on a connection whose early data
-    /// is unanswered.
+    /// is unanswered, and when the server's transport parameters could not
+    /// be read.
     #[must_use]
     pub fn peer_initial_max_streams_bidi(&self) -> Option<u64> {
         self.inner

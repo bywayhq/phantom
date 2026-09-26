@@ -539,6 +539,9 @@ async fn a_connection_reports_the_server_s_bidirectional_stream_limit() -> TestR
     .map_err(|_| "HTTP/3 connection timed out")??;
 
     assert_eq!(connection.peer_initial_max_streams_bidi(), Some(3));
+    // The synchronous reuse check accepts only the connector's own connections.
+    assert!(connector.can_reuse_now(&connection));
+    assert!(!self::connector()?.can_reuse_now(&connection));
 
     drop(connection);
     let _ = client_done.send(());

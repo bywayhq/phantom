@@ -1295,6 +1295,16 @@ impl Http3Connector {
     /// The check never waits behind a request that is still opening its
     /// stream, for example while the peer withholds SETTINGS or stream credit.
     pub async fn can_reuse(&self, connection: &Http3Connection) -> bool {
+        self.can_reuse_now(connection)
+    }
+
+    /// Returns whether an originating connection is currently reusable,
+    /// without a future.
+    ///
+    /// This is the check [`Self::can_reuse`] makes, for a caller that holds a
+    /// synchronous lock, such as a pool choosing among its connections.
+    #[must_use]
+    pub fn can_reuse_now(&self, connection: &Http3Connection) -> bool {
         connection.belongs_to(&self.identity) && connection.is_reusable()
     }
 
