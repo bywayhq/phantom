@@ -52,9 +52,9 @@ const FIREFOX_H1: &str = fixture!("firefox/156.0/windows-11-26200/h1-accept.txt"
 const EDGE_ACCEPT: &str = fixture!("edge/154.0.4258.37/windows-11-26200/accept.txt");
 const EDGE_FRESH: &str = fixture!("edge/154.0.4258.37/windows-11-26200/fresh-origin.txt");
 const CHROME_ANDROID_ACCEPT: &str =
-    fixture!("chrome-android/153.0.8010.52/android-35-emulator/accept.txt");
+    fixture!("chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt");
 const CHROME_ANDROID_FRESH: &str =
-    fixture!("chrome-android/153.0.8010.52/android-35-emulator/fresh-origin.txt");
+    fixture!("chrome-android/154.0.8037.57/android-17-pixel7-emulator/fresh-origin.txt");
 const BRAVE_ANDROID_ACCEPT: &str =
     fixture!("brave-android/153.1.95.104/android-35-emulator/accept.txt");
 const BRAVE_ANDROID_FRESH: &str =

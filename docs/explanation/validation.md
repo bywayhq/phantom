@@ -29,7 +29,7 @@ Phantom's claims rest on four kinds of evidence:
 | [macOS recipes](#macos-recipes) | macOS 15.5 arm64 captures of Chrome 154, Edge 154, Opera 135, and Firefox 156 client hints and request fields, replayed by recipe tests | One Apple silicon host; headless only; single-sample parity runs for the other layers |
 | [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 17 emulator captures of the TLS ClientHello and client hints; Android 15 emulator captures of HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
 | [Firefox for Android 156 recipe](#firefox-for-android-156-recipe) | Android 15 emulator captures of the TLS ClientHello | No certificate trust on Android, so no other layer |
-| [Chrome for Android 154 recipes](#chrome-for-android-154-recipes) | Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests; Chrome 153 captures on an Android 15 emulator for QUIC resumption and WebSocket openings | An emulator, not a phone; no TCP layer; one process per transport layer |
+| [Chrome for Android 154 recipes](#chrome-for-android-154-recipes) | Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, QUIC resumption, client hints, WebSocket openings, plaintext trust, and templates, replayed by recipe tests; one Chrome 153 cellular startup on an Android 15 emulator | An emulator, not a phone; no TCP layer; one process per transport layer |
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 17 and Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests | As for Chrome for Android; no WebSocket opening recipe, and no resumption or proxy capture |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
@@ -888,8 +888,10 @@ Two entry methods were used, and each fixture records its own:
 `android-intent` opens it with a `VIEW` intent. A page opened by intent has no
 user activation and comes from another app, so Chrome omits `Sec-Fetch-User`
 and sends `Sec-Fetch-Site: cross-site`; the request templates therefore rest
-on typed captures only. The TLS, HTTP/2 startup, and QUIC layers do not
-depend on how the page was opened.
+on typed captures only. The TLS, HTTP/2 startup, QUIC, QUIC resumption,
+WebSocket opening, and plaintext-trust layers do not depend on how the page
+was opened: the page's own script makes every request they record, and no
+WebSocket opening carries a `Sec-Fetch-*` field.
 
 | Layer | Samples | Result against the desktop Chrome 154 recipes |
 | --- | --- | --- |
@@ -898,6 +900,9 @@ depend on how the page was opened.
 | QUIC ClientHello, QUIC and H3 startup | 1 intent process | The ClientHello equals `chromium::v154_http3_tls`, sorted trust-anchor IDs included; the transport parameters equal `chromium::v154_quic`; the H3 SETTINGS and QPACK stream prefixes equal `chromium::v154_http3`. The request fields equal Chrome 154's apart from persona values, the missing `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
 | Client hints | 3 typed runs | The same eleven names, order, and `default` or `accept-ch` delivery as `chromium::v154_windows_client_hints`; Android persona values |
 | WebSocket `accept` and `h1-accept` | 3 typed runs each | Every page load and no-store `fetch()` equals the Android templates on HTTP/1.1 and HTTP/2 |
+| WebSocket openings, the other 7 scenarios | 3 intent runs each | With `accept` and `h1-accept`, equal to `chromium::v154_websocket` and `chromium::v154_http2` on every compared field, with the same connection choices and counts as desktop Chrome: 15 openings on the page's H2 session, 6 HTTP/1.1 Upgrades, and 3 refused streams retried once |
+| QUIC resumption | 3 intent runs each of `accept` and `reject` | Every later connection resumed, offered early data, and added `early_data` and a final `pre_shared_key`, and unsafe methods stayed in 1-RTT, as on Windows. Unlike the Windows runs, the `/navigate` GET travelled in 0-RTT in all three `accept` runs |
+| Plaintext trust | 3 intent runs each of `direct-loopback` and `direct-hostname` | Every `ws://` opening equals the Chromium WebSocket template for its origin's trust: `Accept-Encoding: gzip, deflate, br, zstd` to `127.0.0.1`, and `gzip, deflate` to `origin.phantom.test` |
 
 Chrome 154 contains Chromium commit `942bda4298c1`, which sorts the
 trust-anchor list. The unsorted, per-transport orders that Chrome 153 for
@@ -932,17 +937,17 @@ captured page load with its template, and the facade tests
 `chrome_android_fetch_sends_the_captured_report_request` send the templates
 over HTTP/1.1 and HTTP/2 and compare the result with the captures.
 
-Chrome 153.0.8010.52 captures on an Android 15 (API 35) emulator are kept
-where no Chrome 154 capture replaces them:
-
-| Layer | Samples | Result |
-| --- | --- | --- |
-| QUIC resumption | 3 typed runs each of `accept` and `reject` | Every later connection resumed, offered early data, and added `early_data` and a final `pre_shared_key`, and unsafe methods stayed in 1-RTT, as on Windows. Unlike the Windows runs, the `/navigate` GET travelled in 0-RTT in all three `accept` runs, and some requests spanned 0-RTT and 1-RTT packets |
-| WebSocket openings | 3 typed runs of each of 9 scenarios | Equal to `chromium::v154_websocket` and `chromium::v154_http2` on every compared field, with the same connection choices and counts |
-| Plaintext trust | 3 typed runs each of `direct-loopback` and `direct-hostname` | The field names of Chrome 154 for the page load, the default-mode `fetch()`, and the `ws://` opening, to each kind of origin; every `ws://` opening equals the Chromium WebSocket template for its origin's trust |
-
-`chrome_android::v154_websocket` rests on the Chrome 154 `accept` and
-`h1-accept` captures and on this nine-scenario Chrome 153 set.
+These three layers replaced Chrome 153.0.8010.52 captures from an Android 15
+(API 35) emulator, taken by typed entry. Against them, Chrome 154 changed
+nothing the recipes model. The WebSocket openings had the same outcome, close
+code, extensions, and connection count in every run, except that one Chrome
+153 `reject-403` run opened no spare H2 connection; which of the two H2
+connections carried the page varied between runs in both builds. In QUIC
+resumption, Chrome 153 split some requests across 0-RTT and 1-RTT packets
+and sent more of the concurrent safe requests in 0-RTT; no Chrome 154 request
+was split. The plaintext `ws://` openings and default-mode `fetch()` requests
+had the same fields; the page loads differ only by the intent's missing
+`Sec-Fetch-User` and `Sec-Fetch-Site: cross-site`.
 
 #### Network type and `initial_rtt_us`
 
@@ -979,16 +984,18 @@ written to Chrome's command-line file followed by the page URL.
 | QUIC ClientHello and H3 startup | `chrome_http3.py --client-hello --output`, with the browser opened by intent through the launcher with `--enable-quic`, `--origin-to-force-quic-on`, a port-qualified `--host-resolver-rules`, and the certificate's `--ignore-certificate-errors-spki-list` |
 | Client hints | `client_hints.py --browser chrome-android --repeat 3` |
 | WebSocket page and `fetch()` requests | `http2_websocket.py --browser chrome-android --scenario accept h1-accept --repeat 3` |
-| QUIC resumption (Chrome 153) | `quic_resumption.py --browser chrome-android --scenario accept reject --repeat 3` |
-| WebSocket openings (Chrome 153) | `http2_websocket.py --browser chrome-android --scenario all --repeat 3` |
-| Plaintext trust (Chrome 153) | `proxy_route.py --browser chrome-android --scenario direct-loopback direct-hostname --repeat 3` |
+| WebSocket openings | `http2_websocket.py --browser chrome-android --android-entry intent --scenario accept-deflate extension-mismatch fresh-origin h1-accept-deflate no-connect-protocol refused-stream reject-403 --repeat 3` |
+| QUIC resumption | `quic_resumption.py --browser chrome-android --android-entry intent --scenario accept reject --repeat 3` |
+| Plaintext trust | `proxy_route.py --browser chrome-android --android-entry intent --scenario direct-loopback direct-hostname --repeat 3` |
 
 `android_run.py --entry intent` performs the same intent launch for a
 listener. The launcher rewrites `127.0.0.1` in `--host-resolver-rules` to
 `10.0.2.2`, the emulator's route to host loopback, and adds `adb reverse`
 for a URL on the device's own `127.0.0.1`. The Android 17 captures of Chrome,
 Brave, and Opera took about 29 minutes of wall-clock time on the Windows
-host; the typed entries took most of it.
+host; the typed entries took most of it. The intent captures of QUIC
+resumption, plaintext trust, and the seven WebSocket scenarios, 39 runs, took
+about 3 minutes.
 
 Retained fixtures under
 `fixtures/<area>/chrome-android/154.0.8037.57/android-17-pixel7-emulator/`:
@@ -997,18 +1004,13 @@ Retained fixtures under
 | --- | --- |
 | `tls` | `client-hello.txt` |
 | `http2` | `client-startup.txt` |
-| `http3` | `client-startup.txt`, `quic-client-hello-1.txt` |
+| `http3` | `client-startup.txt`, `quic-client-hello-1.txt`, `resumption-accept.txt`, `resumption-reject.txt` |
 | `client-hints` | `navigation.txt` |
-| `websocket` | `accept.txt`, `h1-accept.txt` |
-
-Retained Chrome 153 fixtures under
-`fixtures/<area>/chrome-android/153.0.8010.52/android-35-emulator/`:
-
-| Area | Files |
-| --- | --- |
-| `http3` | `resumption-accept.txt`, `resumption-reject.txt`, `network/client-startup-cellular.txt` |
 | `websocket` | Nine scenarios |
 | `proxy` | `direct-loopback.txt`, `direct-hostname.txt` |
+
+The Chrome 153 cellular startup stays under
+`fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/network/`.
 
 Limits:
 
@@ -1028,9 +1030,8 @@ Limits:
   crumbs as the desktop cookie captures show, which no Android capture
   checks.
 - One Play-served build, sampled by one process per transport layer.
-- QUIC resumption, the nine WebSocket scenarios, and plaintext trust rest on
-  Chrome 153 captures from the Android 15 emulator, kept from the older
-  build.
+- The cellular `initial_rtt_us` finding rests on one Chrome 153 startup from
+  the Android 15 emulator; Chrome 154 was captured on Wi-Fi only.
 
 ### Brave for Android 153 recipes
 

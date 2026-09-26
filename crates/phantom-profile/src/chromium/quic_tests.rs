@@ -524,11 +524,11 @@ const RESUMPTION_FIXTURES: [&str; 16] = [
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/resumption-accept.txt"
+        "/../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/resumption-accept.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/resumption-reject.txt"
+        "/../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/resumption-reject.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

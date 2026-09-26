@@ -42,9 +42,9 @@ Read the matrix with these conditions:
   layers; no Linux capture exists, so platform independence is not claimed
   beyond them. The Android captures come from emulators, not from a phone,
   with Wi-Fi as the default network: an Android 17 emulator on the Windows
-  host that reports a Pixel 7, an earlier Android 15 emulator for some Chrome
-  153 and Brave layers and for Firefox, and an arm64 Android 17 emulator on a
-  Mac for Edge.
+  host that reports a Pixel 7, an earlier Android 15 emulator for the Chrome
+  153 cellular startup, some Brave layers, and Firefox, and an arm64
+  Android 17 emulator on a Mac for Edge.
 - H1's captured part is the request field order that request templates
   carry. The Chrome and Firefox recipes set a connection bound
   (`Http1Settings`) of 6 per origin and route, from browser source; without
@@ -857,8 +857,7 @@ shares component data with a capture from another platform:
 - Chrome 154 for Android (154.0.8037.57) recipes come from captures on the
   Android 17 emulator described in
   [Validation](../explanation/validation.md#chrome-for-android-154-recipes),
-  with QUIC resumption and WebSocket openings from Chrome 153 captures on an
-  Android 15 emulator. Edge 153 for Android (153.0.4234.49) recipes come from
+  QUIC resumption, WebSocket openings, and plaintext trust included. Edge 153 for Android (153.0.4234.49) recipes come from
   an arm64 Android 17 emulator
   ([Validation](../explanation/validation.md#edge-for-android-153-recipes)).
 - SSE browser captures are from Windows 11 (10.0.26200) only, and WebSocket

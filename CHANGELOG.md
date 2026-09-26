@@ -15,6 +15,11 @@ The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/
   for Android snapshots take 3 to 8 seconds a run. Opera and Firefox for
   Android yield the TCP ClientHello only, since neither accepts a
   certificate override from the launcher.
+- `quic_resumption.py`, `http2_websocket.py`, and `proxy_route.py` take
+  `--android-entry intent` to open the page on an Android browser by intent
+  rather than typing it. The Chrome for Android QUIC resumption, WebSocket
+  opening, and plaintext-trust evidence is now Chrome 154.0.8037.57 on the
+  Android 17 emulator, captured this way; the recipes did not change.
 Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking

@@ -60,8 +60,11 @@ const EDGE: [&str; 9] = fixture_set!("edge", "154.0.4258.37");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
 const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
 const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
-const CHROME_ANDROID: [&str; 9] =
-    fixture_set!("chrome-android", "153.0.8010.52", "android-35-emulator");
+const CHROME_ANDROID: [&str; 9] = fixture_set!(
+    "chrome-android",
+    "154.0.8037.57",
+    "android-17-pixel7-emulator"
+);
 const BRAVE_ANDROID: [&str; 9] =
     fixture_set!("brave-android", "153.1.95.104", "android-35-emulator");
 
@@ -91,16 +94,14 @@ fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResul
     Ok(())
 }
 
-/// The nine-scenario Chrome 153 for Android set, kept as Chromium-family
-/// evidence for `chrome_android::v154_websocket`.
 #[test]
-fn chrome_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResult {
+fn chrome_android_154_websocket_recipe_matches_captures() -> TestResult {
     let summary = assert_recipe_matches(
         &CHROME_ANDROID,
         "Google Chrome",
-        &chromium::v154_websocket(),
-        &chromium::v154_http2(),
-        &chromium::v154_tls(),
+        &crate::chrome_android::v154_websocket(),
+        &crate::chrome_android::v154_http2(),
+        &crate::chrome_android::v154_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);
@@ -826,15 +827,15 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
 fn android_websocket_recipes_follow_origin_trust_in_the_direct_captures() -> TestResult {
     for (recipe, fixtures) in [
         (
-            chromium::v154_websocket(),
+            crate::chrome_android::v154_websocket(),
             [
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"
+                    "/../../fixtures/proxy/chrome-android/154.0.8037.57/android-17-pixel7-emulator/direct-hostname.txt"
                 )),
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),
-                    "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"
+                    "/../../fixtures/proxy/chrome-android/154.0.8037.57/android-17-pixel7-emulator/direct-loopback.txt"
                 )),
             ],
         ),

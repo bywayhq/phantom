@@ -125,12 +125,6 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Chrome 154 for Android QUIC resumption, WebSocket openings, and plaintext
-  trust. Evidence: Chrome 153 captures on the Android 15 emulator
-  ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
-  Blocker: none; rerun `quic_resumption.py`, `http2_websocket.py --scenario
-  all`, and `proxy_route.py --scenario direct-loopback direct-hostname` on
-  the Android 17 emulator.
 - Brave and Opera TCP, HTTP/1.1 connection, address cache, and cookie
   placement recipes. Evidence: none; the captured Brave 154 and Opera 135
   layers are recipes
