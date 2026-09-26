@@ -8,8 +8,9 @@ use crate::{
     dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
-        Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority,
-        Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
+        Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
+        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
+        Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
     http3::{
         Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
@@ -362,6 +363,17 @@ pub fn v154_http1() -> Http1Settings {
 /// captures (`fixtures/cookies/`) show this for five cookies on every run;
 /// quiche's `HpackEncoder::CookieToCrumbs` is the split rule.
 ///
+/// The rest of the indexing policy is quiche's `HpackEncoder` at the revision
+/// Chromium 154 pins. Every ordinary field may enter the dynamic table,
+/// `authorization` and `content-length` included ([`Http2FieldIndexing::All`]).
+/// A literal names the static entry when one has its name, otherwise the
+/// newest dynamic entry ([`Http2NameReference::StaticThenNewest`]). A field of
+/// any size is inserted, evicting older entries, and one larger than the whole
+/// table empties it ([`Http2IndexingLimit::Unlimited`]). A table size setting
+/// equal to the current size is not announced. Every HEADERS block of the
+/// retained Chrome and Edge WebSocket and cookie sessions equals Phantom's
+/// byte for byte.
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -402,6 +414,11 @@ pub fn v154_http2() -> Http2Settings {
             static_name_index: Http2StaticNameIndex::Lowest,
             huffman_coding: Http2HuffmanCoding::WhenShorter,
             cookie_crumbs: Http2CookieCrumbs::IndexAll,
+            field_indexing: Http2FieldIndexing::All,
+            name_reference: Http2NameReference::StaticThenNewest,
+            unindexed_match: Http2UnindexedMatch::Index,
+            indexing_limit: Http2IndexingLimit::Unlimited,
+            table_size_updates: Http2TableSizeUpdates::WhenChanged,
         },
     }
 }

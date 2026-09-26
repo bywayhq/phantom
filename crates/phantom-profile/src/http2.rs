@@ -109,6 +109,11 @@ pub enum Http2HuffmanCoding {
     WhenShorter,
     /// Code whenever the coded form is no longer than the raw one.
     WhenNotLonger,
+    /// Code every literal string, and flag an empty one as coded.
+    ///
+    /// [`Self::Always`] sends an empty string raw, as the byte `0x00`; this
+    /// rule sends `0x80`, a coded string of length zero (Firefox).
+    AlwaysIncludingEmpty,
 }
 
 /// How the HPACK encoder sends each `cookie` field.
@@ -139,6 +144,95 @@ pub enum Http2CookieCrumbs {
     NeverIndexShort,
 }
 
+/// Which ordinary fields the HPACK encoder keeps out of the dynamic table.
+///
+/// `:path`, and a `cookie` field sent whole, never enter the table under any
+/// rule; this setting decides the other ordinary fields. A field marked
+/// sensitive is always a never-indexed literal.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2FieldIndexing {
+    /// Keep `age`, `authorization`, `content-length`, `etag`,
+    /// `if-modified-since`, `if-none-match`, `location`, and `set-cookie` out
+    /// of the table, as the nghttp2 encoder does.
+    #[default]
+    Nghttp2,
+    /// Let every ordinary field enter the table (Chromium).
+    All,
+    /// Send `authorization` as a never-indexed literal, and let every other
+    /// ordinary field enter the table (Firefox).
+    NeverIndexAuthorization,
+}
+
+/// Which table entry names a literal field whose name is in the table.
+///
+/// A literal can name its field with any static or dynamic entry that has the
+/// same name, and the index is on the wire.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2NameReference {
+    /// The static entry when one has the name, otherwise the newest dynamic
+    /// entry. A sensitive field whose name is in the dynamic table names the
+    /// newest such entry instead, and a field kept out of the table names only
+    /// a static entry.
+    #[default]
+    StaticUnlessSensitive,
+    /// The static entry when one has the name, otherwise the newest dynamic
+    /// entry (Chromium).
+    StaticThenNewest,
+    /// The oldest dynamic entry when one has the name, otherwise the static
+    /// entry, which makes it the highest-numbered entry with the name
+    /// (Firefox).
+    OldestDynamic,
+}
+
+/// How a field kept out of the dynamic table is sent when a table entry
+/// matches both its name and its value.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2UnindexedMatch {
+    /// As that entry's index, so `:path: /` is index 4 (Chromium).
+    #[default]
+    Index,
+    /// As a literal without indexing that names the entry, so `:path: /` is a
+    /// literal naming entry 4 (Firefox).
+    Literal,
+}
+
+/// The largest field the HPACK encoder inserts into the dynamic table.
+///
+/// A field's size is its RFC 7541 section 4.1 entry size, name plus value plus
+/// 32 bytes, compared with the table size the peer set.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2IndexingLimit {
+    /// A field larger than three quarters of the table is a literal without
+    /// indexing.
+    #[default]
+    ThreeQuarters,
+    /// A field larger than half the table, or any field when the table is
+    /// under 128 bytes, is a literal without indexing (Firefox).
+    Half,
+    /// Every field that may enter the table is indexed incrementally, and
+    /// older entries are evicted to make room. A field larger than the whole
+    /// table empties it and is not inserted (Chromium).
+    Unlimited,
+}
+
+/// When a field block starts with a dynamic-table size update after the peer
+/// sends `SETTINGS_HEADER_TABLE_SIZE`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2TableSizeUpdates {
+    /// Only when the setting changes the table size (Chromium).
+    #[default]
+    WhenChanged,
+    /// After every received setting, even one equal to the current size, so
+    /// a peer that states the default 4,096 bytes is answered with an update
+    /// to 4,096 (Firefox).
+    EverySetting,
+}
+
 /// HPACK encoder choices that RFC 7541 leaves to the encoder.
 ///
 /// A peer decodes the same fields whichever choice is made, so these describe
@@ -158,6 +252,16 @@ pub struct Http2HpackSettings {
     pub huffman_coding: Http2HuffmanCoding,
     /// How each `cookie` field is split and indexed.
     pub cookie_crumbs: Http2CookieCrumbs,
+    /// Which ordinary fields are kept out of the dynamic table.
+    pub field_indexing: Http2FieldIndexing,
+    /// Which table entry names a literal field.
+    pub name_reference: Http2NameReference,
+    /// How a field kept out of the table is sent when an entry matches it.
+    pub unindexed_match: Http2UnindexedMatch,
+    /// The largest field inserted into the dynamic table.
+    pub indexing_limit: Http2IndexingLimit,
+    /// When a field block starts with a dynamic-table size update.
+    pub table_size_updates: Http2TableSizeUpdates,
 }
 
 /// Priority information carried by each outgoing request HEADERS frame.

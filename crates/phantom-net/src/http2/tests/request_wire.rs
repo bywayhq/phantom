@@ -382,7 +382,9 @@ async fn content_length_zero_is_emitted_in_declared_wire_order() -> TestResult<(
                 // accept.txt:289 records `upgrade-insecure-requests: 1` as
                 // `value_huffman:false`.
                 0x40, 0x86, 0xf2, 0xb4, 0x65, 0x94, 0xf6, 0x17, 0x01, 0x61, // x-before: a
-                0x0f, 0x0d, 0x01, 0x30, // content-length: 0
+                // quiche's default policy indexes every ordinary field,
+                // `content-length` included, naming static entry 28.
+                0x5c, 0x01, 0x30, // content-length: 0
                 0x40, 0x85, 0xf2, 0xb0, 0xe5, 0x49, 0x6c, 0x01, 0x62, // x-after: b
             ]
         );

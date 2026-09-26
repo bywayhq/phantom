@@ -66,7 +66,7 @@ async fn chrome_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResu
         chromium::v154_cookie_placement(),
     )
     .await?;
-    assert_crumbs_match(&capture, &observed, NameIndex::Exact)
+    assert_crumbs_match(&capture, &observed)
 }
 
 #[tokio::test]
@@ -79,7 +79,7 @@ async fn edge_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult
         chromium::v154_cookie_placement(),
     )
     .await?;
-    assert_crumbs_match(&capture, &observed, NameIndex::Exact)
+    assert_crumbs_match(&capture, &observed)
 }
 
 #[tokio::test]
@@ -92,11 +92,8 @@ async fn firefox_never_indexes_short_jar_cookies_as_captured() -> TestResult<()>
     )
     .await?;
     // Firefox names a literal with the highest-numbered matching table entry,
-    // the oldest dynamic `cookie` entry once one exists; the encoder names
-    // static entry 32 or the newest dynamic entry instead
-    // (vendor/http2/PHANTOM.md, "Cookie crumbs"). Every other part of each
-    // crumb must match.
-    assert_crumbs_match(&capture, &observed, NameIndex::StaticOnly)
+    // the oldest dynamic `cookie` entry once one exists.
+    assert_crumbs_match(&capture, &observed)
 }
 
 #[tokio::test]
@@ -116,19 +113,7 @@ async fn whole_cookie_setting_keeps_one_field() -> TestResult<()> {
     Ok(())
 }
 
-/// Whether a captured crumb's name index must match exactly.
-#[derive(Clone, Copy)]
-enum NameIndex {
-    Exact,
-    /// Only a static name index (61 or less) must match.
-    StaticOnly,
-}
-
-fn assert_crumbs_match(
-    capture: &Capture,
-    observed: &[Vec<Field>],
-    names: NameIndex,
-) -> TestResult<()> {
+fn assert_crumbs_match(capture: &Capture, observed: &[Vec<Field>]) -> TestResult<()> {
     assert_eq!(observed.len(), capture.requests.len());
     for (request, (captured, emitted)) in capture.requests.iter().zip(observed).enumerate() {
         let captured_order = ordinary(captured)
@@ -151,13 +136,7 @@ fn assert_crumbs_match(
             assert_eq!(got.value, want.value, "{context}");
             assert_eq!(got.representation, want.representation, "{context}");
             assert_eq!(got.value_huffman, want.value_huffman, "{context}");
-            match names {
-                NameIndex::Exact => assert_eq!(got.index, want.index, "{context}"),
-                NameIndex::StaticOnly if want.index <= 61 || want.representation == "indexed" => {
-                    assert_eq!(got.index, want.index, "{context}");
-                }
-                NameIndex::StaticOnly => {}
-            }
+            assert_eq!(got.index, want.index, "{context}");
         }
     }
     Ok(())

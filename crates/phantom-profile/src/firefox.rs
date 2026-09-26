@@ -7,8 +7,9 @@ use crate::{
     dns_cache::DnsCacheSettings,
     http1::Http1Settings,
     http2::{
-        Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority,
-        Http2PseudoHeader, Http2Setting, Http2Settings, Http2StaticNameIndex,
+        Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
+        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
+        Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -268,14 +269,26 @@ pub fn v156_http1() -> Http1Settings {
 /// `:path`, `:authority`, `:scheme`, `:protocol`, and HEADERS priority
 /// non-exclusive on stream 0 with weight 22 instead of the navigation's 42.
 ///
-/// The HPACK choices come from every block in those captures. Every
-/// pseudo-header may enter the dynamic table, so `:method: CONNECT` and
-/// `:protocol` are indexed incrementally. A repeated static name takes the
-/// higher entry, which names `:method` with 3 and `:path` with 5 on every
-/// request rather than only on extended CONNECT. A literal string is
-/// Huffman-coded whenever the coded form is no longer than the raw one: all
-/// 831 coding decisions in the retained Firefox captures follow that rule,
-/// and the 135 ties among them are coded.
+/// The HPACK choices come from every block in those captures and from
+/// `Http2Compressor` in `netwerk/protocol/http/Http2Compression.cpp`. Every
+/// pseudo-header but `:path` may enter the dynamic table, so `:method:
+/// CONNECT` and `:protocol` are indexed incrementally. `:path` is always a
+/// literal without indexing, even `/`, which names entry 4
+/// ([`Http2UnindexedMatch::Literal`]). A literal names the highest-numbered
+/// entry with its name: the oldest dynamic entry once one exists, otherwise
+/// the higher static entry, so `:method` is named with 3 and `:path` with 5
+/// ([`Http2NameReference::OldestDynamic`]). Every literal string is
+/// Huffman-coded, an empty one included
+/// ([`Http2HuffmanCoding::AlwaysIncludingEmpty`]); none of the 831 strings
+/// in the retained Firefox captures is sent raw. `authorization` is a
+/// never-indexed literal and every other ordinary field may be indexed
+/// ([`Http2FieldIndexing::NeverIndexAuthorization`]). A field larger than
+/// half the table is not indexed ([`Http2IndexingLimit::Half`]). Every
+/// `SETTINGS_HEADER_TABLE_SIZE` from the peer is announced at the start of
+/// the next block, even an unchanged 4,096
+/// ([`Http2TableSizeUpdates::EverySetting`]). Every HEADERS block of the
+/// retained Firefox WebSocket and cookie sessions equals Phantom's byte for
+/// byte.
 ///
 /// Each `cookie` field is split at `"; "` into one field per cookie. A crumb
 /// shorter than 20 bytes is a never-indexed literal and a longer one is
@@ -318,8 +331,13 @@ pub fn v156_http2() -> Http2Settings {
         hpack: Http2HpackSettings {
             literal_pseudo_headers: Vec::new(),
             static_name_index: Http2StaticNameIndex::Highest,
-            huffman_coding: Http2HuffmanCoding::WhenNotLonger,
+            huffman_coding: Http2HuffmanCoding::AlwaysIncludingEmpty,
             cookie_crumbs: Http2CookieCrumbs::NeverIndexShort,
+            field_indexing: Http2FieldIndexing::NeverIndexAuthorization,
+            name_reference: Http2NameReference::OldestDynamic,
+            unindexed_match: Http2UnindexedMatch::Literal,
+            indexing_limit: Http2IndexingLimit::Half,
+            table_size_updates: Http2TableSizeUpdates::EverySetting,
         },
     }
 }

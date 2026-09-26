@@ -6,15 +6,17 @@
 use ::http2::{
     client,
     ext::{
-        CookieCrumbs, HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, StaticNameIndex,
+        CookieCrumbs, FieldIndexing, HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding,
+        IndexingLimit, NameReference, SizeUpdates, StaticNameIndex, UnindexedMatch,
     },
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
 use bytes::Bytes;
 use http::{Method, Request, Response};
 use phantom_profile::{
-    Http2CookieCrumbs, Http2HpackSettings, Http2HuffmanCoding, Http2Priority, Http2PseudoHeader,
-    Http2Setting, Http2Settings, Http2StaticNameIndex,
+    Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
+    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
@@ -575,6 +577,7 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         Http2HuffmanCoding::Always => HuffmanCoding::Always,
         Http2HuffmanCoding::WhenShorter => HuffmanCoding::WhenShorter,
         Http2HuffmanCoding::WhenNotLonger => HuffmanCoding::WhenNotLonger,
+        Http2HuffmanCoding::AlwaysIncludingEmpty => HuffmanCoding::AlwaysIncludingEmpty,
         _ => return Err(Http2Error::UnsupportedSetting),
     };
     let cookie_crumbs = match hpack.cookie_crumbs {
@@ -583,11 +586,44 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         Http2CookieCrumbs::NeverIndexShort => CookieCrumbs::NeverIndexShort,
         _ => return Err(Http2Error::UnsupportedSetting),
     };
+    let field_indexing = match hpack.field_indexing {
+        Http2FieldIndexing::Nghttp2 => FieldIndexing::Nghttp2,
+        Http2FieldIndexing::All => FieldIndexing::All,
+        Http2FieldIndexing::NeverIndexAuthorization => FieldIndexing::NeverIndexAuthorization,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    let name_reference = match hpack.name_reference {
+        Http2NameReference::StaticUnlessSensitive => NameReference::Upstream,
+        Http2NameReference::StaticThenNewest => NameReference::StaticThenNewest,
+        Http2NameReference::OldestDynamic => NameReference::OldestDynamic,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    let unindexed_match = match hpack.unindexed_match {
+        Http2UnindexedMatch::Index => UnindexedMatch::Index,
+        Http2UnindexedMatch::Literal => UnindexedMatch::Literal,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    let indexing_limit = match hpack.indexing_limit {
+        Http2IndexingLimit::ThreeQuarters => IndexingLimit::ThreeQuarters,
+        Http2IndexingLimit::Half => IndexingLimit::Half,
+        Http2IndexingLimit::Unlimited => IndexingLimit::Unlimited,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
+    let size_updates = match hpack.table_size_updates {
+        Http2TableSizeUpdates::WhenChanged => SizeUpdates::WhenChanged,
+        Http2TableSizeUpdates::EverySetting => SizeUpdates::EverySetting,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
     Ok(HpackEncoderProfile::new()
         .literal_pseudo_headers(literal)
         .static_name_index(static_name_index)
         .huffman_coding(huffman_coding)
-        .cookie_crumbs(cookie_crumbs))
+        .cookie_crumbs(cookie_crumbs)
+        .field_indexing(field_indexing)
+        .name_reference(name_reference)
+        .unindexed_match(unindexed_match)
+        .indexing_limit(indexing_limit)
+        .size_updates(size_updates))
 }
 
 fn stream_dependency(priority: Http2Priority) -> Result<StreamDependency, Http2Error> {

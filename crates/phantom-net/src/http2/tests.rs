@@ -121,6 +121,7 @@ mod continuation_matrix;
 mod driver_lifecycle;
 mod driver_shutdown;
 mod extended_connect;
+mod hpack_replay;
 mod hpack_transitions;
 mod request_body_cancellation;
 mod request_body_early_response;
