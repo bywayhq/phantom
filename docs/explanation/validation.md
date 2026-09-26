@@ -231,7 +231,9 @@ encodes them into one byte string (`net/cert/x509_util.cc:708-717`).
 byte vectors lexicographically, so the order is ascending byte order. A
 component update can change which identifiers the list holds, not how they
 are ordered; every capture below ran with `--disable-component-update`, so
-each shows the compiled-in list.
+each shows the compiled-in list. The recipe carries that compiled-in set of
+28 identifiers and does not follow component-updated PKI metadata, so a
+Chrome that has received the component may send a different set.
 
 Sixty fresh headless processes, one TCP ClientHello each, produced one order.
 It is the 28 Chrome 153 IDs in ascending byte order, from `82df130201` to
@@ -245,8 +247,8 @@ resumption fixtures under `fixtures/tls/chrome/154.0.8037.58/`, and the QUIC
 ClientHello and QUIC resumption fixtures under
 `fixtures/http3/chrome/154.0.8037.58/`. They hold 132 ClientHellos from 23
 processes on Windows 11 and macOS 15.5, over TCP and QUIC. Eighteen of those
-processes opened more than one connection, one of them 13. Every ClientHello
-carries the same trust-anchor extension, so the order is fixed within a
+processes opened more than one connection, one of them 13. Every ClientHello,
+the outer one in the ECH captures, carries the same trust-anchor extension, so the order is fixed within a
 process as well as between processes.
 
 `chromium::v154_tls` and `chromium::v154_http3_tls` list the 28 identifiers

@@ -94,7 +94,9 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
 - Chrome 154's trust-anchor ID order: one ascending list in every browser
   process and on every connection of a process, over TCP and QUIC, as
-  Chromium sorts it once when it builds the SSL configuration
+  Chromium sorts it once when it builds the SSL configuration. The recipe
+  carries the compiled-in set of 28 identifiers, not a set from
+  component-updated PKI metadata
   ([Chrome 154 trust-anchor ID order](explanation/validation.md#chrome-154-trust-anchor-id-order)).
 
 ### Remaining

@@ -42,8 +42,9 @@ use crate::quic::{
 
 // Chrome 154 sorts the trust-anchor ID list once, when it builds the SSL
 // configuration (`net/cert/x509_util.cc:708-717` at 154.0.8037.58, from
-// Chromium commit `942bda4298c1`), so every connection of every process emits
-// these 28 identifiers in ascending byte order. All 60 fresh processes of the
+// Chromium commit `942bda4298c1`), so with the compiled-in PKI metadata every
+// connection of every process emits these 28 identifiers in ascending byte
+// order. All 60 fresh processes of the
 // retained `trust-anchor-orders.txt` capture and all 132 retained desktop
 // ClientHellos, up to 13 from one process, carry exactly this order.
 const V154_TRUST_ANCHOR_IDS: &[&[u8]] = &[
