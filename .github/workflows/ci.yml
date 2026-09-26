@@ -128,7 +128,7 @@ jobs:
           echo "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION" >> "$GITHUB_PATH"
 
       - name: Lint shell scripts
-        run: shellcheck scripts/ci/*.sh scripts/release/*.sh
+        run: shellcheck scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh
 
       - name: Lint Python tooling
         run: |

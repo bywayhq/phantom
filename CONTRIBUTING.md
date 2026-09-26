@@ -193,7 +193,7 @@ Run these too when the change touches their area:
 | Change touches | Check |
 | --- | --- |
 | A vendored package | `scripts/ci/check-vendor.sh <package>`; see [Vendored forks](docs/internals/vendoring.md) |
-| `scripts/ci` or `scripts/release` shell | ShellCheck 0.11.0: `shellcheck scripts/ci/*.sh scripts/release/*.sh` |
+| `scripts/ci`, `scripts/dev`, or `scripts/release` shell | ShellCheck 0.11.0: `shellcheck scripts/ci/*.sh scripts/dev/*.sh scripts/release/*.sh` |
 | `fuzz/` | `cargo fmt --manifest-path fuzz/Cargo.toml --check` and `cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings` |
 | Optional features | The affected combinations from the Features and MSRV jobs in [CI](.github/workflows/ci.yml) |
 | The QUIC cryptography backend | AddressSanitizer, as [below](#reproduce-a-sanitizer-report) |
