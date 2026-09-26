@@ -18,7 +18,7 @@ presented as a complete client match.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Edge 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Brave 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured | Captured | Captured | Not covered | Not covered | Not sent by Firefox | Captured | Captured |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
@@ -48,7 +48,9 @@ Read the matrix with these conditions:
 - H1's captured part is the request field order that request templates
   carry. The Chrome and Firefox recipes set a connection bound
   (`Http1Settings`) of 6 per origin and route, from browser source; without
-  them the bound is 1. Edge, Brave, and Opera have no H1 connection recipe.
+  them the bound is 1. Brave uses the Chromium one, since it builds the same
+  Chromium tag without changing the bound; Edge and Opera have no H1
+  connection recipe.
 - Edge's, Brave's, and Opera's H2, QUIC, H3, and WebSocket layers use the
   Chromium recipes, which equal their captures on every compared field.
   Opera 135 is built on Chromium 151 and is compared with the Chrome 154
@@ -138,8 +140,10 @@ Not modeled:
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
-- An Edge, Brave, or Opera TCP recipe. No capture shows their options, and
-  no browser source has been read for them.
+- An Edge or Opera TCP recipe. No capture shows their options, and their
+  network source is not public. Brave uses `chromium::v154_tcp`: Brave
+  1.96.59 builds Chromium tag `154.0.8037.58` and changes none of the values
+  the recipe cites.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP
@@ -960,7 +964,8 @@ Request templates:
   `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch` template.
   The [cookie crumb captures](../explanation/validation.md#cookie-crumb-evidence)
   show the same neighbors on a navigation and a `fetch()` over H1, H2, and
-  H3: last or before `priority` for Chrome and Edge, and after `Referer` for
+  H3: last or before `priority` for Chrome, Edge, Brave, and Opera, which
+  all use `chromium::v154_cookie_placement`, and after `Referer` for
   Firefox, before `Upgrade-Insecure-Requests` on a navigation and
   `Sec-Fetch-Dest` on a `fetch()`.
 - On H2, the Chromium and Firefox recipes split the `cookie` field into one

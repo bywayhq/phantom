@@ -13,9 +13,13 @@
 //! offers and client hints differ, so only they, and request templates with
 //! a caller `User-Agent`, have Opera recipes here.
 //!
-//! There is no Opera TCP, HTTP/1.1 connection, address cache, or cookie
-//! placement recipe. Those behaviors are not visible in these captures, and
-//! Opera's network-stack source is not public.
+//! The retained Opera cookie captures place `Cookie` and split it into crumbs
+//! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
+//! against [`chromium::v154_cookie_placement`] with the H2 and H3 recipes.
+//!
+//! There is no Opera TCP, HTTP/1.1 connection, or address cache recipe.
+//! Those behaviors are not visible in these captures, and Opera's
+//! network-stack source is not public.
 
 use crate::{
     chromium,

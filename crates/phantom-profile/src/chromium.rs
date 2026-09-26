@@ -165,8 +165,11 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
 /// capture `set-cookie-then-close.txt` sends it last on every run. For H2 and
 /// H3, `CreateSpdyHeadersFromHttpRequest` copies those fields in order and then
 /// appends `priority` (`net/spdy/spdy_http_utils.cc:32`, `:199-236`), so
-/// `Cookie` precedes a `priority` field. That H2 and H3 position comes from
-/// Chromium source, not from a capture.
+/// `Cookie` precedes a `priority` field. The retained cookie captures of
+/// Chrome 154, Edge 154, Brave 154, and Opera 135 (`fixtures/cookies/`) show
+/// both positions on every run: `Cookie` last over HTTP/1.1, and the crumbs
+/// right before `priority` over HTTP/2 and HTTP/3. Edge, Brave, and Opera
+/// use this recipe.
 #[must_use]
 pub fn v154_cookie_placement() -> CookiePlacement {
     CookiePlacement::before_fields(["priority"])
@@ -300,6 +303,9 @@ pub fn v154_tls() -> TlsSettings {
 /// Chromium ignores a failure to set either option
 /// (`net/socket/tcp_socket_win.cc:70-71`); Phantom instead fails the connection
 /// attempt rather than connect with options the profile did not ask for.
+///
+/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
+/// values, so this recipe also serves Brave 154 (see [`crate::brave`]).
 #[must_use]
 pub fn v154_tcp() -> TcpSettings {
     const KEEPALIVE: Duration = Duration::from_secs(45);
@@ -342,6 +348,11 @@ pub fn v154_tcp() -> TcpSettings {
 /// (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`), and a negative
 /// answer for its SOA TTL (`:907-908`). Phantom resolves through the operating
 /// system and sees no TTL, so this recipe follows the system-resolver path.
+///
+/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
+/// values, so this recipe also serves Brave 154. Brave enables
+/// `kPartitionConnectionsByNetworkIsolationKey`, which keys the cache by
+/// top-level site as well (see [`crate::brave`]).
 #[must_use]
 pub fn v154_dns_cache() -> DnsCacheSettings {
     DnsCacheSettings {
@@ -367,6 +378,11 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
 /// Chromium's other socket limits are not modeled: 256 sockets per pool and
 /// 128 per proxy chain (`net/socket/client_socket_pool_manager.cc:37-44`,
 /// `:60-66`), and 255 per group for WebSocket connections.
+///
+/// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
+/// values, so this recipe also serves Brave 154. Brave enables
+/// `kPartitionConnectionsByNetworkIsolationKey`, which keys each socket group
+/// by top-level site as well (see [`crate::brave`]).
 #[must_use]
 pub fn v154_http1() -> Http1Settings {
     Http1Settings {
@@ -992,9 +1008,10 @@ pub fn v154_http3_tls() -> TlsSettings {
 ///
 /// Each `cookie` field is split into one field per cookie
 /// ([`Http3CookieCrumbs::Split`]). The retained cookie captures
-/// (`fixtures/cookies/`) show Chrome 154 and Edge 154 inserting each crumb
-/// into the QPACK dynamic table with a static name reference and sending it
-/// as an indexed field line, at the position of the joined field.
+/// (`fixtures/cookies/`) show Chrome 154, Edge 154, Brave 154, and Opera 135
+/// inserting each crumb into the QPACK dynamic table with a static name
+/// reference and sending it as an indexed field line, at the position of the
+/// joined field.
 #[must_use]
 pub fn v154_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {

@@ -11,10 +11,21 @@
 //! offers, client hints, and request fields differ, so only they have Brave
 //! recipes here.
 //!
-//! There is no Brave TCP, HTTP/1.1 connection, address cache, or cookie
-//! placement recipe. Socket options, connection counts, and caches are not
-//! visible in these captures, and no Brave source at this tag has been read
-//! for them.
+//! The retained Brave cookie captures place `Cookie` and split it into crumbs
+//! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
+//! against [`chromium::v154_cookie_placement`] with the H2 and H3 recipes.
+//!
+//! The TCP options, the HTTP/1.1 connection bound, and the address cache are
+//! not visible in a capture. Brave 1.96.59 builds Chromium tag
+//! `154.0.8037.58` (`package.json` in `brave-core` at tag `v1.96.59`), the tag
+//! behind [`chromium::v154_tcp`], [`chromium::v154_http1`], and
+//! [`chromium::v154_dns_cache`], and none of its patches or overrides changes
+//! a value those recipes cite, so they serve Brave unchanged. The one Brave
+//! change that reaches these layers enables
+//! `kPartitionConnectionsByNetworkIsolationKey`
+//! (`patches/net-base-features.cc.patch`), which keys Chromium's socket
+//! groups and host cache by top-level site as well; a Phantom client keeps
+//! one pool and one cache, as a single top-level site would.
 
 use crate::{
     chromium,

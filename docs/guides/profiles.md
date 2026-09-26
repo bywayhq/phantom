@@ -46,8 +46,13 @@ fn profiles() -> [ClientProfile; 5] {
         .with_client_hints(edge::v154_windows_client_hints());
 
     // Brave 154 and Opera 135 follow the same pattern with their own TLS,
-    // H3 TLS, and client hints.
+    // H3 TLS, and client hints, and both place cookies as Chromium does.
+    // Brave builds Chrome 154's Chromium tag, so it also takes Chromium's
+    // source-derived TCP options, HTTP/1.1 bound, and address cache.
     let brave = ClientProfile::new(brave::v154_tls())
+        .with_tcp(chromium::v154_tcp())
+        .with_http1(chromium::v154_http1())
+        .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
             brave::v154_http3_tls(),
@@ -55,7 +60,8 @@ fn profiles() -> [ClientProfile; 5] {
             chromium::v154_http3(),
             chromium::v154_http3_request(),
         ))
-        .with_client_hints(brave::v154_windows_client_hints());
+        .with_client_hints(brave::v154_windows_client_hints())
+        .with_cookie_placement(chromium::v154_cookie_placement());
     let opera = ClientProfile::new(opera::v135_tls())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
@@ -64,7 +70,8 @@ fn profiles() -> [ClientProfile; 5] {
             chromium::v154_http3(),
             chromium::v154_http3_request(),
         ))
-        .with_client_hints(opera::v135_windows_client_hints());
+        .with_client_hints(opera::v135_windows_client_hints())
+        .with_cookie_placement(chromium::v154_cookie_placement());
 
     // Chrome 154 for Android: the Chromium TLS recipes without ECH from
     // HTTPS records, Android client hints, and the Chromium H2, QUIC, and H3.
@@ -99,7 +106,8 @@ fn profiles() -> [ClientProfile; 5] {
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin
   and route. `chromium::v154_http1` and `firefox::v156_http1` allow 6, from
-  browser source; without `with_http1` the client keeps one
+  browser source, and the Chromium one also serves Brave; without
+  `with_http1` the client keeps one
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 - A `windows` or `android` in a recipe name records where it was captured. The runtime
   never branches on the host OS or the browser name
@@ -141,11 +149,12 @@ fn chrome_on_macos() -> ClientProfile {
   ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
-- There is no Edge, Brave, or Opera TCP recipe, and Firefox's keepalive
-  schedule and address selection are not modeled
+- There is no Edge or Opera TCP recipe, and Firefox's keepalive schedule
+  and address selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-- There is no Edge, Brave, or Opera HTTP/1.1 connection recipe: no source
-  or capture shows their values
+  Brave uses `chromium::v154_tcp`.
+- There is no Edge or Opera HTTP/1.1 connection or address cache recipe: no
+  source or capture shows their values
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 
 ## Next

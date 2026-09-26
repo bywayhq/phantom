@@ -429,6 +429,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Brave 154 profiles can take `chromium::v154_tcp`, `chromium::v154_http1`,
+  and `chromium::v154_dns_cache`: Brave 1.96.59 builds the Chromium tag
+  those recipes cite and changes none of their values. Brave 154 and Opera
+  135 profiles can take `chromium::v154_cookie_placement`, which their
+  retained cookie captures under `fixtures/cookies/` equal over HTTP/1.1,
+  HTTP/2, and HTTP/3. Opera still has no TCP, HTTP/1.1 connection, or
+  address cache recipe.
 - `scripts/capture/snapshot.py` takes the Android browsers. It opens the page
   with an intent and lets the page drive the rest, so Chrome, Brave, and Edge
   for Android snapshots take 3 to 8 seconds a run. Opera and Firefox for

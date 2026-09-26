@@ -125,12 +125,14 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Brave and Opera TCP, HTTP/1.1 connection, address cache, and cookie
-  placement recipes. Evidence: none; the captured Brave 154 and Opera 135
-  layers are recipes
+- Opera TCP, HTTP/1.1 connection, and address cache recipes. Delivered:
+  Brave 154 uses the Chromium TCP, HTTP/1.1, and address cache recipes after
+  a `brave-core` source reading at its release tag, and both browsers use
+  the Chromium cookie placement, which their cookie captures equal
   ([Brave 154 and Opera 135 recipes](explanation/validation.md#brave-154-and-opera-135-recipes)).
-  Blocker: a Brave source reading at its release tag; Opera's network source
-  is not public.
+  Evidence for Opera: none; Chromium 151, its base, has the Chromium 154
+  values. Blocker: Opera's network source is not public, and no capture
+  shows socket options or cache lifetimes.
 - Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
   query with the capture tool's preferences, and `opera::v135_tls` keeps
   GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.

@@ -25,19 +25,19 @@ Phantom's claims rest on four kinds of evidence:
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; macOS only for client hints and request fields; no Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; macOS only for client hints and request fields |
 | [Edge 154 recipes](#edge-154-recipes) | Fingerprint snapshots against Edge 153, and Windows and macOS captures of every scenario whose request fields carry the brand list | One run of the client hints, QUIC resumption, and H3 startup on Windows; ECH and the raw H2 startup rest on Edge 153 |
-| [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
+| [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests; Brave source at its release tag for TCP, the HTTP/1.1 bound, and the address cache | One Windows build per browser; no SSE or Alt-Svc capture; no Opera TCP, HTTP/1.1 bound, or address cache evidence; Opera's H2 and H3 startups launched through DevTools |
 | [macOS recipes](#macos-recipes) | macOS 15.5 arm64 captures of Chrome 154, Edge 154, Opera 135, and Firefox 156 client hints and request fields, replayed by recipe tests | One Apple silicon host; headless only; single-sample parity runs for the other layers |
 | [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 17 emulator captures of the TLS ClientHello and client hints; Android 15 emulator captures of HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
 | [Firefox for Android 156 recipe](#firefox-for-android-156-recipe) | Android 15 emulator captures of the TLS ClientHello | No certificate trust on Android, so no other layer |
 | [Chrome for Android 154 recipes](#chrome-for-android-154-recipes) | Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, QUIC resumption, client hints, WebSocket openings, plaintext trust, and templates, replayed by recipe tests; one Chrome 153 cellular startup on an Android 15 emulator | An emulator, not a phone; no TCP layer; one process per transport layer |
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 17 and Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests | As for Chrome for Android; no WebSocket opening recipe, and no resumption or proxy capture |
-| [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
-| [Address cache](#address-cache-evidence) | Browser source at one tag per browser, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
-| [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
+| [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, Brave's included, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
+| [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
+| [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests | No capture counts a browser's connections; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
-| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
+| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
@@ -610,6 +610,7 @@ same layer, with `--browser brave` or `--browser opera` in the Python tools.
 | Proxy CONNECT fields | 20 proxy scenarios, 3 runs each | Equal to `chromium::v154_proxy_connect` |
 | Brave ECH from an HTTPS record | 1 `accept` and 1 `reject` run | Chrome 154's outer extension fields; one retry with the server's configuration after a rejection |
 | Brave ECH over QUIC | 3 `accept` and 3 `reject` runs | Chrome 154's outer QUIC fields without trust-anchor IDs; no QUIC connection after a rejection |
+| Brave and Opera cookie placement and crumbs | 3 runs each over H1, H2, and H3 | Equal to `chromium::v154_cookie_placement`, `chromium::v154_http2`, and `chromium::v154_http3_request` |
 
 The recipes follow from those results. `brave::v154_tls` and
 `brave::v154_http3_tls` remove the trust-anchor IDs from the Chromium
@@ -617,9 +618,46 @@ recipes, and both keep `ech_from_https_records`.
 `opera::v135_tls` also clears `grease_signature_algorithms`;
 `opera::v135_http3_tls` removes only the IDs, since the Chromium QUIC offer
 has no signature algorithm GREASE. Neither browser has an H2, QUIC, H3,
-WebSocket, or proxy CONNECT recipe of its own, because those layers equal
-the Chromium recipes on every compared field. The client-hint recipes and
-request templates carry the brand lists and the differences in the table.
+WebSocket, proxy CONNECT, or cookie placement recipe of its own, because
+those layers equal the Chromium recipes on every compared field. The
+client-hint recipes and request templates carry the brand lists and the
+differences in the table.
+
+In the cookie captures, both browsers send `Cookie` last over HTTP/1.1 and
+split it over HTTP/2 and HTTP/3 into five crumbs right before `priority`,
+with the representations, indexes, and QPACK inserts of Chrome 154. Brave's
+`Sec-GPC` is one more field before them, and adds one more QPACK insert.
+Brave opened one connection per run. Opera, as Chrome and Edge do in their
+cookie captures, opened up to four more that carried no request; Phantom
+opens no such spare connection.
+
+The TCP options, the HTTP/1.1 connection bound, and the address cache rest
+on a source reading of `brave-core` at tag `v1.96.59`, the build captured
+here. Its `package.json` names Chromium tag `154.0.8037.58`, the tag the
+Chromium recipes cite. Brave's patches and `chromium_src` overrides under
+`net/socket/` touch only the SOCKS client, the SOCKS connect job, and the
+TLS client socket. Three cited files are overridden, none in a way that
+changes a recipe value: `net/dns/host_cache.cc` copies TXT records into a
+copied entry, `net/dns/host_resolver_manager_job.cc` counts secure DNS
+tasks, and `net/base/features.cc` changes three feature defaults, one of
+them below. Its `net/dns/dns_client.cc` override adds a fallback
+DNS-over-HTTPS server behind `kBraveFallbackDoHProvider`, which is off by
+default, and its resolver configuration changes apply only while Brave VPN
+is connected. So `chromium::v154_tcp`, `chromium::v154_http1`, and
+`chromium::v154_dns_cache` serve Brave as they are. Brave's
+`patches/net-base-features.cc.patch` enables
+`kPartitionConnectionsByNetworkIsolationKey`, which Chromium leaves off
+(`net/base/features.cc:213-214`). With it, socket pool groups
+(`net/socket/client_socket_pool.cc:122-136`), host cache entries, and
+learned HTTP/2 support are keyed by top-level site as well. A Phantom
+client has no top-level site: it behaves as Brave does within one.
+
+Opera's network source is not public, so Opera has no TCP, HTTP/1.1
+connection, or address cache recipe. Chromium 151.0.7922.176, the version
+Opera reports, has the values of 154 for `kTCPKeepAliveSeconds`,
+`g_max_sockets_per_group`, `kDefaultCacheSize`, `kCacheEntryTTLSeconds`,
+`kNegativeCacheEntryTTLSeconds`, and `kIPv6FallbackTime`, with Happy
+Eyeballs v3 off, but that does not show what Opera changes.
 
 Brave's `Accept-Language` is the one request value that no literal can
 match. The sample is the 87 runs of the Brave WebSocket and proxy route
@@ -712,7 +750,10 @@ compared field. The other layers use `client_hints.py --repeat 3`,
 `http2_websocket.py --scenario all --repeat 3`,
 `proxy_route.py --scenario all --repeat 3`, `quic_resumption.py` as in its
 section, and `chrome_ech.py --scenario accept` and `reject`, without and
-with `--quic`.
+with `--quic`. The cookie captures came from `cookie_crumbs.py --scenario
+all --repeat 3` through `run_matrix.py`, which ran each scenario alone; a
+`snapshot.py` run of each browser in the same batch matched every retained
+fixture `snapshot_compare.py` reads.
 
 Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26200/`:
 
@@ -724,6 +765,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
 | Brave 154.1.96.59 | `http3` | `launch-mode/client-startup-devtools.txt`, `launch-mode/quic-client-hello-devtools.txt` |
 | Both | `client-hints` | `navigation.txt` |
+| Both | `cookies` | `crumbs-h1.txt`, `crumbs-h2.txt`, `crumbs-h3.txt` |
 | Both | `websocket` | Nine scenarios |
 | Both | `proxy` | Twenty scenarios |
 
@@ -735,10 +777,8 @@ Limits:
   exists.
 - Every retained capture ran headless. One headful client-hint run per
   browser matched the headless runs, but it was not retained.
-- No TCP, HTTP/1.1 connection, address cache, or cookie placement recipe.
-  Socket options and connection counts are not visible in these captures.
-  Brave's source is public and could back them after a source reading at
-  its release tag; Opera's network source is not public.
+- Brave's TCP options, HTTP/1.1 bound, and address cache rest on source
+  alone; no capture confirms them. Opera has no recipe for those layers.
 - No SSE or Alt-Svc racing capture exists for either browser.
 - The Opera comparison is with Chrome 154, not with a Chromium 151 build.
 - Opera's H2 and H3 startups were launched through DevTools; its TLS
@@ -1268,7 +1308,7 @@ does not resolve.
 
 What is claimed: `chromium::v154_tcp` and `firefox::v156_tcp` set the socket
 options, and `chromium::v154_tcp` races addresses, as those browsers do at the
-profiled release tags.
+profiled release tags. `chromium::v154_tcp` does the same for Brave 154.
 
 Evidence: a capture cannot show socket options, so the TCP recipes rest on
 browser source. The socket-option and Happy Eyeballs default citations are to
@@ -1300,8 +1340,11 @@ Differences from the browsers:
   negotiation (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`,
   `:2124-2239`; `modules/libpref/init/all.js:1270-1278`).
   `firefox::v156_tcp` leaves `SO_KEEPALIVE` at the operating-system default.
-- Edge's network-stack source is not public, and no capture shows socket
-  options, so there is no Edge TCP recipe.
+- Brave 1.96.59 builds Chromium tag `154.0.8037.58` and changes none of
+  the values above, so it uses `chromium::v154_tcp`
+  ([Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes)).
+- Edge's and Opera's network-stack source is not public, and no capture
+  shows socket options, so there is no Edge or Opera TCP recipe.
 - Chromium races as DNS answers arrive and sorts addresses itself. Phantom
   races the system resolver's complete answer, keeping its order within each
   family. Chromium's QUIC job uses only the first resolved address
@@ -1347,8 +1390,8 @@ Limits:
 
 What is claimed: `chromium::v154_http1` and `firefox::v156_http1` allow 6
 HTTP/1.1 connections to one origin and route, as those browsers do at the
-profiled release tags, and the client opens connections up to the profile's
-bound. Negotiated requests that select HTTP/1.1 use the same bound, and
+profiled release tags and as Brave 154 does, and the client opens
+connections up to the profile's bound. Negotiated requests that select HTTP/1.1 use the same bound, and
 their TLS handshakes follow the browsers' rule for a server whose protocol
 is not yet known.
 
@@ -1372,7 +1415,13 @@ Differences from the browsers:
   requests forwarded through an HTTP proxy (`modules/libpref/init/all.js:1167-1170`),
   where the recipe keeps 6, and lets urgent-start requests exceed the limit
   by 3 (`modules/libpref/init/all.js:1163-1165`).
-- Edge's network-stack source is not public, so there is no Edge recipe.
+- Brave builds the same Chromium tag without changing the bound, and uses
+  `chromium::v154_http1`. It keys each socket group by top-level site as
+  well (`kPartitionConnectionsByNetworkIsolationKey`), so one origin under
+  two top-level sites gets two groups; Phantom has one per origin and route
+  ([Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes)).
+- Edge's and Opera's network-stack source is not public, so there is no
+  Edge or Opera recipe.
 
 Negotiated requests: both browsers count a connection whose ALPN selected
 HTTP/1.1 against the same per-group limit, and differ from each other only
@@ -1457,7 +1506,8 @@ Limits:
 
 What is claimed: `chromium::v154_dns_cache` and `firefox::v156_dns_cache`
 keep as many names, and an answer and a failure for as long, as those
-browsers do for an answer without a record TTL at the profiled release tags.
+browsers do for an answer without a record TTL at the profiled release tags,
+and `chromium::v154_dns_cache` as Brave 154 does.
 With a cache, the client makes one lookup per name it resolves itself per
 cache `ttl`, shares one lookup between concurrent connections, keeps every
 resolved address as returned except its port, and never resolves a
@@ -1510,7 +1560,13 @@ Differences from the browsers:
   network; `Client::clear_dns_cache` is the caller's equivalent.
 - Firefox evicts from an LRU queue; Phantom, like Chromium, evicts the entry
   that expires soonest.
-- Edge's network-stack source is not public, so there is no Edge recipe.
+- Brave builds the same Chromium tag without changing these values, and
+  uses `chromium::v154_dns_cache`. With
+  `kPartitionConnectionsByNetworkIsolationKey` on, its cache key carries the
+  top-level site, so Brave resolves a name again under another site
+  ([Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes)).
+- Edge's and Opera's network-stack source is not public, so there is no
+  Edge or Opera recipe.
 
 Unit tests in `crates/phantom-net/src/address_cache/tests.rs`:
 
@@ -1864,18 +1920,20 @@ Limits:
 
 What is claimed: over HTTP/2, the Chromium and Firefox recipes split the
 `cookie` field into one field per cookie at the field's position and encode
-each crumb as Chrome 154, Edge 154, and Firefox 156 do, except for Firefox's
-name index noted below. Over HTTP/3, the Chromium request recipe splits it and
-its QPACK encoder stream and field sections equal Chrome's and Edge's.
+each crumb as Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156
+do, except for Firefox's name index noted below. Over HTTP/3, the Chromium
+request recipe splits it and its QPACK encoder stream and field sections
+equal Chrome's, Edge's, Brave's, and Opera's.
 
 Evidence: `fixtures/cookies/` retains three runs per protocol from headless
-Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0 on Windows 11
-(10.0.26200), each on a fresh profile. A run loads `/start`, whose response
-sets five probe cookies, then navigates to `/page`, which fetches `/fetch` and
-`/done`, so three requests on one connection carry the cookies. The probes
-include crumbs of 19 and 20 bytes. Every run of a browser and protocol agrees.
+Chrome 154.0.8037.58, Edge 154.0.4258.37, Brave 154.1.96.59, Opera
+135.0.5973.92, and Firefox 156.0 on Windows 11 (10.0.26200), each on a fresh
+profile. A run loads `/start`, whose response sets five probe cookies, then
+navigates to `/page`, which fetches `/fetch` and `/done`, so three requests
+on one connection carry the cookies. The probes include crumbs of 19 and 20
+bytes. Every run of a browser and protocol agrees.
 
-| Behavior | Chrome 154 and Edge 154 | Firefox 156 |
+| Behavior | Chrome 154, Edge 154, Brave 154, and Opera 135 | Firefox 156 |
 | --- | --- | --- |
 | HTTP/1.1 | One `Cookie` line, joined with `"; "`, last | One `Cookie` line after `Referer` and `Connection`, before `Upgrade-Insecure-Requests` or `Sec-Fetch-Dest` |
 | HTTP/2 split | One `cookie` field per cookie, in jar order, before `priority` | One field per cookie, after `Referer`, before `upgrade-insecure-requests` or `sec-fetch-dest` |
@@ -1897,7 +1955,20 @@ representation, index, and Huffman flag equal the capture. In each Firefox
 run, 7 of the 15 crumbs name the oldest dynamic `cookie` entry, as Firefox
 names a literal with the highest-numbered entry that has its name.
 [HPACK encoder evidence](#hpack-encoder-evidence) compares every block of
-all three runs byte for byte.
+all three runs byte for byte. Brave and Opera replay against
+`chromium::v154_http2` and `chromium::v154_cookie_placement`, as Edge does.
+
+The HTTP/1.1 captures are replayed for Brave and Opera:
+`brave_and_opera_templates_place_the_jar_cookie_as_captured` in
+`crates/phantom/tests/requests/request_templates.rs` sends each browser's
+navigation and `fetch()` templates with a jar cookie and the Chromium
+placement. `Cookie` arrives last from both, and the `fetch()` fields arrive
+in the captured order. The captured navigation is a script navigation, with
+`Referer` and without `Sec-Fetch-User`, so only its `Cookie` position is
+compared with the address-bar template. Chrome's HTTP/1.1 placement is
+checked against its EventSource capture instead, by
+`chrome_templates_place_the_jar_cookie_where_chrome_does` in the same file;
+no test replays the Chrome or Edge HTTP/1.1 cookie captures.
 
 `crates/phantom-net/src/http3/tests/cookie_crumbs.rs` encodes the four
 captured requests of each Chromium HTTP/3 capture with a caller `cookie`
@@ -2123,8 +2194,8 @@ included (see
 | --- | --- | --- | --- |
 | Chrome 154 | 22 | 66 | All |
 | Edge 154 | 21 | 66 | All |
-| Brave 154 | 18 | 54 | All |
-| Opera 135 | 20 | 50 | All |
+| Brave 154 | 21 | 66 | All |
+| Opera 135 | 23 | 62 | All |
 | Firefox 156 | 27 | 66 | All |
 
 The rules come from browser source, which the Firefox blocks confirm:
@@ -2205,8 +2276,8 @@ emulators.
 | Chrome 154 | macOS | 5 | 8 | 1 | +2 each |
 | Edge 154 | Windows | 156 | 459 | 1 | +2 each |
 | Edge 154 | macOS | 3 | 9 | 1 | +2 each |
-| Brave 154 | Windows | 45 | 183 | 1 | +2 each |
-| Opera 135 | Windows | 101 | 331 | 1 | +2 each |
+| Brave 154 | Windows | 48 | 195 | 1 | +2 each |
+| Opera 135 | Windows | 104 | 343 | 1 | +2 each |
 | Opera 135 | macOS | 3 | 9 | 1 | +2 each |
 | Chrome for Android 154 | Android 17 emulator | 18 | 54 | 1 | +2 each |
 | Brave for Android 153 | Android 15 and 17 emulators | 21 | 63 | 1 | +2 each |

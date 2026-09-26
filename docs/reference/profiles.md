@@ -62,8 +62,8 @@ recaptured and reverified.
   recipes differ.
 - TCP recipes are not in the table, because socket options do not appear in
   a capture. `chromium::v154_tcp` and `firefox::v156_tcp` come from the
-  browsers' source code at the profiled release tags
-  ([TCP socket options](#tcp-socket-options)).
+  browsers' source code at the profiled release tags, and the Chromium one
+  also serves Brave ([TCP socket options](#tcp-socket-options)).
 - HTTP/1.1 connection recipes are not in the table either, for the same
   reason. `chromium::v154_http1` and `firefox::v156_http1` come from browser
   source ([HTTP/1.1 connections](#http11-connections)).
@@ -116,7 +116,8 @@ resolved addresses.
 | None (no `with_tcp`) | OS default | OS default | One at a time, resolver order |
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
-| Edge, Brave, Opera | Not covered | Not covered | Not covered |
+| Brave | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
+| Edge, Opera | Not covered | Not covered | Not covered |
 | Android browsers | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
@@ -126,8 +127,10 @@ resolved addresses.
 - Chromium on macOS sets only the idle time; for that platform, set
   `TcpKeepalive::interval` to `None`.
 - Firefox's keepalive schedule and address selection are not modeled.
-- No capture shows Edge's, Brave's, or Opera's socket options, and no
-  browser source has been read for them.
+- Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
+  changes none of the values it cites, so Brave uses that recipe.
+- No capture shows Edge's or Opera's socket options, and their network
+  source is not public.
 - The Android emulator ends the device's TCP connections and opens new ones
   from the host, so no Android browser's socket option reaches a capture.
 
@@ -157,7 +160,8 @@ for each origin and route.
 | None (no `with_http1`) | 1; requests run one after another | Not a browser value |
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
-| Edge, Brave, Opera | Not covered | Their values have not been read from a source or a capture |
+| Brave | 6, from `chromium::v154_http1` | Brave 1.96.59 builds the same Chromium tag and changes none of the cited values |
+| Edge, Opera | Not covered | Their network source is not public, and no capture shows the value |
 | Android browsers | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
@@ -187,6 +191,10 @@ for each origin and route.
   both. Firefox also leaves idle connections out of its count.
 - Chromium's caps across groups, 256 sockets per pool and 128 per proxy
   chain, are not modeled.
+- Brave keys each socket group by top-level site as well
+  (`kPartitionConnectionsByNetworkIsolationKey`), so one origin embedded
+  under two sites can have 6 connections for each. A Phantom client has no
+  top-level site and keeps one bound per origin and route.
 
 Each recipe's rustdoc cites the source lines. Evidence:
 [HTTP/1.1 connection bound evidence](../explanation/validation.md#http11-connection-bound-evidence).
@@ -204,7 +212,8 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept |
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
-| Edge, Brave, Opera | Not covered | Not covered | Not covered |
+| Brave | 1,000, from `chromium::v154_dns_cache` | 60 s | Not kept |
+| Edge, Opera | Not covered | Not covered | Not covered |
 | Android browsers | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
@@ -216,6 +225,10 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 - Firefox serves an expired answer for up to 600 s more while it resolves the
   name again in the background. Phantom resolves an expired name before it
   connects.
+- Brave builds the Chromium tag behind `chromium::v154_dns_cache` without
+  changing the cited values, but keys its cache by top-level site as well, so
+  it resolves a name again under another site. A Phantom client keeps one
+  cache.
 - Concurrent connections to one host share one lookup, as in both browsers.
   The resolver's address order is kept, so address racing sees it
   unchanged.
@@ -307,10 +320,11 @@ template and caller fields, not client hints, which are added afterward.
 | --- | --- | --- |
 | `firefox::v156_cookie_placement` | Firefox `fetch` | After `Referer`, before `Sec-Fetch-Dest` |
 | `firefox::v156_cookie_placement` | Firefox navigation | Before `Upgrade-Insecure-Requests` |
-| `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/1.1 | Last |
-| `chromium::v154_cookie_placement` | Chrome or Edge, HTTP/2 and HTTP/3 | Before the final `priority` |
+| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last |
+| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before the final `priority` |
 
-No capture or source reading backs a cookie placement for Brave or Opera.
+The cookie captures of all four Chromium-family browsers show both
+positions ([Cookie crumb evidence](../explanation/validation.md#cookie-crumb-evidence)).
 
 ### Cookie crumbs
 
@@ -350,8 +364,8 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
 - Firefox 156 does not split `cookie` over HTTP/3; Phantom has no Firefox
   HTTP/3 recipe.
 - Edge, Brave, and Opera use `chromium::v154_http2` and
-  `chromium::v154_http3_request`, so they send crumbs as Chrome does. The
-  Edge captures show it; no Brave or Opera capture carries a cookie.
+  `chromium::v154_http3_request`, so they send crumbs as Chrome does, as
+  their cookie captures show.
 
 ### Client hints in templates
 
