@@ -397,10 +397,11 @@ Limits:
   on a capture; see
   [TCP socket option evidence](#tcp-socket-option-evidence).
 - `client-startup.txt` under `http3` is the only CRLF file under `fixtures/`,
-  because `chrome_http3.py` then printed it through Windows text-mode
-  standard output. Its bytes and pinned SHA-256 are stable in the repository.
-  The tool now writes LF on every platform, so a rerun would not reproduce
-  that hash; see [Capture tools](../../scripts/capture/README.md#http3-startup).
+  because `chrome_http3.py` printed it through Windows text-mode standard
+  output. Its bytes and pinned SHA-256 are stable in the repository.
+  `chrome_http3.py --output` writes LF on every platform, so a rerun that uses
+  it would not reproduce that hash; see
+  [Capture tools](../../scripts/capture/README.md#http3-startup).
 - The comparison with Chrome 153 is recorded, not reproducible; see
   [Comparison with Chrome 153](#comparison-with-chrome-153).
 - Launches are headless, except one headful client-hint run and five headful
