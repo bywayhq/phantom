@@ -1948,7 +1948,9 @@ and the first of each is retained.
   one retry with config ID 2, which the origin accepted, as in
   [Real ECH evidence](#real-ech-evidence).
 - Each browser's outer extension set was the same in all its QUIC
-  connections: 14 of Chrome's, 9 of Edge's, and 6 of Brave's. Chrome's equals the set of its ECH GREASE QUIC ClientHello in
+  connections: 14 Chrome connections, 9 Edge connections, and 6 Brave
+  connections. Chrome's set equals the set of its ECH GREASE QUIC
+  ClientHello in
   `fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt`;
   Edge's and Brave's lack trust-anchor IDs, as their recipes do.
 - Chrome and Brave sent one `HTTPS` and one `A` query; Edge sent an `A`, an
@@ -1979,7 +1981,11 @@ proves through the client facade that an exact HTTP/3 request and the
 HTTP/3 alternative of an HTTPS record have their ECH accepted once the
 record is cached, that a rejection fails the request without a second QUIC
 connection, and that a profile without the field sends no HTTPS query and
-keeps GREASE.
+keeps GREASE. It also proves that a connection which presented a session
+ticket, after a resumed connection had its ECH accepted, is not repeated
+with a full handshake when the origin's rotated keys reject it, and that a
+racing client serves a rejected alternative's request from the origin over
+TCP and opens no QUIC connection for the next request.
 
 Chrome source at tag `154.0.8037.58`, with quiche at the revision its `DEPS`
 pins, `80bf9559`, states the rules the recipe follows:
@@ -2000,6 +2006,17 @@ pins, `80bf9559`, states the rules the recipe follows:
   `JobController::MaybeReportBrokenAlternativeService` marks the DNS
   alternative broken when the main job succeeds
   (`net/http/http_stream_factory_job_controller.cc` lines 1262-1309).
+- Later connections keep offering the cached record's configuration.
+  `DoCreateJobs` creates no `DNS_ALPN_H3` job while the DNS alternative is
+  broken (`net/http/http_stream_factory_job_controller.cc` lines 926-935),
+  for 5 minutes after the first failure, doubling after each later one
+  (`net/http/broken_alternative_services.cc` lines 22-60). The retry
+  configurations are used only for the one TCP retry that received them
+  (`net/socket/ssl_connect_job.cc` lines 251-285, 407-408, and 506-525),
+  and nothing under `net/dns` or `net/quic` drops or replaces the cached
+  HTTPS record after `ERR_ECH_NOT_NEGOTIATED` or a QUIC ECH rejection. Each
+  new TCP connection therefore offers the stale configuration, is rejected,
+  and retries, until the record expires.
 
 Phantom implements this through the same `TlsSettings::ech_from_https_records`
 field, set in `chromium::v154_http3_tls` and kept by `edge::v153_http3_tls`
@@ -2007,9 +2024,11 @@ and `brave::v154_http3_tls`; `opera::v135_http3_tls` clears it. The
 connector checks the list, waits for the lookup as a TCP connection does,
 and offers ECH through `QuicClientConfig::with_ech`. A rejection is an
 HTTP/3 setup failure like any other: a sequential client fails the request
-and evicts the alternative, and a racing client sends it to the origin and
-marks the alternative broken. A connection that presented a session ticket
-is not repeated with a full handshake after an ECH rejection.
+and marks the alternative broken, and a racing client sends it to the origin
+and marks the alternative broken, with Chromium's backoff by default. A
+connection that presented a session ticket is not repeated with a full
+handshake after an ECH rejection. Like Chrome, Phantom keeps the cached
+record and drops the retry configurations.
 
 Limits:
 
@@ -2025,6 +2044,13 @@ Limits:
   in the other.
 - The captures used one record, with `alpn=h3,h2` and a target of `.`, and
   loopback port 443.
+- An exact HTTP/3 request has no Chrome counterpart and no fallback: after
+  a rejection it fails with `RequestErrorKind::Tls`, where it used to
+  succeed with GREASE, and every later exact request to the origin offers
+  the same stale configuration and fails until the record expires, for at
+  most its TTL, capped at one day. Marking the alternative broken does not
+  stop an exact request. Set `ech_from_https_records = false` on the value
+  `chromium::v154_http3_tls` returns to send GREASE instead.
 
 ### QUIC resumption and 0-RTT evidence
 
@@ -3229,6 +3255,24 @@ Session resumption adds its own paths through the FFI, each with a test:
   `QuicTlsProfileErrorKind::ContextConflict` and changes nothing.
   `with_tls_profile` refuses `session_tickets` when a later callback replaced
   Phantom's or client session caching was turned off.
+
+The loopback QUIC server of the `server` feature adds its own paths, in
+`crates/phantom-quic-btls/src/backend/server.rs`:
+
+- Transport parameters longer than BoringSSL can carry fail
+  `ServerSession::new` before any FFI call, and a session that failed to
+  start answers its first input with `INTERNAL_ERROR` without reaching
+  BoringSSL. A test covers both.
+- A context without a certificate fails the handshake with BoringSSL's
+  alert, carried as a QUIC crypto error. A test covers it.
+- `SSL_set_min_proto_version`, `SSL_set_max_proto_version`, and
+  `SSL_set_quic_transport_params` fail only on invalid arguments or
+  allocation failure, and installing the QUIC callbacks fails only when
+  BoringSSL cannot allocate an ex-data index or the state. No test forces
+  these: BoringSSL offers no fault injection. Each failure drains the error
+  queue and leaves the session failed as above, and a callback-state
+  allocation that was not handed to the `SSL` is freed by the installer,
+  as on the client.
 
 ## Other checks
 

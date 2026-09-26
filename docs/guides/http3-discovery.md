@@ -147,6 +147,10 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   alternative elsewhere. A rejected H3 connection fails and is not repeated
   over QUIC, as in Chrome
   ([Real ECH over QUIC evidence](../explanation/validation.md#real-ech-over-quic-evidence)).
+  An exact H3 request to an origin that rejects the record's configuration
+  keeps failing with `RequestErrorKind::Tls` until the cached record
+  expires; set `ech_from_https_records = false` on the profile's H3 TLS
+  settings to send GREASE instead.
 - Not implemented: racing more than one alternative (a stored Alt-Svc
   alternative is used instead of an HTTPS-record one), persisting
   brokenness or clearing it on a network change, an RTT-derived racing
