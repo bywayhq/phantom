@@ -253,6 +253,11 @@ pub enum Http2Error {
     /// request on it fails with this error. Chromium reports the same event
     /// as `ERR_HTTP2_PING_FAILED`.
     PingTimeout,
+    /// The connection had already closed after an unanswered PING when this
+    /// request reached it, so nothing of the request was sent.
+    ///
+    /// A client may send the request again on another connection.
+    ReusedConnectionClosed,
     /// The connection was polled outside a Tokio runtime, or the timer a
     /// profile's [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout)
     /// needs could not be started.
@@ -386,6 +391,9 @@ impl fmt::Display for Http2Error {
             ),
             Self::PingTimeout => formatter
                 .write_str("HTTP/2 PING went unanswered; the connection was closed with GOAWAY"),
+            Self::ReusedConnectionClosed => formatter.write_str(
+                "HTTP/2 connection closed after an unanswered PING before the request was sent",
+            ),
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 connections require a Tokio runtime")
             }
@@ -421,6 +429,15 @@ impl Http2Error {
             };
         }
         Self::Protocol(Http2ProtocolError::new(error))
+    }
+
+    /// Maps a failure to open a request stream, before any of the request
+    /// was written.
+    pub(super) fn before_send(error: ::http2::Error) -> Self {
+        if error.is_ping_timeout() {
+            return Self::ReusedConnectionClosed;
+        }
+        Self::protocol(error)
     }
 
     pub(super) fn stream_reset(reason: ::http2::Reason) -> Self {
@@ -466,6 +483,7 @@ impl Http2Error {
             Self::ResponseHeaderListTooLarge => "response_header_list_too_large",
             Self::TooManyInformationalResponses { .. } => "too_many_informational_responses",
             Self::PingTimeout => "ping_timeout",
+            Self::ReusedConnectionClosed => "reused_connection_closed",
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }

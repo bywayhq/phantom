@@ -361,7 +361,8 @@ enum RequestRetryability {
     #[default]
     Never,
     ConnectionSetup,
-    /// A reused HTTP/1.1 connection closed before any response byte.
+    /// A reused HTTP/1.1 connection closed before any response byte, or a
+    /// pooled HTTP/2 connection had closed before the request was sent.
     ReusedConnectionClosed,
     /// The HTTP/2 or HTTP/3 peer reported that it did not process the request.
     Unprocessed,
@@ -763,9 +764,12 @@ impl RequestError {
     /// marking a peer's not-processed signal for unprocessed replay.
     pub(crate) fn http2_stream(source: Http2Error) -> Self {
         let unprocessed = is_unprocessed_http2(&source);
+        let closed_before_send = matches!(source, Http2Error::ReusedConnectionClosed);
         let mut error = Self::http2(source.into());
         if unprocessed {
             error.retryability = RequestRetryability::Unprocessed;
+        } else if closed_before_send {
+            error.retryability = RequestRetryability::ReusedConnectionClosed;
         }
         error
     }
@@ -1002,7 +1006,9 @@ impl RequestError {
     }
 
     /// Returns whether a reused HTTP/1.1 connection closed before any
-    /// response byte; method and body eligibility are checked by the caller.
+    /// response byte, or a pooled HTTP/2 connection had closed before the
+    /// request was sent; method and body eligibility are checked by the
+    /// caller.
     pub(crate) fn is_reused_connection_close(&self) -> bool {
         self.retryability == RequestRetryability::ReusedConnectionClosed
     }
@@ -1318,6 +1324,15 @@ mod tests {
         ] {
             assert!(!error.is_reused_connection_close(), "{error:?}");
         }
+    }
+
+    #[test]
+    fn an_http2_request_that_never_reached_a_closed_connection_is_reuse_classified() {
+        let closed = RequestError::http2_stream(Http2Error::ReusedConnectionClosed);
+        assert!(closed.is_reused_connection_close());
+        assert!(!closed.is_unprocessed_request());
+        let sent = RequestError::http2_stream(Http2Error::PingTimeout);
+        assert!(!sent.is_reused_connection_close());
     }
 
     #[test]

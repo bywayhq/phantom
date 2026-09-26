@@ -676,19 +676,25 @@ fn pseudo_order(
 
 /// Sleeps on the runtime-neutral deadline service, so a PING timeout needs no
 /// Tokio time driver.
+///
+/// The service was running when the connection was built and never stops,
+/// and validation bounds the duration, so scheduling does not fail. Should
+/// it, the sleep never ends: the connection keeps running as if the profile
+/// set no PING timeout, and a warning is logged. Ending the sleep instead
+/// would send a `GOAWAY` for a PING that had not failed.
 fn ping_sleep(
     duration: std::time::Duration,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
-    let deadline = shutdown_timer::after(duration);
-    Box::pin(async move {
-        // The service was running when the connection was built and never
-        // stops, and the duration fits the clock, so scheduling does not
-        // fail. Should it, the deadline counts as reached, as the TCP
-        // fallback timer's does.
-        if let Ok(deadline) = deadline {
+    match shutdown_timer::after(duration) {
+        Ok(deadline) => Box::pin(async move {
+            // The service never drops a pending deadline.
             let _ = deadline.await;
+        }),
+        Err(_) => {
+            tracing::warn!("could not schedule the HTTP/2 PING timeout; it will not expire");
+            Box::pin(std::future::pending())
         }
-    })
+    }
 }
 
 fn translate_settings_with_pseudo_order(

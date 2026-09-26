@@ -82,7 +82,8 @@ fn recipes_state_the_ping_timeout() {
 /// A PING the peer never answers closes the connection once nothing has been
 /// read for the timeout: `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`,
 /// and `Failed ping.`, then the end of the byte stream. The open request
-/// fails with [`Http2Error::PingTimeout`], and the connection takes no more.
+/// fails with [`Http2Error::PingTimeout`], and a later one with
+/// [`Http2Error::ReusedConnectionClosed`].
 #[tokio::test]
 async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> TestResult<()> {
     idle_peer_test(async {
@@ -118,18 +119,20 @@ async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> Tes
 
         assert!(matches!(open.await?, Err(Http2Error::PingTimeout)));
         assert!(!connection.is_reusable());
+        // Nothing of a later request is sent, so it may go elsewhere.
         let later = connection
             .send_request(Method::GET, "example.test", target()?, Vec::new(), None)
             .await;
-        assert!(later.is_err(), "a closed connection accepted a request");
+        assert!(matches!(later, Err(Http2Error::ReusedConnectionClosed)));
         Ok(())
     })
     .await
 }
 
-/// Any frame read restarts the timeout; only the ACK stops it. With a
+/// A frame read delays the close; only the ACK stops the timeout. With a
 /// 3-second timeout and a `WINDOW_UPDATE` 2 seconds after the PING, the
-/// connection closes 5 seconds after the PING, not 3.
+/// first sleep ends after a read, and the connection closes when a second
+/// ends, 6 seconds after the PING rather than 3.
 #[tokio::test]
 async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
     idle_peer_test(async {

@@ -1676,7 +1676,7 @@ fn invalidates_http2_connection(error: &Http2Error) -> bool {
     match error {
         Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
         // The connection closed itself after an unanswered PING.
-        Http2Error::PingTimeout => true,
+        Http2Error::PingTimeout | Http2Error::ReusedConnectionClosed => true,
         _ => false,
     }
 }

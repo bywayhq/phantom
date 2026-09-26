@@ -397,10 +397,10 @@ impl Http2Connection {
             {
                 return Err(Http2Error::ExtendedConnectProtocolDisabled);
             }
-            let mut sender = sender.ready().await.map_err(Http2Error::protocol)?;
+            let mut sender = sender.ready().await.map_err(Http2Error::before_send)?;
             let (response, send) = sender
                 .send_request(request, false)
-                .map_err(Http2Error::protocol)?;
+                .map_err(Http2Error::before_send)?;
             let mut send = RequestStreamGuard::new(send);
             let response = match response.await {
                 Ok(response) => response,
@@ -457,7 +457,11 @@ impl Http2Connection {
         let terminal_outcome = match &result {
             Ok(Http2ExtendedConnectOutcome::Accepted { .. }) => "accepted",
             Ok(Http2ExtendedConnectOutcome::Rejected(_)) => "rejected",
-            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
+            Err(
+                Http2Error::Protocol(_)
+                | Http2Error::PingTimeout
+                | Http2Error::ReusedConnectionClosed,
+            ) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);
@@ -492,10 +496,10 @@ impl Http2Connection {
                 .clone()
                 .ready()
                 .await
-                .map_err(Http2Error::protocol)?;
+                .map_err(Http2Error::before_send)?;
             let (response, send) = sender
                 .send_request(request, false)
-                .map_err(Http2Error::protocol)?;
+                .map_err(Http2Error::before_send)?;
             let send = RequestStreamGuard::new(send);
             let response = match response.await {
                 Ok(response) => response,
@@ -530,7 +534,11 @@ impl Http2Connection {
         let terminal_outcome = match &result {
             Ok(Http2ClassicConnectOutcome::Accepted { .. }) => "accepted",
             Ok(Http2ClassicConnectOutcome::Rejected { .. }) => "rejected",
-            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
+            Err(
+                Http2Error::Protocol(_)
+                | Http2Error::PingTimeout
+                | Http2Error::ReusedConnectionClosed,
+            ) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);
@@ -778,11 +786,11 @@ impl Http2Connection {
                 .clone()
                 .ready()
                 .await
-                .map_err(Http2Error::protocol)?;
+                .map_err(Http2Error::before_send)?;
             let end_of_stream = body.is_none() && trailers.is_none();
             let (response, reset) = sender
                 .send_request(request, end_of_stream)
-                .map_err(Http2Error::protocol)?;
+                .map_err(Http2Error::before_send)?;
             let mut response = Box::pin(response);
             let (stream, early_response) = if end_of_stream {
                 (RequestStream::Complete(reset), None)
@@ -845,7 +853,11 @@ impl Http2Connection {
         .await;
         let terminal_outcome = match &result {
             Ok(_) => "ok",
-            Err(Http2Error::Protocol(_) | Http2Error::PingTimeout) => "protocol_error",
+            Err(
+                Http2Error::Protocol(_)
+                | Http2Error::PingTimeout
+                | Http2Error::ReusedConnectionClosed,
+            ) => "protocol_error",
             Err(_) => "request_error",
         };
         outcome.finish(terminal_outcome);

@@ -27,7 +27,9 @@ mod retry_after;
 ///
 /// [`with_reused_connection_replay`](Self::with_reused_connection_replay)
 /// separately opts into replaying an idempotent HTTP/1.1 request whose reused
-/// keep-alive connection closed before any response byte.
+/// keep-alive connection closed before any response byte, and an idempotent
+/// HTTP/2 request that reached a connection already closed after an
+/// unanswered PING.
 /// [`with_unprocessed_replay`](Self::with_unprocessed_replay) separately opts
 /// into replaying an HTTP/2 or HTTP/3 request that the peer reported as not
 /// processed. [`with_status_retry`](Self::with_status_retry) separately opts
@@ -108,6 +110,12 @@ impl RetryPolicy {
     /// body, a fresh connection, or a failure after any response byte returns
     /// the original error. At most one replay occurs per redirect hop, without
     /// a delay, and it does not consume the connection-setup retry budget.
+    ///
+    /// The same replay covers an HTTP/2 request that reached a pooled
+    /// connection after the connection closed itself over an unanswered PING
+    /// ([`Http2Settings::ping_timeout`](crate::profile::Http2Settings::ping_timeout)),
+    /// so that none of the request was sent. A request already sent when the
+    /// PING failed is not replayed.
     #[must_use]
     pub const fn with_reused_connection_replay(self, enabled: bool) -> Self {
         Self {

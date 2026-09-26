@@ -360,7 +360,7 @@ fn invalidates_connection(error: &Http2Error) -> bool {
         Http2Error::Protocol(error) => error.kind() != Http2ProtocolErrorKind::StreamReset,
         // The connection closed itself, as Chromium's SpdySession leaves the
         // pool on ERR_HTTP2_PING_FAILED.
-        Http2Error::PingTimeout => true,
+        Http2Error::PingTimeout | Http2Error::ReusedConnectionClosed => true,
         _ => false,
     }
 }
