@@ -22,6 +22,10 @@ const OPERA_135_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
 ));
+const CHROME_ANDROID_153_HTTP3_FIXTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt"
+));
 const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
@@ -72,6 +76,15 @@ client_version=135.0.5973.92
 "
     ));
     assert_quic_settings_match_startup(OPERA_135_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+}
+
+#[test]
+fn chrome_android_153_quic_capture_matches_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert!(CHROME_ANDROID_153_HTTP3_FIXTURE.contains("\nclient_version=153.0.8010.52\n"));
+    assert!(CHROME_ANDROID_153_HTTP3_FIXTURE.contains("\nlaunch_mode=android-typed\n"));
+    assert_eq!(crate::chrome_android::v153_quic(), v154_quic());
+    assert_quic_settings_match_startup(CHROME_ANDROID_153_HTTP3_FIXTURE, &v154_quic())
 }
 
 fn assert_quic_settings_match_startup(
@@ -406,7 +419,7 @@ fn chrome_154_quic_recipe_matches_windows_capture() -> Result<(), Box<dyn std::e
     assert_quic_settings_match_startup(V154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
-const RESUMPTION_FIXTURES: [&str; 12] = [
+const RESUMPTION_FIXTURES: [&str; 14] = [
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept.txt"
@@ -454,6 +467,14 @@ const RESUMPTION_FIXTURES: [&str; 12] = [
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-reject.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/resumption-reject.txt"
     )),
 ];
 

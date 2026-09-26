@@ -4,8 +4,8 @@ use super::{
     client_hint_placement,
 };
 use crate::{
-    ClientHintSettings, brave, chromium, client_hints::navigation_capture::NavigationCapture, edge,
-    firefox, opera,
+    ClientHintSettings, brave, chrome_android, chromium,
+    client_hints::navigation_capture::NavigationCapture, edge, firefox, opera,
 };
 
 macro_rules! fixture {
@@ -47,20 +47,23 @@ macro_rules! sse_set {
 
 macro_rules! websocket_set {
     ($browser:literal) => {
+        websocket_set!($browser, "windows-11-26200")
+    };
+    ($browser:literal, $host:literal) => {
         [
-            websocket_set!(@one $browser, "accept"),
-            websocket_set!(@one $browser, "accept-deflate"),
-            websocket_set!(@one $browser, "extension-mismatch"),
-            websocket_set!(@one $browser, "fresh-origin"),
-            websocket_set!(@one $browser, "h1-accept"),
-            websocket_set!(@one $browser, "h1-accept-deflate"),
-            websocket_set!(@one $browser, "no-connect-protocol"),
-            websocket_set!(@one $browser, "refused-stream"),
-            websocket_set!(@one $browser, "reject-403"),
+            websocket_set!(@one $browser, $host, "accept"),
+            websocket_set!(@one $browser, $host, "accept-deflate"),
+            websocket_set!(@one $browser, $host, "extension-mismatch"),
+            websocket_set!(@one $browser, $host, "fresh-origin"),
+            websocket_set!(@one $browser, $host, "h1-accept"),
+            websocket_set!(@one $browser, $host, "h1-accept-deflate"),
+            websocket_set!(@one $browser, $host, "no-connect-protocol"),
+            websocket_set!(@one $browser, $host, "refused-stream"),
+            websocket_set!(@one $browser, $host, "reject-403"),
         ]
     };
-    (@one $browser:literal, $scenario:literal) => {
-        fixture!("websocket/", $browser, "/windows-11-26200/", $scenario, ".txt")
+    (@one $browser:literal, $host:literal, $scenario:literal) => {
+        fixture!("websocket/", $browser, "/", $host, "/", $scenario, ".txt")
     };
 }
 
@@ -94,6 +97,8 @@ const BRAVE_PROXY: [&str; 20] = [
     fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-secure-hostname.txt"),
 ];
 const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
+const CHROME_ANDROID_WEBSOCKET: [&str; 9] =
+    websocket_set!("chrome-android/153.0.8010.52", "android-35-emulator");
 const CHROME_HEADFUL_SSE: &str =
     fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headful.txt");
 const CHROME_HEADLESS_SSE: &str =
@@ -111,6 +116,8 @@ const BRAVE_CLIENT_HINTS: &str =
     fixture!("client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt");
 const OPERA_CLIENT_HINTS: &str =
     fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
+const CHROME_ANDROID_CLIENT_HINTS: &str =
+    fixture!("client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt");
 /// Which protocol list of a template a capture is compared with.
 #[derive(Clone, Copy, Debug)]
 enum Protocol {
@@ -283,6 +290,8 @@ fn every_template_recipe_is_valid() {
         opera::v135_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
+        chrome_android::v153_android_navigation_template(),
+        chrome_android::v153_android_fetch_no_store_template(),
     ] {
         assert_eq!(template.validate(), Ok(()));
     }
@@ -384,6 +393,32 @@ fn edge_153_navigation_matches_every_captured_page_request() -> CaptureResult<()
         &http3,
         1,
         "edge h3",
+    );
+    Ok(())
+}
+
+/// The Android captures loaded their pages by typing the URL into the address
+/// bar, so each carries `Sec-Fetch-User` like a desktop address-bar load.
+#[test]
+fn chrome_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = chrome_android::v153_android_navigation_template();
+    let hints = chrome_android::v153_android_client_hints();
+    let (http1, http2) = observed(&[&CHROME_ANDROID_WEBSOCKET], "page", "document")?;
+    assert_all_match(
+        &template,
+        Protocol::Http1,
+        Some(&hints),
+        &http1,
+        6,
+        "chrome android h1",
+    );
+    assert_all_match(
+        &template,
+        Protocol::Http2,
+        Some(&hints),
+        &http2,
+        18,
+        "chrome android h2",
     );
     Ok(())
 }
@@ -537,6 +572,12 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             &OPERA_WEBSOCKET,
             "opera",
         ),
+        (
+            chrome_android::v153_android_fetch_no_store_template(),
+            chrome_android::v153_android_client_hints(),
+            &CHROME_ANDROID_WEBSOCKET,
+            "chrome android",
+        ),
     ] {
         let (http1, http2) = observed(&[set], "done", "empty")?;
         assert_all_match(&template, Protocol::Http1, Some(&hints), &http1, 6, label);
@@ -573,6 +614,11 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
         (brave::v154_windows_fetch_no_store_template(), false),
         (opera::v135_windows_navigation_template(), true),
         (opera::v135_windows_fetch_no_store_template(), false),
+        (chrome_android::v153_android_navigation_template(), true),
+        (
+            chrome_android::v153_android_fetch_no_store_template(),
+            false,
+        ),
         (firefox::v156_windows_navigation_template(), false),
         (firefox::v156_windows_fetch_no_store_template(), false),
     ] {
@@ -582,7 +628,7 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 
 #[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
-    let cases: [(RequestTemplate, &[&str], &str, u16); 10] = [
+    let cases: [(RequestTemplate, &[&str], &str, u16); 12] = [
         (
             chromium::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
@@ -643,6 +689,18 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             "empty",
             22,
         ),
+        (
+            chrome_android::v153_android_navigation_template(),
+            &CHROME_ANDROID_WEBSOCKET,
+            "document",
+            256,
+        ),
+        (
+            chrome_android::v153_android_fetch_no_store_template(),
+            &CHROME_ANDROID_WEBSOCKET,
+            "empty",
+            220,
+        ),
     ];
     for (template, set, destination, weight) in cases {
         let mut priorities = Vec::new();
@@ -697,6 +755,11 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
             OPERA_CLIENT_HINTS,
             opera::v135_windows_client_hints(),
             opera::v135_windows_navigation_template(),
+        ),
+        (
+            CHROME_ANDROID_CLIENT_HINTS,
+            chrome_android::v153_android_client_hints(),
+            chrome_android::v153_android_navigation_template(),
         ),
     ] {
         use crate::ClientHintDelivery::Default;
@@ -1379,4 +1442,95 @@ fn validation_checks_the_spelling_of_every_credentials_slot() {
     template.http2_fields[replay] =
         RequestField::proxy_authorization("proxy-authorization", Replay);
     assert_eq!(template.validate(), Ok(()));
+}
+
+const CHROME_ANDROID_DIRECT: [(&str, bool); 2] = [
+    (
+        fixture!("proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"),
+        false,
+    ),
+    (
+        fixture!("proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"),
+        true,
+    ),
+];
+
+/// Every page load in the Android direct proxy-route captures is the
+/// navigation template for its origin: to `127.0.0.1` with the default
+/// hints and the trustworthy fields, and to `origin.phantom.test` without
+/// hints, `Sec-Fetch-*`, or the `br` and `zstd` codings.
+#[test]
+fn chrome_android_153_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()>
+{
+    let template = chrome_android::v153_android_navigation_template();
+    let hints = chrome_android::v153_android_client_hints();
+    let default_hints: Vec<(&str, String)> = hints
+        .hints()
+        .iter()
+        .filter(|hint| hint.delivery() == crate::ClientHintDelivery::Default)
+        .map(|hint| {
+            (
+                hint.name(),
+                String::from_utf8_lossy(hint.value()).into_owned(),
+            )
+        })
+        .collect();
+    for (fixture, trustworthy) in CHROME_ANDROID_DIRECT {
+        let mut expected: Vec<(String, String)> = Vec::new();
+        for field in &template.http1_fields {
+            if *field == RequestField::ClientHints {
+                if trustworthy {
+                    expected.extend(
+                        default_hints
+                            .iter()
+                            .map(|(name, value)| ((*name).to_owned(), value.clone())),
+                    );
+                }
+                continue;
+            }
+            if let (Some(name), Some(value)) = (field.name(), field.default_value(trustworthy)) {
+                expected.push((name.to_owned(), value.to_owned()));
+            }
+        }
+        let fields: std::collections::BTreeMap<&str, &str> = fixture
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .collect();
+        let value = |key: &str| -> CaptureResult<&str> {
+            fields
+                .get(key)
+                .copied()
+                .ok_or_else(|| format!("capture omitted {key}").into())
+        };
+        assert_eq!(value("client_version")?, "153.0.8010.52");
+        assert_eq!(value("launch_mode")?, "android-typed");
+        let mut pages = 0;
+        for run in 0..value("repeat_count")?.parse::<usize>()? {
+            for index in 0..value(&format!("run_{run}_request_count"))?.parse::<usize>()? {
+                let prefix = format!("run_{run}_request_{index}");
+                if !value(&prefix)?.contains("kind:page") {
+                    continue;
+                }
+                let mut observed = Vec::new();
+                for header in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
+                    let raw = value(&format!("{prefix}_header_{header}"))?;
+                    let bytes = (0..raw.len())
+                        .step_by(2)
+                        .map(|at| u8::from_str_radix(&raw[at..at + 2], 16))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let line = String::from_utf8(bytes)?;
+                    let (name, field) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+                    observed.push((name.to_owned(), field.to_owned()));
+                }
+                assert_eq!(
+                    observed.first().map(|(name, _)| name.as_str()),
+                    Some("Host")
+                );
+                assert_eq!(observed[1..], expected[..], "trustworthy: {trustworthy}");
+                pages += 1;
+            }
+        }
+        assert_eq!(pages, 3);
+    }
+    Ok(())
 }

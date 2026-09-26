@@ -380,6 +380,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `chrome_http3.py --output` writes its startup fixture with LF line endings.
   `startup_capture.py` launches a browser against the TLS, HTTP/2, or HTTP/3
   startup listener, on the command line or through a DevTools navigation.
+- Chrome for Android recipes in `phantom_profile::chrome_android` and
+  `phantom::profile::chrome_android`, captured from Chrome 153.0.8010.52 on
+  an Android 15 emulator: `v153_tls` and `v153_http3_tls` (the desktop
+  Chromium ClientHellos with Chrome 153's unsorted trust-anchor orders and
+  without ECH from HTTPS records), `v153_android_client_hints`,
+  `v153_android_navigation_template`, `v153_android_fetch_no_store_template`,
+  and `v153_http2`, `v153_quic`, `v153_http3`, `v153_http3_request`, and
+  `v153_websocket`, which return the desktop Chromium recipes that the
+  Android captures equal. Through those recipes Chrome for Android splits
+  `cookie` into crumbs on H2 and H3, which no Android capture checks. There
+  is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+  cookie-placement recipe.
 - Android capture support in `scripts/capture`: `--browser chrome-android`,
   `edge-android`, `brave-android`, `opera-android`, and `firefox-android`
   launch the browser on an adb device with a cleared profile, its debug

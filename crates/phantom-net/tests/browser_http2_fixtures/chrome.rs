@@ -1,4 +1,4 @@
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::{chrome_android, chromium::v154_http2};
 
 use super::{
     TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
@@ -11,6 +11,10 @@ pub(super) const FIXTURE_TEXT: &str = include_str!(concat!(
 const EDGE_153_FIXTURE_TEXT: &str = include_str!(concat!(
     "../../../../fixtures/http2/edge/153.0.4234.48/",
     "windows-11-26200/client-startup.txt"
+));
+const CHROME_ANDROID_153_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/chrome-android/153.0.8010.52/",
+    "android-35-emulator/client-startup.txt"
 ));
 const EXPECTED_LAUNCH_ARGUMENTS: &str = "--headless=new --user-data-dir=<temporary-profile> --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --disable-quic --no-proxy-server --host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost --ignore-certificate-errors --dump-dom";
 
@@ -92,4 +96,17 @@ async fn chromium_http2_recipe_matches_windows_opera_capture() -> TestResult<()>
     assert_eq!(fixture.launch_arguments, OPERA_LAUNCH_ARGUMENTS);
     assert_raw_startup(&fixture).await?;
     assert_public_startup_matches_fixture(&fixture, v154_http2()).await
+}
+
+/// Chrome 153 for Android starts HTTP/2 with the desktop Chromium frames, so
+/// its recipe returns [`v154_http2`].
+#[tokio::test]
+async fn chrome_android_153_http2_recipe_matches_android_capture() -> TestResult<()> {
+    let fixture = Fixture::parse(CHROME_ANDROID_153_FIXTURE_TEXT)?;
+    assert_eq!(fixture.browser, "Google Chrome");
+    assert_eq!(fixture.browser_version, "153.0.8010.52");
+    assert_eq!(fixture.launch_mode, "android-intent");
+    assert_eq!(chrome_android::v153_http2(), v154_http2());
+    assert_raw_startup(&fixture).await?;
+    assert_public_startup_matches_fixture(&fixture, chrome_android::v153_http2()).await
 }

@@ -1,6 +1,6 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
-use phantom_profile::{TlsSettings, brave, chromium::v154_tls, edge, opera};
+use phantom_profile::{TlsSettings, brave, chrome_android, chromium::v154_tls, edge, opera};
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
 use super::{capture_client_hello_from, capture_client_hellos_from, client_hello_fixture};
@@ -25,6 +25,14 @@ const BRAVE_154_FIXTURE: &str = include_str!(concat!(
 const OPERA_135_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/opera/135.0.5973.92/",
     "windows-11-26200/client-hello.txt"
+));
+const CHROME_ANDROID_153_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome-android/153.0.8010.52/",
+    "android-35-emulator/client-hello.txt"
+));
+const CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome-android/153.0.8010.52/",
+    "android-35-emulator/trust-anchor-orders.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
@@ -71,6 +79,62 @@ async fn chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order() -> TestResu
     Ok(())
 }
 
+#[tokio::test]
+async fn chrome_android_153_tls_recipe_matches_android_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(
+        CHROME_ANDROID_153_FIXTURE,
+        &chrome_android::v153_tls(),
+        Some(28),
+    )
+    .await
+}
+
+/// Chrome 153 does not sort its trust-anchor list. Every process of the
+/// Android capture sent one unsorted order, which the recipe carries.
+#[tokio::test]
+async fn chrome_android_153_tls_recipe_emits_the_captured_trust_anchor_order() -> TestResult<()> {
+    let field = |key: &str| {
+        CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS
+            .lines()
+            .find_map(|line| line.strip_prefix(key))
+            .map(str::to_owned)
+    };
+    assert_eq!(field("browser_version=").as_deref(), Some("153.0.8010.52"));
+    assert_eq!(field("distinct_order_count=").as_deref(), Some("1"));
+    let encoded = field("order_0=")
+        .and_then(|order| order.split_once(",ids:").map(|(_, ids)| ids.to_owned()))
+        .ok_or("trust-anchor order fixture omitted order_0")?;
+    let expected = decode_ids(&encoded)?;
+    let mut sorted = expected.clone();
+    sorted.sort_unstable();
+    assert_ne!(
+        expected, sorted,
+        "the Chrome 153 order is not the sorted one"
+    );
+
+    let actual = capture_client_hello_from(&chrome_android::v153_tls())
+        .await?
+        .summary()?;
+    let actual = actual
+        .requested_trust_anchor_ids()
+        .ok_or("Chrome 153 recipe omitted trust-anchor IDs")?
+        .to_vec();
+    assert_eq!(actual, expected);
+    Ok(())
+}
+
+fn decode_ids(encoded: &str) -> Result<Vec<Vec<u8>>, std::num::ParseIntError> {
+    encoded
+        .split(',')
+        .map(|id| {
+            (0..id.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(&id[index..index + 2], 16))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect()
+}
+
 /// Edge 153 sends the Chromium ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
@@ -101,6 +165,7 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         edge::v153_tls(),
         brave::v154_tls(),
         opera::v135_tls(),
+        chrome_android::v153_tls(),
     ] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {

@@ -24,26 +24,31 @@ const SCENARIOS: [&str; 9] = [
 
 macro_rules! fixture_set {
     ($browser:literal, $version:literal) => {
+        fixture_set!($browser, $version, "windows-11-26200")
+    };
+    ($browser:literal, $version:literal, $host:literal) => {
         [
-            fixture_set!(@one $browser, $version, "accept"),
-            fixture_set!(@one $browser, $version, "accept-deflate"),
-            fixture_set!(@one $browser, $version, "extension-mismatch"),
-            fixture_set!(@one $browser, $version, "fresh-origin"),
-            fixture_set!(@one $browser, $version, "h1-accept"),
-            fixture_set!(@one $browser, $version, "h1-accept-deflate"),
-            fixture_set!(@one $browser, $version, "no-connect-protocol"),
-            fixture_set!(@one $browser, $version, "refused-stream"),
-            fixture_set!(@one $browser, $version, "reject-403"),
+            fixture_set!(@one $browser, $version, $host, "accept"),
+            fixture_set!(@one $browser, $version, $host, "accept-deflate"),
+            fixture_set!(@one $browser, $version, $host, "extension-mismatch"),
+            fixture_set!(@one $browser, $version, $host, "fresh-origin"),
+            fixture_set!(@one $browser, $version, $host, "h1-accept"),
+            fixture_set!(@one $browser, $version, $host, "h1-accept-deflate"),
+            fixture_set!(@one $browser, $version, $host, "no-connect-protocol"),
+            fixture_set!(@one $browser, $version, $host, "refused-stream"),
+            fixture_set!(@one $browser, $version, $host, "reject-403"),
         ]
     };
-    (@one $browser:literal, $version:literal, $scenario:literal) => {
+    (@one $browser:literal, $version:literal, $host:literal, $scenario:literal) => {
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../fixtures/websocket/",
             $browser,
             "/",
             $version,
-            "/windows-11-26200/",
+            "/",
+            $host,
+            "/",
             $scenario,
             ".txt"
         ))
@@ -55,6 +60,8 @@ const EDGE: [&str; 9] = fixture_set!("edge", "153.0.4234.48");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
 const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
 const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
+const CHROME_ANDROID: [&str; 9] =
+    fixture_set!("chrome-android", "153.0.8010.52", "android-35-emulator");
 
 #[test]
 fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResult {
@@ -79,6 +86,23 @@ fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResul
         assert_eq!(summary.empty_messages, 6, "{client}");
         assert_eq!(summary.refused_stream_runs, refused, "{client}");
     }
+    Ok(())
+}
+
+#[test]
+fn chrome_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResult {
+    let summary = assert_recipe_matches(
+        &CHROME_ANDROID,
+        "Google Chrome",
+        &crate::chrome_android::v153_websocket(),
+        &crate::chrome_android::v153_http2(),
+        &chromium::v154_tls(),
+    )?;
+    assert_eq!(summary.reused_sessions, 15);
+    assert_eq!(summary.new_http2_connections, 0);
+    assert_eq!(summary.http1_upgrade_connections, 6);
+    assert_eq!(summary.empty_messages, 6);
+    assert_eq!(summary.refused_stream_runs, 3);
     Ok(())
 }
 
@@ -741,6 +765,56 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
         // Three scenarios of three runs for each kind of origin.
         assert_eq!(openings, [9, 9], "{client}");
     }
+    Ok(())
+}
+
+/// The Android direct captures show the same `ws://` rule: the recipe's
+/// HTTP/1.1 template for a `127.0.0.1` origin and for `origin.phantom.test`.
+#[test]
+fn chrome_android_153_websocket_recipe_follows_origin_trust_in_the_direct_captures() -> TestResult {
+    let recipe = crate::chrome_android::v153_websocket();
+    let offer = render_offer(&recipe.permessage_deflate_offer);
+    let mut openings = [0_usize; 2];
+    for input in [
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"
+        )),
+    ] {
+        let fields: BTreeMap<&str, &str> = input
+            .lines()
+            .filter_map(|line| line.split_once('='))
+            .collect();
+        let value = |key: &str| -> TestResult<&str> {
+            fields
+                .get(key)
+                .copied()
+                .ok_or_else(|| format!("capture omitted {key}").into())
+        };
+        assert_eq!(value("client_version")?, "153.0.8010.52");
+        let trustworthy = value("scenario")? == "direct-loopback";
+        for run in 0..value("repeat_count")?.parse::<usize>()? {
+            for index in 0..value(&format!("run_{run}_request_count"))?.parse::<usize>()? {
+                let prefix = format!("run_{run}_request_{index}");
+                if attribute(value(&prefix)?, "kind")? != "websocket" {
+                    continue;
+                }
+                let mut observed = Vec::new();
+                for field in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
+                    let line = decode_hex(value(&format!("{prefix}_header_{field}"))?)?;
+                    let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
+                    observed.push((name.to_owned(), value.to_owned()));
+                }
+                assert_template(&recipe.http1_fields, &observed, &offer, trustworthy, &[])?;
+                openings[usize::from(trustworthy)] += 1;
+            }
+        }
+    }
+    assert_eq!(openings, [3, 3]);
     Ok(())
 }
 

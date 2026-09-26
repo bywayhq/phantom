@@ -20,17 +20,19 @@ protocol or route. Phantom is maintained by
 
 ## What Phantom matches
 
-| Layer | Chrome 154 | Edge 153 | Brave 154 | Opera 135 | Firefox 156 |
-| --- | --- | --- | --- | --- | --- |
-| TLS ClientHello | Yes | Yes | Yes | Yes | Yes |
-| HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes |
-| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Not covered |
-| Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox |
-| Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes |
-| WebSocket openings | Yes | Yes | Yes | Yes | Yes |
-| TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only |
+| Layer | Chrome 154 | Edge 153 | Brave 154 | Opera 135 | Firefox 156 | Chrome 153 for Android |
+| --- | --- | --- | --- | --- | --- | --- |
+| TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes |
+| HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes |
+| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Not covered | Yes |
+| Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox | Yes |
+| Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes | Yes |
+| WebSocket openings | Yes | Yes | Yes | Yes | Yes | Yes |
+| TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only | Not covered |
 
-Every captured recipe comes from Windows 11 captures of one build per browser.
+Every captured recipe comes from captures of one build per browser: Windows
+11 for the desktop browsers, and an Android 15 emulator for Chrome for
+Android.
 [Coverage](docs/reference/coverage.md) is the full support contract, and
 [Validation](docs/explanation/validation.md) lists the evidence for each row.
 

@@ -17,6 +17,9 @@ const BRAVE_154_DEVTOOLS_FIXTURE: &str = include_str!(
 const OPERA_135_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
 );
+const CHROME_ANDROID_153_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt"
+);
 const V154_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 );
@@ -114,6 +117,28 @@ fn opera_135_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std:
         v154_http3_request(),
     )?;
     assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, OPERA_135_WINDOWS_FIXTURE)
+}
+
+/// Chrome 153 for Android shares the desktop control stream and request
+/// order; only persona values differ.
+#[test]
+fn chrome_android_153_h3_capture_matches_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        fixture_field(CHROME_ANDROID_153_FIXTURE, "client_version")?,
+        "153.0.8010.52"
+    );
+    assert_eq!(crate::chrome_android::v153_http3(), v154_http3());
+    assert_eq!(
+        crate::chrome_android::v153_http3_request(),
+        v154_http3_request()
+    );
+    assert_settings_match_control_stream(
+        CHROME_ANDROID_153_FIXTURE,
+        v154_http3(),
+        v154_http3_request(),
+    )?;
+    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, CHROME_ANDROID_153_FIXTURE)
 }
 
 fn fixture_field<'a>(fixture: &'a str, key: &str) -> Result<&'a str, Box<dyn std::error::Error>> {

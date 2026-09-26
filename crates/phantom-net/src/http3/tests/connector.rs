@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{brave, chromium, edge, opera};
+use phantom_profile::{brave, chrome_android, chromium, edge, opera};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -129,6 +129,29 @@ fn opera_135_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
     )?;
     for client_hello in [OPERA_135_H3_CLIENT_HELLO_1, OPERA_135_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, OPERA_135_H3_STARTUP, client_hello)?;
+    }
+    Ok(())
+}
+
+/// Chrome 153 for Android offers the desktop Chromium QUIC ClientHello; its
+/// trust-anchor IDs are the same set in a per-process order.
+#[test]
+fn chrome_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &chrome_android::v153_http3_tls(),
+        &chrome_android::v153_quic(),
+        &chrome_android::v153_http3(),
+        &chrome_android::v153_http3_request(),
+    )?;
+    for client_hello in [
+        CHROME_ANDROID_153_H3_CLIENT_HELLO_1,
+        CHROME_ANDROID_153_H3_CLIENT_HELLO_2,
+    ] {
+        assert_connector_matches_quic_client_hello(
+            &connector,
+            CHROME_ANDROID_153_H3_STARTUP,
+            client_hello,
+        )?;
     }
     Ok(())
 }
@@ -635,3 +658,15 @@ pub(super) fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Ve
         identifiers
     })
 }
+const CHROME_ANDROID_153_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
+    "android-35-emulator/client-startup.txt"
+));
+const CHROME_ANDROID_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
+    "android-35-emulator/quic-client-hello-1.txt"
+));
+const CHROME_ANDROID_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
+    "android-35-emulator/quic-client-hello-2.txt"
+));

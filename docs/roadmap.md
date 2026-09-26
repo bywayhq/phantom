@@ -91,7 +91,13 @@ anything does.
   known from source. Blocker: a matched Chrome build on an Apple Silicon
   capture host. Retain each difference from the Windows recipe rather than
   assuming the platforms match.
-- Chrome for Android. Evidence: none. Blocker: Android emulator captures.
+- Chrome for Android on a phone, and the current stable build. Evidence:
+  Chrome 153.0.8010.52 captures on an Android 15 emulator back
+  `chrome_android::v153_*`; Google listed 155.0.8059.16 as stable, but Play
+  served 153 to the emulator. Blocker: a physical device, to check the
+  emulator's CPU, model, and network against a phone, and a Play rollout of
+  the stable build. The emulator hides TCP, so the Android TCP layer also
+  needs a phone.
 - Brave and Opera TCP, HTTP/1.1 connection, address cache, and cookie
   placement recipes. Evidence: none; the captured Brave 154 and Opera 135
   layers are recipes

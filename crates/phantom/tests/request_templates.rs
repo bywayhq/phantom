@@ -34,7 +34,7 @@ use phantom::{
     ResponseInfo, Route, Socks5Proxy,
     profile::{
         ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate, brave,
-        chromium, edge, firefox, opera,
+        chrome_android, chromium, edge, firefox, opera,
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -70,6 +70,12 @@ const BRAVE_H3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client
 const OPERA_H1: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/h1-accept.txt");
 const OPERA_H2: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt");
 const OPERA_H3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
+const CHROME_ANDROID_H1: &str =
+    fixture!("websocket/chrome-android/153.0.8010.52/android-35-emulator/h1-accept.txt");
+const CHROME_ANDROID_H2: &str =
+    fixture!("websocket/chrome-android/153.0.8010.52/android-35-emulator/accept.txt");
+const CHROME_ANDROID_H3: &str =
+    fixture!("http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt");
 const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0/windows-11-26200/h1-accept.txt");
 const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0/windows-11-26200/accept.txt");
 
@@ -119,6 +125,16 @@ fn opera() -> Browser {
         http1_capture: OPERA_H1,
         http2_capture: OPERA_H2,
         http3_capture: Some(OPERA_H3),
+    }
+}
+
+fn chrome_android() -> Browser {
+    Browser {
+        http2: chrome_android::v153_http2(),
+        hints: Some(chrome_android::v153_android_client_hints()),
+        http1_capture: CHROME_ANDROID_H1,
+        http2_capture: CHROME_ANDROID_H2,
+        http3_capture: Some(CHROME_ANDROID_H3),
     }
 }
 
@@ -458,6 +474,17 @@ async fn opera_navigation_sends_the_captured_page_request() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn chrome_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
+    assert_reproduces(
+        chrome_android(),
+        chrome_android::v153_android_navigation_template,
+        Kind::Navigation,
+        ALL,
+    )
+    .await
+}
+
+#[tokio::test]
 async fn firefox_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         firefox(),
@@ -506,6 +533,17 @@ async fn opera_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         opera(),
         opera::v135_windows_fetch_no_store_template,
+        Kind::Fetch,
+        TCP,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn chrome_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
+    assert_reproduces(
+        chrome_android(),
+        chrome_android::v153_android_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )

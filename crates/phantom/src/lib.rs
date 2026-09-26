@@ -301,6 +301,20 @@ pub mod profile {
             v153_windows_fetch_no_store_template, v153_windows_navigation_template,
         };
     }
+
+    /// Chrome for Android recipes implemented by the public facade.
+    ///
+    /// Captured from Chrome 153 on an Android 15 emulator. The H2, QUIC, H3,
+    /// and WebSocket recipes return the desktop Chromium data, which the
+    /// Android captures equal; the TLS trust-anchor order, client hints, and
+    /// request identity differ.
+    pub mod chrome_android {
+        pub use phantom_profile::chrome_android::{
+            v153_android_client_hints, v153_android_fetch_no_store_template,
+            v153_android_navigation_template, v153_http2, v153_http3, v153_http3_request,
+            v153_http3_tls, v153_quic, v153_tls, v153_websocket,
+        };
+    }
 }
 
 /// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.

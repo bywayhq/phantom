@@ -20,10 +20,10 @@ Combine one browser's recipes into a profile.
 
 ```rust
 use phantom::profile::{
-    brave, chromium, edge, firefox, opera, ClientProfile, Http3ClientSettings,
+    brave, chrome_android, chromium, edge, firefox, opera, ClientProfile, Http3ClientSettings,
 };
 
-fn profiles() -> [ClientProfile; 4] {
+fn profiles() -> [ClientProfile; 5] {
     // Firefox 156: TLS, HTTP/2, and cookie-field recipes, plus its
     // source-derived TCP options and HTTP/1.1 connection count.
     let firefox = ClientProfile::new(firefox::v156_tls())
@@ -66,23 +66,36 @@ fn profiles() -> [ClientProfile; 4] {
         ))
         .with_client_hints(opera::v135_windows_client_hints());
 
-    [firefox, edge, brave, opera]
+    // Chrome 153 for Android: its own TLS recipes and client hints; its H2,
+    // QUIC, and H3 functions return the Chromium data its captures equal.
+    let android = ClientProfile::new(chrome_android::v153_tls())
+        .with_http2(chrome_android::v153_http2())
+        .with_http3(Http3ClientSettings::new(
+            chrome_android::v153_http3_tls(),
+            chrome_android::v153_quic(),
+            chrome_android::v153_http3(),
+            chrome_android::v153_http3_request(),
+        ))
+        .with_client_hints(chrome_android::v153_android_client_hints());
+
+    [firefox, edge, brave, opera, android]
 }
 ```
 
 - Phantom carries one version per browser: Chrome 154 (`chromium::v154_*`),
   Edge 153 (`edge::v153_*`), Brave 154 (`brave::v154_*`), Opera 135
-  (`opera::v135_*`), and Firefox 156 (`firefox::v156_*`). The
+  (`opera::v135_*`), Firefox 156 (`firefox::v156_*`), and Chrome 153 for
+  Android (`chrome_android::v153_*`, captured on an Android emulator). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
   components each one has; Firefox has no QUIC, HTTP/3, or client-hint
-  recipe.
+  recipe, and Chrome for Android has no TCP or HTTP/1.1 connection recipe.
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin
   and route. `chromium::v154_http1` and `firefox::v156_http1` allow 6, from
   browser source; without `with_http1` the client keeps one
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
-- A `windows` in a recipe name records where it was captured. The runtime
+- A `windows` or `android` in a recipe name records where it was captured. The runtime
   never branches on the host OS or the browser name
   ([Recipe names and platforms](../reference/profiles.md#recipe-names-and-platforms)).
 

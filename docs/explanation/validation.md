@@ -25,6 +25,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; no macOS or Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no platform comparison |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
+| [Chrome for Android 153 recipes](#chrome-for-android-153-recipes) | Android 15 emulator captures of TLS, H2, QUIC, H3, client hints, templates, and WebSocket openings, replayed by recipe tests | An emulator, not a phone; no TCP layer; Play served 153 while 155 was stable |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, plus socket read-back tests | No capture confirms the options; field trials cannot be ruled out |
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, plus unit and loopback tests | No capture counts a browser's DNS queries; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
@@ -45,8 +46,9 @@ Phantom's claims rest on four kinds of evidence:
 | [Response-body limits](#response-body-limit-evidence) | Unit tests and an H1 loopback test | No H2 or H3 test exceeds a limit |
 | [H2 receive bounds](#adversarial-coverage) | Hostile-peer regressions | Not browser evidence |
 
-Every capture comes from one Windows 11 build, and no third-party observer
-backs any current recipe. [Recorded coverage losses](#recorded-coverage-losses)
+Every desktop capture comes from one Windows 11 build, the Chrome for Android
+captures from an Android 15 emulator on that host, and no third-party
+observer backs any current recipe. [Recorded coverage losses](#recorded-coverage-losses)
 lists the checks Phantom used to run and no longer does.
 
 ## Contents
@@ -104,8 +106,10 @@ replay them.
 
 ### Capture normalization
 
-Every recipe in this tree comes from Windows 11 (build 26200, x64) captures of
-the browser build installed on the capture host. Phantom carries one version
+Every desktop recipe in this tree comes from Windows 11 (build 26200, x64)
+captures of the browser build installed on the capture host, and every
+Chrome for Android recipe from captures on an Android 15 emulator on that
+host. Phantom carries one version
 per browser, so a recipe name always points at a build that can be recaptured
 and reverified. Retired captures, including the Chrome 152 and Firefox 154 macOS and Windows
 sets that once established cross-platform transport parity, are no longer in
@@ -153,8 +157,9 @@ Limits:
 
 - One Windows build, and one build per browser. No macOS or Linux capture of
   any current recipe exists, so platform independence is not claimed.
-- Launches are headless, except the headful client-hint and SSE runs each
-  section names.
+- Desktop launches are headless, except the headful client-hint and SSE runs
+  each section names. Android has no headless mode; its fixtures record
+  `android-typed` or `android-intent`.
 
 ### Chrome 154 recipes
 
@@ -648,6 +653,122 @@ Limits:
 - The Opera comparison is with Chrome 154, not with a Chromium 151 build.
 - Opera's H2 and H3 startups were launched through DevTools; its TLS
   ClientHello may be the startup preconnect's.
+
+### Chrome for Android 153 recipes
+
+What is claimed: the `chrome_android::v153_*` recipes reproduce Google Chrome
+153.0.8010.52 for Android, as captured on the Android 15 emulator described
+below.
+
+Evidence: Chrome 153.0.8010.52 is the build the Google Play Store served to
+the `phantom-api35-play` emulator on 2026-09-25. Google's version history API
+listed 155.0.8059.16 as the stable Android build on the same day; Play's staged
+rollout had not reached the device, so the Play-served build is the version
+under test. The emulator is a Pixel 7 device profile on the Android 15 (API
+35) Google Play x86_64 system image, build `AE3A.240806.036`, on the Windows 11
+capture host, with hardware acceleration through the Windows Hypervisor
+Platform. [Android browsers](../../scripts/capture/README.md#android-browsers)
+describes how each run clears Chrome's app data, passes switches through the
+command-line file, and opens the page.
+
+Two entry methods were used, and each fixture records its own:
+`android-typed` types the URL into the address bar, as a person does, and
+`android-intent` opens it with a `VIEW` intent. A page opened by intent has no
+user activation, and Chrome then omits `Sec-Fetch-User`; the request
+templates therefore rest on typed captures only. The TLS, HTTP/2 startup, and
+QUIC layers do not depend on how the page was opened.
+
+| Layer | Samples | Result against the desktop Chrome 154 recipes |
+| --- | --- | --- |
+| TLS ClientHello | 62 intent processes over two emulator boots | Equal to `chromium::v154_tls` on legacy version, cipher suites, extension membership, supported groups, signature algorithms including ML-DSA, ALPN, ALPS, certificate compression, supported versions, key shares, and ECH GREASE with HKDF-SHA256 and AES-128-GCM. The 28 trust-anchor IDs are unsorted; see below |
+| HTTP/2 startup | 4 intent processes | Byte-identical to the Chrome 154 startup: SETTINGS, their order, the connection WINDOW_UPDATE, and the empty ALPS payload |
+| QUIC ClientHello, QUIC and H3 startup | 30 intent processes over two boots, 5 typed | Equal on every non-GREASE transport parameter, the five H3 SETTINGS with their widths, the QPACK stream prefixes, and the seventeen request fields apart from persona values. Trust-anchor order varies per process; see below |
+| QUIC resumption | 3 typed runs each of `accept` and `reject` | Every later connection resumed, offered early data, and added `early_data` and a final `pre_shared_key`, and unsafe methods stayed in 1-RTT, as on Windows. Unlike the Windows runs, the `/navigate` GET travelled in 0-RTT in all three `accept` runs, and some requests spanned 0-RTT and 1-RTT packets |
+| Client hints | 3 typed runs | The same eleven names, order, and `default` or `accept-ch` delivery, and the same two navigation field orders; Android persona values |
+| WebSocket openings | 3 typed runs of each of 9 scenarios | Equal to `chromium::v154_websocket` and `chromium::v154_http2` on every compared field, with the same connection choices and counts |
+| Plaintext trust | 3 typed runs each of `direct-loopback` and `direct-hostname` | The field names of Chrome 154 for the page load, the default-mode `fetch()`, and the `ws://` opening, to each kind of origin; every page load and opening equals the Android template for its origin's trust |
+
+Persona values: `User-Agent` is Chrome's reduced Android string,
+`Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko)
+Chrome/153.0.0.0 Mobile Safari/537.36`, on every request. `sec-ch-ua` is
+`"Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153"`,
+`sec-ch-ua-mobile` is `?1`, and `sec-ch-ua-platform` is `"Android"`. After
+`Accept-CH`, Chrome adds platform version `"15.0.0"`, an empty architecture and
+bitness, model `"sdk_gphone64_x86_64"`, and form factor `"Mobile"`.
+
+#### Chrome for Android trust-anchor ID order
+
+Chrome 153 does not contain Chromium commit `942bda4298c1`, which sorts the
+trust-anchor list, and the two transports behaved differently on the
+emulator:
+
+- All 62 fresh processes sent the TCP list in one order, which is not
+  ascending: 32 before and 30 after the emulator was restarted and the guest
+  rebooted. Another 33 typed-entry processes, not retained, sent the same
+  order. `chrome_android::v153_tls` carries it, and `trust-anchor-orders.txt`
+  under `tls` retains the count and sequence of the 62.
+- The QUIC lists of 30 fresh intent processes used 9 distinct orders, sent by
+  9, 8, 5, 2, 2, 1, 1, 1, and 1 processes, across both boots. None equals
+  the TCP order, and each of the 5 typed runs sent an order that no intent
+  run sent. `trust-anchor-orders.txt` under `http3` retains the 30 intent
+  runs. No fixed list reproduces a per-process order, so
+  `chrome_android::v153_http3_tls` carries the most frequent one, as the
+  retired Chrome 153 desktop recipe did; the runner-up was one process
+  behind.
+
+These captures show what this build did on two boots of one emulator. They
+do not show why the TCP order stays fixed, why the typed runs' QUIC orders
+differ, or whether a phone or another device keeps the TCP order.
+
+#### Capture commands and launches
+
+How to reproduce: start the emulator and pass the Android browser names as
+the [capture README](../../scripts/capture/README.md#android-browsers)
+describes. Every fixture records its launch arguments, which are the switches
+written to Chrome's command-line file followed by the page URL.
+
+| Capture | Command |
+| --- | --- |
+| TLS ClientHellos | `capture_client_hello` on a free loopback port, then `android_run.py --entry intent` with `--disable-quic`, `--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost`, and `--ignore-certificate-errors` |
+| HTTP/2 startup | `capture_http2_tls` with the same launch |
+| QUIC ClientHello and H3 startup | `chrome_http3.py --client-hello --output` with `--enable-quic`, `--origin-to-force-quic-on`, a port-qualified `--host-resolver-rules`, and the certificate's `--ignore-certificate-errors-spki-list` |
+| QUIC resumption | `quic_resumption.py --browser chrome-android --scenario accept reject --repeat 3` |
+| Client hints | `client_hints.py --browser chrome-android --repeat 3` |
+| WebSocket openings | `http2_websocket.py --browser chrome-android --scenario all --repeat 3` |
+| Plaintext trust | `proxy_route.py --browser chrome-android --scenario direct-loopback direct-hostname --repeat 3` |
+
+The launcher rewrites `127.0.0.1` in `--host-resolver-rules` to `10.0.2.2`,
+the emulator's route to host loopback, and adds `adb reverse` for a URL on
+the device's own `127.0.0.1`.
+
+Retained fixtures, each under
+`fixtures/<area>/chrome-android/153.0.8010.52/android-35-emulator/`:
+
+| Area | Files |
+| --- | --- |
+| `tls` | `client-hello.txt`, `trust-anchor-orders.txt` |
+| `http2` | `client-startup.txt` |
+| `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `trust-anchor-orders.txt`, `resumption-accept.txt`, `resumption-reject.txt` |
+| `client-hints` | `navigation.txt` |
+| `websocket` | Nine scenarios |
+| `proxy` | `direct-loopback.txt`, `direct-hostname.txt` |
+
+Limits:
+
+- An emulator, not a phone. The CPU is x86_64 with AES instructions, where
+  most phones run ARM cores; `sec-ch-ua-model` names the emulator; and the
+  device ran on a busy Windows host. No capture from a real device checks any
+  of these recipes.
+- The emulator's network ends the guest's TCP connections and opens new ones
+  from the host, so no TCP option, SYN, or keepalive is visible, and there is
+  no `chrome_android` TCP, HTTP/1.1 connection, or address-cache recipe.
+- No capture shows Chrome for Android using an HTTPS record's `ech`, because
+  the device cannot be given a DNS-over-HTTPS resolver as the desktop capture
+  was, so `ech_from_https_records` is off.
+- No proxy, SSE, or Alt-Svc racing capture exists for Android, so there is no
+  `chrome_android` proxy CONNECT or cookie-placement recipe.
+- One build, served by a staged rollout, which trails the stable version
+  Google lists.
 
 ### TCP socket option evidence
 

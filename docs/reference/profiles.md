@@ -38,8 +38,13 @@ build that can be recaptured and reverified.
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints` | Chromium | Windows |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows |
+| Chrome 153 for Android | `chrome_android::v153_*` | Yes | Chromium | Chromium QUIC and H3; own trust-anchor orders | `v153_android_client_hints` | Chromium | Android emulator |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
+  "Android emulator" is the Android 15 emulator on the Windows capture host,
+  not a phone.
+- "Chromium" means the recipe function returns the desktop Chromium recipe,
+  which the browser's own captures equal on every compared field.
   [Coverage](coverage.md#browser-profiles) gives the exact builds and how the
   recipes differ.
 - TCP recipes are not in the table, because socket options do not appear in
@@ -69,10 +74,11 @@ the host operating system or the browser name.
 | Name form | Example | Means |
 | --- | --- | --- |
 | No platform | `chromium::v154_tls`, `firefox::v156_http2` | The recipe carries no platform-specific data. It does not mean more than one platform was captured. |
-| `windows` in the name | `chromium::v154_windows_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
+| `windows` or `android` in the name | `chromium::v154_windows_client_hints`, `chrome_android::v153_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
-Every current recipe comes from Windows captures alone. Each recipe's rustdoc
-names its single capture build and platform.
+Every recipe comes from captures on one platform: Windows 11 for `chromium`,
+`edge`, and `firefox`, and the Android 15 emulator for `chrome_android`. Each
+recipe's rustdoc names its single capture build and platform.
 
 ## TCP socket options
 
@@ -87,6 +93,7 @@ resolved addresses.
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
+| Chrome for Android | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
@@ -97,6 +104,8 @@ resolved addresses.
 - Firefox's keepalive schedule and address selection are not modeled.
 - No capture shows Edge's, Brave's, or Opera's socket options, and no
   browser source has been read for them.
+- The Android emulator ends the device's TCP connections and opens new ones
+  from the host, so no Chrome for Android socket option reaches a capture.
 
 | Rule | Value or outcome |
 | --- | --- |
@@ -125,6 +134,7 @@ for each origin and route.
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
 | Edge, Brave, Opera | Not covered | Their values have not been read from a source or a capture |
+| Chrome for Android | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
   the limit.
@@ -171,6 +181,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
 | Edge, Brave, Opera | Not covered | Not covered | Not covered |
+| Chrome for Android | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
   TTL, or through the caller's `AddressResolver`, which returns none. Both
@@ -208,6 +219,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `opera::v135_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
+| `chrome_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Chrome 153 for Android value |
+| `chrome_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 153 for Android value |
 
 - An address-bar navigation is an HTML document request with
   `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
@@ -215,13 +228,18 @@ Each recipe's rustdoc cites the source lines. Evidence:
   no field list for it.
 - A caller slot has no captured value; you supply the field. A request that
   leaves a required caller slot empty fails before any I/O.
-- Every template was captured on Windows 11 and carries the capture machine's
-  `en-US` `Accept-Language`, except Brave's, which leave it to you: Brave
-  draws the `q` value of its second language per session.
+- Every template carries the capture machine's `en-US` `Accept-Language`, the
+  Windows 11 host's or, for `chrome_android`, the Android emulator's, except
+  Brave's, which leave it to you: Brave draws the `q` value of its second
+  language per session.
 - The Brave templates are the Chromium templates with three changes: `Accept`
   on a navigation omits `application/signed-exchange;v=b3;q=0.7`,
   `Sec-GPC: 1` follows `Accept`, and `Accept-Language` is a
   required caller slot.
+- The Chrome for Android navigation template models a URL typed into the
+  address bar. A page that another app opens through an Android intent has
+  no user activation, and Chrome then leaves out `Sec-Fetch-User`; no
+  template covers that case.
 
 ### Template assembly
 
