@@ -540,7 +540,9 @@ def terminate_profile_processes(profile: Path) -> None:
 
     Browsers can re-parent their main process away from the launched process,
     so a process-tree kill alone does not prove the run's browser is gone.
-    Only a process whose command line names this run's profile is killed.
+    Only a process whose command line names this run's profile, or a path
+    inside it, is killed. run_matrix.py passes a job's temporary directory,
+    which holds every profile the job's tool created.
     """
     if sys.platform != "win32":
         listing = subprocess.run(
