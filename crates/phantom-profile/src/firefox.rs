@@ -56,9 +56,19 @@ pub fn v156_cookie_placement() -> CookiePlacement {
 /// ChaCha20-Poly1305 with equal probability; this recipe lists both, so each
 /// connection draws one the same way. The delegated-credential vector includes
 /// legacy ECDSA-SHA1 because Firefox advertised it; TLS 1.3 authentication
-/// cannot select that legacy scheme. The returned value is an ordinary owned
-/// [`TlsSettings`], so callers can customize it before constructing a
-/// transport.
+/// cannot select that legacy scheme.
+///
+/// Ticket resumption over TCP follows the retained `resumption-*.txt`
+/// captures. A resumed ClientHello omits the empty `session_ticket`
+/// extension and adds `pre_shared_key` last. Firefox used each of the eight
+/// tickets one connection issued, once, so the recipe keeps up to eight per
+/// origin, the TCP cache's bound. When a ticket permits early data, Firefox
+/// also offers `early_data` and sends safe requests in it; Phantom never
+/// offers early data over TCP, so that resumed ClientHello lacks the
+/// extension.
+///
+/// The returned value is an ordinary owned [`TlsSettings`], so callers can
+/// customize it before constructing a transport.
 #[must_use]
 pub fn v156_tls() -> TlsSettings {
     TlsSettings {
@@ -120,6 +130,8 @@ pub fn v156_tls() -> TlsSettings {
             CertificateCompression::Zstd,
         ],
         session_tickets: true,
+        session_tickets_per_origin: 8,
+        session_ticket_extension_when_resuming: false,
         record_size_limit: Some(16_385),
         requested_trust_anchor_ids: None,
         grease: false,

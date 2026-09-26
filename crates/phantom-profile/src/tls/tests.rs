@@ -60,6 +60,8 @@ fn minimal_settings() -> TlsSettings {
         alps: None,
         certificate_compression: Vec::new(),
         session_tickets: true,
+        session_tickets_per_origin: 2,
+        session_ticket_extension_when_resuming: true,
         record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
@@ -137,6 +139,43 @@ fn record_size_limit_rejects_values_outside_the_wire_range() {
             Some("record_size_limit")
         );
     }
+}
+
+#[test]
+fn session_tickets_per_origin_must_be_between_one_and_eight() -> Result<(), Box<dyn Error>> {
+    for limit in [1, 8] {
+        let mut settings = minimal_settings();
+        settings.session_tickets_per_origin = limit;
+        settings.validate()?;
+    }
+    for limit in [0, 9] {
+        let mut settings = minimal_settings();
+        settings.session_tickets_per_origin = limit;
+        let error = settings.validate().err();
+        assert_eq!(
+            error.as_ref().map(InvalidTlsSettings::field),
+            Some("session_tickets_per_origin")
+        );
+        settings.session_tickets = false;
+        settings.validate()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn tcp_ticket_retention_follows_the_resumption_captures() {
+    for settings in [
+        crate::chromium::v154_tls(),
+        crate::edge::v153_tls(),
+        crate::brave::v154_tls(),
+        crate::opera::v135_tls(),
+    ] {
+        assert_eq!(settings.session_tickets_per_origin, 2);
+        assert!(settings.session_ticket_extension_when_resuming);
+    }
+    let firefox = crate::firefox::v156_tls();
+    assert_eq!(firefox.session_tickets_per_origin, 8);
+    assert!(!firefox.session_ticket_extension_when_resuming);
 }
 
 #[test]

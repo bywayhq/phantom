@@ -14,8 +14,8 @@ use std::{
 use btls::{
     error::ErrorStack,
     ssl::{
-        SslConnector as BoringConnector, SslContext, SslContextBuilder, SslMethod, SslVerifyMode,
-        SslVersion,
+        SslConnector as BoringConnector, SslContext, SslContextBuilder, SslMethod, SslOptions,
+        SslVerifyMode, SslVersion,
     },
     x509::{X509, store::X509StoreBuilder},
 };
@@ -74,6 +74,8 @@ pub(crate) struct TlsConnector {
     ech_grease_aeads: Box<[EchGreaseAead]>,
     ech_from_https_records: bool,
     scoped_sessions_enabled: bool,
+    session_tickets_per_origin: u8,
+    session_ticket_extension_when_resuming: bool,
     session_cache: Option<TlsSessionCache>,
     #[cfg(feature = "keylog")]
     key_log: key_log::KeyLogSlot,
@@ -183,7 +185,9 @@ impl TlsConnector {
 
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
         let mut connector = self.clone();
-        connector.session_cache = self.scoped_sessions_enabled.then(TlsSessionCache::default);
+        connector.session_cache = self
+            .scoped_sessions_enabled
+            .then(|| TlsSessionCache::new(self.session_tickets_per_origin));
         connector
     }
 
@@ -340,6 +344,8 @@ impl TlsConnector {
             ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
             ech_from_https_records: settings.ech_from_https_records,
             scoped_sessions_enabled,
+            session_tickets_per_origin: settings.session_tickets_per_origin,
+            session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
             session_cache: None,
             #[cfg(feature = "keylog")]
             key_log,
@@ -459,12 +465,21 @@ impl TlsConnector {
 
             let ssl = if let Some(cache) = &self.session_cache {
                 let session = cache.take(server_name);
+                // BoringSSL keeps the empty TLS 1.2 `session_ticket`
+                // extension beside a TLS 1.3 PSK. `SSL_OP_NO_TICKET` on this
+                // connection alone omits it, as NSS does; the connection
+                // still offers the PSK and stores the TLS 1.3 tickets the
+                // server sends.
+                let omit_session_ticket_extension = !self.session_ticket_extension_when_resuming
+                    && session
+                        .as_ref()
+                        .is_some_and(|session| session.protocol_version() == SslVersion::TLS1_3);
                 let reusable = session
                     .as_ref()
                     .is_some_and(|session| !session.should_be_single_use());
                 let capture = cache.begin_handshake(server_name);
                 let callback_capture = capture.clone();
-                let ssl = configuration
+                let mut ssl = configuration
                     .into_ssl_with_scoped_session(
                         server_name,
                         cache.scope(),
@@ -482,6 +497,9 @@ impl TlsConnector {
                     attempted_reusable_session = session;
                 }
                 session_capture = Some(capture);
+                if omit_session_ticket_extension {
+                    ssl.set_options(SslOptions::NO_TICKET);
+                }
                 ssl
             } else {
                 configuration

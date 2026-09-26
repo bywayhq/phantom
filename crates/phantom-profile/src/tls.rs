@@ -4,6 +4,8 @@ use std::{error::Error, fmt};
 
 const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
 const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERHEAD;
+/// Matches the TCP session cache's total capacity in `phantom-net`.
+const MAX_SESSION_TICKETS_PER_ORIGIN: u8 = 8;
 
 /// A TLS protocol version accepted by a transport.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -345,6 +347,21 @@ pub struct TlsSettings {
     /// Disabling this omits the TLS 1.2 `session_ticket` ClientHello extension
     /// and disables ticket resumption supported by the TLS backend.
     pub session_tickets: bool,
+    /// Most TLS session tickets kept for one origin on connections over TCP.
+    ///
+    /// A new connection presents the newest ticket it has for the origin,
+    /// and each TLS 1.3 ticket is used at most once. When the origin already
+    /// has this many, storing a ticket evicts that origin's oldest. It must be
+    /// between 1 and 8 when [`Self::session_tickets`] is enabled. QUIC
+    /// connections keep their own tickets under a separate bound.
+    pub session_tickets_per_origin: u8,
+    /// Whether a ClientHello that offers a TLS 1.3 ticket over TCP keeps the
+    /// empty `session_ticket` extension.
+    ///
+    /// The extension only carries TLS 1.2 tickets, so the fresh ClientHello
+    /// is unchanged either way. Chrome keeps it on resumption; Firefox omits
+    /// it.
+    pub session_ticket_extension_when_resuming: bool,
     /// Maximum protected TLS record plaintext the client accepts.
     ///
     /// `None` omits the RFC 8449 extension. Configured values use the wire
@@ -432,6 +449,14 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "record_size_limit",
                 "record size limit must be between 64 and 16385 bytes",
+            ));
+        }
+        if self.session_tickets
+            && !(1..=MAX_SESSION_TICKETS_PER_ORIGIN).contains(&self.session_tickets_per_origin)
+        {
+            return Err(InvalidTlsSettings::new(
+                "session_tickets_per_origin",
+                "session tickets per origin must be between 1 and 8",
             ));
         }
         if self.ech_grease_payload_length.is_some() && !self.ech_grease {

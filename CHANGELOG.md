@@ -14,6 +14,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings` gained the public fields `session_tickets_per_origin: u8`
+  and `session_ticket_extension_when_resuming: bool`, so struct literals
+  that name every field no longer compile. The first bounds the TLS tickets
+  a TCP connection's cache keeps for one origin, from 1 to 8 when
+  `session_tickets` is set; the second keeps or omits the empty
+  `session_ticket` extension in a ClientHello that offers a TLS 1.3 ticket.
+  Migrate: add `session_tickets_per_origin: 8` and
+  `session_ticket_extension_when_resuming: true` to a `TlsSettings` literal
+  to keep the previous behavior, or copy both from `chromium::v154_tls` or
+  `firefox::v156_tls`.
 - `phantom-net` connectors resolve names through a
   `phantom_net::host_resolver::HostResolver`, which holds host overrides, an
   optional `AddressResolver`, and the optional `AddressCache`. On
@@ -261,6 +271,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `scripts/capture/tls_resumption.py` records how a browser resumes TLS 1.3
+  sessions over TCP against a loopback server that issues its own tickets:
+  the resumed ClientHello, the ticket each connection presents, early data,
+  ticket retention per origin, parallel connections, other ports, and
+  top-level-site partitions. Fixtures for Chrome 154, Edge 153, Brave 154,
+  Opera 135, and Firefox 156 are retained under `fixtures/tls/`.
 - `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest
   `407` body Phantom reads so the replay can use the challenged HTTP/1.1
   proxy connection.
@@ -573,6 +589,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for TLS resumption over TCP. The Chrome 154, Edge 153, Brave
+  154, and Opera 135 recipes keep at most two tickets per origin, the newest
+  two, instead of eight, as the browsers did in the resumption captures; a
+  client whose server issues many tickets resumes fewer connections before a
+  full handshake. A resumed ClientHello from `firefox::v156_tls` omits the
+  empty `session_ticket` extension, as Firefox 156 does, and the recipe
+  keeps up to eight tickets per origin. Fresh ClientHellos are unchanged.
 - Wire change for the Edge 153 recipe on a client with HTTPS record
   discovery: `edge::v153_tls` now keeps `ech_from_https_records` from
   `chromium::v154_tls`, so a direct TLS connection over TCP to an origin

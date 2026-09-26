@@ -133,9 +133,13 @@ fn forget(client: &Client) {
 - Browsers forget cached addresses when the network changes. Phantom does
   not watch the network, so call `clear_dns_cache` after such a change.
 - TLS session tickets for H1/H2, and QUIC session tickets for H3, are
-  bounded and keyed by exact origin and route. Only QUIC tickets carry early
+  bounded ([Defaults and limits](../reference/limits.md#protocol-state)) and
+  keyed by exact origin and route. Only QUIC tickets carry early
   data, when the profile or `ClientBuilder::http3_early_data` enables it
   ([HTTP/3 and Alt-Svc](http3.md#turn-off-early-data-on-resumed-connections)).
+- Browsers also keep separate tickets for each top-level site a page runs
+  under. A client has no such partitions: all its requests share one ticket
+  cache per origin and route.
 
 ## Next
 

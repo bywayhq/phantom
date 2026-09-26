@@ -153,6 +153,11 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 /// [`TlsSettings::ech_from_https_records`] is set; it applies only on a
 /// client that looks up HTTPS records.
 ///
+/// Ticket resumption over TCP follows the retained `resumption-*.txt`
+/// captures. Chrome kept the two newest tickets for an origin, presented the
+/// newest first, and used each once; a resumed ClientHello adds only
+/// `pre_shared_key`, last, and never offers early data over TCP.
+///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -206,6 +211,8 @@ pub fn v154_tls() -> TlsSettings {
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
         session_tickets: true,
+        session_tickets_per_origin: 2,
+        session_ticket_extension_when_resuming: true,
         record_size_limit: None,
         requested_trust_anchor_ids: Some(trust_anchor_ids(V154_TRUST_ANCHOR_IDS)),
         grease: true,

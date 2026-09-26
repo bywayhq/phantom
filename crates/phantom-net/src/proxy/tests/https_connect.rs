@@ -212,6 +212,8 @@ pub(super) fn tls_settings() -> TlsSettings {
         alps: None,
         certificate_compression: Vec::new(),
         session_tickets: true,
+        session_tickets_per_origin: 2,
+        session_ticket_extension_when_resuming: true,
         record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,

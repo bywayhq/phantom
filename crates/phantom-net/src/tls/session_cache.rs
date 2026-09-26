@@ -12,7 +12,7 @@ use tracing::debug;
 
 const MAX_SESSIONS: usize = 8;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(super) struct TlsSessionCache {
     inner: Arc<CacheInner>,
 }
@@ -31,9 +31,11 @@ struct CaptureState {
     pending: Vec<ScopedSslSession>,
 }
 
-#[derive(Default)]
 struct CacheInner {
     scope: SslSessionScope,
+    /// `TlsSettings::session_tickets_per_origin`; one cache serves one
+    /// origin, so this bounds each verified hostname's sessions.
+    per_hostname: usize,
     sessions: Mutex<VecDeque<CachedSession>>,
 }
 
@@ -47,6 +49,16 @@ struct CachedSession {
 }
 
 impl TlsSessionCache {
+    pub(super) fn new(per_hostname: u8) -> Self {
+        Self {
+            inner: Arc::new(CacheInner {
+                scope: SslSessionScope::default(),
+                per_hostname: usize::from(per_hostname).clamp(1, MAX_SESSIONS),
+                sessions: Mutex::default(),
+            }),
+        }
+    }
+
     pub(super) fn begin_handshake(&self, hostname: &str) -> TlsSessionCapture {
         TlsSessionCapture {
             cache: self.clone(),
@@ -59,7 +71,17 @@ impl TlsSessionCache {
         let now = unix_time();
         let mut sessions = self.sessions();
         prune_expired(&mut sessions, now);
-        if sessions.len() == MAX_SESSIONS {
+        let stored = sessions
+            .iter()
+            .filter(|cached| hostnames_match(&cached.hostname, &hostname))
+            .count();
+        if stored >= self.inner.per_hostname
+            && let Some(oldest) = sessions
+                .iter()
+                .position(|cached| hostnames_match(&cached.hostname, &hostname))
+        {
+            sessions.remove(oldest);
+        } else if sessions.len() == MAX_SESSIONS {
             sessions.pop_front();
         }
         sessions.push_back(CachedSession { hostname, session });

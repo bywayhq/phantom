@@ -20,6 +20,7 @@ mod ech;
 mod firefox;
 mod hello_retry;
 mod record_size_limit;
+mod resumption;
 mod session_cache;
 mod tracing;
 

@@ -74,7 +74,7 @@ fn fixture_value<'a>(fixture: &'a str, field: &str) -> Result<&'a str, io::Error
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, format!("missing {field}")))
 }
 
-fn decode_hex(value: &str) -> Result<Vec<u8>, io::Error> {
+pub(super) fn decode_hex(value: &str) -> Result<Vec<u8>, io::Error> {
     if !value.len().is_multiple_of(2) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,

@@ -149,6 +149,7 @@ order and the differences from Chromium.
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
 | Origins with a cached HTTPS DNS record result, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
 | Lifetime of an HTTPS DNS record result | Lowest answer TTL, at most 1 day; a negative answer's SOA TTL; 60 seconds with no TTL or after a failed lookup |
+| TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets_per_origin`: 2 in the Chromium-family recipes, 8 in `firefox::v156_tls`; at most 8; oldest evicted |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
