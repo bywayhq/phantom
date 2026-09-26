@@ -1164,10 +1164,28 @@ impl crypto::Session for QuicSession {
             .unwrap_or(false)
     }
 
+    fn initial_keys_for_version(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+        side: Side,
+    ) -> Option<Keys> {
+        let version = QuicVersion::from_wire(version)?;
+        let side = match side {
+            Side::Client => EndpointSide::Client,
+            Side::Server => EndpointSide::Server,
+        };
+        derive_initial_keys(version, dst_cid, side)
+            .ok()
+            .map(initial_keys_into_quinn)
+    }
+
     /// Adopts a version a server chose by compatible version negotiation (RFC 9368).
     ///
     /// BoringSSL hands out traffic secrets, and this session turns them into packet keys with
     /// the labels of its version, so a switch is sound only before the first handshake secret.
+    /// The 0-RTT secret of the start version is dropped: its keys cannot protect packets of the
+    /// new version, and Quinn treats the early data as rejected.
     fn switch_version(&mut self, version: u32) -> bool {
         let mut state = self.lock();
         let Some(version) = QuicVersion::from_wire(version) else {
@@ -1180,6 +1198,7 @@ impl crypto::Session for QuicSession {
             return false;
         }
         state.version = version;
+        state.early_secret = None;
         true
     }
 

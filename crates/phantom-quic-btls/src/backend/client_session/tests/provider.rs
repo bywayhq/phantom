@@ -598,6 +598,16 @@ fn switch_version_rekeys_initial_packets_before_handshake_keys_exist() {
         "Quinn client session",
     );
     let destination = ConnectionId::new(&[0x83, 0x94, 0xc8, 0xf0, 0x3e, 0x51, 0x57, 0x08]);
+    // Candidate keys for authenticating a server Initial leave the session unchanged.
+    assert!(
+        client
+            .initial_keys_for_version(0xff00_001d, &destination, Side::Client)
+            .is_none()
+    );
+    let candidate = test_some(
+        client.initial_keys_for_version(0x6b33_43cf, &destination, Side::Client),
+        "version 2 candidate keys",
+    );
     assert!(!client.switch_version(0xff00_001d));
     assert!(client.switch_version(0x6b33_43cf));
 
@@ -617,9 +627,12 @@ fn switch_version_rekeys_initial_packets_before_handshake_keys_exist() {
     );
     let mut sealed = [0x5a_u8; 48];
     let mut reference = sealed;
+    let mut from_candidate = sealed;
     switched.packet.local.encrypt(0, &mut sealed, 16);
+    candidate.packet.local.encrypt(0, &mut from_candidate, 16);
     crypto::PacketKey::encrypt(expected.local().packet(), 0, &mut reference, 16);
     assert_eq!(sealed, reference);
+    assert_eq!(from_candidate, reference);
 
     // Once the server's first flight yields handshake keys, the version is fixed.
     let server_context = server_context();

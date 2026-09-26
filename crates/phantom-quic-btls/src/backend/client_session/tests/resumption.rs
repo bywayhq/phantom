@@ -1,11 +1,13 @@
 use std::io::Cursor;
-use std::sync::Arc;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use btls::ssl::{SslContext, SslContextBuilder, SslMethod};
 use btls_sys as ffi;
 use foreign_types::ForeignType;
 use phantom_profile::chromium;
-use quinn_proto::crypto;
+use quinn_proto::{ConnectError, Endpoint, EndpointConfig, TransportConfig, crypto};
 use quinn_proto::{Side, TransportErrorCode, transport_parameters::TransportParameters};
 
 use super::super::{ClientSession, HandshakeProgress};
@@ -13,7 +15,9 @@ use super::support::*;
 use crate::backend::callback_state::{EncryptionLevel, HandshakeChunk};
 use crate::backend::client::ClientTlsProfile;
 use crate::resumption::{MAX_APPLICATION_STATE_LEN, MAX_HELD_TICKETS};
-use crate::{ApplicationState, HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind};
+use crate::{
+    ApplicationState, HandshakeData, QuicClientConfig, QuicTlsProfileErrorKind, StatelessResetKey,
+};
 
 /// A Chrome HTTP/3 TLS profile with ticket resumption enabled.
 fn resuming_tls_settings() -> phantom_profile::TlsSettings {
@@ -34,6 +38,41 @@ fn resuming_config() -> QuicClientConfig {
             .with_tls_profile(&resuming_tls_settings()),
         "resuming TLS profile",
     )
+}
+
+/// The transport parameters Quinn hands a session of `config`'s profile.
+fn quinn_parameters(config: &Arc<QuicClientConfig>) -> TransportParameters {
+    struct Recorder(Mutex<Option<TransportParameters>>);
+
+    impl crypto::ClientConfig for Recorder {
+        fn start_session(
+            self: Arc<Self>,
+            _version: u32,
+            _server_name: &str,
+            params: &TransportParameters,
+        ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+            if let Ok(mut recorded) = self.0.lock() {
+                *recorded = Some(*params);
+            }
+            Err(ConnectError::EndpointStopping)
+        }
+    }
+
+    let reset_key = test_ok(StatelessResetKey::generate(), "stateless reset key");
+    let mut endpoint_config = EndpointConfig::new(Arc::new(reset_key));
+    let mut transport = TransportConfig::default();
+    test_ok(
+        config.configure_transport(&mut endpoint_config, &mut transport),
+        "Quinn transport configuration",
+    );
+    let recorder = Arc::new(Recorder(Mutex::new(None)));
+    let mut client = quinn_proto::ClientConfig::new(Arc::clone(&recorder) as _);
+    client.transport_config(Arc::new(transport));
+    let mut endpoint = Endpoint::new(Arc::new(endpoint_config), None, true, None);
+    let remote = SocketAddr::from((Ipv4Addr::LOCALHOST, 4433));
+    let _ = endpoint.connect(Instant::now(), client, remote, SERVER_NAME);
+    let recorded = test_ok(recorder.0.lock(), "recorded parameters").take();
+    test_some(recorded, "Quinn transport parameters")
 }
 
 fn transport_parameters() -> TransportParameters {
@@ -317,6 +356,22 @@ fn early_data_is_offered_only_by_an_opted_in_configuration() {
     let client = handshake_with(client, server);
     assert!(resumed(client.as_ref()));
     assert_eq!(client.early_data_accepted(), Some(true));
+}
+
+#[test]
+fn a_version_switch_withdraws_the_0rtt_keys() {
+    let server_context = server_context();
+    let early = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
+    accepting_handshake(&early, &server_context);
+
+    let mut client = start(&early);
+    assert!(client.early_crypto().is_some());
+    assert!(client.switch_version(0x6b33_43cf));
+    assert!(client.early_crypto().is_none());
 }
 
 #[test]
@@ -674,25 +729,7 @@ fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2(
     // Without a ticket the connection starts in QUIC v1.
     assert_eq!(debug(&config), Some(1));
 
-    // Quinn's parameters for the Firefox profile: those of the retained capture.
-    let snapshot = include_str!(
-        "../../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt"
-    );
-    let encoded = test_some(
-        snapshot
-            .lines()
-            .find_map(|line| line.strip_prefix("h3.transport_parameters_hex=")),
-        "captured transport parameters",
-    );
-    let encoded = (0..encoded.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&encoded[index..index + 2], 16))
-        .collect::<Result<Vec<_>, _>>();
-    let encoded = test_ok(encoded, "hexadecimal transport parameters");
-    let parameters = test_ok(
-        TransportParameters::read(Side::Server, &mut Cursor::new(encoded)),
-        "Firefox transport parameters",
-    );
+    let parameters = quinn_parameters(&config);
     let client = test_ok(
         crypto::ClientConfig::start_session(
             Arc::clone(&config),
