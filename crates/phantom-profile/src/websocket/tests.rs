@@ -98,7 +98,7 @@ fn chrome_android_153_websocket_capture_matches_the_chromium_recipe() -> TestRes
         "Google Chrome",
         &crate::chrome_android::v153_websocket(),
         &crate::chrome_android::v153_http2(),
-        &chromium::v154_tls(),
+        &crate::chrome_android::v153_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);

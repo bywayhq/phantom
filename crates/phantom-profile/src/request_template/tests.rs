@@ -541,6 +541,58 @@ fn brave_154_accept_language_is_one_drawn_value_per_session() -> CaptureResult<(
     Ok(())
 }
 
+/// Brave for Android draws its `Accept-Language` `q` value per session, as
+/// desktop Brave does: one value on every request of a run, and all five
+/// values across the runs. Both Android templates leave the field to the
+/// caller.
+#[test]
+fn brave_android_153_accept_language_is_one_drawn_value_per_session() -> CaptureResult<()> {
+    use std::collections::BTreeSet;
+
+    let allowed: BTreeSet<String> = ["0.5", "0.6", "0.7", "0.8", "0.9"]
+        .iter()
+        .map(|q| format!("en-US,en;q={q}"))
+        .collect();
+    let mut seen = BTreeSet::new();
+    let mut runs = 0;
+    let fixtures = BRAVE_ANDROID_WEBSOCKET
+        .iter()
+        .copied()
+        .chain(BRAVE_ANDROID_DIRECT.iter().map(|(fixture, _)| *fixture));
+    for fixture in fixtures {
+        for run in Capture::parse(fixture)?.accept_language_by_run()? {
+            assert_eq!(run.len(), 1, "{run:?}");
+            seen.extend(run);
+            runs += 1;
+        }
+    }
+    // Nine WebSocket scenarios and two direct proxy-route scenarios, three
+    // runs each.
+    assert_eq!(runs, 33);
+    assert_eq!(seen, allowed);
+    for template in [
+        brave_android::v153_android_navigation_template(),
+        brave_android::v153_android_fetch_no_store_template(),
+    ] {
+        let slots: Vec<&RequestField> = template
+            .http1_fields
+            .iter()
+            .chain(&template.http2_fields)
+            .chain(template.http3_fields.iter().flatten())
+            .filter(|field| {
+                field
+                    .name()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("accept-language"))
+            })
+            .collect();
+        assert!(!slots.is_empty());
+        for field in slots {
+            assert!(matches!(field, RequestField::Caller { required: true, .. }));
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn brave_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     let template = brave_android::v153_android_navigation_template();

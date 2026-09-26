@@ -135,11 +135,12 @@ fn chrome_android_153_http2_session_capture_matches_the_chromium_recipe()
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
-/// Parses a `phantom-trust-anchor-orders-v1` fixture into its orders, most
-/// frequent first, with the process count of each.
 /// One captured order: how many processes sent it, and its identifiers.
 type CapturedOrder = (usize, Vec<Vec<u8>>);
 
+/// Parses a `phantom-trust-anchor-orders-v1` fixture into its orders, most
+/// frequent first, with the process count of each; fails if the fixture does
+/// not list them in that order.
 fn trust_anchor_orders(fixture: &str) -> TestResult<(usize, Vec<CapturedOrder>)> {
     let fields = fixture
         .lines()
@@ -179,6 +180,10 @@ fn trust_anchor_orders(fixture: &str) -> TestResult<(usize, Vec<CapturedOrder>)>
     assert_eq!(
         orders.iter().map(|(count, _)| count).sum::<usize>(),
         processes
+    );
+    assert!(
+        orders.windows(2).all(|pair| pair[0].0 >= pair[1].0),
+        "orders are not listed most frequent first"
     );
     Ok((processes, orders))
 }
@@ -233,7 +238,7 @@ fn chrome_android_153_quic_trust_anchor_order_is_one_captured_order() -> TestRes
 /// Apart from the trust-anchor order and the ECH lookup that no Android
 /// capture covers, the TLS recipes are the desktop Chromium recipes.
 #[test]
-fn chrome_android_153_tls_recipes_change_only_the_trust_anchor_order() -> TestResult {
+fn chrome_android_153_tls_recipes_differ_only_in_trust_anchor_order_and_ech_lookup() -> TestResult {
     for (android, desktop) in [
         (v153_tls(), chromium::v154_tls()),
         (v153_http3_tls(), chromium::v154_http3_tls()),
