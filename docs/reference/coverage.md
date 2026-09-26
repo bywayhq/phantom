@@ -138,8 +138,9 @@ Supported:
 - Bounded, client-owned TLS ticket caches for H1 and H2, partitioned by exact
   [origin](glossary.md#origin) and route, with no early data. Each keeps the
   recipe's `session_tickets_per_origin` (2 for the Chromium family, 8 for
-  Firefox), presents the newest first, and uses each ticket once. A resumed
-  Firefox-profile ClientHello omits `session_ticket`, as Firefox 156 does
+  Firefox), presents the newest first, and uses each TLS 1.3 ticket once. A
+  resumed Firefox-profile ClientHello omits `session_ticket`, as Firefox 156
+  does
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 
 Planned:

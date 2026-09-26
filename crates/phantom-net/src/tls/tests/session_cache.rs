@@ -2,13 +2,94 @@ use std::pin::Pin;
 
 use btls::ssl::{Ssl, SslAcceptor, SslVersion};
 use phantom_profile::{TlsSettings, TlsVersion, chromium::v154_tls};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{TcpListener, TcpStream},
+};
 use tokio_btls::SslStream;
 
 use crate::tls::{
     TlsConnector, TlsErrorKind,
-    test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, connect_local},
+    test_support::{
+        TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, connect_local,
+    },
 };
+
+/// Three servers with separate ticket keys give three TLS 1.3 tickets that
+/// each resume only against their own server. Stored oldest first under a
+/// bound of two, the first ticket is evicted, the first take returns the
+/// third, and the second take returns the second.
+#[tokio::test]
+async fn a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let mut settings = v154_tls();
+    settings.session_tickets_per_origin = 2;
+    let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?
+        .with_isolated_session_cache();
+    let cache = connector
+        .session_cache
+        .clone()
+        .ok_or("isolated connector omitted its session cache")?;
+
+    let mut servers = Vec::new();
+    let mut tickets = Vec::new();
+    for _ in 0..3 {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+        let server = tokio::spawn(async move {
+            let mut resumed = Vec::new();
+            for _ in 0..2 {
+                let mut stream = accept_tls_from(&listener, &acceptor).await?;
+                resumed.push(stream.ssl().session_reused());
+                stream.write_all(b"x").await?;
+                stream.flush().await?;
+                let mut rest = Vec::new();
+                let _ = stream.read_to_end(&mut rest).await;
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(resumed)
+        });
+        let mut stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
+        assert!(!stream.session_reused());
+        // Reading the server's first byte processes the tickets sent before it.
+        let mut byte = [0_u8; 1];
+        tokio::time::timeout(TEST_TIMEOUT, stream.read_exact(&mut byte)).await??;
+        drop(stream);
+        let ticket = cache
+            .take(TEST_SERVER_NAME)
+            .ok_or("the server's tickets were not stored")?;
+        while cache.take(TEST_SERVER_NAME).is_some() {}
+        tickets.push(ticket);
+        servers.push((address, server));
+    }
+
+    for ticket in tickets {
+        cache.restore(TEST_SERVER_NAME, ticket);
+    }
+    assert_eq!(cache.len(), 2);
+    let first = cache.take(TEST_SERVER_NAME).ok_or("first take was empty")?;
+    let second = cache
+        .take(TEST_SERVER_NAME)
+        .ok_or("second take was empty")?;
+    assert!(cache.take(TEST_SERVER_NAME).is_none());
+
+    // Each ticket resumes only against the server that issued it.
+    let mut resumed = Vec::new();
+    for (ticket, index) in [(Some(first), 2), (Some(second), 1), (None, 0)] {
+        if let Some(ticket) = ticket {
+            cache.restore(TEST_SERVER_NAME, ticket);
+        }
+        let stream = connect_local(&connector, servers[index].0, TEST_SERVER_NAME).await??;
+        resumed.push(stream.session_reused());
+        while cache.take(TEST_SERVER_NAME).is_some() {}
+    }
+    assert_eq!(resumed, [true, true, false]);
+    for (_, server) in servers {
+        let server_resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        assert_eq!(server_resumed.first(), Some(&false));
+    }
+    Ok(())
+}
 
 #[tokio::test]
 async fn authentication_failure_discards_pending_and_attempted_sessions() -> TestResult<()> {

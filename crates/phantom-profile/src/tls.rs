@@ -354,6 +354,11 @@ pub struct TlsSettings {
     /// has this many, storing a ticket evicts that origin's oldest. It must be
     /// between 1 and 8 when [`Self::session_tickets`] is enabled. QUIC
     /// connections keep their own tickets under a separate bound.
+    ///
+    /// The `phantom` client keeps one cache per origin and route, so the
+    /// bound applies per origin there; a `phantom-net` connector built with
+    /// `with_isolated_session_cache` applies it per server name, across
+    /// ports.
     pub session_tickets_per_origin: u8,
     /// Whether a ClientHello that offers a TLS 1.3 ticket over TCP keeps the
     /// empty `session_ticket` extension.
