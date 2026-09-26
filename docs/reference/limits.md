@@ -14,6 +14,7 @@ policies that stay off until you enable them.
 | Redirects | Not followed | `RedirectPolicy::limited` |
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
+| WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
 | HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; the Chrome 154 and Edge 154 recipes offer it | `ClientBuilder::http3_early_data(bool)` overrides the profile |
@@ -41,6 +42,11 @@ policies that stay off until you enable them.
 
 Each phase limit restarts for every redirect, retry, and replay. The total
 limit is one deadline over all attempts, delays, and the final response body.
+
+A WebSocket connect applies none of these. It has one handshake timeout,
+`WebSocketRequestBuilder::handshake_timeout`, over the whole opening, whose
+error names `TimeoutPhase::WebSocketHandshake`
+([WebSocket](#websocket)).
 
 ## Connection pools
 
@@ -124,6 +130,8 @@ closes, or sends; the last column says which.
 | Request phase and total timeouts | None | Phantom | `RequestTimeouts` | Yes: reset or closed connection |
 | Connection-setup retry delay | No retries | Phantom | `RetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Status retry delay, `Retry-After` cap | No retries | Phantom | `StatusRetry` | Yes: timing of the repeat |
+| WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 156 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection |
+| WebSocket setup retry delay | No retries | Phantom | `WebSocketRetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 156; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
 | Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
 | Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
@@ -223,6 +231,8 @@ value, and applies to every profile.
 | Outbound write buffer | Message limit plus 128 KiB plus 14 bytes | Follows the message limit |
 | `permessage-deflate` client window | 15 bits | `PerMessageDeflate::client_max_window_bits` |
 | `permessage-deflate` compression level | 6 | `PerMessageDeflate::compression_level` |
+| Opening handshake time | 240 seconds in `chromium::v154_websocket`, 20 seconds in `firefox::v156_websocket`, none without a recipe | `WebSocketRequestBuilder::handshake_timeout` |
+| Setup retries per connect | None | `WebSocketRetryPolicy::connection_failures` |
 
 - The frame count includes the first text or binary frame and every
   continuation, including empty ones. Interleaved Ping, Pong, and Close

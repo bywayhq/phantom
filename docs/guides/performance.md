@@ -34,8 +34,7 @@ Let one origin carry more parallel work over H1 and H2.
 ```rust
 use std::num::NonZeroUsize;
 
-use phantom::profile::{chromium, ClientProfile};
-use phantom::Client;
+use phantom::{profile::{chromium, ClientProfile}, Client};
 
 fn parallel_client() -> Result<Client, Box<dyn std::error::Error>> {
     let profile = ClientProfile::new(chromium::v154_tls())
@@ -123,8 +122,7 @@ Race a learned H3 alternative against the origin, and stop a QUIC attempt
 that gets no answer sooner than Chrome's 4 seconds.
 
 ```rust
-use std::num::NonZeroUsize;
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
 use phantom::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client};
@@ -188,6 +186,8 @@ fields of `TcpSettings` in the same way.
 
 ## Limits
 
+- A WebSocket connect uses its own `handshake_timeout` and
+  `WebSocketRetryPolicy` ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)).
 - HTTPS-record lookups use hickory's per-query timeout of 5 seconds and 2
   attempts; `HttpsRecordResolver::from_fn` replaces the resolver entirely.
 - Every timer and its source is listed in

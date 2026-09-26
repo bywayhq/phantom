@@ -1,8 +1,8 @@
 # WebSocket
 
 Open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2), send its opening request
-the way a browser does, and bound the connect with a timeout. You need the
-optional `websocket` feature.
+the way a browser does, bound the connect with a timeout, and retry a connect
+that fails to open. You need the optional `websocket` feature.
 
 > For builders who have read [Getting started](../getting-started.md).
 
@@ -30,8 +30,8 @@ async fn echo(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 - Phantom answers Ping and Close frames for you. After `close`, keep calling
   `receive` for the peer's reply.
 - A redirect or other non-`101` response is returned through
-  `WebSocketError::response`. Phantom never follows redirects, reconnects, or
-  sends heartbeats.
+  `WebSocketError::response`. Phantom never follows redirects, reconnects a
+  closed WebSocket, or sends heartbeats.
 
 ## Open a WebSocket over HTTP/2
 
@@ -100,28 +100,79 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Bound a connect with a timeout
 
-A WebSocket connect ignores the client's `RequestTimeouts`, so wrap it in
-`tokio::time::timeout`. Dropping the future cancels the attempt:
+Limit how long one opening may take, from the first name lookup to the
+server's accepting response:
 
 ```rust
 use std::time::Duration;
 
-use phantom::Client;
+use phantom::{Client, TimeoutPhase, WebSocketErrorKind};
 
 async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    let connect = client.websocket("wss://example.com/events")?.connect();
-    let socket = tokio::time::timeout(Duration::from_secs(10), connect).await??;
+    let result = client
+        .websocket("wss://example.com/events")?
+        .handshake_timeout(Some(Duration::from_secs(10)))
+        .connect()
+        .await;
+    match result {
+        Ok(socket) => println!("{:?}", socket.handshake_response().status()),
+        Err(error) if error.kind() == WebSocketErrorKind::Timeout => {
+            assert_eq!(error.timeout_phase(), Some(TimeoutPhase::WebSocketHandshake));
+        }
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
+}
+```
+
+- A WebSocket recipe carries its browser's own timer: 240 seconds in
+  `chromium::v154_websocket` and 20 seconds in `firefox::v156_websocket`
+  ([evidence](../explanation/validation.md#websocket-handshake-timer-evidence)).
+  It applies to every connect unless you set another value;
+  `handshake_timeout(None)` removes it. Without a recipe there is no limit.
+- One deadline covers name resolution, proxy setup, TLS, pooled-session
+  admission, the opening request, and its response, as the browsers' timers
+  do. The client's `RequestTimeouts` do not apply.
+- A connect uses the client's profile, route, trust roots, and cookie jar,
+  but not its `RetryPolicy`, `RedirectPolicy`, client hints, or Alt-Svc.
+
+## Retry a connect that fails to open
+
+Open the WebSocket again when its connection failed before anything reached
+the server:
+
+```rust
+use std::{num::NonZeroUsize, time::Duration};
+
+use phantom::{Client, WebSocketRetryPolicy};
+
+async fn open_with_retry(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let retries = WebSocketRetryPolicy::connection_failures(
+        NonZeroUsize::new(2).expect("two is nonzero"),
+        Duration::from_millis(500),
+    );
+    let socket = client
+        .websocket("wss://example.com/events")?
+        .retry_policy(retries)
+        .connect()
+        .await?;
     println!("{:?}", socket.handshake_response().status());
     Ok(())
 }
 ```
 
-- A connect uses the client's profile, route, trust roots, and cookie jar,
-  but not its `RetryPolicy`, `RedirectPolicy`, client hints, or Alt-Svc.
-- Phantom resends an opening only after a `407` Basic proxy challenge, and,
+- Retried: a failed name lookup, a failed TCP connect to the origin or
+  proxy, and a SOCKS5 proxy that could not connect or resolve. Each attempt
+  sends a fresh `Sec-WebSocket-Key` on the same route and protocol and gets
+  its own handshake timeout.
+- Never retried: TLS failures, proxy authentication or rejection, handshake
+  timeouts, and any answer from the server, a `101` or `2xx` that fails the
+  handshake checks included. Browsers do not retry an opening, so the
+  policy is off by default and no recipe sets it.
+- Phantom also resends an opening after a `407` Basic proxy challenge, and,
   under a recipe with `refused_stream_retry` set to `SameSessionOnce` (as in
-  `chromium::v154_websocket`), once after a `REFUSED_STREAM` reset on a pooled
-  H2 session.
+  `chromium::v154_websocket`), once after a `REFUSED_STREAM` reset on a
+  pooled H2 session. Neither uses the retry policy.
 
 ## Limits
 

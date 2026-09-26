@@ -18,6 +18,7 @@ policy, so no browser recipe includes them.
 | Reused-connection replay | Off | `with_reused_connection_replay` | An H1 keep-alive connection closed before any response byte |
 | Unprocessed-request replay | Off | `with_unprocessed_replay` | The H2 or H3 peer reported it did not process the request |
 | Status retry | Off | `with_status_retry` | The status is 408, 425, 429, 500, 502, 503, or 504 |
+| WebSocket setup retry | Off | `WebSocketRetryPolicy` ([WebSocket](websocket.md#retry-a-connect-that-fails-to-open)) | A WebSocket connect failed before any byte reached the server |
 
 Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407`
 challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
@@ -39,8 +40,7 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
         NonZeroUsize::new(3).expect("three is nonzero"),
         Duration::from_millis(200),
     );
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
     Ok(Client::builder(profile).retry_policy(retries).build()?)
 }
 ```

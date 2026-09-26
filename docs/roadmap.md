@@ -80,6 +80,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - WebSocket over HTTP/1.1 on direct, HTTP proxy, and SOCKS5 routes, and over
   HTTP/2 extended CONNECT with named Chrome, Edge, and Firefox recipes
   ([WebSocket](guides/websocket.md)).
+- A WebSocket handshake timeout, which the Chromium and Firefox recipes set
+  to their browsers' 240-second and 20-second timers, and an opt-in retry of
+  an opening whose connection setup failed
+  ([WebSocket](guides/websocket.md#bound-a-connect-with-a-timeout)).
 - Per-browser HPACK encoding: every HEADERS block of the retained Chrome,
   Edge, Brave, Opera, and Firefox cookie and WebSocket sessions equals the
   recipe's byte for byte
@@ -196,7 +200,6 @@ Each of these needs no capture, because no named recipe may reach it
   recipe will.
 - An opt-in retry of a failed exact HTTP/3 attempt over the profile's own
   HTTP/2 recipe, as a browser does once it marks an alternative broken.
-- A WebSocket handshake timeout and an explicit handshake retry.
 - A caller-pinned Alt-Svc alternative, which needs no TLS stream to learn
   from and so could work on CONNECT-UDP.
 - Racing more than one alternative, bounded and chosen by the caller.

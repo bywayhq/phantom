@@ -39,6 +39,7 @@ Phantom's claims rest on four kinds of evidence:
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
@@ -2022,6 +2023,77 @@ Limits:
   [macOS recipes](#macos-recipes).
 - WebSocket proxy routes are covered only by loopback tests; see
   [Forward-proxy evidence](#forward-proxy-evidence).
+
+### WebSocket handshake timer evidence
+
+What is claimed: `chromium::v154_websocket` limits one WebSocket opening to
+240 seconds and `firefox::v156_websocket` to 20 seconds, as those browsers'
+own handshake timers do. `WebSocketRequestBuilder::handshake_timeout` applies
+that limit to the whole opening and fails with
+`WebSocketErrorKind::Timeout`. `WebSocketRetryPolicy` retries only a
+connection-setup failure that sent nothing to the origin.
+
+Evidence: a capture cannot show a timer that never fired, so the recipes
+rest on browser source at Chromium tag `154.0.8037.58` and Firefox tag
+`FIREFOX_156_0_RELEASE`.
+
+| Recipe | Source behavior |
+| --- | --- |
+| `chromium::v154_websocket` | `kHandshakeTimeoutIntervalInSeconds` is 240, set equal to the TCP connect timeout so that a page cannot tell which step timed out (`net/websockets/websocket_stream.cc:60-64`). `WebSocketStreamRequestImpl::Start` starts the one-shot timer before the opening request starts (`:248-255`), `PerformUpgrade` stops it once the handshake stream is upgraded (`:258-262`), and `OnTimeout` cancels the request with `ERR_TIMED_OUT` (`:338-340`). A failure is reported to the page (`:303-332`); nothing opens the WebSocket again. |
+| `firefox::v156_websocket` | `mOpenTimeout` starts at 20,000 ms (`netwerk/protocol/websocket/WebSocketChannel.cpp:1200`) and is read from `network.websocket.timeout.open`, clamped to 1 to 1,800 seconds (`:3511-3514`), whose default is 20 (`modules/libpref/init/all.js:1325`). `BeginOpenInternal` starts the timer after it opens the HTTP channel (`WebSocketChannel.cpp:1403-1420`), `CallStartWebsocketData` cancels it when the handshake completes (`:2974-2982`), and when it fires the connection is aborted with `NS_ERROR_NET_TIMEOUT_EXTERNAL` (`:3342-3351`). |
+
+Differences from the browsers:
+
+- Firefox resolves the host for its per-host admission queue
+  (`WebSocketChannel.cpp:2924`, `:2938`) before `BeginOpen`, so that lookup
+  is outside its timer. Phantom's deadline starts when `connect` is first
+  polled and includes every lookup.
+- Firefox delays a new WebSocket to a host whose last attempt failed, by 200
+  to 400 ms at first and by up to 60 seconds after repeated failures
+  (`WebSocketChannel.cpp:103-117`). Phantom has no such delay across
+  connects; a `WebSocketRetryPolicy` delay is the caller's fixed value.
+- Edge's network-stack source is not public. The Edge, Brave, and Opera
+  WebSocket openings match `chromium::v154_websocket`
+  ([WebSocket browser evidence](#websocket-browser-evidence)); their timer is
+  assumed to be Chromium's.
+
+Loopback tests in `crates/phantom/tests/streams/websocket_handshake.rs`:
+
+| Test | What it proves |
+| --- | --- |
+| `handshake_timeout_fires_while_the_name_lookup_is_pending` | A lookup that never answers times out |
+| `handshake_timeout_fires_while_the_tls_handshake_is_unanswered` | A TLS handshake that never answers times out |
+| `handshake_timeout_fires_while_the_upgrade_response_is_pending` | An H1 opening with no response times out |
+| `handshake_timeout_fires_while_an_http_proxy_holds_the_connect` | An unanswered proxy CONNECT times out for H1 and H2 |
+| `handshake_timeout_fires_while_a_socks5_proxy_holds_the_greeting` | An unanswered SOCKS5 greeting times out |
+| `handshake_timeout_fires_while_an_extended_connect_is_unanswered` | An H2 extended CONNECT with no response times out |
+| `handshake_timeout_covers_a_stream_on_a_pooled_http2_session` | A profile-policy stream on a pooled H2 session times out |
+| `recipe_handshake_timeout_applies_unless_the_caller_removes_it` | The recipe's timer applies by default, and `handshake_timeout(None)` removes it |
+| `no_handshake_timeout_applies_without_a_recipe` | A profile without a WebSocket recipe has no limit |
+| `retry_opens_a_new_connection_after_a_failed_lookup` | A failed lookup is retried and the second opening succeeds |
+| `retry_covers_a_failed_proxy_lookup_and_an_http2_origin` | A failed proxy lookup is retried for an H2 opening through an HTTP proxy |
+| `an_exhausted_retry_budget_returns_the_last_setup_failure` | The budget bounds the attempts, and no policy means one attempt |
+| `no_retry_follows_an_invalid_101_or_a_rejection` | A `101` with a wrong accept value and a `503` open one connection |
+| `no_retry_follows_an_invalid_extended_connect_answer` | A `200` with an unoffered subprotocol opens one connection |
+| `no_retry_follows_a_tls_failure_or_a_handshake_timeout` | A TLS failure and a handshake timeout open one connection |
+
+Each timeout test checks the error kind, the `WebSocketHandshake` phase, the
+protocol, and that the error came at the limit. Unit tests of the retry loop
+in `crates/phantom/src/websocket/retry.rs` check the delay with a paused
+clock.
+
+How to reproduce: read the cited files at the tags above, and run the listed
+tests.
+
+Limits:
+
+- No capture shows either timer firing.
+- A handshake timeout is not split by phase: it reports
+  `TimeoutPhase::WebSocketHandshake` for any step, as both browsers report one
+  timeout.
+- No retry test covers a refused TCP connect or a SOCKS5 proxy failure; they
+  share the classification of the request pools
+  ([Connection-retry evidence](#connection-retry-evidence)).
 
 ### HPACK encoder evidence
 

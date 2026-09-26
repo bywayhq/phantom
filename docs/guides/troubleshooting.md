@@ -188,7 +188,7 @@ default, and belong to one client: clone it instead of building another
 ## A WebSocket connect ignores the client's timeout
 
 WebSocket connects apply none of the client's timeouts, retries, or
-redirects. Wrap the connect in `tokio::time::timeout`
+redirects; set `WebSocketRequestBuilder::handshake_timeout` instead
 ([Bound a connect with a timeout](websocket.md#bound-a-connect-with-a-timeout)).
 WebSocket, SSE, cookie, and proxy errors have their own kinds.
 

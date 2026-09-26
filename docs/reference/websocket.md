@@ -111,10 +111,17 @@ the chosen connection is a typed error.
 | `chromium::v154_websocket` (Chrome 154 and Edge 154) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session |
 | `firefox::v156_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade |
 
-| Recipe | Refused CONNECT stream | Empty message with deflate |
-| --- | --- | --- |
-| `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set |
-| `firefox::v156_websocket` | Reported to the caller | Uncompressed, RSV1 clear |
+| Recipe | Refused CONNECT stream | Empty message with deflate | Handshake timeout |
+| --- | --- | --- | --- |
+| `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set | 240 seconds |
+| `firefox::v156_websocket` | Reported to the caller | Uncompressed, RSV1 clear | 20 seconds |
+
+The handshake timeout is `WebSocketSettings::handshake_timeout`, the
+browser's own timer, read from its source rather than a capture
+([WebSocket handshake timer evidence](../explanation/validation.md#websocket-handshake-timer-evidence)).
+It bounds the whole opening, and a caller replaces it for one connect with
+`WebSocketRequestBuilder::handshake_timeout`. Neither browser retries a
+failed opening, so no recipe sets a `WebSocketRetryPolicy`.
 
 The paired H2 recipes carry the captured extended-CONNECT pseudo-header order
 and a separate `extended_connect_priority`:

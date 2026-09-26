@@ -136,7 +136,8 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   inside a Tokio runtime with I/O and time enabled.
 - A browser name implies no route, trust, redirect, retry, or timeout policy.
 - WebSocket connects apply none of the client's timeouts, retries, or
-  redirects ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)). An
+  redirects; the WebSocket builder has its own handshake timeout and retry
+  policy ([WebSocket](websocket.md#bound-a-connect-with-a-timeout)). An
   SSE event source applies timeouts per attempt and stops the read-idle and
   total timers once the stream is open ([SSE](sse.md)).
 - A CONNECT-UDP route rejects negotiated requests before I/O; an HTTP proxy
