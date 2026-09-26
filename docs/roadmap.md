@@ -155,12 +155,6 @@ anything does.
   offers no early data over TCP. Blocker: the vendored `btls` scoped-session
   wrapper removes early-data capability, and `early_data` has no position in
   `ClientHelloExtension` for Firefox's fixed order.
-- HPACK indexing of `proxy-authorization`. Evidence: the
-  [proxy authentication captures](explanation/validation.md#proxy-authentication-evidence)
-  show an incrementally indexed literal, then an indexed field; Phantom
-  sends a never-indexed literal. Blocker: a profile setting and a
-  `RequestHeader` marker that hides a value from `Debug` without choosing
-  the never-indexed form.
 - Closing a TLS connection without `close_notify`. Evidence: source only;
   Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),

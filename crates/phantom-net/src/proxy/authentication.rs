@@ -77,7 +77,10 @@ impl HttpBasicCredentials {
     /// Produces the canonical authorization field for a validated Basic challenge.
     ///
     /// The returned field is marked sensitive so its value is redacted from
-    /// diagnostics and cannot be indexed by compression-based HTTP protocols.
+    /// diagnostics. HTTP/3 sends it as a never-indexed literal, and so does
+    /// HTTP/2 unless the profile's
+    /// [`Http2SensitiveProxyAuthorization`](phantom_profile::Http2SensitiveProxyAuthorization)
+    /// leaves it to the field indexing rule, as the browser recipes do.
     #[must_use]
     pub fn proxy_authorization_header(&self) -> RequestHeader {
         RequestHeader::new("Proxy-Authorization", &self.authorization).sensitive()

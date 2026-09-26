@@ -530,7 +530,10 @@ credentials, and without a template it keeps the caller's order. With
 configured credentials that field is refused before I/O, because it would
 conflict with the generated one.
 
-The generated `Proxy-Authorization` field is marked sensitive. On a CONNECT
+The generated `Proxy-Authorization` field is marked sensitive, which keeps
+its value out of `Debug` output. Over HTTP/2 the browser recipes still index
+it, as the browsers do; see
+[Cookie crumbs and compression](#cookie-crumbs-and-compression). On a CONNECT
 request it takes the position of the route's authorization placeholder, last
 by default. On a forwarded request it takes the request template's slot for
 that attempt, which can differ between the replay after a `407` and a first
@@ -616,11 +619,21 @@ Indexing has a cost that RFC 7541 section 7.1.3 describes. A party that can
 add chosen fields to requests on the same connection and observe the size of
 the encrypted HEADERS frames can confirm a guess at an indexed value: a
 correct guess is sent as a short index. Cookies are credentials, which is
-why the RFC recommends never indexing them. The same reasoning keeps
-Phantom's `proxy-authorization` never-indexed
-([proxy authentication evidence](validation.md#proxy-authentication-evidence)).
-For cookies, Phantom takes the browsers' side of the trade: the browsers
-accept this exposure, and a client that differs from them is recognizable.
+why the RFC recommends never indexing them. Phantom takes the browsers' side
+of the trade: the browsers accept this exposure, and a client that differs
+from them is recognizable.
+
+The same holds for `proxy-authorization` on an HTTP/2 proxy connection.
+Chrome, Edge, Brave, Opera, and Firefox insert it into the proxy
+connection's table and send it as an index afterwards
+([proxy authentication evidence](validation.md#proxy-authentication-evidence)),
+and so do the recipes. Here the exposure is narrower than for cookies: the
+block goes only to the proxy, which holds the credential already, so a
+guess needs a party that both adds fields to requests on that proxy
+connection and sees the size of its encrypted frames. Set
+`sensitive_proxy_authorization` to `NeverIndexed` in `Http2HpackSettings`
+to keep the credential out of the table; the proxy can then tell the client
+from the browsers.
 
 To remove the exposure, set `cookie_crumbs` to `Whole` in
 `Http2HpackSettings` and `Http3RequestSettings`. Each `cookie` field is then

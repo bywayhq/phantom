@@ -37,8 +37,9 @@ const AUTHORIZATION: &[u8] = b"Basic YWxpY2U6c2VjcmV0";
 /// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 154, and
 /// Firefox 156. The client ends the challenged stream with an empty
 /// END_STREAM DATA frame, as Chrome and Edge do, then opens the replay as
-/// the next stream. The credential is a never-indexed literal on static name
-/// 49, and the tunnel carries bytes on the replay stream.
+/// the next stream. The credential is a literal with incremental indexing on
+/// static name 49, as in those captures, and the tunnel carries bytes on the
+/// replay stream.
 #[tokio::test]
 async fn challenged_connect_replays_on_the_next_stream_of_its_connection() -> TestResult<()> {
     bounded(async {
@@ -99,11 +100,11 @@ async fn challenged_connect_replays_on_the_next_stream_of_its_connection() -> Te
                 .all(|&(_, index)| index != PROXY_AUTHORIZATION)
         );
         let representations = field_representations(header_block(&frames[replay]))?;
-        assert!(representations.contains(&(NEVER_INDEXED, PROXY_AUTHORIZATION)));
+        assert!(representations.contains(&(INCREMENTAL, PROXY_AUTHORIZATION)));
         assert!(
             representations
                 .iter()
-                .all(|&(kind, index)| index != PROXY_AUTHORIZATION || kind == NEVER_INDEXED)
+                .all(|&(kind, index)| index != PROXY_AUTHORIZATION || kind == INCREMENTAL)
         );
         Ok(())
     })
@@ -420,6 +421,9 @@ const END_STREAM: u8 = 0x1;
 /// First-byte pattern of an HPACK literal never indexed (RFC 7541 section
 /// 6.2.3).
 const NEVER_INDEXED: u8 = 0x10;
+/// First-byte pattern of an HPACK literal with incremental indexing (RFC 7541
+/// section 6.2.1).
+const INCREMENTAL: u8 = 0x40;
 /// HPACK static table index of `proxy-authorization`.
 const PROXY_AUTHORIZATION: usize = 49;
 
@@ -470,8 +474,8 @@ fn field_representations(block: &[u8]) -> TestResult<Vec<(u8, usize)>> {
     while let Some(&first) = block.get(position) {
         let (kind, prefix) = if first & 0x80 != 0 {
             (0x80, 7)
-        } else if first & 0xc0 == 0x40 {
-            (0x40, 6)
+        } else if first & 0xc0 == INCREMENTAL {
+            (INCREMENTAL, 6)
         } else if first & 0xe0 == 0x20 {
             read_integer(block, &mut position, 5)?;
             continue;

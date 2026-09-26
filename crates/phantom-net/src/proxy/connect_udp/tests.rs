@@ -68,7 +68,7 @@ fn http1_request_uses_rfc9298_upgrade_fields_in_order() -> TestResult {
 }
 
 #[test]
-fn http2_request_is_extended_connect_with_never_indexed_authorization() -> TestResult {
+fn http2_request_is_extended_connect_with_sensitive_authorization() -> TestResult {
     let credentials = HttpBasicCredentials::new("user", "pass")?;
     let request = http2_request(
         AUTHORITY,

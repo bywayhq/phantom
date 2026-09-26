@@ -7,7 +7,8 @@ use ::http2::{
     client,
     ext::{
         CookieCrumbs, FieldIndexing, HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding,
-        IndexingLimit, NameReference, SizeUpdates, StaticNameIndex, UnindexedMatch,
+        IndexingLimit, NameReference, SensitiveProxyAuthorization, SizeUpdates, StaticNameIndex,
+        UnindexedMatch,
     },
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
@@ -15,8 +16,9 @@ use bytes::Bytes;
 use http::{Method, Request, Response};
 use phantom_profile::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader, Http2Setting,
-    Http2Settings, Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch,
+    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
+    Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
+    Http2TableSizeUpdates, Http2UnindexedMatch,
 };
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
@@ -624,6 +626,11 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         Http2TableSizeUpdates::EverySetting => SizeUpdates::EverySetting,
         _ => return Err(Http2Error::UnsupportedSetting),
     };
+    let proxy_authorization = match hpack.sensitive_proxy_authorization {
+        Http2SensitiveProxyAuthorization::NeverIndexed => SensitiveProxyAuthorization::NeverIndexed,
+        Http2SensitiveProxyAuthorization::FieldIndexing => SensitiveProxyAuthorization::FieldRule,
+        _ => return Err(Http2Error::UnsupportedSetting),
+    };
     Ok(HpackEncoderProfile::new()
         .literal_pseudo_headers(literal)
         .static_name_index(static_name_index)
@@ -633,7 +640,8 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         .name_reference(name_reference)
         .unindexed_match(unindexed_match)
         .indexing_limit(indexing_limit)
-        .size_updates(size_updates))
+        .size_updates(size_updates)
+        .sensitive_proxy_authorization(proxy_authorization))
 }
 
 /// Converts a HEADERS priority, rejecting a dependency on `first_stream_id`,

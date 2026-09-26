@@ -439,6 +439,13 @@ replace it.
 
 - `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`
   credentials, after a challenge or once the proxy has accepted them.
+- On an HTTP/2 proxy, `Http2HpackSettings::sensitive_proxy_authorization`
+  decides the field's HPACK form. `chromium::v154_http2` and
+  `firefox::v156_http2` set `FieldIndexing`: a literal with incremental
+  indexing on first use on a connection, then an index, as the browsers
+  send it. The default, `NeverIndexed`, keeps the credential out of the
+  dynamic table
+  ([Design](../explanation/design.md#cookie-crumbs-and-compression)).
 - `User-Agent` is a `ProxyConnectField::FromRequest` entry: the CONNECT
   copies the value of the request or WebSocket opening that opens the
   tunnel, your field or else its template's, and keeps your field's
