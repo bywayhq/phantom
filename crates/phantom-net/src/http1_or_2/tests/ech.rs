@@ -593,9 +593,11 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
             .connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async { None }),
     )
     .await??;
-    // Started now, as the client's lookup starts with the request.
+    // Started now, as the client's lookup starts with the request. Any wait
+    // is at most 50 ms, so a record a second away is never waited for, even
+    // when a loaded host delays the ClientHello by tens of milliseconds.
     let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
         published(1, &TEST_ECH_KEYS[0])
     });
     let ech = async { lookup.await.ok() };
