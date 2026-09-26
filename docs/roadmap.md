@@ -92,6 +92,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   Firefox 156 starts each connection at stream 3 and Chromium at 1, and both
   open at most 100 streams until the peer states a limit
   ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
+- Chrome 154's trust-anchor ID order: one ascending list in every browser
+  process and on every connection of a process, over TCP and QUIC, as
+  Chromium sorts it once when it builds the SSL configuration
+  ([Chrome 154 trust-anchor ID order](explanation/validation.md#chrome-154-trust-anchor-id-order)).
 
 ### Remaining
 
@@ -173,9 +177,6 @@ anything does.
   without a read (`Http2Session.cpp:436-503` at `FIREFOX_156_0_RELEASE`).
   Blocker: a capture showing whether an idle pooled Firefox connection
   receives the timer tick.
-- Trust-anchor identifier order: per process, as the retained 60-process
-  capture shows, or per connection. Blocker: a capture of many connections
-  from one process.
 - Revalidation with `If-None-Match` or `If-Modified-Since` and `304`
   handling. Evidence: none. Blocker: a capture of what Chrome and Firefox
   send on a second fetch, before any cache is written.

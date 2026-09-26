@@ -218,30 +218,50 @@ differed between processes: 35 distinct orders across 60 processes, in a
 capture that is no longer retained. Chromium commit `942bda4298c1`
 (2026-08-28) sorts the list before encoding. Chrome 154 shows that change.
 
+At the `154.0.8037.58` tag, nothing draws an order per process or per
+connection. `SSLConfigServiceManager` builds the list when it starts
+(`chrome/browser/ssl/ssl_config_service_manager.cc:158-175`) and again when
+the PKI metadata component delivers new trust-anchor data (`:237-247`). Each
+time, `InitializeTrustAnchorIDs` (`:211-235`) passes the identifiers to
+`EncodeTlsRequestedTrustAnchorIDList`, which sorts them with `std::sort` and
+encodes them into one byte string (`net/cert/x509_util.cc:708-717`).
+`SSLClientSocketImpl` hands that byte string to BoringSSL's
+`SSL_set1_requested_trust_anchors` on every connection
+(`net/socket/ssl_client_socket_impl.cc:866-879`). `std::sort` compares the
+byte vectors lexicographically, so the order is ascending byte order. A
+component update can change which identifiers the list holds, not how they
+are ordered; every capture below ran with `--disable-component-update`, so
+each shows the compiled-in list.
+
 Sixty fresh headless processes, one TCP ClientHello each, produced one order.
-The retained `client-hello.txt` from a further process and all three QUIC
-ClientHellos carry the same order. It is the 28 Chrome 153 IDs in ascending
-byte order, from `82df130201` to `d679090f`.
+It is the 28 Chrome 153 IDs in ascending byte order, from `82df130201` to
+`d679090f`.
 `fixtures/tls/chrome/154.0.8037.58/windows-11-26200/trust-anchor-orders.txt`
 retains the order, its count, and the per-process sequence.
-`chromium::v154_tls` lists the 28 identifiers in that ascending order, which
-is how a `TlsSettings` expresses trust-anchor order: the wire order is the
-vector order, and the type has no sorting mode.
+
+The other retained Chrome 154 desktop captures keep whole ClientHellos from
+processes that opened several connections: the ClientHello, real ECH, and TLS
+resumption fixtures under `fixtures/tls/chrome/154.0.8037.58/`, and the QUIC
+ClientHello and QUIC resumption fixtures under
+`fixtures/http3/chrome/154.0.8037.58/`. They hold 132 ClientHellos from 23
+processes on Windows 11 and macOS 15.5, over TCP and QUIC. Eighteen of those
+processes opened more than one connection, one of them 13. Every ClientHello
+carries the same trust-anchor extension, so the order is fixed within a
+process as well as between processes.
+
+`chromium::v154_tls` and `chromium::v154_http3_tls` list the 28 identifiers
+in that ascending order, which is how a `TlsSettings` expresses trust-anchor
+order: the wire order is the vector order. Because Chrome's order is fixed,
+the recipe has no per-client draw to model; a caller who wants another order
+sets `requested_trust_anchor_ids` to it.
 `chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process`
-requires the fixture to hold one order, the recipe to equal it, and the recipe
-list to be sorted;
-`chrome_154_trust_anchor_extension_matches_the_retained_client_hello` finds
-the same encoded extension in the retained ClientHello; and
+requires the aggregate fixture to hold one order, the recipe to equal it, and
+the recipe list to be sorted;
+`chrome_154_trust_anchor_ids_match_every_retained_client_hello_in_every_process`
+decodes the extension from each of the 132 ClientHellos, requires it to equal
+the recipe's encoding, and pins the process and connection counts; and
 `chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order` checks the order
 the TLS connector actually emits.
-
-Each process contributed one connection. These captures therefore show that
-the order no longer varies between processes; they do not on their own show
-that it is fixed within a process. Earlier multi-connection captures of
-Chrome 152 and 153, 48 connections from each of 13 fresh processes per build,
-showed one order per process and never a per-connection reshuffle; those
-captures were not retained as fixtures and their builds are no longer in the
-tree.
 
 #### What still varies per connection
 
@@ -1832,7 +1852,6 @@ is a real reduction, not a restatement.
 | Raw Firefox HTTP/2 startup bytes | The Firefox 154 `client-startup.txt` replay compared startup frames byte for byte | `firefox::v156_http2`'s SETTINGS and connection window rest on the HTTP/2 session captures of the WebSocket fixture set. No Firefox 156 equivalent exists: the raw startup tool needs WebDriver certificate trust, and geckodriver is not installed on the capture host |
 | Cross-platform transport parity | The Chrome 152 and Firefox 154 macOS and Windows capture pairs showed that those transport layers did not depend on the host platform | No current recipe has a second platform, so platform independence is not claimed for any of them |
 | Chrome for Testing field-trial comparison | The retained `client-hello-field-trial-config.txt` kept the testing configuration's differences visible; it went with the Chrome 152 fixtures | No Chrome for Testing build of 154.0.8037.58 is published, so build flavor is not isolated at the current version |
-| Within-process trust-anchor stability | Chrome 152 and 153 multi-connection captures, 48 connections from each of 13 processes, showed one trust-anchor order per browser process; they were never retained as fixtures | The Chrome 154 captures take one connection per process, so they show only that the order no longer differs between processes |
 
 ## Feature evidence
 
