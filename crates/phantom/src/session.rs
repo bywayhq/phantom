@@ -359,8 +359,11 @@ macro_rules! client_option_setters {
         /// connection only when every connection to the location has as many
         /// streams in flight as it can carry: the lower of
         /// [`Self::max_concurrent_http3_requests_per_origin`] and the server's
-        /// `initial_max_streams_bidi` transport parameter. A new stream goes to
-        /// the connection with the fewest streams in flight. At the limit, the
+        /// `initial_max_streams_bidi` transport parameter. An absent or zero
+        /// parameter counts as one stream, and later `MAX_STREAMS` credit is
+        /// not counted: a server that grants more than its initial limit gets
+        /// more connections than it needs. A new stream goes to the connection
+        /// with the fewest streams in flight. At the limit, the
         /// least-loaded connection takes the stream, and QUIC holds it until
         /// the server grants stream credit.
         ///

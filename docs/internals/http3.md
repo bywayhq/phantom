@@ -464,19 +464,29 @@ across an await, so a slow setup to one location does not delay another.
 
 Each location keeps one connection unless
 `ClientBuilder::max_http3_connections_per_origin` allows more
-(`session/http3_connections.rs`). The pool counts each request's stream from
-its lease until the response body ends, and reads the server's
-`initial_max_streams_bidi` from `Http3Connection::peer_initial_max_streams_bidi`
-once the handshake completes; a connection still waiting for its early-data
-answer uses the limit another connection to the same location reported. A request takes the
-least-loaded connection with room, and only when none has room, and the
-location is below its limit, does it take the location's connect turn. It
-chooses again once it holds the turn, so requests queued behind a setup
-share the new connection. While it waits for the turn, a stream that ends on
-the entry wakes it to choose again. A connection that is no longer reusable,
-such as one draining after GOAWAY, leaves the slot table and stops counting.
-The table holds at most four locations' worth of connections, and evicts the
-least recently used beyond that.
+(`session/http3_connections.rs`). With one, a request uses the location's
+reusable connection or takes the connect turn; the pool computes no stream
+room and wakes no waiter when a stream ends.
+
+With more, the pool counts each request's stream from its lease until the
+response body ends. It reads the server's `initial_max_streams_bidi` from
+`Http3Connection::peer_initial_max_streams_bidi` once the handshake
+completes, counts an absent or zero value as one stream, and does not track
+the `MAX_STREAMS` credit the server grants later. A connection still waiting
+for its early-data answer uses the limit another connection to the same
+location reported. A request takes the least-loaded connection with room,
+and only when none has room, and the location is below its limit, does it
+take the location's connect turn. It chooses again once it holds the turn,
+so requests queued behind a setup share the new connection.
+
+While a request waits for the turn, a stream that ends on any of the entry's
+connections wakes it to choose again. One `Notify` serves the whole entry,
+so every waiter of every location wakes and rechecks under the slot lock; a
+waiter keeps its pending turn, and so its place in the turn's first-in,
+first-out queue, across those wakeups. A connection that is no longer
+reusable, such as one draining after GOAWAY, leaves the slot table and stops
+counting. The table holds at most four locations' worth of connections, and
+evicts the least recently used beyond that.
 
 ### Session tickets
 

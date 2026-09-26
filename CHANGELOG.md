@@ -527,6 +527,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   many streams as the lower of the active bound and the server's
   `initial_max_streams_bidi`, one setup at a time per location, and new
   streams go to the least-loaded connection.
+- `Http3Connector::can_reuse_now` in `phantom-net`: the reuse check of
+  `can_reuse` without a future, for a caller holding a synchronous lock.
 - `Http3Connection::peer_initial_max_streams_bidi` in `phantom-net` and
   `HandshakeData::peer_initial_max_streams_bidi` in `phantom-quic-btls`
   report the server's `initial_max_streams_bidi` transport parameter once
