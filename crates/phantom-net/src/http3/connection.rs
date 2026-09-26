@@ -261,6 +261,23 @@ impl Http3Connection {
             .is_some_and(|data| data.session_resumed())
     }
 
+    /// Returns the server's `initial_max_streams_bidi` transport parameter
+    /// (RFC 9000, section 18.2) once the handshake has completed.
+    ///
+    /// It is how many request streams the server lets this connection open
+    /// before it grants more with `MAX_STREAMS` frames. A server that grants
+    /// one back as each stream closes keeps this many open at once. `None`
+    /// before the handshake completes, as on a connection whose early data
+    /// is unanswered.
+    #[must_use]
+    pub fn peer_initial_max_streams_bidi(&self) -> Option<u64> {
+        self.inner
+            .quinn
+            .handshake_data()
+            .and_then(|data| data.downcast::<phantom_quic_btls::HandshakeData>().ok())
+            .and_then(|data| data.peer_initial_max_streams_bidi())
+    }
+
     #[cfg(test)]
     pub(super) async fn send_request(
         &self,

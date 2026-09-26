@@ -519,6 +519,33 @@ async fn reuse_check_is_prompt_while_a_request_waits_for_stream_credit() -> Test
     Ok(())
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn a_connection_reports_the_server_s_bidirectional_stream_limit() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = trusting_connector(&identity)?;
+    let (address, endpoint) = server_endpoint_with_bidi_limit(&identity, 3)?;
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let _connection = incoming.await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let connection = tokio::time::timeout(
+        TEST_TIMEOUT,
+        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+
+    assert_eq!(connection.peer_initial_max_streams_bidi(), Some(3));
+
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
 const REUSE_CHECK_BOUND: std::time::Duration = std::time::Duration::from_secs(1);
 
 async fn spawn_parked_get(
