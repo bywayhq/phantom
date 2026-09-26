@@ -20,6 +20,8 @@ from scripts.capture.browser_launch import (
     chromium_arguments,
     firefox_arguments,
     firefox_user_js,
+    host_chromium_flags,
+    profile_process_ids,
     recorded_arguments,
     render_preferences,
 )
@@ -37,8 +39,37 @@ class BrowserLaunchTests(unittest.TestCase):
 
         self.assertEqual(
             arguments,
-            ["--headless=new", f"--user-data-dir={profile}", *CHROMIUM_FLAGS, URL],
+            [
+                "--headless=new",
+                f"--user-data-dir={profile}",
+                *CHROMIUM_FLAGS,
+                *host_chromium_flags(),
+                URL,
+            ],
         )
+
+    def test_only_macos_adds_the_mock_keychain_switch(self) -> None:
+        self.assertEqual(host_chromium_flags("darwin"), ("--use-mock-keychain",))
+        self.assertEqual(host_chromium_flags("win32"), ())
+        self.assertEqual(host_chromium_flags("linux"), ())
+
+    def test_profile_sweep_matches_only_processes_naming_the_run_profile(
+        self,
+    ) -> None:
+        profile = Path("/Users/a/phantom-capture/tmp/phantom-capture-profile-ab12")
+        listing = "\n".join(
+            (
+                "  101 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                f"  102 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                f" --headless=new --user-data-dir={profile} --no-first-run",
+                f"  103 chrome_crashpad_handler --database={profile}/Crashpad",
+                f"  104 firefox --no-remote --profile {profile}x about:blank",
+                f"  105 python -m scripts.capture.client_hints {profile}",
+                "  garbage",
+            )
+        )
+
+        self.assertEqual(profile_process_ids(listing, profile, own_pid=105), [102, 103])
 
     def test_headful_chromium_arguments_omit_headless_and_keep_extra_order(
         self,

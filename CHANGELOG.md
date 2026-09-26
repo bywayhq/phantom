@@ -1073,6 +1073,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Retry-After` limit the runtime clock cannot represent, with
   `BuildErrorKind::InvalidPolicy`, as `ClientBuilder::build` does. The
   `Debug` output of `ClientBuilder` includes its `http3_early_data` choice.
+- The capture tools run on macOS. Chromium launches there receive
+  `--use-mock-keychain`, so a temporary profile leaves the login keychain
+  alone. After a run, processes that still name its temporary profile are
+  killed, as on Windows. `startup_capture.py` starts the browser in its own
+  process group; without one, its cleanup raised `ProcessLookupError`
+  outside Windows.
 
 ### Removed
 

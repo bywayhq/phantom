@@ -35,6 +35,7 @@ from pathlib import Path
 from .browser_launch import (
     CLIENT_NAMES,
     DESKTOP_CHROMIUM_BROWSERS,
+    host_chromium_flags,
     terminate_process_tree,
     terminate_profile_processes,
 )
@@ -67,15 +68,26 @@ LISTENING_LINE = re.compile(rb"^listening on [^\n]*\n", re.MULTILINE)
 
 
 def launch_arguments(
-    layer: str, profile: str, *, port: int = 0, spki: str = "", devtools: bool
+    layer: str,
+    profile: str,
+    *,
+    port: int = 0,
+    spki: str = "",
+    devtools: bool,
+    platform: str = sys.platform,
 ) -> list[str]:
     """Return the browser arguments for `layer`, without the page URL.
 
     In devtools mode the list ends with the remote debugging flag and
     `about:blank`; otherwise it ends with `--dump-dom`, and the caller
-    appends the page URL.
+    appends the page URL. `platform` selects the host's own switches.
     """
-    arguments = ["--headless=new", f"--user-data-dir={profile}", *BASE_FLAGS]
+    arguments = [
+        "--headless=new",
+        f"--user-data-dir={profile}",
+        *BASE_FLAGS,
+        *host_chromium_flags(platform),
+    ]
     if layer == "http3":
         arguments += [
             "--no-proxy-server",
@@ -97,7 +109,9 @@ def launch_arguments(
     return [*arguments, "--dump-dom"]
 
 
-def recorded_arguments(layer: str, *, port: int = 0, devtools: bool) -> str:
+def recorded_arguments(
+    layer: str, *, port: int = 0, devtools: bool, platform: str = sys.platform
+) -> str:
     """The `launch_arguments` fixture value: space-joined, placeholders kept."""
     return " ".join(
         launch_arguments(
@@ -106,6 +120,7 @@ def recorded_arguments(layer: str, *, port: int = 0, devtools: bool) -> str:
             port=port,
             spki=SPKI_PLACEHOLDER,
             devtools=devtools,
+            platform=platform,
         )
     )
 
@@ -140,11 +155,13 @@ class Browser:
         ]
         if url is not None:
             arguments.append(url)
+        # A new session gives terminate_process_tree a process group to end.
         self.process = subprocess.Popen(
             [str(self.executable), *arguments],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            **({} if sys.platform == "win32" else {"start_new_session": True}),
         )
 
     def stop(self) -> None:
