@@ -134,8 +134,8 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
 - A WebSocket on a pooled H2 session holds one of the origin's
   `max_concurrent_http2_requests_per_origin` slots for its life, and fails
   with `WebSocketErrorKind::Capacity` when the wait queue is full.
-- The recipes do not reproduce Firefox's leading dynamic-table size update,
-  some stream and reset behavior, or Chrome's message fragmentation
+- The recipes do not reproduce some stream and reset behavior, or Chrome's
+  message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
 - No browser capture covers a `wss://` WebSocket through a proxy.
 - WebSocket over HTTP/3 is not implemented.

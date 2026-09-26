@@ -30,8 +30,9 @@ Phantom's claims rest on four kinds of evidence:
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, plus loopback tests | No capture counts a browser's connections; no Edge source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 153, and Firefox 156 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
-| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox's HPACK name index and Firefox H3 not reproduced |
+| [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -1193,13 +1194,12 @@ shorter than 20 bytes. `vendor/http2/PHANTOM.md` cites both.
 through a client with a cookie jar and the browser's HTTP/2 and cookie
 placement recipes: the loopback origin sets the probes on `/start`, and the
 client sends the captured fields of each later request without `cookie`. For
-Chrome and Edge, the ordinary field order and every crumb's value,
-representation, index, and Huffman flag equal the capture. For Firefox the
-same holds except the name index of a crumb sent after a `cookie` entry has
-entered the dynamic table. Firefox names the oldest dynamic `cookie` entry.
-Phantom names static entry 32 in an incrementally indexed literal and the
-newest dynamic `cookie` entry in a never-indexed one, as it does for any
-field. In each Firefox run, 7 of the 15 crumbs carry such an index.
+each browser, the ordinary field order and every crumb's value,
+representation, index, and Huffman flag equal the capture. In each Firefox
+run, 7 of the 15 crumbs name the oldest dynamic `cookie` entry, as Firefox
+names a literal with the highest-numbered entry that has its name.
+[HPACK encoder evidence](#hpack-encoder-evidence) compares every block of
+all three runs byte for byte.
 
 `crates/phantom-net/src/http3/tests/cookie_crumbs.rs` encodes the four
 captured requests of each Chromium HTTP/3 capture with a caller `cookie`
@@ -1218,9 +1218,6 @@ Limits:
 - One origin, five cookies with `Path=/`, and navigations and `fetch()`
   only. No capture covers cookies on a WebSocket opening, a redirect, or a
   proxy route.
-- Firefox names a literal with the highest-numbered table entry that has its
-  name; Phantom's HPACK encoder does not, for crumbs or any other field. See
-  the [roadmap](../roadmap.md#wire-fidelity).
 - Firefox 156 does not split `cookie` over HTTP/3, and Phantom has no Firefox
   HTTP/3 recipe.
 - The HTTP/3 capture server advertised aioquic's QPACK limits (4,096 bytes,
@@ -1279,9 +1276,9 @@ Further observations:
   without indexing, names a repeated static entry with the lower index, and
   Huffman-codes a literal string only when that shortens it. Across the 27
   retained WebSocket captures, all 774 Chrome and Edge coding decisions follow
-  that rule and all 831 Firefox decisions follow the weaker one, coding
-  whenever the result is no longer; the two differ only on the 105 and 135
-  ties, such as `CONNECT`, `13`, `*/*`, `?0`, `?1`, and `1`.
+  that rule, and Firefox codes all 831 of its strings. The rules differ on
+  the 105 Chrome and Edge ties, such as `CONNECT`, `13`, `*/*`, `?0`, `?1`,
+  and `1`, which code to their own raw length.
 - Firefox H2 CONNECT adds fetch metadata (and `sec-fetch-storage-access` from
   a cross-site page) and follows it with a stream `WINDOW_UPDATE`.
 - Both browsers compress a 64 KiB random message even though the output
@@ -1301,7 +1298,9 @@ Further observations:
 compares what the origin observes with these captures. It compares every
 emitted CONNECT pseudo-field with the capture's HPACK `repr`, static
 `index`, `name_huffman`, and `value_huffman`. A dynamic-table index itself is
-not compared, because its value depends on earlier blocks on the connection.
+not compared there, because its value depends on earlier blocks on the
+connection; [HPACK encoder evidence](#hpack-encoder-evidence) replays whole
+connections and compares every block byte for byte.
 `hpack_shapes_of_extended_connect_separate_the_client_families` checks that
 each recipe emits its own family's `:method` shape and not the other's. The
 test of a reopened CONNECT after `REFUSED_STREAM` does not compare HPACK
@@ -1330,6 +1329,83 @@ Limits:
 - The captures do not cover subprotocols, H3, proxies, macOS, or Safari.
 - WebSocket proxy routes are covered only by loopback tests; see
   [Forward-proxy evidence](#forward-proxy-evidence).
+
+### HPACK encoder evidence
+
+What is claimed: over HTTP/2, `chromium::v154_http2` and `firefox::v156_http2`
+encode request fields as Chrome 154 and Firefox 156 do, down to the byte of
+every HEADERS block: which fields enter the dynamic table, which entry names a
+literal, which strings are Huffman-coded, and when a dynamic-table size update
+starts a block. Edge 153, Brave 154, and Opera 135 use the Chromium recipe
+and match it too.
+
+Evidence: every client HEADERS block of every HTTP/2 connection in the
+retained cookie and WebSocket captures. Those captures keep each block in hex,
+and the WebSocket captures also keep every frame, the server's SETTINGS
+included (see
+[Cookie crumb evidence](#cookie-crumb-evidence) and
+[WebSocket browser evidence](#websocket-browser-evidence)).
+
+| Browser | Connections | HEADERS blocks | Equal to Phantom's |
+| --- | --- | --- | --- |
+| Chrome 154 | 22 | 66 | All |
+| Edge 153 | 21 | 66 | All |
+| Brave 154 | 18 | 54 | All |
+| Opera 135 | 20 | 50 | All |
+| Firefox 156 | 27 | 66 | All |
+
+The rules come from browser source, which the Firefox blocks confirm:
+
+| Rule | Chromium (quiche `HpackEncoder`) | Firefox (`Http2Compressor`) |
+| --- | --- | --- |
+| Fields kept out of the dynamic table | Pseudo-headers but `:authority` | `:path`; `authorization` and cookie crumbs under 20 bytes as never-indexed literals |
+| Field matching a table entry but kept out | Sent as that index, so `:path: /` is index 4 | Sent as a literal naming that entry |
+| Entry that names a literal | Static when one has the name, else the newest dynamic | The highest-numbered with the name: the oldest dynamic, else the higher static |
+| Largest indexed field | Any size; one larger than the table empties it | Half the table; nothing below a 128-byte table |
+| Huffman coding | Only when it shortens the string | Every string, an empty one as `0x80` |
+| Size update after `SETTINGS_HEADER_TABLE_SIZE` | Only when the size changes | After every setting, so 4,096 is answered with 4,096 |
+
+Chromium 154's `DEPS` pins quiche `80bf9559d3a4`; Firefox is mozilla-central
+`4d5216592535`. `vendor/http2/PHANTOM.md` cites the lines.
+
+`crates/phantom-net/src/http2/tests/hpack_replay.rs` opens an
+`Http2Connection` with the family's recipe against a raw peer that sends the
+server's SETTINGS, sends each captured request with its pseudo-header
+values and ordinary fields (a run of cookie crumbs rejoined into one `cookie`
+field), and compares every block the client sends with the capture byte for
+byte. Firefox encodes its first request before applying the server's
+SETTINGS on 3 connections, where its SETTINGS acknowledgement follows that
+request; the replay applies the SETTINGS at the same point.
+`chromium_recipe_does_not_reproduce_a_firefox_session` checks that the
+comparison separates the families. With the recipes' earlier HPACK
+settings, 24 of the 27 Firefox connections differed; every Chromium-family
+connection already matched.
+
+How to reproduce: capture with `scripts/capture/cookie_crumbs.py` and
+`scripts/capture/http2_websocket.py`, as in the two sections above, then run
+`cargo test -p phantom-net --lib http2::tests::hpack_replay`.
+
+Limits:
+
+- The captured requests are navigations, `fetch()` calls, and WebSocket
+  openings on one origin, with at most 19 ordinary fields and a table of
+  4,096 bytes. The largest captured table entry is 175 bytes, far below
+  either size limit, and no Chromium-family request carries `authorization`
+  or `content-length`, so the Chromium rules that differ from the vendored
+  encoder's defaults rest on source alone. Encoder unit tests in the vendored
+  `http2` crate cover them.
+- The cookie captures do not record the server's frames. Their replay sends
+  the default SETTINGS of the capture server's library, python-h2 4.4.1, as
+  the proxy route captures record them from a server built the same way.
+  Only the 4,096-byte table size reaches the encoder, and Firefox's first
+  block in each cookie run announces exactly that size.
+- A field you mark sensitive is always a never-indexed literal, although
+  Chromium has no such form. Phantom marks the cookie jar's field (split
+  into crumbs under both recipes) and `proxy-authorization`
+  ([Proxy authentication evidence](#proxy-authentication-evidence)).
+- When a browser applies the server's SETTINGS depends on timing; Phantom
+  applies them as soon as they arrive, so a Firefox profile announces the
+  table size in whichever block follows their arrival.
 
 ### Alt-Svc racing evidence
 

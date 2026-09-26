@@ -82,7 +82,7 @@ connection is not enough.
 | TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
-| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity | Dynamic-table size updates |
+| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
@@ -219,12 +219,16 @@ Supported:
 - Per-request HEADERS overrides. An extended CONNECT stream on a pooled
   session carries the profile's pseudo-header order and priority, while
   ordinary streams keep theirs.
-- A profile HPACK encoder identity: which pseudo-headers stay out of the
-  dynamic table, which static entry names a repeated name, and when a literal
-  string is Huffman-coded. An HPACK encoder holds these for the life of a
-  connection, so they apply to every field block it sends, ordinary requests
-  included, and not only to extended CONNECT. A profile that states none of
-  them keeps the encoder's own behavior.
+- A profile HPACK encoder identity: which pseudo-headers and ordinary fields
+  stay out of the dynamic table, which entry names a literal, how large an
+  indexed field may be, when a literal string is Huffman-coded, and when a
+  dynamic-table size update is sent. An HPACK encoder holds these for the
+  life of a connection, so they apply to every field block it sends,
+  ordinary requests included, and not only to extended CONNECT. A profile
+  that states none of them keeps the encoder's own behavior. Every HEADERS
+  block of the retained Chrome, Edge, Brave, Opera, and Firefox HTTP/2
+  sessions equals the recipe's byte for byte
+  ([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.
@@ -238,7 +242,6 @@ Supported:
 Planned:
 
 - Broader retry classes.
-- Per-profile leading dynamic-table size updates.
 - Captured extended CONNECT behavior through proxies.
 
 ## QUIC
@@ -630,17 +633,14 @@ Planned or not captured:
 The captures show that Chromium uses H2 WebSockets only on an existing session
 that advertises the setting, while Firefox also opens fresh H2 connections,
 and that pseudo-header order, priority, deflate offer, send policy, and HPACK
-encoder identity differ by family. `Http2Settings::hpack` states the three
-encoder choices RFC 7541 leaves open: which pseudo-headers stay out of the
-dynamic table, which static entry names a repeated name, and when a literal
-string is Huffman-coded. With it, every emitted CONNECT pseudo-field matches
-the capture's representation
-([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
-The WebSocket recipes still differ from those captures in three ways:
+encoder identity differ by family. `Http2Settings::hpack` states the
+encoder choices RFC 7541 leaves open, and with it every captured HEADERS
+block on these sessions, CONNECT included, equals the recipe's byte for byte
+([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
+The WebSocket recipes still differ from those captures in two ways:
 
 | Gap | Why | What would close it |
 | --- | --- | --- |
-| Firefox's leading dynamic-table size update | Firefox starts a header block with a dynamic-table size update, and no profile setting emits one. | A per-profile size-update setting |
 | Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
 | `wss://` WebSocket through a proxy | The proxy route captures record only `ws://` openings through a proxy. | A `wss://` capture through a proxy |
 

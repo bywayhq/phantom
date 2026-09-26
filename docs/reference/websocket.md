@@ -157,7 +157,7 @@ representation, static name index, and Huffman flags for every pseudo-field:
 | H2 recipe | Kept out of the dynamic table | Repeated static name | Huffman-codes a literal |
 | --- | --- | --- | --- |
 | `chromium::v154_http2` | `:method` and `:protocol` | Lower entry: `:method` 2, `:path` 4 | Only when that shortens it, so `CONNECT` and `13` go raw |
-| `firefox::v156_http2` | None; both are indexed incrementally | Higher entry: `:method` 3, `:path` 5 | Whenever that does not lengthen it |
+| `firefox::v156_http2` | None; both are indexed incrementally | Higher entry: `:method` 3, `:path` 5 | Always |
 
 An HPACK encoder keeps these choices for the whole connection, so they apply
 to ordinary requests on it too.
@@ -166,7 +166,6 @@ to ordinary requests on it too.
 
 The recipes do not reproduce:
 
-- Firefox's leading dynamic-table size update, which Phantom does not emit.
 - Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, its CONNECT on
   stream 3 of a new connection (Phantom uses stream 1), and the second H2
   connection it opens and closes when reusing a session.

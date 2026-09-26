@@ -14,6 +14,24 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2HpackSettings` gained the public fields `field_indexing`
+  (`Http2FieldIndexing`), `name_reference` (`Http2NameReference`),
+  `unindexed_match` (`Http2UnindexedMatch`), `indexing_limit`
+  (`Http2IndexingLimit`), and `table_size_updates`
+  (`Http2TableSizeUpdates`), and `Http2HuffmanCoding` gained
+  `AlwaysIncludingEmpty`, so struct literals that name every field no longer
+  compile. The recipes change the wire. `firefox::v156_http2` now answers
+  every `SETTINGS_HEADER_TABLE_SIZE` with a size update, names a literal
+  with the oldest dynamic entry that has its name, sends `:path: /` as a
+  literal, never indexes `authorization`, stops indexing above half the
+  table, and Huffman-codes every string. `chromium::v154_http2` indexes
+  every ordinary field, `authorization` and `content-length` included, and
+  fields of any size. Every HEADERS block of the retained Chrome, Edge,
+  Brave, Opera, and Firefox HTTP/2 sessions now equals the recipe's byte for
+  byte; before, 24 of 27 Firefox connections differed.
+  Migrate: fill the new fields from a recipe with struct update syntax, or
+  add `..Http2HpackSettings::default()` to a literal to keep the previous
+  encoding.
 - `TlsSettings` gained the public fields `session_tickets_per_origin: u8`
   and `session_ticket_extension_when_resuming: bool`, so struct literals
   that name every field no longer compile. The first bounds the TLS tickets

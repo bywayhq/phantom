@@ -68,6 +68,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - WebSocket over HTTP/1.1 on direct, HTTP proxy, and SOCKS5 routes, and over
   HTTP/2 extended CONNECT with named Chrome, Edge, and Firefox recipes
   ([WebSocket](guides/websocket.md)).
+- Per-browser HPACK encoding: every HEADERS block of the retained Chrome,
+  Edge, Brave, Opera, and Firefox HTTP/2 sessions equals the recipe's byte
+  for byte
+  ([HPACK encoder evidence](explanation/validation.md#hpack-encoder-evidence)).
 
 ### Remaining
 
@@ -120,13 +124,6 @@ anything does.
   offers no early data over TCP. Blocker: the vendored `btls` scoped-session
   wrapper removes early-data capability, and `early_data` has no position in
   `ClientHelloExtension` for Firefox's fixed order.
-- Per-profile HPACK indexing for WebSocket openings and ordinary requests.
-  Evidence: the [WebSocket captures](explanation/validation.md#websocket-browser-evidence),
-  and the [cookie crumb captures](explanation/validation.md#cookie-crumb-evidence),
-  where Firefox names a crumb with the oldest dynamic `cookie` entry and
-  Phantom names static entry 32 or the newest dynamic entry.
-  Blocker: the vendored `http2` encoder chooses every representation itself
-  and keeps one dynamic table per connection.
 - HPACK indexing of `proxy-authorization`. Evidence: the
   [proxy authentication captures](explanation/validation.md#proxy-authentication-evidence)
   show an incrementally indexed literal, then an indexed field; Phantom

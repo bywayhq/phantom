@@ -278,11 +278,13 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
 - Indexed crumbs are exposed to the HPACK and QPACK compression side
   channel; `Whole` avoids it at the cost of browser parity. See
   [Design](../explanation/design.md#cookie-crumbs-and-compression).
-- On HTTP/2 a crumb whose table entry (name, value, and 32 bytes) exceeds
-  three quarters of the table, 3,072 bytes with the default 4,096, is sent
-  as a literal without indexing. Chromium inserts it anyway, evicting older
-  entries or, when it exceeds the whole table, emptying it. Firefox stops
-  indexing at half the table.
+- On HTTP/2 each recipe applies its browser's size limit to a crumb's table
+  entry (name, value, and 32 bytes). `chromium::v154_http2` inserts a crumb
+  of any size, evicting older entries, and one larger than the whole table
+  empties it. `firefox::v156_http2` sends a crumb larger than half the
+  table, 2,048 bytes with the default 4,096, as a literal without indexing.
+  Settings that keep the default `Http2IndexingLimit` stop at three
+  quarters.
 - HTTP/3 crumbs are not marked sensitive inside Phantom, so a crumb's
   internal `http::HeaderValue` would print in `Debug` output. The prepared
   request never leaves `phantom-net`, and Phantom logs no field values.
