@@ -692,6 +692,8 @@ mod connector;
 mod cookie_crumbs;
 mod datagram;
 mod early_data;
+#[cfg(feature = "https-records")]
+mod ech;
 mod extended_connect;
 mod profile;
 mod qpack;

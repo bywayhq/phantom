@@ -89,13 +89,9 @@ fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
 }
 
 #[test]
-fn quic_connector_rejects_ech_from_https_records() {
+fn quic_connector_accepts_ech_from_https_records() -> TestResult<()> {
     let mut settings = v154_http3_tls();
     settings.ech_from_https_records = true;
-
-    let error = match TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {}) {
-        Ok(_) => panic!("a QUIC connector accepted ECH from HTTPS records"),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), TlsErrorKind::UnsupportedSetting);
+    TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {})?;
+    Ok(())
 }

@@ -158,9 +158,6 @@ impl TlsConnector {
         roots: impl IntoIterator<Item = &'a [u8]>,
         mut prepare_sessions: impl FnMut(&mut SslContextBuilder),
     ) -> Result<Self, TlsError> {
-        if settings.ech_from_https_records {
-            return Err(TlsError::unsupported("ech_from_https_records", true));
-        }
         Self::build_with_roots_and_sessions(
             settings,
             ServerAuthentication::WebPki,

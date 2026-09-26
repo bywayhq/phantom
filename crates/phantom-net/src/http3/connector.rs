@@ -32,7 +32,7 @@ use crate::{
         associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
     },
     request::{RequestBody, RequestBodyMetadata},
-    tls::{TlsConnector, TlsError, TlsErrorKind},
+    tls::{EchFailure, TlsConnector, TlsError, TlsErrorKind},
 };
 
 type BoxError = Box<dyn StdError + Send + Sync>;
@@ -41,6 +41,7 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 #[derive(Debug)]
 pub struct Http3Connector {
     crypto: Arc<QuicClientConfig>,
+    ech_from_https_records: bool,
     settings: Http3Settings,
     request_settings: Http3RequestSettings,
     max_datagram_frame_size: Option<u64>,
@@ -131,6 +132,7 @@ impl Http3Connector {
 
         Ok(Self {
             crypto,
+            ech_from_https_records: tls.ech_from_https_records,
             settings: settings.clone(),
             request_settings: request_settings.clone(),
             max_datagram_frame_size: quic.max_datagram_frame_size,
@@ -265,6 +267,7 @@ impl Http3Connector {
     fn with_shared_crypto(&self, crypto: Arc<QuicClientConfig>) -> Self {
         Self {
             crypto,
+            ech_from_https_records: self.ech_from_https_records,
             settings: self.settings.clone(),
             request_settings: self.request_settings.clone(),
             max_datagram_frame_size: self.max_datagram_frame_size,
@@ -281,6 +284,14 @@ impl Http3Connector {
             #[cfg(test)]
             remembered_settings: self.remembered_settings.clone(),
         }
+    }
+
+    /// Returns whether the TLS settings offer Encrypted Client Hello from
+    /// HTTPS records on direct connections
+    /// ([`TlsSettings::ech_from_https_records`]).
+    #[must_use]
+    pub const fn ech_from_https_records(&self) -> bool {
+        self.ech_from_https_records
     }
 
     /// Returns whether a connection to `server_name` would present a ticket.
@@ -488,6 +499,107 @@ impl Http3Connector {
                 .await
                 .map_err(Http3ConnectorError::resolve)?;
             self.connect_to_addresses(addresses, server_name).await
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    /// Opens one reusable direct HTTP/3 connection that offers Encrypted
+    /// Client Hello with the `ECHConfigList` that `ech` yields, as Chrome 154's
+    /// QUIC client does with the `ech` value of an origin's HTTPS record.
+    ///
+    /// The host is resolved first. The connection then waits for `ech` at
+    /// most 20% of the address resolution time, clamped to 5-50 ms, and not
+    /// at all when the client's address cache supplied the addresses; `ech`
+    /// still pending then counts as `None`. Chromium likewise starts a QUIC
+    /// session only once host resolution, including the HTTPS record within
+    /// the same bound, has finished. With `None` the connection is the one
+    /// [`Self::connect_direct`] makes.
+    ///
+    /// A list the TLS client rejects fails with
+    /// [`EchFailure::InvalidConfigList`] before any packet is sent. When the
+    /// server rejects ECH and authenticates as the public name, the
+    /// connection fails with [`EchFailure::Rejected`] after closing with the
+    /// TLS `ech_required` alert. It is not repeated, with the server's retry
+    /// configurations or at another address: Chrome 154 does not repeat a
+    /// rejected QUIC connection, and its request is served over TCP instead.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for server-name, runtime, resolution,
+    /// ECH, connection, and handshake failures.
+    #[cfg(feature = "https-records")]
+    pub async fn connect_direct_with_ech(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        ech: impl std::future::Future<Output = Option<crate::dns::EchConfigList>>,
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        use phantom_quic_btls::{EchOffer, EchOutcome};
+
+        QuicClientConfig::validate_server_name(server_name)
+            .map_err(Http3ConnectorError::invalid_server_name)?;
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+        poll_tokio_io(|| async {
+            let started = std::time::Instant::now();
+            let (addresses, stored) =
+                crate::host_resolver::resolve_noting_cache(self.host_resolver.as_ref(), host, port)
+                    .await
+                    .map_err(Http3ConnectorError::resolve)?;
+            if addresses.is_empty() {
+                return Err(Http3ConnectorError::no_address());
+            }
+            let extra_time = if stored {
+                std::time::Duration::ZERO
+            } else {
+                crate::direct::https_record_extra_time(started.elapsed())
+            };
+            let deadline = crate::shutdown_timer::after(extra_time).map_err(|_| {
+                Http3ConnectorError::without_source(
+                    Http3ConnectorErrorKind::Local,
+                    "could not schedule the HTTPS record deadline",
+                )
+            })?;
+            let list = tokio::select! {
+                biased;
+                list = ech => list,
+                _ = deadline => None,
+            };
+            let offer = match list {
+                Some(list) => {
+                    list.parse()
+                        .map_err(Http3ConnectorError::invalid_ech_config_list)?;
+                    Some(EchOffer::new(list.as_bytes()))
+                }
+                None => None,
+            };
+            let crypto = match &offer {
+                Some(offer) => Arc::new(self.crypto.with_ech(offer)),
+                None => Arc::clone(&self.crypto),
+            };
+            tracing::debug!(
+                ech_offered = offer.is_some(),
+                "QUIC connection may offer ECH"
+            );
+            let result = self
+                .connect_to_addresses_with_crypto(addresses, server_name, crypto, None)
+                .await
+                .map_err(Http3ConnectorError::transaction);
+            match (result, offer.as_ref().and_then(EchOffer::outcome)) {
+                (Err(error), Some(EchOutcome::Rejected { retry_configs })) => {
+                    tracing::debug!(
+                        retry_configs = retry_configs.is_some(),
+                        "server rejected ECH over QUIC; not retrying"
+                    );
+                    Err(error.with_ech(EchFailure::Rejected))
+                }
+                (Err(error), Some(EchOutcome::InvalidConfigList)) => {
+                    Err(error.with_ech(EchFailure::InvalidConfigList))
+                }
+                (result, _) => result,
+            }
         })
         .await
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
@@ -1260,6 +1372,25 @@ impl Http3Connector {
         server_name: &str,
         path_mtu: Option<u16>,
     ) -> Result<Http3Connection, Http3Error> {
+        self.connect_to_addresses_with_crypto(
+            addresses,
+            server_name,
+            Arc::clone(&self.crypto),
+            path_mtu,
+        )
+        .await
+    }
+
+    /// Tries each resolved address in order with `crypto`, which may carry a
+    /// per-connection ECH offer. A handshake failure, ECH rejection included,
+    /// ends the attempt at the address it reached.
+    async fn connect_to_addresses_with_crypto(
+        &self,
+        addresses: Vec<std::net::SocketAddr>,
+        server_name: &str,
+        crypto: Arc<QuicClientConfig>,
+        path_mtu: Option<u16>,
+    ) -> Result<Http3Connection, Http3Error> {
         let mut addresses = addresses.into_iter();
         let Some(mut remote) = addresses.next() else {
             return Err(Http3Error::without_source(
@@ -1271,7 +1402,7 @@ impl Http3Connector {
             match connect_bound(
                 remote,
                 server_name,
-                Arc::clone(&self.crypto),
+                Arc::clone(&crypto),
                 &self.settings,
                 Arc::clone(&self.identity),
                 path_mtu,
@@ -1411,6 +1542,7 @@ pub struct Http3ConnectorError {
     kind: Http3ConnectorErrorKind,
     message: &'static str,
     source: Option<BoxError>,
+    ech: Option<EchFailure>,
 }
 
 impl Http3ConnectorError {
@@ -1549,7 +1681,24 @@ impl Http3ConnectorError {
             kind,
             message,
             source: None,
+            ech: None,
         }
+    }
+
+    #[cfg(feature = "https-records")]
+    fn invalid_ech_config_list(source: crate::dns::EchConfigListError) -> Self {
+        Self::with_source(
+            Http3ConnectorErrorKind::Handshake,
+            "the ECHConfigList does not parse",
+            source,
+        )
+        .with_ech(EchFailure::InvalidConfigList)
+    }
+
+    #[cfg(feature = "https-records")]
+    const fn with_ech(mut self, failure: EchFailure) -> Self {
+        self.ech = Some(failure);
+        self
     }
 
     fn with_source(
@@ -1561,6 +1710,7 @@ impl Http3ConnectorError {
             kind,
             message,
             source: Some(Box::new(source)),
+            ech: None,
         }
     }
 
@@ -1568,6 +1718,16 @@ impl Http3ConnectorError {
     #[must_use]
     pub const fn kind(&self) -> Http3ConnectorErrorKind {
         self.kind
+    }
+
+    /// Returns why a connection that offered Encrypted Client Hello failed,
+    /// when that offer is the reason.
+    ///
+    /// Only [`Http3Connector::connect_direct_with_ech`] sets it; the
+    /// handshake case has kind [`Http3ConnectorErrorKind::Handshake`].
+    #[must_use]
+    pub const fn ech_failure(&self) -> Option<EchFailure> {
+        self.ech
     }
 }
 
