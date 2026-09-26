@@ -243,93 +243,19 @@ pub(super) async fn send_once_raced(
                 )
                 .await;
             }
-            let AttemptRequest {
-                method,
-                headers,
-                trailers,
-                body,
-            } = attempt;
-            let AttemptLifecycle {
-                request_span,
-                timeout_budget,
-                retries,
-                replays,
-            } = lifecycle;
-            let result = send_on_alternative(
+            // Boxed: this path holds two request futures and a retry, which
+            // would otherwise enlarge every poll frame of this function, and
+            // a debug build on Windows then overflows a test thread's stack.
+            Box::pin(send_after_early_win(
                 client,
                 request,
-                AttemptRequest {
-                    method: method.clone(),
-                    headers: headers.clone(),
-                    trailers: trailers.clone(),
-                    body: &mut *body,
-                },
+                attempt,
                 route,
-                AttemptLifecycle {
-                    request_span,
-                    timeout_budget,
-                    retries: &mut *retries,
-                    replays: &mut *replays,
-                },
-                &alternative,
-                Some(leased),
-            )
-            .await;
-            // A response head arrives only after the handshake completed, so
-            // the answer is settled for a response; after a failure it is
-            // usually settled too. The wait stays within the request's
-            // deadlines, and an unknown answer is not a failed handshake.
-            let handshake_failed = timeout_budget
-                .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
-                    Ok(connection.early_data_handshake_failed().await)
-                })
-                .await;
-            let replayable = matches!(
-                &*body,
-                RequestBodySource::Absent | RequestBodySource::Bytes(_)
-            );
-            match after_early_win(
-                handshake_failed.ok(),
-                result.is_ok(),
-                alternative.allows_early_data(),
-                replayable,
-            ) {
-                EarlyWinStep::Return => return result,
-                EarlyWinStep::Confirm => {
-                    client.confirm_alt_svc(&request.endpoint, route, &alternative);
-                    return result;
-                }
-                EarlyWinStep::MarkRecentlyBroken => {
-                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
-                    return result;
-                }
-                EarlyWinStep::RaceAgain => {
-                    client.mark_origin_quic_recently_broken(&request.endpoint, route);
-                }
-            }
-            tracing::debug!(
-                outcome = "handshake_failed",
-                "raced alternative failed its handshake after early data; racing again"
-            );
-            Box::pin(send_once_raced(
-                client,
-                request,
-                AttemptRequest {
-                    method,
-                    headers,
-                    trailers,
-                    body,
-                },
-                route,
-                AttemptLifecycle {
-                    request_span,
-                    timeout_budget,
-                    retries,
-                    replays,
-                },
-                alternative.without_early_data(),
+                lifecycle,
+                alternative,
                 race,
-                None,
+                leased,
+                connection,
             ))
             .await
         }
@@ -363,6 +289,113 @@ pub(super) async fn send_once_raced(
             send_once_origin(client, request, attempt, route, lifecycle, Some(leased)).await
         }
     }
+}
+
+/// Sends the request on a raced alternative that won while its handshake,
+/// resumed with early data, was still running; then confirms the
+/// alternative, marks QUIC to the origin recently broken, or races again,
+/// as `after_early_win` decides.
+#[allow(clippy::too_many_arguments)]
+async fn send_after_early_win(
+    client: &Client,
+    request: &ResolvedRequest,
+    attempt: AttemptRequest<'_>,
+    route: &Route,
+    lifecycle: AttemptLifecycle<'_>,
+    alternative: AlternativeTarget,
+    race: AltSvcRace,
+    leased: Http3Lease,
+    connection: phantom_net::http3::Http3Connection,
+) -> Result<AttemptOutcome, RequestError> {
+    let AttemptRequest {
+        method,
+        headers,
+        trailers,
+        body,
+    } = attempt;
+    let AttemptLifecycle {
+        request_span,
+        timeout_budget,
+        retries,
+        replays,
+    } = lifecycle;
+    let result = send_on_alternative(
+        client,
+        request,
+        AttemptRequest {
+            method: method.clone(),
+            headers: headers.clone(),
+            trailers: trailers.clone(),
+            body: &mut *body,
+        },
+        route,
+        AttemptLifecycle {
+            request_span,
+            timeout_budget,
+            retries: &mut *retries,
+            replays: &mut *replays,
+        },
+        &alternative,
+        Some(leased),
+    )
+    .await;
+    // A response head arrives only after the handshake completed, so
+    // the answer is settled for a response; after a failure it is
+    // usually settled too. The wait stays within the request's
+    // deadlines, and an unknown answer is not a failed handshake.
+    let handshake_failed = timeout_budget
+        .run(TimeoutPhase::Connect, Some(HttpProtocol::Http3), async {
+            Ok(connection.early_data_handshake_failed().await)
+        })
+        .await;
+    let replayable = matches!(
+        &*body,
+        RequestBodySource::Absent | RequestBodySource::Bytes(_)
+    );
+    match after_early_win(
+        handshake_failed.ok(),
+        result.is_ok(),
+        alternative.allows_early_data(),
+        replayable,
+    ) {
+        EarlyWinStep::Return => return result,
+        EarlyWinStep::Confirm => {
+            client.confirm_alt_svc(&request.endpoint, route, &alternative);
+            return result;
+        }
+        EarlyWinStep::MarkRecentlyBroken => {
+            client.mark_origin_quic_recently_broken(&request.endpoint, route);
+            return result;
+        }
+        EarlyWinStep::RaceAgain => {
+            client.mark_origin_quic_recently_broken(&request.endpoint, route);
+        }
+    }
+    tracing::debug!(
+        outcome = "handshake_failed",
+        "raced alternative failed its handshake after early data; racing again"
+    );
+    Box::pin(send_once_raced(
+        client,
+        request,
+        AttemptRequest {
+            method,
+            headers,
+            trailers,
+            body,
+        },
+        route,
+        AttemptLifecycle {
+            request_span,
+            timeout_budget,
+            retries,
+            replays,
+        },
+        alternative.without_early_data(),
+        race,
+        None,
+    ))
+    .await
 }
 
 /// Returns whether an orphaned alternative setup that returned a connection
