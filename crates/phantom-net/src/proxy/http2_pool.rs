@@ -2,16 +2,20 @@
 //!
 //! Browsers open a page's CONNECT tunnels as streams of one HTTP/2 proxy
 //! connection (the `https-proxy-*` captures under `fixtures/proxy/`). A pool
-//! keeps each proxy route's connections, hands a tunnel the oldest one with
-//! room, and opens another only when every connection is full.
+//! keeps one connection per proxy route, as they do, and hands every tunnel
+//! to it; the HTTP/2 layer holds a CONNECT past the proxy's stream limit
+//! until another stream ends. A caller may opt into more connections per
+//! route.
 //!
 //! The pool never holds its lock across an `.await`. One connection setup
 //! runs at a time per route; other tunnels wait for it rather than open
-//! their own, as a browser waits for its proxy session.
+//! their own, as a browser waits for its proxy session, and fail with it
+//! when it fails.
 
 use std::{
     fmt,
     future::Future,
+    num::NonZeroUsize,
     pin::pin,
     sync::{
         Arc, Mutex, MutexGuard, PoisonError,
@@ -22,22 +26,23 @@ use std::{
 use tokio::sync::Notify;
 use tracing::debug;
 
-use super::{HttpBasicCredentials, HttpConnectError};
+use super::{HttpBasicCredentials, HttpConnectError, HttpConnectErrorKind};
 use crate::http2::Http2Connection;
 
-/// Most tunnels one pooled HTTP/2 proxy connection carries at once.
+/// Tunnels one HTTP/2 proxy connection carries before a pool that allows
+/// more than one connection per route opens another.
 ///
-/// A connection also stops taking tunnels at the proxy's
-/// `SETTINGS_MAX_CONCURRENT_STREAMS`, when that is lower. Until the proxy's
-/// SETTINGS arrive, this is the only bound.
+/// This is Phantom's choice, not a browser value, and applies only after
+/// [`Http2ProxyPool::with_max_connections_per_route`]. A connection is also
+/// full at the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, when that is
+/// lower. The default pool keeps one connection per route and never applies
+/// it.
 pub const MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION: usize = 100;
 
-/// Most HTTP/2 connections a pool keeps for one proxy route.
-///
-/// When every connection of a route is full and the route has this many, a
-/// new tunnel takes the least loaded one, and the HTTP/2 layer holds its
-/// CONNECT until the proxy allows another stream.
-pub const MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE: usize = 8;
+/// Most HTTP/2 connections
+/// [`Http2ProxyPool::with_max_connections_per_route`] allows per proxy
+/// route; a larger request is lowered to it.
+pub const HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING: usize = 8;
 
 /// Most proxy routes a pool keeps connections for.
 ///
@@ -55,29 +60,70 @@ pub const MAX_HTTP2_PROXY_POOL_ROUTES: usize = 32;
 /// same Basic credentials or none. Without a pool, every tunnel opens its
 /// own connection.
 ///
-/// A connection takes tunnels until it carries
-/// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`] or the proxy's
-/// `SETTINGS_MAX_CONCURRENT_STREAMS` of them, and stops taking them once the
-/// proxy sends `GOAWAY` or the connection closes. Each open tunnel keeps its
-/// connection alive, whether or not the pool still holds it. Closing or
-/// resetting a tunnel ends only its own stream.
+/// A route keeps one connection, as browsers do. Every tunnel goes on it;
+/// past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, the HTTP/2 layer
+/// holds the CONNECT until another stream on the connection ends. Once the
+/// proxy sends `GOAWAY` or the connection closes, the next tunnel opens a new
+/// one. [`Self::with_max_connections_per_route`] lets a route open more.
+/// Each open tunnel keeps its connection alive, whether or not the pool
+/// still holds it. Closing or resetting a tunnel ends only its own stream.
+///
+/// When a connection setup fails, every tunnel that was waiting for it fails
+/// with an [`HttpConnectError::PooledSetupFailed`] of the same kind, rather
+/// than each trying again in turn.
 ///
 /// Clones share one pool. It holds at most
-/// [`MAX_HTTP2_PROXY_POOL_ROUTES`] routes of at most
-/// [`MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE`] connections each, and keeps an
-/// idle connection until the proxy closes it or its route is forgotten.
+/// [`MAX_HTTP2_PROXY_POOL_ROUTES`] routes, and keeps an idle connection until
+/// the proxy closes it or its route is forgotten.
 ///
 /// [`HttpsProxyConnector::with_http2_proxy_pool`]: super::HttpsProxyConnector::with_http2_proxy_pool
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Http2ProxyPool {
     routes: Arc<Mutex<Routes>>,
+    max_connections: NonZeroUsize,
+}
+
+impl Default for Http2ProxyPool {
+    fn default() -> Self {
+        Self {
+            routes: Arc::default(),
+            max_connections: NonZeroUsize::MIN,
+        }
+    }
 }
 
 impl Http2ProxyPool {
-    /// Creates an empty pool.
+    /// Creates an empty pool that keeps one connection per route.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates an empty pool that opens up to `maximum` connections per
+    /// route, at most [`HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING`].
+    ///
+    /// A route opens another connection only when each one it has carries
+    /// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`] tunnels, or the proxy's
+    /// `SETTINGS_MAX_CONCURRENT_STREAMS` when that is lower; at `maximum`, a
+    /// new tunnel takes the least loaded connection and waits there. A
+    /// tunnel then does not wait behind long-lived tunnels while another
+    /// connection could open, but a proxy can see more connections than a
+    /// browser opens: Chromium and Firefox keep one per proxy and queue
+    /// streams on it.
+    #[must_use]
+    pub fn with_max_connections_per_route(maximum: NonZeroUsize) -> Self {
+        let ceiling = NonZeroUsize::new(HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING)
+            .unwrap_or(NonZeroUsize::MIN);
+        Self {
+            routes: Arc::default(),
+            max_connections: maximum.min(ceiling),
+        }
+    }
+
+    /// Returns how many connections a route may open.
+    #[must_use]
+    pub fn max_connections_per_route(&self) -> NonZeroUsize {
+        self.max_connections
     }
 
     fn lock(&self) -> MutexGuard<'_, Routes> {
@@ -124,6 +170,8 @@ impl Http2ProxyPool {
         Fut: Future<Output = Result<Http2Connection, HttpConnectError>>,
     {
         let route = self.route(key);
+        // The setup attempt this tunnel last waited for.
+        let mut waited_for = None;
         let reservation = loop {
             let mut changed = pin!(route.changed.notified());
             // Registered before the check, so a setup that finishes in
@@ -131,8 +179,13 @@ impl Http2ProxyPool {
             changed.as_mut().enable();
             {
                 let mut state = route.lock();
+                if let Some((attempt, kind)) = state.failed
+                    && waited_for == Some(attempt)
+                {
+                    return Err(HttpConnectError::PooledSetupFailed { kind });
+                }
                 state.slots.retain(|slot| slot.connection.is_reusable());
-                if let Choice::Use(index) = state.choose()
+                if let Choice::Use(index) = state.choose(self.max_connections.get())
                     && let Some(slot) = state.slots.get(index)
                 {
                     debug!(outcome = "hit", "HTTP/2 proxy connection reused");
@@ -140,17 +193,25 @@ impl Http2ProxyPool {
                 }
                 if !state.connecting {
                     state.connecting = true;
+                    state.attempt += 1;
                     break SetupReservation {
                         route: &route,
+                        attempt: state.attempt,
                         finished: false,
                     };
                 }
+                waited_for = Some(state.attempt);
             }
             changed.await;
         };
         debug!(outcome = "connect", "HTTP/2 proxy pool opening connection");
-        let connection = open().await?;
-        Ok(reservation.finish(connection))
+        match open().await {
+            Ok(connection) => Ok(reservation.finish(connection)),
+            Err(error) => {
+                reservation.fail(error.kind());
+                Err(error)
+            }
+        }
     }
 }
 
@@ -250,6 +311,11 @@ struct RouteState {
     slots: Vec<Slot>,
     /// Whether the route's one connection setup is in flight.
     connecting: bool,
+    /// The number of the latest setup attempt.
+    attempt: u64,
+    /// The latest failed attempt and its error kind. Tunnels that waited
+    /// for that attempt fail with it.
+    failed: Option<(u64, HttpConnectErrorKind)>,
 }
 
 enum Choice {
@@ -264,11 +330,11 @@ impl RouteState {
     /// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`] and the proxy's
     /// `SETTINGS_MAX_CONCURRENT_STREAMS`; its load is the tunnels the pool
     /// handed it that have not ended. Forwarded requests are short and are
-    /// not counted; the HTTP/2 layer holds a stream past the proxy's limit
-    /// until another ends. When none has room, the route opens another
-    /// connection, or, at [`MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE`], uses the
-    /// least loaded.
-    fn choose(&self) -> Choice {
+    /// not counted. When none has room, the route opens another connection
+    /// below `max_connections`, or else uses the least loaded, where the
+    /// HTTP/2 layer holds the CONNECT until another stream ends. With one
+    /// connection allowed, the route's connection always takes the tunnel.
+    fn choose(&self, max_connections: usize) -> Choice {
         let mut least_loaded: Option<(usize, usize)> = None;
         for (index, slot) in self.slots.iter().enumerate() {
             let room = slot
@@ -286,9 +352,7 @@ impl RouteState {
             }
         }
         match least_loaded {
-            Some((index, _)) if self.slots.len() >= MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE => {
-                Choice::Use(index)
-            }
+            Some((index, _)) if self.slots.len() >= max_connections => Choice::Use(index),
             _ => Choice::Open,
         }
     }
@@ -319,11 +383,12 @@ impl Slot {
 
 /// The route's one connection setup in flight.
 ///
-/// Dropping it unfinished, when the setup fails or the tunnel is cancelled,
-/// frees the setup and wakes every tunnel waiting for it; whichever runs
-/// first makes the next attempt.
+/// A failed setup fails every tunnel that waited for it. Dropping it
+/// unfinished, when the tunnel is cancelled, frees the setup and wakes
+/// every tunnel waiting for it; whichever runs first makes the next attempt.
 struct SetupReservation<'a> {
     route: &'a Arc<RouteConnections>,
+    attempt: u64,
     finished: bool,
 }
 
@@ -341,6 +406,17 @@ impl SetupReservation<'_> {
         drop(state);
         self.route.changed.notify_waiters();
         lease
+    }
+
+    /// Records that this attempt failed with `kind`, for the tunnels that
+    /// waited for it.
+    fn fail(mut self, kind: HttpConnectErrorKind) {
+        self.finished = true;
+        let mut state = self.route.lock();
+        state.connecting = false;
+        state.failed = Some((self.attempt, kind));
+        drop(state);
+        self.route.changed.notify_waiters();
     }
 }
 
@@ -393,3 +469,6 @@ impl Drop for TunnelCount {
         self.route.changed.notify_waiters();
     }
 }
+
+#[cfg(test)]
+mod tests;

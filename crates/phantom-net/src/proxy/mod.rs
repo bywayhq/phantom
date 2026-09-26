@@ -25,7 +25,7 @@ pub use http_connect::{
 };
 pub(crate) use http_connect::{http_connect_tunnel, http_connect_tunnel_with_basic_auth};
 pub use http2_pool::{
-    Http2ProxyPool, MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE, MAX_HTTP2_PROXY_POOL_ROUTES,
+    HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING, Http2ProxyPool, MAX_HTTP2_PROXY_POOL_ROUTES,
     MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION,
 };
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};

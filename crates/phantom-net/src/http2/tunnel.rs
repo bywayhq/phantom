@@ -196,6 +196,8 @@ impl Http2ConnectStream {
     where
         T: Send + Sync + 'static,
     {
+        // One value per stream; a second would drop the first early.
+        debug_assert!(self.stream_guard.is_none());
         self.stream_guard = Some(Box::new(value));
     }
 
@@ -349,6 +351,8 @@ impl Drop for Http2ConnectStream {
     fn drop(&mut self) {
         // A reset on a connection whose driver has stopped would only queue a
         // frame nobody writes, and keeps the stream in the vendored store.
+        // The driver can still stop between this check and the reset; the
+        // reset is then queued and never written, as before this check.
         if !self.send_complete && !self.lease.is_closed() {
             self.send.send_reset(Reason::CANCEL);
         }

@@ -146,6 +146,12 @@ pub enum HttpConnectError {
         /// HTTP response status returned by the proxy.
         status: u16,
     },
+    /// The shared HTTP/2 proxy connection setup this tunnel waited for
+    /// failed; the tunnel that ran it received the original error.
+    PooledSetupFailed {
+        /// Kind of the failed setup's error.
+        kind: HttpConnectErrorKind,
+    },
 }
 
 impl HttpConnectError {
@@ -208,6 +214,7 @@ impl HttpConnectError {
             | Self::TooManyInformationalResponses { .. }
             | Self::InvalidResponse => HttpConnectErrorKind::InvalidResponse,
             Self::Rejected { .. } => HttpConnectErrorKind::Rejected,
+            Self::PooledSetupFailed { kind } => *kind,
         }
     }
 }
@@ -324,6 +331,10 @@ impl fmt::Display for HttpConnectError {
                     "proxy rejected HTTP CONNECT with status {status}"
                 )
             }
+            Self::PooledSetupFailed { kind } => write!(
+                formatter,
+                "the shared HTTP/2 proxy connection setup failed ({kind:?})"
+            ),
         }
     }
 }

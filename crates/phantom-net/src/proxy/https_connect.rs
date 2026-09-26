@@ -316,7 +316,10 @@ impl HttpsProxyConnector {
     /// This call sends no credentials. With an [`Http2ProxyPool`] attached,
     /// `credentials` choose which pooled connection is returned, one that
     /// tunnels and other forwarding for the same credentials may also use.
-    /// Without a pool, every call opens a connection.
+    /// The caller must send exactly these credentials, or none when it passes
+    /// `None`, on every request it forwards on the connection, so that a
+    /// connection never carries another route's credentials. Without a pool,
+    /// every call opens a connection.
     ///
     /// # Errors
     ///
@@ -477,16 +480,16 @@ impl HttpsProxyConnector {
                                 Http2Replay::Unprocessed => connection.retire(),
                             }
                         }
-                        let (mut stream, connection) = self
-                            .on_http2_connection(target, |connection| async move {
-                                http2_connect::establish_authenticated(
-                                    &connection,
-                                    authenticated,
-                                    rejected,
-                                )
-                                .await
-                            })
-                            .await?;
+                        // The replay's last send: unlike a first attempt, it
+                        // is not sent again when this connection also leaves
+                        // it unprocessed.
+                        let connection = self.http2_connection(target).await?;
+                        let mut stream = http2_connect::establish_authenticated(
+                            connection.connection(),
+                            authenticated,
+                            rejected,
+                        )
+                        .await?;
                         connection.attach(&mut stream);
                         return Ok(AuthStep::Done(stream));
                     }
