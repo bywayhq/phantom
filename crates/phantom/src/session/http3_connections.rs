@@ -11,7 +11,7 @@ use std::num::NonZeroUsize;
 /// What a request should do with a location's HTTP/3 connections.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Choice {
-    /// Send on the candidate at this position.
+    /// Send on the connection at the position its candidate carried.
     Use(usize),
     /// Open another connection: none exists, or every one is full and the
     /// location is below its connection limit.
@@ -58,20 +58,37 @@ impl Http3Spread {
     /// the local bound when none has. When no connection has room, another
     /// opens up to the limit; at the limit the least-loaded connection takes
     /// the stream, and QUIC holds it until the server grants stream credit.
-    /// Ties go to the earliest candidate, so one connection behaves as a
-    /// browser's does.
-    pub(super) fn choose(&self, candidates: &[Candidate]) -> Choice {
+    /// Ties go to the earliest candidate. With a limit of one connection,
+    /// as browsers keep, the location's connection takes every stream and
+    /// nothing else is computed.
+    ///
+    /// Each candidate carries the position the caller uses for it, and the
+    /// candidates are read twice, without being collected.
+    pub(super) fn choose(
+        &self,
+        candidates: impl Iterator<Item = (usize, Candidate)> + Clone,
+    ) -> Choice {
+        let mut candidates = candidates;
+        if self.max_connections.get() == 1 {
+            return candidates
+                .next()
+                .map_or(Choice::Open, |(position, _)| Choice::Use(position));
+        }
         let peer_limit = |candidate: &Candidate| {
             candidate
                 .peer_limit
                 .map(|limit| usize::try_from(limit).unwrap_or(usize::MAX).max(1))
         };
-        let reported = candidates.iter().rev().find_map(peer_limit);
+        let reported = candidates
+            .clone()
+            .filter_map(|(_, candidate)| peer_limit(&candidate))
+            .last();
         let mut least_loaded: Option<(usize, usize)> = None;
         let mut with_room: Option<(usize, usize)> = None;
-        let count = candidates.len();
-        for (position, candidate) in candidates.iter().enumerate() {
-            let room = peer_limit(candidate)
+        let mut count = 0;
+        for (position, candidate) in candidates {
+            count += 1;
+            let room = peer_limit(&candidate)
                 .or(reported)
                 .map_or(self.local_streams.get(), |peer| {
                     peer.min(self.local_streams.get())
@@ -106,6 +123,13 @@ mod tests {
         NonZeroUsize::new(value).ok_or_else(|| "zero bound".into())
     }
 
+    /// Positions candidates as a pool's connection table would.
+    fn positioned<const N: usize>(
+        candidates: [Candidate; N],
+    ) -> impl Iterator<Item = (usize, Candidate)> + Clone {
+        candidates.into_iter().enumerate()
+    }
+
     const fn candidate(peer_limit: Option<u64>, streams: usize) -> Candidate {
         Candidate {
             peer_limit,
@@ -116,29 +140,38 @@ mod tests {
     #[test]
     fn one_connection_takes_every_stream_by_default() -> TestResult {
         let spread = Http3Spread::new(NonZeroUsize::MIN, bound(100)?);
-        assert_eq!(spread.choose(&[]), Choice::Open);
+        assert_eq!(spread.choose(positioned([])), Choice::Open);
         // Past the server's limit, the single allowed connection still serves.
-        assert_eq!(spread.choose(&[candidate(Some(1), 3)]), Choice::Use(0));
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(1), 3)])),
+            Choice::Use(0)
+        );
         Ok(())
     }
 
     #[test]
     fn a_saturated_connection_opens_another_up_to_the_limit() -> TestResult {
         let spread = Http3Spread::new(bound(2)?, bound(100)?);
-        assert_eq!(spread.choose(&[candidate(Some(1), 0)]), Choice::Use(0));
-        assert_eq!(spread.choose(&[candidate(Some(1), 1)]), Choice::Open);
         assert_eq!(
-            spread.choose(&[candidate(Some(1), 1), candidate(Some(1), 0)]),
+            spread.choose(positioned([candidate(Some(1), 0)])),
+            Choice::Use(0)
+        );
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(1), 1)])),
+            Choice::Open
+        );
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(1), 1), candidate(Some(1), 0)])),
             Choice::Use(1)
         );
         // Both are full and the location is at its limit: the least loaded,
         // then the earliest, takes the stream.
         assert_eq!(
-            spread.choose(&[candidate(Some(1), 2), candidate(Some(1), 1)]),
+            spread.choose(positioned([candidate(Some(1), 2), candidate(Some(1), 1)])),
             Choice::Use(1)
         );
         assert_eq!(
-            spread.choose(&[candidate(Some(1), 1), candidate(Some(1), 1)]),
+            spread.choose(positioned([candidate(Some(1), 1), candidate(Some(1), 1)])),
             Choice::Use(0)
         );
         Ok(())
@@ -147,8 +180,14 @@ mod tests {
     #[test]
     fn the_local_bound_caps_a_larger_server_limit() -> TestResult {
         let spread = Http3Spread::new(bound(2)?, bound(2)?);
-        assert_eq!(spread.choose(&[candidate(Some(100), 1)]), Choice::Use(0));
-        assert_eq!(spread.choose(&[candidate(Some(100), 2)]), Choice::Open);
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(100), 1)])),
+            Choice::Use(0)
+        );
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(100), 2)])),
+            Choice::Open
+        );
         Ok(())
     }
 
@@ -156,13 +195,16 @@ mod tests {
     fn a_connection_before_its_handshake_uses_its_location_s_reported_limit() -> TestResult {
         let spread = Http3Spread::new(bound(3)?, bound(100)?);
         // Nothing reported yet: the local bound applies.
-        assert_eq!(spread.choose(&[candidate(None, 50)]), Choice::Use(0));
         assert_eq!(
-            spread.choose(&[candidate(Some(2), 2), candidate(None, 1)]),
+            spread.choose(positioned([candidate(None, 50)])),
+            Choice::Use(0)
+        );
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(2), 2), candidate(None, 1)])),
             Choice::Use(1)
         );
         assert_eq!(
-            spread.choose(&[candidate(Some(2), 2), candidate(None, 2)]),
+            spread.choose(positioned([candidate(Some(2), 2), candidate(None, 2)])),
             Choice::Open
         );
         Ok(())
@@ -171,8 +213,14 @@ mod tests {
     #[test]
     fn a_zero_server_limit_counts_as_one_stream() -> TestResult {
         let spread = Http3Spread::new(bound(2)?, bound(100)?);
-        assert_eq!(spread.choose(&[candidate(Some(0), 0)]), Choice::Use(0));
-        assert_eq!(spread.choose(&[candidate(Some(0), 1)]), Choice::Open);
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(0), 0)])),
+            Choice::Use(0)
+        );
+        assert_eq!(
+            spread.choose(positioned([candidate(Some(0), 1)])),
+            Choice::Open
+        );
         Ok(())
     }
 }

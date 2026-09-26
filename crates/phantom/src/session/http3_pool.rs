@@ -170,10 +170,7 @@ impl Http3Pool {
                 },
             )
             .await?;
-        // Boxed, as the setup is: the two dispatches would otherwise enlarge
-        // every request future, and a debug build on Windows then overflows
-        // a test thread's stack.
-        Box::pin(self.send_on_lease(
+        self.send_on_lease(
             leased,
             connector,
             method,
@@ -185,7 +182,7 @@ impl Http3Pool {
             body,
             timeout_budget,
             retries,
-        ))
+        )
         .await
     }
 
@@ -234,7 +231,7 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
-        Box::pin(self.send_on_lease(
+        self.send_on_lease(
             leased,
             connector,
             method,
@@ -246,7 +243,7 @@ impl Http3Pool {
             body,
             timeout_budget,
             retries,
-        ))
+        )
         .await
     }
 
@@ -503,7 +500,8 @@ impl PoolEntry {
     /// connection takes the location's connect turn, and the others wait for
     /// the turn and then choose again, so they share the new connection
     /// while it has room. With more than one connection allowed, a waiting
-    /// request also chooses again whenever a stream on the entry ends.
+    /// request also chooses again whenever a stream on the entry ends, and
+    /// keeps its place in the turn's queue meanwhile.
     async fn acquire(
         self: &Arc<Self>,
         connector: &Http3Connector,
@@ -515,70 +513,58 @@ impl PoolEntry {
     ) -> Result<(ConnectionLease, OpenStream), RequestError> {
         let location = TransportLocation::new(transport);
         let spreads = self.lock_slots().spread.max_connections().get() > 1;
-        // Kept across wakeups, so a request keeps its place in the turn's
-        // queue while it checks for freed room.
-        let mut waiting_turn = None;
-        let turn = loop {
-            let mut stream_ended = pin!(self.stream_ended.notified());
-            // Registered before the choice, so a stream ending in between
-            // still wakes this request.
-            stream_ended.as_mut().enable();
-            if let Some(leased) = self.choose(connector, &location).await {
-                debug!(
-                    outcome = "hit",
-                    "HTTP/3 connection acquired from client pool"
-                );
+        let turn = if spreads {
+            let mut waiting_turn = pin!(self.connect_turn(location.clone()));
+            loop {
+                let mut stream_ended = pin!(self.stream_ended.notified());
+                // Registered before the choice, so a stream ending in between
+                // still wakes this request.
+                stream_ended.as_mut().enable();
+                if let Some(leased) = self.choose(connector, &location) {
+                    return Ok(leased);
+                }
+                tokio::select! {
+                    turn = waiting_turn.as_mut() => break turn,
+                    () = stream_ended => {}
+                }
+            }
+        } else {
+            if let Some(leased) = self.choose(connector, &location) {
                 return Ok(leased);
             }
-            if !spreads {
-                break self.connect_turn(location.clone()).await;
-            }
-            let waiting =
-                waiting_turn.get_or_insert_with(|| Box::pin(self.connect_turn(location.clone())));
-            tokio::select! {
-                turn = waiting.as_mut() => break turn,
-                () = stream_ended => {}
-            }
+            self.connect_turn(location.clone()).await
         };
         if let Some(connecting) = control.connecting {
             connecting.store(true, Ordering::Release);
         }
         // The setup that held the turn before may have pooled a connection
         // with room.
-        if let Some(leased) = self.choose(connector, &location).await {
-            debug!(
-                outcome = "hit",
-                "HTTP/3 connection acquired from client pool"
-            );
+        if let Some(leased) = self.choose(connector, &location) {
             return Ok(leased);
         }
 
-        let connect = self.connect(
+        // Boxed: opening a connection awaits the largest connector futures,
+        // which would otherwise enlarge the future of every request, including
+        // one that reuses a pooled connection.
+        let connection = Box::pin(self.open(
             connector,
             connect_udp_proxy,
             endpoint,
             route,
             transport,
-            control.early_data,
-        );
-        let connection = match control.attempt_limit {
-            // A runtime without a time driver fails the attempt instead of
-            // panicking.
-            Some(limit) => within(limit, connect).await?.ok_or_else(|| {
-                debug!(
-                    timeout_phase = TimeoutPhase::Connect.trace_name(),
-                    protocol = HttpProtocol::Http3.trace_name(),
-                    "HTTP/3 connection attempt reached its limit"
-                );
-                RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
-            })??,
-            None => connect.await?,
-        };
+            control,
+        ))
+        .await?;
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
             location,
-            streams: StreamCount::notifying(Arc::clone(&self.stream_ended)),
+            // Only a pool that spreads streams wakes requests when one ends.
+            streams: if spreads {
+                StreamCount::notifying(Arc::clone(&self.stream_ended))
+            } else {
+                StreamCount::default()
+            },
             peer_limit: None,
         };
         // A connection whose early data is unanswered is pooled at once, so
@@ -599,50 +585,82 @@ impl PoolEntry {
         Ok(leased)
     }
 
+    /// Opens one connection for [`Self::acquire`], within the setup's
+    /// attempt limit when it has one.
+    async fn open(
+        &self,
+        connector: &Http3Connector,
+        connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        endpoint: &Endpoint,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+        control: Http3SetupControl<'_>,
+    ) -> Result<Http3Connection, RequestError> {
+        let connect = self.connect(
+            connector,
+            connect_udp_proxy,
+            endpoint,
+            route,
+            transport,
+            control.early_data,
+        );
+        match control.attempt_limit {
+            // A runtime without a time driver fails the attempt instead of
+            // panicking.
+            Some(limit) => within(limit, connect).await?.ok_or_else(|| {
+                debug!(
+                    timeout_phase = TimeoutPhase::Connect.trace_name(),
+                    protocol = HttpProtocol::Http3.trace_name(),
+                    "HTTP/3 connection attempt reached its limit"
+                );
+                RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
+            })?,
+            None => connect.await,
+        }
+    }
+
     /// Leases a reusable pooled connection to `location` for one stream, or
     /// returns `None` when the location should open another.
     ///
     /// Connections that can no longer carry a request, such as one draining
     /// after the server's GOAWAY, leave the pool first; they do not count
     /// toward the location's connection limit.
-    async fn choose(
+    fn choose(
         &self,
         connector: &Http3Connector,
         location: &TransportLocation,
     ) -> Option<(ConnectionLease, OpenStream)> {
-        let pooled: Vec<(Http3Connection, Arc<()>)> = self
-            .lock_slots()
-            .connections
-            .iter()
-            .filter(|slot| &slot.location == location)
-            .map(|slot| (slot.connection.clone(), Arc::clone(&slot.token)))
-            .collect();
-        let mut retired = Vec::new();
-        for (connection, token) in pooled {
-            if !connector.can_reuse(&connection).await {
-                retired.push(token);
-            }
-        }
         let mut slots = self.lock_slots();
         let Slots {
             connections,
             spread,
         } = &mut *slots;
-        connections.retain(|slot| !retired.iter().any(|token| Arc::ptr_eq(token, &slot.token)));
-        let mut positions = Vec::new();
-        let mut candidates = Vec::new();
-        for (position, slot) in connections.iter_mut().enumerate() {
-            if &slot.location == location {
-                positions.push(position);
-                candidates.push(slot.candidate());
+        connections
+            .retain(|slot| &slot.location != location || connector.can_reuse_now(&slot.connection));
+        if spread.max_connections().get() > 1 {
+            for slot in connections
+                .iter_mut()
+                .filter(|slot| &slot.location == location)
+            {
+                slot.read_peer_limit();
             }
         }
-        let Choice::Use(chosen) = spread.choose(&candidates) else {
+        let candidates = connections
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| &slot.location == location)
+            .map(|(position, slot)| (position, slot.candidate()));
+        let Choice::Use(position) = spread.choose(candidates) else {
             return None;
         };
-        let slot = connections.remove(*positions.get(chosen)?)?;
+        let slot = connections.remove(position)?;
         let leased = slot.lease();
         connections.push_back(slot);
+        drop(slots);
+        debug!(
+            outcome = "hit",
+            "HTTP/3 connection acquired from client pool"
+        );
         Some(leased)
     }
 
@@ -970,18 +988,16 @@ impl Http3Admission {
         let Self { entry, permit } = self;
         let (lease, stream) =
             acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-                // Boxed: the setup state machine would otherwise enlarge every
-                // request future, and a debug build on Windows then overflows
-                // a test thread's stack.
-                Box::pin(entry.acquire(
-                    connector,
-                    connect_udp_proxy,
-                    endpoint,
-                    route,
-                    transport,
-                    control,
-                ))
-                .await
+                entry
+                    .acquire(
+                        connector,
+                        connect_udp_proxy,
+                        endpoint,
+                        route,
+                        transport,
+                        control,
+                    )
+                    .await
             })
             .await?;
         Ok(Http3Lease {
@@ -1225,7 +1241,7 @@ async fn dispatch(
             // that rejected a request is retired when it is enabled. Rejected
             // early data is the exception: the pool sends it again on the
             // same connection, which started HTTP/3 again.
-            if !connector.can_reuse(&lease.connection).await
+            if !connector.can_reuse_now(&lease.connection)
                 || (retries.replays_unprocessed_requests()
                     && error.is_unprocessed_request()
                     && !error.is_http3_early_data_rejected())
@@ -1310,10 +1326,14 @@ impl ConnectionSlot {
         )
     }
 
-    fn candidate(&mut self) -> Candidate {
+    /// Reads the server's stream limit once the handshake has completed.
+    fn read_peer_limit(&mut self) {
         if self.peer_limit.is_none() {
             self.peer_limit = self.connection.peer_initial_max_streams_bidi();
         }
+    }
+
+    fn candidate(&self) -> Candidate {
         Candidate {
             peer_limit: self.peer_limit,
             streams: self.streams.get(),
@@ -1428,6 +1448,18 @@ mod tests {
                 }
             }
         })
+    }
+
+    /// A request awaits `acquire` whether it reuses a connection or opens one,
+    /// so only `open`, which a new connection boxes, may hold the connectors'
+    /// futures.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn acquire_leaves_connection_setup_off_the_request_future() {
+        // A reuse holds only the arguments, the connect turn, and the boxed
+        // setup.
+        let size = phantom_testkit::future_size::future_size(&super::PoolEntry::acquire);
+        assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
     }
 
     fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
