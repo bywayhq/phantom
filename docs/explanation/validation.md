@@ -2645,7 +2645,9 @@ Replay against Phantom:
   a rejected session leaving a server stream to its replacement. Each test
   fails with its fix removed. A Linux run pinned to four CPUs under load
   failed about half of the stress runs below before these fixes, with the
-  three failures these tests reproduce, and none of 300 iterations after.
+  three failures these tests reproduce. After them, 1,500 iterations of
+  each scenario passed on the same setup, 552 of the handshake-window ones
+  with the rejection during the start.
   `rejection_scenarios_hold_under_a_multi_threaded_runtime` repeats the
   credit-wait and handshake-window rejections on a four-worker runtime with
   a random 0-3 ms delay before the gate sees Quinn's answer; 200 iterations
