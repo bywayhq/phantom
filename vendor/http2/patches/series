@@ -11,4 +11,5 @@ local-header-list-limit.patch
 informational-response-limit.patch
 hpack-encoder-profile.patch
 cookie-crumbs.patch
+hpack-indexing-rules.patch
 publish-identity.patch

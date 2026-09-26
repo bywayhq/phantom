@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 50ce3b9..8e4fb3f 100644
+index 50ce3b9..d7d191f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -12,8 +12,8 @@
@@ -9,7 +9,7 @@ index 50ce3b9..8e4fb3f 100644
 -name = "http2"
 -version = "0.5.20"
 +name = "phantom-http2"
-+version = "0.5.20-phantom.4"
++version = "0.5.20-phantom.5"
  authors = [
      "0x676e67 <gngppz@gmail.com>",
      "Carl Lerche <me@carllerche.com>",

@@ -1,0 +1,862 @@
+diff --git a/src/ext.rs b/src/ext.rs
+index 5f8168c..153d34d 100644
+--- a/src/ext.rs
++++ b/src/ext.rs
+@@ -119,6 +119,109 @@ pub enum HuffmanCoding {
+     WhenShorter,
+     /// Huffman-code whenever the coded form is no longer than the raw one.
+     WhenNotLonger,
++    /// Always Huffman-code, and set the Huffman flag on an empty string too.
++    ///
++    /// `Always` sends an empty string raw, as the one byte `0x00`; this rule
++    /// sends it as `0x80`, a coded string of length zero.
++    AlwaysIncludingEmpty,
++}
++
++/// Which ordinary fields an HPACK encoder keeps out of the dynamic table.
++///
++/// A `cookie` field sent whole is always kept out, and `:path` always is, as
++/// upstream does; this choice decides the other ordinary fields.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum FieldIndexing {
++    /// Keep `age`, `authorization`, `content-length`, `etag`,
++    /// `if-modified-since`, `if-none-match`, `location`, and `set-cookie` out
++    /// of the table, as literals without indexing unless sensitive.
++    ///
++    /// This is the upstream choice, borrowed from nghttp2.
++    #[default]
++    Nghttp2,
++    /// Let every ordinary field enter the table.
++    All,
++    /// Send `authorization` as a never-indexed literal and let every other
++    /// ordinary field enter the table.
++    NeverIndexAuthorization,
++}
++
++/// Which table entry names a literal field whose name is in the table.
++///
++/// A literal can name its field with any entry that has the same name, in the
++/// static or the dynamic table. The index chosen is visible on the wire.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum NameReference {
++    /// The static entry when one has the name, otherwise the newest dynamic
++    /// entry, except that a sensitive field whose name is in the dynamic
++    /// table names the newest such entry, and a field kept out of the table
++    /// names only a static entry.
++    ///
++    /// This is the upstream choice.
++    #[default]
++    Upstream,
++    /// The static entry when one has the name, otherwise the newest dynamic
++    /// entry.
++    StaticThenNewest,
++    /// The oldest dynamic entry when one has the name, otherwise the static
++    /// entry: the highest-numbered entry with the name.
++    OldestDynamic,
++}
++
++/// How a field kept out of the dynamic table is sent when an entry matches
++/// both its name and its value.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum UnindexedMatch {
++    /// As that entry's index, so `:path: /` is sent as index 4.
++    ///
++    /// This is the upstream choice.
++    #[default]
++    Index,
++    /// As a literal naming that entry, so `:path: /` is sent as a literal
++    /// without indexing naming entry 4.
++    Literal,
++}
++
++/// The largest field an HPACK encoder inserts into the dynamic table.
++///
++/// The size is the RFC 7541 section 4.1 entry size, name plus value plus 32
++/// bytes, compared with the current maximum table size.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum IndexingLimit {
++    /// A field larger than three quarters of the table is a literal without
++    /// indexing.
++    ///
++    /// This is the upstream choice.
++    #[default]
++    ThreeQuarters,
++    /// A field larger than half the table, or any field when the table is
++    /// smaller than 128 bytes, is a literal without indexing.
++    Half,
++    /// Every field that may enter the table is sent with incremental
++    /// indexing. One larger than the whole table empties it and is not
++    /// inserted, as RFC 7541 section 4.4 requires.
++    Unlimited,
++}
++
++/// When an HPACK encoder starts a field block with a dynamic-table size
++/// update after the peer sends `SETTINGS_HEADER_TABLE_SIZE`.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum SizeUpdates {
++    /// Only when the setting changes the table size.
++    ///
++    /// This is the upstream choice.
++    #[default]
++    WhenChanged,
++    /// After every received setting, even one equal to the current size.
++    ///
++    /// When the peer sent a smaller value before the last one, the smallest
++    /// is announced first.
++    EverySetting,
+ }
+ 
+ /// How an HPACK encoder sends each `cookie` field.
+@@ -217,6 +320,11 @@ pub struct HpackEncoderProfile {
+     static_name_index: StaticNameIndex,
+     huffman_coding: HuffmanCoding,
+     cookie_crumbs: CookieCrumbs,
++    field_indexing: FieldIndexing,
++    name_reference: NameReference,
++    unindexed_match: UnindexedMatch,
++    indexing_limit: IndexingLimit,
++    size_updates: SizeUpdates,
+ }
+ 
+ impl HpackEncoderProfile {
+@@ -261,6 +369,41 @@ impl HpackEncoderProfile {
+         self
+     }
+ 
++    /// Keeps ordinary fields out of the dynamic table by this rule.
++    #[must_use]
++    pub fn field_indexing(mut self, indexing: FieldIndexing) -> Self {
++        self.field_indexing = indexing;
++        self
++    }
++
++    /// Names literal fields with table entries by this rule.
++    #[must_use]
++    pub fn name_reference(mut self, reference: NameReference) -> Self {
++        self.name_reference = reference;
++        self
++    }
++
++    /// Sends a field kept out of the table that matches an entry by this rule.
++    #[must_use]
++    pub fn unindexed_match(mut self, matched: UnindexedMatch) -> Self {
++        self.unindexed_match = matched;
++        self
++    }
++
++    /// Inserts fields into the dynamic table up to this size.
++    #[must_use]
++    pub fn indexing_limit(mut self, limit: IndexingLimit) -> Self {
++        self.indexing_limit = limit;
++        self
++    }
++
++    /// Announces the peer's table size setting by this rule.
++    #[must_use]
++    pub fn size_updates(mut self, updates: SizeUpdates) -> Self {
++        self.size_updates = updates;
++        self
++    }
++
+     pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
+         self.literal_pseudo_headers & pseudo_bit(id) != 0
+     }
+@@ -276,6 +419,26 @@ impl HpackEncoderProfile {
+     pub(crate) fn crumbs(self) -> CookieCrumbs {
+         self.cookie_crumbs
+     }
++
++    pub(crate) fn fields(self) -> FieldIndexing {
++        self.field_indexing
++    }
++
++    pub(crate) fn names(self) -> NameReference {
++        self.name_reference
++    }
++
++    pub(crate) fn matched(self) -> UnindexedMatch {
++        self.unindexed_match
++    }
++
++    pub(crate) fn limit(self) -> IndexingLimit {
++        self.indexing_limit
++    }
++
++    pub(crate) fn updates(self) -> SizeUpdates {
++        self.size_updates
++    }
+ }
+ 
+ /// Returns the bit that represents `id` in a pseudo-header set.
+diff --git a/src/hpack/encoder.rs b/src/hpack/encoder.rs
+index 94bcb02..034ca98 100644
+--- a/src/hpack/encoder.rs
++++ b/src/hpack/encoder.rs
+@@ -1,6 +1,6 @@
+ use super::table::{Index, Table};
+ use super::{huffman, Header};
+-use crate::ext::{CookieCrumbs, HpackEncoderProfile, HuffmanCoding};
++use crate::ext::{CookieCrumbs, FieldIndexing, HpackEncoderProfile, HuffmanCoding, SizeUpdates};
+ use crate::tracing;
+ 
+ use bytes::{BufMut, BytesMut};
+@@ -12,6 +12,8 @@ pub struct Encoder {
+     size_update: Option<SizeUpdate>,
+     huffman: HuffmanCoding,
+     crumbs: CookieCrumbs,
++    fields: FieldIndexing,
++    updates: SizeUpdates,
+ }
+ 
+ #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+@@ -27,6 +29,8 @@ impl Encoder {
+             size_update: None,
+             huffman: HuffmanCoding::default(),
+             crumbs: CookieCrumbs::default(),
++            fields: FieldIndexing::default(),
++            updates: SizeUpdates::default(),
+         }
+     }
+ 
+@@ -37,6 +41,8 @@ impl Encoder {
+     pub fn set_profile(&mut self, profile: HpackEncoderProfile) {
+         self.huffman = profile.huffman();
+         self.crumbs = profile.crumbs();
++        self.fields = profile.fields();
++        self.updates = profile.updates();
+         self.table.set_profile(profile);
+     }
+ 
+@@ -44,6 +50,18 @@ impl Encoder {
+     ///
+     /// The next call to `encode` will include a dynamic size update frame.
+     pub fn update_max_size(&mut self, val: usize) {
++        if self.updates == SizeUpdates::EverySetting {
++            // Every setting is announced, the smallest pending one first
++            // when it is below the last.
++            self.size_update = Some(match self.size_update {
++                Some(SizeUpdate::One(low) | SizeUpdate::Two(low, _)) if low < val => {
++                    SizeUpdate::Two(low, val)
++                }
++                _ => SizeUpdate::One(val),
++            });
++            return;
++        }
++
+         match self.size_update {
+             Some(SizeUpdate::One(old)) => {
+                 if val > old {
+@@ -86,6 +104,9 @@ impl Encoder {
+         // Whether the previous named field was a `cookie` field sent as
+         // crumbs, so that its nameless further values are split too.
+         let mut crumbling = false;
++        // Whether the previous named field was one the profile never
++        // indexes, so that its nameless further values are not either.
++        let mut never_indexed = false;
+ 
+         for header in headers {
+             match header.reify() {
+@@ -102,6 +123,11 @@ impl Encoder {
+                 // index it in the table.
+                 Ok(header) => {
+                     crumbling = false;
++                    never_indexed = self.fields == FieldIndexing::NeverIndexAuthorization
++                        && matches!(
++                            &header,
++                            Header::Field { name, .. } if name == http::header::AUTHORIZATION
++                        );
+                     let index = self.table.index(header);
+                     self.encode_header(&index, dst);
+ 
+@@ -111,7 +137,10 @@ impl Encoder {
+                 // the name is the same as the previously yielded header. In
+                 // which case, we skip table lookup and just use the same index
+                 // as the previous entry.
+-                Err(value) => {
++                Err(mut value) => {
++                    if never_indexed {
++                        value.set_sensitive(true);
++                    }
+                     self.encode_header_without_name(
+                         last_index.as_ref().unwrap_or_else(|| {
+                             panic!("encoding header without name, but no previous index to use for name");
+@@ -215,6 +244,18 @@ impl Encoder {
+                     dst,
+                 );
+             }
++            Index::Oversized(name, _) => {
++                let header = self.table.resolve(index);
++
++                match name {
++                    Some(idx) => encode_int(idx, 6, 0b0100_0000, dst),
++                    None => {
++                        dst.put_u8(0b0100_0000);
++                        encode_str(header.name().as_slice(), self.huffman, dst);
++                    }
++                }
++                encode_str(header.value_slice(), self.huffman, dst);
++            }
+         }
+     }
+ 
+@@ -233,7 +274,9 @@ impl Encoder {
+ 
+                 encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), self.huffman, dst);
+             }
+-            Index::NotIndexed(_) => {
++            // An oversized field emptied the table, so a dynamic name index
++            // it used no longer resolves; its name is sent as a literal.
++            Index::NotIndexed(_) | Index::Oversized(..) => {
+                 let last = self.table.resolve(last);
+ 
+                 encode_not_indexed2(
+@@ -294,7 +337,7 @@ fn encode_not_indexed2(
+ /// Returns whether `val` is sent Huffman-coded under `huffman`.
+ fn use_huffman(val: &[u8], huffman: HuffmanCoding) -> bool {
+     match huffman {
+-        HuffmanCoding::Always => true,
++        HuffmanCoding::Always | HuffmanCoding::AlwaysIncludingEmpty => true,
+         HuffmanCoding::WhenShorter => huffman::encoded_len(val) < val.len(),
+         HuffmanCoding::WhenNotLonger => huffman::encoded_len(val) <= val.len(),
+     }
+@@ -348,6 +391,9 @@ fn encode_str(val: &[u8], huffman: HuffmanCoding, dst: &mut BytesMut) {
+                 dst[idx + i] = buf[i];
+             }
+         }
++    } else if huffman == HuffmanCoding::AlwaysIncludingEmpty {
++        // Write an empty string with the Huffman flag set
++        dst.put_u8(0x80);
+     } else {
+         // Write an empty string
+         dst.put_u8(0);
+@@ -393,7 +439,7 @@ fn position(buf: &BytesMut) -> usize {
+ #[cfg(test)]
+ mod test {
+     use super::*;
+-    use crate::ext::{Protocol, StaticNameIndex};
++    use crate::ext::{IndexingLimit, NameReference, Protocol, StaticNameIndex, UnindexedMatch};
+     use crate::frame::PseudoId;
+     use crate::hpack::{BytesStr, Decoder};
+     use http::*;
+@@ -1076,6 +1122,242 @@ mod test {
+         assert_eq!(encoder.table.len(), 0);
+     }
+ 
++    /// Firefox names a literal with the highest-numbered entry that has its
++    /// name, which is the oldest dynamic entry once one exists; Chromium names
++    /// the static entry, otherwise the newest dynamic one.
++    #[test]
++    fn name_reference_chooses_between_oldest_dynamic_and_static_first() {
++        let firefox = HpackEncoderProfile::new().name_reference(NameReference::OldestDynamic);
++        let chromium = HpackEncoderProfile::new().name_reference(NameReference::StaticThenNewest);
++        let mut oldest = Encoder::default();
++        oldest.set_profile(firefox);
++        let mut static_first = Encoder::default();
++        static_first.set_profile(chromium);
++
++        for encoder in [&mut oldest, &mut static_first] {
++            let first = encode(
++                encoder,
++                vec![
++                    header("x-a", "1"),
++                    header("x-a", "2"),
++                    header("user-agent", "a"),
++                ],
++            );
++            // A new name, then the only `x-a` entry, then static 58.
++            assert_eq!(representations(&first), [0x40, 0x40 | 62, 0x40 | 58]);
++        }
++
++        // The table is now `user-agent: a` (62), `x-a: 2` (63), `x-a: 1` (64).
++        // An index of 63 or more takes a second byte after the 6-bit prefix,
++        // and each one-byte value is Huffman-coded ("3" is 0x67, "b" 0x8f).
++        let fields = || vec![header("x-a", "3"), header("user-agent", "b")];
++        // `x-a: 3` names 64; it then shifts `user-agent: a` to 63.
++        assert_eq!(
++            *encode(&mut oldest, fields()),
++            [0x7f, 64 - 63, 0x81, 0x67, 0x7f, 63 - 63, 0x81, 0x8f]
++        );
++        assert_eq!(
++            *encode(&mut static_first, fields()),
++            [0x7f, 63 - 63, 0x81, 0x67, 0x40 | 58, 0x81, 0x8f]
++        );
++    }
++
++    /// The Firefox cookie capture: a short crumb sent after a long one entered
++    /// the table names the oldest dynamic `cookie` entry.
++    #[test]
++    fn never_indexed_crumbs_name_the_oldest_dynamic_cookie() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(
++            HpackEncoderProfile::new()
++                .cookie_crumbs(CookieCrumbs::NeverIndexShort)
++                .name_reference(NameReference::OldestDynamic),
++        );
++        let long = "pd=0123456789abcdefg";
++        let longer = "phantom_long=0123456789012345678901234567890123456789";
++        let first = encode(
++            &mut encoder,
++            vec![header("cookie", &format!("pa=1; {long}; {longer}"))],
++        );
++        assert_eq!(representations(&first), [0x10, 0x40 | 32, 0x40 | 62]);
++
++        let second = encode(
++            &mut encoder,
++            vec![header("cookie", &format!("pa=1; {long}; {longer}"))],
++        );
++        // Never-indexed naming 63 (0x1f then 48), then both indexed.
++        assert_eq!(&second[..2], &[0x1f, 48]);
++        assert_eq!(representations(&second), [0x10, 0x80 | 63, 0x80 | 62]);
++    }
++
++    /// Firefox sends a field it keeps out of the table as a literal even when
++    /// an entry matches it, naming that entry.
++    #[test]
++    fn unindexed_match_literal_sends_a_matching_path_as_a_literal() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(HpackEncoderProfile::new().unindexed_match(UnindexedMatch::Literal));
++        // Literal without indexing naming 4, then "/" Huffman-coded in one
++        // byte.
++        assert_eq!(*encode(&mut encoder, vec![path("/")]), [0x04, 0x81, 0x63]);
++        // A field that may enter the table is still indexed.
++        assert_eq!(*encode(&mut encoder, vec![method("GET")]), [0x80 | 2]);
++
++        let mut profiled = Encoder::default();
++        profiled.set_profile(
++            HpackEncoderProfile::new()
++                .unindexed_match(UnindexedMatch::Literal)
++                .name_reference(NameReference::OldestDynamic)
++                .static_name_index(StaticNameIndex::Highest),
++        );
++        assert_eq!(*encode(&mut profiled, vec![path("/")]), [0x04, 0x81, 0x63]);
++        assert_eq!(encode(&mut profiled, vec![path("/echo")])[0], 5);
++    }
++
++    /// Firefox stops indexing above half the table, and indexes nothing in a
++    /// table smaller than 128 bytes.
++    #[test]
++    fn half_limit_sends_a_field_over_half_the_table_without_indexing() {
++        let half = HpackEncoderProfile::new().indexing_limit(IndexingLimit::Half);
++        // Entry sizes of 2,048 and 2,049 bytes: 32 plus a 3-byte name.
++        let fits = "a".repeat(2048 - 32 - 3);
++        let over = "a".repeat(2049 - 32 - 3);
++
++        let mut encoder = Encoder::default();
++        encoder.set_profile(half);
++        let block = encode(&mut encoder, vec![header("x-a", &fits)]);
++        assert_eq!(representations(&block), [0x40]);
++        let block = encode(&mut encoder, vec![header("x-b", &over)]);
++        assert_eq!(representations(&block), [0x00]);
++        assert_eq!(encoder.table.len(), 1);
++
++        let mut small = Encoder::new(127, 0);
++        small.set_profile(half);
++        let block = encode(&mut small, vec![header("x-a", "1")]);
++        assert_eq!(representations(&block), [0x00]);
++        assert_eq!(small.table.len(), 0);
++    }
++
++    /// Chromium indexes a field of any size, evicting to make room, and a
++    /// field larger than the table empties it without being inserted.
++    #[test]
++    fn unlimited_indexing_evicts_and_sends_an_oversized_field_incrementally() {
++        let mut encoder = Encoder::new(128, 0);
++        encoder.set_profile(
++            HpackEncoderProfile::new()
++                .indexing_limit(IndexingLimit::Unlimited)
++                .name_reference(NameReference::StaticThenNewest),
++        );
++        let mut decoder = Decoder::new(128);
++
++        // A 100-byte entry is over three quarters of 128, and still indexed.
++        let value = "v".repeat(100 - 32 - 3);
++        let block = encode(&mut encoder, vec![header("x-a", &value)]);
++        assert_eq!(representations(&block), [0x40]);
++        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
++        assert_eq!(encoder.table.len(), 1);
++
++        // A 129-byte entry names the `x-a` entry it evicts.
++        let big = "w".repeat(129 - 32 - 3);
++        let block = encode(&mut encoder, vec![header("x-a", &big)]);
++        assert_eq!(representations(&block), [0x40 | 62]);
++        assert_eq!(encoder.table.len(), 0);
++        assert_eq!(encoder.table.size(), 0);
++        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &big)]));
++
++        // Both sides agree that the table is empty.
++        let block = encode(&mut encoder, vec![header("x-a", &value)]);
++        assert_eq!(representations(&block), [0x40]);
++        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
++    }
++
++    /// Chromium indexes every ordinary field; Firefox never indexes
++    /// `authorization` and indexes the rest.
++    #[test]
++    fn field_indexing_rules_index_the_fields_nghttp2_keeps_out() {
++        let fields = || {
++            vec![
++                header("content-length", "1234"),
++                header("authorization", "Basic x"),
++                header("if-none-match", "\"a\""),
++            ]
++        };
++        let mut upstream = Encoder::default();
++        assert_eq!(
++            representations(&encode(&mut upstream, fields())),
++            [0x00, 0x00, 0x00]
++        );
++
++        let mut all = Encoder::default();
++        all.set_profile(HpackEncoderProfile::new().field_indexing(FieldIndexing::All));
++        assert_eq!(
++            representations(&encode(&mut all, fields())),
++            [0x40 | 28, 0x40 | 23, 0x40 | 41]
++        );
++
++        let mut firefox = Encoder::default();
++        firefox.set_profile(
++            HpackEncoderProfile::new().field_indexing(FieldIndexing::NeverIndexAuthorization),
++        );
++        let block = encode(&mut firefox, fields());
++        assert_eq!(representations(&block), [0x40 | 28, 0x10, 0x40 | 41]);
++        // The never-indexed literal names static entry 23.
++        let authorization = block.iter().position(|byte| *byte == 0x1f).unwrap();
++        assert_eq!(block[authorization + 1], 23 - 15);
++
++        // A further nameless value of `authorization` is never indexed too.
++        let further = Header::Field {
++            name: None,
++            value: HeaderValue::from_static("Basic y"),
++        };
++        let block = encode(
++            &mut firefox,
++            vec![header("authorization", "Basic x"), further],
++        );
++        assert_eq!(representations(&block), [0x10, 0x10]);
++    }
++
++    /// Firefox announces every table size setting, even an unchanged one.
++    #[test]
++    fn every_setting_size_updates_announce_unchanged_sizes() {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(HpackEncoderProfile::new().size_updates(SizeUpdates::EverySetting));
++
++        encoder.update_max_size(4096);
++        assert_eq!(Some(SizeUpdate::One(4096)), encoder.size_update);
++        let block = encode(&mut encoder, vec![method("GET")]);
++        assert_eq!(*block, [0x3f, 0xe1, 0x1f, 0x80 | 2]);
++
++        encoder.update_max_size(1000);
++        encoder.update_max_size(4096);
++        assert_eq!(Some(SizeUpdate::Two(1000, 4096)), encoder.size_update);
++        encode(&mut encoder, vec![]);
++
++        encoder.update_max_size(4096);
++        encoder.update_max_size(2000);
++        assert_eq!(Some(SizeUpdate::One(2000)), encoder.size_update);
++
++        // The default skips a setting equal to the table size.
++        let mut upstream = Encoder::default();
++        upstream.update_max_size(4096);
++        assert_eq!(None, upstream.size_update);
++    }
++
++    /// Firefox Huffman-codes every string, and flags an empty one as coded.
++    #[test]
++    fn always_including_empty_flags_an_empty_string() {
++        let mut encoder = Encoder::new(0, 0);
++        encoder.set_profile(
++            HpackEncoderProfile::new().huffman_coding(HuffmanCoding::AlwaysIncludingEmpty),
++        );
++        let res = encode(&mut encoder, vec![header("accept-language", "")]);
++        assert_eq!(*res, [0x0f, 0x02, 0x80]);
++        let res = encode(&mut encoder, vec![header("accept-language", "13")]);
++        assert_eq!(&res[..3], &[0x0f, 0x02, 0x80 | 2]);
++
++        let mut decoder = Decoder::new(0);
++        let res = encode(&mut encoder, vec![header("accept-language", "")]);
++        assert_eq!(decode(&mut decoder, res), pairs(&[("accept-language", "")]));
++    }
++
+     /// Returns each representation's leading pattern: the indexed bit, the
+     /// incremental pattern with its 6-bit name index, or the 4-bit literal
+     /// pattern without its name index.
+diff --git a/src/hpack/table.rs b/src/hpack/table.rs
+index 527e4f5..45edaa3 100644
+--- a/src/hpack/table.rs
++++ b/src/hpack/table.rs
+@@ -1,5 +1,8 @@
+ use super::Header;
+-use crate::ext::{CookieCrumbs, HpackEncoderProfile, StaticNameIndex};
++use crate::ext::{
++    CookieCrumbs, FieldIndexing, HpackEncoderProfile, IndexingLimit, NameReference,
++    StaticNameIndex, UnindexedMatch,
++};
+ use crate::frame::PseudoId;
+ 
+ use fnv::FnvHasher;
+@@ -40,6 +43,20 @@ pub enum Index {
+ 
+     // The header is not indexed by this table
+     NotIndexed(Header),
++
++    // The header is sent with incremental indexing, naming this entry when
++    // there is one, but is larger than the whole table, which it has emptied
++    // without being inserted.
++    Oversized(Option<usize>, Header),
++}
++
++/// The dynamic entries that share a field's name, as HPACK indices.
++#[derive(Debug, Clone, Copy)]
++struct DynamicName {
++    oldest: usize,
++    newest: usize,
++    // The entry whose value also matches, if any.
++    value: Option<usize>,
+ }
+ 
+ #[derive(Debug)]
+@@ -121,6 +138,7 @@ impl Table {
+             Inserted(idx) => &self.slots[idx].header,
+             InsertedValue(_, idx) => &self.slots[idx].header,
+             NotIndexed(ref h) => h,
++            Oversized(_, ref h) => h,
+         }
+     }
+ 
+@@ -132,7 +150,7 @@ impl Table {
+             Name(idx, ..) => idx,
+             Inserted(idx) => idx + DYN_OFFSET,
+             InsertedValue(_name_idx, slot_idx) => slot_idx + DYN_OFFSET,
+-            NotIndexed(_) => panic!("cannot resolve index"),
++            NotIndexed(_) | Oversized(..) => panic!("cannot resolve index"),
+         }
+     }
+ 
+@@ -146,26 +164,42 @@ impl Table {
+     }
+ 
+     /// Index the header in the HPACK table.
+-    pub fn index(&mut self, header: Header) -> Index {
++    pub fn index(&mut self, mut header: Header) -> Index {
++        if self.profile.fields() == FieldIndexing::NeverIndexAuthorization {
++            if let Header::Field {
++                ref name,
++                ref mut value,
++            } = header
++            {
++                if name == header::AUTHORIZATION {
++                    value.set_sensitive(true);
++                }
++            }
++        }
++
+         // Check the static table
+         let statik = index_static(&header, self.profile.static_name());
+ 
++        if self.profile.names() != NameReference::Upstream {
++            return self.index_profiled(header, statik);
++        }
++
+         // Don't index certain headers. This logic is borrowed from nghttp2.
+         // A `cookie` crumb is the exception: the profile that asked for
+         // crumbs decides its representation, through its sensitivity.
+-        if header.skip_value_index() && !self.indexes_crumb(&header) {
++        if self.keeps_out(&header) {
+             // Right now, if this is true, the header name is always in the
+             // static table. At some point in the future, this might not be true
+             // and this logic will need to be updated.
+             debug_assert!(statik.is_some(), "skip_value_index requires a static name",);
+-            return Index::new(statik, header);
++            return self.unindexed(statik, header);
+         }
+ 
+         // A pseudo-header the caller asked to keep literal is treated the same
+         // way, except that it need not have a static name: `:protocol` has
+         // none, and is then sent with a literal name.
+         if self.is_literal_pseudo(&header) {
+-            return Index::new(statik, header);
++            return self.unindexed(statik, header);
+         }
+ 
+         // If the header is already indexed by the static table, return that
+@@ -174,17 +208,154 @@ impl Table {
+         }
+ 
+         // Don't index large headers
+-        if header.len() * 4 > self.max_size * 3 {
++        if self.exceeds_limit(&header) {
+             return Index::new(statik, header);
+         }
++        if self.overflows(&header) {
++            self.evict_all();
++            return Index::Oversized(statik.map(|(n, _)| n), header);
++        }
+ 
+         self.index_dynamic(header, statik)
+     }
+ 
+-    /// Returns whether `header` is a `cookie` crumb the profile may index.
+-    fn indexes_crumb(&self, header: &Header) -> bool {
+-        self.profile.crumbs() != CookieCrumbs::Whole
+-            && matches!(header, Header::Field { name, .. } if name == http::header::COOKIE)
++    /// Indexes a header under a profile that chooses its own name references.
++    ///
++    /// Every reference is resolved against the table as it stands before this
++    /// header changes it, which is the table the peer resolves it against
++    /// (RFC 7541 section 4.4).
++    fn index_profiled(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
++        let dynamic = self.find(&header);
++        let full = match statik {
++            Some((n, true)) => Some(n),
++            _ => dynamic.and_then(|d| d.value),
++        };
++        let static_name = statik.map(|(n, _)| n);
++        let name = match self.profile.names() {
++            NameReference::OldestDynamic => dynamic.map(|d| d.oldest).or(static_name),
++            _ => static_name.or(dynamic.map(|d| d.newest)),
++        };
++
++        if self.keeps_out(&header) || self.is_literal_pseudo(&header) || header.is_sensitive() {
++            return match (full, self.profile.matched()) {
++                (Some(n), UnindexedMatch::Index) => Index::Indexed(n, header),
++                (Some(n), UnindexedMatch::Literal) => Index::Name(n, header),
++                (None, _) => literal(name, header),
++            };
++        }
++
++        if let Some(n) = full {
++            return Index::Indexed(n, header);
++        }
++        if self.exceeds_limit(&header) {
++            return literal(name, header);
++        }
++        if self.overflows(&header) {
++            self.evict_all();
++            return Index::Oversized(name, header);
++        }
++
++        match self.index_dynamic(header, statik) {
++            // The insertion names the entry chosen above, before it shifted
++            // the dynamic indices.
++            Index::InsertedValue(_, slot) => match name {
++                Some(n) => Index::InsertedValue(n, slot),
++                None => Index::Inserted(slot),
++            },
++            index => index,
++        }
++    }
++
++    /// Returns the upstream representation of a header kept out of the table.
++    fn unindexed(&self, statik: Option<(usize, bool)>, header: Header) -> Index {
++        match statik {
++            Some((n, true)) if self.profile.matched() == UnindexedMatch::Literal => {
++                Index::Name(n, header)
++            }
++            _ => Index::new(statik, header),
++        }
++    }
++
++    /// Returns whether `header` never enters the dynamic table.
++    ///
++    /// `:path` and a `cookie` sent whole always stay out, as upstream keeps
++    /// them; the profile decides the other ordinary fields.
++    fn keeps_out(&self, header: &Header) -> bool {
++        match header {
++            Header::Field { name, .. } if name == http::header::COOKIE => {
++                self.profile.crumbs() == CookieCrumbs::Whole
++            }
++            Header::Field { .. } => {
++                self.profile.fields() == FieldIndexing::Nghttp2 && header.skip_value_index()
++            }
++            _ => header.skip_value_index(),
++        }
++    }
++
++    /// Returns whether `header` is too large for the profile to index.
++    fn exceeds_limit(&self, header: &Header) -> bool {
++        match self.profile.limit() {
++            IndexingLimit::ThreeQuarters => header.len() * 4 > self.max_size * 3,
++            IndexingLimit::Half => header.len() > self.max_size / 2 || self.max_size < 128,
++            IndexingLimit::Unlimited => false,
++        }
++    }
++
++    /// Returns whether `header` is sent for insertion but cannot fit at all.
++    fn overflows(&self, header: &Header) -> bool {
++        self.profile.limit() == IndexingLimit::Unlimited
++            && header.len() > self.max_size
++            && !header.is_sensitive()
++    }
++
++    /// Evicts every dynamic entry, as inserting an oversized entry does.
++    fn evict_all(&mut self) {
++        while !self.slots.is_empty() {
++            self.evict(None);
++        }
++    }
++
++    /// Finds the dynamic entries named like `header` without changing the
++    /// table.
++    fn find(&self, header: &Header) -> Option<DynamicName> {
++        if self.indices.is_empty() {
++            return None;
++        }
++
++        let hash = hash_header(header);
++        let mut probe = desired_pos(self.mask, hash);
++        let mut dist = 0;
++
++        probe_loop!(probe < self.indices.len(), {
++            let pos = self.indices[probe]?;
++            if probe_distance(self.mask, pos.hash, probe) < dist {
++                return None;
++            }
++            let head = pos.index.wrapping_add(self.inserted);
++            if pos.hash == hash && self.slots[head].header.name() == header.name() {
++                // A chain runs from the oldest entry with this name to the
++                // newest.
++                let mut found = DynamicName {
++                    oldest: head + DYN_OFFSET,
++                    newest: head + DYN_OFFSET,
++                    value: None,
++                };
++                let mut slot = head;
++                loop {
++                    if found.value.is_none() && self.slots[slot].header.value_eq(header) {
++                        found.value = Some(slot + DYN_OFFSET);
++                    }
++                    match self.slots[slot].next {
++                        Some(next) => {
++                            slot = next.wrapping_add(self.inserted);
++                            found.newest = slot + DYN_OFFSET;
++                        }
++                        None => return Some(found),
++                    }
++                }
++            }
++            dist += 1;
++        });
+     }
+ 
+     /// Returns whether the caller asked for this pseudo-header to stay literal.
+@@ -678,6 +849,14 @@ impl Table {
+     }
+ }
+ 
++/// Returns a literal that names `name` when it is set.
++fn literal(name: Option<usize>, header: Header) -> Index {
++    match name {
++        Some(n) => Index::Name(n, header),
++        None => Index::NotIndexed(header),
++    }
++}
++
+ impl Index {
+     fn new(v: Option<(usize, bool)>, e: Header) -> Index {
+         match v {

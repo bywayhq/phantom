@@ -1,5 +1,8 @@
 use super::Header;
-use crate::ext::{CookieCrumbs, HpackEncoderProfile, StaticNameIndex};
+use crate::ext::{
+    CookieCrumbs, FieldIndexing, HpackEncoderProfile, IndexingLimit, NameReference,
+    StaticNameIndex, UnindexedMatch,
+};
 use crate::frame::PseudoId;
 
 use fnv::FnvHasher;
@@ -40,6 +43,20 @@ pub enum Index {
 
     // The header is not indexed by this table
     NotIndexed(Header),
+
+    // The header is sent with incremental indexing, naming this entry when
+    // there is one, but is larger than the whole table, which it has emptied
+    // without being inserted.
+    Oversized(Option<usize>, Header),
+}
+
+/// The dynamic entries that share a field's name, as HPACK indices.
+#[derive(Debug, Clone, Copy)]
+struct DynamicName {
+    oldest: usize,
+    newest: usize,
+    // The entry whose value also matches, if any.
+    value: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -121,6 +138,7 @@ impl Table {
             Inserted(idx) => &self.slots[idx].header,
             InsertedValue(_, idx) => &self.slots[idx].header,
             NotIndexed(ref h) => h,
+            Oversized(_, ref h) => h,
         }
     }
 
@@ -132,7 +150,7 @@ impl Table {
             Name(idx, ..) => idx,
             Inserted(idx) => idx + DYN_OFFSET,
             InsertedValue(_name_idx, slot_idx) => slot_idx + DYN_OFFSET,
-            NotIndexed(_) => panic!("cannot resolve index"),
+            NotIndexed(_) | Oversized(..) => panic!("cannot resolve index"),
         }
     }
 
@@ -146,26 +164,42 @@ impl Table {
     }
 
     /// Index the header in the HPACK table.
-    pub fn index(&mut self, header: Header) -> Index {
+    pub fn index(&mut self, mut header: Header) -> Index {
+        if self.profile.fields() == FieldIndexing::NeverIndexAuthorization {
+            if let Header::Field {
+                ref name,
+                ref mut value,
+            } = header
+            {
+                if name == header::AUTHORIZATION {
+                    value.set_sensitive(true);
+                }
+            }
+        }
+
         // Check the static table
         let statik = index_static(&header, self.profile.static_name());
+
+        if self.profile.names() != NameReference::Upstream {
+            return self.index_profiled(header, statik);
+        }
 
         // Don't index certain headers. This logic is borrowed from nghttp2.
         // A `cookie` crumb is the exception: the profile that asked for
         // crumbs decides its representation, through its sensitivity.
-        if header.skip_value_index() && !self.indexes_crumb(&header) {
+        if self.keeps_out(&header) {
             // Right now, if this is true, the header name is always in the
             // static table. At some point in the future, this might not be true
             // and this logic will need to be updated.
             debug_assert!(statik.is_some(), "skip_value_index requires a static name",);
-            return Index::new(statik, header);
+            return self.unindexed(statik, header);
         }
 
         // A pseudo-header the caller asked to keep literal is treated the same
         // way, except that it need not have a static name: `:protocol` has
         // none, and is then sent with a literal name.
         if self.is_literal_pseudo(&header) {
-            return Index::new(statik, header);
+            return self.unindexed(statik, header);
         }
 
         // If the header is already indexed by the static table, return that
@@ -174,17 +208,154 @@ impl Table {
         }
 
         // Don't index large headers
-        if header.len() * 4 > self.max_size * 3 {
+        if self.exceeds_limit(&header) {
             return Index::new(statik, header);
+        }
+        if self.overflows(&header) {
+            self.evict_all();
+            return Index::Oversized(statik.map(|(n, _)| n), header);
         }
 
         self.index_dynamic(header, statik)
     }
 
-    /// Returns whether `header` is a `cookie` crumb the profile may index.
-    fn indexes_crumb(&self, header: &Header) -> bool {
-        self.profile.crumbs() != CookieCrumbs::Whole
-            && matches!(header, Header::Field { name, .. } if name == http::header::COOKIE)
+    /// Indexes a header under a profile that chooses its own name references.
+    ///
+    /// Every reference is resolved against the table as it stands before this
+    /// header changes it, which is the table the peer resolves it against
+    /// (RFC 7541 section 4.4).
+    fn index_profiled(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
+        let dynamic = self.find(&header);
+        let full = match statik {
+            Some((n, true)) => Some(n),
+            _ => dynamic.and_then(|d| d.value),
+        };
+        let static_name = statik.map(|(n, _)| n);
+        let name = match self.profile.names() {
+            NameReference::OldestDynamic => dynamic.map(|d| d.oldest).or(static_name),
+            _ => static_name.or(dynamic.map(|d| d.newest)),
+        };
+
+        if self.keeps_out(&header) || self.is_literal_pseudo(&header) || header.is_sensitive() {
+            return match (full, self.profile.matched()) {
+                (Some(n), UnindexedMatch::Index) => Index::Indexed(n, header),
+                (Some(n), UnindexedMatch::Literal) => Index::Name(n, header),
+                (None, _) => literal(name, header),
+            };
+        }
+
+        if let Some(n) = full {
+            return Index::Indexed(n, header);
+        }
+        if self.exceeds_limit(&header) {
+            return literal(name, header);
+        }
+        if self.overflows(&header) {
+            self.evict_all();
+            return Index::Oversized(name, header);
+        }
+
+        match self.index_dynamic(header, statik) {
+            // The insertion names the entry chosen above, before it shifted
+            // the dynamic indices.
+            Index::InsertedValue(_, slot) => match name {
+                Some(n) => Index::InsertedValue(n, slot),
+                None => Index::Inserted(slot),
+            },
+            index => index,
+        }
+    }
+
+    /// Returns the upstream representation of a header kept out of the table.
+    fn unindexed(&self, statik: Option<(usize, bool)>, header: Header) -> Index {
+        match statik {
+            Some((n, true)) if self.profile.matched() == UnindexedMatch::Literal => {
+                Index::Name(n, header)
+            }
+            _ => Index::new(statik, header),
+        }
+    }
+
+    /// Returns whether `header` never enters the dynamic table.
+    ///
+    /// `:path` and a `cookie` sent whole always stay out, as upstream keeps
+    /// them; the profile decides the other ordinary fields.
+    fn keeps_out(&self, header: &Header) -> bool {
+        match header {
+            Header::Field { name, .. } if name == http::header::COOKIE => {
+                self.profile.crumbs() == CookieCrumbs::Whole
+            }
+            Header::Field { .. } => {
+                self.profile.fields() == FieldIndexing::Nghttp2 && header.skip_value_index()
+            }
+            _ => header.skip_value_index(),
+        }
+    }
+
+    /// Returns whether `header` is too large for the profile to index.
+    fn exceeds_limit(&self, header: &Header) -> bool {
+        match self.profile.limit() {
+            IndexingLimit::ThreeQuarters => header.len() * 4 > self.max_size * 3,
+            IndexingLimit::Half => header.len() > self.max_size / 2 || self.max_size < 128,
+            IndexingLimit::Unlimited => false,
+        }
+    }
+
+    /// Returns whether `header` is sent for insertion but cannot fit at all.
+    fn overflows(&self, header: &Header) -> bool {
+        self.profile.limit() == IndexingLimit::Unlimited
+            && header.len() > self.max_size
+            && !header.is_sensitive()
+    }
+
+    /// Evicts every dynamic entry, as inserting an oversized entry does.
+    fn evict_all(&mut self) {
+        while !self.slots.is_empty() {
+            self.evict(None);
+        }
+    }
+
+    /// Finds the dynamic entries named like `header` without changing the
+    /// table.
+    fn find(&self, header: &Header) -> Option<DynamicName> {
+        if self.indices.is_empty() {
+            return None;
+        }
+
+        let hash = hash_header(header);
+        let mut probe = desired_pos(self.mask, hash);
+        let mut dist = 0;
+
+        probe_loop!(probe < self.indices.len(), {
+            let pos = self.indices[probe]?;
+            if probe_distance(self.mask, pos.hash, probe) < dist {
+                return None;
+            }
+            let head = pos.index.wrapping_add(self.inserted);
+            if pos.hash == hash && self.slots[head].header.name() == header.name() {
+                // A chain runs from the oldest entry with this name to the
+                // newest.
+                let mut found = DynamicName {
+                    oldest: head + DYN_OFFSET,
+                    newest: head + DYN_OFFSET,
+                    value: None,
+                };
+                let mut slot = head;
+                loop {
+                    if found.value.is_none() && self.slots[slot].header.value_eq(header) {
+                        found.value = Some(slot + DYN_OFFSET);
+                    }
+                    match self.slots[slot].next {
+                        Some(next) => {
+                            slot = next.wrapping_add(self.inserted);
+                            found.newest = slot + DYN_OFFSET;
+                        }
+                        None => return Some(found),
+                    }
+                }
+            }
+            dist += 1;
+        });
     }
 
     /// Returns whether the caller asked for this pseudo-header to stay literal.
@@ -675,6 +846,14 @@ impl Table {
     /// Returns the table size
     pub fn size(&self) -> usize {
         self.size
+    }
+}
+
+/// Returns a literal that names `name` when it is set.
+fn literal(name: Option<usize>, header: Header) -> Index {
+    match name {
+        Some(n) => Index::Name(n, header),
+        None => Index::NotIndexed(header),
     }
 }
 

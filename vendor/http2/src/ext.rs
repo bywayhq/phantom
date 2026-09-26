@@ -119,6 +119,109 @@ pub enum HuffmanCoding {
     WhenShorter,
     /// Huffman-code whenever the coded form is no longer than the raw one.
     WhenNotLonger,
+    /// Always Huffman-code, and set the Huffman flag on an empty string too.
+    ///
+    /// `Always` sends an empty string raw, as the one byte `0x00`; this rule
+    /// sends it as `0x80`, a coded string of length zero.
+    AlwaysIncludingEmpty,
+}
+
+/// Which ordinary fields an HPACK encoder keeps out of the dynamic table.
+///
+/// A `cookie` field sent whole is always kept out, and `:path` always is, as
+/// upstream does; this choice decides the other ordinary fields.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum FieldIndexing {
+    /// Keep `age`, `authorization`, `content-length`, `etag`,
+    /// `if-modified-since`, `if-none-match`, `location`, and `set-cookie` out
+    /// of the table, as literals without indexing unless sensitive.
+    ///
+    /// This is the upstream choice, borrowed from nghttp2.
+    #[default]
+    Nghttp2,
+    /// Let every ordinary field enter the table.
+    All,
+    /// Send `authorization` as a never-indexed literal and let every other
+    /// ordinary field enter the table.
+    NeverIndexAuthorization,
+}
+
+/// Which table entry names a literal field whose name is in the table.
+///
+/// A literal can name its field with any entry that has the same name, in the
+/// static or the dynamic table. The index chosen is visible on the wire.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum NameReference {
+    /// The static entry when one has the name, otherwise the newest dynamic
+    /// entry, except that a sensitive field whose name is in the dynamic
+    /// table names the newest such entry, and a field kept out of the table
+    /// names only a static entry.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    Upstream,
+    /// The static entry when one has the name, otherwise the newest dynamic
+    /// entry.
+    StaticThenNewest,
+    /// The oldest dynamic entry when one has the name, otherwise the static
+    /// entry: the highest-numbered entry with the name.
+    OldestDynamic,
+}
+
+/// How a field kept out of the dynamic table is sent when an entry matches
+/// both its name and its value.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum UnindexedMatch {
+    /// As that entry's index, so `:path: /` is sent as index 4.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    Index,
+    /// As a literal naming that entry, so `:path: /` is sent as a literal
+    /// without indexing naming entry 4.
+    Literal,
+}
+
+/// The largest field an HPACK encoder inserts into the dynamic table.
+///
+/// The size is the RFC 7541 section 4.1 entry size, name plus value plus 32
+/// bytes, compared with the current maximum table size.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum IndexingLimit {
+    /// A field larger than three quarters of the table is a literal without
+    /// indexing.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    ThreeQuarters,
+    /// A field larger than half the table, or any field when the table is
+    /// smaller than 128 bytes, is a literal without indexing.
+    Half,
+    /// Every field that may enter the table is sent with incremental
+    /// indexing. One larger than the whole table empties it and is not
+    /// inserted, as RFC 7541 section 4.4 requires.
+    Unlimited,
+}
+
+/// When an HPACK encoder starts a field block with a dynamic-table size
+/// update after the peer sends `SETTINGS_HEADER_TABLE_SIZE`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SizeUpdates {
+    /// Only when the setting changes the table size.
+    ///
+    /// This is the upstream choice.
+    #[default]
+    WhenChanged,
+    /// After every received setting, even one equal to the current size.
+    ///
+    /// When the peer sent a smaller value before the last one, the smallest
+    /// is announced first.
+    EverySetting,
 }
 
 /// How an HPACK encoder sends each `cookie` field.
@@ -217,6 +320,11 @@ pub struct HpackEncoderProfile {
     static_name_index: StaticNameIndex,
     huffman_coding: HuffmanCoding,
     cookie_crumbs: CookieCrumbs,
+    field_indexing: FieldIndexing,
+    name_reference: NameReference,
+    unindexed_match: UnindexedMatch,
+    indexing_limit: IndexingLimit,
+    size_updates: SizeUpdates,
 }
 
 impl HpackEncoderProfile {
@@ -261,6 +369,41 @@ impl HpackEncoderProfile {
         self
     }
 
+    /// Keeps ordinary fields out of the dynamic table by this rule.
+    #[must_use]
+    pub fn field_indexing(mut self, indexing: FieldIndexing) -> Self {
+        self.field_indexing = indexing;
+        self
+    }
+
+    /// Names literal fields with table entries by this rule.
+    #[must_use]
+    pub fn name_reference(mut self, reference: NameReference) -> Self {
+        self.name_reference = reference;
+        self
+    }
+
+    /// Sends a field kept out of the table that matches an entry by this rule.
+    #[must_use]
+    pub fn unindexed_match(mut self, matched: UnindexedMatch) -> Self {
+        self.unindexed_match = matched;
+        self
+    }
+
+    /// Inserts fields into the dynamic table up to this size.
+    #[must_use]
+    pub fn indexing_limit(mut self, limit: IndexingLimit) -> Self {
+        self.indexing_limit = limit;
+        self
+    }
+
+    /// Announces the peer's table size setting by this rule.
+    #[must_use]
+    pub fn size_updates(mut self, updates: SizeUpdates) -> Self {
+        self.size_updates = updates;
+        self
+    }
+
     pub(crate) fn is_literal_pseudo(self, id: PseudoId) -> bool {
         self.literal_pseudo_headers & pseudo_bit(id) != 0
     }
@@ -275,6 +418,26 @@ impl HpackEncoderProfile {
 
     pub(crate) fn crumbs(self) -> CookieCrumbs {
         self.cookie_crumbs
+    }
+
+    pub(crate) fn fields(self) -> FieldIndexing {
+        self.field_indexing
+    }
+
+    pub(crate) fn names(self) -> NameReference {
+        self.name_reference
+    }
+
+    pub(crate) fn matched(self) -> UnindexedMatch {
+        self.unindexed_match
+    }
+
+    pub(crate) fn limit(self) -> IndexingLimit {
+        self.indexing_limit
+    }
+
+    pub(crate) fn updates(self) -> SizeUpdates {
+        self.size_updates
     }
 }
 

@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.4`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.5`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -314,9 +314,8 @@ With the cap, a peer advertising 65,536 would get no update, and later blocks
 would diverge once the client's own entries exceed 4 KiB. The exposure is
 small. The table allocates nothing in proportion to its maximum and holds only
 fields the client itself encodes. Phantom limits each request to 100 fields
-and 32 KiB, and fields larger than three quarters of the table are never
-indexed. Phantom's regressions pin the uncapped update for 65,536 and
-2^32 - 1.
+and 32 KiB, and a field larger than the table is never inserted. Phantom's
+regressions pin the uncapped update for 65,536 and 2^32 - 1.
 
 ## HPACK encoder identity
 
@@ -333,10 +332,10 @@ way but that are visible on the wire, and the retained WebSocket captures under
   on extended CONNECT.
 - Whether a literal string is Huffman-coded. Over all 27 retained captures,
   Chrome's and Edge's 774 coding decisions are exactly the cases where the
-  coded form is strictly shorter, and Firefox's 831 are exactly the cases
-  where it is no longer. The two rules differ only on a tie, and ties are
-  common: `CONNECT`, `13`, `*/*`, `?0`, `?1`, and `1` all code to their own
-  raw length. Upstream always codes, so it matches neither client on a tie.
+  coded form is strictly shorter, and Firefox codes all 831 of its strings.
+  Ties are common: `CONNECT`, `13`, `*/*`, `?0`, `?1`, and `1` all code to
+  their own raw length. Upstream always codes, so it matches Chromium on no
+  tie.
 
 `hpack-encoder-profile.patch` adds `http2::ext::HpackEncoderProfile` and the
 client builder option `hpack_encoder_profile`. It states the three choices for
@@ -400,27 +399,96 @@ value; should a crumb still fail to convert, a debug assertion fires and the
 field is sent once, whole. The default `Whole` encodes byte for byte as
 before.
 
-Two Firefox choices are not reproduced, because they belong to the encoder as
-a whole rather than to crumbs. Firefox names a literal with the
-highest-numbered table entry whose name matches, which after a crumb enters
-the dynamic table is the oldest dynamic `cookie` entry. This encoder names
-static entry 32 in an incrementally indexed literal and the newest dynamic
-`cookie` entry in a never-indexed one; the Firefox replay in
-`crates/phantom/tests/cookie_crumbs.rs` shows both differences. Firefox also
-stops indexing an entry larger than half the table, where this encoder stops
-at three quarters.
-
-Chromium has no such limit. quiche `HpackHeaderTable::TryAddEntry` evicts
-entries to make room for any incrementally indexed field, and empties the
-table without inserting when the entry exceeds it, so a crumb whose entry
-exceeds three quarters of the table is an incrementally indexed literal in
-Chrome and a literal without indexing here. The limit belongs to the whole
-encoder, and no capture holds a crumb that large:
-<https://github.com/google/quiche/blob/535a2730e77d47e0dc03746555cc9c34b17bc9e9/quiche/http2/hpack/hpack_header_table.cc#L140-L153>.
+The name index a crumb carries once a `cookie` entry is in the dynamic table,
+and the size above which a crumb is not indexed, belong to the encoder as a
+whole; [HPACK indexing rules](#hpack-indexing-rules) covers them.
 
 The patch changes `src/ext.rs` and `src/hpack/{encoder,table}.rs`, and adds
 encoder unit tests for both split rules, the indexing of each crumb, the
 sensitivity override, a nameless further value, and the unchanged default.
+
+## HPACK indexing rules
+
+The encoder profile above leaves the rest of the indexing policy upstream's:
+which ordinary fields enter the dynamic table, which entry names a literal,
+how large an indexed field may be, and when a table size setting is
+announced. Each browser decides some of these differently from upstream,
+and the Firefox captures show it: replaying every retained Firefox HTTP/2
+session with only the profile above reproduces 3 of 27 connections, and at
+least one HEADERS block of each other connection differs. The Chromium-family
+captures hold no field that separates the Chromium rules from upstream's, so
+those rules rest on source.
+
+The rules come from the browsers' encoders:
+
+- Firefox 156 (`Http2Compressor::ProcessHeader` and `EncodeHeaderBlock`,
+  mozilla-central `4d5216592535`) scans the static table and then the dynamic
+  table from newest to oldest. The first entry that matches name and value is
+  sent as an index; otherwise a literal names the last entry with the name,
+  which is the oldest dynamic entry when one exists. `:path` is always a
+  literal without indexing, even `/`, named by the matching entry.
+  `authorization` and a crumb under 20 bytes are never-indexed literals.
+  Every other field is inserted unless its entry size exceeds half the table,
+  or the table is under 128 bytes. `HuffmanAppend` codes every string, an
+  empty one as `0x80`. `SetMaxBufferSize` queues a size update for every
+  received `SETTINGS_HEADER_TABLE_SIZE`, even one equal to the current size,
+  and announces the lowest value first when it is below the last one.
+- Chromium 154 pins quiche `80bf9559d3a4` in `DEPS`; its `hpack_encoder.cc`
+  and `hpack_header_table.cc` are identical to those at `535a2730e77d`, cited
+  above. `HpackEncoder::EncodeRepresentations` sends a match of name and
+  value as an index, and its default policy indexes every ordinary field and
+  `:authority`; it has no never-indexed form. `HpackHeaderTable::GetByName`
+  prefers the static entry and then the newest dynamic one, and
+  `TryAddEntry` evicts to make room for a field of any size, emptying the
+  table for one larger than it. `ApplyHeaderTableSizeSetting` ignores a
+  setting equal to the current one. Chromium's `net/spdy` sets no indexing
+  policy.
+
+Sources:
+
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1037>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1365>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Compression.cpp#l1428>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/DEPS#L452>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L72-L83>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L140-L160>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_header_table.cc#L27-L41>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_header_table.cc#L140-L153>
+
+`hpack-indexing-rules.patch` adds five profile choices and one Huffman rule to
+`http2::ext`, each defaulting to the upstream behavior:
+
+- `FieldIndexing`: `Nghttp2` keeps upstream's list (`age`, `authorization`,
+  `content-length`, `etag`, `if-modified-since`, `if-none-match`,
+  `location`, `set-cookie`) out of the table; `All` indexes every ordinary
+  field; `NeverIndexAuthorization` marks `authorization`, and any nameless
+  further value of it, sensitive and indexes the rest. `:path`, and a
+  `cookie` sent whole, stay out under every rule.
+- `NameReference`: `Upstream`; `StaticThenNewest`; `OldestDynamic`, the
+  oldest dynamic entry with the name, otherwise the static entry that
+  `StaticNameIndex` picks. A non-upstream rule resolves every reference
+  against the table as it stands before the field changes it, which is the
+  table the peer resolves it against (RFC 7541 section 4.4), so a literal
+  may name an entry its own insertion evicts.
+- `UnindexedMatch`: `Index` sends a field kept out of the table that matches
+  an entry as that index; `Literal` sends it as a literal naming the entry.
+- `IndexingLimit`: `ThreeQuarters` (upstream), `Half`, or `Unlimited`. An
+  `Unlimited` field larger than the table is sent with incremental indexing,
+  empties the table, and is not inserted.
+- `SizeUpdates`: `WhenChanged` (upstream) or `EverySetting`.
+- `HuffmanCoding::AlwaysIncludingEmpty`: codes every string and flags an
+  empty one.
+
+A caller's sensitive field stays a never-indexed literal under every rule,
+though Chromium has no such form. The patch changes `src/ext.rs` and
+`src/hpack/{encoder,table}.rs`. Its encoder unit tests cover both name
+references, including the Firefox cookie sequence, the literal match of
+`:path: /`, both size limits and the evicting oversized field (decoded by
+the crate's own decoder), each field rule, repeated and unchanged size
+settings, and the flagged empty string. The default-profile identity test
+still passes. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays
+every retained Chromium-family and Firefox HTTP/2 session and compares each
+HEADERS block with the capture byte for byte.
 
 ## Refreshing the vendor copy
 
