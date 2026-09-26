@@ -155,32 +155,264 @@ fn chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process()
     Ok(())
 }
 
-/// The same sorted list appears in the retained ClientHello, which the
-/// aggregate order fixture does not contain.
+/// Every retained Chrome 154 desktop capture that keeps whole ClientHellos,
+/// over TCP and QUIC, on Windows and macOS. Each file holds one browser
+/// process, or one per `run_<n>_` prefix.
+const V154_CLIENT_HELLO_CAPTURES: &[(&str, &str)] = &[
+    ("tls/client-hello", V154_CLIENT_HELLO),
+    (
+        "tls/ech-accept",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-accept.txt"
+        )),
+    ),
+    (
+        "tls/ech-reject",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-reject.txt"
+        )),
+    ),
+    (
+        "tls/ech-quic-accept",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-quic-accept.txt"
+        )),
+    ),
+    (
+        "tls/ech-quic-reject",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/ech-quic-reject.txt"
+        )),
+    ),
+    (
+        "tls/resumption-issue-once",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-issue-once.txt"
+        )),
+    ),
+    (
+        "tls/resumption-methods",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-methods.txt"
+        )),
+    ),
+    (
+        "tls/resumption-methods-http1",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-methods-http1.txt"
+        )),
+    ),
+    (
+        "tls/resumption-no-early-data",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-no-early-data.txt"
+        )),
+    ),
+    (
+        "tls/resumption-origins",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-origins.txt"
+        )),
+    ),
+    (
+        "tls/resumption-parallel",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-parallel.txt"
+        )),
+    ),
+    (
+        "tls/resumption-partition",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-partition.txt"
+        )),
+    ),
+    (
+        "tls/resumption-sequential",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-sequential.txt"
+        )),
+    ),
+    (
+        "tls/resumption-sequential-http1",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/windows-11-26200/resumption-sequential-http1.txt"
+        )),
+    ),
+    (
+        "tls/macos/resumption-sequential",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/tls/chrome/154.0.8037.58/macos-15.5-arm64/resumption-sequential.txt"
+        )),
+    ),
+    (
+        "http3/quic-client-hello-1",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt"
+        )),
+    ),
+    (
+        "http3/quic-client-hello-2",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-2.txt"
+        )),
+    ),
+    (
+        "http3/macos/quic-client-hello-1",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/quic-client-hello-1.txt"
+        )),
+    ),
+    (
+        "http3/resumption-accept",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept.txt"
+        )),
+    ),
+    (
+        "http3/resumption-accept-delayed",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-accept-delayed.txt"
+        )),
+    ),
+    (
+        "http3/resumption-reject",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-reject.txt"
+        )),
+    ),
+    (
+        "http3/resumption-streams-accept",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-streams-accept.txt"
+        )),
+    ),
+    (
+        "http3/resumption-streams-reject",
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-streams-reject.txt"
+        )),
+    ),
+];
+
+/// Chromium sorts the list once, when it builds the SSL configuration
+/// (`EncodeTlsRequestedTrustAnchorIDList`, `net/cert/x509_util.cc:708-717` at
+/// 154.0.8037.58), and every connection sends those bytes. The 60-process
+/// aggregate shows one order across processes; these captures show it within
+/// a process, up to 13 connections from one browser.
 #[test]
-fn chrome_154_trust_anchor_extension_matches_the_retained_client_hello()
+fn chrome_154_trust_anchor_ids_match_every_retained_client_hello_in_every_process()
 -> Result<(), Box<dyn std::error::Error>> {
     let ids = v154_tls()
         .requested_trust_anchor_ids
         .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?;
-    let mut list = String::new();
+    let mut list = Vec::new();
     for id in &ids {
-        list.push_str(&format!("{:02x}", id.len()));
-        for byte in id.iter() {
-            list.push_str(&format!("{byte:02x}"));
+        list.push(u8::try_from(id.len())?);
+        list.extend_from_slice(id);
+    }
+    let mut expected = u16::try_from(list.len())?.to_be_bytes().to_vec();
+    expected.extend_from_slice(&list);
+
+    let mut hellos_per_process = BTreeMap::<String, usize>::new();
+    for (name, capture) in V154_CLIENT_HELLO_CAPTURES {
+        for (key, value) in capture.lines().filter_map(|line| line.split_once('=')) {
+            let is_hello = key.ends_with("client_hello_hex")
+                || key == "handshake_hex"
+                || (key.contains("record_") && key.ends_with("_hex"));
+            if !is_hello {
+                continue;
+            }
+            let hello = decode_hex(value)?;
+            let extension = client_hello_extension(&hello, 0xca34)
+                .map_err(|error| format!("{name} {key}: {error}"))?;
+            assert_eq!(
+                extension,
+                Some(expected.as_slice()),
+                "{name} {key} carries a different trust-anchor list than the recipe"
+            );
+            let process = key
+                .strip_prefix("run_")
+                .and_then(|rest| rest.split_once('_'))
+                .map_or_else(|| (*name).to_owned(), |(run, _)| format!("{name}/{run}"));
+            *hellos_per_process.entry(process).or_default() += 1;
         }
     }
-    let list_length = ids.iter().map(|id| id.len() + 1).sum::<usize>();
-    let extension = format!("ca34{:04x}{list_length:04x}{list}", list_length + 2);
-    let record = V154_CLIENT_HELLO
-        .lines()
-        .find_map(|line| line.strip_prefix("record_0_hex="))
-        .ok_or("fixture omitted record_0_hex")?;
-    assert!(
-        record.contains(&extension),
-        "the retained ClientHello does not carry the recipe's trust-anchor extension"
-    );
+
+    // Pin the corpus so that a renamed fixture key cannot skip captures.
+    assert_eq!(hellos_per_process.len(), 23);
+    assert_eq!(hellos_per_process.values().sum::<usize>(), 132);
+    assert_eq!(hellos_per_process.values().filter(|&&n| n > 1).count(), 18);
+    assert_eq!(hellos_per_process.values().max(), Some(&13));
     Ok(())
+}
+
+/// Returns the body of one extension of a ClientHello handshake message,
+/// with or without its TLS record header.
+fn client_hello_extension(
+    hello: &[u8],
+    extension_type: u16,
+) -> Result<Option<&[u8]>, Box<dyn std::error::Error>> {
+    fn skip(bytes: &[u8], len: usize) -> Result<&[u8], Box<dyn std::error::Error>> {
+        Ok(bytes.get(len..).ok_or("truncated ClientHello")?)
+    }
+    fn length(bytes: &[u8], width: usize) -> Result<usize, Box<dyn std::error::Error>> {
+        let bytes = bytes.get(..width).ok_or("truncated length")?;
+        Ok(bytes
+            .iter()
+            .fold(0, |value, &byte| value << 8 | usize::from(byte)))
+    }
+
+    let mut rest = if hello.first() == Some(&0x16) {
+        skip(hello, 5)?
+    } else {
+        hello
+    };
+    if rest.first() != Some(&0x01) {
+        return Err("not a ClientHello".into());
+    }
+    // Handshake header, legacy version, and random.
+    rest = skip(rest, 4 + 2 + 32)?;
+    rest = skip(rest, 1 + length(rest, 1)?)?;
+    rest = skip(rest, 2 + length(rest, 2)?)?;
+    rest = skip(rest, 1 + length(rest, 1)?)?;
+    let extensions_length = length(rest, 2)?;
+    let mut extensions = rest
+        .get(2..2 + extensions_length)
+        .ok_or("truncated extensions")?;
+    while !extensions.is_empty() {
+        let kind = length(extensions, 2)?;
+        let body_length = length(skip(extensions, 2)?, 2)?;
+        let body = extensions
+            .get(4..4 + body_length)
+            .ok_or("truncated extension body")?;
+        if kind == usize::from(extension_type) {
+            return Ok(Some(body));
+        }
+        extensions = skip(extensions, 4 + body_length)?;
+    }
+    Ok(None)
 }
 
 #[test]
