@@ -896,7 +896,7 @@ impl SessionState {
                 session_resumed: self.backend.session_reused(),
                 ech_accepted: self.backend.ech_accepted(),
             });
-            if self.backend.ech_offered()
+            if self.backend.ech_accepted()
                 && let Some(offer) = &self.ech
             {
                 offer.record(EchOutcome::Accepted);

@@ -459,11 +459,6 @@ impl ClientSession {
         ssl.ech_accepted()
     }
 
-    /// Returns whether this session offers a real ECH configuration.
-    pub(super) const fn ech_offered(&self) -> bool {
-        self.ech_offered
-    }
-
     /// Returns whether the peer rejected offered 0-RTT data.
     pub(super) const fn early_data_rejected(&self) -> bool {
         self.early_data_rejected
