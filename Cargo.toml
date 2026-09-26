@@ -53,6 +53,7 @@ zstd = "0.14.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
+unreachable_pub = "warn"
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]
