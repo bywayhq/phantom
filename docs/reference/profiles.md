@@ -384,6 +384,11 @@ replace it.
   (nothing) in the Firefox recipe. A proxy that allows one concurrent stream
   gets END_STREAM in both, and a `407` body still arriving is reset with
   `CANCEL` in both.
+- `http2_connections` sets which requests share an HTTP/2 proxy connection:
+  `Http2ProxyConnections::Shared` in the Chromium recipe and without a
+  recipe puts forwarded `http://` requests, CONNECT tunnels, and WebSocket
+  tunnels on one connection; `Http2ProxyConnections::ByPurpose` in the
+  Firefox recipe gives each of the three its own connection.
 
 Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-route-browser-evidence).
 

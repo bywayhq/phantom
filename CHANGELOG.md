@@ -47,6 +47,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `http2_rejected: Http2RejectedConnect::EndStream` to a
   `ProxyConnectTemplate` literal to keep the Chromium behavior, or
   `Http2RejectedConnect::LeaveOpen` for Firefox's.
+- `ProxyConnectTemplate` gained the public field `http2_connections`, of
+  the new type `Http2ProxyConnections`, so struct literals that name every
+  field no longer compile. It sets which requests share an HTTP/2
+  connection to an HTTPS proxy: `chromium::v154_proxy_connect` uses
+  `Shared` (forwarded `http://` requests, CONNECT tunnels, and WebSocket
+  tunnels on one connection), and `firefox::v156_proxy_connect` uses
+  `ByPurpose` (a connection for each of the three), as the `https-proxy-*`
+  captures show.
+  Migrate: add `http2_connections: Http2ProxyConnections::Shared` to a
+  `ProxyConnectTemplate` literal for the Chromium behavior, or
+  `Http2ProxyConnections::ByPurpose` for Firefox's.
 - `Http2HpackSettings` gained the public field `cookie_crumbs`
   (`Http2CookieCrumbs`) and `Http3RequestSettings` gained `cookie_crumbs`
   (`Http3CookieCrumbs`), so struct literals that name every field no longer
@@ -277,6 +288,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   ticket retention per origin, parallel connections, other ports, and
   top-level-site partitions. Fixtures for Chrome 154, Edge 153, Brave 154,
   Opera 135, and Firefox 156 are retained under `fixtures/tls/`.
+- `phantom_net::proxy::Http2ProxyPool` and
+  `HttpsProxyConnector::with_http2_proxy_pool`: HTTP/2 CONNECT tunnels
+  become streams of pooled proxy connections, keyed by proxy host, port,
+  server name, Basic credentials, and connector settings, up to the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` or
+  `MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION` (100) per connection,
+  `MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE` (8) per route, and
+  `MAX_HTTP2_PROXY_POOL_ROUTES` (32) routes. A connection that sent
+  `GOAWAY` or closed takes no new tunnels, and a CONNECT it left unprocessed
+  is sent once more on another. Without a pool, each tunnel keeps its own
+  connection. `HttpsProxyConnector::connect_forward_http2_with_credentials`
+  returns a pooled forwarding connection for a route's credentials.
 - `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest
   `407` body Phantom reads so the replay can use the challenged HTTP/1.1
   proxy connection.
@@ -603,6 +626,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   full handshake. A resumed ClientHello from `firefox::v156_tls` omits the
   empty `session_ticket` extension, as Firefox 156 does, and the recipe
   keeps up to eight tickets per origin. Fresh ClientHellos are unchanged.
+- Wire and performance: through an HTTP/2 proxy, the client opens CONNECT
+  tunnels to different origins as streams 1, 3, 5, and so on of one proxy
+  connection per session, proxy, and set of Basic credentials, as Chrome
+  154, Edge 153, and Firefox 156 do, instead of one TLS connection per
+  tunnel. With the Chromium CONNECT recipe, or no recipe, forwarded
+  `http://` requests to every origin and WebSocket tunnels are streams of
+  that connection too; with the Firefox recipe each of the three has its
+  own connection. Forwarded requests to different origins now share one
+  proxy connection instead of one per origin. A proxy sees fewer
+  connections and TLS handshakes; tunnels on a connection share its
+  flow-control windows. Each session keeps its own proxy connections.
 - Wire change for the Edge 153 recipe on a client with HTTPS record
   discovery: `edge::v153_tls` now keeps `ech_from_https_records` from
   `chromium::v154_tls`, so a direct TLS connection over TCP to an origin
@@ -824,6 +858,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Dropping an HTTP/2 tunnel after its connection closed no longer queues a
+  `RST_STREAM` that nothing writes, which left the stream in the vendored
+  `http2` store and failed its debug assertion in debug builds.
 - HTTP/2 bounds empty and small DATA frames (RUSTSEC-2026-0258). (`03ef6de`)
 - HTTP/2 and HTTP/3 keep sending the request body after an early response
   head instead of truncating it. (`8fcc374`, `f7ae758`)

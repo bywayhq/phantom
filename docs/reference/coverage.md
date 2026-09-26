@@ -672,14 +672,20 @@ Supported HTTP proxies:
   Chrome 154, Edge 153, and Firefox 156 send them, with the tunnelled
   request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
-  (RFC 9113 §8.5 CONNECT). Each tunnel uses its own proxy connection, the
-  profile's ALPN is offered unchanged, and a selection mismatch is a typed
-  error with no fallback. A Basic `407` is answered with one replay on a new
+  (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
+  proxy connection per session, proxy, and set of credentials, as Chrome
+  154, Edge 153, and Firefox 156 open them, up to the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` or 100; a full connection, or one the
+  proxy sent `GOAWAY` on, makes the next tunnel open another. The profile's
+  ALPN is offered unchanged, and a selection mismatch is a typed error with
+  no fallback. A Basic `407` is answered with one replay on a new
   stream of the challenged connection, as Chrome 154, Edge 153, and Firefox
   156 do.
 - `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
   `http`, in the profile's pseudo-header order, as Chrome 154, Edge 153, and
-  Firefox 156 send them. Requests to one origin share one proxy connection.
+  Firefox 156 send them. Forwarded requests share one proxy connection; with
+  the Chromium recipe, CONNECT and WebSocket tunnels share it too, and with
+  the Firefox recipe each of the three has its own, as in the captures.
   Exact H2 and negotiated requests use it, and a Basic `407` is answered with
   one replay on it; exact H1 fails before I/O.
 - Negotiated HTTPS through either CONNECT transport, with the same CONNECT
@@ -739,7 +745,6 @@ Deliberately excluded:
 Planned:
 
 - Other proxy authentication schemes, and learned challenge state.
-- A shared or multiplexed H2 proxy session.
 - Basic challenge retry for `http://` requests forwarded over H2.
 - Custom SOCKS5 resolvers.
 - CONNECT-UDP proxy authentication schemes other than Basic.

@@ -455,8 +455,9 @@ empty END_STREAM DATA frame, as Chromium does, and the Firefox recipe sends
 nothing, as Firefox does. Phantom waits until the driver has written that
 frame before it opens the replay, so the order holds on any runtime; the wait
 ends after about 50 ms if the proxy stops reading, and the replay's HEADERS
-can then come first. The tunnel then holds that connection alone, as every
-H2 tunnel does. An HTTP/1.1 CONNECT replay and an H1 forwarding replay use
+can then come first. The connection then carries the tunnel along with any
+other tunnels on it ([Shared HTTP/2 proxy
+connections](#shared-http2-proxy-connections)). An HTTP/1.1 CONNECT replay and an H1 forwarding replay use
 the HTTP/1.1 connection that carried the `407` when the response leaves it
 open, as Chromium and Firefox do, and open a new proxy connection otherwise.
 A second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
@@ -537,6 +538,62 @@ slot it follows the caller's fields and precedes generated framing. Owned
 bodies and static trailers can be replayed; a one-shot streaming body fails
 before Phantom opens a retry connection. This lifecycle never changes the
 selected protocol or route, and never falls back to a direct connection.
+
+### Shared HTTP/2 proxy connections
+
+Chrome 154, Edge 153, and Firefox 156 open several CONNECT tunnels as
+streams of one HTTP/2 connection to a proxy
+([evidence](validation.md#proxy-route-browser-evidence)), so Phantom does
+too. Each session keeps its own `Http2ProxyPool`, and each HTTPS proxy
+connector the session builds shares it. A pool is keyed by the proxy host,
+port, and TLS server name, the route's Basic credentials, and the identity of
+the connector settings that shape the connection (TLS, TCP, HTTP/2, and name
+resolution). Routes with other credentials never share a connection, because
+a proxy may treat a connection as authenticated once one request on it was.
+
+A new tunnel takes the oldest connection with fewer open tunnels than its
+room, the lower of the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` and 100.
+Forwarded requests on a shared connection are not counted, because they end
+quickly; the HTTP/2 layer holds a request past the proxy's limit until
+another stream ends.
+When every connection is full, the tunnel opens another, up to 8 per route;
+beyond that it takes the least loaded one, and the HTTP/2 layer holds its
+CONNECT until the proxy allows another stream. Browsers never open a second
+connection for the same key: they queue the stream on the one session. A
+tunnel is long-lived, so a queued CONNECT could wait for as long as another
+tunnel stays open; Phantom opens another connection instead. Only one setup
+runs per route at a time, and other tunnels wait for it rather than race it,
+as a browser waits for its proxy session. No lock is held across an `.await`.
+
+A connection leaves the pool when it closes, when the proxy sends `GOAWAY`,
+or when the proxy refuses a challenged CONNECT's replay. Every open tunnel
+holds a lease on its connection, so it stays open for the tunnels already on
+it, and closing or resetting one tunnel ends only its stream. When a CONNECT
+on a connection that had carried streams fails because the proxy did not
+process it, such as after a `GOAWAY` that crossed it, the connection is
+retired and the CONNECT is sent once more on another. An idle connection
+stays pooled until the proxy closes it, its route is forgotten (a pool keeps
+32 routes, least recently used first out), or the session is dropped.
+
+The profile's `ProxyConnectTemplate::http2_connections` decides which
+requests share a pool. With `Shared`, the Chromium recipe, forwarded
+`http://` requests, CONNECT tunnels, and WebSocket tunnels are streams of one
+connection, as Chromium sends a page's requests on its proxy session. With
+`ByPurpose`, the Firefox recipe, each of the three has a pool of its own, as
+Firefox opens three connections for one page. Forwarded requests to
+different origins share their connection in both.
+
+Tunnels on one connection share its flow-control windows, and the vendored
+`http2` crate divides them. On the send side, each tunnel write reserves at
+most 16 KiB of stream capacity, and the crate assigns connection capacity to
+waiting streams in the order they asked for it, then sends one DATA frame
+per stream in turn, so a busy tunnel cannot hold the connection window for
+more than one reservation ahead of the others. On the receive side, a
+tunnel returns window only as its reader consumes the bytes, and the crate
+sends a connection `WINDOW_UPDATE` once half the window has been consumed.
+A tunnel whose reader stops therefore holds up to the stream window the
+profile announces (6 MiB in the Chromium recipe) out of the connection
+window (15 MiB), as it would in a browser with the same SETTINGS.
 
 ### Cookie crumbs and compression
 

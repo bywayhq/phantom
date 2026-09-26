@@ -94,6 +94,13 @@ limit is one deadline over all attempts, delays, and the final response body.
   the active bound and the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`. The
   active and waiting bounds still count all of the key's connections. H3
   keeps one connection per transport location.
+- HTTP/2 proxy connections belong to a separate pool per session, with
+  fixed bounds: 100 tunnels per connection, or the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` when lower
+  (`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`); 8 connections per proxy route
+  (`MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE`); and 32 routes, least recently
+  used first out (`MAX_HTTP2_PROXY_POOL_ROUTES`). See
+  [Shared HTTP/2 proxy connections](../explanation/design.md#shared-http2-proxy-connections).
 - [Tune throughput and latency](../guides/performance.md) says what a server
   can observe when you raise these bounds.
 

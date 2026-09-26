@@ -46,6 +46,9 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   A `407` on an HTTP/1.1 proxy connection is replayed on that connection
   when the proxy keeps it open, and a `407` on an HTTP/2 proxy connection
   on a new stream of it, as the captured browsers do.
+  CONNECT tunnels share HTTP/2 proxy connections, and the Chromium and
+  Firefox CONNECT recipes decide whether forwarded requests and WebSocket
+  tunnels join them.
 - SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
@@ -144,20 +147,6 @@ anything does.
 - DNS over HTTPS where the captured browser uses it. Blocker: none
   recorded; a caller can already supply an `AddressResolver` that queries
   over HTTPS, but no recipe does.
-
-#### Routes and proxies
-
-- Several CONNECT tunnels on one HTTP/2 proxy connection. Evidence: in the
-  `https-proxy-auth-secure-hostname` and `https-proxy-auth-hostname`
-  [captures](explanation/validation.md#proxy-authentication-evidence),
-  Chromium opens a page's CONNECTs and forwarded requests as streams of one
-  HTTP/2 proxy connection, and Firefox opens several CONNECT streams on one
-  connection. Phantom gives each HTTP/2 tunnel its own proxy connection,
-  which costs a TLS handshake per tunnel and shows the proxy more
-  connections than a browser opens. Blocker: a pool for tunnel connections
-  that shares the connection flow-control window between tunnels, respects
-  the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, and keeps a connection
-  while any tunnel on it is open.
 
 #### Caller options, off by default
 

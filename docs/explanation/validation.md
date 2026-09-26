@@ -2363,6 +2363,7 @@ and authority only.
 | `http://` through the TLS proxy | ALPN `h2` to the proxy; H2 request with `:scheme` `http` and the origin in `:authority` | Same |
 | Pseudo-field order of that request | `:method`, `:authority`, `:scheme`, `:path` | `:method`, `:path`, `:authority`, `:scheme`, and `te: trailers` last |
 | `ws://` through the TLS proxy | H2 CONNECT (`:method`, `:authority`, `user-agent`) on the page's proxy session, then the H1 Upgrade in the stream | Same CONNECT fields, on a second H2 connection to the proxy |
+| Requests of one page on the TLS proxy | All on one H2 connection, as streams 1, 3, 5, and so on | Three H2 connections: forwarded requests, `https://` CONNECTs, and `ws://` or `wss://` CONNECTs; each connection's first stream is 3 |
 
 `Accept-Encoding`, fetch metadata, and client hints depend on the origin,
 not on the route. [Plaintext origin trust
@@ -2371,6 +2372,20 @@ and how Phantom's templates follow them.
 
 Further observations:
 
+- Connection sharing on the TLS proxy holds in every run of the nine
+  `https-proxy-*` scenarios. In `https-proxy-secure-hostname`, Chrome and
+  Edge send the navigation on stream 1, two `https://` CONNECTs on streams 3
+  and 5, two `wss://` CONNECTs on streams 7 and 9, and the final `fetch()` on
+  stream 11 of one connection; Brave 154 and Opera 135 do the same. Firefox
+  sends the navigation and final `fetch()` on streams 3 and 5 of one
+  connection, ten `https://` CONNECTs on streams 5 to 23 of a second, and
+  the `wss://` CONNECT on stream 3 of a third. In the `https-proxy-auth-*`
+  scenarios the challenged request, its replay, and later requests stay on
+  those connections, and Firefox's two `ws://` CONNECTs are streams 3 and 5
+  of its WebSocket connection. The second navigation of
+  `https-proxy-auth-remembered-hostname` reuses the first one's connection
+  in every browser. The browsers' own background requests (Google and
+  Mozilla hosts) use other connections to the proxy.
 - The Upgrade inside a tunnel has the same fields in the same order as the
   direct Upgrade to the same origin.
 - On Chromium's proxy session every HEADERS frame is exclusive with parent 0:
@@ -2432,9 +2447,31 @@ Against the route matrix:
   other fields of a browser page load unless a request template supplies
   them.
 - `ws://` H1 through an H2 proxy: Phantom opens a CONNECT stream and sends
-  the Upgrade inside it, as every captured browser does. The stream is on a
-  new proxy connection, as Firefox opens one; Chromium reuses the page's
-  proxy session instead.
+  the Upgrade inside it, as every captured browser does.
+- Connection sharing on an H2 proxy: each session keeps pooled proxy
+  connections, and `ProxyConnectTemplate::http2_connections` decides which
+  requests share one. `chromium::v154_proxy_connect` uses `Shared`, which
+  puts forwarded requests, CONNECT tunnels, and WebSocket tunnels on one
+  connection, as Chrome, Edge, Brave, and Opera do;
+  `firefox::v156_proxy_connect` uses `ByPurpose`, which gives each of the
+  three its own, as Firefox does.
+  `connection_sharing_follows_the_captured_proxy_connections` in
+  `crates/phantom-profile/src/proxy_connect/tests.rs` groups the page
+  requests of every run of every `https-proxy-*` capture by connection and
+  checks the recipe of each browser against them.
+  `crates/phantom/tests/proxy_h2_multiplex.rs` checks that tunnels to three
+  origins arrive as streams 1, 3, and 5 of one proxy connection, that the
+  Chromium recipe adds forwarded requests and a `ws://` tunnel to it and the
+  Firefox recipe keeps them on connections of their own, and that two
+  sessions never share one. `crates/phantom-net/src/proxy/tests/http2_pool.rs`
+  checks the pool against a frame-level proxy: the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` sends the next tunnel to a new
+  connection and an ended tunnel makes room again; closing one tunnel and a
+  proxy `RST_STREAM` on another leave the rest working; after a `GOAWAY`, the
+  covered tunnel keeps working and a new tunnel opens a new connection, and a
+  CONNECT that the `GOAWAY` left unprocessed is sent once more on a new one;
+  other credentials or other HTTP/2 settings never share a connection; and a
+  challenged CONNECT on a shared connection is replayed as its next stream.
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario all --repeat 3`; see
@@ -2689,10 +2726,10 @@ Remaining differences:
   `http2` frame `Debug` output leaves out every field, and Phantom never
   prints the connection whose HPACK table would hold the value, but the
   request fields pass through Phantom's own types first.
-- Each H2 tunnel keeps its proxy connection to itself; browsers open several
-  CONNECT streams on one connection. The replay therefore uses streams 1 and
-  3 of a new connection, where a browser uses the next free streams of a
-  connection it already has open.
+- Phantom's first stream on a new H2 proxy connection is 1; Firefox's is 3.
+- When every proxy connection of a route is full, Phantom opens another, up
+  to 8, where both browsers queue the stream on the one connection until
+  another stream ends. No capture reaches a proxy's stream limit.
 - With the Firefox recipe, a proxy that allows only one concurrent stream
   gets an END_STREAM on the challenged stream, so the replay can open; no
   capture shows what Firefox does there. The vendored `http2` encoder writes

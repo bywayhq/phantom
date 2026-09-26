@@ -27,7 +27,7 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | H2 forwarding | Plaintext H1 in a TCP tunnel | Rejected |
 | `http://`, exact H2 | Rejected | Rejected | H2 forwarding | Rejected | Rejected |
 | `http://`, exact H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
-| `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream (one proxy connection per tunnel) | TCP tunnel | Rejected |
+| `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream on a shared proxy connection | TCP tunnel | Rejected |
 | `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 | `ws://`, H1 | Plaintext Upgrade | Plaintext Upgrade in a CONNECT tunnel | Plaintext Upgrade in a CONNECT stream | Plaintext Upgrade in a TCP tunnel | Rejected |
@@ -76,19 +76,29 @@ Notes:
   `HttpConnectHeader::authority` places `Host` in it.
 - A literal `Host` or framing field in the CONNECT fields fails before proxy
   I/O. These fields do not affect forwarded requests.
-- In HTTP/2 mode, each tunnel opens its own proxy connection with the
-  profile's HTTP/2 settings.
+- In HTTP/2 mode, CONNECT tunnels are streams of a shared proxy connection
+  with the profile's HTTP/2 settings, one per session, proxy, and set of
+  Basic credentials. It takes tunnels up to the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` or 100, whichever is lower; then, or
+  after the proxy's `GOAWAY`, a new tunnel opens another connection, up to 8
+  per route. It stays open while any stream on it is open, and idle until
+  the proxy closes it or the session is dropped.
 - In HTTP/2 mode, the CONNECT request (RFC 9113 section 8.5) has only
   `:method` and `:authority`, then lowercase fields.
 - In HTTP/2 mode, a connection-specific field such as `Proxy-Connection`
   fails before I/O.
-- In HTTP/2 mode, closing the origin connection resets its stream and ends
-  its proxy connection.
-- In HTTP/2 mode, `http://` requests to one origin share one pooled proxy
-  connection with the profile's HTTP/2 settings, separate from tunnels.
+- In HTTP/2 mode, closing the origin connection resets its stream; the
+  proxy connection and its other tunnels stay open.
+- In HTTP/2 mode, forwarded `http://` requests share a proxy connection with
+  the profile's HTTP/2 settings. The profile's
+  [`Http2ProxyConnections`](profiles.md#proxy-connect-fields) decides whether
+  it also carries tunnels: `Shared` (the Chromium recipe, and profiles with
+  no recipe) puts forwarded requests, CONNECT tunnels, and WebSocket tunnels
+  on one connection; `ByPurpose` (the Firefox recipe) gives each of the
+  three its own.
 - H2 forwarding and H2 CONNECT answer a Basic `407` with one replay on a
-  new stream of the same proxy connection; a CONNECT tunnel then holds that
-  connection alone. An HTTP/1.1 CONNECT or H1 forwarded request replays on
+  new stream of the same proxy connection, which later tunnels keep
+  sharing. An HTTP/1.1 CONNECT or H1 forwarded request replays on
   the challenged connection when the `407` leaves it open, and on a new
   connection otherwise
   ([Proxy authentication](../explanation/design.md#proxy-authentication)).
