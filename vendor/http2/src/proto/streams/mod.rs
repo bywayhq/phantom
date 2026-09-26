@@ -55,6 +55,10 @@ pub struct Config {
     /// non-empty DATA frame.
     pub preface_ping: Option<Duration>,
 
+    /// Time an unanswered preface PING may wait without a read before the
+    /// connection closes, and the timer that measures it.
+    pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
+
     /// Max amount of DATA bytes to buffer per stream.
     pub local_max_buffer_size: usize,
 

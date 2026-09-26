@@ -21,7 +21,7 @@ This directory is the complete crates.io source for `wreq-proto` version
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`wreq-proto` becomes `phantom-wreq-proto` at
-`0.2.5-phantom.7`), keeps the upstream library name so source, tests, and
+`0.2.5-phantom.8`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and

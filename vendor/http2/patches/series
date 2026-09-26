@@ -15,4 +15,5 @@ hpack-indexing-rules.patch
 retained-stream-limit.patch
 stream-limit-cap.patch
 preface-ping.patch
+ping-timeout.patch
 publish-identity.patch

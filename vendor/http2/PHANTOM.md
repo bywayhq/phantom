@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.7`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.8`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -618,13 +618,12 @@ so the PING directly follows its request frame. Payloads count up from 1. An
 ACK with the in-flight payload clears it and is not passed on to the ordinary
 PING handling, which would log it as unsolicited.
 
-Two parts of Chromium's behavior are not modeled. Chromium also waits for the
-status check it schedules 10 seconds after each PING; with `idle` at 10
-seconds that wait ends before the idle time can pass again, because the ACK is
-itself a read. A PING unanswered for 10 seconds closes Chromium's session with
-`ERR_HTTP2_PING_FAILED`, while this client keeps the connection and sends no
-further preface PING on it. The default sends no PING, and servers never set
-it. The patch adds `src/proto/streams/preface_ping.rs` and changes
+One part of Chromium's behavior is not modeled. Chromium also waits for the
+status check it schedules 10 seconds after each PING before it sends another;
+with `idle` at 10 seconds that wait ends before the idle time can pass again,
+because the ACK is itself a read. Without the timeout below, an unanswered
+PING leaves the connection open and no further preface PING is sent on it.
+The default sends no PING, and servers never set it. The patch adds `src/proto/streams/preface_ping.rs` and changes
 `src/client.rs`, `src/server.rs`, `src/proto/connection.rs`, and
 `src/proto/streams/{counts,mod,prioritize,send,streams}.rs`. Its regressions
 in `src/client/tests.rs` use a 1 s idle time against a raw peer: no PING after
@@ -632,6 +631,60 @@ the first request, PING 1 right after HEADERS once 1.5 s pass without a read,
 none right after its ACK, PING 2 after the next idle period, none while PING 1
 is unanswered, and PING 1 right after a 4,096-byte DATA frame but none after
 an empty END_STREAM DATA frame.
+
+## PING timeout
+
+Chromium closes a session whose PING goes unanswered. `WritePingFrame` calls
+`PlanToCheckPingStatus`, which posts `CheckPingStatus` to run after
+`hung_interval_`, `kHungIntervalSeconds` or 10 seconds. The check does nothing
+once the ACK has arrived. Otherwise it drains the session with
+`ERR_HTTP2_PING_FAILED` when nothing has been read since the check was
+scheduled or for `hung_interval_`, and else runs again `hung_interval_` after
+the last read. Any read therefore restarts the time, and only the ACK stops
+it. `last_read_time_` moves on every socket read, not only on a whole frame.
+
+`DoDrainSession` sends `GOAWAY` with last stream ID 0, the error code
+`MapNetErrorToGoAwayStatus` gives, `PROTOCOL_ERROR`, and the description
+`Failed ping.` as debug data. `StartGoingAway(0, ...)` fails every pending,
+active, and created stream with `ERR_HTTP2_PING_FAILED`, without RST_STREAM,
+and drops their queued frames. `MakeUnavailable` takes the session out of the
+pool first, and once the GOAWAY is written, `RemoveUnavailableSession`
+destroys it and `~SpdySession` disconnects the socket. Sources, at Chromium
+tag `154.0.8037.58` and the quiche revision it pins:
+
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L102>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L547-L564>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L893>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L1360-L1417>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L2060>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L2082-L2093>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L2479-L2538>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L2701-L2757>
+- <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/core/spdy_framer.cc#L517-L541>
+
+`ping-timeout.patch` adds the client builder option
+`preface_ping_timeout(timeout, timer)` and the public `client::PingTimer`,
+which wraps a function returning a sleep future, so the crate reads no
+runtime clock. It applies only to the preface PING. Its time runs from when
+the PING becomes due, right after its request frame, or from the last frame
+read, whichever is later; the connection measures reads per frame, not per
+socket read. When the time runs out, the connection sends
+`GOAWAY(0, PROTOCOL_ERROR, "Failed ping.")`, fails every stream with that
+library error, and closes, and later requests fail with it too.
+`http2::Error::is_ping_timeout` identifies it. The connection checks the time
+only when it can read no further frame, so a frame already received counts as
+a read. The connection future still ends with the error without debug data,
+as it does for every library GOAWAY.
+
+The patch changes `src/client.rs`, `src/error.rs`, `src/server.rs`,
+`src/proto/{connection,error,mod}.rs`, and
+`src/proto/streams/{counts,mod,preface_ping,prioritize,send,streams}.rs`.
+Its regressions in `src/client/tests.rs` use a 1 s idle time and a Tokio
+sleep: a PING unanswered for 2 s brings that GOAWAY and the end of the byte
+stream between 1 s and 4 s after the peer reads the PING, and the open
+request, a later request, and the connection report the error; a WINDOW_UPDATE
+2 s into a 3 s timeout delays the GOAWAY to between 4 s and 8 s; and an
+acknowledged PING leaves the connection working 2 s past a 1 s timeout.
 
 ## Refreshing the vendor copy
 

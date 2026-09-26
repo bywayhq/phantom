@@ -8,7 +8,7 @@ use std::{
         Arc,
     },
     task::{Context, Poll, Wake, Waker},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use bytes::{BufMut, Bytes, BytesMut};
@@ -1332,6 +1332,149 @@ async fn preface_ping_follows_non_empty_request_data_after_read_idle() {
     })
     .await
     .expect("preface PING after DATA test timed out");
+}
+
+#[tokio::test]
+async fn unanswered_preface_ping_closes_the_connection_with_goaway() {
+    timeout(Duration::from_secs(15), async {
+        let ping_timeout = Duration::from_secs(2);
+        let (mut peer, mut sender, driver) = preface_ping_timeout_client(ping_timeout).await;
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        let response = send_empty_request(&mut sender).await;
+        let (headers, ping) = read_headers_and_next_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id), (1, 1));
+        assert_eq!((ping.kind, ping.flags), (6, 0));
+        assert_eq!(ping.payload, 1_u64.to_be_bytes());
+        let ping_read = Instant::now();
+
+        let go_away = read_raw_frame(&mut peer).await;
+        let waited = ping_read.elapsed();
+        assert_eq!((go_away.kind, go_away.flags, go_away.stream_id), (7, 0, 0));
+        // Last stream ID 0, PROTOCOL_ERROR, and Chromium's debug data.
+        assert_eq!(&go_away.payload[..8], &[0, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(&go_away.payload[8..], b"Failed ping.");
+        assert!(
+            waited >= Duration::from_secs(1) && waited < Duration::from_secs(4),
+            "GOAWAY after {waited:?}"
+        );
+        let mut rest = Vec::new();
+        peer.read_to_end(&mut rest)
+            .await
+            .expect("client connection was not closed");
+        assert!(rest.is_empty(), "client wrote after GOAWAY: {rest:?}");
+
+        let error = response.await.expect_err("the request succeeded");
+        assert!(error.is_ping_timeout(), "{error:?}");
+        assert!(error.is_go_away() && error.is_library());
+        assert_eq!(error.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+        let error = poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect_err("a closed connection accepted a request");
+        assert!(error.is_ping_timeout(), "{error:?}");
+        let closed = driver
+            .await
+            .expect("driver task failed")
+            .expect_err("the connection closed without an error");
+        assert_eq!(closed.reason(), Some(crate::Reason::PROTOCOL_ERROR));
+    })
+    .await
+    .expect("preface PING timeout test timed out");
+}
+
+#[tokio::test]
+async fn a_frame_read_restarts_the_preface_ping_timeout() {
+    timeout(Duration::from_secs(20), async {
+        let ping_timeout = Duration::from_secs(3);
+        let (mut peer, mut sender, driver) = preface_ping_timeout_client(ping_timeout).await;
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        let _response = send_empty_request(&mut sender).await;
+        let (_, ping) = read_headers_and_next_frame(&mut peer).await;
+        assert_eq!((ping.kind, ping.flags), (6, 0));
+        let ping_read = Instant::now();
+
+        // A connection WINDOW_UPDATE is a read but not the ACK.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        write_raw_frame(&mut peer, 8, 0, 0, &1_u32.to_be_bytes()).await;
+
+        let go_away = read_raw_frame(&mut peer).await;
+        let waited = ping_read.elapsed();
+        assert_eq!(go_away.kind, 7);
+        // 3 s after the PING without the read, 5 s after it with the read.
+        assert!(
+            waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
+            "GOAWAY after {waited:?}"
+        );
+        driver.abort();
+    })
+    .await
+    .expect("preface PING timeout restart test timed out");
+}
+
+#[tokio::test]
+async fn an_acknowledged_preface_ping_keeps_the_connection() {
+    timeout(Duration::from_secs(15), async {
+        let ping_timeout = Duration::from_secs(1);
+        let (mut peer, mut sender, driver) = preface_ping_timeout_client(ping_timeout).await;
+        let mut responses = Vec::new();
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (_, ping) = read_headers_and_next_frame(&mut peer).await;
+        assert_eq!(ping.payload, 1_u64.to_be_bytes());
+        write_raw_frame(&mut peer, 6, 1, 0, &1_u64.to_be_bytes()).await;
+
+        // Well past the timeout, the connection still takes a request, and
+        // the next idle period sends the next PING.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        responses.push(send_empty_request(&mut sender).await);
+        let (headers, ping) = read_request_frame(&mut peer).await;
+        assert_eq!((headers.kind, headers.stream_id), (1, 3));
+        assert_eq!(ping, Some(2_u64.to_be_bytes()));
+        assert!(!driver.is_finished());
+        driver.abort();
+    })
+    .await
+    .expect("acknowledged preface PING test timed out");
+}
+
+/// Skips connection-level frames until request HEADERS, and returns them with
+/// the frame the client wrote next.
+async fn read_headers_and_next_frame(peer: &mut DuplexStream) -> (RawFrame, RawFrame) {
+    loop {
+        let frame = read_raw_frame(peer).await;
+        if frame.kind == 1 {
+            return (frame, read_raw_frame(peer).await);
+        }
+        assert!(
+            matches!(frame.kind, 4 | 8),
+            "unexpected frame type {}",
+            frame.kind
+        );
+    }
+}
+
+/// Opens a client whose preface PING, sent after `PREFACE_IDLE` without a
+/// read, closes the connection when it waits `ping_timeout` with nothing
+/// read.
+async fn preface_ping_timeout_client(
+    ping_timeout: Duration,
+) -> (
+    DuplexStream,
+    super::SendRequest<Bytes>,
+    tokio::task::JoinHandle<Result<(), crate::Error>>,
+) {
+    let (client_io, mut peer) = duplex(64 * 1024);
+    let mut builder = super::Builder::new();
+    builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
+        ping_timeout,
+        super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
+    );
+    let (sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+    accept_client_handshake(&mut peer).await;
+    (peer, sender, driver)
 }
 
 /// Opens a client that sends a preface PING after `PREFACE_IDLE` without a

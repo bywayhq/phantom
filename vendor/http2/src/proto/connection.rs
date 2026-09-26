@@ -87,6 +87,7 @@ pub(crate) struct Config {
     pub retain_initial_max_send_streams: bool,
     pub max_send_streams_cap: usize,
     pub preface_ping: Option<Duration>,
+    pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
     pub max_send_buffer_size: usize,
     pub reset_stream_duration: Duration,
     pub reset_stream_max: usize,
@@ -136,6 +137,7 @@ where
                 retain_initial_max_send_streams: config.retain_initial_max_send_streams,
                 max_send_streams_cap: config.max_send_streams_cap,
                 preface_ping: config.preface_ping,
+                preface_ping_timeout: config.preface_ping_timeout.clone(),
                 local_max_buffer_size: config.max_send_buffer_size,
                 local_next_stream_id: config.next_stream_id,
                 local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),
@@ -343,7 +345,25 @@ where
                             // Ensure all window updates have been sent.
                             //
                             // This will also handle flushing `self.codec`
-                            ready!(self.inner.streams.poll_complete(cx, &mut self.codec))?;
+                            let complete = self.inner.streams.poll_complete(cx, &mut self.codec)?;
+
+                            // Checked only once nothing more can be read, so
+                            // a frame already received still counts as a
+                            // read, and after the send path, which queues the
+                            // PING, even when writing is blocked.
+                            if self.preface_ping
+                                && self.inner.streams.poll_preface_ping_timeout(cx).is_ready()
+                            {
+                                tracing::debug!("preface PING unanswered; closing connection");
+                                self.inner.as_dyn().handle_poll2_result(Err(
+                                    Error::library_go_away_data(
+                                        Reason::PROTOCOL_ERROR,
+                                        Bytes::from_static(PING_TIMEOUT_DEBUG_DATA),
+                                    ),
+                                ))?;
+                                continue;
+                            }
+                            ready!(complete);
 
                             if (self.inner.error.is_some()
                                 || self.inner.go_away.should_close_on_idle())

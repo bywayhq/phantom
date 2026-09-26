@@ -5,6 +5,10 @@ use bytes::Bytes;
 use std::fmt;
 use std::io;
 
+/// GOAWAY debug data sent when an unanswered preface PING closes the
+/// connection, as Chromium's `SpdySession::CheckPingStatus` sends it.
+pub(crate) const PING_TIMEOUT_DEBUG_DATA: &[u8] = b"Failed ping.";
+
 /// Either an H2 reason  or an I/O error
 #[derive(Clone, Debug)]
 pub enum Error {

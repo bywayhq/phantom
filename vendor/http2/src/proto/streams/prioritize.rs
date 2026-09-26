@@ -108,7 +108,9 @@ impl Prioritize {
             last_opened_id: StreamId::ZERO,
             in_flight_data_frame: InFlightData::Nothing,
             max_buffer_size: config.local_max_buffer_size,
-            preface_ping: config.preface_ping.map(PrefacePing::new),
+            preface_ping: config
+                .preface_ping
+                .map(|idle| PrefacePing::new(idle, config.preface_ping_timeout.clone())),
         }
     }
 
@@ -116,6 +118,13 @@ impl Prioritize {
         match &mut self.preface_ping {
             Some(preface_ping) => preface_ping.recv_frame(Instant::now(), ack),
             None => false,
+        }
+    }
+
+    pub(super) fn poll_preface_ping_timeout(&mut self, cx: &mut Context) -> Poll<()> {
+        match &mut self.preface_ping {
+            Some(preface_ping) => preface_ping.poll_timeout(cx),
+            None => Poll::Pending,
         }
     }
 

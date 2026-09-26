@@ -153,9 +153,43 @@ use http::{uri, HeaderMap, Method, Request, Response, Version};
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+
+/// Creates the sleeps that bound how long a preface PING may go unanswered.
+///
+/// The function receives a duration and returns a future that completes once
+/// that duration has passed. The connection never reads a clock through it,
+/// so any timer works, whatever the runtime.
+#[derive(Clone)]
+pub struct PingTimer {
+    sleep: Arc<dyn Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>,
+}
+
+impl PingTimer {
+    /// Wraps a function that returns a future completing after the duration
+    /// it receives.
+    pub fn new<F>(sleep: F) -> Self
+    where
+        F: Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
+    {
+        PingTimer {
+            sleep: Arc::new(sleep),
+        }
+    }
+
+    pub(crate) fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+        (self.sleep)(duration)
+    }
+}
+
+impl fmt::Debug for PingTimer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PingTimer").finish_non_exhaustive()
+    }
+}
 
 /// Initializes new HTTP/2 streams on a connection by sending a request.
 ///
@@ -334,6 +368,10 @@ pub struct Builder {
 
     /// Read-idle time after which a PING follows the next request frame.
     preface_ping: Option<Duration>,
+
+    /// Time an unanswered preface PING may wait without a read, and the
+    /// timer that measures it.
+    preface_ping_timeout: Option<(Duration, PingTimer)>,
 
     /// Initial target window size for new connections.
     initial_target_connection_window_size: Option<u32>,
@@ -723,6 +761,7 @@ impl Builder {
             retain_initial_max_send_streams: false,
             max_send_streams_cap: usize::MAX,
             preface_ping: None,
+            preface_ping_timeout: None,
             settings: Default::default(),
             #[cfg(feature = "unstable")]
             initial_peer_settings: None,
@@ -1068,12 +1107,32 @@ impl Builder {
     /// after the request frame. A PING is written only while no earlier one
     /// awaits its ACK; any frame read from the peer restarts the idle time.
     /// The first PING's payload is the 64-bit big-endian value 1, and each
-    /// later one carries the next value. A PING whose ACK never arrives does
-    /// not close the connection, but no further PING is sent on it.
+    /// later one carries the next value. Without a
+    /// [`preface_ping_timeout`](Builder::preface_ping_timeout), a PING whose
+    /// ACK never arrives does not close the connection, but no further PING
+    /// is sent on it.
     ///
     /// By default no such PING is sent.
     pub fn preface_ping(&mut self, idle: Duration) -> &mut Self {
         self.preface_ping = Some(idle);
+        self
+    }
+
+    /// Closes the connection when a preface PING is unanswered and nothing
+    /// has been read from the peer for `timeout`.
+    ///
+    /// The time runs from when the PING was queued or from the last frame
+    /// read, whichever is later, so any frame read restarts it; only the ACK
+    /// ends it. When it runs out, the connection sends GOAWAY with last
+    /// stream ID 0, `PROTOCOL_ERROR`, and the debug data `Failed ping.`,
+    /// then closes. Every open stream, and every later request, fails with an
+    /// error whose [`is_ping_timeout`](crate::Error::is_ping_timeout) is
+    /// `true`. `timer` measures the time.
+    ///
+    /// This has no effect unless [`preface_ping`](Builder::preface_ping) is
+    /// set. By default an unanswered PING never closes the connection.
+    pub fn preface_ping_timeout(&mut self, timeout: Duration, timer: PingTimer) -> &mut Self {
+        self.preface_ping_timeout = Some((timeout, timer));
         self
     }
 
@@ -1604,6 +1663,7 @@ where
                 retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
                 max_send_streams_cap: builder.max_send_streams_cap,
                 preface_ping: builder.preface_ping,
+                preface_ping_timeout: builder.preface_ping_timeout.clone(),
                 max_send_buffer_size: builder.max_send_buffer_size,
                 reset_stream_duration: builder.reset_stream_duration,
                 reset_stream_max: builder.reset_stream_max,

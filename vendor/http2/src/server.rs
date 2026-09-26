@@ -1521,6 +1521,7 @@ where
                             retain_initial_max_send_streams: false,
                             max_send_streams_cap: usize::MAX,
                             preface_ping: None,
+                            preface_ping_timeout: None,
                             max_send_buffer_size: self.builder.max_send_buffer_size,
                             reset_stream_duration: self.builder.reset_stream_duration,
                             reset_stream_max: self.builder.reset_stream_max,

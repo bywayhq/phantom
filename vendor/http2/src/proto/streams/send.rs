@@ -366,6 +366,10 @@ impl Send {
         self.prioritize.recv_frame_for_preface_ping(ack)
     }
 
+    pub fn poll_preface_ping_timeout(&mut self, cx: &mut Context) -> Poll<()> {
+        self.prioritize.poll_preface_ping_timeout(cx)
+    }
+
     pub fn poll_preface_ping<T, B>(
         &mut self,
         cx: &mut Context,

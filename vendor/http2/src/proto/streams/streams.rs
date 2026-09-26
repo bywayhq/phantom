@@ -203,6 +203,13 @@ where
         me.actions.send.recv_frame_for_preface_ping(ack)
     }
 
+    /// Returns `Ready` once a preface PING has gone unanswered, with nothing
+    /// read, for the configured timeout.
+    pub fn poll_preface_ping_timeout(&mut self, cx: &mut Context) -> Poll<()> {
+        let mut me = self.inner.lock();
+        me.actions.send.poll_preface_ping_timeout(cx)
+    }
+
     /// Writes a preface PING that is due, ahead of any other frame.
     pub fn poll_preface_ping<T>(
         &mut self,

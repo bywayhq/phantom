@@ -136,6 +136,20 @@ impl Error {
         self.local_limit == Some(LocalLimit::HeaderListSize)
     }
 
+    /// Returns true if the library closed the connection because a preface
+    /// PING went unanswered, with nothing read from the peer, for the time
+    /// set by `client::Builder::preface_ping_timeout`.
+    ///
+    /// The connection sent GOAWAY with `PROTOCOL_ERROR` and the debug data
+    /// `Failed ping.` before closing.
+    pub fn is_ping_timeout(&self) -> bool {
+        matches!(
+            self.kind,
+            Kind::GoAway(ref debug_data, Reason::PROTOCOL_ERROR, Initiator::Library)
+                if debug_data.as_ref() == proto::PING_TIMEOUT_DEBUG_DATA
+        )
+    }
+
     /// Returns true if the library reset the stream because the peer sent more
     /// informational (1xx) responses than the client's configured maximum.
     pub fn is_too_many_informational_responses(&self) -> bool {
