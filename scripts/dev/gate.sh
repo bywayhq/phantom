@@ -236,6 +236,54 @@ if grep -qv '^0 ' "$logs"/fmt*.status; then
   exit 1
 fi
 
+# One BoringSSL build for every chain. A btls-sys build script run takes
+# about two minutes, and each target directory needs more than one: the fuzz
+# workspace and some feature rows unify different features of the host crates
+# that bindgen uses, so cargo gives btls-sys a different build script and
+# OUT_DIR in each. The libraries do not depend on those host crates, so the
+# gate builds BoringSSL once in target/gate/boringssl and points the other
+# builds at it through the build script's BORING_BSSL_PATH and
+# BORING_BSSL_INCLUDE_PATH. That holds only while no package enables a
+# btls-sys feature, which selects BoringSSL patches, and both lockfiles pin
+# the same btls-sys; otherwise every directory builds its own.
+shared_boringssl() {
+  local log="$logs/boringssl.log" manifest sources features out
+  if [[ -n ${BORING_BSSL_PATH:-}${BORING_BSSL_SOURCE_PATH:-} ]]; then
+    echo "gate: BORING_BSSL_PATH or BORING_BSSL_SOURCE_PATH is set; the gate uses it as given" >&2
+    return
+  fi
+  sources=$(for manifest in Cargo.lock fuzz/Cargo.lock; do
+    tr -d '\r' <"$manifest" | grep -A2 '^name = "btls-sys"$' | sed -n 's/^source = //p'
+  done | sort -u)
+  if [[ -z $sources || $sources == *$'\n'* ]]; then
+    echo "gate: Cargo.lock and fuzz/Cargo.lock do not pin one btls-sys; each directory builds BoringSSL" >&2
+    return
+  fi
+  for manifest in Cargo.toml fuzz/Cargo.toml; do
+    if ! features=$(cargo tree --manifest-path "$manifest" --workspace --all-features --locked \
+      -i btls-sys -e features --prefix none); then
+      echo "gate: cargo tree failed for $manifest; each directory builds BoringSSL" >&2
+      return
+    fi
+    if grep -v '^btls-sys feature "default"' <<<"$features" | grep -q '^btls-sys feature'; then
+      echo "gate: $manifest enables a btls-sys feature; each directory builds BoringSSL" >&2
+      return
+    fi
+  done
+  steps+=(boringssl)
+  run_step boringssl boringssl cargo check -j "$jobs" -p btls-sys --locked \
+    --message-format=json-render-diagnostics
+  out=$(grep '"reason":"build-script-executed"' "$log" | grep '"package_id":"[^"]*btls-sys' |
+    sed -n 's/.*"out_dir":"\([^"]*\)".*/\1/p' | sed 's|\\\\|/|g')
+  if [[ -z $out || ! -d $out/build || ! -d $out/boringssl/include ]]; then
+    echo "gate: no BoringSSL build found in $log; each directory builds BoringSSL" >&2
+    return
+  fi
+  export BORING_BSSL_PATH="$out/build" BORING_BSSL_INCLUDE_PATH="$out/boringssl/include"
+  export BORING_BSSL_ASSUME_PATCHED=1
+}
+shared_boringssl
+
 # Test selection, without the package scope: --workspace, -p, or a filter.
 tests=(--all-targets --all-features --locked --no-fail-fast)
 if cargo nextest --version >/dev/null 2>&1; then

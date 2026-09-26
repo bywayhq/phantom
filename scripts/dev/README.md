@@ -43,7 +43,9 @@ green exit status does not prove that Cargo passed. Search the gate output for
 `gate.sh` runs the gate from
 [AGENTS.md](../../AGENTS.md#verification-and-handoff). It needs bash 4.4 or
 later; macOS ships bash 3.2, so install a newer one (`brew install bash`).
-`cargo fmt --check` runs first and stops the gate when it fails. The other steps run as
+`cargo fmt --check` runs first and stops the gate when it fails. Next, one
+build of BoringSSL runs in `target/gate/boringssl`, as described in
+[Shared BoringSSL](#shared-boringssl). The other steps run as
 concurrent chains:
 
 | Chain | Target directory | Steps |
@@ -110,6 +112,31 @@ while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.
 
 A lock whose holder died without releasing it is reclaimed by the next
 waiting command, as [below](#cargo-lock) describes.
+
+### Shared BoringSSL
+
+A `btls-sys` build compiles BoringSSL, which takes about two minutes. Cargo
+gives `btls-sys` a separate build script and output directory whenever the
+host crates that bindgen uses are built with different features. That
+happens in the `fuzz/` workspace and in some feature rows, so without
+sharing, a cold gate builds BoringSSL nine times.
+
+The gate therefore builds BoringSSL once in `target/gate/boringssl` and
+points every other build at it through the variables the `btls-sys` build
+script reads: `BORING_BSSL_PATH`, `BORING_BSSL_INCLUDE_PATH`, and
+`BORING_BSSL_ASSUME_PATCHED`. The other builds still generate their own
+bindings, from the shared build's patched headers. The gate builds
+BoringSSL in each directory instead, and says why, when:
+
+- `Cargo.lock` and `fuzz/Cargo.lock` pin different `btls-sys` sources.
+- A package enables a `btls-sys` feature. Features choose which BoringSSL
+  patches are applied, so a feature row could need a different library.
+- The shared build fails, which also fails the gate, or leaves no output
+  directory.
+
+On a cold gate with other worktrees building at the same time, sharing cut
+the time Cargo reported building from about 1,730 seconds to 680. A warm gate
+has nothing to rebuild either way.
 
 ## Cargo lock
 
