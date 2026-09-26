@@ -62,7 +62,11 @@ carries one Chromium version.
 
 ## Step 1: capture each area
 
-Capture the build in all seven areas. [Capture tools](../../scripts/capture/README.md)
+Start with a [quick fingerprint snapshot](../../scripts/capture/README.md#quick-fingerprint-snapshot):
+three runs of `snapshot.py` take under 10 seconds per desktop browser, and
+`snapshot_compare.py` lists what changed against the retained fixtures of
+the previous build. Its `tls.` section is a complete ClientHello fixture.
+Then capture the build in all seven areas. [Capture tools](../../scripts/capture/README.md)
 has the options and scenarios for each tool, and
 [Capture commands and launches](../explanation/validation.md#capture-commands-and-launches)
 has the exact Chrome 154 commands and launch arguments to repeat.
