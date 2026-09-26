@@ -1,0 +1,1006 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index 141760a..634ff3a 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -10,7 +10,7 @@ use std::{
+ use bytes::{Buf, Bytes};
+ 
+ use crate::{
+-    config::Config,
++    config::{Config, QpackHuffman, QpackInsertPolicy},
+     connection::ConnectionInner,
+     error::ConnectionError,
+     proto::frame::{self, SettingsError},
+@@ -292,6 +292,26 @@ impl Builder {
+         self
+     }
+ 
++    /// Chooses which request fields the stateful QPACK encoder inserts into
++    /// the peer's dynamic table.
++    ///
++    /// It applies only with [`Self::enable_dynamic_qpack`]. The default,
++    /// [`QpackInsertPolicy::EveryField`], keeps the existing encoding.
++    /// [`QpackInsertPolicy::UnmatchedNames`] also starts each field section
++    /// at a Base equal to the table's insert count, so that section's own
++    /// inserts are referenced with post-base indexes.
++    pub fn qpack_insert_policy(&mut self, policy: QpackInsertPolicy) -> &mut Self {
++        self.config.qpack_insert_policy = policy;
++        self
++    }
++
++    /// Chooses when string literals on the QPACK encoder stream use Huffman
++    /// coding. It applies only with [`Self::enable_dynamic_qpack`].
++    pub fn qpack_huffman(&mut self, huffman: QpackHuffman) -> &mut Self {
++        self.config.qpack_huffman = huffman;
++        self
++    }
++
+     /// Follows the SETTINGS frame on the control stream with one reserved
+     /// frame, in the same write.
+     ///
+diff --git a/h3/src/client/mod.rs b/h3/src/client/mod.rs
+index 7852565..560a4c2 100644
+--- a/h3/src/client/mod.rs
++++ b/h3/src/client/mod.rs
+@@ -6,6 +6,7 @@ mod stream;
+ 
+ mod builder;
+ 
++pub use crate::config::{QpackHuffman, QpackInsertPolicy};
+ pub use crate::proto::frame::SettingsError;
+ pub use builder::{builder, new, ApplicationSettingsError, Builder};
+ pub use connection::{Connection, PeerSettings, SendRequest};
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index 2a9153f..0fdb9c0 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -16,6 +16,35 @@ pub(crate) fn validate_local_qpack_max_table_capacity(
+     Ok(())
+ }
+ 
++/// Which request fields the stateful QPACK encoder inserts into the dynamic
++/// table.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++#[non_exhaustive]
++pub enum QpackInsertPolicy {
++    /// Insert every field that has no exact match in the static table, using
++    /// a name reference when one exists, and reuse exact dynamic matches.
++    #[default]
++    EveryField,
++    /// Insert, with a literal name, only a field whose name matches no entry
++    /// in either table; otherwise use an exact match or a literal with a name
++    /// reference, preferring a static name. This is neqo's policy
++    /// (`neqo-qpack` `Encoder::encode_header_block`).
++    UnmatchedNames,
++}
++
++/// When string literals on the QPACK encoder stream use Huffman coding.
++///
++/// Field lines in a HEADERS frame are always Huffman-coded.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++#[non_exhaustive]
++pub enum QpackHuffman {
++    /// Use Huffman coding only when it is shorter than the raw string.
++    #[default]
++    WhenShorter,
++    /// Always use Huffman coding, as neqo does.
++    Always,
++}
++
+ /// Configures the HTTP/3 connection
+ #[derive(Debug, Clone, Copy)]
+ #[non_exhaustive]
+@@ -43,6 +72,12 @@ pub struct Config {
+     /// control stream.
+     pub(crate) reserved_frame_after_settings: bool,
+ 
++    /// Which request fields the stateful QPACK encoder inserts.
++    pub(crate) qpack_insert_policy: QpackInsertPolicy,
++
++    /// When encoder-stream string literals use Huffman coding.
++    pub(crate) qpack_huffman: QpackHuffman,
++
+     #[cfg(test)]
+     pub(crate) send_settings: bool,
+ 
+@@ -138,6 +173,8 @@ impl TryFrom<Config> for frame::Settings {
+             qpack_decoder_stream_first: _,
+             defer_qpack_encoder_stream: _,
+             reserved_frame_after_settings: _,
++            qpack_insert_policy: _,
++            qpack_huffman: _,
+             #[cfg(test)]
+                 send_settings: _,
+             settings:
+@@ -259,6 +296,8 @@ impl Default for Config {
+             qpack_decoder_stream_first: false,
+             defer_qpack_encoder_stream: false,
+             reserved_frame_after_settings: false,
++            qpack_insert_policy: QpackInsertPolicy::EveryField,
++            qpack_huffman: QpackHuffman::WhenShorter,
+             #[cfg(test)]
+             send_settings: true,
+             settings: Default::default(),
+@@ -303,6 +342,13 @@ mod tests {
+         assert!(!Config::default().reserved_frame_after_settings);
+     }
+ 
++    #[test]
++    fn qpack_encoder_policies_default_to_the_existing_behavior() {
++        let config = Config::default();
++        assert_eq!(config.qpack_insert_policy, QpackInsertPolicy::EveryField);
++        assert_eq!(config.qpack_huffman, QpackHuffman::WhenShorter);
++    }
++
+     #[test]
+     fn maximum_qpack_settings_round_trip_through_frame_view() {
+         let mut config = Config {
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 1b4f9ff..c1cd66f 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -573,7 +573,7 @@ where
+             encoder_recv: None,
+             encoder_pending: None,
+             decoder,
+-            encoder: qpack::Encoder::default(),
++            encoder: qpack::Encoder::with_policy(config.qpack_insert_policy, config.qpack_huffman),
+             decoder_header_pending,
+             decoder_sending: BytesMut::new(),
+             outbound,
+diff --git a/h3/src/qpack/dynamic.rs b/h3/src/qpack/dynamic.rs
+index 210c236..5a35076 100644
+--- a/h3/src/qpack/dynamic.rs
++++ b/h3/src/qpack/dynamic.rs
+@@ -206,6 +206,41 @@ impl<'a> DynamicTableEncoder<'a> {
+         Ok(result)
+     }
+ 
++    /// Whether this section may reference entries the decoder has not yet
++    /// acknowledged: the stream is already blocking, or the peer's
++    /// blocked-stream limit leaves room for one more.
++    pub(super) fn can_block(&self) -> bool {
++        !self.table.would_exceed_blocked_limit(self.stream_id)
++    }
++
++    /// Inserts `field` with a literal name and returns its post-base index
++    /// and absolute index, or `None` when the table cannot hold it.
++    ///
++    /// Only entries that are acknowledged and unreferenced may be evicted to
++    /// make room, which is neqo's rule (`HeaderTable::insert_possible`).
++    pub(super) fn insert_literal_name(
++        &mut self,
++        field: &HeaderField,
++    ) -> Result<Option<(usize, usize)>, Error> {
++        if !self.can_block() {
++            return Ok(None);
++        }
++        match self.table.can_free_acknowledged(field.mem_size()) {
++            Ok(Some(_)) => {}
++            Ok(None) | Err(Error::MaxTableSizeReached) => return Ok(None),
++            Err(error) => return Err(error),
++        }
++        let index = match self.table.insert(field.clone()) {
++            Ok(Some(index)) => index,
++            Ok(None) | Err(Error::MaxTableSizeReached) => return Ok(None),
++            Err(error) => return Err(error),
++        };
++        self.track_ref(index);
++        self.table.field_map.insert(field.clone(), index);
++        self.table.name_map.insert(field.name.clone(), index);
++        Ok(Some((index - self.base - 1, index)))
++    }
++
+     pub(super) fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
+         if let Some(index) = StaticTable::find_name(name) {
+             return DynamicLookupResult::Static(index);
+@@ -297,6 +332,15 @@ impl DynamicTable {
+         }
+     }
+ 
++    /// Starts a field section whose Base is the table's insert count, so
++    /// entries inserted for the section are referenced with post-base
++    /// indexes, as neqo encodes (RFC 9204, section 4.5.1.2).
++    pub fn encoder_at_insert_count(&mut self, stream_id: u64) -> DynamicTableEncoder<'_> {
++        let mut encoder = self.encoder(stream_id);
++        encoder.base = encoder.table.vas.total_inserted();
++        encoder
++    }
++
+     pub fn set_max_blocked(&mut self, max: usize) -> Result<(), Error> {
+         // TODO handle existing data
+         if max > SETTINGS_MAX_BLOCKED_STREAMS_MAX {
+@@ -481,6 +525,36 @@ impl DynamicTable {
+         }
+     }
+ 
++    /// Like `can_free`, but an entry the decoder has not acknowledged is
++    /// never evicted.
++    fn can_free_acknowledged(&self, required: usize) -> Result<Option<usize>, Error> {
++        if required > self.max_size {
++            return Err(Error::MaxTableSizeReached);
++        }
++        if self.max_size - self.curr_size >= required {
++            return Ok(Some(0));
++        }
++        let lower_bound = self.max_size - required;
++        let mut hypothetic_mem_size = self.curr_size;
++        let mut evictable = 0;
++        for (idx, entry) in self.fields.iter().enumerate() {
++            if hypothetic_mem_size <= lower_bound {
++                break;
++            }
++            let absolute = self.vas.index(idx)?;
++            if self.is_tracked(absolute) || absolute > self.largest_known_received {
++                break;
++            }
++            evictable += 1;
++            hypothetic_mem_size -= entry.mem_size();
++        }
++        if hypothetic_mem_size <= lower_bound {
++            Ok(Some(evictable))
++        } else {
++            Ok(None)
++        }
++    }
++
+     fn track_ref(&mut self, reference: usize) {
+         self.track_map
+             .entry(reference)
+diff --git a/h3/src/qpack/encoder.rs b/h3/src/qpack/encoder.rs
+index 2b83197..9836120 100644
+--- a/h3/src/qpack/encoder.rs
++++ b/h3/src/qpack/encoder.rs
+@@ -21,6 +21,7 @@ use super::{
+     },
+     HeaderField,
+ };
++use crate::config::{QpackHuffman, QpackInsertPolicy};
+ 
+ const MAX_BUFFERED_DECODER_INSTRUCTION_BYTES: usize = 64 * 1024;
+ 
+@@ -55,9 +56,20 @@ impl std::fmt::Display for EncoderError {
+ pub struct Encoder {
+     table: DynamicTable,
+     decoder_stream: BytesMut,
++    insert_policy: QpackInsertPolicy,
++    huffman: QpackHuffman,
+ }
+ 
+ impl Encoder {
++    /// Creates an encoder with the given insertion and Huffman policies.
++    pub fn with_policy(insert_policy: QpackInsertPolicy, huffman: QpackHuffman) -> Self {
++        Self {
++            insert_policy,
++            huffman,
++            ..Self::default()
++        }
++    }
++
+     pub fn set_max_table_capacity<W: BufMut>(
+         &mut self,
+         capacity: usize,
+@@ -90,11 +102,23 @@ impl Encoder {
+             .into_iter()
+             .map(|field| field.as_ref().clone())
+             .collect::<Vec<_>>();
++        if self.insert_policy == QpackInsertPolicy::UnmatchedNames {
++            let required_ref =
++                self.encode_unmatched_names(&mut table, stream_id, block, encoder_buf, &fields)?;
++            self.table = table;
++            return Ok(required_ref);
++        }
++        let always_huffman = self.huffman == QpackHuffman::Always;
+         let mut encoder_instructions = Vec::new();
+         {
+             let mut encoder = table.encoder(stream_id);
+             for field in &fields {
+-                Self::plan_field(&mut encoder, &mut encoder_instructions, field)?;
++                Self::plan_field(
++                    &mut encoder,
++                    &mut encoder_instructions,
++                    field,
++                    always_huffman,
++                )?;
+             }
+         }
+ 
+@@ -125,6 +149,121 @@ impl Encoder {
+         Ok(required_ref)
+     }
+ 
++    /// Encodes one field section as neqo's `Encoder::encode_header_block`
++    /// does, in a single pass over the fields.
++    ///
++    /// Each field takes the first form that applies: a never-indexed literal
++    /// when sensitive; an exact static match; an exact dynamic match; a
++    /// literal with a static name reference; a literal with a dynamic name
++    /// reference; an Insert With Literal Name instruction referenced with a
++    /// post-base index; or a literal with a literal name. Dynamic entries the
++    /// decoder has not acknowledged count only while the section may block.
++    /// Once an insert fails, the rest of the section inserts nothing.
++    fn encode_unmatched_names<W: BufMut>(
++        &self,
++        table: &mut DynamicTable,
++        stream_id: u64,
++        block: &mut W,
++        encoder_buf: &mut W,
++        fields: &[HeaderField],
++    ) -> Result<usize, EncoderError> {
++        let always_huffman = self.huffman == QpackHuffman::Always;
++        let mut required_ref = 0;
++        let mut block_buf = Vec::new();
++        let mut instructions = Vec::new();
++        let mut encoder = table.encoder_at_insert_count(stream_id);
++        let can_block = encoder.can_block();
++        let mut insert_failed = false;
++
++        for field in fields {
++            let reference = if field.sensitive {
++                Self::encode_sensitive_field(&mut block_buf, field)?;
++                None
++            } else if let Some(index) = StaticTable::find(field) {
++                Indexed::Static(index).encode(&mut block_buf);
++                None
++            } else {
++                match encoder.find(field) {
++                    DynamicLookupResult::Relative { index, absolute } => {
++                        Indexed::Dynamic(index).encode(&mut block_buf);
++                        Some(absolute)
++                    }
++                    DynamicLookupResult::PostBase { index, absolute } => {
++                        IndexedWithPostBase(index).encode(&mut block_buf);
++                        Some(absolute)
++                    }
++                    DynamicLookupResult::Static(_) | DynamicLookupResult::NotFound => {
++                        Self::encode_name_reference_or_insert(
++                            &mut encoder,
++                            &mut block_buf,
++                            &mut instructions,
++                            field,
++                            can_block && !insert_failed,
++                            always_huffman,
++                            &mut insert_failed,
++                        )?
++                    }
++                }
++            };
++            if let Some(reference) = reference {
++                required_ref = cmp::max(required_ref, reference);
++            }
++        }
++
++        HeaderPrefix::new(
++            required_ref,
++            encoder.base(),
++            encoder.total_inserted(),
++            encoder.max_size(),
++        )
++        .encode(block);
++        block.put(block_buf.as_slice());
++        encoder_buf.put(instructions.as_slice());
++        encoder.commit(required_ref);
++        Ok(required_ref)
++    }
++
++    /// Encodes a field with no exact match: a literal with a static name
++    /// reference, then one with a dynamic name reference, then an insert
++    /// when `may_insert`, and otherwise a literal with a literal name.
++    fn encode_name_reference_or_insert(
++        encoder: &mut DynamicTableEncoder,
++        block: &mut Vec<u8>,
++        instructions: &mut Vec<u8>,
++        field: &HeaderField,
++        may_insert: bool,
++        always_huffman: bool,
++        insert_failed: &mut bool,
++    ) -> Result<Option<usize>, EncoderError> {
++        match encoder.find_name(&field.name) {
++            DynamicLookupResult::Static(index) => {
++                LiteralWithNameRef::new_static(index, field.value.clone()).encode(block)?;
++                Ok(None)
++            }
++            DynamicLookupResult::Relative { index, absolute } => {
++                LiteralWithNameRef::new_dynamic(index, field.value.clone()).encode(block)?;
++                Ok(Some(absolute))
++            }
++            DynamicLookupResult::PostBase { index, absolute } => {
++                LiteralWithPostBaseNameRef::new(index, field.value.clone()).encode(block)?;
++                Ok(Some(absolute))
++            }
++            DynamicLookupResult::NotFound => {
++                if may_insert {
++                    if let Some((postbase, absolute)) = encoder.insert_literal_name(field)? {
++                        InsertWithoutNameRef::new(field.name.clone(), field.value.clone())
++                            .encode_with(instructions, always_huffman)?;
++                        IndexedWithPostBase(postbase).encode(block);
++                        return Ok(Some(absolute));
++                    }
++                    *insert_failed = true;
++                }
++                Literal::new(field.name.clone(), field.value.clone()).encode(block)?;
++                Ok(None)
++            }
++        }
++    }
++
+     pub fn cancel_stream(&mut self, stream_id: u64) -> Result<(), EncoderError> {
+         match self.table.cancel_stream(stream_id) {
+             Ok(()) | Err(DynamicTableError::UnknownStreamId(_)) => Ok(()),
+@@ -190,6 +329,7 @@ impl Encoder {
+         table: &mut DynamicTableEncoder,
+         encoder: &mut W,
+         field: &HeaderField,
++        always_huffman: bool,
+     ) -> Result<(), EncoderError> {
+         if field.sensitive {
+             return Ok(());
+@@ -201,7 +341,7 @@ impl Encoder {
+             return Ok(());
+         }
+ 
+-        Self::insert_field(table, encoder, field)?;
++        Self::insert_field(table, encoder, field, always_huffman)?;
+         Ok(())
+     }
+ 
+@@ -273,6 +413,7 @@ impl Encoder {
+         table: &mut DynamicTableEncoder,
+         encoder: &mut W,
+         field: &HeaderField,
++        always_huffman: bool,
+     ) -> Result<DynamicInsertionResult, EncoderError> {
+         let insertion = table.insert(field)?;
+         match &insertion {
+@@ -281,13 +422,15 @@ impl Encoder {
+             }
+             DynamicInsertionResult::Inserted { .. } => {
+                 InsertWithoutNameRef::new(field.name.clone(), field.value.clone())
+-                    .encode(encoder)?;
++                    .encode_with(encoder, always_huffman)?;
+             }
+             DynamicInsertionResult::InsertedWithStaticNameRef { index, .. } => {
+-                InsertWithNameRef::new_static(*index, field.value.clone()).encode(encoder)?;
++                InsertWithNameRef::new_static(*index, field.value.clone())
++                    .encode_with(encoder, always_huffman)?;
+             }
+             DynamicInsertionResult::InsertedWithNameRef { relative, .. } => {
+-                InsertWithNameRef::new_dynamic(*relative, field.value.clone()).encode(encoder)?;
++                InsertWithNameRef::new_dynamic(*relative, field.value.clone())
++                    .encode_with(encoder, always_huffman)?;
+             }
+             DynamicInsertionResult::NotInserted(_) => {}
+         }
+@@ -315,7 +458,7 @@ impl Encoder {
+             return Ok(Some(absolute));
+         }
+ 
+-        let reference = match Self::insert_field(table, encoder, field)? {
++        let reference = match Self::insert_field(table, encoder, field, false)? {
+             DynamicInsertionResult::Duplicated {
+                 postbase, absolute, ..
+             } => {
+@@ -366,6 +509,8 @@ impl Default for Encoder {
+         Self {
+             table: DynamicTable::new(),
+             decoder_stream: BytesMut::new(),
++            insert_policy: QpackInsertPolicy::EveryField,
++            huffman: QpackHuffman::WhenShorter,
+         }
+     }
+ }
+@@ -402,7 +547,7 @@ impl From<DynamicTable> for Encoder {
+     fn from(table: DynamicTable) -> Encoder {
+         Encoder {
+             table,
+-            decoder_stream: BytesMut::new(),
++            ..Encoder::default()
+         }
+     }
+ }
+@@ -735,6 +880,293 @@ mod tests {
+         assert_eq!(read_block.get_ref().len() as u64, read_block.position());
+     }
+ 
++    /// The two HTTP/3 requests of the retained Firefox 156.0.1 snapshot
++    /// (`fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt`),
++    /// encoded against aioquic's advertised capacity of 4096 and 16 blocked
++    /// streams with no decoder feedback in between.
++    const FIREFOX_NAVIGATION: &[(&str, &str)] = &[
++        (":method", "GET"),
++        (":scheme", "https"),
++        (":authority", "server.phantom.test:55589"),
++        (":path", "/next?run=fe915979825822d9"),
++        (
++            "user-agent",
++            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
++        ),
++        (
++            "accept",
++            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
++        ),
++        ("accept-language", "en-US,en;q=0.9"),
++        ("accept-encoding", "gzip, deflate, br, zstd"),
++        (
++            "referer",
++            "https://server.phantom.test:55589/?run=fe915979825822d9",
++        ),
++        ("upgrade-insecure-requests", "1"),
++        ("sec-fetch-dest", "document"),
++        ("sec-fetch-mode", "navigate"),
++        ("sec-fetch-site", "same-origin"),
++        ("priority", "u=0, i"),
++    ];
++    const FIREFOX_FETCH: &[(&str, &str)] = &[
++        (":method", "GET"),
++        (":scheme", "https"),
++        (":authority", "server.phantom.test:55589"),
++        (":path", "/fetch?run=fe915979825822d9"),
++        (
++            "user-agent",
++            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
++        ),
++        ("accept", "*/*"),
++        ("accept-language", "en-US,en;q=0.9"),
++        ("accept-encoding", "gzip, deflate, br, zstd"),
++        (
++            "referer",
++            "https://server.phantom.test:55589/next?run=fe915979825822d9",
++        ),
++        ("alt-used", "server.phantom.test:55589"),
++        ("sec-fetch-dest", "empty"),
++        ("sec-fetch-mode", "cors"),
++        ("sec-fetch-site", "same-origin"),
++        ("priority", "u=4"),
++        ("pragma", "no-cache"),
++        ("cache-control", "no-cache"),
++    ];
++    /// `h3.request_qpack_encoder_stream_prefix_hex`: the stream type, the
++    /// table capacity, and the navigation's four inserts.
++    const FIREFOX_ENCODER_STREAM: &str =
++        "023fe11f6a4148b4a549275a42a13f8690e4b692d49f6a4148b4a54927\
++        5a93c85f86a87dcd30d25f6a4148b4a549275906497f8840e92ac7b0d31aaf66aec31ec327d785b6007d286f";
++    const FIREFOX_NAVIGATION_BLOCK: &str =
++        "0583d1d75092416cee5b17ae71d493d2ba4a84dc6db6de7f519462a2\
++        f94ff965b541295f0b6fbafbc26de10a47ff5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391\
++        aa71afb53cb8d7da9677b816dc5c1fda988a4ea76040080010054c26b0b29fcb016dc5c15f0eb0497ca589d34d\
++        1f43aeba0c41a4c7a98f33a69a3fdf9a68fa1d75d0620d263d4c79a68fbed00177febe58f9fbed00177b5f398b\
++        2d4b70ddf45abefb4005df5f10929bd9abfa5242cb40d25fa523b3e94f684c9f5da89d29ad17186105b3b96c5e\
++        b9c7524f4ae92a1371b6db79f63fcb2daa094af85b7dd7de136f08523fff1f10111213";
++    const FIREFOX_FETCH_BLOCK: &str =
++        "0781d1d75092416cee5b17ae71d493d2ba4a84dc6db6de7f51946252a493\
++        ff965b541295f0b6fbafbc26de10a47f5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391aa71\
++        afb53cb8d7da9677b816dc5c1fda988a4ea76040080010054c26b0b29fcb016dc5c1dd5f398b2d4b70ddf45abe\
++        fb4005df5f10929bd9abfa5242cb40d25fa523b3e94f684c9f5dab9d29ad17186105b3b96c5eb9c7524f4ae92a\
++        1371b6db79f62a2f94ff965b541295f0b6fbafbc26de10a47f1043842d35a7d7428321ec47814083b606bf11e7";
++
++    fn hex(encoded: &str) -> Vec<u8> {
++        let compact: String = encoded.split_whitespace().collect();
++        (0..compact.len())
++            .step_by(2)
++            .map(|index| u8::from_str_radix(&compact[index..index + 2], 16).unwrap())
++            .collect()
++    }
++
++    fn fields(pairs: &[(&str, &str)]) -> Vec<HeaderField> {
++        pairs
++            .iter()
++            .map(|(name, value)| HeaderField::new(*name, *value))
++            .collect()
++    }
++
++    fn neqo_encoder(capacity: usize, blocked_streams: usize) -> (Encoder, Vec<u8>) {
++        let mut encoder =
++            Encoder::with_policy(QpackInsertPolicy::UnmatchedNames, QpackHuffman::Always);
++        let mut instructions = Vec::new();
++        encoder
++            .set_max_table_capacity(capacity, &mut instructions)
++            .unwrap();
++        encoder.set_max_blocked_streams(blocked_streams).unwrap();
++        (encoder, instructions)
++    }
++
++    #[test]
++    fn unmatched_names_policy_reproduces_firefox_156_sections() {
++        let (mut encoder, mut encoder_stream) = neqo_encoder(4096, 16);
++        encoder_stream.insert(0, 0x02);
++
++        let mut navigation = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                0,
++                &mut navigation,
++                &mut encoder_stream,
++                fields(FIREFOX_NAVIGATION)
++            ),
++            Ok(4)
++        );
++        assert_eq!(encoder_stream, hex(FIREFOX_ENCODER_STREAM));
++        assert_eq!(navigation, hex(FIREFOX_NAVIGATION_BLOCK));
++
++        let mut fetch = Vec::new();
++        let mut fetch_instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                4,
++                &mut fetch,
++                &mut fetch_instructions,
++                fields(FIREFOX_FETCH)
++            ),
++            Ok(6)
++        );
++        assert_eq!(fetch, hex(FIREFOX_FETCH_BLOCK));
++
++        // The fetch inserts only its two fields whose names match no entry.
++        let mut read = Cursor::new(fetch_instructions.as_slice());
++        assert_eq!(
++            InsertWithoutNameRef::decode(&mut read),
++            Ok(Some(InsertWithoutNameRef::new(
++                "alt-used",
++                "server.phantom.test:55589"
++            )))
++        );
++        assert_eq!(
++            InsertWithoutNameRef::decode(&mut read),
++            Ok(Some(InsertWithoutNameRef::new("pragma", "no-cache")))
++        );
++        assert_eq!(read.position() as usize, fetch_instructions.len());
++        let mut always_huffman = Vec::new();
++        InsertWithoutNameRef::new("alt-used", "server.phantom.test:55589")
++            .encode_with(&mut always_huffman, true)
++            .unwrap();
++        InsertWithoutNameRef::new("pragma", "no-cache")
++            .encode_with(&mut always_huffman, true)
++            .unwrap();
++        assert_eq!(fetch_instructions, always_huffman);
++    }
++
++    #[test]
++    fn unmatched_names_policy_does_not_reference_unacknowledged_entries_without_block_budget() {
++        let (mut encoder, _) = neqo_encoder(4096, 1);
++        let mut instructions = Vec::new();
++        encoder
++            .encode(
++                0,
++                &mut Vec::new(),
++                &mut instructions,
++                [HeaderField::new("x-first", "value")],
++            )
++            .unwrap();
++        assert!(!instructions.is_empty());
++
++        // Stream 0 uses the only blocked-stream slot, so stream 4 may neither
++        // reference the unacknowledged entry nor insert.
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                4,
++                &mut block,
++                &mut instructions,
++                [
++                    HeaderField::new("x-first", "value"),
++                    HeaderField::new("x-second", "value"),
++                ]
++            ),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(1, 4096),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new("x-first", "value"))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new("x-second", "value"))
++        );
++
++        // Once the insert is acknowledged, stream 4 indexes it.
++        let mut feedback = Vec::new();
++        InsertCountIncrement(1).encode(&mut feedback);
++        encoder.on_decoder_recv(&mut Cursor::new(feedback)).unwrap();
++        let mut block = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                4,
++                &mut block,
++                &mut Vec::new(),
++                [HeaderField::new("x-first", "value")]
++            ),
++            Ok(1)
++        );
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(1, 4096),
++            Ok((1, 1))
++        );
++        assert_eq!(Indexed::decode(&mut read), Ok(Indexed::Dynamic(0)));
++    }
++
++    #[test]
++    fn unmatched_names_policy_stops_inserting_after_a_failed_insert() {
++        // 64 bytes hold one 32-byte-overhead entry with short strings only.
++        let (mut encoder, _) = neqo_encoder(64, 16);
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                0,
++                &mut block,
++                &mut instructions,
++                [
++                    HeaderField::new("x-too-long", "a value longer than the table allows"),
++                    HeaderField::new("x-a", "b"),
++                ]
++            ),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++        let mut read = Cursor::new(block);
++        assert_eq!(
++            HeaderPrefix::decode(&mut read).unwrap().get(0, 64),
++            Ok((0, 0))
++        );
++        assert_eq!(
++            Literal::decode(&mut read),
++            Ok(Literal::new(
++                "x-too-long",
++                "a value longer than the table allows"
++            ))
++        );
++        assert_eq!(Literal::decode(&mut read), Ok(Literal::new("x-a", "b")));
++    }
++
++    #[test]
++    fn unmatched_names_policy_never_evicts_an_unacknowledged_entry() {
++        let (mut encoder, _) = neqo_encoder(64, 16);
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                0,
++                &mut Vec::new(),
++                &mut instructions,
++                [HeaderField::new("x-a", "b")]
++            ),
++            Ok(1)
++        );
++        // Stream 0 was never acknowledged or cancelled, but even after its
++        // cancellation the unacknowledged insert keeps its slot.
++        encoder.cancel_stream(0).unwrap();
++        let mut block = Vec::new();
++        let mut instructions = Vec::new();
++        assert_eq!(
++            encoder.encode(
++                4,
++                &mut block,
++                &mut instructions,
++                [HeaderField::new("x-c", "d")]
++            ),
++            Ok(0)
++        );
++        assert!(instructions.is_empty());
++        let mut read = Cursor::new(block);
++        HeaderPrefix::decode(&mut read).unwrap();
++        assert_eq!(Literal::decode(&mut read), Ok(Literal::new("x-c", "d")));
++    }
++
+     #[test]
+     fn invalid_peer_limits_do_not_change_encoder_state_or_output() {
+         let mut encoder = Encoder::default();
+diff --git a/h3/src/qpack/stream.rs b/h3/src/qpack/stream.rs
+index 847a94e..383593f 100644
+--- a/h3/src/qpack/stream.rs
++++ b/h3/src/qpack/stream.rs
+@@ -115,17 +115,31 @@ impl InsertWithNameRef {
+     }
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+-        match self {
++        self.encode_with(buf, false)
++    }
++
++    /// Encodes the instruction, Huffman-coding the value unconditionally
++    /// when `always_huffman` is set and only when shorter otherwise.
++    pub fn encode_with<W: BufMut>(
++        &self,
++        buf: &mut W,
++        always_huffman: bool,
++    ) -> Result<(), prefix_string::Error> {
++        let value = match self {
+             InsertWithNameRef::Static { index, value } => {
+                 prefix_int::encode(6, 0b11, *index as u64, buf);
+-                prefix_string::encode_if_smaller(8, 0, value, buf)?;
++                value
+             }
+             InsertWithNameRef::Dynamic { index, value } => {
+                 prefix_int::encode(6, 0b10, *index as u64, buf);
+-                prefix_string::encode_if_smaller(8, 0, value, buf)?;
++                value
+             }
++        };
++        if always_huffman {
++            prefix_string::encode(8, 0, value, buf)
++        } else {
++            prefix_string::encode_if_smaller(8, 0, value, buf)
+         }
+-        Ok(())
+     }
+ }
+ 
+@@ -158,8 +172,24 @@ impl InsertWithoutNameRef {
+     }
+ 
+     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
+-        prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
+-        prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
++        self.encode_with(buf, false)
++    }
++
++    /// Encodes the instruction, Huffman-coding the name and value
++    /// unconditionally when `always_huffman` is set and only when shorter
++    /// otherwise.
++    pub fn encode_with<W: BufMut>(
++        &self,
++        buf: &mut W,
++        always_huffman: bool,
++    ) -> Result<(), prefix_string::Error> {
++        if always_huffman {
++            prefix_string::encode(6, 0b01, &self.name, buf)?;
++            prefix_string::encode(8, 0, &self.value, buf)?;
++        } else {
++            prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
++            prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
++        }
+         Ok(())
+     }
+ }
+@@ -345,6 +375,30 @@ mod test {
+         );
+     }
+ 
++    #[test]
++    fn always_huffman_codes_encoder_strings_even_when_longer() {
++        let instruction = InsertWithoutNameRef::new("x", "x");
++        let mut buf = vec![];
++        instruction.encode_with(&mut buf, true).unwrap();
++
++        // 'x' has a seven-bit Huffman code, so each string is one byte with
++        // the H bit set instead of a raw byte.
++        assert_eq!(buf, [0x61, 0xf3, 0x81, 0xf3]);
++        assert_eq!(
++            InsertWithoutNameRef::decode(&mut Cursor::new(buf)),
++            Ok(Some(instruction))
++        );
++
++        let instruction = InsertWithNameRef::new_static(0, "x");
++        let mut buf = vec![];
++        instruction.encode_with(&mut buf, true).unwrap();
++        assert_eq!(buf, [0xc0, 0x81, 0xf3]);
++        assert_eq!(
++            InsertWithNameRef::decode(&mut Cursor::new(buf)),
++            Ok(Some(instruction))
++        );
++    }
++
+     #[test]
+     fn encoder_instruction_uses_raw_strings_for_ties() {
+         let instruction = InsertWithoutNameRef::new("x", "x");
+diff --git a/h3/src/tests/qpack_request.rs b/h3/src/tests/qpack_request.rs
+index e1d937d..f88cd8f 100644
+--- a/h3/src/tests/qpack_request.rs
++++ b/h3/src/tests/qpack_request.rs
+@@ -346,6 +346,109 @@ async fn chromium_stream_order_writes_the_encoder_stream_type_with_its_first_ins
+     .expect("request with the Chromium QPACK stream order did not complete");
+ }
+ 
++#[tokio::test]
++async fn unmatched_names_policy_writes_table_capacity_before_any_request() {
++    let mut pair = Pair::default();
++    let endpoint = pair.server_inner();
++    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
++        endpoint.accept().await.unwrap().await.unwrap()
++    });
++    let (expected_instructions, expected_block) =
++        unmatched_names_request_bytes("https://localhost/neqo");
++    let (request_now, request_allowed) = oneshot::channel();
++    let (captured, captured_rx) = oneshot::channel();
++
++    let server = async move {
++        let mut control = server_connection.open_uni().await.unwrap();
++        control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
++
++        // Upstream stream order with eager stream types: control (2),
++        // encoder (6), decoder (10).
++        let mut client_control = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(client_control.id()), 2);
++        assert_eq!(read_varint(&mut client_control).await, 0x00);
++        let mut encoder = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(encoder.id()), 6);
++        assert_eq!(read_varint(&mut encoder).await, 0x02);
++        let mut decoder = server_connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(decoder.id()), 10);
++        assert_eq!(read_varint(&mut decoder).await, 0x03);
++
++        // The table capacity follows the peer's SETTINGS with no request.
++        let mut capacity = [0; 3];
++        encoder.read_exact(&mut capacity).await.unwrap();
++        assert_eq!(capacity, [0x3f, 0xe1, 0x1f]);
++        request_now.send(()).unwrap();
++
++        let mut instructions = vec![0; expected_instructions.len()];
++        encoder.read_exact(&mut instructions).await.unwrap();
++        assert_eq!(instructions, expected_instructions);
++        assert!(!instructions.is_empty());
++        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
++        let (frame_type, payload) = read_frame(&mut request).await;
++        assert_eq!(frame_type, 0x01);
++        assert_eq!(payload, expected_block);
++
++        captured.send(()).unwrap();
++        server_connection.close(0_u32.into(), b"test complete");
++        drop((control, client_control, decoder, encoder));
++    };
++
++    let client = async move {
++        let mut builder = client::builder();
++        builder
++            .send_grease(false)
++            .enable_dynamic_qpack(true)
++            .qpack_insert_policy(client::QpackInsertPolicy::UnmatchedNames)
++            .qpack_huffman(client::QpackHuffman::Always);
++        let (mut driver, mut sender) = builder
++            .build::<_, _, Bytes>(client_connection)
++            .await
++            .unwrap();
++        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let request = async move {
++            request_allowed.await.unwrap();
++            let mut stream = sender
++                .send_request(
++                    Request::get("https://localhost/neqo")
++                        .header("x-neqo", "1")
++                        .body(())
++                        .unwrap(),
++                )
++                .await
++                .unwrap();
++            stream.finish().await.unwrap();
++            captured_rx.await.unwrap();
++        };
++        let ((), _) = tokio::join!(request, drive);
++    };
++
++    tokio::time::timeout(TEST_TIMEOUT, async {
++        tokio::join!(server, client);
++    })
++    .await
++    .expect("request with the unmatched-names QPACK policy did not complete");
++}
++
++fn unmatched_names_request_bytes(uri: &'static str) -> (Vec<u8>, Vec<u8>) {
++    let request = Request::get(uri).header("x-neqo", "1").body(()).unwrap();
++    let (parts, ()) = request.into_parts();
++    let header = Header::request(parts.method, parts.uri, parts.headers, parts.extensions).unwrap();
++    let mut encoder = qpack::Encoder::with_policy(
++        client::QpackInsertPolicy::UnmatchedNames,
++        client::QpackHuffman::Always,
++    );
++    let mut capacity = Vec::new();
++    encoder.set_max_table_capacity(4096, &mut capacity).unwrap();
++    encoder.set_max_blocked_streams(16).unwrap();
++    let mut instructions = Vec::new();
++    let mut block = Vec::new();
++    encoder
++        .encode(0, &mut block, &mut instructions, header)
++        .unwrap();
++    (instructions, block)
++}
++
+ fn stateless_request_block(uri: &'static str) -> Vec<u8> {
+     let request = Request::get(uri).body(()).unwrap();
+     let (parts, ()) = request.into_parts();

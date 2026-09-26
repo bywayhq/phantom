@@ -346,6 +346,109 @@ async fn chromium_stream_order_writes_the_encoder_stream_type_with_its_first_ins
     .expect("request with the Chromium QPACK stream order did not complete");
 }
 
+#[tokio::test]
+async fn unmatched_names_policy_writes_table_capacity_before_any_request() {
+    let mut pair = Pair::default();
+    let endpoint = pair.server_inner();
+    let (client_connection, server_connection) = tokio::join!(pair.client(), async {
+        endpoint.accept().await.unwrap().await.unwrap()
+    });
+    let (expected_instructions, expected_block) =
+        unmatched_names_request_bytes("https://localhost/neqo");
+    let (request_now, request_allowed) = oneshot::channel();
+    let (captured, captured_rx) = oneshot::channel();
+
+    let server = async move {
+        let mut control = server_connection.open_uni().await.unwrap();
+        control.write_all(PEER_DYNAMIC_SETTINGS).await.unwrap();
+
+        // Upstream stream order with eager stream types: control (2),
+        // encoder (6), decoder (10).
+        let mut client_control = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(client_control.id()), 2);
+        assert_eq!(read_varint(&mut client_control).await, 0x00);
+        let mut encoder = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(encoder.id()), 6);
+        assert_eq!(read_varint(&mut encoder).await, 0x02);
+        let mut decoder = server_connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(decoder.id()), 10);
+        assert_eq!(read_varint(&mut decoder).await, 0x03);
+
+        // The table capacity follows the peer's SETTINGS with no request.
+        let mut capacity = [0; 3];
+        encoder.read_exact(&mut capacity).await.unwrap();
+        assert_eq!(capacity, [0x3f, 0xe1, 0x1f]);
+        request_now.send(()).unwrap();
+
+        let mut instructions = vec![0; expected_instructions.len()];
+        encoder.read_exact(&mut instructions).await.unwrap();
+        assert_eq!(instructions, expected_instructions);
+        assert!(!instructions.is_empty());
+        let (_response, mut request) = server_connection.accept_bi().await.unwrap();
+        let (frame_type, payload) = read_frame(&mut request).await;
+        assert_eq!(frame_type, 0x01);
+        assert_eq!(payload, expected_block);
+
+        captured.send(()).unwrap();
+        server_connection.close(0_u32.into(), b"test complete");
+        drop((control, client_control, decoder, encoder));
+    };
+
+    let client = async move {
+        let mut builder = client::builder();
+        builder
+            .send_grease(false)
+            .enable_dynamic_qpack(true)
+            .qpack_insert_policy(client::QpackInsertPolicy::UnmatchedNames)
+            .qpack_huffman(client::QpackHuffman::Always);
+        let (mut driver, mut sender) = builder
+            .build::<_, _, Bytes>(client_connection)
+            .await
+            .unwrap();
+        let drive = async move { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let request = async move {
+            request_allowed.await.unwrap();
+            let mut stream = sender
+                .send_request(
+                    Request::get("https://localhost/neqo")
+                        .header("x-neqo", "1")
+                        .body(())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            stream.finish().await.unwrap();
+            captured_rx.await.unwrap();
+        };
+        let ((), _) = tokio::join!(request, drive);
+    };
+
+    tokio::time::timeout(TEST_TIMEOUT, async {
+        tokio::join!(server, client);
+    })
+    .await
+    .expect("request with the unmatched-names QPACK policy did not complete");
+}
+
+fn unmatched_names_request_bytes(uri: &'static str) -> (Vec<u8>, Vec<u8>) {
+    let request = Request::get(uri).header("x-neqo", "1").body(()).unwrap();
+    let (parts, ()) = request.into_parts();
+    let header = Header::request(parts.method, parts.uri, parts.headers, parts.extensions).unwrap();
+    let mut encoder = qpack::Encoder::with_policy(
+        client::QpackInsertPolicy::UnmatchedNames,
+        client::QpackHuffman::Always,
+    );
+    let mut capacity = Vec::new();
+    encoder.set_max_table_capacity(4096, &mut capacity).unwrap();
+    encoder.set_max_blocked_streams(16).unwrap();
+    let mut instructions = Vec::new();
+    let mut block = Vec::new();
+    encoder
+        .encode(0, &mut block, &mut instructions, header)
+        .unwrap();
+    (instructions, block)
+}
+
 fn stateless_request_block(uri: &'static str) -> Vec<u8> {
     let request = Request::get(uri).body(()).unwrap();
     let (parts, ()) = request.into_parts();

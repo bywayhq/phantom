@@ -338,6 +338,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack_
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked remembered_settings
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked reserved_frame
     cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn \
       --all-features --locked
     cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport \

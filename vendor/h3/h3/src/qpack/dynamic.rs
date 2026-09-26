@@ -206,6 +206,41 @@ impl<'a> DynamicTableEncoder<'a> {
         Ok(result)
     }
 
+    /// Whether this section may reference entries the decoder has not yet
+    /// acknowledged: the stream is already blocking, or the peer's
+    /// blocked-stream limit leaves room for one more.
+    pub(super) fn can_block(&self) -> bool {
+        !self.table.would_exceed_blocked_limit(self.stream_id)
+    }
+
+    /// Inserts `field` with a literal name and returns its post-base index
+    /// and absolute index, or `None` when the table cannot hold it.
+    ///
+    /// Only entries that are acknowledged and unreferenced may be evicted to
+    /// make room, which is neqo's rule (`HeaderTable::insert_possible`).
+    pub(super) fn insert_literal_name(
+        &mut self,
+        field: &HeaderField,
+    ) -> Result<Option<(usize, usize)>, Error> {
+        if !self.can_block() {
+            return Ok(None);
+        }
+        match self.table.can_free_acknowledged(field.mem_size()) {
+            Ok(Some(_)) => {}
+            Ok(None) | Err(Error::MaxTableSizeReached) => return Ok(None),
+            Err(error) => return Err(error),
+        }
+        let index = match self.table.insert(field.clone()) {
+            Ok(Some(index)) => index,
+            Ok(None) | Err(Error::MaxTableSizeReached) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        self.track_ref(index);
+        self.table.field_map.insert(field.clone(), index);
+        self.table.name_map.insert(field.name.clone(), index);
+        Ok(Some((index - self.base - 1, index)))
+    }
+
     pub(super) fn find_name(&mut self, name: &[u8]) -> DynamicLookupResult {
         if let Some(index) = StaticTable::find_name(name) {
             return DynamicLookupResult::Static(index);
@@ -295,6 +330,15 @@ impl DynamicTable {
             commited: false,
             stream_id,
         }
+    }
+
+    /// Starts a field section whose Base is the table's insert count, so
+    /// entries inserted for the section are referenced with post-base
+    /// indexes, as neqo encodes (RFC 9204, section 4.5.1.2).
+    pub fn encoder_at_insert_count(&mut self, stream_id: u64) -> DynamicTableEncoder<'_> {
+        let mut encoder = self.encoder(stream_id);
+        encoder.base = encoder.table.vas.total_inserted();
+        encoder
     }
 
     pub fn set_max_blocked(&mut self, max: usize) -> Result<(), Error> {
@@ -475,6 +519,36 @@ impl DynamicTable {
         }
 
         if required <= self.max_size - hypothetic_mem_size {
+            Ok(Some(evictable))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Like `can_free`, but an entry the decoder has not acknowledged is
+    /// never evicted.
+    fn can_free_acknowledged(&self, required: usize) -> Result<Option<usize>, Error> {
+        if required > self.max_size {
+            return Err(Error::MaxTableSizeReached);
+        }
+        if self.max_size - self.curr_size >= required {
+            return Ok(Some(0));
+        }
+        let lower_bound = self.max_size - required;
+        let mut hypothetic_mem_size = self.curr_size;
+        let mut evictable = 0;
+        for (idx, entry) in self.fields.iter().enumerate() {
+            if hypothetic_mem_size <= lower_bound {
+                break;
+            }
+            let absolute = self.vas.index(idx)?;
+            if self.is_tracked(absolute) || absolute > self.largest_known_received {
+                break;
+            }
+            evictable += 1;
+            hypothetic_mem_size -= entry.mem_size();
+        }
+        if hypothetic_mem_size <= lower_bound {
             Ok(Some(evictable))
         } else {
             Ok(None)

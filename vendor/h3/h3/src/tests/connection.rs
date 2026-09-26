@@ -2469,3 +2469,124 @@ async fn control_settings_cannot_disable_alps_extended_connect() {
         _ = server_fut => panic!("server resolved first"),
     }
 }
+
+/// Firefox 156.0.1's SETTINGS frame, from the retained capture's
+/// `h3.settings_frame_hex`.
+const FIREFOX_SETTINGS: &[(u64, u64)] = &[
+    (0x01, 65_536),
+    (0x07, 20),
+    (0x2b60_3742, 0),
+    (0xff_d277, 1),
+    (0x33, 1),
+    (0x08, 1),
+];
+const FIREFOX_SETTINGS_FRAME: &[u8] = &[
+    0x04, 0x15, 0x01, 0x80, 0x01, 0x00, 0x00, 0x07, 0x14, 0xab, 0x60, 0x37, 0x42, 0x00, 0x80, 0xff,
+    0xd2, 0x77, 0x01, 0x33, 0x01, 0x08, 0x01,
+];
+
+#[tokio::test]
+async fn control_stream_writes_one_reserved_frame_after_ordered_settings() {
+    let mut pair = Pair::default();
+    let server = pair.server();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder
+            .send_grease(false)
+            .reserved_frame_after_settings(true)
+            .ordered_settings(FIREFOX_SETTINGS)
+            .unwrap();
+        let (mut driver, _client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let _ = future::poll_fn(|cx| driver.poll_close(cx)).await;
+    };
+
+    let server_fut = async {
+        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
+        let mut control = connection.accept_uni().await.unwrap();
+        assert_eq!(u64::from(control.id()), 2);
+
+        let mut prefix = vec![0; 1 + FIREFOX_SETTINGS_FRAME.len()];
+        control.read_exact(&mut prefix).await.unwrap();
+        assert_eq!(prefix[0], 0x00);
+        assert_eq!(&prefix[1..], FIREFOX_SETTINGS_FRAME);
+
+        let frame_type = read_quinn_varint(&mut control).await;
+        assert!(frame_type >= 0x21 && (frame_type - 0x21) % 0x1f == 0);
+        let length = read_quinn_varint(&mut control).await;
+        assert!(length <= 7);
+        let mut payload = vec![0; usize::try_from(length).unwrap()];
+        control.read_exact(&mut payload).await.unwrap();
+
+        connection.close(0_u32.into(), b"test complete");
+    };
+
+    tokio::join!(client_fut, server_fut);
+}
+
+#[tokio::test]
+async fn server_ignores_reserved_frame_after_client_settings() {
+    let mut pair = Pair::default();
+    let mut server = pair.server();
+
+    let client_fut = async {
+        let mut builder = client::builder();
+        builder
+            .reserved_frame_after_settings(true)
+            .ordered_settings(FIREFOX_SETTINGS)
+            .unwrap();
+        let (mut driver, mut client) = builder
+            .build::<_, _, Bytes>(pair.client().await)
+            .await
+            .unwrap();
+        let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
+        let req_fut = async move {
+            let mut request_stream = client
+                .send_request(Request::get("http://localhost/reserved").body(()).unwrap())
+                .await
+                .expect("request");
+            request_stream.finish().await.expect("finish request");
+            let response = request_stream.recv_response().await.expect("recv response");
+            assert_eq!(response.status(), StatusCode::OK);
+        };
+        tokio::join!(req_fut, drive_fut)
+    };
+
+    let server_fut = async {
+        let conn = server.next().await;
+        let mut incoming = server::Connection::new(conn).await.unwrap();
+        let (_request, mut request_stream) =
+            get_stream_blocking(&mut incoming).await.expect("accept");
+        request_stream
+            .send_response(Response::builder().status(200).body(()).unwrap())
+            .await
+            .expect("send_response");
+        request_stream.finish().await.expect("finish");
+        assert_matches!(
+            incoming.accept().await.err().unwrap(),
+            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: code, .. })
+            if code == Code::H3_NO_ERROR.value()
+        );
+    };
+
+    tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::join!(server_fut, client_fut);
+    })
+    .await
+    .expect("request over a connection with a reserved control frame did not complete");
+}
+
+async fn read_quinn_varint(stream: &mut quinn::RecvStream) -> u64 {
+    let mut first = [0];
+    stream.read_exact(&mut first).await.unwrap();
+    let width = 1_usize << (first[0] >> 6);
+    let mut encoded = [0; 8];
+    encoded[0] = first[0] & 0x3f;
+    stream.read_exact(&mut encoded[1..width]).await.unwrap();
+    encoded[..width]
+        .iter()
+        .fold(0, |value, byte| (value << 8) | u64::from(*byte))
+}

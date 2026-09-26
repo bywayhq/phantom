@@ -236,6 +236,64 @@ never writes to the stream. Both default to
 upstream's behavior. `patches/qpack-chromium-stream-order.patch` contains this
 delta and its regression tests.
 
+## Reserved frame after SETTINGS
+
+Firefox's HTTP/3 stack, neqo, writes one reserved frame on its control
+stream directly after SETTINGS (`Http3Connection::send_settings` and
+`HFrame::Grease` in `neqo-http3`). Its type is `0x1f * N + 0x21` with `N` a
+random 64-bit value shifted right by 7, and its payload is zero to seven
+random bytes. Upstream h3 can send a reserved frame only as part of
+`send_grease`, which also adds a reserved setting, a reserved stream, and
+reserved frames on request streams, and its frame always carries the six
+bytes `grease`.
+
+`h3::client::Builder::reserved_frame_after_settings` writes that one frame,
+drawn as neqo draws it, in the same write as the control stream type and
+SETTINGS. It changes nothing else, and it is off by default. The fixed-size
+write buffer grows by the frame's largest encoding, 16 bytes, to hold it.
+Tests check the encoded prefix over many draws, the captured Firefox
+156.0.1 control stream (type, the six ordered settings byte for byte, then
+the reserved frame) over QUIC, and a request to an h3 server that ignores
+the frame. `patches/control-stream-reserved-frame.patch` contains this
+delta.
+
+## Unmatched-names QPACK encoding
+
+The stateful request encoder inserts every field without an exact static
+match, with a name reference when one exists, and chooses Huffman coding on
+the encoder stream only when it is shorter. neqo encodes differently
+(`Encoder::encode_header_block` and `HeaderTable::lookup` in `neqo-qpack`).
+In one pass over the fields it uses, in this order, an exact static match,
+an exact dynamic match, a literal with a static name reference, a literal
+with a dynamic name reference, and only then an Insert With Literal Name
+instruction for a name that matches no entry, referenced with a post-base
+index because the section's Base is the insert count when it starts. A
+section that may not block uses only acknowledged entries and inserts
+nothing. After a failed insert the section inserts nothing more. An insert
+may evict only acknowledged, unreferenced entries. Every encoder-stream
+string is Huffman-coded.
+
+`h3::client::Builder::qpack_insert_policy` takes
+`QpackInsertPolicy::EveryField`, the existing encoding and the default, or
+`QpackInsertPolicy::UnmatchedNames`. `h3::client::Builder::qpack_huffman`
+takes `QpackHuffman::WhenShorter`, the default, or `QpackHuffman::Always`.
+Both apply only with `enable_dynamic_qpack`; field lines in HEADERS stay
+Huffman-coded as before. Sensitive fields keep their never-indexed
+literals under either policy.
+
+A unit test encodes the two HTTP/3 requests of the retained Firefox 156.0.1
+snapshot, `fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt`
+in the Phantom repository, against a 4096-byte table and 16 blocked streams
+with no feedback between them. The encoder stream bytes (capacity and four
+inserts) and both field sections equal the capture byte for byte. Other
+tests cover the blocked-stream budget, the stop after a failed insert, the
+eviction rule, and forced Huffman coding. An integration test shows that
+with the default stream order and eager stream types the Set Dynamic Table
+Capacity instruction is written as soon as peer SETTINGS arrive, before any
+request, as neqo writes it. Once 1000 streams have unacknowledged
+sections, neqo encodes further sections from the static table alone; this
+patch has no such limit. `patches/qpack-neqo-encoder.patch` contains this delta.
+
 ## Remembered SETTINGS for early data
 
 RFC 9114 section 7.2.4.2 lets a client that sends 0-RTT data start from the
@@ -385,6 +443,7 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::frame::test
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack::
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack_
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 remembered_settings
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 reserved_frame
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features

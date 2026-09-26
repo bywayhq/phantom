@@ -10,7 +10,7 @@ use std::{
 use bytes::{Buf, Bytes};
 
 use crate::{
-    config::Config,
+    config::{Config, QpackHuffman, QpackInsertPolicy},
     connection::ConnectionInner,
     error::ConnectionError,
     proto::frame::{self, SettingsError},
@@ -289,6 +289,39 @@ impl Builder {
     /// instruction, never writes to the stream.
     pub fn defer_qpack_encoder_stream(&mut self, enabled: bool) -> &mut Self {
         self.config.defer_qpack_encoder_stream = enabled;
+        self
+    }
+
+    /// Chooses which request fields the stateful QPACK encoder inserts into
+    /// the peer's dynamic table.
+    ///
+    /// It applies only with [`Self::enable_dynamic_qpack`]. The default,
+    /// [`QpackInsertPolicy::EveryField`], keeps the existing encoding.
+    /// [`QpackInsertPolicy::UnmatchedNames`] also starts each field section
+    /// at a Base equal to the table's insert count, so that section's own
+    /// inserts are referenced with post-base indexes.
+    pub fn qpack_insert_policy(&mut self, policy: QpackInsertPolicy) -> &mut Self {
+        self.config.qpack_insert_policy = policy;
+        self
+    }
+
+    /// Chooses when string literals on the QPACK encoder stream use Huffman
+    /// coding. It applies only with [`Self::enable_dynamic_qpack`].
+    pub fn qpack_huffman(&mut self, huffman: QpackHuffman) -> &mut Self {
+        self.config.qpack_huffman = huffman;
+        self
+    }
+
+    /// Follows the SETTINGS frame on the control stream with one reserved
+    /// frame, in the same write.
+    ///
+    /// The frame type has the reserved form `0x1f * N + 0x21` (RFC 9114,
+    /// section 7.2.8) with `N` taken from the upper 57 bits of a random
+    /// 64-bit value, and the payload holds zero to seven random bytes. This
+    /// is independent of [`Self::send_grease`], which controls the reserved
+    /// setting, the reserved stream, and reserved frames on request streams.
+    pub fn reserved_frame_after_settings(&mut self, enabled: bool) -> &mut Self {
+        self.config.reserved_frame_after_settings = enabled;
         self
     }
 

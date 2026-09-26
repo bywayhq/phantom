@@ -36,7 +36,9 @@ use crate::{
     qpack,
     quic::{self, RecvStream, SendStream, SendStreamUnframed, StreamErrorIncoming},
     shared_state::{ConnectionState, SharedState},
-    stream::{self, AcceptRecvStream, AcceptedRecvStream, BufRecvStream, UniStreamHeader},
+    stream::{
+        self, AcceptRecvStream, AcceptedRecvStream, BufRecvStream, ReservedFrame, UniStreamHeader,
+    },
     webtransport::SessionId,
 };
 
@@ -409,7 +411,11 @@ where
         let (control, decoder, encoder) = future::join3(
             stream::write(
                 &mut self.control_send,
-                WriteBuf::from(UniStreamHeader::Control(settings)),
+                WriteBuf::from(if self.config.reserved_frame_after_settings {
+                    UniStreamHeader::ControlWithReservedFrame(settings, ReservedFrame::random())
+                } else {
+                    UniStreamHeader::Control(settings)
+                }),
             ),
             async {
                 if let Some(stream) = &mut decoder_send {
@@ -567,7 +573,7 @@ where
             encoder_recv: None,
             encoder_pending: None,
             decoder,
-            encoder: qpack::Encoder::default(),
+            encoder: qpack::Encoder::with_policy(config.qpack_insert_policy, config.qpack_huffman),
             decoder_header_pending,
             decoder_sending: BytesMut::new(),
             outbound,

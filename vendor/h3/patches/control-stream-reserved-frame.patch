@@ -1,0 +1,366 @@
+diff --git a/h3/src/client/builder.rs b/h3/src/client/builder.rs
+index c39e503..141760a 100644
+--- a/h3/src/client/builder.rs
++++ b/h3/src/client/builder.rs
+@@ -292,6 +292,19 @@ impl Builder {
+         self
+     }
+ 
++    /// Follows the SETTINGS frame on the control stream with one reserved
++    /// frame, in the same write.
++    ///
++    /// The frame type has the reserved form `0x1f * N + 0x21` (RFC 9114,
++    /// section 7.2.8) with `N` taken from the upper 57 bits of a random
++    /// 64-bit value, and the payload holds zero to seven random bytes. This
++    /// is independent of [`Self::send_grease`], which controls the reserved
++    /// setting, the reserved stream, and reserved frames on request streams.
++    pub fn reserved_frame_after_settings(&mut self, enabled: bool) -> &mut Self {
++        self.config.reserved_frame_after_settings = enabled;
++        self
++    }
++
+     /// Create a new HTTP/3 client from a `quic` connection
+     pub async fn build<C, O, B>(
+         &mut self,
+diff --git a/h3/src/config.rs b/h3/src/config.rs
+index a8ec05d..2a9153f 100644
+--- a/h3/src/config.rs
++++ b/h3/src/config.rs
+@@ -39,6 +39,10 @@ pub struct Config {
+     /// section needs encoder instructions.
+     pub(crate) defer_qpack_encoder_stream: bool,
+ 
++    /// Follow the local SETTINGS frame with one reserved frame on the
++    /// control stream.
++    pub(crate) reserved_frame_after_settings: bool,
++
+     #[cfg(test)]
+     pub(crate) send_settings: bool,
+ 
+@@ -133,6 +137,7 @@ impl TryFrom<Config> for frame::Settings {
+             defer_qpack_decoder_stream: _,
+             qpack_decoder_stream_first: _,
+             defer_qpack_encoder_stream: _,
++            reserved_frame_after_settings: _,
+             #[cfg(test)]
+                 send_settings: _,
+             settings:
+@@ -253,6 +258,7 @@ impl Default for Config {
+             defer_qpack_decoder_stream: false,
+             qpack_decoder_stream_first: false,
+             defer_qpack_encoder_stream: false,
++            reserved_frame_after_settings: false,
+             #[cfg(test)]
+             send_settings: true,
+             settings: Default::default(),
+@@ -292,6 +298,11 @@ mod tests {
+         assert!(!config.defer_qpack_encoder_stream);
+     }
+ 
++    #[test]
++    fn control_stream_reserved_frame_is_disabled_by_default() {
++        assert!(!Config::default().reserved_frame_after_settings);
++    }
++
+     #[test]
+     fn maximum_qpack_settings_round_trip_through_frame_view() {
+         let mut config = Config {
+diff --git a/h3/src/connection.rs b/h3/src/connection.rs
+index 752a7e0..1b4f9ff 100644
+--- a/h3/src/connection.rs
++++ b/h3/src/connection.rs
+@@ -36,7 +36,9 @@ use crate::{
+     qpack,
+     quic::{self, RecvStream, SendStream, SendStreamUnframed, StreamErrorIncoming},
+     shared_state::{ConnectionState, SharedState},
+-    stream::{self, AcceptRecvStream, AcceptedRecvStream, BufRecvStream, UniStreamHeader},
++    stream::{
++        self, AcceptRecvStream, AcceptedRecvStream, BufRecvStream, ReservedFrame, UniStreamHeader,
++    },
+     webtransport::SessionId,
+ };
+ 
+@@ -409,7 +411,11 @@ where
+         let (control, decoder, encoder) = future::join3(
+             stream::write(
+                 &mut self.control_send,
+-                WriteBuf::from(UniStreamHeader::Control(settings)),
++                WriteBuf::from(if self.config.reserved_frame_after_settings {
++                    UniStreamHeader::ControlWithReservedFrame(settings, ReservedFrame::random())
++                } else {
++                    UniStreamHeader::Control(settings)
++                }),
+             ),
+             async {
+                 if let Some(stream) = &mut decoder_send {
+diff --git a/h3/src/stream.rs b/h3/src/stream.rs
+index fe07cb0..29d8dbd 100644
+--- a/h3/src/stream.rs
++++ b/h3/src/stream.rs
+@@ -14,7 +14,7 @@ use crate::{
+     error::{internal_error::InternalConnectionError, Code},
+     frame::FrameStream,
+     proto::{
+-        coding::Encode,
++        coding::{BufMutExt, Encode},
+         frame::{Frame, Settings},
+         stream::StreamType,
+         varint::VarInt,
+@@ -40,7 +40,8 @@ where
+     Ok(())
+ }
+ 
+-const WRITE_BUF_ENCODE_SIZE: usize = StreamType::MAX_ENCODED_SIZE + Frame::MAX_ENCODED_SIZE;
++const WRITE_BUF_ENCODE_SIZE: usize =
++    StreamType::MAX_ENCODED_SIZE + Frame::MAX_ENCODED_SIZE + ReservedFrame::MAX_ENCODED_SIZE;
+ 
+ /// Wrap frames to encode their header on the stack before sending them on the wire
+ ///
+@@ -120,6 +121,8 @@ where
+ 
+ pub enum UniStreamHeader {
+     Control(Settings),
++    /// A control stream whose SETTINGS frame is followed by one reserved frame.
++    ControlWithReservedFrame(Settings, ReservedFrame),
+     WebTransportUni(SessionId),
+     Encoder,
+     Decoder,
+@@ -132,6 +135,11 @@ impl Encode for UniStreamHeader {
+                 StreamType::CONTROL.encode(buf);
+                 settings.encode(buf);
+             }
++            Self::ControlWithReservedFrame(settings, reserved) => {
++                StreamType::CONTROL.encode(buf);
++                settings.encode(buf);
++                reserved.encode(buf);
++            }
+             Self::WebTransportUni(session_id) => {
+                 StreamType::WEBTRANSPORT_UNI.encode(buf);
+                 session_id.encode(buf);
+@@ -146,6 +154,55 @@ impl Encode for UniStreamHeader {
+     }
+ }
+ 
++/// One reserved HTTP/3 frame (RFC 9114, section 7.2.8) with a random type
++/// and a short random payload.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct ReservedFrame {
++    ty: u64,
++    payload: [u8; ReservedFrame::MAX_PAYLOAD_LEN],
++    len: u8,
++}
++
++impl ReservedFrame {
++    const MAX_PAYLOAD_LEN: usize = 7;
++    /// An eight-byte type, a one-byte length, and the longest payload.
++    pub(crate) const MAX_ENCODED_SIZE: usize = VarInt::MAX_SIZE + 1 + Self::MAX_PAYLOAD_LEN;
++
++    /// Draws the frame the way neqo draws its control-stream GREASE frame
++    /// (`neqo-http3/src/frames/hframe.rs`): `N` is a random 64-bit value
++    /// shifted right by 7, which keeps `0x1f * N + 0x21` below 2^62, and the
++    /// low three bits of one random byte give the payload length.
++    pub(crate) fn random() -> Self {
++        let n = fastrand::u64(..) >> 7;
++        let bytes = fastrand::u64(..).to_ne_bytes();
++        let len = bytes[0] & 0x7;
++        let mut payload = [0; Self::MAX_PAYLOAD_LEN];
++        payload.copy_from_slice(&bytes[1..]);
++        Self {
++            ty: n * 0x1f + 0x21,
++            payload,
++            len,
++        }
++    }
++
++    #[cfg(test)]
++    pub(crate) fn frame_type(&self) -> u64 {
++        self.ty
++    }
++
++    fn payload(&self) -> &[u8] {
++        &self.payload[..usize::from(self.len)]
++    }
++}
++
++impl Encode for ReservedFrame {
++    fn encode<B: BufMut>(&self, buf: &mut B) {
++        buf.write_var(self.ty);
++        buf.write_var(u64::from(self.len));
++        buf.put_slice(self.payload());
++    }
++}
++
+ impl<B> From<BidiStreamHeader> for WriteBuf<B>
+ where
+     B: Buf,
+@@ -795,6 +852,41 @@ mod tests {
+         assert_eq!(recv.buf().remaining(), 0);
+     }
+ 
++    #[test]
++    fn control_header_can_carry_one_reserved_frame_after_settings() {
++        let mut settings = Settings::default();
++        settings
++            .insert(crate::proto::frame::SettingId(0x01), 65_536)
++            .unwrap();
++        for _ in 0..64 {
++            let reserved = ReservedFrame::random();
++            let mut w = WriteBuf::<Bytes>::from(UniStreamHeader::ControlWithReservedFrame(
++                settings, reserved,
++            ));
++            let mut wire = Vec::new();
++            while w.has_remaining() {
++                let chunk = w.chunk().to_vec();
++                w.advance(chunk.len());
++                wire.extend(chunk);
++            }
++
++            let mut read = Bytes::from(wire);
++            assert_eq!(read.get_var().unwrap(), 0x00);
++            assert_eq!(read.get_var().unwrap(), 0x04);
++            let settings_len = usize::try_from(read.get_var().unwrap()).unwrap();
++            assert_eq!(&read[..settings_len], &[0x01, 0x80, 0x01, 0x00, 0x00]);
++            read.advance(settings_len);
++
++            let ty = read.get_var().unwrap();
++            assert_eq!(ty, reserved.frame_type());
++            assert!(ty >= 0x21 && (ty - 0x21) % 0x1f == 0);
++            let len = usize::try_from(read.get_var().unwrap()).unwrap();
++            assert!(len <= ReservedFrame::MAX_PAYLOAD_LEN);
++            assert_eq!(read.remaining(), len);
++            assert_eq!(&read[..], reserved.payload());
++        }
++    }
++
+     #[test]
+     fn write_wt_uni_header() {
+         let mut w = WriteBuf::<Bytes>::from(UniStreamHeader::WebTransportUni(
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+index f024295..9230f07 100644
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -2469,3 +2469,124 @@ async fn control_settings_cannot_disable_alps_extended_connect() {
+         _ = server_fut => panic!("server resolved first"),
+     }
+ }
++
++/// Firefox 156.0.1's SETTINGS frame, from the retained capture's
++/// `h3.settings_frame_hex`.
++const FIREFOX_SETTINGS: &[(u64, u64)] = &[
++    (0x01, 65_536),
++    (0x07, 20),
++    (0x2b60_3742, 0),
++    (0xff_d277, 1),
++    (0x33, 1),
++    (0x08, 1),
++];
++const FIREFOX_SETTINGS_FRAME: &[u8] = &[
++    0x04, 0x15, 0x01, 0x80, 0x01, 0x00, 0x00, 0x07, 0x14, 0xab, 0x60, 0x37, 0x42, 0x00, 0x80, 0xff,
++    0xd2, 0x77, 0x01, 0x33, 0x01, 0x08, 0x01,
++];
++
++#[tokio::test]
++async fn control_stream_writes_one_reserved_frame_after_ordered_settings() {
++    let mut pair = Pair::default();
++    let server = pair.server();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder
++            .send_grease(false)
++            .reserved_frame_after_settings(true)
++            .ordered_settings(FIREFOX_SETTINGS)
++            .unwrap();
++        let (mut driver, _client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let _ = future::poll_fn(|cx| driver.poll_close(cx)).await;
++    };
++
++    let server_fut = async {
++        let connection = server.endpoint.accept().await.unwrap().await.unwrap();
++        let mut control = connection.accept_uni().await.unwrap();
++        assert_eq!(u64::from(control.id()), 2);
++
++        let mut prefix = vec![0; 1 + FIREFOX_SETTINGS_FRAME.len()];
++        control.read_exact(&mut prefix).await.unwrap();
++        assert_eq!(prefix[0], 0x00);
++        assert_eq!(&prefix[1..], FIREFOX_SETTINGS_FRAME);
++
++        let frame_type = read_quinn_varint(&mut control).await;
++        assert!(frame_type >= 0x21 && (frame_type - 0x21) % 0x1f == 0);
++        let length = read_quinn_varint(&mut control).await;
++        assert!(length <= 7);
++        let mut payload = vec![0; usize::try_from(length).unwrap()];
++        control.read_exact(&mut payload).await.unwrap();
++
++        connection.close(0_u32.into(), b"test complete");
++    };
++
++    tokio::join!(client_fut, server_fut);
++}
++
++#[tokio::test]
++async fn server_ignores_reserved_frame_after_client_settings() {
++    let mut pair = Pair::default();
++    let mut server = pair.server();
++
++    let client_fut = async {
++        let mut builder = client::builder();
++        builder
++            .reserved_frame_after_settings(true)
++            .ordered_settings(FIREFOX_SETTINGS)
++            .unwrap();
++        let (mut driver, mut client) = builder
++            .build::<_, _, Bytes>(pair.client().await)
++            .await
++            .unwrap();
++        let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
++        let req_fut = async move {
++            let mut request_stream = client
++                .send_request(Request::get("http://localhost/reserved").body(()).unwrap())
++                .await
++                .expect("request");
++            request_stream.finish().await.expect("finish request");
++            let response = request_stream.recv_response().await.expect("recv response");
++            assert_eq!(response.status(), StatusCode::OK);
++        };
++        tokio::join!(req_fut, drive_fut)
++    };
++
++    let server_fut = async {
++        let conn = server.next().await;
++        let mut incoming = server::Connection::new(conn).await.unwrap();
++        let (_request, mut request_stream) =
++            get_stream_blocking(&mut incoming).await.expect("accept");
++        request_stream
++            .send_response(Response::builder().status(200).body(()).unwrap())
++            .await
++            .expect("send_response");
++        request_stream.finish().await.expect("finish");
++        assert_matches!(
++            incoming.accept().await.err().unwrap(),
++            ConnectionError::Remote(ConnectionErrorIncoming::ApplicationClose { error_code: code, .. })
++            if code == Code::H3_NO_ERROR.value()
++        );
++    };
++
++    tokio::time::timeout(Duration::from_secs(5), async {
++        tokio::join!(server_fut, client_fut);
++    })
++    .await
++    .expect("request over a connection with a reserved control frame did not complete");
++}
++
++async fn read_quinn_varint(stream: &mut quinn::RecvStream) -> u64 {
++    let mut first = [0];
++    stream.read_exact(&mut first).await.unwrap();
++    let width = 1_usize << (first[0] >> 6);
++    let mut encoded = [0; 8];
++    encoded[0] = first[0] & 0x3f;
++    stream.read_exact(&mut encoded[1..width]).await.unwrap();
++    encoded[..width]
++        .iter()
++        .fold(0, |value, byte| (value << 8) | u64::from(*byte))
++}

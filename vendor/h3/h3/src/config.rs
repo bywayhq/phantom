@@ -16,6 +16,35 @@ pub(crate) fn validate_local_qpack_max_table_capacity(
     Ok(())
 }
 
+/// Which request fields the stateful QPACK encoder inserts into the dynamic
+/// table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum QpackInsertPolicy {
+    /// Insert every field that has no exact match in the static table, using
+    /// a name reference when one exists, and reuse exact dynamic matches.
+    #[default]
+    EveryField,
+    /// Insert, with a literal name, only a field whose name matches no entry
+    /// in either table; otherwise use an exact match or a literal with a name
+    /// reference, preferring a static name. This is neqo's policy
+    /// (`neqo-qpack` `Encoder::encode_header_block`).
+    UnmatchedNames,
+}
+
+/// When string literals on the QPACK encoder stream use Huffman coding.
+///
+/// Field lines in a HEADERS frame are always Huffman-coded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum QpackHuffman {
+    /// Use Huffman coding only when it is shorter than the raw string.
+    #[default]
+    WhenShorter,
+    /// Always use Huffman coding, as neqo does.
+    Always,
+}
+
 /// Configures the HTTP/3 connection
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
@@ -38,6 +67,16 @@ pub struct Config {
     /// Delay the local QPACK encoder stream type until the first field
     /// section needs encoder instructions.
     pub(crate) defer_qpack_encoder_stream: bool,
+
+    /// Follow the local SETTINGS frame with one reserved frame on the
+    /// control stream.
+    pub(crate) reserved_frame_after_settings: bool,
+
+    /// Which request fields the stateful QPACK encoder inserts.
+    pub(crate) qpack_insert_policy: QpackInsertPolicy,
+
+    /// When encoder-stream string literals use Huffman coding.
+    pub(crate) qpack_huffman: QpackHuffman,
 
     #[cfg(test)]
     pub(crate) send_settings: bool,
@@ -133,6 +172,9 @@ impl TryFrom<Config> for frame::Settings {
             defer_qpack_decoder_stream: _,
             qpack_decoder_stream_first: _,
             defer_qpack_encoder_stream: _,
+            reserved_frame_after_settings: _,
+            qpack_insert_policy: _,
+            qpack_huffman: _,
             #[cfg(test)]
                 send_settings: _,
             settings:
@@ -253,6 +295,9 @@ impl Default for Config {
             defer_qpack_decoder_stream: false,
             qpack_decoder_stream_first: false,
             defer_qpack_encoder_stream: false,
+            reserved_frame_after_settings: false,
+            qpack_insert_policy: QpackInsertPolicy::EveryField,
+            qpack_huffman: QpackHuffman::WhenShorter,
             #[cfg(test)]
             send_settings: true,
             settings: Default::default(),
@@ -290,6 +335,18 @@ mod tests {
         let config = Config::default();
         assert!(!config.qpack_decoder_stream_first);
         assert!(!config.defer_qpack_encoder_stream);
+    }
+
+    #[test]
+    fn control_stream_reserved_frame_is_disabled_by_default() {
+        assert!(!Config::default().reserved_frame_after_settings);
+    }
+
+    #[test]
+    fn qpack_encoder_policies_default_to_the_existing_behavior() {
+        let config = Config::default();
+        assert_eq!(config.qpack_insert_policy, QpackInsertPolicy::EveryField);
+        assert_eq!(config.qpack_huffman, QpackHuffman::WhenShorter);
     }
 
     #[test]

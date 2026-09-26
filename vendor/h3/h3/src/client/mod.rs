@@ -6,6 +6,7 @@ mod stream;
 
 mod builder;
 
+pub use crate::config::{QpackHuffman, QpackInsertPolicy};
 pub use crate::proto::frame::SettingsError;
 pub use builder::{builder, new, ApplicationSettingsError, Builder};
 pub use connection::{Connection, PeerSettings, SendRequest};

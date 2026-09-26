@@ -16,4 +16,6 @@ poll-send-data.patch
 late-application-settings.patch
 remembered-settings.patch
 qpack-chromium-stream-order.patch
+control-stream-reserved-frame.patch
+qpack-neqo-encoder.patch
 publish-identity.patch

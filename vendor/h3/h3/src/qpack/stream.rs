@@ -115,17 +115,31 @@ impl InsertWithNameRef {
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
-        match self {
+        self.encode_with(buf, false)
+    }
+
+    /// Encodes the instruction, Huffman-coding the value unconditionally
+    /// when `always_huffman` is set and only when shorter otherwise.
+    pub fn encode_with<W: BufMut>(
+        &self,
+        buf: &mut W,
+        always_huffman: bool,
+    ) -> Result<(), prefix_string::Error> {
+        let value = match self {
             InsertWithNameRef::Static { index, value } => {
                 prefix_int::encode(6, 0b11, *index as u64, buf);
-                prefix_string::encode_if_smaller(8, 0, value, buf)?;
+                value
             }
             InsertWithNameRef::Dynamic { index, value } => {
                 prefix_int::encode(6, 0b10, *index as u64, buf);
-                prefix_string::encode_if_smaller(8, 0, value, buf)?;
+                value
             }
+        };
+        if always_huffman {
+            prefix_string::encode(8, 0, value, buf)
+        } else {
+            prefix_string::encode_if_smaller(8, 0, value, buf)
         }
-        Ok(())
     }
 }
 
@@ -158,8 +172,24 @@ impl InsertWithoutNameRef {
     }
 
     pub fn encode<W: BufMut>(&self, buf: &mut W) -> Result<(), prefix_string::Error> {
-        prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
-        prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
+        self.encode_with(buf, false)
+    }
+
+    /// Encodes the instruction, Huffman-coding the name and value
+    /// unconditionally when `always_huffman` is set and only when shorter
+    /// otherwise.
+    pub fn encode_with<W: BufMut>(
+        &self,
+        buf: &mut W,
+        always_huffman: bool,
+    ) -> Result<(), prefix_string::Error> {
+        if always_huffman {
+            prefix_string::encode(6, 0b01, &self.name, buf)?;
+            prefix_string::encode(8, 0, &self.value, buf)?;
+        } else {
+            prefix_string::encode_if_smaller(6, 0b01, &self.name, buf)?;
+            prefix_string::encode_if_smaller(8, 0, &self.value, buf)?;
+        }
         Ok(())
     }
 }
@@ -341,6 +371,30 @@ mod test {
         let mut read = Cursor::new(&buf);
         assert_eq!(
             InsertWithoutNameRef::decode(&mut read),
+            Ok(Some(instruction))
+        );
+    }
+
+    #[test]
+    fn always_huffman_codes_encoder_strings_even_when_longer() {
+        let instruction = InsertWithoutNameRef::new("x", "x");
+        let mut buf = vec![];
+        instruction.encode_with(&mut buf, true).unwrap();
+
+        // 'x' has a seven-bit Huffman code, so each string is one byte with
+        // the H bit set instead of a raw byte.
+        assert_eq!(buf, [0x61, 0xf3, 0x81, 0xf3]);
+        assert_eq!(
+            InsertWithoutNameRef::decode(&mut Cursor::new(buf)),
+            Ok(Some(instruction))
+        );
+
+        let instruction = InsertWithNameRef::new_static(0, "x");
+        let mut buf = vec![];
+        instruction.encode_with(&mut buf, true).unwrap();
+        assert_eq!(buf, [0xc0, 0x81, 0xf3]);
+        assert_eq!(
+            InsertWithNameRef::decode(&mut Cursor::new(buf)),
             Ok(Some(instruction))
         );
     }

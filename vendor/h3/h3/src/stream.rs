@@ -14,7 +14,7 @@ use crate::{
     error::{internal_error::InternalConnectionError, Code},
     frame::FrameStream,
     proto::{
-        coding::Encode,
+        coding::{BufMutExt, Encode},
         frame::{Frame, Settings},
         stream::StreamType,
         varint::VarInt,
@@ -40,7 +40,8 @@ where
     Ok(())
 }
 
-const WRITE_BUF_ENCODE_SIZE: usize = StreamType::MAX_ENCODED_SIZE + Frame::MAX_ENCODED_SIZE;
+const WRITE_BUF_ENCODE_SIZE: usize =
+    StreamType::MAX_ENCODED_SIZE + Frame::MAX_ENCODED_SIZE + ReservedFrame::MAX_ENCODED_SIZE;
 
 /// Wrap frames to encode their header on the stack before sending them on the wire
 ///
@@ -120,6 +121,8 @@ where
 
 pub enum UniStreamHeader {
     Control(Settings),
+    /// A control stream whose SETTINGS frame is followed by one reserved frame.
+    ControlWithReservedFrame(Settings, ReservedFrame),
     WebTransportUni(SessionId),
     Encoder,
     Decoder,
@@ -132,6 +135,11 @@ impl Encode for UniStreamHeader {
                 StreamType::CONTROL.encode(buf);
                 settings.encode(buf);
             }
+            Self::ControlWithReservedFrame(settings, reserved) => {
+                StreamType::CONTROL.encode(buf);
+                settings.encode(buf);
+                reserved.encode(buf);
+            }
             Self::WebTransportUni(session_id) => {
                 StreamType::WEBTRANSPORT_UNI.encode(buf);
                 session_id.encode(buf);
@@ -143,6 +151,55 @@ impl Encode for UniStreamHeader {
                 StreamType::DECODER.encode(buf);
             }
         }
+    }
+}
+
+/// One reserved HTTP/3 frame (RFC 9114, section 7.2.8) with a random type
+/// and a short random payload.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReservedFrame {
+    ty: u64,
+    payload: [u8; ReservedFrame::MAX_PAYLOAD_LEN],
+    len: u8,
+}
+
+impl ReservedFrame {
+    const MAX_PAYLOAD_LEN: usize = 7;
+    /// An eight-byte type, a one-byte length, and the longest payload.
+    pub(crate) const MAX_ENCODED_SIZE: usize = VarInt::MAX_SIZE + 1 + Self::MAX_PAYLOAD_LEN;
+
+    /// Draws the frame the way neqo draws its control-stream GREASE frame
+    /// (`neqo-http3/src/frames/hframe.rs`): `N` is a random 64-bit value
+    /// shifted right by 7, which keeps `0x1f * N + 0x21` below 2^62, and the
+    /// low three bits of one random byte give the payload length.
+    pub(crate) fn random() -> Self {
+        let n = fastrand::u64(..) >> 7;
+        let bytes = fastrand::u64(..).to_ne_bytes();
+        let len = bytes[0] & 0x7;
+        let mut payload = [0; Self::MAX_PAYLOAD_LEN];
+        payload.copy_from_slice(&bytes[1..]);
+        Self {
+            ty: n * 0x1f + 0x21,
+            payload,
+            len,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn frame_type(&self) -> u64 {
+        self.ty
+    }
+
+    fn payload(&self) -> &[u8] {
+        &self.payload[..usize::from(self.len)]
+    }
+}
+
+impl Encode for ReservedFrame {
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        buf.write_var(self.ty);
+        buf.write_var(u64::from(self.len));
+        buf.put_slice(self.payload());
     }
 }
 
@@ -793,6 +850,41 @@ mod tests {
             Ok(BoundedRead::LimitExceeded)
         ));
         assert_eq!(recv.buf().remaining(), 0);
+    }
+
+    #[test]
+    fn control_header_can_carry_one_reserved_frame_after_settings() {
+        let mut settings = Settings::default();
+        settings
+            .insert(crate::proto::frame::SettingId(0x01), 65_536)
+            .unwrap();
+        for _ in 0..64 {
+            let reserved = ReservedFrame::random();
+            let mut w = WriteBuf::<Bytes>::from(UniStreamHeader::ControlWithReservedFrame(
+                settings, reserved,
+            ));
+            let mut wire = Vec::new();
+            while w.has_remaining() {
+                let chunk = w.chunk().to_vec();
+                w.advance(chunk.len());
+                wire.extend(chunk);
+            }
+
+            let mut read = Bytes::from(wire);
+            assert_eq!(read.get_var().unwrap(), 0x00);
+            assert_eq!(read.get_var().unwrap(), 0x04);
+            let settings_len = usize::try_from(read.get_var().unwrap()).unwrap();
+            assert_eq!(&read[..settings_len], &[0x01, 0x80, 0x01, 0x00, 0x00]);
+            read.advance(settings_len);
+
+            let ty = read.get_var().unwrap();
+            assert_eq!(ty, reserved.frame_type());
+            assert!(ty >= 0x21 && (ty - 0x21) % 0x1f == 0);
+            let len = usize::try_from(read.get_var().unwrap()).unwrap();
+            assert!(len <= ReservedFrame::MAX_PAYLOAD_LEN);
+            assert_eq!(read.remaining(), len);
+            assert_eq!(&read[..], reserved.payload());
+        }
     }
 
     #[test]
