@@ -241,9 +241,14 @@ fn recipes_carry_the_browser_handshake_timers() {
 }
 
 #[test]
-fn validation_rejects_a_zero_handshake_timeout() {
+fn validation_rejects_a_zero_or_unrepresentable_handshake_timeout() {
     let mut settings = chromium::v154_websocket();
     settings.handshake_timeout = Some(Duration::ZERO);
+    assert_eq!(
+        settings.validate().map_err(|error| error.field()),
+        Err("handshake_timeout")
+    );
+    settings.handshake_timeout = Some(Duration::MAX);
     assert_eq!(
         settings.validate().map_err(|error| error.field()),
         Err("handshake_timeout")

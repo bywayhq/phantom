@@ -291,9 +291,9 @@ impl WebSocketRequestBuilder {
     /// and [`WebSocketError::timeout_phase`] returns
     /// [`TimeoutPhase::WebSocketHandshake`]. A timeout needs a Tokio runtime
     /// with time enabled; without one, `connect` fails with
-    /// [`WebSocketErrorKind::RuntimeUnavailable`]. A duration the runtime
-    /// clock cannot represent fails with [`WebSocketErrorKind::InvalidRequest`]
-    /// before any I/O.
+    /// [`WebSocketErrorKind::RuntimeUnavailable`]. `Some(Duration::ZERO)`, or
+    /// a duration the runtime clock cannot represent, fails `connect` with
+    /// [`WebSocketErrorKind::InvalidRequest`] before any I/O.
     pub fn handshake_timeout(mut self, timeout: Option<Duration>) -> Self {
         self.handshake_timeout = timeout;
         self
@@ -383,6 +383,16 @@ impl WebSocketRequestBuilder {
     /// Opens the WebSocket, and again after each connection-setup failure
     /// the retry policy allows.
     async fn connect_with_retries(self, span: &Span) -> Result<WebSocket, WebSocketError> {
+        if let Some(timeout) = self.handshake_timeout {
+            if timeout.is_zero() {
+                return Err(WebSocketError::invalid_request(
+                    "a WebSocket handshake timeout must be positive; None sets no limit",
+                ));
+            }
+            if tokio::time::Instant::now().checked_add(timeout).is_none() {
+                return Err(WebSocketError::request(RequestError::invalid_timeout()));
+            }
+        }
         let policy = self.retry_policy;
         if policy.max_connection_failures().is_none() {
             return Box::pin(self.connect_within_timeout(span))

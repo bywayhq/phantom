@@ -22,13 +22,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `WebSocketSettings` gained the public field `handshake_timeout`
   (`Option<Duration>`), the browser's own opening-handshake timer, so struct
   literals that name every field no longer compile. `chromium::v154_websocket`
-  sets 240 seconds, Chromium's `kHandshakeTimeoutIntervalInSeconds`, and
-  `firefox::v156_websocket` sets 20 seconds, Firefox's
+  sets 240 seconds, Chromium's `kHandshakeTimeoutIntervalInSeconds`, and so
+  do `chrome_android::v154_websocket` and `brave_android::v153_websocket`,
+  which return it. `firefox::v156_websocket` sets 20 seconds, Firefox's
   `network.websocket.timeout.open` default. `WebSocketSettings::validate`
-  rejects `Some(Duration::ZERO)`. A WebSocket opened by a client whose
-  profile has one of these recipes now fails with
-  `WebSocketErrorKind::Timeout` after that long, where it waited without a
-  limit.
+  rejects `Some(Duration::ZERO)` and a timeout the clock cannot represent.
+  A WebSocket opened by a client whose profile has one of these recipes now
+  fails with `WebSocketErrorKind::Timeout` after that long, where it waited
+  without a limit, and needs a Tokio runtime with time enabled; without one,
+  `connect` fails with `WebSocketErrorKind::RuntimeUnavailable`.
   Migrate: add `handshake_timeout: None` to a `WebSocketSettings` literal to
   keep no limit, or copy the value from a recipe. Call
   `WebSocketRequestBuilder::handshake_timeout(None)` to open one WebSocket
@@ -409,7 +411,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   from the start of `connect` until the accepting response is validated, on
   every route and protocol and on a pooled HTTP/2 session. It defaults to
   the profile recipe's `handshake_timeout` and to no limit without a recipe;
-  `None` removes it. When it passes, `connect` fails with the new
+  `None` removes it, and a zero timeout or one the clock cannot represent
+  fails with `WebSocketErrorKind::InvalidRequest` before any I/O. When it
+  passes, `connect` fails with the new
   `WebSocketErrorKind::Timeout`, and the new `WebSocketError::timeout_phase`
   returns the new `TimeoutPhase::WebSocketHandshake`.
 - `WebSocketRetryPolicy` and `WebSocketRequestBuilder::retry_policy` open a

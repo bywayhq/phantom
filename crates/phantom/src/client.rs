@@ -1032,14 +1032,6 @@ impl ClientBuilder {
             websocket
                 .validate()
                 .map_err(BuildError::invalid_websocket_profile)?;
-            if websocket
-                .handshake_timeout
-                .is_some_and(|timeout| std::time::Instant::now().checked_add(timeout).is_none())
-            {
-                return Err(BuildError::invalid_policy(
-                    "WebSocket handshake timeout exceeds the runtime clock range",
-                ));
-            }
         }
         if let Some(proxy_connect) = self.profile.proxy_connect() {
             proxy_connect

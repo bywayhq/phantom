@@ -1,6 +1,10 @@
 //! Backend-neutral WebSocket opening fields and connection choice.
 
-use std::{error::Error, fmt, time::Duration};
+use std::{
+    error::Error,
+    fmt,
+    time::{Duration, Instant},
+};
 
 use crate::TlsSettings;
 
@@ -338,14 +342,23 @@ impl WebSocketSettings {
     ///
     /// Returns [`InvalidWebSocketSettings`] for an ALPN list that cannot carry
     /// an HTTP/1.1 Upgrade, a template that is not usable by its protocol, an
-    /// invalid compression offer, or a zero handshake timeout.
+    /// invalid compression offer, or a handshake timeout that is zero or
+    /// that the clock cannot represent.
     pub fn validate(&self) -> Result<(), InvalidWebSocketSettings> {
         self.connection.validate()?;
-        if self.handshake_timeout == Some(Duration::ZERO) {
-            return Err(InvalidWebSocketSettings::new(
-                "handshake_timeout",
-                "a handshake timeout must be positive; None sets no limit",
-            ));
+        if let Some(timeout) = self.handshake_timeout {
+            if timeout.is_zero() {
+                return Err(InvalidWebSocketSettings::new(
+                    "handshake_timeout",
+                    "a handshake timeout must be positive; None sets no limit",
+                ));
+            }
+            if Instant::now().checked_add(timeout).is_none() {
+                return Err(InvalidWebSocketSettings::new(
+                    "handshake_timeout",
+                    "the handshake timeout exceeds the clock range",
+                ));
+            }
         }
         validate_template(&self.http1_fields, "http1_fields", false)?;
         validate_template(&self.http2_fields, "http2_fields", true)?;
