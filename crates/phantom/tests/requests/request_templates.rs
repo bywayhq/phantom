@@ -30,7 +30,7 @@ use phantom::{
     ResponseInfo, Route, Socks5Proxy,
     profile::{
         ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate, brave,
-        brave_android, chrome_android, chromium, edge, firefox, opera,
+        brave_android, chrome_android, chromium, edge, edge_android, firefox, opera,
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -67,17 +67,19 @@ const OPERA_H1: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/
 const OPERA_H2: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt");
 const OPERA_H3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
 const BRAVE_ANDROID_H1: &str =
-    fixture!("websocket/brave-android/153.1.95.104/android-35-emulator/h1-accept.txt");
+    fixture!("websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/h1-accept.txt");
 const BRAVE_ANDROID_H2: &str =
-    fixture!("websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt");
+    fixture!("websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/accept.txt");
 const BRAVE_ANDROID_H3: &str =
     fixture!("http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt");
 const CHROME_ANDROID_H1: &str =
-    fixture!("websocket/chrome-android/153.0.8010.52/android-35-emulator/h1-accept.txt");
+    fixture!("websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/h1-accept.txt");
 const CHROME_ANDROID_H2: &str =
-    fixture!("websocket/chrome-android/153.0.8010.52/android-35-emulator/accept.txt");
-const CHROME_ANDROID_H3: &str =
-    fixture!("http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt");
+    fixture!("websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt");
+const EDGE_ANDROID_H1: &str =
+    fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt");
+const EDGE_ANDROID_H2: &str =
+    fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt");
 const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0/windows-11-26200/h1-accept.txt");
 const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0/windows-11-26200/accept.txt");
 
@@ -142,13 +144,23 @@ fn brave_android() -> Browser {
 
 fn chrome_android() -> Browser {
     Browser {
-        http2: chrome_android::v153_http2(),
-        hints: Some(chrome_android::v153_android_client_hints(
-            "sdk_gphone64_x86_64",
-        )),
+        http2: chrome_android::v154_http2(),
+        hints: Some(chrome_android::v154_android_client_hints()),
         http1_capture: CHROME_ANDROID_H1,
         http2_capture: CHROME_ANDROID_H2,
-        http3_capture: Some(CHROME_ANDROID_H3),
+        // The Android 17 H3 startups were opened by intent, without the
+        // user activation a typed navigation has, so no H3 request here.
+        http3_capture: None,
+    }
+}
+
+fn edge_android() -> Browser {
+    Browser {
+        http2: edge_android::v153_http2(),
+        hints: Some(edge_android::v153_android_client_hints()),
+        http1_capture: EDGE_ANDROID_H1,
+        http2_capture: EDGE_ANDROID_H2,
+        http3_capture: None,
     }
 }
 
@@ -513,9 +525,20 @@ async fn brave_android_fetch_sends_the_captured_report_request() -> TestResult<(
 async fn chrome_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         chrome_android(),
-        chrome_android::v153_android_navigation_template,
+        chrome_android::v154_android_navigation_template,
         Kind::Navigation,
-        ALL,
+        TCP,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn edge_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
+    assert_reproduces(
+        edge_android(),
+        edge_android::v153_android_navigation_template,
+        Kind::Navigation,
+        TCP,
     )
     .await
 }
@@ -579,7 +602,18 @@ async fn opera_fetch_sends_the_captured_report_request() -> TestResult<()> {
 async fn chrome_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         chrome_android(),
-        chrome_android::v153_android_fetch_no_store_template,
+        chrome_android::v154_android_fetch_no_store_template,
+        Kind::Fetch,
+        TCP,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn edge_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
+    assert_reproduces(
+        edge_android(),
+        edge_android::v153_android_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )

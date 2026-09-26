@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{brave, brave_android, chrome_android, chromium, edge, opera};
+use phantom_profile::{brave, brave_android, chrome_android, chromium, edge, edge_android, opera};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -133,27 +133,20 @@ fn opera_135_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
     Ok(())
 }
 
-/// Chrome 153 for Android offers the desktop Chromium QUIC ClientHello; its
-/// trust-anchor IDs are the same set in a per-process order.
+/// Chrome 154 for Android offers the desktop Chromium QUIC ClientHello.
 #[test]
-fn chrome_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
+fn chrome_android_154_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &chrome_android::v153_http3_tls(),
-        &chrome_android::v153_quic(),
-        &chrome_android::v153_http3(),
-        &chrome_android::v153_http3_request(),
+        &chrome_android::v154_http3_tls(),
+        &chrome_android::v154_quic(),
+        &chrome_android::v154_http3(),
+        &chrome_android::v154_http3_request(),
     )?;
-    for client_hello in [
-        CHROME_ANDROID_153_H3_CLIENT_HELLO_1,
-        CHROME_ANDROID_153_H3_CLIENT_HELLO_2,
-    ] {
-        assert_connector_matches_quic_client_hello(
-            &connector,
-            CHROME_ANDROID_153_H3_STARTUP,
-            client_hello,
-        )?;
-    }
-    Ok(())
+    assert_connector_matches_quic_client_hello(
+        &connector,
+        CHROME_ANDROID_154_H3_STARTUP,
+        CHROME_ANDROID_154_H3_CLIENT_HELLO,
+    )
 }
 
 /// Brave for Android offers the desktop Brave QUIC ClientHello.
@@ -165,17 +158,28 @@ fn brave_android_153_quic_client_hello_recipe_matches_android_capture() -> TestR
         &brave_android::v153_http3(),
         &brave_android::v153_http3_request(),
     )?;
-    for client_hello in [
-        BRAVE_ANDROID_153_H3_CLIENT_HELLO_1,
-        BRAVE_ANDROID_153_H3_CLIENT_HELLO_2,
-    ] {
-        assert_connector_matches_quic_client_hello(
-            &connector,
-            BRAVE_ANDROID_153_H3_STARTUP,
-            client_hello,
-        )?;
-    }
-    Ok(())
+    assert_connector_matches_quic_client_hello(
+        &connector,
+        BRAVE_ANDROID_153_H3_STARTUP,
+        BRAVE_ANDROID_153_H3_CLIENT_HELLO,
+    )
+}
+
+/// Edge for Android offers the desktop Edge QUIC ClientHello: the Chromium
+/// offer without trust-anchor IDs.
+#[test]
+fn edge_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
+    let connector = Http3Connector::new(
+        &edge_android::v153_http3_tls(),
+        &edge_android::v153_quic(),
+        &edge_android::v153_http3(),
+        &edge_android::v153_http3_request(),
+    )?;
+    assert_connector_matches_quic_client_hello(
+        &connector,
+        EDGE_ANDROID_153_H3_STARTUP,
+        EDGE_ANDROID_153_H3_CLIENT_HELLO,
+    )
 }
 
 fn assert_connector_matches_quic_client_hello(
@@ -680,27 +684,27 @@ pub(super) fn sorted_trust_anchor_ids(summary: &ClientHelloSummary) -> Option<Ve
         identifiers
     })
 }
-const CHROME_ANDROID_153_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
-    "android-35-emulator/client-startup.txt"
+const CHROME_ANDROID_154_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome-android/154.0.8037.57/",
+    "android-17-pixel7-emulator/client-startup.txt"
 ));
-const CHROME_ANDROID_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
-    "android-35-emulator/quic-client-hello-1.txt"
-));
-const CHROME_ANDROID_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/chrome-android/153.0.8010.52/",
-    "android-35-emulator/quic-client-hello-2.txt"
+const CHROME_ANDROID_154_H3_CLIENT_HELLO: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/chrome-android/154.0.8037.57/",
+    "android-17-pixel7-emulator/quic-client-hello-1.txt"
 ));
 const BRAVE_ANDROID_153_H3_STARTUP: &str = include_str!(concat!(
     "../../../../../fixtures/http3/brave-android/153.1.95.104/",
-    "android-35-emulator/client-startup.txt"
+    "android-17-pixel7-emulator/client-startup.txt"
 ));
-const BRAVE_ANDROID_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+const BRAVE_ANDROID_153_H3_CLIENT_HELLO: &str = include_str!(concat!(
     "../../../../../fixtures/http3/brave-android/153.1.95.104/",
-    "android-35-emulator/quic-client-hello-1.txt"
+    "android-17-pixel7-emulator/quic-client-hello-1.txt"
 ));
-const BRAVE_ANDROID_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/brave-android/153.1.95.104/",
-    "android-35-emulator/quic-client-hello-2.txt"
+const EDGE_ANDROID_153_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge-android/153.0.4234.49/",
+    "android-17-pixel7-emulator/client-startup.txt"
+));
+const EDGE_ANDROID_153_H3_CLIENT_HELLO: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge-android/153.0.4234.49/",
+    "android-17-pixel7-emulator/quic-client-hello-1.txt"
 ));

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     ClientHintSettings, brave, brave_android, chrome_android, chromium,
-    client_hints::navigation_capture::NavigationCapture, edge, firefox, opera,
+    client_hints::navigation_capture::NavigationCapture, edge, edge_android, firefox, opera,
 };
 
 macro_rules! fixture {
@@ -116,8 +116,19 @@ const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.
 const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/156.0");
 const OPERA_MACOS_HTTP3: &str =
     fixture!("http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt");
-const CHROME_ANDROID_WEBSOCKET: [&str; 9] =
-    websocket_set!("chrome-android/153.0.8010.52", "android-35-emulator");
+/// The page and `fetch` scenarios of the Android 17 captures, three runs each.
+const CHROME_ANDROID_WEBSOCKET: [&str; 2] = [
+    fixture!("websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt"),
+    fixture!("websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/h1-accept.txt"),
+];
+const EDGE_ANDROID_WEBSOCKET: [&str; 2] = [
+    fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt"),
+    fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt"),
+];
+const BRAVE_ANDROID_17_WEBSOCKET: [&str; 2] = [
+    fixture!("websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/accept.txt"),
+    fixture!("websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/h1-accept.txt"),
+];
 const BRAVE_ANDROID_WEBSOCKET: [&str; 9] =
     websocket_set!("brave-android/153.1.95.104", "android-35-emulator");
 const CHROME_HEADFUL_SSE: &str =
@@ -138,9 +149,11 @@ const BRAVE_CLIENT_HINTS: &str =
 const OPERA_CLIENT_HINTS: &str =
     fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
 const BRAVE_ANDROID_CLIENT_HINTS: &str =
-    fixture!("client-hints/brave-android/153.1.95.104/android-35-emulator/navigation.txt");
+    fixture!("client-hints/brave-android/153.1.95.104/android-17-pixel7-emulator/navigation.txt");
 const CHROME_ANDROID_CLIENT_HINTS: &str =
-    fixture!("client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt");
+    fixture!("client-hints/chrome-android/154.0.8037.57/android-17-pixel7-emulator/navigation.txt");
+const EDGE_ANDROID_CLIENT_HINTS: &str =
+    fixture!("client-hints/edge-android/153.0.4234.49/android-17-pixel7-emulator/navigation.txt");
 /// Which protocol list of a template a capture is compared with.
 #[derive(Clone, Copy, Debug)]
 enum Protocol {
@@ -317,8 +330,10 @@ fn every_template_recipe_is_valid() {
         firefox::v156_macos_fetch_no_store_template(),
         chromium::v154_macos_navigation_template(),
         chromium::v154_macos_fetch_no_store_template(),
-        chrome_android::v153_android_navigation_template(),
-        chrome_android::v153_android_fetch_no_store_template(),
+        chrome_android::v154_android_navigation_template(),
+        chrome_android::v154_android_fetch_no_store_template(),
+        edge_android::v153_android_navigation_template(),
+        edge_android::v153_android_fetch_no_store_template(),
         brave_android::v153_android_navigation_template(),
         brave_android::v153_android_fetch_no_store_template(),
     ] {
@@ -429,26 +444,31 @@ fn edge_153_navigation_matches_every_captured_page_request() -> CaptureResult<()
 /// The Android captures loaded their pages by typing the URL into the address
 /// bar, so each carries `Sec-Fetch-User` like a desktop address-bar load.
 #[test]
-fn chrome_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = chrome_android::v153_android_navigation_template();
-    let hints = chrome_android::v153_android_client_hints("sdk_gphone64_x86_64");
-    let (http1, http2) = observed(&[&CHROME_ANDROID_WEBSOCKET], "page", "document")?;
-    assert_all_match(
-        &template,
-        Protocol::Http1,
-        Some(&hints),
-        &http1,
-        6,
-        "chrome android h1",
-    );
-    assert_all_match(
-        &template,
-        Protocol::Http2,
-        Some(&hints),
-        &http2,
-        18,
-        "chrome android h2",
-    );
+fn android_17_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    for (template, hints, set, label) in [
+        (
+            chrome_android::v154_android_navigation_template(),
+            chrome_android::v154_android_client_hints(),
+            &CHROME_ANDROID_WEBSOCKET,
+            "chrome android",
+        ),
+        (
+            edge_android::v153_android_navigation_template(),
+            edge_android::v153_android_client_hints(),
+            &EDGE_ANDROID_WEBSOCKET,
+            "edge android",
+        ),
+        (
+            brave_android::v153_android_navigation_template(),
+            brave_android::v153_android_client_hints(),
+            &BRAVE_ANDROID_17_WEBSOCKET,
+            "brave android 17",
+        ),
+    ] {
+        let (http1, http2) = observed(&[set], "page", "document")?;
+        assert_all_match(&template, Protocol::Http1, Some(&hints), &http1, 3, label);
+        assert_all_match(&template, Protocol::Http2, Some(&hints), &http2, 3, label);
+    }
     Ok(())
 }
 
@@ -678,12 +698,6 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             "opera",
         ),
         (
-            chrome_android::v153_android_fetch_no_store_template(),
-            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
-            &CHROME_ANDROID_WEBSOCKET,
-            "chrome android",
-        ),
-        (
             brave_android::v153_android_fetch_no_store_template(),
             brave_android::v153_android_client_hints(),
             &BRAVE_ANDROID_WEBSOCKET,
@@ -693,14 +707,45 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
         let (http1, http2) = observed(&[set], "done", "empty")?;
         assert_all_match(&template, Protocol::Http1, Some(&hints), &http1, 6, label);
         assert_all_match(&template, Protocol::Http2, Some(&hints), &http2, 18, label);
-        assert!(http1.iter().chain(&http2).all(|request| {
-            request
-                .iter()
-                .any(|(name, _)| name.eq_ignore_ascii_case("referer"))
-        }));
+        assert_fetches_carry_referer(&http1, &http2);
+        assert_eq!(template.http3_fields, None);
+    }
+    // The Android 17 captures hold one HTTP/1.1 and one HTTP/2 scenario.
+    for (template, hints, set, label) in [
+        (
+            chrome_android::v154_android_fetch_no_store_template(),
+            chrome_android::v154_android_client_hints(),
+            &CHROME_ANDROID_WEBSOCKET,
+            "chrome android",
+        ),
+        (
+            edge_android::v153_android_fetch_no_store_template(),
+            edge_android::v153_android_client_hints(),
+            &EDGE_ANDROID_WEBSOCKET,
+            "edge android",
+        ),
+        (
+            brave_android::v153_android_fetch_no_store_template(),
+            brave_android::v153_android_client_hints(),
+            &BRAVE_ANDROID_17_WEBSOCKET,
+            "brave android 17",
+        ),
+    ] {
+        let (http1, http2) = observed(&[set], "done", "empty")?;
+        assert_all_match(&template, Protocol::Http1, Some(&hints), &http1, 3, label);
+        assert_all_match(&template, Protocol::Http2, Some(&hints), &http2, 3, label);
+        assert_fetches_carry_referer(&http1, &http2);
         assert_eq!(template.http3_fields, None);
     }
     Ok(())
+}
+
+fn assert_fetches_carry_referer(http1: &[Fields], http2: &[Fields]) {
+    assert!(http1.iter().chain(http2).all(|request| {
+        request
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("referer"))
+    }));
 }
 
 #[test]
@@ -860,13 +905,15 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
         (brave::v154_windows_fetch_no_store_template(), false),
         (opera::v135_windows_navigation_template(), true),
         (opera::v135_windows_fetch_no_store_template(), false),
-        (chrome_android::v153_android_navigation_template(), true),
+        (chrome_android::v154_android_navigation_template(), true),
+        (edge_android::v153_android_navigation_template(), true),
         (brave_android::v153_android_navigation_template(), true),
         (brave_android::v153_android_fetch_no_store_template(), false),
         (
-            chrome_android::v153_android_fetch_no_store_template(),
+            chrome_android::v154_android_fetch_no_store_template(),
             false,
         ),
+        (edge_android::v153_android_fetch_no_store_template(), false),
         (firefox::v156_windows_navigation_template(), false),
         (firefox::v156_windows_fetch_no_store_template(), false),
     ] {
@@ -876,7 +923,7 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 
 #[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
-    let cases: [(RequestTemplate, &[&str], &str, u16); 14] = [
+    let cases: [(RequestTemplate, &[&str], &str, u16); 12] = [
         (
             chromium::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
@@ -936,18 +983,6 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             &FIREFOX_WEBSOCKET,
             "empty",
             22,
-        ),
-        (
-            chrome_android::v153_android_navigation_template(),
-            &CHROME_ANDROID_WEBSOCKET,
-            "document",
-            256,
-        ),
-        (
-            chrome_android::v153_android_fetch_no_store_template(),
-            &CHROME_ANDROID_WEBSOCKET,
-            "empty",
-            220,
         ),
         (
             brave_android::v153_android_navigation_template(),
@@ -1018,8 +1053,13 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
         ),
         (
             CHROME_ANDROID_CLIENT_HINTS,
-            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
-            chrome_android::v153_android_navigation_template(),
+            chrome_android::v154_android_client_hints(),
+            chrome_android::v154_android_navigation_template(),
+        ),
+        (
+            EDGE_ANDROID_CLIENT_HINTS,
+            edge_android::v153_android_client_hints(),
+            edge_android::v153_android_navigation_template(),
         ),
         (
             BRAVE_ANDROID_CLIENT_HINTS,
@@ -1709,16 +1749,6 @@ fn validation_checks_the_spelling_of_every_credentials_slot() {
     assert_eq!(template.validate(), Ok(()));
 }
 
-const CHROME_ANDROID_DIRECT: [(&str, bool); 2] = [
-    (
-        fixture!("proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-hostname.txt"),
-        false,
-    ),
-    (
-        fixture!("proxy/chrome-android/153.0.8010.52/android-35-emulator/direct-loopback.txt"),
-        true,
-    ),
-];
 const BRAVE_ANDROID_DIRECT: [(&str, bool); 2] = [
     (
         fixture!("proxy/brave-android/153.1.95.104/android-35-emulator/direct-hostname.txt"),
@@ -1730,30 +1760,19 @@ const BRAVE_ANDROID_DIRECT: [(&str, bool); 2] = [
     ),
 ];
 
-/// Every page load in the Android direct proxy-route captures is the
-/// navigation template for its origin: to `127.0.0.1` with the default
+/// Every page load in the Brave for Android direct proxy-route captures is
+/// the navigation template for its origin: to `127.0.0.1` with the default
 /// hints and the trustworthy fields, and to `origin.phantom.test` without
 /// hints, `Sec-Fetch-*`, or the `br` and `zstd` codings. A caller slot is
 /// compared by name only.
 #[test]
-fn android_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()> {
-    for (template, hints, fixtures, version) in [
-        (
-            chrome_android::v153_android_navigation_template(),
-            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
-            CHROME_ANDROID_DIRECT,
-            "153.0.8010.52",
-        ),
-        (
-            brave_android::v153_android_navigation_template(),
-            brave_android::v153_android_client_hints(),
-            BRAVE_ANDROID_DIRECT,
-            "153.1.95.104",
-        ),
-    ] {
-        assert_direct_pages_match(&template, &hints, &fixtures, version)?;
-    }
-    Ok(())
+fn brave_android_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()> {
+    assert_direct_pages_match(
+        &brave_android::v153_android_navigation_template(),
+        &brave_android::v153_android_client_hints(),
+        &BRAVE_ANDROID_DIRECT,
+        "153.1.95.104",
+    )
 }
 
 fn assert_direct_pages_match(

@@ -91,14 +91,16 @@ fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResul
     Ok(())
 }
 
+/// The nine-scenario Chrome 153 for Android set, kept as Chromium-family
+/// evidence for `chrome_android::v154_websocket`.
 #[test]
 fn chrome_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResult {
     let summary = assert_recipe_matches(
         &CHROME_ANDROID,
         "Google Chrome",
-        &crate::chrome_android::v153_websocket(),
-        &crate::chrome_android::v153_http2(),
-        &crate::chrome_android::v153_tls(),
+        &chromium::v154_websocket(),
+        &chromium::v154_http2(),
+        &chromium::v154_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);
@@ -793,7 +795,7 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
 fn android_websocket_recipes_follow_origin_trust_in_the_direct_captures() -> TestResult {
     for (recipe, fixtures) in [
         (
-            crate::chrome_android::v153_websocket(),
+            chromium::v154_websocket(),
             [
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),

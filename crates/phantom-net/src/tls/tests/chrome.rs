@@ -1,8 +1,8 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
 use phantom_profile::{
-    TlsSettings, brave, brave_android, chrome_android, chromium::v154_tls, edge, opera,
-    opera_android,
+    TlsSettings, brave, brave_android, chrome_android, chromium::v154_tls, edge, edge_android,
+    opera, opera_android,
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
@@ -32,22 +32,33 @@ const OPERA_135_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/opera/135.0.5973.92/",
     "windows-11-26200/client-hello.txt"
 ));
-const CHROME_ANDROID_153_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/chrome-android/153.0.8010.52/",
-    "android-35-emulator/client-hello.txt"
-));
-const CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/chrome-android/153.0.8010.52/",
-    "android-35-emulator/trust-anchor-orders.txt"
+const CHROME_ANDROID_154_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/chrome-android/154.0.8037.57/",
+    "android-17-pixel7-emulator/client-hello.txt"
 ));
 const BRAVE_ANDROID_153_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/brave-android/153.1.95.104/",
-    "android-35-emulator/client-hello.txt"
+    "android-17-pixel7-emulator/client-hello.txt"
 ));
 const OPERA_ANDROID_102_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/opera-android/102.1.5206.90382/",
-    "android-35-emulator/client-hello.txt"
+    "android-17-pixel7-emulator/client-hello.txt"
 ));
+/// Three fresh Edge for Android processes, for GREASE and extension order.
+const EDGE_ANDROID_153_FIXTURES: [&str; 3] = [
+    include_str!(concat!(
+        "../../../../../fixtures/tls/edge-android/153.0.4234.49/",
+        "android-17-pixel7-emulator/client-hello.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/tls/edge-android/153.0.4234.49/",
+        "android-17-pixel7-emulator/client-hello-2.txt"
+    )),
+    include_str!(concat!(
+        "../../../../../fixtures/tls/edge-android/153.0.4234.49/",
+        "android-17-pixel7-emulator/client-hello-3.txt"
+    )),
+];
 const GREASE_SENTINEL: u16 = 0x0a0a;
 const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
@@ -93,60 +104,26 @@ async fn chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order() -> TestResu
     Ok(())
 }
 
+/// Chrome 154 for Android sends the desktop Chrome 154 ClientHello, its
+/// sorted trust-anchor IDs included.
 #[tokio::test]
-async fn chrome_android_153_tls_recipe_matches_android_capture() -> TestResult<()> {
+async fn chrome_android_154_tls_recipe_matches_android_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(
-        CHROME_ANDROID_153_FIXTURE,
-        &chrome_android::v153_tls(),
+        CHROME_ANDROID_154_FIXTURE,
+        &chrome_android::v154_tls(),
         Some(28),
     )
     .await
 }
 
-/// Chrome 153 does not sort its trust-anchor list. Every process of the
-/// Android capture sent one unsorted order, which the recipe carries.
+/// Edge 153 for Android sends the Chromium ClientHello without trust-anchor
+/// IDs, as desktop Edge 153 does, in every retained process.
 #[tokio::test]
-async fn chrome_android_153_tls_recipe_emits_the_captured_trust_anchor_order() -> TestResult<()> {
-    let field = |key: &str| {
-        CHROME_ANDROID_153_TRUST_ANCHOR_ORDERS
-            .lines()
-            .find_map(|line| line.strip_prefix(key))
-            .map(str::to_owned)
-    };
-    assert_eq!(field("browser_version=").as_deref(), Some("153.0.8010.52"));
-    assert_eq!(field("distinct_order_count=").as_deref(), Some("1"));
-    let encoded = field("order_0=")
-        .and_then(|order| order.split_once(",ids:").map(|(_, ids)| ids.to_owned()))
-        .ok_or("trust-anchor order fixture omitted order_0")?;
-    let expected = decode_ids(&encoded)?;
-    let mut sorted = expected.clone();
-    sorted.sort_unstable();
-    assert_ne!(
-        expected, sorted,
-        "the Chrome 153 order is not the sorted one"
-    );
-
-    let actual = capture_client_hello_from(&chrome_android::v153_tls())
-        .await?
-        .summary()?;
-    let actual = actual
-        .requested_trust_anchor_ids()
-        .ok_or("Chrome 153 recipe omitted trust-anchor IDs")?
-        .to_vec();
-    assert_eq!(actual, expected);
+async fn edge_android_153_tls_recipe_matches_every_android_capture() -> TestResult<()> {
+    for fixture in EDGE_ANDROID_153_FIXTURES {
+        assert_recipe_matches_fixture(fixture, &edge_android::v153_tls(), None).await?;
+    }
     Ok(())
-}
-
-fn decode_ids(encoded: &str) -> Result<Vec<Vec<u8>>, std::num::ParseIntError> {
-    encoded
-        .split(',')
-        .map(|id| {
-            (0..id.len())
-                .step_by(2)
-                .map(|index| u8::from_str_radix(&id[index..index + 2], 16))
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .collect()
 }
 
 /// Brave for Android sends the desktop Brave ClientHello: no trust-anchor IDs.
@@ -192,7 +169,8 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         edge::v153_tls(),
         brave::v154_tls(),
         opera::v135_tls(),
-        chrome_android::v153_tls(),
+        chrome_android::v154_tls(),
+        edge_android::v153_tls(),
         brave_android::v153_tls(),
         opera_android::v102_tls(),
     ] {

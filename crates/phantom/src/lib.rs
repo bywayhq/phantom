@@ -306,7 +306,7 @@ pub mod profile {
 
     /// Brave for Android recipes implemented by the public facade.
     ///
-    /// Captured from Brave 1.95.104 (Chromium 153) on an Android 15 emulator.
+    /// Captured from Brave 1.95.104 (Chromium 153) on Android 15 and 17 emulators.
     /// The TLS recipes and request-field differences equal desktop Brave's;
     /// the H2, QUIC, H3, and WebSocket recipes return the Chromium data.
     pub mod brave_android {
@@ -319,11 +319,13 @@ pub mod profile {
 
     /// Opera for Android recipes implemented by the public facade.
     ///
-    /// Captured from Opera 102 (Chromium 152) on an Android 15 emulator. Opera
+    /// Captured from Opera 102 (Chromium 152) on an Android 17 emulator. Opera
     /// for Android takes no switches, so only its TLS ClientHello and client
     /// hints are captured.
     pub mod opera_android {
-        pub use phantom_profile::opera_android::{v102_android_client_hints, v102_tls};
+        pub use phantom_profile::opera_android::{
+            v102_android_client_hints, v102_android_client_hints_for_model, v102_tls,
+        };
     }
 
     /// Firefox for Android recipes implemented by the public facade.
@@ -336,15 +338,29 @@ pub mod profile {
 
     /// Chrome for Android recipes implemented by the public facade.
     ///
-    /// Captured from Chrome 153 on an Android 15 emulator. The H2, QUIC, H3,
-    /// and WebSocket recipes return the desktop Chromium data, which the
-    /// Android captures equal; the TLS trust-anchor order, client hints, and
-    /// request identity differ.
+    /// Captured from Chrome 154 on an Android 17 emulator that reports a
+    /// Pixel 7. The TLS, H2, QUIC, H3, and WebSocket recipes return the
+    /// desktop Chromium data, which the Android captures equal; the client
+    /// hints and request identity differ.
     pub mod chrome_android {
         pub use phantom_profile::chrome_android::{
-            v153_android_client_hints, v153_android_fetch_no_store_template,
-            v153_android_navigation_template, v153_http2, v153_http3, v153_http3_request,
-            v153_http3_tls, v153_quic, v153_tls, v153_websocket,
+            v154_android_client_hints, v154_android_client_hints_for_model,
+            v154_android_fetch_no_store_template, v154_android_navigation_template, v154_http2,
+            v154_http3, v154_http3_request, v154_http3_tls, v154_quic, v154_tls, v154_websocket,
+        };
+    }
+
+    /// Microsoft Edge for Android recipes implemented by the public facade.
+    ///
+    /// Captured from Edge 153 on an arm64 Android 17 emulator that reports a
+    /// Pixel 7. The TLS recipes are desktop Edge 153's and the H2, QUIC, and
+    /// H3 recipes return the Chromium data; the client hints and request
+    /// identity differ.
+    pub mod edge_android {
+        pub use phantom_profile::edge_android::{
+            v153_android_client_hints, v153_android_client_hints_for_model,
+            v153_android_fetch_no_store_template, v153_android_navigation_template, v153_http2,
+            v153_http3, v153_http3_request, v153_http3_tls, v153_quic, v153_tls,
         };
     }
 }

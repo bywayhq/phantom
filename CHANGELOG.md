@@ -336,6 +336,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   returned `EarlyDataRejected` can send the request on the same connection
   once `early_data_settled` returns `Ok`.
 
+- The Chrome for Android recipes follow Chrome 154.0.8037.57, the build
+  Play serves to a new Android 17 emulator that reports a Pixel 7.
+  `chrome_android::v153_*` became `v154_*`. `v154_tls` and `v154_http3_tls`
+  are the Chromium recipes without ECH from HTTPS records: Chrome 154 sorts
+  its trust-anchor IDs, so the unsorted Chrome 153 orders are gone.
+  `v154_android_client_hints()` sends the captured model `"Pixel 7"` and
+  platform version `"17.0.0"`; `v154_android_client_hints_for_model(model)`
+  sends another model. Opera for Android's
+  `v102_android_client_hints(model)` became `v102_android_client_hints()`,
+  with the captured `"Pixel 7"` and platform version `"17"`, and
+  `v102_android_client_hints_for_model(model)`. Brave for Android's client
+  hints now send platform version `"17.0.0"`.
+  Migrate: replace `chrome_android::v153_<name>` with
+  `chrome_android::v154_<name>`; replace
+  `chrome_android::v153_android_client_hints(model)` and
+  `opera_android::v102_android_client_hints(model)` with
+  `v154_android_client_hints()` and `v102_android_client_hints()` for a
+  Pixel 7, or with the `_for_model(model)` functions for another phone.
+
 ### Added
 
 - `scripts/capture/run_matrix.py` runs desktop browser captures from one JSON
@@ -368,6 +387,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   are under `fixtures/*/*/*/macos-15.5-arm64/`.
 - `client_hints.py` and `http2_websocket.py` take `--browser-switch` to add a
   recorded Chromium switch to the launch.
+- Edge for Android recipes in `edge_android`, captured from Edge
+  153.0.4234.49, the arm64 build Play serves, on an arm64 Android 17
+  emulator that reports a Pixel 7: `v153_tls` and `v153_http3_tls`
+  (desktop Edge 153's ClientHellos without ECH from HTTPS records),
+  `v153_http2`, `v153_quic`, `v153_http3`, and `v153_http3_request` (the
+  Chromium recipes), `v153_android_client_hints()` and
+  `v153_android_client_hints_for_model(model)`, and
+  `v153_android_navigation_template` and
+  `v153_android_fetch_no_store_template` with Edge for Android's literal
+  `User-Agent`.
 - Encrypted Client Hello over QUIC. `phantom_quic_btls::EchOffer` and
   `EchOutcome`, with `QuicClientConfig::with_ech`, offer an `ECHConfigList`
   on one connection and report whether the server accepted it, rejected it

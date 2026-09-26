@@ -8,6 +8,7 @@ pub mod client_hints;
 pub mod cookie;
 pub mod dns_cache;
 pub mod edge;
+pub mod edge_android;
 pub mod firefox;
 pub mod firefox_android;
 pub mod http1;

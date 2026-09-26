@@ -66,18 +66,18 @@ fn profiles() -> [ClientProfile; 5] {
         ))
         .with_client_hints(opera::v135_windows_client_hints());
 
-    // Chrome 153 for Android: its own TLS recipes and client hints; its H2,
-    // QUIC, and H3 functions return the Chromium data its captures equal.
-    let android = ClientProfile::new(chrome_android::v153_tls())
-        .with_http2(chrome_android::v153_http2())
+    // Chrome 154 for Android: the Chromium TLS recipes without ECH from
+    // HTTPS records, Android client hints, and the Chromium H2, QUIC, and H3.
+    let android = ClientProfile::new(chrome_android::v154_tls())
+        .with_http2(chrome_android::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            chrome_android::v153_http3_tls(),
-            chrome_android::v153_quic(),
-            chrome_android::v153_http3(),
-            chrome_android::v153_http3_request(),
+            chrome_android::v154_http3_tls(),
+            chrome_android::v154_quic(),
+            chrome_android::v154_http3(),
+            chrome_android::v154_http3_request(),
         ))
-        // The model a phone reports; the capture's emulator model is never sent.
-        .with_client_hints(chrome_android::v153_android_client_hints("Pixel 7"));
+        // The captured Pixel 7; `v154_android_client_hints_for_model` sends another model.
+        .with_client_hints(chrome_android::v154_android_client_hints());
 
     [firefox, edge, brave, opera, android]
 }
@@ -86,14 +86,15 @@ fn profiles() -> [ClientProfile; 5] {
 - Phantom carries one version per browser. The desktop modules are Chrome 154
   (`chromium::v154_*`), Edge 153 (`edge::v153_*`), Brave 154
   (`brave::v154_*`), Opera 135 (`opera::v135_*`), and Firefox 156
-  (`firefox::v156_*`). The Android modules, captured on an emulator, are
-  Chrome 153 (`chrome_android::v153_*`), Brave 153 (`brave_android::v153_*`),
-  Opera 102 (`opera_android::v102_*`), and Firefox 156
-  (`firefox_android::v156_tls`). The
+  (`firefox::v156_*`). The Android modules, captured on emulators, are
+  Chrome 154 (`chrome_android::v154_*`), Edge 153 (`edge_android::v153_*`),
+  Brave 153 (`brave_android::v153_*`), Opera 102 (`opera_android::v102_*`),
+  and Firefox 156 (`firefox_android::v156_tls`). The
   [recipe table](../reference/profiles.md#built-in-recipes) lists which
   components each one has. Firefox has no QUIC, HTTP/3, or client-hint
-  recipe; no Android browser has a TCP or HTTP/1.1 connection recipe; Opera
-  for Android has only TLS and client hints, and Firefox for Android only TLS.
+  recipe; no Android browser has a TCP or HTTP/1.1 connection recipe; Edge
+  for Android has no WebSocket recipe; Opera for Android has only TLS and
+  client hints, and Firefox for Android only TLS.
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin

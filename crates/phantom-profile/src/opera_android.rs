@@ -1,7 +1,11 @@
 //! Wire settings retained from Opera for Android observations.
 //!
 //! Opera 102.1.5206.90382, built on Chromium 152.0.7977.82, as the Google
-//! Play Store served it to the `phantom-api35-play` Android 15 emulator.
+//! Play Store served it to two emulators: the `phantom-pixel7` Android 17
+//! emulator, which reports a Pixel 7, for the TLS and client-hint captures,
+//! and the earlier `phantom-api35-play` Android 15 emulator for the HTTP/1.1
+//! request captures.
+//!
 //! Opera for Android reads no command-line file, so no capture can map a test
 //! name, trust a test certificate, force QUIC, or route through a proxy: it
 //! reaches only the device's own loopback. The retained captures therefore
@@ -22,7 +26,7 @@ use crate::{
 
 /// Returns TLS settings captured from Opera 102.1.5206.90382 for Android.
 ///
-/// Every fresh-process ClientHello of the retained capture equals the desktop
+/// The retained ClientHello, from a cleared profile, equals the desktop
 /// Opera ClientHello of [`opera::v135_tls`] except in one field: Opera for
 /// Android puts a GREASE value at the head of `signature_algorithms`, as
 /// Chrome does, so this sets [`TlsSettings::grease_signature_algorithms`]
@@ -44,14 +48,20 @@ pub fn v102_tls() -> TlsSettings {
 /// Names, order, and delivery equal the Chromium client-hint recipes. The
 /// values carry Opera's four-brand list, which names `OperaMobile`, `Opera`
 /// 137, and Chromium 152 and puts the greased brand last, `?1`, the
-/// `"Android"` platform at version `"15"` (Opera sends no minor versions),
-/// and an empty `sec-ch-ua-form-factors`.
+/// `"Android"` platform at version `"17"` (Opera sends no minor versions),
+/// the `"Pixel 7"` model, and an empty `sec-ch-ua-form-factors`.
 ///
-/// `sec-ch-ua-model` is the `model` argument, for the reason given for
-/// [`crate::chrome_android::v153_android_client_hints`]: the captured value
-/// names the emulator, so the recipe sends no default model.
+/// For another phone, use [`v102_android_client_hints_for_model`].
 #[must_use]
-pub fn v102_android_client_hints(model: &str) -> ClientHintSettings {
+pub fn v102_android_client_hints() -> ClientHintSettings {
+    v102_android_client_hints_for_model(crate::chrome_android::CAPTURED_MODEL)
+}
+
+/// Returns the client hints of [`v102_android_client_hints`] with another
+/// device model in `sec-ch-ua-model`, as Android's `Build.MODEL` reports it.
+/// Only the Pixel 7 value is captured.
+#[must_use]
+pub fn v102_android_client_hints_for_model(model: &str) -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
@@ -64,7 +74,7 @@ pub fn v102_android_client_hints(model: &str) -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-full-version", r#""102.1.5206.90382""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""15""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform-version", r#""17""#, AcceptCh),
         ClientHint::new(
             "sec-ch-ua-model",
             crate::chrome_android::model_value(model),

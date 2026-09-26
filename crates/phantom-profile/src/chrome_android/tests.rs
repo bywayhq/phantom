@@ -1,39 +1,32 @@
-use std::collections::BTreeMap;
-
 use super::{
-    v153_android_client_hints, v153_android_fetch_no_store_template,
-    v153_android_navigation_template, v153_http2, v153_http3_tls, v153_tls, v153_websocket,
+    v154_android_client_hints, v154_android_client_hints_for_model,
+    v154_android_fetch_no_store_template, v154_android_navigation_template, v154_http2,
+    v154_http3_tls, v154_tls, v154_websocket,
 };
 use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{Http2HpackSettings, Http2Settings, session_capture::SessionCapture};
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt"
+    "/../../fixtures/client-hints/chrome-android/154.0.8037.57/android-17-pixel7-emulator/navigation.txt"
 ));
 const SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/websocket/chrome-android/153.0.8010.52/android-35-emulator/accept.txt"
+    "/../../fixtures/websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt"
 ));
-const TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/tls/chrome-android/153.0.8010.52/android-35-emulator/trust-anchor-orders.txt"
-));
-const QUIC_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/trust-anchor-orders.txt"
-));
-const ANDROID_EMULATOR: &str = "Android 15 (API 35) sdk_gphone64_x86_64 emulator AE3A.240806.036";
+const ANDROID_EMULATOR: &str =
+    "Android 17 (API 37) x86_64 emulator reporting Pixel 7 CP3A.260905.009";
 
 #[test]
-fn chrome_android_153_client_hints_match_navigation_capture()
--> Result<(), Box<dyn std::error::Error>> {
-    let settings = v153_android_client_hints("sdk_gphone64_x86_64");
+fn chrome_android_154_client_hints_match_navigation_capture() -> TestResult {
+    let settings = v154_android_client_hints();
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Google Chrome");
-    assert_eq!(capture.value("client_version")?, "153.0.8010.52");
+    assert_eq!(capture.value("client_version")?, "154.0.8037.57");
     assert_eq!(capture.value("operating_system")?, ANDROID_EMULATOR);
     assert_eq!(capture.value("launch_mode")?, "android-typed");
     assert_eq!(capture.value("repeat_count")?, "3");
@@ -43,7 +36,7 @@ fn chrome_android_153_client_hints_match_navigation_capture()
 }
 
 #[test]
-fn chrome_android_153_client_hints_share_the_chromium_names_order_and_delivery() {
+fn chrome_android_154_client_hints_share_the_chromium_names_order_and_delivery() {
     let names = |settings: crate::ClientHintSettings| {
         settings
             .hints()
@@ -52,26 +45,26 @@ fn chrome_android_153_client_hints_share_the_chromium_names_order_and_delivery()
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v153_android_client_hints("sdk_gphone64_x86_64")),
+        names(v154_android_client_hints()),
         names(chromium::v154_windows_client_hints())
     );
 }
 
 #[test]
-fn chrome_android_153_reuses_the_desktop_http2_and_websocket_recipes() {
-    assert_eq!(v153_http2(), chromium::v154_http2());
-    assert_eq!(v153_websocket(), chromium::v154_websocket());
+fn chrome_android_154_reuses_the_desktop_http2_and_websocket_recipes() {
+    assert_eq!(v154_http2(), chromium::v154_http2());
+    assert_eq!(v154_websocket(), chromium::v154_websocket());
 }
 
 #[test]
-fn chrome_android_153_templates_change_only_the_user_agent() {
+fn chrome_android_154_templates_change_only_the_user_agent() {
     for (android, windows) in [
         (
-            v153_android_navigation_template(),
+            v154_android_navigation_template(),
             chromium::v154_windows_navigation_template(),
         ),
         (
-            v153_android_fetch_no_store_template(),
+            v154_android_fetch_no_store_template(),
             chromium::v154_windows_fetch_no_store_template(),
         ),
     ] {
@@ -85,7 +78,7 @@ fn chrome_android_153_templates_change_only_the_user_agent() {
             android_user_agent
                 .iter()
                 .all(|value| value.contains("(Linux; Android 10; K)")
-                    && value.ends_with("Chrome/153.0.0.0 Mobile Safari/537.36"))
+                    && value.ends_with("Chrome/154.0.0.0 Mobile Safari/537.36"))
         );
         assert_ne!(android_user_agent, user_agents(&windows));
     }
@@ -109,15 +102,14 @@ fn user_agents(template: &crate::RequestTemplate) -> Vec<String> {
 }
 
 #[test]
-fn chrome_android_153_http2_session_capture_matches_the_chromium_recipe()
--> Result<(), Box<dyn std::error::Error>> {
+fn chrome_android_154_http2_session_capture_matches_the_chromium_recipe() -> TestResult {
     let capture = SessionCapture::parse(SESSION_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Google Chrome");
-    assert_eq!(capture.value("client_version")?, "153.0.8010.52");
+    assert_eq!(capture.value("client_version")?, "154.0.8037.57");
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = v153_http2();
+    let settings = v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
@@ -133,138 +125,48 @@ fn chrome_android_153_http2_session_capture_matches_the_chromium_recipe()
     Ok(())
 }
 
-type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
-
-/// One captured order: how many processes sent it, and its identifiers.
-type CapturedOrder = (usize, Vec<Vec<u8>>);
-
-/// Parses a `phantom-trust-anchor-orders-v1` fixture into its orders, most
-/// frequent first, with the process count of each; fails if the fixture does
-/// not list them in that order.
-fn trust_anchor_orders(fixture: &str) -> TestResult<(usize, Vec<CapturedOrder>)> {
-    let fields = fixture
-        .lines()
-        .map(|line| line.split_once('=').ok_or("fixture line is missing `=`"))
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
-    assert_eq!(
-        fields.get("format"),
-        Some(&"phantom-trust-anchor-orders-v1")
-    );
-    assert_eq!(fields.get("browser_version"), Some(&"153.0.8010.52"));
-    let processes: usize = fields
-        .get("process_count")
-        .ok_or("no process_count")?
-        .parse()?;
-    let distinct: usize = fields
-        .get("distinct_order_count")
-        .ok_or("no distinct_order_count")?
-        .parse()?;
-    let mut orders = Vec::new();
-    for index in 0..distinct {
-        let (count, ids) = fields
-            .get(format!("order_{index}").as_str())
-            .and_then(|order| order.strip_prefix("count:"))
-            .and_then(|rest| rest.split_once(",ids:"))
-            .ok_or("order line is malformed")?;
-        let ids = ids
-            .split(',')
-            .map(|id| {
-                (0..id.len())
-                    .step_by(2)
-                    .map(|at| u8::from_str_radix(&id[at..at + 2], 16))
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        orders.push((count.parse()?, ids));
-    }
-    assert_eq!(
-        orders.iter().map(|(count, _)| count).sum::<usize>(),
-        processes
-    );
-    assert!(
-        orders.windows(2).all(|pair| pair[0].0 >= pair[1].0),
-        "orders are not listed most frequent first"
-    );
-    Ok((processes, orders))
-}
-
-fn recipe_ids(settings: &crate::TlsSettings) -> TestResult<Vec<Vec<u8>>> {
-    Ok(settings
-        .requested_trust_anchor_ids
-        .as_ref()
-        .ok_or("recipe omitted trust-anchor IDs")?
-        .iter()
-        .map(|id| id.to_vec())
-        .collect())
-}
-
-fn sorted(mut ids: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
-    ids.sort_unstable();
-    ids
-}
-
-/// Every TCP process sent one order; the recipe carries it, and it holds the
-/// desktop recipe's 28 identifiers.
+/// Apart from the ECH lookup that no Android capture covers, the TLS recipes
+/// are the desktop Chromium recipes, sorted trust-anchor IDs included.
 #[test]
-fn chrome_android_153_tcp_trust_anchor_order_is_shared_by_every_process() -> TestResult {
-    let (processes, orders) = trust_anchor_orders(TRUST_ANCHOR_ORDERS)?;
-    assert!(processes >= 60, "{processes} processes");
-    assert_eq!(orders.len(), 1, "every TCP process sent one order");
-    let recipe = recipe_ids(&v153_tls())?;
-    assert_eq!(recipe, orders[0].1);
-    assert_eq!(sorted(recipe), recipe_ids(&chromium::v154_tls())?);
-    Ok(())
-}
-
-/// The QUIC processes did not share an order. The recipe carries the most
-/// frequent captured order, and every captured order holds the same
-/// identifiers.
-#[test]
-fn chrome_android_153_quic_trust_anchor_order_is_one_captured_order() -> TestResult {
-    let (_, orders) = trust_anchor_orders(QUIC_TRUST_ANCHOR_ORDERS)?;
-    assert!(orders.len() > 1, "the QUIC order varies between processes");
-    let desktop = recipe_ids(&chromium::v154_http3_tls())?;
-    for (_, order) in &orders {
-        assert_eq!(sorted(order.clone()), desktop);
-    }
-    // The recipe carries the order sent most often.
-    let recipe = recipe_ids(&v153_http3_tls())?;
-    assert_eq!(recipe, orders[0].1);
-    assert!(orders[0].0 > orders[1].0);
-    assert_ne!(recipe, recipe_ids(&v153_tls())?);
-    Ok(())
-}
-
-/// Apart from the trust-anchor order and the ECH lookup that no Android
-/// capture covers, the TLS recipes are the desktop Chromium recipes.
-#[test]
-fn chrome_android_153_tls_recipes_differ_only_in_trust_anchor_order_and_ech_lookup() -> TestResult {
+fn chrome_android_154_tls_recipes_differ_from_desktop_only_in_ech_lookup() -> TestResult {
     for (android, desktop) in [
-        (v153_tls(), chromium::v154_tls()),
-        (v153_http3_tls(), chromium::v154_http3_tls()),
+        (v154_tls(), chromium::v154_tls()),
+        (v154_http3_tls(), chromium::v154_http3_tls()),
     ] {
         android.validate()?;
         assert!(!android.ech_from_https_records);
         let mut expected = desktop;
-        expected.requested_trust_anchor_ids = android.requested_trust_anchor_ids.clone();
         expected.ech_from_https_records = false;
         assert_eq!(android, expected);
     }
     Ok(())
 }
 
-/// The model is the caller's: a profile built for a phone sends that phone's
-/// model, never the emulator's, and the value is a structured-field string.
+/// The default model is the captured Pixel 7; an override changes only
+/// `sec-ch-ua-model`, encoded as a structured-field string.
 #[test]
-fn chrome_android_153_client_hints_send_the_callers_model() -> TestResult {
-    let settings = v153_android_client_hints("Pixel 7");
-    settings.validate()?;
-    let model = settings
-        .hints()
-        .iter()
-        .find(|hint| hint.name() == "sec-ch-ua-model")
-        .ok_or("the recipe omits sec-ch-ua-model")?;
-    assert_eq!(model.value(), br#""Pixel 7""#);
+fn chrome_android_154_client_hints_accept_another_model() -> TestResult {
+    let model = |settings: &crate::ClientHintSettings| {
+        settings
+            .hints()
+            .iter()
+            .find(|hint| hint.name() == "sec-ch-ua-model")
+            .map(|hint| hint.value().to_vec())
+    };
+    let captured = v154_android_client_hints();
+    assert_eq!(model(&captured).as_deref(), Some(&br#""Pixel 7""#[..]));
+    let other = v154_android_client_hints_for_model("Pixel 9");
+    other.validate()?;
+    assert_eq!(model(&other).as_deref(), Some(&br#""Pixel 9""#[..]));
+    let without_model = |settings: &crate::ClientHintSettings| {
+        settings
+            .hints()
+            .iter()
+            .filter(|hint| hint.name() != "sec-ch-ua-model")
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(without_model(&captured), without_model(&other));
     assert_eq!(super::model_value(r#"a"b\c"#), r#""a\"b\\c""#);
     Ok(())
 }

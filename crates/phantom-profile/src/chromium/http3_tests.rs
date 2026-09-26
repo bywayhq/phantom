@@ -17,8 +17,11 @@ const BRAVE_154_DEVTOOLS_FIXTURE: &str = include_str!(
 const OPERA_135_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
 );
-const CHROME_ANDROID_153_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt"
+const CHROME_ANDROID_154_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt"
+);
+const EDGE_ANDROID_153_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt"
 );
 const V154_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
@@ -126,33 +129,63 @@ fn opera_135_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std:
 fn brave_android_153_h3_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let fixture = include_str!(
-        "../../../../fixtures/http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt"
+        "../../../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
     );
     assert_eq!(fixture_field(fixture, "client")?, "Brave");
     assert_eq!(crate::brave_android::v153_http3(), v154_http3());
     assert_settings_match_control_stream(fixture, v154_http3(), v154_http3_request())
 }
 
-/// Chrome 153 for Android shares the desktop control stream and request
-/// order; only persona values differ.
+/// Chrome 154 for Android shares the desktop control stream and request
+/// order; only persona values and the intent launch's missing
+/// `sec-fetch-user` differ.
 #[test]
-fn chrome_android_153_h3_capture_matches_the_chromium_recipe()
+fn chrome_android_154_h3_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
-        fixture_field(CHROME_ANDROID_153_FIXTURE, "client_version")?,
-        "153.0.8010.52"
+        fixture_field(CHROME_ANDROID_154_FIXTURE, "client_version")?,
+        "154.0.8037.57"
     );
-    assert_eq!(crate::chrome_android::v153_http3(), v154_http3());
+    assert_eq!(crate::chrome_android::v154_http3(), v154_http3());
     assert_eq!(
-        crate::chrome_android::v153_http3_request(),
+        crate::chrome_android::v154_http3_request(),
         v154_http3_request()
     );
     assert_settings_match_control_stream(
-        CHROME_ANDROID_153_FIXTURE,
+        CHROME_ANDROID_154_FIXTURE,
         v154_http3(),
         v154_http3_request(),
     )?;
-    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, CHROME_ANDROID_153_FIXTURE)
+    assert_intent_request_fields_match_except_persona(
+        V154_WINDOWS_FIXTURE,
+        CHROME_ANDROID_154_FIXTURE,
+    )
+}
+
+/// Edge 153 for Android shares the Chromium control stream and request
+/// order; only persona values and the intent launch's missing
+/// `sec-fetch-user` differ.
+#[test]
+fn edge_android_153_h3_capture_matches_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        fixture_field(EDGE_ANDROID_153_FIXTURE, "client")?,
+        "Microsoft Edge"
+    );
+    assert_eq!(crate::edge_android::v153_http3(), v154_http3());
+    assert_eq!(
+        crate::edge_android::v153_http3_request(),
+        v154_http3_request()
+    );
+    assert_settings_match_control_stream(
+        EDGE_ANDROID_153_FIXTURE,
+        v154_http3(),
+        v154_http3_request(),
+    )?;
+    assert_intent_request_fields_match_except_persona(
+        V154_WINDOWS_FIXTURE,
+        EDGE_ANDROID_153_FIXTURE,
+    )
 }
 
 fn fixture_field<'a>(fixture: &'a str, key: &str) -> Result<&'a str, Box<dyn std::error::Error>> {
@@ -183,6 +216,42 @@ fn assert_request_fields_match_except_persona(
             continue;
         }
         assert_eq!(windows_value, macos_value, "{windows_name}");
+    }
+    Ok(())
+}
+
+/// An Android H3 startup opened by a `VIEW` intent has no user activation,
+/// so it sends the typed navigation's fields without `sec-fetch-user`, and
+/// `sec-fetch-site` is `cross-site`.
+fn assert_intent_request_fields_match_except_persona(
+    reference: &str,
+    candidate: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(fixture_field(candidate, "launch_mode")?, "android-intent");
+    let mut typed = request_fields(reference)?;
+    typed.retain(|(name, _)| name != "sec-fetch-user");
+    let intent = request_fields(candidate)?;
+    assert_eq!(intent.len(), 16);
+    assert_eq!(intent.len(), typed.len());
+    for ((typed_name, typed_value), (name, value)) in typed.iter().zip(&intent) {
+        assert_eq!(name, typed_name);
+        if name == "sec-fetch-site" {
+            // Another app opened the page, so Chrome counts it cross-site.
+            assert_eq!(value, "cross-site");
+            continue;
+        }
+        if name == ":authority"
+            || [
+                "user-agent",
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "sec-ch-ua-platform",
+            ]
+            .contains(&name.as_str())
+        {
+            continue;
+        }
+        assert_eq!(value, typed_value, "{name}");
     }
     Ok(())
 }

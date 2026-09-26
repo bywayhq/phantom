@@ -22,9 +22,9 @@ const OPERA_135_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
 ));
-const CHROME_ANDROID_153_HTTP3_FIXTURE: &str = include_str!(concat!(
+const CHROME_ANDROID_154_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/chrome-android/153.0.8010.52/android-35-emulator/client-startup.txt"
+    "/../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt"
 ));
 const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -83,7 +83,7 @@ fn brave_android_153_quic_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/brave-android/153.1.95.104/android-35-emulator/client-startup.txt"
+        "/../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
     ));
     assert!(fixture.contains("\nclient=Brave\n"));
     assert_eq!(crate::brave_android::v153_quic(), v154_quic());
@@ -91,18 +91,31 @@ fn brave_android_153_quic_capture_matches_the_chromium_recipe()
 }
 
 #[test]
-fn chrome_android_153_quic_capture_matches_the_chromium_recipe()
+fn chrome_android_154_quic_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
-    assert!(CHROME_ANDROID_153_HTTP3_FIXTURE.contains("\nclient_version=153.0.8010.52\n"));
-    assert!(CHROME_ANDROID_153_HTTP3_FIXTURE.contains("\nlaunch_mode=android-typed\n"));
-    assert_eq!(crate::chrome_android::v153_quic(), v154_quic());
-    assert_quic_settings_match_startup(CHROME_ANDROID_153_HTTP3_FIXTURE, &v154_quic())
+    assert!(CHROME_ANDROID_154_HTTP3_FIXTURE.contains("\nclient_version=154.0.8037.57\n"));
+    assert!(CHROME_ANDROID_154_HTTP3_FIXTURE.contains("\nlaunch_mode=android-intent\n"));
+    assert_eq!(crate::chrome_android::v154_quic(), v154_quic());
+    assert_quic_settings_match_startup(CHROME_ANDROID_154_HTTP3_FIXTURE, &v154_quic())
 }
 
-/// With the emulator's cellular network as the default, every fresh Chrome
-/// for Android QUIC connection adds `initial_rtt_us` (`0x3127`) set to
-/// 400000 microseconds; on Wi-Fi it sends none, as the recipe does. The
-/// recipe models Wi-Fi.
+#[test]
+fn edge_android_153_quic_capture_matches_the_chromium_recipe()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fixture = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt"
+    ));
+    assert!(fixture.contains("\nclient=Microsoft Edge\n"));
+    assert_eq!(crate::edge_android::v153_quic(), v154_quic());
+    assert_quic_settings_match_startup(fixture, &v154_quic())
+}
+
+/// With the Android 15 emulator's cellular network as the default, every
+/// fresh Chrome 153 for Android QUIC connection added `initial_rtt_us`
+/// (`0x3127`) set to 400000 microseconds. The recipe models Wi-Fi, where a
+/// fresh connection sends none: the cellular startup is the recipe's fresh
+/// parameters plus that one.
 #[test]
 fn chrome_android_153_cellular_startup_adds_only_initial_rtt()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -119,9 +132,12 @@ fn chrome_android_153_cellular_startup_adds_only_initial_rtt()
         .ok_or("the cellular startup omitted initial_rtt_us")?;
     let (value, _) = decode_quic_varint(&rtt.value)?;
     assert_eq!(value, 400_000);
-    let fresh = parse_quic_transport_parameters(CHROME_ANDROID_153_HTTP3_FIXTURE)?;
-    assert!(fresh.iter().all(|parameter| parameter.id != 0x3127));
-    assert_eq!(fresh.len() + 1, captured.len());
+    let fresh = settings
+        .wire_parameters
+        .iter()
+        .filter(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt)
+        .count();
+    assert_eq!(fresh + 1, captured.len());
     Ok(())
 }
 

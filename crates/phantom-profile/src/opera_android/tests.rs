@@ -1,16 +1,16 @@
-use super::{v102_android_client_hints, v102_tls};
+use super::{v102_android_client_hints, v102_android_client_hints_for_model, v102_tls};
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::{chromium, opera};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/opera-android/102.1.5206.90382/android-35-emulator/navigation.txt"
+    "/../../fixtures/client-hints/opera-android/102.1.5206.90382/android-17-pixel7-emulator/navigation.txt"
 ));
 
 #[test]
 fn opera_android_102_client_hints_match_navigation_capture()
 -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v102_android_client_hints("sdk_gphone64_x86_64");
+    let settings = v102_android_client_hints();
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Opera");
@@ -32,7 +32,7 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v102_android_client_hints("sdk_gphone64_x86_64")),
+        names(v102_android_client_hints_for_model("Pixel 9")),
         names(chromium::v154_windows_client_hints())
     );
 }
@@ -62,7 +62,7 @@ fn opera_android_102_navigation_field_order_equals_chrome_for_android()
 -> Result<(), Box<dyn std::error::Error>> {
     let chrome = NavigationCapture::parse(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt"
+        "/../../fixtures/client-hints/chrome-android/154.0.8037.57/android-17-pixel7-emulator/navigation.txt"
     )))?;
     let opera = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     for key in ["run_0_first_field_order", "run_0_second_field_order"] {

@@ -1,9 +1,10 @@
 //! Wire settings retained from Brave for Android observations.
 //!
-//! Brave 1.95.104 (Chromium 153), as the Google Play Store served it to the
-//! `phantom-api35-play` Android 15 emulator, recorded in fixtures as
-//! `153.1.95.104` to match the desktop naming. Its captures equal the desktop
-//! Brave recipes in [`brave`] on the TLS and QUIC ClientHellos and on every
+//! Brave 1.95.104 (Chromium 153), as the Google Play Store served it to two
+//! emulators: the `phantom-pixel7` Android 17 emulator, which reports a
+//! Pixel 7, and the earlier `phantom-api35-play` Android 15 emulator. Fixtures
+//! record it as `153.1.95.104` to match the desktop naming. Its captures equal
+//! the desktop Brave recipes in [`brave`] on the TLS and QUIC ClientHellos and on every
 //! request-field difference from Chrome, and the desktop Chromium recipes on
 //! HTTP/2, QUIC transport parameters, HTTP/3, and WebSocket openings. Only
 //! the client hints and `User-Agent` carry Android data.
@@ -13,7 +14,7 @@
 //! [`crate::chrome_android`].
 
 use crate::{
-    brave, chrome_android, chromium,
+    brave, chromium,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
@@ -23,10 +24,15 @@ use crate::{
     websocket::WebSocketSettings,
 };
 
+/// The `User-Agent` Brave 1.95.104 for Android sent on every captured
+/// request: Chrome's reduced Android string at Chromium 153.
+pub(crate) const V153_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
+AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
+
 /// Returns TLS settings captured from Brave 1.95.104 for Android.
 ///
-/// Every fresh-process TCP ClientHello of the retained Android capture equals
-/// the desktop Brave ClientHello of [`brave::v154_tls`], with no trust-anchor
+/// The retained TCP ClientHello of each emulator equals the desktop Brave
+/// ClientHello of [`brave::v154_tls`], with no trust-anchor
 /// IDs. [`TlsSettings::ech_from_https_records`] is unset: no Android capture
 /// shows Brave using an HTTPS record's `ech`, because the device cannot be
 /// given a DNS-over-HTTPS resolver.
@@ -54,8 +60,10 @@ pub fn v153_http3_tls() -> TlsSettings {
 /// Names, order, and delivery equal [`brave::v154_windows_client_hints`]: no
 /// `sec-ch-ua-full-version` and no `sec-ch-ua-form-factors`. The values carry
 /// Brave's Chromium 153 brand list, `?1`, the `"Android"` platform at
-/// `"15.0.0"`, and an empty model, architecture, and bitness; every version
-/// in the full version list is reduced to `.0.0.0`.
+/// `"17.0.0"`, and an empty model, architecture, and bitness; every version
+/// in the full version list is reduced to `.0.0.0`. Brave sends the empty
+/// model on the Pixel 7 as it did on the earlier emulator, so the value
+/// names no device.
 #[must_use]
 pub fn v153_android_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
@@ -69,7 +77,7 @@ pub fn v153_android_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-mobile", "?1", Default),
         ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""15.0.0""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-platform-version", r#""17.0.0""#, AcceptCh),
         ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
@@ -137,7 +145,7 @@ pub fn v153_websocket() -> WebSocketSettings {
 #[must_use]
 pub fn v153_android_navigation_template() -> RequestTemplate {
     brave::with_brave_fields(
-        chromium::v154_navigation_template(Some(chrome_android::V153_ANDROID_USER_AGENT)),
+        chromium::v154_navigation_template(Some(V153_ANDROID_USER_AGENT)),
         Some(brave::V154_NAVIGATION_ACCEPT),
     )
 }
@@ -149,7 +157,7 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     brave::with_brave_fields(
-        chromium::v154_fetch_no_store_template(Some(chrome_android::V153_ANDROID_USER_AGENT)),
+        chromium::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT)),
         None,
     )
 }
