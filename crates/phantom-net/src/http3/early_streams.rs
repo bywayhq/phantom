@@ -21,6 +21,10 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     task::{Context, Poll, ready},
 };
 
@@ -41,6 +45,15 @@ type Answered = Pin<Box<dyn Future<Output = ()> + Send + Sync>>;
 pub(super) struct Transport {
     inner: h3_quinn::Connection,
     gate: Option<OpenGate>,
+    /// Set while an early session starts. A server can reject the early
+    /// data while the session writes its first stream bytes, and the write
+    /// then fails; the session's close is left to the caller, which starts
+    /// HTTP/3 again on the connection instead of closing it.
+    starting: Option<Arc<AtomicBool>>,
+    /// Blocks after each stream the session opens for itself until this
+    /// connection's handshake completes, for tests.
+    #[cfg(test)]
+    wait_for_handshake: Option<quinn::Connection>,
 }
 
 impl Transport {
@@ -49,6 +62,9 @@ impl Transport {
         Self {
             inner: h3_quinn::Connection::new(connection),
             gate: None,
+            starting: None,
+            #[cfg(test)]
+            wait_for_handshake: None,
         }
     }
 
@@ -67,7 +83,24 @@ impl Transport {
                 answer,
                 outcome,
             }),
+            starting: Some(Arc::new(AtomicBool::new(true))),
+            #[cfg(test)]
+            wait_for_handshake: None,
         }
+    }
+
+    /// Makes the session's own streams, opened in 0-RTT, wait for the
+    /// handshake to complete before the session writes to them. The wait
+    /// blocks the polling thread, so the runtime needs another worker.
+    #[cfg(test)]
+    pub(super) fn after_open_send_for_test(&mut self, connection: quinn::Connection) {
+        self.wait_for_handshake = Some(connection);
+    }
+
+    /// Returns the flag that is set while an early session starts; clearing
+    /// it lets the session close the connection again.
+    pub(super) fn starting(&self) -> Option<Arc<AtomicBool>> {
+        self.starting.clone()
     }
 }
 
@@ -118,10 +151,27 @@ impl<B: Buf> quic::OpenStreams<B> for Transport {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Result<Self::SendStream, StreamErrorIncoming>> {
-        quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx)
+        let opened = quic::OpenStreams::<B>::poll_open_send(&mut self.inner, cx);
+        #[cfg(test)]
+        if opened.is_ready()
+            && let Some(connection) = &self.wait_for_handshake
+        {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while connection.handshake_data().is_none() && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        }
+        opened
     }
 
     fn close(&mut self, code: h3::error::Code, reason: &[u8]) {
+        if self
+            .starting
+            .as_ref()
+            .is_some_and(|starting| starting.load(Ordering::Acquire))
+        {
+            return;
+        }
         quic::OpenStreams::<B>::close(&mut self.inner, code, reason);
     }
 }

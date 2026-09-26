@@ -639,6 +639,10 @@ session on the connection instead.
   answer first, and then uses the new session. `send_prepared_request`
   reports only a request that took the sender before the answer as
   unprocessed.
+- A rejection can arrive while the early session is still writing its first
+  bytes on streams it opened in 0-RTT. Those writes then fail; the session
+  leaves the close to `connect`, which starts HTTP/3 on the connection as on
+  one without early data, with the same metadata checks.
 - The datagram router forgets the discarded session's stream order when the
   new session replaces it, and `peer_extensions` reads the new session's
   SETTINGS.

@@ -491,6 +491,8 @@ async fn connect(
     let answer_hold = diagnostics.answer_hold.clone();
     #[cfg(test)]
     let gate_delay = diagnostics.gate_delay.clone();
+    #[cfg(test)]
+    let start_after_handshake = diagnostics.start_after_handshake;
     let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
 
     debug!("QUIC connection started");
@@ -580,13 +582,55 @@ async fn connect(
         }
         None => (None, Transport::new(connection.clone())),
     };
-    let (h3_driver, sender) = builder.build(transport).await.map_err(|error| {
-        Http3Error::with_source(
-            Http3ErrorKind::Protocol,
-            "HTTP/3 connection initialization failed",
-            error,
-        )
-    })?;
+    #[cfg(test)]
+    let mut transport = transport;
+    #[cfg(test)]
+    if start_after_handshake && zero_rtt.is_some() {
+        transport.after_open_send_for_test(connection.clone());
+    }
+    let starting = transport.starting();
+    let built = builder.build(transport).await;
+    if let Some(starting) = &starting {
+        starting.store(false, Ordering::Release);
+    }
+    let (h3_driver, sender, zero_rtt, gate, early_channel, remembered_settings) = match built {
+        Ok((h3_driver, sender)) => (
+            h3_driver,
+            sender,
+            zero_rtt,
+            gate,
+            early_channel,
+            remembered_settings,
+        ),
+        Err(error) => {
+            let error = Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "HTTP/3 connection initialization failed",
+                error,
+            );
+            let (Some(accepted), Some((settings, crypto))) = (zero_rtt, &restart_profile) else {
+                return Err(error);
+            };
+            // The early session left the close to this caller. When the
+            // server rejected the early data while the session was writing
+            // its first stream bytes, HTTP/3 starts on the connection as if
+            // it had sent no early data (RFC 9001, section 4.6.2).
+            if accepted.await || connection.close_reason().is_some() {
+                connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+                return Err(error);
+            }
+            debug!("early data rejected while HTTP/3 started; starting it again");
+            let (h3_driver, sender) = start_after_rejection(
+                &connection,
+                settings,
+                crypto,
+                &accept_ch,
+                round_trip.as_ref(),
+            )
+            .await?;
+            (h3_driver, sender, None, None, None, None)
+        }
+    };
     let datagrams = settings
         .receives_datagrams()
         .then(|| DatagramRouter::spawn(h3_driver.get_datagram_reader(), connection.rtt()));
@@ -760,6 +804,55 @@ async fn complete_early_handshake(
     handshake.finish(decoded);
     debug!("QUIC early-data handshake completed with exact h3 ALPN");
     EarlyDataOutcome::Accepted
+}
+
+/// Starts HTTP/3 on a connection whose early data the server rejected
+/// before its early session had started, with the checks a connection
+/// without early data applies. A failure closes the connection.
+async fn start_after_rejection(
+    connection: &quinn::Connection,
+    settings: &Http3Settings,
+    crypto: &Arc<QuicClientConfig>,
+    accept_ch: &OnceLock<AcceptCh>,
+    round_trip: Option<&RoundTripRecorder>,
+) -> Result<(driver::ClientDriver, connection::RequestSender), Http3Error> {
+    let started = async {
+        let mut builder = settings::builder(settings, crypto)?;
+        let handshake = require_h3(connection)?;
+        let mut decoded = AcceptCh::default();
+        if let Some(peer_settings) = handshake.peer_application_settings() {
+            decoded = decode_accept_ch(peer_settings)?;
+            builder
+                .peer_application_settings(peer_settings)
+                .map_err(|error| {
+                    Http3Error::with_source(
+                        Http3ErrorKind::Protocol,
+                        "peer HTTP/3 application settings are invalid",
+                        error,
+                    )
+                })?;
+        }
+        let started = builder
+            .build(Transport::new(connection.clone()))
+            .await
+            .map_err(|error| {
+                Http3Error::with_source(
+                    Http3ErrorKind::Protocol,
+                    "HTTP/3 connection initialization failed",
+                    error,
+                )
+            })?;
+        let _ = accept_ch.set(decoded);
+        if let Some(round_trip) = round_trip {
+            round_trip.after_handshake(connection);
+        }
+        Ok(started)
+    }
+    .await;
+    if started.is_err() {
+        connection.close(H3_INTERNAL_ERROR, b"HTTP/3 initialization failed");
+    }
+    started
 }
 
 /// Starts HTTP/3 again on a connection whose early data the server rejected.
@@ -1126,6 +1219,9 @@ pub(super) struct ConnectionDiagnostics {
     /// Delays the driver's answer to the stream gate, for stress tests.
     #[cfg(test)]
     pub(super) gate_delay: Option<GateDelay>,
+    /// Starts an early HTTP/3 session only after the handshake completed.
+    #[cfg(test)]
+    pub(super) start_after_handshake: bool,
 }
 
 /// Returns how long a driver waits before it passes Quinn's early-data

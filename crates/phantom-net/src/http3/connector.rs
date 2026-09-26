@@ -62,6 +62,8 @@ pub struct Http3Connector {
     answer_hold: Option<Arc<tokio::sync::Semaphore>>,
     #[cfg(test)]
     gate_delay: Option<super::GateDelay>,
+    #[cfg(test)]
+    start_after_handshake: bool,
 }
 
 impl Http3Connector {
@@ -156,6 +158,8 @@ impl Http3Connector {
             answer_hold: None,
             #[cfg(test)]
             gate_delay: None,
+            #[cfg(test)]
+            start_after_handshake: false,
         })
     }
 
@@ -298,6 +302,8 @@ impl Http3Connector {
             answer_hold: self.answer_hold.clone(),
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
+            #[cfg(test)]
+            start_after_handshake: self.start_after_handshake,
         }
     }
 
@@ -404,6 +410,8 @@ impl Http3Connector {
             answer_hold: self.answer_hold.clone(),
             #[cfg(test)]
             gate_delay: self.gate_delay.clone(),
+            #[cfg(test)]
+            start_after_handshake: self.start_after_handshake,
             ..super::ConnectionDiagnostics::default()
         }
     }
@@ -432,6 +440,15 @@ impl Http3Connector {
     #[cfg(test)]
     pub(super) fn with_test_gate_delay(mut self, delay: super::GateDelay) -> Self {
         self.gate_delay = Some(delay);
+        self
+    }
+
+    /// Makes each early-data connection wait for its handshake to complete
+    /// before its early HTTP/3 session starts, so a rejection arrives while
+    /// the session writes its first stream bytes.
+    #[cfg(test)]
+    pub(super) fn with_test_start_after_handshake(mut self) -> Self {
+        self.start_after_handshake = true;
         self
     }
 

@@ -644,3 +644,38 @@ async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult
     );
     Ok(())
 }
+
+/// A server that rejects early data while the early HTTP/3 session is still
+/// writing its first stream bytes leaves the connection open: HTTP/3 starts
+/// on it as on a connection without early data, and it carries a request.
+/// A hook holds the session's first writes, on streams opened in 0-RTT,
+/// until the handshake completed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let early = trusting_connector(&identity)?
+        .with_isolated_session_cache()
+        .with_test_start_after_handshake();
+    let endpoint = quinn::Endpoint::server(
+        server_config(&identity, true)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?;
+    let address = endpoint.local_addr()?;
+    let (server, served) = spawn_counting_server(endpoint.clone(), vec![16_384, 16_384]);
+    let learning = connect(&early, address).await?;
+    wait_for_ticket(&early).await?;
+    drop(learning);
+    endpoint.set_server_config(Some(server_config(&identity, false)?));
+
+    let connection = connect(&early, address).await?;
+    assert!(!connection.sent_early_data());
+    assert!(!connection.started_from_remembered_settings());
+    let response = send(&early, &connection, Method::GET, "/started", None).await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let served = served.lock().map_err(|_| "served paths poisoned")?.clone();
+    assert_eq!(served, [(1, "/started".to_owned())]);
+
+    drop((response, connection));
+    server.abort();
+    Ok(())
+}

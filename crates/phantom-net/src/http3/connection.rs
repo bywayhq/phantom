@@ -31,7 +31,7 @@ use super::{
 };
 use crate::request::RequestBody;
 
-type RequestSender = h3::client::SendRequest<super::early_streams::Opener<Bytes>, Bytes>;
+pub(super) type RequestSender = h3::client::SendRequest<super::early_streams::Opener<Bytes>, Bytes>;
 
 /// Cloneable handle to one established HTTP/3 connection.
 ///
