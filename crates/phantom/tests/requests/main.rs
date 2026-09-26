@@ -10,6 +10,7 @@
 mod support;
 
 mod client;
+mod client_certificates;
 mod client_hints;
 mod connection_retries;
 mod content_coding;
@@ -23,6 +24,7 @@ mod direct_http;
 mod plaintext_templates;
 mod redirects;
 mod request_templates;
+mod source_binding;
 mod stale_connection_replay;
 mod status_retry;
 mod timeouts;

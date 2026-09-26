@@ -2,7 +2,7 @@ use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
 
 use http::Method;
 use phantom_net::{
-    ServerAuthentication,
+    ClientCertificate, ServerAuthentication, SourceBinding,
     host_resolver::{AddressResolver, HostResolver},
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
@@ -288,6 +288,8 @@ impl Client {
             dns_cache: None,
             host_overrides: Vec::new(),
             address_resolver: None,
+            source_binding: SourceBinding::new(),
+            client_certificate: None,
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
             #[cfg(feature = "diagnostics")]
@@ -585,6 +587,10 @@ pub struct ClientBuilder {
     /// a later entry for the same name wins.
     host_overrides: Vec<(Box<str>, Vec<IpAddr>)>,
     address_resolver: Option<AddressResolver>,
+    /// Local addresses and interface for every outgoing socket; empty by
+    /// default.
+    source_binding: SourceBinding,
+    client_certificate: Option<ClientCertificate>,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
@@ -632,7 +638,9 @@ impl fmt::Debug for ClientBuilder {
             )
             .field("dns_cache", &self.dns_cache_settings())
             .field("host_overrides", &self.host_overrides.len())
-            .field("address_resolver", &self.address_resolver.is_some());
+            .field("address_resolver", &self.address_resolver.is_some())
+            .field("source_binding", &self.source_binding)
+            .field("client_certificate", &self.client_certificate.is_some());
         self.options.debug_fields(&mut debug);
         debug.finish_non_exhaustive()
     }
@@ -942,6 +950,127 @@ impl ClientBuilder {
         self
     }
 
+    /// Sends this client's connections from `address`.
+    ///
+    /// Off by default: the operating system picks each socket's source
+    /// address. The address binds every TCP socket and QUIC UDP socket of
+    /// its family that the client opens, to origins and to proxies, and the
+    /// UDP socket of a SOCKS5 association. Call this once for an IPv4 and
+    /// once for an IPv6 address to bind both families; a later address of
+    /// the same family replaces the earlier one.
+    ///
+    /// When only one family has an address, connections use only the
+    /// resolved addresses of that family, as curl does with `--interface` and
+    /// an address: a host with both kinds of address is reached over the
+    /// bound family, and one with none of it fails with
+    /// [`Connect`](crate::RequestErrorKind::Connect) for an origin, over TCP
+    /// or QUIC, or [`Proxy`](crate::RequestErrorKind::Proxy) for a proxy,
+    /// with an [`std::io::ErrorKind::AddrNotAvailable`] error in the source
+    /// chain. No connection falls
+    /// back to an unbound socket. An address that no local interface holds
+    /// fails each connection the same way when its socket binds. Name
+    /// resolution is not bound, and no field of the TLS, HTTP/2, or HTTP/3
+    /// fingerprint changes.
+    ///
+    /// [`build`](Self::build) fails with
+    /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when `address`
+    /// is unspecified, multicast, or the IPv4 broadcast address.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    ///
+    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::Client;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let client = Client::builder(profile)
+    ///     .local_address(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10)))
+    ///     .local_address(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10)))
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn local_address(mut self, address: IpAddr) -> Self {
+        self.source_binding = self.source_binding.with_address(address);
+        self
+    }
+
+    /// Binds every socket this client opens to the network interface `name`.
+    ///
+    /// Off by default. The binding covers the same sockets as
+    /// [`local_address`](Self::local_address), with `SO_BINDTODEVICE`, and
+    /// leaves the source address to the operating system unless
+    /// `local_address` also sets one. It is available on Linux and Android.
+    /// [`build`](Self::build) fails with
+    /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) on other
+    /// platforms, and when `name` is empty, holds a NUL byte, or is longer
+    /// than 15 bytes. Linux kernels before 5.7 let only a process with
+    /// `CAP_NET_RAW` bind a socket to an interface; there each connection
+    /// fails when its socket binds.
+    #[must_use]
+    pub fn interface(mut self, name: &str) -> Self {
+        self.source_binding = self.source_binding.with_interface(name);
+        self
+    }
+
+    /// Presents `certificate` to every origin that requests TLS client
+    /// authentication, over TCP and QUIC.
+    ///
+    /// Off by default: without a certificate, a server's
+    /// `CertificateRequest` gets an empty `Certificate` message, as a
+    /// browser sends when no certificate is chosen. With one, the ClientHello
+    /// does not change, and the certificate and its chain leave the client
+    /// only in answer to a `CertificateRequest`. One certificate serves every
+    /// origin; there is no per-origin selection. Proxies, including the
+    /// outer connection of a CONNECT-UDP route, never receive it. Sessions
+    /// built from the client present it too.
+    ///
+    /// BoringSSL signs the `CertificateVerify` only with a scheme from the
+    /// profile's `signature_schemes`, so [`build`](Self::build) fails with
+    /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when the TLS
+    /// or HTTP/3 TLS settings have no scheme for the key; see
+    /// [`ClientCertificate::check_signature_schemes`]. The Chromium recipes
+    /// sign with RSA, P-256, and P-384 keys, and the Firefox recipe also with
+    /// P-521 keys.
+    ///
+    /// A server that rejects the certificate, or its absence, fails the
+    /// request. Over TLS 1.2 the handshake fails, with
+    /// [`Tls`](crate::RequestErrorKind::Tls). Over TLS 1.3 and QUIC the
+    /// client finishes its handshake before the server checks the
+    /// certificate, so the server's alert can instead fail the first read,
+    /// with the kind of the request's protocol, such as
+    /// [`Http1`](crate::RequestErrorKind::Http1).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::{Client, ClientCertificate};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let certificate = ClientCertificate::from_pem(
+    ///     &std::fs::read("client-chain.pem")?,
+    ///     &std::fs::read("client-key.pem")?,
+    /// )?;
+    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let client = Client::builder(profile)
+    ///     .client_certificate(certificate)
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn client_certificate(mut self, certificate: ClientCertificate) -> Self {
+        self.client_certificate = Some(certificate);
+        self
+    }
+
     /// Returns the host resolver the client will share with its connectors,
     /// or `None` when it asks the operating system for every connection.
     fn host_resolver(&self) -> Result<Option<HostResolver>, BuildError> {
@@ -1014,6 +1143,17 @@ impl ClientBuilder {
             ));
         }
         self.options.validate_policies()?;
+        self.source_binding
+            .validate()
+            .map_err(BuildError::invalid_source_binding)?;
+        if let Some(certificate) = &self.client_certificate {
+            let http3_tls = self.profile.http3().map(|settings| settings.tls());
+            for tls in std::iter::once(self.profile.tls()).chain(http3_tls) {
+                certificate
+                    .check_signature_schemes(&tls.signature_schemes)
+                    .map_err(BuildError::client_certificate)?;
+            }
+        }
         self.profile
             .tls()
             .validate()
@@ -1082,6 +1222,7 @@ impl ClientBuilder {
                     Http1TlsConnector::new_with_additional_roots(self.profile.tls(), roots())
                 }
                 .map(|connector| with_tcp(connector, tcp, Http1TlsConnector::with_tcp_settings))
+                .map(|connector| self.bind_http1(connector))
             })
             .transpose()
             .map_err(BuildError::http1)?;
@@ -1103,6 +1244,7 @@ impl ClientBuilder {
                     )
                 }
                 .map(|connector| with_tcp(connector, tcp, Http2TlsConnector::with_tcp_settings))
+                .map(|connector| self.bind_http2(connector))
             })
             .transpose()
             .map_err(BuildError::http2)?;
@@ -1125,6 +1267,13 @@ impl ClientBuilder {
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
                 .map(|connector| self.with_qlog(connector))
+                .map(|connector| {
+                    let connector = self.bind_http3(connector);
+                    match &self.client_certificate {
+                        Some(certificate) => connector.with_client_certificate(certificate),
+                        None => connector,
+                    }
+                })
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -1147,6 +1296,7 @@ impl ClientBuilder {
                     self.proxy_additional_roots.iter().map(AsRef::as_ref),
                 )
                 .map(|connector| self.with_qlog(connector))
+                .map(|connector| self.bind_http3(connector))
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -1191,6 +1341,7 @@ impl ClientBuilder {
                     None => connector,
                 })
                 .map(|connector| with_tcp(connector, tcp, HttpsProxyConnector::with_tcp_settings))
+                .map(|connector| self.bind_https_proxy(connector))
             })
             .transpose()
             .map_err(BuildError::https_proxy)?;
@@ -1227,6 +1378,7 @@ impl ClientBuilder {
                     Http1TlsConnector::new_with_additional_roots(&tls, roots())
                 }
                 .map(|connector| with_tcp(connector, tcp, Http1TlsConnector::with_tcp_settings))
+                .map(|connector| self.bind_http1(connector))
                 .map_err(BuildError::http1)
             })
             .transpose()?;
@@ -1303,6 +1455,53 @@ impl ClientBuilder {
 }
 
 impl ClientBuilder {
+    /// Whether the caller asked for a source address or interface.
+    fn binds_sources(&self) -> bool {
+        self.source_binding != SourceBinding::new()
+    }
+
+    /// Applies the source binding and client certificate, when set, to an
+    /// HTTP/1.1 origin connector.
+    fn bind_http1(&self, mut connector: Http1TlsConnector) -> Http1TlsConnector {
+        if self.binds_sources() {
+            connector = connector.with_source_binding(self.source_binding.clone());
+        }
+        match &self.client_certificate {
+            Some(certificate) => connector.with_client_certificate(certificate),
+            None => connector,
+        }
+    }
+
+    /// Applies the source binding and client certificate, when set, to an
+    /// HTTP/2 origin connector.
+    fn bind_http2(&self, mut connector: Http2TlsConnector) -> Http2TlsConnector {
+        if self.binds_sources() {
+            connector = connector.with_source_binding(self.source_binding.clone());
+        }
+        match &self.client_certificate {
+            Some(certificate) => connector.with_client_certificate(certificate),
+            None => connector,
+        }
+    }
+
+    /// Applies the source binding, when set, to an HTTP/3 connector.
+    fn bind_http3(&self, connector: Http3Connector) -> Http3Connector {
+        if self.binds_sources() {
+            connector.with_source_binding(self.source_binding.clone())
+        } else {
+            connector
+        }
+    }
+
+    /// Applies the source binding, when set, to an HTTPS proxy connector.
+    fn bind_https_proxy(&self, connector: HttpsProxyConnector) -> HttpsProxyConnector {
+        if self.binds_sources() {
+            connector.with_source_binding(self.source_binding.clone())
+        } else {
+            connector
+        }
+    }
+
     /// Applies the qlog directory, when one is set, to an HTTP/3 connector.
     fn with_qlog(&self, connector: Http3Connector) -> Http3Connector {
         #[cfg(feature = "diagnostics")]
@@ -1425,6 +1624,8 @@ mod tests {
             dns_cache: _,
             host_overrides: _,
             address_resolver: _,
+            source_binding: _,
+            client_certificate: _,
             #[cfg(feature = "diagnostics")]
                 key_log_capacity: _,
             #[cfg(feature = "diagnostics")]
@@ -1506,6 +1707,90 @@ mod tests {
                 .as_ref()
                 .and_then(|c| c.tcp_settings()),
             expected
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn source_binding_reaches_every_connector() -> Result<(), Box<dyn std::error::Error>> {
+        use std::net::{IpAddr, Ipv4Addr};
+
+        let http3 = Http3ClientSettings::new(
+            chromium::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
+        );
+        let profile = ClientProfile::new(chromium::v154_tls())
+            .with_http2(chromium::v154_http2())
+            .with_http3(http3);
+        #[cfg(feature = "websocket")]
+        let profile = profile.with_websocket(chromium::v154_websocket());
+        let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
+        let address = IpAddr::V4(Ipv4Addr::LOCALHOST);
+        let client = Client::builder(profile)
+            .route(route)
+            // A host override rebinds every connector to a host resolver.
+            .resolve("example.com", [address])
+            .local_address(address)
+            .build()?;
+        let inner = &client.inner;
+
+        let expected = phantom_net::SourceBinding::new().with_address(address);
+        let expected = Some(&expected);
+        assert_eq!(
+            inner.http1.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        assert_eq!(
+            inner.http2.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        assert_eq!(
+            inner.http1_or_2.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        assert_eq!(
+            inner.http3.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        for proxy in [
+            &inner.https_proxy,
+            &inner.forward_https_proxy,
+            #[cfg(feature = "websocket")]
+            &inner.websocket_https_proxy,
+        ] {
+            assert_eq!(proxy.as_ref().and_then(|c| c.source_binding()), expected);
+        }
+        let connect_udp = inner
+            .connect_udp_proxy
+            .as_ref()
+            .ok_or("no CONNECT-UDP connectors")?;
+        assert_eq!(
+            connect_udp.http3.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        assert_eq!(
+            connect_udp.tcp.as_ref().and_then(|c| c.source_binding()),
+            expected
+        );
+        #[cfg(feature = "websocket")]
+        assert_eq!(
+            inner
+                .websocket_http1
+                .as_ref()
+                .and_then(|c| c.source_binding()),
+            expected
+        );
+
+        let unbound = Client::builder(ClientProfile::new(chromium::v154_tls())).build()?;
+        assert_eq!(
+            unbound
+                .inner
+                .http1
+                .as_ref()
+                .and_then(|c| c.source_binding()),
+            None
         );
         Ok(())
     }

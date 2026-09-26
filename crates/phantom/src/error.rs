@@ -58,6 +58,22 @@ impl BuildError {
         }
     }
 
+    pub(crate) fn invalid_source_binding(source: phantom_net::InvalidSourceBinding) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidPolicy,
+            "invalid source address or interface",
+            source,
+        )
+    }
+
+    pub(crate) fn client_certificate(source: phantom_net::ClientCertificateError) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidPolicy,
+            "the TLS profile cannot sign with the client certificate's key",
+            source,
+        )
+    }
+
     pub(crate) fn invalid_tls_profile(source: InvalidTlsSettings) -> Self {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
