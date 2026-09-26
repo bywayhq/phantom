@@ -587,7 +587,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `Http2Connection::send_forward_request_body_with_trailers`, and
   `HttpConnectError::ForwardingRequiresHttp2`. (`e99940b`)
 - The hidden `SessionBuilder` takes every per-client option of
-  `ClientBuilder`, from one shared definition: it gains `request_timeouts`,
+  `ClientBuilder`: it gains `request_timeouts`,
   `max_http2_connections_per_origin`, `negotiated_setup_wait_limit`,
   `alt_svc_policy`, `http3_early_data`, and `https_record_discovery`. A
   session shares the transport options of the client it is built from, such
