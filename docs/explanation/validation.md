@@ -2233,7 +2233,9 @@ encode request fields as Chrome 154 and Firefox 156 do, down to the byte of
 every HEADERS block: which fields enter the dynamic table, which entry names a
 literal, which strings are Huffman-coded, and when a dynamic-table size update
 starts a block. Edge 154, Brave 154, and Opera 135 use the Chromium recipe
-and match it too.
+and match it too. On HTTP/2 proxy connections the same holds for the
+representation, index, and length of every block the proxy captures let
+Phantom replay, `proxy-authorization` included.
 
 Evidence: every client HEADERS block of every HTTP/2 connection in the
 retained cookie and WebSocket captures. Those captures keep each block in hex,
@@ -2249,6 +2251,23 @@ included (see
 | Brave 154 | 21 | 66 | All |
 | Opera 135 | 23 | 62 | All |
 | Firefox 156 | 27 | 66 | All |
+
+The proxy route captures under [`fixtures/proxy/`](../../fixtures/proxy/)
+add every HTTP/2 proxy connection of their nine `https-proxy-*` scenarios:
+CONNECT tunnels and requests forwarded with `:scheme` `http`, 306 of them
+carrying `proxy-authorization`. They keep each field's representation, its
+index or size, and each block's length, not the block bytes, and the
+credential is replaced with a marker. A connection that starts with, or
+carries, a browser background request, whose fields the capture tool does
+not retain, is not replayed, because its table state is unknown.
+
+| Browser | Proxy connections replayed | HEADERS blocks | Representations, indexes, and length equal to Phantom's |
+| --- | --- | --- | --- |
+| Chrome 154 | 27 | 129 | All |
+| Edge 154 | 27 | 129 | All |
+| Brave 154 | 27 | 129 | All |
+| Opera 135 | 27 | 129 | All |
+| Firefox 156 | 45 | 108 | All |
 
 The rules come from browser source, which the Firefox blocks confirm:
 
@@ -2269,7 +2288,13 @@ Chromium 154's `DEPS` pins quiche `80bf9559d3a4`; Firefox is mozilla-central
 server's SETTINGS, sends each captured request with its pseudo-header
 values and ordinary fields (a run of cookie crumbs rejoined into one `cookie`
 field), and compares every block the client sends with the capture byte for
-byte. Firefox encodes its first request before applying the server's
+byte. For a proxy session it sends CONNECT and forwarded requests on the
+same connection type, restores the capture tool's throwaway credential
+behind the marker, marks it sensitive as Phantom marks the generated field,
+and compares each block's representations, indexes, and length.
+`never_indexed_proxy_authorization_does_not_reproduce_a_proxy_session`
+checks that the default never-indexed form fails that comparison. Firefox
+encodes its first request before applying the server's
 SETTINGS on 3 connections, where its SETTINGS acknowledgement follows that
 request; the replay applies the SETTINGS at the same point.
 `chromium_recipe_does_not_reproduce_a_firefox_session` checks that the
@@ -2278,7 +2303,9 @@ settings, 24 of the 27 Firefox connections differed; every Chromium-family
 connection already matched.
 
 How to reproduce: capture with `scripts/capture/cookie_crumbs.py` and
-`scripts/capture/http2_websocket.py`, as in the two sections above, then run
+`scripts/capture/http2_websocket.py`, as in the two sections above, and the
+proxy sessions with `scripts/capture/proxy_route.py`
+([Proxy authentication evidence](#proxy-authentication-evidence)), then run
 `cargo test -p phantom-net --lib http2::tests::hpack_replay`.
 
 Limits:
@@ -2296,11 +2323,19 @@ Limits:
   Only the 4,096-byte table size reaches the encoder, and Firefox's first
   block in each cookie run announces exactly that size.
 - A field you mark sensitive is always a never-indexed literal, even when a
-  table entry matches it, although Chromium has no such form. A `cookie`
-  field sent as crumbs is the exception: the crumb rule decides. Phantom
-  marks the cookie jar's field (split into crumbs under both recipes) and
-  `proxy-authorization`
+  table entry matches it, although Chromium has no such form. Two
+  exceptions follow the recipes: a `cookie` field sent as crumbs, whose
+  crumb rule decides, and `proxy-authorization`, which the recipes' field
+  rule decides. Phantom marks the cookie jar's field (split into crumbs
+  under both recipes) and the generated `proxy-authorization`
   ([Proxy authentication evidence](#proxy-authentication-evidence)).
+- A proxy capture proves a block's representations, indexes, and length,
+  not its bytes. With the fields known, only the Huffman flag of a string
+  whose coded and raw forms are equally long is unchecked; the cookie and
+  WebSocket replays check that rule byte for byte.
+- Six Firefox proxy connections, with 36 retained blocks, begin with or
+  carry a background request whose fields the capture omits, so they are not
+  replayed.
 - When a browser applies the server's SETTINGS depends on timing; Phantom
   applies them as soon as they arrive, so a Firefox profile announces the
   table size in whichever block follows their arrival.
@@ -4004,8 +4039,10 @@ forwarded request to that proxy. Phantom does the same by default for CONNECT
 tunnels on both proxy transports, including WebSocket tunnels, and for H1 and
 H2 forwarding. The browsers send the replay after a `407` on the connection
 that carried it when the proxy keeps that connection open, and so does
-Phantom on HTTP/1.1 proxy connections. The differences that remain are
-listed at the end of this section.
+Phantom on HTTP/1.1 proxy connections. On an HTTP/2 proxy connection both
+browsers index `proxy-authorization` in HPACK, and so do Phantom's recipes
+([HPACK encoder evidence](#hpack-encoder-evidence)). The differences that
+remain are listed at the end of this section.
 
 Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains four
 authentication scenarios per browser, `http-proxy-auth-*` and
@@ -4145,15 +4182,18 @@ Against Phantom:
   by scheme, host, port, and credentials; and a full record evicts the least
   recently used pair.
 - `proxy_h2.rs` covers H2 CONNECT tunnels and H2 forwarding, including the
-  replay on the same H2 proxy connection, a second `407`, and the
-  never-indexed HPACK form of the forwarded `proxy-authorization` field.
+  replay on the same H2 proxy connection, a second `407`, and the HPACK form
+  of the forwarded `proxy-authorization` field: absent on the challenged
+  request, a literal with incremental indexing on static name 49 on the
+  replay, and an index on the next request.
   `h2_proxy_basic_challenge_replays_once_on_the_challenged_connection` checks
   that a challenged H2 CONNECT and its replay arrive as streams 1 and 3 of one
   proxy connection.
 - `crates/phantom-net/src/proxy/tests/http2_challenge.rs` checks the frames
   of that exchange: an empty END_STREAM DATA frame ends stream 1 before the
   replay's HEADERS on stream 3, stream 1 is not reset, and the replay carries
-  `proxy-authorization` as a never-indexed literal on static name 49. It also
+  `proxy-authorization` as a literal with incremental indexing on static
+  name 49. It also
   checks that remembered credentials go on stream 1 of a new connection, that
   a `407` to them brings one replay on stream 3 of that connection, that a
   second `407` fails with no other connection, and that a replay the proxy
@@ -4212,21 +4252,6 @@ Against Phantom:
 
 Remaining differences:
 
-- H2 forwarding and H2 CONNECT send `proxy-authorization` as a never-indexed
-  literal, where both browsers index it. Phantom keeps this on purpose, as of
-  2026-09-25. The HPACK block goes only to the proxy, which already holds the
-  credentials and re-encodes the request toward the origin, so the
-  difference is visible to the proxy and not to an origin. RFC 7541 section
-  7.1.3 recommends never indexing credentials, because a peer that can add
-  chosen fields to requests on the same connection and observe their size
-  can guess an indexed value. Indexing would also need a new marker: on
-  every field but a `cookie` that a recipe splits into crumbs,
-  `RequestHeader::sensitive` both selects the never-indexed form and hides
-  the value from `Debug` output, and a field without it prints its value in
-  `RequestHeader` and `http::HeaderValue` `Debug` output. The vendored
-  `http2` frame `Debug` output leaves out every field, and Phantom never
-  prints the connection whose HPACK table would hold the value, but the
-  request fields pass through Phantom's own types first.
 - No capture reaches a proxy's stream limit. Phantom queues a CONNECT past
   it on the route's one connection, as both browsers' sources do; the opt-in
   `max_http2_proxy_connections_per_route` opens another connection
