@@ -26,10 +26,12 @@ pub enum Http3Setting {
     /// Only `false` is valid: Phantom does not implement WebTransport.
     EnableWebTransportDraft02(bool),
     /// The draft SETTINGS_H3_DATAGRAM (`0xffd277`) of
-    /// draft-ietf-masque-h3-datagram-04 and later drafts.
+    /// draft-ietf-masque-h3-datagram-04.
     ///
-    /// The drafts carry HTTP Datagrams in the RFC 9297 format, so `true` is
-    /// valid only alongside [`Self::H3Datagram`] set to `true`.
+    /// Firefox sends it beside `0x33`. Phantom only announces it: HTTP
+    /// Datagrams use the RFC 9297 format and are negotiated by `0x33` alone,
+    /// in both directions. So `true` is valid only alongside
+    /// [`Self::H3Datagram`] set to `true`.
     H3DatagramDraft04(bool),
     /// One reserved setting generated from two independent random `u32` values.
     ///

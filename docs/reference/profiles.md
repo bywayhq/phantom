@@ -308,7 +308,7 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | Origin trust | `Sec-Fetch-*` and `Accept-Encoding` depend on whether the URL is [potentially trustworthy](glossary.md#potentially-trustworthy). To such a URL a built-in template sends its captured fields; to any other `http://` URL it leaves out `Sec-Fetch-*` and sends `Accept-Encoding: gzip, deflate`. The other fields keep their order; Brave's `Sec-GPC` goes to both. |
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
 | Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |
-| `Referer` on a navigation | Navigation templates have no `Referer` slot, except Firefox's HTTP/3 list, which puts it after `accept-encoding` as a Firefox script navigation does. Elsewhere an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, and after `Priority` and `te` on Firefox's HTTP/1.1 and HTTP/2 lists. No capture shows that position. |
+| `Referer` on a navigation | Navigation templates have no `Referer` slot, so an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, after `Priority` and `te` on Firefox's HTTP/1.1 and HTTP/2 lists, and after `priority` on Firefox's HTTP/3 list. A Firefox script navigation over HTTP/3 puts it after `accept-encoding`; no capture shows the other positions. |
 
 ### Cookie placement in templates
 

@@ -840,14 +840,15 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// retained SSE and WebSocket captures and the HTTP/2 order from the page
 /// requests of the WebSocket captures; every run agrees. Firefox sends
 /// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
-/// The HTTP/3 list comes from the retained Firefox 156.0.1 HTTP/3 snapshots
-/// and cookie captures: the HTTP/2 order without `te`, with a `referer`
-/// caller slot after `accept-encoding`, where a script navigation carries
-/// it. Firefox sends `Alt-Used` after `accept-encoding` on most requests to
-/// an origin it reached through an Alt-Svc alternative; Phantom generates
-/// that field and appends it last. Each captured HTTP/2 page request carries HEADERS priority weight
-/// 42, not exclusive, on stream 0, which is also [`v156_http2`]'s connection
-/// priority.
+/// The HTTP/3 list is the HTTP/2 order without `te`. The retained Firefox
+/// 156.0.1 HTTP/3 snapshots and cookie captures show a script navigation,
+/// which adds `referer` after `accept-encoding` and has no `Sec-Fetch-User`;
+/// the fields it shares with this list come in the same order. On requests
+/// to an origin it reached through Alt-Svc, Firefox sends `Alt-Used` after
+/// `accept-encoding`, or after `referer` when there is one. Phantom
+/// generates that field and appends it last. Each captured HTTP/2 page
+/// request carries HEADERS priority weight 42, not exclusive, on stream 0,
+/// which is also [`v156_http2`]'s connection priority.
 ///
 /// The `User-Agent` value is the one Firefox sent in those headless
 /// captures. `Accept-Language` is the capture machine's `en-US` locale. A
@@ -923,7 +924,6 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
             RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
             RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
-            RequestField::caller("referer"),
             RequestField::literal("upgrade-insecure-requests", "1"),
             RequestField::trustworthy_only("sec-fetch-dest", "document"),
             RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
