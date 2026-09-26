@@ -37,6 +37,10 @@ pub(super) struct Counts {
     /// Maximum number of locally initiated streams
     max_send_streams: usize,
 
+    /// Whether an initial peer SETTINGS frame that omits
+    /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `max_send_streams`.
+    retain_initial_max_send_streams: bool,
+
     /// Current number of remote initiated streams
     num_send_streams: usize,
 
@@ -82,6 +86,7 @@ impl Counts {
         Counts {
             peer,
             max_send_streams: config.initial_max_send_streams,
+            retain_initial_max_send_streams: config.retain_initial_max_send_streams,
             num_send_streams: 0,
             max_recv_streams: config.remote_max_initiated.unwrap_or(usize::MAX),
             num_recv_streams: 0,
@@ -249,7 +254,9 @@ impl Counts {
     pub fn apply_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
         match settings.max_concurrent_streams() {
             Some(val) => self.max_send_streams = val as usize,
-            None if is_initial => self.max_send_streams = usize::MAX,
+            None if is_initial && !self.retain_initial_max_send_streams => {
+                self.max_send_streams = usize::MAX
+            }
             None => {}
         }
     }
@@ -363,6 +370,7 @@ mod tests {
             peer::Dyn::Server,
             &Config {
                 initial_max_send_streams: 0,
+                retain_initial_max_send_streams: false,
                 local_max_buffer_size: 0,
                 local_next_stream_id: 2.into(),
                 local_push_enabled: false,

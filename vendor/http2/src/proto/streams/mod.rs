@@ -40,6 +40,11 @@ pub struct Config {
     /// MAX_CONCURRENT_STREAMS specified in the frame.
     pub initial_max_send_streams: usize,
 
+    /// Whether an initial peer SETTINGS frame without
+    /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`
+    /// instead of lifting the limit.
+    pub retain_initial_max_send_streams: bool,
+
     /// Max amount of DATA bytes to buffer per stream.
     pub local_max_buffer_size: usize,
 

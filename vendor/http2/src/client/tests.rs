@@ -1067,6 +1067,152 @@ async fn dropping_buffered_data_frames_releases_budget() {
     .expect("dropped DATA frame budget test timed out");
 }
 
+#[tokio::test]
+async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, mut sender, _responses, driver) = limited_client(2, true).await;
+        read_request_headers(&mut peer, 1).await;
+        read_request_headers(&mut peer, 3).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+
+        // Initial SETTINGS without SETTINGS_MAX_CONCURRENT_STREAMS. A request
+        // opened before them would arrive before their ACK.
+        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
+        read_settings_ack(&mut peer).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+        assert_no_request_before_ping_ack(&mut peer).await;
+
+        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(3, 3)])).await;
+        read_request_headers(&mut peer, 5).await;
+        assert_eq!(sender.current_max_send_streams(), 3);
+        poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect("sender never became ready");
+        driver.abort();
+    })
+    .await
+    .expect("retained stream limit test timed out");
+}
+
+#[tokio::test]
+async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, sender, _responses, driver) = limited_client(2, false).await;
+        read_request_headers(&mut peer, 1).await;
+        read_request_headers(&mut peer, 3).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+
+        // The third request opens only once the peer's SETTINGS lift the
+        // limit, so it follows their ACK.
+        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
+        read_settings_ack(&mut peer).await;
+        read_request_headers(&mut peer, 5).await;
+        assert_eq!(sender.current_max_send_streams(), usize::MAX);
+        driver.abort();
+    })
+    .await
+    .expect("default stream limit test timed out");
+}
+
+#[tokio::test]
+async fn initial_stream_id_numbers_requests_from_it() {
+    timeout(Duration::from_secs(5), async {
+        let (client_io, mut peer) = duplex(64 * 1024);
+        let mut builder = super::Builder::new();
+        builder.initial_stream_id(3);
+        let (mut sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        accept_client_handshake(&mut peer).await;
+        let mut responses = Vec::new();
+        for stream_id in [3, 5, 7] {
+            poll_fn(|cx| sender.poll_ready(cx))
+                .await
+                .expect("sender never became ready");
+            let (response, _) = sender
+                .send_request(data_budget_request(), true)
+                .expect("request was rejected");
+            responses.push(response);
+            read_request_headers(&mut peer, stream_id).await;
+        }
+        driver.abort();
+    })
+    .await
+    .expect("initial stream id test timed out");
+}
+
+/// Opens a client whose peer has not sent SETTINGS, limited to `limit`
+/// streams until then, and sends `limit + 1` requests. The response futures
+/// are returned so that no stream is cancelled while the test runs.
+async fn limited_client(
+    limit: usize,
+    retain: bool,
+) -> (
+    DuplexStream,
+    super::SendRequest<Bytes>,
+    Vec<super::ResponseFuture>,
+    tokio::task::JoinHandle<Result<(), crate::Error>>,
+) {
+    let (client_io, mut peer) = duplex(64 * 1024);
+    let mut builder = super::Builder::new();
+    builder
+        .initial_max_send_streams(limit)
+        .retain_initial_max_send_streams(retain);
+    let (mut sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+    read_client_preface(&mut peer).await;
+    let initial = read_raw_frame(&mut peer).await;
+    assert_eq!((initial.kind, initial.flags), (4, 0));
+    let mut responses = Vec::new();
+    for _ in 0..=limit {
+        // Only the request past the limit waits to open, so no request
+        // needs readiness before it is sent.
+        let (response, _) = sender
+            .send_request(data_budget_request(), true)
+            .expect("request was rejected");
+        responses.push(response);
+    }
+    (peer, sender, responses, driver)
+}
+
+/// Sends a PING and fails if a request HEADERS arrives before its ACK.
+async fn assert_no_request_before_ping_ack(peer: &mut DuplexStream) {
+    write_raw_frame(peer, 6, 0, 0, b"limited!").await;
+    loop {
+        let frame = read_raw_frame(peer).await;
+        assert_ne!(
+            frame.kind, 1,
+            "stream {} opened past the limit",
+            frame.stream_id
+        );
+        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+        if frame.kind == 6 && frame.flags & 0x1 != 0 {
+            assert_eq!(frame.payload, b"limited!");
+            return;
+        }
+    }
+}
+
+/// Reads frames until the client acknowledges the peer's SETTINGS.
+async fn read_settings_ack(peer: &mut DuplexStream) {
+    loop {
+        let frame = read_raw_frame(peer).await;
+        assert_ne!(
+            frame.kind, 1,
+            "stream {} opened past the limit",
+            frame.stream_id
+        );
+        if (frame.kind, frame.flags) == (4, 1) {
+            return;
+        }
+    }
+}
+
 fn data_budget_request() -> Request<()> {
     Request::builder()
         .uri("https://http2.akamai.com/")

@@ -81,6 +81,7 @@ struct DynConnection<'a, B: Buf = Bytes> {
 pub(crate) struct Config {
     pub next_stream_id: StreamId,
     pub initial_max_send_streams: usize,
+    pub retain_initial_max_send_streams: bool,
     pub max_send_buffer_size: usize,
     pub reset_stream_duration: Duration,
     pub reset_stream_max: usize,
@@ -127,6 +128,7 @@ where
         fn streams_config(config: &Config) -> streams::Config {
             streams::Config {
                 initial_max_send_streams: config.initial_max_send_streams,
+                retain_initial_max_send_streams: config.retain_initial_max_send_streams,
                 local_max_buffer_size: config.max_send_buffer_size,
                 local_next_stream_id: config.next_stream_id,
                 local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),

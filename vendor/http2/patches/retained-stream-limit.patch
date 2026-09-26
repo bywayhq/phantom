@@ -1,0 +1,309 @@
+diff --git a/src/client.rs b/src/client.rs
+index eca84bed..e20ecf9e 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -321,9 +321,14 @@ pub struct Builder {
+     /// the connection will overwrite this value with the
+     /// MAX_CONCURRENT_STREAMS specified in the frame.
+     /// If no value is advertised by the remote peer in the initial SETTINGS
+-    /// frame, it will be set to usize::MAX.
++    /// frame, it will be set to usize::MAX, unless
++    /// `retain_initial_max_send_streams` is set.
+     initial_max_send_streams: usize,
+ 
++    /// Whether an initial peer SETTINGS frame without
++    /// MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`.
++    retain_initial_max_send_streams: bool,
++
+     /// Initial target window size for new connections.
+     initial_target_connection_window_size: Option<u32>,
+ 
+@@ -709,6 +714,7 @@ impl Builder {
+             pending_accept_reset_stream_max: proto::DEFAULT_REMOTE_RESET_STREAM_MAX,
+             initial_target_connection_window_size: None,
+             initial_max_send_streams: usize::MAX,
++            retain_initial_max_send_streams: false,
+             settings: Default::default(),
+             #[cfg(feature = "unstable")]
+             initial_peer_settings: None,
+@@ -1009,6 +1015,25 @@ impl Builder {
+         self
+     }
+ 
++    /// Keeps the [`initial_max_send_streams`] limit until the peer states
++    /// SETTINGS_MAX_CONCURRENT_STREAMS.
++    ///
++    /// By default, an initial SETTINGS frame from the peer that omits the
++    /// setting lifts the limit to `usize::MAX`, because RFC 9113 section 5.1.2
++    /// leaves the peer's limit unbounded until it states one. When this is
++    /// set, such a frame leaves the initial limit in place; a value the peer
++    /// states, in its initial SETTINGS or later, replaces it as usual. Peer
++    /// settings seeded with `initial_peer_settings` (feature `unstable`)
++    /// count as the peer's initial SETTINGS.
++    ///
++    /// The default is `false`.
++    ///
++    /// [`initial_max_send_streams`]: Builder::initial_max_send_streams
++    pub fn retain_initial_max_send_streams(&mut self, enabled: bool) -> &mut Self {
++        self.retain_initial_max_send_streams = enabled;
++        self
++    }
++
+     /// Sets the maximum number of concurrent locally reset streams.
+     ///
+     /// When a stream is explicitly reset, the HTTP/2 specification requires
+@@ -1533,6 +1558,7 @@ where
+             proto::Config {
+                 next_stream_id: builder.stream_id,
+                 initial_max_send_streams: builder.initial_max_send_streams,
++                retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
+                 max_send_buffer_size: builder.max_send_buffer_size,
+                 reset_stream_duration: builder.reset_stream_duration,
+                 reset_stream_max: builder.reset_stream_max,
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 9b30d990..3c17d1b8 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -1067,6 +1067,152 @@ async fn dropping_buffered_data_frames_releases_budget() {
+     .expect("dropped DATA frame budget test timed out");
+ }
+ 
++#[tokio::test]
++async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
++    timeout(Duration::from_secs(5), async {
++        let (mut peer, mut sender, _responses, driver) = limited_client(2, true).await;
++        read_request_headers(&mut peer, 1).await;
++        read_request_headers(&mut peer, 3).await;
++        assert_eq!(sender.current_max_send_streams(), 2);
++
++        // Initial SETTINGS without SETTINGS_MAX_CONCURRENT_STREAMS. A request
++        // opened before them would arrive before their ACK.
++        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
++        read_settings_ack(&mut peer).await;
++        assert_eq!(sender.current_max_send_streams(), 2);
++        assert_no_request_before_ping_ack(&mut peer).await;
++
++        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(3, 3)])).await;
++        read_request_headers(&mut peer, 5).await;
++        assert_eq!(sender.current_max_send_streams(), 3);
++        poll_fn(|cx| sender.poll_ready(cx))
++            .await
++            .expect("sender never became ready");
++        driver.abort();
++    })
++    .await
++    .expect("retained stream limit test timed out");
++}
++
++#[tokio::test]
++async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default() {
++    timeout(Duration::from_secs(5), async {
++        let (mut peer, sender, _responses, driver) = limited_client(2, false).await;
++        read_request_headers(&mut peer, 1).await;
++        read_request_headers(&mut peer, 3).await;
++        assert_eq!(sender.current_max_send_streams(), 2);
++
++        // The third request opens only once the peer's SETTINGS lift the
++        // limit, so it follows their ACK.
++        write_raw_frame(&mut peer, 4, 0, 0, &[]).await;
++        read_settings_ack(&mut peer).await;
++        read_request_headers(&mut peer, 5).await;
++        assert_eq!(sender.current_max_send_streams(), usize::MAX);
++        driver.abort();
++    })
++    .await
++    .expect("default stream limit test timed out");
++}
++
++#[tokio::test]
++async fn initial_stream_id_numbers_requests_from_it() {
++    timeout(Duration::from_secs(5), async {
++        let (client_io, mut peer) = duplex(64 * 1024);
++        let mut builder = super::Builder::new();
++        builder.initial_stream_id(3);
++        let (mut sender, connection) = builder
++            .handshake::<_, Bytes>(client_io)
++            .await
++            .expect("client handshake failed");
++        let driver = tokio::spawn(connection);
++        accept_client_handshake(&mut peer).await;
++        let mut responses = Vec::new();
++        for stream_id in [3, 5, 7] {
++            poll_fn(|cx| sender.poll_ready(cx))
++                .await
++                .expect("sender never became ready");
++            let (response, _) = sender
++                .send_request(data_budget_request(), true)
++                .expect("request was rejected");
++            responses.push(response);
++            read_request_headers(&mut peer, stream_id).await;
++        }
++        driver.abort();
++    })
++    .await
++    .expect("initial stream id test timed out");
++}
++
++/// Opens a client whose peer has not sent SETTINGS, limited to `limit`
++/// streams until then, and sends `limit + 1` requests. The response futures
++/// are returned so that no stream is cancelled while the test runs.
++async fn limited_client(
++    limit: usize,
++    retain: bool,
++) -> (
++    DuplexStream,
++    super::SendRequest<Bytes>,
++    Vec<super::ResponseFuture>,
++    tokio::task::JoinHandle<Result<(), crate::Error>>,
++) {
++    let (client_io, mut peer) = duplex(64 * 1024);
++    let mut builder = super::Builder::new();
++    builder
++        .initial_max_send_streams(limit)
++        .retain_initial_max_send_streams(retain);
++    let (mut sender, connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let driver = tokio::spawn(connection);
++    read_client_preface(&mut peer).await;
++    let initial = read_raw_frame(&mut peer).await;
++    assert_eq!((initial.kind, initial.flags), (4, 0));
++    let mut responses = Vec::new();
++    for _ in 0..=limit {
++        // Only the request past the limit waits to open, so no request
++        // needs readiness before it is sent.
++        let (response, _) = sender
++            .send_request(data_budget_request(), true)
++            .expect("request was rejected");
++        responses.push(response);
++    }
++    (peer, sender, responses, driver)
++}
++
++/// Sends a PING and fails if a request HEADERS arrives before its ACK.
++async fn assert_no_request_before_ping_ack(peer: &mut DuplexStream) {
++    write_raw_frame(peer, 6, 0, 0, b"limited!").await;
++    loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(
++            frame.kind, 1,
++            "stream {} opened past the limit",
++            frame.stream_id
++        );
++        assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++        if frame.kind == 6 && frame.flags & 0x1 != 0 {
++            assert_eq!(frame.payload, b"limited!");
++            return;
++        }
++    }
++}
++
++/// Reads frames until the client acknowledges the peer's SETTINGS.
++async fn read_settings_ack(peer: &mut DuplexStream) {
++    loop {
++        let frame = read_raw_frame(peer).await;
++        assert_ne!(
++            frame.kind, 1,
++            "stream {} opened past the limit",
++            frame.stream_id
++        );
++        if (frame.kind, frame.flags) == (4, 1) {
++            return;
++        }
++    }
++}
++
+ fn data_budget_request() -> Request<()> {
+     Request::builder()
+         .uri("https://http2.akamai.com/")
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index aaf01141..6c99be3c 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -81,6 +81,7 @@ struct DynConnection<'a, B: Buf = Bytes> {
+ pub(crate) struct Config {
+     pub next_stream_id: StreamId,
+     pub initial_max_send_streams: usize,
++    pub retain_initial_max_send_streams: bool,
+     pub max_send_buffer_size: usize,
+     pub reset_stream_duration: Duration,
+     pub reset_stream_max: usize,
+@@ -127,6 +128,7 @@ where
+         fn streams_config(config: &Config) -> streams::Config {
+             streams::Config {
+                 initial_max_send_streams: config.initial_max_send_streams,
++                retain_initial_max_send_streams: config.retain_initial_max_send_streams,
+                 local_max_buffer_size: config.max_send_buffer_size,
+                 local_next_stream_id: config.next_stream_id,
+                 local_push_enabled: config.settings.is_push_enabled().unwrap_or(true),
+diff --git a/src/proto/streams/counts.rs b/src/proto/streams/counts.rs
+index 791a6407..5c07f334 100644
+--- a/src/proto/streams/counts.rs
++++ b/src/proto/streams/counts.rs
+@@ -37,6 +37,10 @@ pub(super) struct Counts {
+     /// Maximum number of locally initiated streams
+     max_send_streams: usize,
+ 
++    /// Whether an initial peer SETTINGS frame that omits
++    /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `max_send_streams`.
++    retain_initial_max_send_streams: bool,
++
+     /// Current number of remote initiated streams
+     num_send_streams: usize,
+ 
+@@ -82,6 +86,7 @@ impl Counts {
+         Counts {
+             peer,
+             max_send_streams: config.initial_max_send_streams,
++            retain_initial_max_send_streams: config.retain_initial_max_send_streams,
+             num_send_streams: 0,
+             max_recv_streams: config.remote_max_initiated.unwrap_or(usize::MAX),
+             num_recv_streams: 0,
+@@ -249,7 +254,9 @@ impl Counts {
+     pub fn apply_remote_settings(&mut self, settings: &frame::Settings, is_initial: bool) {
+         match settings.max_concurrent_streams() {
+             Some(val) => self.max_send_streams = val as usize,
+-            None if is_initial => self.max_send_streams = usize::MAX,
++            None if is_initial && !self.retain_initial_max_send_streams => {
++                self.max_send_streams = usize::MAX
++            }
+             None => {}
+         }
+     }
+@@ -363,6 +370,7 @@ mod tests {
+             peer::Dyn::Server,
+             &Config {
+                 initial_max_send_streams: 0,
++                retain_initial_max_send_streams: false,
+                 local_max_buffer_size: 0,
+                 local_next_stream_id: 2.into(),
+                 local_push_enabled: false,
+diff --git a/src/proto/streams/mod.rs b/src/proto/streams/mod.rs
+index bff66a0d..53f6a8a7 100644
+--- a/src/proto/streams/mod.rs
++++ b/src/proto/streams/mod.rs
+@@ -40,6 +40,11 @@ pub struct Config {
+     /// MAX_CONCURRENT_STREAMS specified in the frame.
+     pub initial_max_send_streams: usize,
+ 
++    /// Whether an initial peer SETTINGS frame without
++    /// SETTINGS_MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`
++    /// instead of lifting the limit.
++    pub retain_initial_max_send_streams: bool,
++
+     /// Max amount of DATA bytes to buffer per stream.
+     pub local_max_buffer_size: usize,
+ 
+diff --git a/src/server.rs b/src/server.rs
+index 4bffcc96..2aaeffa4 100644
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -1518,6 +1518,7 @@ where
+                             next_stream_id: 2.into(),
+                             // Server does not need to locally initiate any streams
+                             initial_max_send_streams: 0,
++                            retain_initial_max_send_streams: false,
+                             max_send_buffer_size: self.builder.max_send_buffer_size,
+                             reset_stream_duration: self.builder.reset_stream_duration,
+                             reset_stream_max: self.builder.reset_stream_max,

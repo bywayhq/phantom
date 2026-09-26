@@ -321,8 +321,13 @@ pub struct Builder {
     /// the connection will overwrite this value with the
     /// MAX_CONCURRENT_STREAMS specified in the frame.
     /// If no value is advertised by the remote peer in the initial SETTINGS
-    /// frame, it will be set to usize::MAX.
+    /// frame, it will be set to usize::MAX, unless
+    /// `retain_initial_max_send_streams` is set.
     initial_max_send_streams: usize,
+
+    /// Whether an initial peer SETTINGS frame without
+    /// MAX_CONCURRENT_STREAMS keeps `initial_max_send_streams`.
+    retain_initial_max_send_streams: bool,
 
     /// Initial target window size for new connections.
     initial_target_connection_window_size: Option<u32>,
@@ -709,6 +714,7 @@ impl Builder {
             pending_accept_reset_stream_max: proto::DEFAULT_REMOTE_RESET_STREAM_MAX,
             initial_target_connection_window_size: None,
             initial_max_send_streams: usize::MAX,
+            retain_initial_max_send_streams: false,
             settings: Default::default(),
             #[cfg(feature = "unstable")]
             initial_peer_settings: None,
@@ -1006,6 +1012,25 @@ impl Builder {
     /// ```
     pub fn initial_max_send_streams(&mut self, initial: usize) -> &mut Self {
         self.initial_max_send_streams = initial;
+        self
+    }
+
+    /// Keeps the [`initial_max_send_streams`] limit until the peer states
+    /// SETTINGS_MAX_CONCURRENT_STREAMS.
+    ///
+    /// By default, an initial SETTINGS frame from the peer that omits the
+    /// setting lifts the limit to `usize::MAX`, because RFC 9113 section 5.1.2
+    /// leaves the peer's limit unbounded until it states one. When this is
+    /// set, such a frame leaves the initial limit in place; a value the peer
+    /// states, in its initial SETTINGS or later, replaces it as usual. Peer
+    /// settings seeded with `initial_peer_settings` (feature `unstable`)
+    /// count as the peer's initial SETTINGS.
+    ///
+    /// The default is `false`.
+    ///
+    /// [`initial_max_send_streams`]: Builder::initial_max_send_streams
+    pub fn retain_initial_max_send_streams(&mut self, enabled: bool) -> &mut Self {
+        self.retain_initial_max_send_streams = enabled;
         self
     }
 
@@ -1533,6 +1558,7 @@ where
             proto::Config {
                 next_stream_id: builder.stream_id,
                 initial_max_send_streams: builder.initial_max_send_streams,
+                retain_initial_max_send_streams: builder.retain_initial_max_send_streams,
                 max_send_buffer_size: builder.max_send_buffer_size,
                 reset_stream_duration: builder.reset_stream_duration,
                 reset_stream_max: builder.reset_stream_max,

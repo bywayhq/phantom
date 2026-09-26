@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.5`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.6`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -500,6 +500,45 @@ values of several crumbs, and requires the decoder to read back every field,
 each crumb as its own field. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays
 every retained Chromium-family and Firefox HTTP/2 session and compares each
 HEADERS block with the capture byte for byte.
+
+## Stream limit before SETTINGS
+
+Upstream's client builder already sets the first stream ID
+(`Builder::initial_stream_id`, under the `unstable` feature) and the number
+of streams opened before the peer's SETTINGS arrive
+(`Builder::initial_max_send_streams`). Phantom uses both: Firefox 156 starts
+each connection at stream 3, and both Chromium and Firefox open at most 100
+streams until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS`.
+
+Upstream lifts the initial limit to `usize::MAX` when the peer's initial
+SETTINGS omit the setting, because RFC 9113 section 5.1.2 leaves the peer's
+limit unbounded until it states one. Neither browser does. Chromium's
+`SpdySession` starts at `kInitialMaxConcurrentStreams`, 100, and changes the
+limit only in `HandleSetting` for `SETTINGS_MAX_CONCURRENT_STREAMS`, which it
+also lowers to at most 256. Firefox's `Http2Session` starts at
+`network.http.http2.default-concurrent`, 100, and changes it only on the same
+setting. Sources, at Chromium tag `154.0.8037.58` and mozilla-central
+`4d5216592535`:
+
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.h#L82-L84>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L837>
+- <https://github.com/chromium/chromium/blob/154.0.8037.58/net/spdy/spdy_session.cc#L2355-L2358>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l236>
+- <https://hg.mozilla.org/mozilla-central/file/4d5216592535badef64a33022512c562e3d4f946/netwerk/protocol/http/Http2Session.cpp#l1880>
+
+`retained-stream-limit.patch` adds the client builder option
+`retain_initial_max_send_streams`. When set, initial SETTINGS without the
+setting leave the initial limit in place; a stated value, initial or later,
+replaces it as before, and seeded peer settings count as the initial
+SETTINGS. The default leaves upstream's behavior unchanged, and servers never
+set it. The 256 ceiling is not modeled. The patch changes `src/client.rs`,
+`src/server.rs`, `src/proto/connection.rs`, and
+`src/proto/streams/{counts,mod}.rs`. Its regressions in `src/client/tests.rs`
+hold a raw peer's SETTINGS back: two requests open and the third waits,
+SETTINGS without the setting keep it waiting, and a stated limit of three
+opens it; without the option, the same SETTINGS open it. A third regression
+pins upstream's `initial_stream_id` numbering from 3, which Phantom relies
+on.
 
 ## Refreshing the vendor copy
 
