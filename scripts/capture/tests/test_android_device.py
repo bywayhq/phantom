@@ -5,11 +5,14 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from scripts.capture.android_device import (
+    ALLOW_COLD_BOOT_VARIABLE,
     ALLOW_PHYSICAL_DEVICE_VARIABLE,
     ANDROID_BROWSERS,
     EMULATOR_HOST_LOOPBACK,
+    SNAPSHOT_PROPERTY,
     AndroidLaunch,
     AndroidSession,
+    ColdBootRefused,
     PhysicalDeviceRefused,
     TypingFailed,
     command_line_text,
@@ -39,16 +42,22 @@ RULES = "--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localh
 
 
 class RecordingDevice:
-    def __init__(self, screen: str = "", emulator: bool = True) -> None:
+    def __init__(
+        self, screen: str = "", emulator: bool = True, snapshot: str = "onboarded"
+    ) -> None:
         self.commands: list[tuple[str, ...]] = []
         self.pushed: list[tuple[str, str]] = []
         self.screen = screen
         self.emulator = emulator
+        # The snapshot marker property; empty after a cold boot.
+        self.snapshot = snapshot
 
     def run(self, *arguments: str, check: bool = True) -> str:
         self.commands.append(arguments)
         if arguments[:3] == ("shell", "getprop", "ro.kernel.qemu"):
             return "1" if self.emulator else ""
+        if arguments[:3] == ("shell", "getprop", SNAPSHOT_PROPERTY):
+            return f"{self.snapshot}\r\n"
         if arguments[:2] == ("shell", "uiautomator"):
             return "dumped"
         if arguments[:2] == ("shell", "cat"):
@@ -238,6 +247,61 @@ class AndroidSessionTests(unittest.TestCase):
             pass
         self.assertIn(("shell", "pm", "clear", browser.package), device.commands)
 
+    def test_session_refuses_an_emulator_that_cold_booted(self) -> None:
+        device = RecordingDevice(snapshot="")
+        browser = ANDROID_BROWSERS["chrome-android"]
+        launch = AndroidLaunch(browser, URL, entry="intent", settle=0)
+
+        with (
+            unittest.mock.patch.dict("os.environ", {}, clear=True),
+            self.assertRaises(ColdBootRefused),
+        ):
+            AndroidSession(device, launch).__enter__()  # type: ignore[arg-type]
+
+        self.assertIn(("shell", "getprop", SNAPSHOT_PROPERTY), device.commands)
+        for command in device.commands:
+            self.assertNotIn("clear", command)
+            self.assertNotIn("kill-all", command)
+            self.assertNotIn("start", command)
+
+    def test_session_runs_on_a_cold_booted_emulator_only_when_allowed(self) -> None:
+        browser = ANDROID_BROWSERS["chrome-android"]
+        allowed = AndroidLaunch(
+            browser, URL, entry="intent", settle=0, allow_cold_boot=True
+        )
+        device = RecordingDevice(snapshot="")
+        with (
+            unittest.mock.patch.dict("os.environ", {}, clear=True),
+            AndroidSession(device, allowed),  # type: ignore[arg-type]
+        ):
+            pass
+        self.assertIn(("shell", "pm", "clear", browser.package), device.commands)
+
+        launch = AndroidLaunch(browser, URL, entry="intent", settle=0)
+        device = RecordingDevice(snapshot="")
+        with (
+            unittest.mock.patch.dict(
+                "os.environ", {ALLOW_COLD_BOOT_VARIABLE: "1"}, clear=True
+            ),
+            AndroidSession(device, launch),  # type: ignore[arg-type]
+        ):
+            pass
+        self.assertIn(("shell", "pm", "clear", browser.package), device.commands)
+
+    def test_allowed_physical_device_skips_the_snapshot_check(self) -> None:
+        browser = ANDROID_BROWSERS["chrome-android"]
+        launch = AndroidLaunch(
+            browser, URL, entry="intent", settle=0, allow_physical_device=True
+        )
+        device = RecordingDevice(emulator=False, snapshot="")
+        with (
+            unittest.mock.patch.dict("os.environ", {}, clear=True),
+            AndroidSession(device, launch),  # type: ignore[arg-type]
+        ):
+            pass
+        self.assertNotIn(("shell", "getprop", SNAPSHOT_PROPERTY), device.commands)
+        self.assertIn(("shell", "pm", "clear", browser.package), device.commands)
+
     def test_session_clears_configures_launches_and_cleans_up(self) -> None:
         device = RecordingDevice()
         browser = ANDROID_BROWSERS["chrome-android"]
@@ -256,11 +320,13 @@ class AndroidSessionTests(unittest.TestCase):
         stops = [
             ("shell", "am", "force-stop", b.package) for b in ANDROID_BROWSERS.values()
         ]
-        # The emulator check comes before anything that stops or clears.
+        # The emulator and snapshot checks come before anything that stops or
+        # clears.
         self.assertEqual(started[0], ("shell", "getprop", "ro.kernel.qemu"))
-        self.assertEqual(started[1 : 1 + len(stops)], stops)
-        self.assertEqual(started[1 + len(stops)], ("shell", "am", "kill-all"))
-        self.assertEqual(started[2 + len(stops)], ("shell", "pm", "clear", package))
+        self.assertEqual(started[1], ("shell", "getprop", SNAPSHOT_PROPERTY))
+        self.assertEqual(started[2 : 2 + len(stops)], stops)
+        self.assertEqual(started[2 + len(stops)], ("shell", "am", "kill-all"))
+        self.assertEqual(started[3 + len(stops)], ("shell", "pm", "clear", package))
         self.assertIn(
             ("shell", "am", "set-debug-app", "--persistent", package), started
         )

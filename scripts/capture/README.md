@@ -500,7 +500,11 @@ tabs, history, and sign-ins. The launcher therefore refuses a device that does
 not report `ro.kernel.qemu` or `ro.boot.qemu` as `1`, which every emulator
 does. To run on a phone set aside for captures, set
 `PHANTOM_ANDROID_ALLOW_PHYSICAL_DEVICE=1`, or pass `--allow-physical-device` to
-`android_run.py`. `startup_capture.py` and `chrome_ech.py` take desktop
+`android_run.py`. It also refuses an emulator that cold-booted instead of
+loading the `onboarded` snapshot. It tells them apart by the
+`debug.phantom.snapshot` property, which `adb shell setprop` sets in guest
+memory before the snapshot is saved, and which a cold boot does not
+have. `PHANTOM_ANDROID_ALLOW_COLD_BOOT=1` or `--allow-cold-boot` overrides it. `startup_capture.py` and `chrome_ech.py` take desktop
 browsers only, and `proxy_route.py` refuses the authentication scenarios for
 an Android browser.
 

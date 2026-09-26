@@ -14,6 +14,12 @@ and UDP alike. Host-resolver rules that map a test name to `127.0.0.1` are
 rewritten to that address, so QUIC reaches a host listener too. A URL or flag
 that names the device's own loopback (`127.0.0.1` or `localhost`) with a port
 gets an `adb reverse` for that port, which forwards TCP only.
+
+An emulator must have loaded a snapshot marked with `SNAPSHOT_PROPERTY`. A
+property set without `persist.` lives only in guest memory: a snapshot load
+restores it, and a cold boot starts without it. A cold-booted guest is not in
+the snapshot's state, and what a run writes to it, such as `pm clear`, stays on
+the emulator's disk.
 """
 
 from __future__ import annotations
@@ -33,6 +39,9 @@ EMULATOR_HOST_LOOPBACK = "10.0.2.2"
 # Properties an Android emulator sets to 1; a phone sets neither.
 EMULATOR_PROPERTIES = ("ro.kernel.qemu", "ro.boot.qemu")
 ALLOW_PHYSICAL_DEVICE_VARIABLE = "PHANTOM_ANDROID_ALLOW_PHYSICAL_DEVICE"
+# Set to the snapshot's name in the guest just before the snapshot is saved.
+SNAPSHOT_PROPERTY = "debug.phantom.snapshot"
+ALLOW_COLD_BOOT_VARIABLE = "PHANTOM_ANDROID_ALLOW_COLD_BOOT"
 DEVICE_DIRECTORY = "/data/local/tmp"
 ENTRIES = ("typed", "intent")
 
@@ -309,6 +318,9 @@ class AndroidLaunch:
     # A run clears browser data, so a device that is not an emulator is
     # refused unless this is set.
     allow_physical_device: bool = False
+    # An emulator that did not load a marked snapshot is refused unless this
+    # is set.
+    allow_cold_boot: bool = False
     # TCP ports to reverse besides those the URL and switches name, such as
     # a port that only a page script navigates to.
     reverse: tuple[int, ...] = ()
@@ -338,9 +350,18 @@ class PhysicalDeviceRefused(RuntimeError):
     """The device is not an emulator, and a run would clear its browser data."""
 
 
+class ColdBootRefused(RuntimeError):
+    """The emulator cold-booted instead of loading its marked snapshot."""
+
+
 def allowed_on_physical_device() -> bool:
     """Whether the environment opts in to runs on a phone or tablet."""
     return os.environ.get(ALLOW_PHYSICAL_DEVICE_VARIABLE) == "1"
+
+
+def allowed_after_cold_boot() -> bool:
+    """Whether the environment opts in to runs on a cold-booted emulator."""
+    return os.environ.get(ALLOW_COLD_BOOT_VARIABLE) == "1"
 
 
 class AndroidSession:
@@ -474,16 +495,35 @@ class AndroidSession:
                 return
 
     def require_emulator(self) -> None:
-        """Refuse a device that is not an emulator, unless allowed."""
-        if self.launch.allow_physical_device or allowed_on_physical_device():
-            return
+        """Refuse a device that is not an emulator, unless allowed.
+
+        An emulator must also have loaded a marked snapshot; see
+        `require_snapshot`.
+        """
         for name in EMULATOR_PROPERTIES:
             if self.device.shell("getprop", name, check=False).strip() == "1":
+                self.require_snapshot()
                 return
+        if self.launch.allow_physical_device or allowed_on_physical_device():
+            return
         raise PhysicalDeviceRefused(
             "the adb device is not an emulator; a run clears browser data. "
             f"Set {ALLOW_PHYSICAL_DEVICE_VARIABLE}=1 or pass "
             "--allow-physical-device to run on it anyway"
+        )
+
+    def require_snapshot(self) -> None:
+        """Refuse an emulator without the snapshot marker, unless allowed."""
+        if self.launch.allow_cold_boot or allowed_after_cold_boot():
+            return
+        if self.device.shell("getprop", SNAPSHOT_PROPERTY, check=False).strip():
+            return
+        raise ColdBootRefused(
+            f"the emulator has no {SNAPSHOT_PROPERTY} property, so it cold-booted "
+            "instead of loading its snapshot, and what a run clears would stay "
+            "on its disk. Restart it from the snapshot, or set "
+            f"{ALLOW_COLD_BOOT_VARIABLE}=1 or pass --allow-cold-boot to run "
+            "on it anyway"
         )
 
     def focused_text(self) -> str | None:
