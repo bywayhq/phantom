@@ -26,7 +26,7 @@ import socket
 import subprocess
 import sys
 import tempfile
-import time
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -207,6 +207,22 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
     return True
 
 
+def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> bool:
+    """Wait up to `limit` seconds for chrome_http3.py to report its bind."""
+    assert server.stderr is not None
+    stream = server.stderr
+    ready = threading.Event()
+
+    def read() -> None:
+        for line in iter(stream.readline, b""):
+            if line.startswith(b"listening on "):
+                ready.set()
+                return
+
+    threading.Thread(target=read, daemon=True).start()
+    return ready.wait(limit)
+
+
 def quic_run(
     args: argparse.Namespace, startup: Path, client_hello: Path, timeout: float
 ) -> bool:
@@ -249,8 +265,12 @@ def quic_run(
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )
-    # chrome_http3.py reports nothing when it binds; give it time to start.
-    time.sleep(args.server_start)
+    if not wait_until_listening(server, args.server_start):
+        server.kill()
+        _, stderr = server.communicate()
+        shutil.rmtree(material, ignore_errors=True)
+        print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
+        return False
     browser = Browser(
         args.browser_path,
         launch_arguments(
@@ -290,7 +310,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--navigate", choices=("command-line", "devtools"), default="command-line"
     )
     parser.add_argument("--settle", type=float, default=5.0)
-    parser.add_argument("--server-start", type=float, default=3.0)
+    parser.add_argument("--server-start", type=float, default=30.0)
     parser.add_argument("--capture-binary", type=Path)
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--timeout", type=float, default=60.0)

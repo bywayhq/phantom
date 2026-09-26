@@ -736,6 +736,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `startup_capture.py --layer http3` launches the browser once
+  `chrome_http3.py` reports on standard error that it has bound, instead of
+  after a fixed `--server-start` wait of 3 seconds. `--server-start` is now
+  the longest wait for that report (default 30 seconds).
 - Wire change for the Chrome 154, Edge 153, and Brave 154 HTTP/3 recipes on a
   client with HTTPS record discovery: `chromium::v154_http3_tls` now keeps
   `ech_from_https_records`, and `edge::v153_http3_tls` and

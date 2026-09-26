@@ -7,6 +7,7 @@ import asyncio
 import ipaddress
 import json
 import platform
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -435,6 +436,8 @@ async def run(args: argparse.Namespace) -> CaptureResult:
             *values, capture=capture, **kwargs
         ),
     )
+    # startup_capture.py launches the browser once it reads this line.
+    print(f"listening on {args.listen}", file=sys.stderr, flush=True)
     try:
         await asyncio.wait_for(complete.wait(), timeout=args.timeout)
         capture.raise_if_failed()
