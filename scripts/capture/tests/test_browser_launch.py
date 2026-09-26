@@ -200,8 +200,13 @@ class BrowserLaunchTests(unittest.TestCase):
         check_android_entry(parser, args)
         android = LaunchPlan("chrome-android", Path("adb"), headless=True)
         desktop = LaunchPlan("chrome", Path("chrome.exe"), headless=True)
+        default = parser.parse_args(["--browser", "chrome-android"])
 
+        self.assertEqual(default.android_entry, "typed")
         self.assertEqual(android.launch_mode, "android-typed")
+        self.assertEqual(
+            with_android_entry(android, "typed").launch_mode, "android-typed"
+        )
         self.assertEqual(
             with_android_entry(android, args.android_entry).launch_mode,
             "android-intent",
