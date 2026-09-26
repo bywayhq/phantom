@@ -697,6 +697,7 @@ mod early_streams;
 #[cfg(feature = "https-records")]
 mod ech;
 mod extended_connect;
+mod firefox;
 mod profile;
 mod qpack;
 mod quic;

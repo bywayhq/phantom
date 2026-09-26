@@ -272,7 +272,11 @@ impl Http3Connector {
     /// leaves in 0-RTT packets.
     #[must_use]
     pub fn requests_wait_for_peer_settings(&self) -> bool {
-        self.settings.qpack_encoding == phantom_profile::Http3QpackEncoding::Dynamic
+        matches!(
+            self.settings.qpack_encoding,
+            phantom_profile::Http3QpackEncoding::Dynamic
+                | phantom_profile::Http3QpackEncoding::DynamicUnmatchedNames
+        )
     }
 
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {

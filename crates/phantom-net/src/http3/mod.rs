@@ -498,7 +498,8 @@ async fn connect(
         Some((race, observed)) => (Some(race), Some(observed)),
         None => (None, None),
     };
-    let endpoint = endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu)?;
+    let endpoint =
+        endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu, server_name)?;
 
     debug!("QUIC connection started");
     let connecting = endpoint.connect(remote, server_name).map_err(|error| {
@@ -1147,7 +1148,7 @@ fn endpoint(
     crypto: Arc<QuicClientConfig>,
     diagnostics: ConnectionDiagnostics,
 ) -> Result<quinn::Endpoint, Http3Error> {
-    endpoint_with_socket(remote, crypto, diagnostics, None, None)
+    endpoint_with_socket(remote, crypto, diagnostics, None, None, "")
 }
 
 fn endpoint_with_socket(
@@ -1156,6 +1157,7 @@ fn endpoint_with_socket(
     diagnostics: ConnectionDiagnostics,
     socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
     path_mtu: Option<u16>,
+    server_name: &str,
 ) -> Result<quinn::Endpoint, Http3Error> {
     #[cfg(not(feature = "qlog"))]
     let _ = diagnostics;
@@ -1197,8 +1199,9 @@ fn endpoint_with_socket(
     if let Some(mtu) = path_mtu {
         transport_config.initial_mtu(mtu).min_mtu(mtu);
     }
-    let mut client_config = quinn::ClientConfig::new(crypto);
+    let mut client_config = quinn::ClientConfig::new(crypto.clone());
     client_config.transport_config(Arc::new(transport_config));
+    crypto.configure_client(&mut client_config, server_name);
     let runtime = Arc::new(quinn::TokioRuntime);
     let mut endpoint = match socket {
         Some(socket) => {

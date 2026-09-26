@@ -12,6 +12,9 @@ const QPACK_MAX_TABLE_CAPACITY: u64 = 0x01;
 const MAX_FIELD_SECTION_SIZE: u64 = 0x06;
 const QPACK_BLOCKED_STREAMS: u64 = 0x07;
 const H3_DATAGRAM: u64 = 0x33;
+const ENABLE_CONNECT_PROTOCOL: u64 = 0x08;
+const ENABLE_WEBTRANSPORT_DRAFT02: u64 = 0x2b60_3742;
+const H3_DATAGRAM_DRAFT04: u64 = 0xff_d277;
 const GREASE_ENTROPY_LEN: usize = 8;
 /// Largest decoded response field section accepted on any connection.
 ///
@@ -55,6 +58,12 @@ fn builder_with_entropy(
         Http3QpackEncoding::Dynamic => {
             builder.enable_dynamic_qpack(true);
         }
+        Http3QpackEncoding::DynamicUnmatchedNames => {
+            builder
+                .enable_dynamic_qpack(true)
+                .qpack_insert_policy(h3::client::QpackInsertPolicy::UnmatchedNames)
+                .qpack_huffman(h3::client::QpackHuffman::Always);
+        }
         _ => {
             return Err(Http3Error::without_source(
                 Http3ErrorKind::Configuration,
@@ -62,6 +71,7 @@ fn builder_with_entropy(
             ));
         }
     }
+    builder.reserved_frame_after_settings(settings.reserved_frame_after_settings);
     match settings.qpack_decoder_stream {
         Http3QpackDecoderStream::Eager => {}
         Http3QpackDecoderStream::OnFeedback => {
@@ -122,6 +132,9 @@ pub(super) fn validate(
                 | Http3Setting::MaxFieldSectionSize(_)
                 | Http3Setting::QpackBlockedStreams(_)
                 | Http3Setting::H3Datagram(_)
+                | Http3Setting::EnableConnectProtocol(_)
+                | Http3Setting::EnableWebTransportDraft02(false)
+                | Http3Setting::H3DatagramDraft04(_)
                 | Http3Setting::RandomizedGrease
         )
     }) {
@@ -131,7 +144,9 @@ pub(super) fn validate(
         ));
     }
     match settings.qpack_encoding {
-        Http3QpackEncoding::Stateless | Http3QpackEncoding::Dynamic => {}
+        Http3QpackEncoding::Stateless
+        | Http3QpackEncoding::Dynamic
+        | Http3QpackEncoding::DynamicUnmatchedNames => {}
         _ => {
             return Err(Http3Error::without_source(
                 Http3ErrorKind::Configuration,
@@ -218,6 +233,13 @@ fn materialize(
             Http3Setting::MaxFieldSectionSize(value) => (MAX_FIELD_SECTION_SIZE, value),
             Http3Setting::QpackBlockedStreams(value) => (QPACK_BLOCKED_STREAMS, value),
             Http3Setting::H3Datagram(enabled) => (H3_DATAGRAM, u64::from(enabled)),
+            Http3Setting::EnableConnectProtocol(enabled) => {
+                (ENABLE_CONNECT_PROTOCOL, u64::from(enabled))
+            }
+            Http3Setting::EnableWebTransportDraft02(enabled) => {
+                (ENABLE_WEBTRANSPORT_DRAFT02, u64::from(enabled))
+            }
+            Http3Setting::H3DatagramDraft04(enabled) => (H3_DATAGRAM_DRAFT04, u64::from(enabled)),
             Http3Setting::RandomizedGrease => {
                 let mut entropy = [0_u8; GREASE_ENTROPY_LEN];
                 fill_entropy(&mut entropy)?;

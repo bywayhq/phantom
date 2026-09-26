@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 
 use bytes::{Bytes, BytesMut};
-use phantom_profile::{Http3CookieCrumbs, Http3RequestSettings, chromium};
+use phantom_profile::{Http3CookieCrumbs, Http3RequestSettings, chromium, firefox};
 
 use super::TestResult;
 use crate::http3::{OriginForm, RequestHeader};
@@ -29,6 +29,8 @@ const BRAVE: &str = include_str!(
 const OPERA: &str = include_str!(
     "../../../../../fixtures/cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h3.txt"
 );
+const FIREFOX: &str =
+    include_str!("../../../../../fixtures/cookies/firefox/156.0/windows-11-26200/crumbs-h3.txt");
 /// The capture server's `SETTINGS_QPACK_BLOCKED_STREAMS` (aioquic 1.3.0).
 const CAPTURE_BLOCKED_STREAMS: usize = 16;
 
@@ -56,6 +58,17 @@ fn opera_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
 }
 
 #[test]
+fn firefox_cookie_fields_match_the_captured_qpack_bytes() -> TestResult<()> {
+    // Firefox sends one joined `cookie` field and encodes with neqo's policy.
+    let capture = Capture::parse(FIREFOX)?;
+    let encoder = h3::qpack::Encoder::with_policy(
+        h3::client::QpackInsertPolicy::UnmatchedNames,
+        h3::client::QpackHuffman::Always,
+    );
+    assert_replay_matches_with(&capture, &firefox::v156_http3_request(), encoder)
+}
+
+#[test]
 fn whole_cookie_setting_encodes_one_cookie_field() -> TestResult<()> {
     let capture = Capture::parse(CHROME)?;
     let mut settings = chromium::v154_http3_request();
@@ -72,13 +85,23 @@ fn whole_cookie_setting_encodes_one_cookie_field() -> TestResult<()> {
 }
 
 fn assert_replay_matches(capture: &Capture) -> TestResult<()> {
-    let settings = chromium::v154_http3_request();
-    let mut encoder = h3::qpack::Encoder::default();
+    assert_replay_matches_with(
+        capture,
+        &chromium::v154_http3_request(),
+        h3::qpack::Encoder::default(),
+    )
+}
+
+fn assert_replay_matches_with(
+    capture: &Capture,
+    settings: &Http3RequestSettings,
+    mut encoder: h3::qpack::Encoder,
+) -> TestResult<()> {
     let mut instructions = BytesMut::new();
     encoder.set_max_table_capacity(capture.max_table_capacity, &mut instructions)?;
     encoder.set_max_blocked_streams(CAPTURE_BLOCKED_STREAMS)?;
     for (index, request) in capture.requests.iter().enumerate() {
-        let fields = encoder_input(&settings, request)?;
+        let fields = encoder_input(settings, request)?;
         let crumbs = fields
             .iter()
             .filter(|field| field.name.as_ref() == b"cookie")
