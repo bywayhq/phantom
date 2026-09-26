@@ -501,18 +501,58 @@ impl Drop for OperationOutcome {
     }
 }
 
+/// The kind of peer an HTTP/2 connection's encoder writes to.
+///
+/// `Http2SensitiveProxyAuthorization::FieldIndexing` applies only on a
+/// connection to a proxy; toward an origin a sensitive
+/// `proxy-authorization` stays a never-indexed literal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Http2Peer {
+    Origin,
+    Proxy,
+}
+
 pub(crate) fn translate_settings(settings: &Http2Settings) -> Result<Http2Builder, Http2Error> {
-    translate_settings_with_pseudo_order(settings, &settings.pseudo_header_order, false)
+    translate_settings_for(settings, Http2Peer::Origin)
+}
+
+/// Translates `settings` for a connection to an HTTP/2 proxy.
+pub(crate) fn translate_proxy_settings(
+    settings: &Http2Settings,
+) -> Result<Http2Builder, Http2Error> {
+    translate_settings_for(settings, Http2Peer::Proxy)
+}
+
+fn translate_settings_for(
+    settings: &Http2Settings,
+    peer: Http2Peer,
+) -> Result<Http2Builder, Http2Error> {
+    translate_settings_with_pseudo_order(settings, &settings.pseudo_header_order, false, peer)
 }
 
 pub(crate) fn translate_extended_connect_settings(
     settings: &Http2Settings,
 ) -> Result<Http2Builder, Http2Error> {
+    translate_extended_connect_settings_for(settings, Http2Peer::Origin)
+}
+
+/// Translates `settings` for an extended CONNECT connection to an HTTP/2
+/// proxy, such as one that carries CONNECT-UDP.
+pub(crate) fn translate_proxy_extended_connect_settings(
+    settings: &Http2Settings,
+) -> Result<Http2Builder, Http2Error> {
+    translate_extended_connect_settings_for(settings, Http2Peer::Proxy)
+}
+
+fn translate_extended_connect_settings_for(
+    settings: &Http2Settings,
+    peer: Http2Peer,
+) -> Result<Http2Builder, Http2Error> {
     let order = settings
         .extended_connect_pseudo_header_order
         .as_deref()
         .ok_or(Http2Error::MissingExtendedConnectPseudoHeaderOrder)?;
-    translate_settings_with_pseudo_order(settings, order, true)
+    translate_settings_with_pseudo_order(settings, order, true, peer)
 }
 
 /// Builds the per-request HEADERS overrides for one extended CONNECT.
@@ -562,13 +602,17 @@ pub(crate) fn priority_overrides(
 ///
 /// Each choice is part of the encoder's identity rather than a per-request
 /// decision, so it belongs to the connection and applies to ordinary requests
-/// and extended CONNECT alike.
+/// and extended CONNECT alike. `peer` limits the sensitive
+/// `proxy-authorization` rule to connections to a proxy.
 ///
 /// # Errors
 ///
 /// Returns [`Http2Error::UnsupportedSetting`] for a choice this backend cannot
 /// express.
-fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfile, Http2Error> {
+fn hpack_encoder_profile(
+    hpack: &Http2HpackSettings,
+    peer: Http2Peer,
+) -> Result<HpackEncoderProfile, Http2Error> {
     let mut literal = Vec::with_capacity(hpack.literal_pseudo_headers.len());
     for header in &hpack.literal_pseudo_headers {
         literal.push(match header {
@@ -626,9 +670,14 @@ fn hpack_encoder_profile(hpack: &Http2HpackSettings) -> Result<HpackEncoderProfi
         Http2TableSizeUpdates::EverySetting => SizeUpdates::EverySetting,
         _ => return Err(Http2Error::UnsupportedSetting),
     };
-    let proxy_authorization = match hpack.sensitive_proxy_authorization {
-        Http2SensitiveProxyAuthorization::NeverIndexed => SensitiveProxyAuthorization::NeverIndexed,
-        Http2SensitiveProxyAuthorization::FieldIndexing => SensitiveProxyAuthorization::FieldRule,
+    let proxy_authorization = match (hpack.sensitive_proxy_authorization, peer) {
+        (Http2SensitiveProxyAuthorization::NeverIndexed, _)
+        | (Http2SensitiveProxyAuthorization::FieldIndexing, Http2Peer::Origin) => {
+            SensitiveProxyAuthorization::NeverIndexed
+        }
+        (Http2SensitiveProxyAuthorization::FieldIndexing, Http2Peer::Proxy) => {
+            SensitiveProxyAuthorization::FieldRule
+        }
         _ => return Err(Http2Error::UnsupportedSetting),
     };
     Ok(HpackEncoderProfile::new()
@@ -711,6 +760,7 @@ fn translate_settings_with_pseudo_order(
     settings: &Http2Settings,
     configured_pseudo_order: &[Http2PseudoHeader],
     extended_connect: bool,
+    peer: Http2Peer,
 ) -> Result<Http2Builder, Http2Error> {
     let first_stream_id = settings.streams.first_stream_id;
     // The backend panics on an even first stream ID. Validation rejects one,
@@ -730,7 +780,7 @@ fn translate_settings_with_pseudo_order(
     client.initial_connection_window_size(settings.initial_connection_window_size);
     client.local_max_header_list_size(limits::MAX_RESPONSE_HEADER_LIST_BYTES);
     client.max_informational_responses(limits::MAX_INFORMATIONAL_RESPONSES);
-    client.hpack_encoder_profile(hpack_encoder_profile(&settings.hpack)?);
+    client.hpack_encoder_profile(hpack_encoder_profile(&settings.hpack, peer)?);
     client.initial_stream_id(first_stream_id);
     if let Some(limit) = settings.streams.assumed_max_concurrent_streams {
         client

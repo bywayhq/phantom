@@ -630,10 +630,12 @@ connection's table and send it as an index afterwards
 and so do the recipes. Here the exposure is narrower than for cookies: the
 block goes only to the proxy, which holds the credential already, so a
 guess needs a party that both adds fields to requests on that proxy
-connection and sees the size of its encrypted frames. Set
-`sensitive_proxy_authorization` to `NeverIndexed` in `Http2HpackSettings`
-to keep the credential out of the table; the proxy can then tell the client
-from the browsers.
+connection and sees the size of its encrypted frames. The rule applies only
+to connections to a proxy: a sensitive `proxy-authorization` that a caller
+sends to an origin stays never-indexed, since no capture shows a browser
+sending one there. Set `sensitive_proxy_authorization` to `NeverIndexed` in
+`Http2HpackSettings` to keep the credential out of the table on proxy
+connections too; the proxy can then tell the client from the browsers.
 
 To remove the exposure, set `cookie_crumbs` to `Whole` in
 `Http2HpackSettings` and `Http3RequestSettings`. Each `cookie` field is then

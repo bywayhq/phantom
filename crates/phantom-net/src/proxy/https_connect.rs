@@ -27,8 +27,8 @@ use crate::{
     host_resolver::HostResolver,
     http2::{
         Http2Builder, Http2ConnectStream, Http2Connection, Http2RejectedStream, Http2TlsError,
-        connect_selected, connect_selected_extended, translate_extended_connect_settings,
-        translate_settings, validate_http2,
+        connect_selected, connect_selected_extended, translate_proxy_extended_connect_settings,
+        translate_proxy_settings, validate_http2,
     },
     tls::{ServerAuthentication, TlsConnector, TlsStream},
 };
@@ -688,7 +688,7 @@ impl HttpsProxyConnector {
             .ok_or(HttpConnectError::MissingHttp2Settings)?;
         validate_http2(settings)
             .and_then(|()| {
-                translate_extended_connect_settings(settings).map_err(Http2TlsError::Http2)
+                translate_proxy_extended_connect_settings(settings).map_err(Http2TlsError::Http2)
             })
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
@@ -702,7 +702,7 @@ impl HttpsProxyConnector {
             .as_ref()
             .ok_or(HttpConnectError::MissingHttp2Settings)?;
         validate_http2(settings)
-            .and_then(|()| translate_settings(settings).map_err(Http2TlsError::Http2))
+            .and_then(|()| translate_proxy_settings(settings).map_err(Http2TlsError::Http2))
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
 }

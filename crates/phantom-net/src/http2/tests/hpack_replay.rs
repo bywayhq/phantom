@@ -50,7 +50,10 @@ use tokio::{
 };
 
 use super::{OriginForm, RequestHeader, TestResult};
-use crate::http2::{Http2Connection, prepare_classic_connect};
+use crate::http2::{
+    Http2Connection, Http2Peer, prepare_classic_connect, translate_proxy_settings,
+    translate_settings,
+};
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const MAX_CLIENT_FRAME_LEN: usize = 1 << 20;
@@ -283,8 +286,26 @@ async fn chromium_family_proxy_sessions_match_the_captured_streams_and_hpack_fie
         replay_all(files, chromium::v154_http2(), Source::Proxy, 27)
             .await
             .map_err(|error| format!("{name}: {error}"))?;
+        assert_eq!(proxy_authorization_fields(files)?, 63, "{name}");
     }
     Ok(())
+}
+
+/// Counts the `proxy-authorization` fields in the replayed proxy sessions:
+/// 63 for each Chromium-family browser and 54 for Firefox, 306 in all.
+fn proxy_authorization_fields(files: &[(&str, &str)]) -> TestResult<usize> {
+    let mut count = 0;
+    for (_, text) in files {
+        for session in sessions(text, Source::Proxy)? {
+            count += session
+                .requests
+                .iter()
+                .flat_map(|request| &request.fields)
+                .filter(|(name, _)| name == "proxy-authorization")
+                .count();
+        }
+    }
+    Ok(count)
 }
 
 #[tokio::test]
@@ -292,7 +313,9 @@ async fn firefox_proxy_sessions_match_the_captured_streams_and_hpack_fields() ->
     // 45 of the 51 connections with page requests; the other six begin with
     // a background request (`https-proxy-auth-secure-hostname` and
     // `https-proxy-secure-hostname`, one per run).
-    replay_all(FIREFOX_PROXY, firefox::v156_http2(), Source::Proxy, 45).await
+    replay_all(FIREFOX_PROXY, firefox::v156_http2(), Source::Proxy, 45).await?;
+    assert_eq!(proxy_authorization_fields(FIREFOX_PROXY)?, 54);
+    Ok(())
 }
 
 /// Under the default rule the sensitive `proxy-authorization` is a
@@ -317,6 +340,79 @@ async fn never_indexed_proxy_authorization_does_not_reproduce_a_proxy_session() 
         error.contains("HPACK block differs") && error.contains("never-indexed"),
         "{name} run 0 failed for another reason: {error}"
     );
+    Ok(())
+}
+
+/// The recipes index a sensitive `proxy-authorization` only on a connection
+/// to a proxy. Toward an origin, where no capture shows a browser sending it,
+/// it stays a never-indexed literal on static name 49.
+#[tokio::test]
+async fn only_proxy_connections_index_a_sensitive_proxy_authorization() -> TestResult<()> {
+    for (settings, kind, expected) in [
+        (
+            chromium::v154_http2(),
+            Http2Peer::Origin,
+            [("never-indexed", 49), ("never-indexed", 49)],
+        ),
+        (
+            chromium::v154_http2(),
+            Http2Peer::Proxy,
+            [("incremental", 49), ("indexed", 62)],
+        ),
+        (
+            firefox::v156_http2(),
+            Http2Peer::Origin,
+            [("never-indexed", 49), ("never-indexed", 49)],
+        ),
+        (
+            firefox::v156_http2(),
+            Http2Peer::Proxy,
+            [("incremental", 49), ("indexed", 62)],
+        ),
+    ] {
+        let (client, mut server) = duplex(1 << 20);
+        let task = tokio::spawn(async move {
+            let mut preface = [0_u8; CLIENT_PREFACE.len()];
+            server.read_exact(&mut preface).await?;
+            write_frame(&mut server, 0x04, 0, 0, &[]).await?;
+            server.flush().await?;
+            let mut last = Vec::new();
+            for _ in 0..2 {
+                let (stream_id, _, block) = read_request_block(&mut server, true).await?;
+                last.push(*shape(&block)?.last().ok_or("empty HPACK block")?);
+                write_frame(&mut server, 0x01, 0x05, stream_id, &[0x88]).await?;
+                server.flush().await?;
+            }
+            while read_frame(&mut server).await.is_ok() {}
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(last)
+        });
+        let builder = match kind {
+            Http2Peer::Origin => translate_settings(&settings)?,
+            Http2Peer::Proxy => translate_proxy_settings(&settings)?,
+        };
+        let connection = timeout(
+            SESSION_TIMEOUT,
+            Http2Connection::connect_with_builder(client, builder),
+        )
+        .await??;
+        for _ in 0..2 {
+            let credential = RequestHeader::new("proxy-authorization", CAPTURE_CREDENTIAL);
+            timeout(
+                SESSION_TIMEOUT,
+                connection.send_request(
+                    Method::GET,
+                    "origin.test",
+                    OriginForm::parse("/")?,
+                    vec![credential.sensitive()],
+                    None,
+                ),
+            )
+            .await??;
+        }
+        drop(connection);
+        let got = timeout(SESSION_TIMEOUT, task).await???;
+        assert_eq!(got, expected, "{kind:?}");
+    }
     Ok(())
 }
 
@@ -370,6 +466,8 @@ enum Source {
 /// One captured connection.
 struct Session {
     label: String,
+    /// Whether the browser encoded these blocks for an origin or a proxy.
+    peer: Http2Peer,
     settings: Vec<(u16, u32)>,
     /// How many requests the browser encoded before applying `settings`.
     settings_after: usize,
@@ -510,7 +608,11 @@ async fn replay_session(session: &Session, settings: &Http2Settings) -> TestResu
             .map(|request| (request.stream_id, request.block.clone()))
             .collect(),
     ));
-    let connection = Http2Connection::connect(client, settings).await?;
+    let builder = match session.peer {
+        Http2Peer::Origin => translate_settings(settings)?,
+        Http2Peer::Proxy => translate_proxy_settings(settings)?,
+    };
+    let connection = Http2Connection::connect_with_builder(client, builder).await?;
     let sent = send_requests(&connection, session, settings).await;
     drop(connection);
     // The peer's comparison explains a client failure it caused.
@@ -883,6 +985,7 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
                 for (connection, requests) in connections {
                     sessions.push(Session {
                         label: format!("run {run} connection {connection}"),
+                        peer: Http2Peer::Origin,
                         settings: parse_settings(H2_DEFAULT_SERVER_SETTINGS)?,
                         settings_after: 0,
                         requests,
@@ -907,6 +1010,7 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
                         .collect::<Result<Vec<_>, _>>()?;
                     sessions.push(Session {
                         label: format!("run {run} connection {connection}"),
+                        peer: Http2Peer::Origin,
                         settings: server_settings(&frames)?,
                         settings_after: requests_before_settings_ack(&frames),
                         requests,
@@ -952,6 +1056,7 @@ fn sessions(text: &str, source: Source) -> TestResult<Vec<Session>> {
                         .collect::<TestResult<Vec<_>>>()?;
                     sessions.push(Session {
                         label: format!("run {run} connection {connection}"),
+                        peer: Http2Peer::Proxy,
                         settings: server_settings(&frames)?,
                         settings_after: requests_before_settings_ack(&frames),
                         requests,

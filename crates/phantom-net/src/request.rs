@@ -551,10 +551,11 @@ impl RequestHeader {
     /// [`Http3CookieCrumbs`](phantom_profile::Http3CookieCrumbs) then choose
     /// each crumb's representation, and the mark only redacts `Debug` output
     /// of this value. Use `Whole` to keep a sensitive `cookie` never-indexed.
-    /// Over HTTP/2, a `proxy-authorization` field is the other exception when
+    /// On an HTTP/2 connection to a proxy, a `proxy-authorization` field is the
+    /// other exception when
     /// [`Http2SensitiveProxyAuthorization::FieldIndexing`](phantom_profile::Http2SensitiveProxyAuthorization::FieldIndexing)
     /// is set, as it is in the browser recipes: the field indexing rule then
-    /// decides its representation.
+    /// decides its representation. Toward an origin it stays never-indexed.
     #[must_use]
     pub fn sensitive(mut self) -> Self {
         self.sensitive = true;

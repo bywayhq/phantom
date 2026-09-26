@@ -78,7 +78,7 @@ impl HttpBasicCredentials {
     ///
     /// The returned field is marked sensitive so its value is redacted from
     /// diagnostics. HTTP/3 sends it as a never-indexed literal, and so does
-    /// HTTP/2 unless the profile's
+    /// HTTP/2 unless the connection is to a proxy and the profile's
     /// [`Http2SensitiveProxyAuthorization`](phantom_profile::Http2SensitiveProxyAuthorization)
     /// leaves it to the field indexing rule, as the browser recipes do.
     #[must_use]

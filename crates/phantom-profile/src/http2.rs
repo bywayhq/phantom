@@ -154,7 +154,7 @@ pub enum Http2CookieCrumbs {
 /// rule; this setting decides the other ordinary fields. A field marked
 /// sensitive is always a never-indexed literal, even when a table entry
 /// matches it, except a `cookie` field sent as crumbs, whose rule decides,
-/// and a `proxy-authorization` field that
+/// and a `proxy-authorization` field on a proxy connection that
 /// [`Http2SensitiveProxyAuthorization::FieldIndexing`] leaves to this rule.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
@@ -243,9 +243,10 @@ pub enum Http2TableSizeUpdates {
 /// How the HPACK encoder sends a `proxy-authorization` field marked sensitive.
 ///
 /// Phantom marks the field it generates from a route's proxy credentials
-/// sensitive, and a caller can mark its own. The rule applies to every such
-/// field on an HTTP/2 connection: on CONNECT, CONNECT-UDP, and forwarded
-/// requests to a proxy, and on any request that carries one to an origin.
+/// sensitive, and a caller can mark its own. The rule applies only on an
+/// HTTP/2 connection to a proxy: to CONNECT, CONNECT-UDP, and forwarded
+/// requests. On a connection to an origin a sensitive `proxy-authorization`
+/// is always a never-indexed literal.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http2SensitiveProxyAuthorization {
@@ -256,8 +257,10 @@ pub enum Http2SensitiveProxyAuthorization {
     /// By [`Http2HpackSettings::field_indexing`], as though the field were
     /// not marked; `RequestHeader::sensitive` then only hides the value from
     /// `Debug` output. Under the Chromium and Firefox recipes the field enters
-    /// the dynamic table on first use on a connection and is sent as an index
-    /// afterwards, as both browsers send it.
+    /// the dynamic table on first use on a proxy connection and is sent as an
+    /// index afterwards, as both browsers send it. An indexed credential is
+    /// open to the RFC 7541 section 7.1.3 compression side channel; see
+    /// `docs/explanation/design.md#cookie-crumbs-and-compression`.
     FieldIndexing,
 }
 

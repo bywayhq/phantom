@@ -2253,9 +2253,9 @@ included (see
 | Firefox 156 | 27 | 66 | All |
 
 The proxy route captures under [`fixtures/proxy/`](../../fixtures/proxy/)
-add every HTTP/2 proxy connection of their nine `https-proxy-*` scenarios:
-CONNECT tunnels and requests forwarded with `:scheme` `http`, 306 of them
-carrying `proxy-authorization`. They keep each field's representation, its
+add the replayable HTTP/2 proxy connections of their nine `https-proxy-*`
+scenarios: CONNECT tunnels and requests forwarded with `:scheme` `http`,
+whose blocks carry 306 `proxy-authorization` fields. They keep each field's representation, its
 index or size, and each block's length, not the block bytes, and the
 credential is replaced with a marker. A connection that starts with, or
 carries, a browser background request, whose fields the capture tool does
@@ -2325,8 +2325,8 @@ Limits:
 - A field you mark sensitive is always a never-indexed literal, even when a
   table entry matches it, although Chromium has no such form. Two
   exceptions follow the recipes: a `cookie` field sent as crumbs, whose
-  crumb rule decides, and `proxy-authorization`, which the recipes' field
-  rule decides. Phantom marks the cookie jar's field (split into crumbs
+  crumb rule decides, and `proxy-authorization` on a connection to a proxy,
+  which the recipes' field rule decides. Phantom marks the cookie jar's field (split into crumbs
   under both recipes) and the generated `proxy-authorization`
   ([Proxy authentication evidence](#proxy-authentication-evidence)).
 - A proxy capture proves a block's representations, indexes, and length,
