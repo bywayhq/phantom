@@ -479,14 +479,25 @@ Sources:
 - `HuffmanCoding::AlwaysIncludingEmpty`: codes every string and flags an
   empty one.
 
-A caller's sensitive field stays a never-indexed literal under every rule,
-though Chromium has no such form. The patch changes `src/ext.rs` and
-`src/hpack/{encoder,table}.rs`. Its encoder unit tests cover both name
-references, including the Firefox cookie sequence, the literal match of
-`:path: /`, both size limits and the evicting oversized field (decoded by
-the crate's own decoder), each field rule, repeated and unchanged size
-settings, and the flagged empty string. The default-profile identity test
-still passes. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays
+A caller's sensitive field is a never-indexed literal under every rule,
+though Chromium has no such form. Upstream sent a sensitive field that
+matched a static entry, or an entry inserted before the field was marked, as
+that entry's index; the patch sends a never-indexed literal naming the entry
+instead, under the default profile too. After an oversized field, a nameless
+further value names a static entry again and spells out a dynamic name, which
+no longer resolves.
+
+The patch changes `src/ext.rs` and `src/hpack/{encoder,table}.rs`, and
+extends `src/hpack/test/fuzz.rs`. Its encoder unit tests decode every block
+they check with the crate's own decoder. They cover both name references,
+including the Firefox cookie sequence and a literal that names the entry its
+own insertion evicts; the literal match of `:path: /`; both size limits and
+the oversized field with its further values; each field rule; a sensitive
+field matching a static and a dynamic entry; repeated and unchanged size
+settings; and the flagged empty string. The default-profile identity test
+still passes. The fuzz test also runs under a random profile, with `cookie`
+values of several crumbs, and requires the decoder to read back every field,
+each crumb as its own field. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays
 every retained Chromium-family and Firefox HTTP/2 session and compares each
 HEADERS block with the capture byte for byte.
 

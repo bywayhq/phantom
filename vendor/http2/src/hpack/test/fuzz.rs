@@ -1,3 +1,8 @@
+use crate::ext::{
+    CookieCrumbs, FieldIndexing, HpackEncoderProfile, HuffmanCoding, IndexingLimit, NameReference,
+    SizeUpdates, StaticNameIndex, UnindexedMatch,
+};
+use crate::frame::PseudoId;
 use crate::hpack::{Decoder, Encoder, Header};
 
 use http::header::{HeaderName, HeaderValue};
@@ -26,6 +31,21 @@ fn hpack_fuzz() {
         .quickcheck(prop as fn(FuzzHpack) -> TestResult)
 }
 
+/// Every encoder profile choice still produces blocks the decoder reads back
+/// as the fields that were encoded, with `cookie` split as the profile says.
+#[test]
+fn hpack_fuzz_with_profiles() {
+    let _ = env_logger::try_init();
+    fn prop(fuzz: ProfiledFuzzHpack) -> TestResult {
+        fuzz.0.run();
+        TestResult::from_bool(true)
+    }
+
+    QuickCheck::new()
+        .tests(100)
+        .quickcheck(prop as fn(ProfiledFuzzHpack) -> TestResult)
+}
+
 /*
 // If wanting to test with a specific feed, uncomment and fill in the seed.
 #[test]
@@ -40,7 +60,13 @@ fn hpack_fuzz_seeded() {
 struct FuzzHpack {
     // The set of headers to encode / decode
     frames: Vec<HeaderFrame>,
+    // The encoder choices, upstream's by default
+    profile: HpackEncoderProfile,
 }
+
+/// A fuzz run under a random encoder profile.
+#[derive(Debug, Clone)]
+struct ProfiledFuzzHpack(FuzzHpack);
 
 #[derive(Debug, Clone)]
 struct HeaderFrame {
@@ -121,7 +147,10 @@ impl FuzzHpack {
             frames.push(frame);
         }
 
-        FuzzHpack { frames }
+        FuzzHpack {
+            frames,
+            profile: HpackEncoderProfile::default(),
+        }
     }
 
     fn run(self) {
@@ -129,6 +158,8 @@ impl FuzzHpack {
         let mut expect = vec![];
 
         let mut encoder = Encoder::default();
+        encoder.set_profile(self.profile);
+        let crumbs = self.profile.crumbs();
         let mut decoder = Decoder::default();
 
         for frame in frames {
@@ -142,13 +173,16 @@ impl FuzzHpack {
                             Header::Field { ref name, .. } => Some(name.clone()),
                             _ => None,
                         };
-                        expect.push(h);
+                        match h {
+                            Header::Field { name, value } => {
+                                expect_field(&mut expect, crumbs, name, value)
+                            }
+                            h => expect.push(h),
+                        }
                     }
                     Err(value) => {
-                        expect.push(Header::Field {
-                            name: prev_name.as_ref().cloned().expect("previous header name"),
-                            value,
-                        });
+                        let name = prev_name.as_ref().cloned().expect("previous header name");
+                        expect_field(&mut expect, crumbs, name, value);
                     }
                 }
             }
@@ -184,6 +218,103 @@ impl Arbitrary for FuzzHpack {
     fn arbitrary(_: &mut Gen) -> Self {
         FuzzHpack::new(thread_rng().gen())
     }
+}
+
+impl Arbitrary for ProfiledFuzzHpack {
+    fn arbitrary(_: &mut Gen) -> Self {
+        let seed: [u8; 32] = thread_rng().gen();
+        let mut fuzz = FuzzHpack::new(seed);
+        fuzz.profile = gen_profile(&mut StdRng::from_seed(seed));
+        ProfiledFuzzHpack(fuzz)
+    }
+}
+
+/// Records the decoded fields one encoded field becomes: one per crumb for a
+/// split `cookie`, otherwise the field itself.
+fn expect_field(
+    expect: &mut Vec<Header>,
+    crumbs: CookieCrumbs,
+    name: HeaderName,
+    value: HeaderValue,
+) {
+    if name != http::header::COOKIE || crumbs == CookieCrumbs::Whole {
+        expect.push(Header::Field { name, value });
+        return;
+    }
+    for (crumb, _) in crumbs.split(value.as_bytes()) {
+        expect.push(Header::Field {
+            name: name.clone(),
+            value: HeaderValue::from_bytes(crumb).expect("a crumb is a valid value"),
+        });
+    }
+}
+
+fn gen_profile(g: &mut StdRng) -> HpackEncoderProfile {
+    let pseudo = [
+        PseudoId::Method,
+        PseudoId::Scheme,
+        PseudoId::Authority,
+        PseudoId::Path,
+        PseudoId::Protocol,
+        PseudoId::Status,
+    ];
+    let literal = pseudo
+        .into_iter()
+        .filter(|_| g.gen_ratio(1, 2))
+        .collect::<Vec<_>>();
+    HpackEncoderProfile::new()
+        .literal_pseudo_headers(literal)
+        .static_name_index(pick(g, [StaticNameIndex::Lowest, StaticNameIndex::Highest]))
+        .huffman_coding(pick(
+            g,
+            [
+                HuffmanCoding::Always,
+                HuffmanCoding::WhenShorter,
+                HuffmanCoding::WhenNotLonger,
+                HuffmanCoding::AlwaysIncludingEmpty,
+            ],
+        ))
+        .cookie_crumbs(pick(
+            g,
+            [
+                CookieCrumbs::Whole,
+                CookieCrumbs::IndexAll,
+                CookieCrumbs::NeverIndexShort,
+            ],
+        ))
+        .field_indexing(pick(
+            g,
+            [
+                FieldIndexing::Nghttp2,
+                FieldIndexing::All,
+                FieldIndexing::NeverIndexAuthorization,
+            ],
+        ))
+        .name_reference(pick(
+            g,
+            [
+                NameReference::Upstream,
+                NameReference::StaticThenNewest,
+                NameReference::OldestDynamic,
+            ],
+        ))
+        .unindexed_match(pick(g, [UnindexedMatch::Index, UnindexedMatch::Literal]))
+        .indexing_limit(pick(
+            g,
+            [
+                IndexingLimit::ThreeQuarters,
+                IndexingLimit::Half,
+                IndexingLimit::Unlimited,
+            ],
+        ))
+        .size_updates(pick(
+            g,
+            [SizeUpdates::WhenChanged, SizeUpdates::EverySetting],
+        ))
+}
+
+fn pick<T: Copy, const N: usize>(g: &mut StdRng, choices: [T; N]) -> T {
+    choices[g.gen_range(0..N)]
 }
 
 fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
@@ -246,7 +377,11 @@ fn gen_header(g: &mut StdRng) -> Header<Option<HeaderName>> {
         } else {
             Some(gen_header_name(g))
         };
-        let mut value = gen_header_value(g);
+        let mut value = if name == Some(http::header::COOKIE) && g.gen_ratio(1, 2) {
+            gen_cookie_value(g)
+        } else {
+            gen_header_value(g)
+        };
 
         if g.gen_ratio(1, 30) {
             value.set_sensitive(true);
@@ -348,6 +483,18 @@ fn gen_header_name(g: &mut StdRng) -> HeaderName {
 
 fn gen_header_value(g: &mut StdRng) -> HeaderValue {
     let value = gen_string(g, 0, 70);
+    HeaderValue::from_bytes(value.as_bytes()).unwrap()
+}
+
+/// A `cookie` value of several crumbs, with the separators both split rules
+/// treat differently.
+fn gen_cookie_value(g: &mut StdRng) -> HeaderValue {
+    let separators = ["; ", ";", ";  "];
+    let mut value = gen_string(g, 1, 12);
+    for _ in 0..g.gen_range(1..5) {
+        value.push_str(separators[g.gen_range(0..separators.len())]);
+        value.push_str(&gen_string(g, 0, 30));
+    }
     HeaderValue::from_bytes(value.as_bytes()).unwrap()
 }
 

@@ -274,8 +274,11 @@ impl Encoder {
 
                 encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), self.huffman, dst);
             }
-            // An oversized field emptied the table, so a dynamic name index
-            // it used no longer resolves; its name is sent as a literal.
+            // An oversized field emptied the table, so a static name index
+            // (1 to 61) it used still resolves and a dynamic one does not.
+            Index::Oversized(Some(idx), _) if idx <= STATIC_TABLE_LEN => {
+                encode_not_indexed(idx, value.as_ref(), value.is_sensitive(), self.huffman, dst);
+            }
             Index::NotIndexed(_) | Index::Oversized(..) => {
                 let last = self.table.resolve(last);
 
@@ -296,6 +299,9 @@ impl Default for Encoder {
         Encoder::new(4096, 0)
     }
 }
+
+/// The number of entries in the RFC 7541 appendix A static table.
+const STATIC_TABLE_LEN: usize = 61;
 
 fn encode_size_update(val: usize, dst: &mut BytesMut) {
     encode_int(val, 5, 0b0010_0000, dst)
@@ -1133,32 +1139,77 @@ mod test {
         oldest.set_profile(firefox);
         let mut static_first = Encoder::default();
         static_first.set_profile(chromium);
+        let mut oldest_decoder = Decoder::new(4096);
+        let mut static_decoder = Decoder::new(4096);
 
-        for encoder in [&mut oldest, &mut static_first] {
-            let first = encode(
-                encoder,
-                vec![
-                    header("x-a", "1"),
-                    header("x-a", "2"),
-                    header("user-agent", "a"),
-                ],
-            );
+        for (encoder, decoder) in [
+            (&mut oldest, &mut oldest_decoder),
+            (&mut static_first, &mut static_decoder),
+        ] {
+            let fields = vec![
+                header("x-a", "1"),
+                header("x-a", "2"),
+                header("user-agent", "a"),
+            ];
+            let first = encode(encoder, fields);
             // A new name, then the only `x-a` entry, then static 58.
             assert_eq!(representations(&first), [0x40, 0x40 | 62, 0x40 | 58]);
+            assert_eq!(
+                decode(decoder, first),
+                pairs(&[("x-a", "1"), ("x-a", "2"), ("user-agent", "a")])
+            );
         }
 
         // The table is now `user-agent: a` (62), `x-a: 2` (63), `x-a: 1` (64).
         // An index of 63 or more takes a second byte after the 6-bit prefix,
         // and each one-byte value is Huffman-coded ("3" is 0x67, "b" 0x8f).
         let fields = || vec![header("x-a", "3"), header("user-agent", "b")];
+        let expected = pairs(&[("x-a", "3"), ("user-agent", "b")]);
         // `x-a: 3` names 64; it then shifts `user-agent: a` to 63.
+        let block = encode(&mut oldest, fields());
         assert_eq!(
-            *encode(&mut oldest, fields()),
+            *block,
             [0x7f, 64 - 63, 0x81, 0x67, 0x7f, 63 - 63, 0x81, 0x8f]
         );
+        assert_eq!(decode(&mut oldest_decoder, block), expected);
+        let block = encode(&mut static_first, fields());
+        assert_eq!(*block, [0x7f, 63 - 63, 0x81, 0x67, 0x40 | 58, 0x81, 0x8f]);
+        assert_eq!(decode(&mut static_decoder, block), expected);
+    }
+
+    /// A literal may name the entry its own insertion evicts, and the peer
+    /// resolves the name before the eviction (RFC 7541 section 4.4).
+    #[test]
+    fn oldest_dynamic_literal_names_the_entry_its_insertion_evicts() {
+        let mut encoder = Encoder::new(100, 0);
+        encoder
+            .set_profile(HpackEncoderProfile::new().name_reference(NameReference::OldestDynamic));
+        let mut decoder = Decoder::new(100);
+
+        // Two 36-byte entries: `x-b: 2` (62) and `x-a: 1` (63).
+        let block = encode(&mut encoder, vec![header("x-a", "1"), header("x-b", "2")]);
         assert_eq!(
-            *encode(&mut static_first, fields()),
-            [0x7f, 63 - 63, 0x81, 0x67, 0x40 | 58, 0x81, 0x8f]
+            decode(&mut decoder, block),
+            pairs(&[("x-a", "1"), ("x-b", "2")])
+        );
+
+        // A 50-byte `x-a` entry fits only once `x-a: 1` is evicted, and names
+        // it.
+        let value = "v".repeat(50 - 32 - 3);
+        let block = encode(&mut encoder, vec![header("x-a", &value)]);
+        assert_eq!(representations(&block), [0x40 | 63]);
+        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
+        assert_eq!(encoder.table.len(), 2);
+
+        // Both sides now hold the new entry (62) and `x-b: 2` (63).
+        let block = encode(
+            &mut encoder,
+            vec![header("x-a", &value), header("x-b", "2")],
+        );
+        assert_eq!(*block, [0x80 | 62, 0x80 | 63]);
+        assert_eq!(
+            decode(&mut decoder, block),
+            pairs(&[("x-a", &value), ("x-b", "2")])
         );
     }
 
@@ -1172,21 +1223,21 @@ mod test {
                 .cookie_crumbs(CookieCrumbs::NeverIndexShort)
                 .name_reference(NameReference::OldestDynamic),
         );
+        let mut decoder = Decoder::new(4096);
         let long = "pd=0123456789abcdefg";
         let longer = "phantom_long=0123456789012345678901234567890123456789";
-        let first = encode(
-            &mut encoder,
-            vec![header("cookie", &format!("pa=1; {long}; {longer}"))],
-        );
-        assert_eq!(representations(&first), [0x10, 0x40 | 32, 0x40 | 62]);
+        let cookie = format!("pa=1; {long}; {longer}");
+        let crumbs = pairs(&[("cookie", "pa=1"), ("cookie", long), ("cookie", longer)]);
 
-        let second = encode(
-            &mut encoder,
-            vec![header("cookie", &format!("pa=1; {long}; {longer}"))],
-        );
+        let first = encode(&mut encoder, vec![header("cookie", &cookie)]);
+        assert_eq!(representations(&first), [0x10, 0x40 | 32, 0x40 | 62]);
+        assert_eq!(decode(&mut decoder, first), crumbs);
+
+        let second = encode(&mut encoder, vec![header("cookie", &cookie)]);
         // Never-indexed naming 63 (0x1f then 48), then both indexed.
         assert_eq!(&second[..2], &[0x1f, 48]);
         assert_eq!(representations(&second), [0x10, 0x80 | 63, 0x80 | 62]);
+        assert_eq!(decode(&mut decoder, second), crumbs);
     }
 
     /// Firefox sends a field it keeps out of the table as a literal even when
@@ -1195,9 +1246,12 @@ mod test {
     fn unindexed_match_literal_sends_a_matching_path_as_a_literal() {
         let mut encoder = Encoder::default();
         encoder.set_profile(HpackEncoderProfile::new().unindexed_match(UnindexedMatch::Literal));
+        let mut decoder = Decoder::new(4096);
         // Literal without indexing naming 4, then "/" Huffman-coded in one
         // byte.
-        assert_eq!(*encode(&mut encoder, vec![path("/")]), [0x04, 0x81, 0x63]);
+        let block = encode(&mut encoder, vec![path("/")]);
+        assert_eq!(*block, [0x04, 0x81, 0x63]);
+        assert_eq!(decode_all(&mut decoder, block), pairs(&[(":path", "/")]));
         // A field that may enter the table is still indexed.
         assert_eq!(*encode(&mut encoder, vec![method("GET")]), [0x80 | 2]);
 
@@ -1208,8 +1262,14 @@ mod test {
                 .name_reference(NameReference::OldestDynamic)
                 .static_name_index(StaticNameIndex::Highest),
         );
-        assert_eq!(*encode(&mut profiled, vec![path("/")]), [0x04, 0x81, 0x63]);
-        assert_eq!(encode(&mut profiled, vec![path("/echo")])[0], 5);
+        let mut decoder = Decoder::new(4096);
+        let block = encode(&mut profiled, vec![path("/"), path("/echo")]);
+        assert_eq!(&block[..3], &[0x04, 0x81, 0x63]);
+        assert_eq!(block[3], 5);
+        assert_eq!(
+            decode_all(&mut decoder, block),
+            pairs(&[(":path", "/"), (":path", "/echo")])
+        );
     }
 
     /// Firefox stops indexing above half the table, and indexes nothing in a
@@ -1223,17 +1283,28 @@ mod test {
 
         let mut encoder = Encoder::default();
         encoder.set_profile(half);
+        let mut decoder = Decoder::new(4096);
         let block = encode(&mut encoder, vec![header("x-a", &fits)]);
         assert_eq!(representations(&block), [0x40]);
+        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &fits)]));
         let block = encode(&mut encoder, vec![header("x-b", &over)]);
         assert_eq!(representations(&block), [0x00]);
+        assert_eq!(decode(&mut decoder, block), pairs(&[("x-b", &over)]));
         assert_eq!(encoder.table.len(), 1);
+        // Both sides still hold the first entry.
+        let block = encode(&mut encoder, vec![header("x-a", &fits)]);
+        assert_eq!(*block, [0x80 | 62]);
+        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &fits)]));
 
         let mut small = Encoder::new(127, 0);
         small.set_profile(half);
         let block = encode(&mut small, vec![header("x-a", "1")]);
         assert_eq!(representations(&block), [0x00]);
         assert_eq!(small.table.len(), 0);
+        assert_eq!(
+            decode(&mut Decoder::new(127), block),
+            pairs(&[("x-a", "1")])
+        );
     }
 
     /// Chromium indexes a field of any size, evicting to make room, and a
@@ -1269,6 +1340,48 @@ mod test {
         assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", &value)]));
     }
 
+    /// A nameless further value of an oversized field names a static entry
+    /// again, which still resolves, and spells out a dynamic name, which no
+    /// longer does.
+    #[test]
+    fn oversized_field_continuation_reuses_only_a_static_name() {
+        let mut encoder = Encoder::new(128, 0);
+        encoder.set_profile(
+            HpackEncoderProfile::new()
+                .indexing_limit(IndexingLimit::Unlimited)
+                .name_reference(NameReference::StaticThenNewest),
+        );
+        let mut decoder = Decoder::new(128);
+        let big = "w".repeat(129 - 32 - 10);
+        let further = || Header::Field {
+            name: None,
+            value: HeaderValue::from_static("b"),
+        };
+
+        // `user-agent` names static 58, then its further value names 58 again.
+        let block = encode(&mut encoder, vec![header("user-agent", &big), further()]);
+        assert_eq!(representations(&block), [0x40 | 58, 0x00]);
+        let second = block.len() - 4;
+        assert_eq!(&block[second..second + 2], &[0x0f, 58 - 15]);
+        assert_eq!(
+            decode(&mut decoder, block),
+            pairs(&[("user-agent", &big), ("user-agent", "b")])
+        );
+
+        // `x-a` names its dynamic entry 62; the further value, after the
+        // table emptied, sends the name as a literal.
+        let small = encode(&mut encoder, vec![header("x-a", "1")]);
+        assert_eq!(decode(&mut decoder, small), pairs(&[("x-a", "1")]));
+        let big = "w".repeat(129 - 32 - 3);
+        let block = encode(&mut encoder, vec![header("x-a", &big), further()]);
+        assert_eq!(representations(&block), [0x40 | 62, 0x00]);
+        assert_eq!(block[block.len() - 7], 0x00);
+        assert_eq!(
+            decode(&mut decoder, block),
+            pairs(&[("x-a", &big), ("x-a", "b")])
+        );
+    }
+
     /// Chromium indexes every ordinary field; Firefox never indexes
     /// `authorization` and indexes the rest.
     #[test]
@@ -1280,28 +1393,33 @@ mod test {
                 header("if-none-match", "\"a\""),
             ]
         };
+        let expected = pairs(&[
+            ("content-length", "1234"),
+            ("authorization", "Basic x"),
+            ("if-none-match", "\"a\""),
+        ]);
         let mut upstream = Encoder::default();
-        assert_eq!(
-            representations(&encode(&mut upstream, fields())),
-            [0x00, 0x00, 0x00]
-        );
+        let block = encode(&mut upstream, fields());
+        assert_eq!(representations(&block), [0x00, 0x00, 0x00]);
+        assert_eq!(decode(&mut Decoder::new(4096), block), expected);
 
         let mut all = Encoder::default();
         all.set_profile(HpackEncoderProfile::new().field_indexing(FieldIndexing::All));
-        assert_eq!(
-            representations(&encode(&mut all, fields())),
-            [0x40 | 28, 0x40 | 23, 0x40 | 41]
-        );
+        let block = encode(&mut all, fields());
+        assert_eq!(representations(&block), [0x40 | 28, 0x40 | 23, 0x40 | 41]);
+        assert_eq!(decode(&mut Decoder::new(4096), block), expected);
 
         let mut firefox = Encoder::default();
         firefox.set_profile(
             HpackEncoderProfile::new().field_indexing(FieldIndexing::NeverIndexAuthorization),
         );
+        let mut decoder = Decoder::new(4096);
         let block = encode(&mut firefox, fields());
         assert_eq!(representations(&block), [0x40 | 28, 0x10, 0x40 | 41]);
         // The never-indexed literal names static entry 23.
         let authorization = block.iter().position(|byte| *byte == 0x1f).unwrap();
         assert_eq!(block[authorization + 1], 23 - 15);
+        assert_eq!(decode(&mut decoder, block), expected);
 
         // A further nameless value of `authorization` is never indexed too.
         let further = Header::Field {
@@ -1313,6 +1431,54 @@ mod test {
             vec![header("authorization", "Basic x"), further],
         );
         assert_eq!(representations(&block), [0x10, 0x10]);
+        assert_eq!(
+            decode(&mut decoder, block),
+            pairs(&[("authorization", "Basic x"), ("authorization", "Basic y")])
+        );
+    }
+
+    /// A field marked sensitive is never sent as an index, even when a static
+    /// entry or an entry inserted before it was marked matches it.
+    #[test]
+    fn a_sensitive_field_is_never_sent_as_an_index() {
+        let sensitive = |name: &str, value: &str| {
+            let mut value = HeaderValue::from_bytes(value.as_bytes()).unwrap();
+            value.set_sensitive(true);
+            Header::Field {
+                name: Some(HeaderName::from_bytes(name.as_bytes()).unwrap()),
+                value,
+            }
+        };
+        let profiles = [
+            HpackEncoderProfile::new(),
+            HpackEncoderProfile::new().name_reference(NameReference::StaticThenNewest),
+            HpackEncoderProfile::new()
+                .name_reference(NameReference::OldestDynamic)
+                .unindexed_match(UnindexedMatch::Literal),
+        ];
+        for profile in profiles {
+            let mut encoder = Encoder::default();
+            encoder.set_profile(profile);
+            let mut decoder = Decoder::new(4096);
+
+            // Static entry 16 is `accept-encoding: gzip, deflate`.
+            let block = encode(
+                &mut encoder,
+                vec![sensitive("accept-encoding", "gzip, deflate")],
+            );
+            assert_eq!(&block[..2], &[0x1f, 16 - 15], "{profile:?}");
+            assert_eq!(
+                decode(&mut decoder, block),
+                pairs(&[("accept-encoding", "gzip, deflate")])
+            );
+
+            // `x-a: 1` enters the table, then is sent again marked sensitive.
+            let block = encode(&mut encoder, vec![header("x-a", "1")]);
+            assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", "1")]));
+            let block = encode(&mut encoder, vec![sensitive("x-a", "1")]);
+            assert_eq!(&block[..2], &[0x1f, 62 - 15], "{profile:?}");
+            assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", "1")]));
+        }
     }
 
     /// Firefox announces every table size setting, even an unchanged one.
@@ -1320,20 +1486,31 @@ mod test {
     fn every_setting_size_updates_announce_unchanged_sizes() {
         let mut encoder = Encoder::default();
         encoder.set_profile(HpackEncoderProfile::new().size_updates(SizeUpdates::EverySetting));
+        let mut decoder = Decoder::new(4096);
 
         encoder.update_max_size(4096);
         assert_eq!(Some(SizeUpdate::One(4096)), encoder.size_update);
         let block = encode(&mut encoder, vec![method("GET")]);
         assert_eq!(*block, [0x3f, 0xe1, 0x1f, 0x80 | 2]);
+        assert_eq!(
+            decode_all(&mut decoder, block),
+            pairs(&[(":method", "GET")])
+        );
 
         encoder.update_max_size(1000);
         encoder.update_max_size(4096);
         assert_eq!(Some(SizeUpdate::Two(1000, 4096)), encoder.size_update);
-        encode(&mut encoder, vec![]);
+        let block = encode(&mut encoder, vec![method("GET")]);
+        assert_eq!(
+            decode_all(&mut decoder, block),
+            pairs(&[(":method", "GET")])
+        );
 
         encoder.update_max_size(4096);
         encoder.update_max_size(2000);
         assert_eq!(Some(SizeUpdate::One(2000)), encoder.size_update);
+        let block = encode(&mut encoder, vec![header("x-a", "1")]);
+        assert_eq!(decode(&mut decoder, block), pairs(&[("x-a", "1")]));
 
         // The default skips a setting equal to the table size.
         let mut upstream = Encoder::default();
@@ -1348,14 +1525,31 @@ mod test {
         encoder.set_profile(
             HpackEncoderProfile::new().huffman_coding(HuffmanCoding::AlwaysIncludingEmpty),
         );
-        let res = encode(&mut encoder, vec![header("accept-language", "")]);
-        assert_eq!(*res, [0x0f, 0x02, 0x80]);
-        let res = encode(&mut encoder, vec![header("accept-language", "13")]);
-        assert_eq!(&res[..3], &[0x0f, 0x02, 0x80 | 2]);
-
         let mut decoder = Decoder::new(0);
         let res = encode(&mut encoder, vec![header("accept-language", "")]);
+        assert_eq!(*res, [0x0f, 0x02, 0x80]);
         assert_eq!(decode(&mut decoder, res), pairs(&[("accept-language", "")]));
+        let res = encode(&mut encoder, vec![header("accept-language", "13")]);
+        assert_eq!(&res[..3], &[0x0f, 0x02, 0x80 | 2]);
+        assert_eq!(
+            decode(&mut decoder, res),
+            pairs(&[("accept-language", "13")])
+        );
+    }
+
+    /// Decodes a block into every field, pseudo-fields included, as text.
+    fn decode_all(decoder: &mut Decoder, mut block: BytesMut) -> Vec<(String, String)> {
+        let mut fields = Vec::new();
+        decoder
+            .decode(&mut Cursor::new(&mut block), |header| {
+                fields.push((
+                    String::from_utf8(header.name().as_slice().to_vec()).unwrap(),
+                    String::from_utf8(header.value_slice().to_vec()).unwrap(),
+                ));
+                std::ops::ControlFlow::Continue(())
+            })
+            .unwrap();
+        fields
     }
 
     /// Returns each representation's leading pattern: the indexed bit, the

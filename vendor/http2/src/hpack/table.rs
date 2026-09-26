@@ -164,7 +164,18 @@ impl Table {
     }
 
     /// Index the header in the HPACK table.
-    pub fn index(&mut self, mut header: Header) -> Index {
+    ///
+    /// A sensitive field is never sent as an index, even when an entry
+    /// matches it: it becomes a never-indexed literal naming that entry, as
+    /// RFC 7541 section 7.1.3 asks for values an attacker must not probe.
+    pub fn index(&mut self, header: Header) -> Index {
+        match self.index_field(header) {
+            Index::Indexed(n, header) if header.is_sensitive() => Index::Name(n, header),
+            index => index,
+        }
+    }
+
+    fn index_field(&mut self, mut header: Header) -> Index {
         if self.profile.fields() == FieldIndexing::NeverIndexAuthorization {
             if let Header::Field {
                 ref name,

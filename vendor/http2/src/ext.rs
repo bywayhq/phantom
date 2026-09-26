@@ -313,7 +313,10 @@ impl CookieCrumbs {
 /// Every encoder that RFC 7541 allows produces a block the peer decodes to the
 /// same fields, so the choices below are part of a client's wire fingerprint
 /// rather than its semantics. Each one defaults to the upstream behavior, so a
-/// connection that sets nothing encodes byte-for-byte as before.
+/// connection that sets nothing encodes byte-for-byte as before, with one
+/// exception under every profile: a sensitive field that matches a table
+/// entry is a never-indexed literal naming that entry, where upstream sent
+/// the entry's index.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct HpackEncoderProfile {
     literal_pseudo_headers: u8,
