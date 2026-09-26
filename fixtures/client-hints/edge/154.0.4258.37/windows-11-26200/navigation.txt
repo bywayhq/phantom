@@ -1,0 +1,43 @@
+format=phantom-client-hints-v2
+captured_at_unix=1790418995
+client=Microsoft Edge
+client_version=154.0.4258.37
+operating_system=Windows 11 Home 10.0.26200 x64
+listen_address=127.0.0.1:55658
+launch_mode=headless
+launch_arguments=--headless=new '--user-data-dir=<temporary-profile>' --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --no-proxy-server --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-domain-reliability --disable-sync --no-pings --disable-features=MediaRouter,OptimizationHints 'http://127.0.0.1:55658/run/<token>/first'
+capture_tool=python 3.10.20
+transport=HTTP/1.1
+accept_ch=sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,sec-ch-ua-arch,sec-ch-ua-bitness,sec-ch-ua-full-version,sec-ch-ua-full-version-list,sec-ch-ua-model,sec-ch-ua-platform-version,sec-ch-ua-wow64,sec-ch-ua-form-factors
+repeat_count=1
+run_0_first_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-platform,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-User,Sec-Fetch-Dest,Accept-Encoding,Accept-Language
+run_0_first_hint_count=3
+run_0_first_hint_0=sec-ch-ua|"Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99"
+run_0_first_hint_1=sec-ch-ua-mobile|?0
+run_0_first_hint_2=sec-ch-ua-platform|"Windows"
+run_0_second_field_order=Host,Connection,sec-ch-ua,sec-ch-ua-mobile,sec-ch-ua-full-version,sec-ch-ua-arch,sec-ch-ua-platform,sec-ch-ua-platform-version,sec-ch-ua-model,sec-ch-ua-bitness,sec-ch-ua-wow64,sec-ch-ua-full-version-list,sec-ch-ua-form-factors,Upgrade-Insecure-Requests,User-Agent,Accept,Sec-Fetch-Site,Sec-Fetch-Mode,Sec-Fetch-Dest,Referer,Accept-Encoding,Accept-Language
+run_0_second_hint_count=11
+run_0_second_hint_0=sec-ch-ua|"Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99"
+run_0_second_hint_1=sec-ch-ua-mobile|?0
+run_0_second_hint_2=sec-ch-ua-full-version|"154.0.4258.37"
+run_0_second_hint_3=sec-ch-ua-arch|"x86"
+run_0_second_hint_4=sec-ch-ua-platform|"Windows"
+run_0_second_hint_5=sec-ch-ua-platform-version|"19.0.0"
+run_0_second_hint_6=sec-ch-ua-model|""
+run_0_second_hint_7=sec-ch-ua-bitness|"64"
+run_0_second_hint_8=sec-ch-ua-wow64|?0
+run_0_second_hint_9=sec-ch-ua-full-version-list|"Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0"
+run_0_second_hint_10=sec-ch-ua-form-factors|"Desktop"
+run_0_other_requests=0
+hint_count=11
+hint_0=default|sec-ch-ua|"Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99"
+hint_1=default|sec-ch-ua-mobile|?0
+hint_2=accept-ch|sec-ch-ua-full-version|"154.0.4258.37"
+hint_3=accept-ch|sec-ch-ua-arch|"x86"
+hint_4=default|sec-ch-ua-platform|"Windows"
+hint_5=accept-ch|sec-ch-ua-platform-version|"19.0.0"
+hint_6=accept-ch|sec-ch-ua-model|""
+hint_7=accept-ch|sec-ch-ua-bitness|"64"
+hint_8=accept-ch|sec-ch-ua-wow64|?0
+hint_9=accept-ch|sec-ch-ua-full-version-list|"Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0"
+hint_10=accept-ch|sec-ch-ua-form-factors|"Desktop"
