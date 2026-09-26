@@ -33,9 +33,10 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
-`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`;
+`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
+[Android browser](#snapshots-on-android);
 [`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`
-tool for several browsers at once. One run
+tool for several desktop browsers at once. One run
 serves `server.phantom.test` over TLS/TCP (ALPN `h2` and `http/1.1`) and QUIC
 (`h3`) on one port number of 127.0.0.1, and plaintext HTTP/1.1 on another:
 
@@ -98,6 +99,47 @@ across connections: resumption and 0-RTT, Alt-Svc racing, retries, broken
 alternatives, EventSource reconnects, proxies, WebSocket openings, cookie
 crumbs, and ECH. [Fingerprint snapshot evidence](../../docs/explanation/validation.md#fingerprint-snapshot-evidence)
 has the runs that checked the tool against the retained fixtures.
+
+### Snapshots on Android
+
+`--browser` also takes `chrome-android`, `edge-android`, `brave-android`,
+`opera-android`, and `firefox-android`, with adb as `--browser-path` and
+the device in `ANDROID_SERIAL`, as under [Android browsers](#android-browsers):
+
+```sh
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10   --with-requirements scripts/requirements.txt   python -m scripts.capture.snapshot --browser chrome-android   --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb"   --client-version 154.0.8037.57   --operating-system "Android 17 (API 37) x86_64 emulator reporting Pixel 7 CP3A.260905.009"   --repeat 3 --output-dir <scratch-directory>/chrome-android
+```
+
+The launcher opens the page URL with a `VIEW` intent
+(`launch_mode=android-intent`) and types nothing; the page's own script makes
+every later request. The
+resolver rule maps `server.phantom.test` to `10.0.2.2`, the emulator's route
+to host loopback, which carries the TLS and QUIC legs. `/plain` names the
+device's own 127.0.0.1, so the launch adds `adb reverse` for the plaintext
+port and for the TLS port.
+
+What each browser yields:
+
+- Chrome, Brave, and Edge: every layer, as on the desktop. An intent carries
+  no user activation, so the first navigation has no `sec-fetch-user`, and
+  `snapshot_compare.py` reports that against a typed `accept.txt`.
+- Opera: the TCP ClientHello only. Opera for Android reads no command-line
+  file, so it gets no resolver rule and no certificate switch. It opens
+  `https://localhost:<port>/` through `adb reverse`, sends one ClientHello
+  with `server_name` `localhost`, and stops at the certificate error. A
+  cleared profile first steps through Opera's first-run screens, which take
+  most of the run.
+- Firefox: the TCP ClientHello only. GeckoView reads preferences but no
+  profile files, so there is no `cert_override.txt`. Firefox resolves
+  `server.phantom.test` to the device's 127.0.0.1 with
+  `network.dns.localDomains`, reaches the listener through `adb reverse`,
+  and every handshake fails at the certificate: three or four connections a
+  run, each with a complete ClientHello. No HTTP/2 frame, request, QUIC
+  connection, or client hint arrives.
+
+For Opera and Firefox pass `--run-timeout 5 --allow-partial`: nothing arrives
+after the certificate error, and every run is partial. Play serves Edge for
+Android as an arm64 build only; run it on an arm64 emulator.
 
 ## Which tool to run
 

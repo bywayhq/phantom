@@ -204,7 +204,8 @@ def newest(root: Path, area: str, browser: str, name: str, system: str) -> Path 
 def compare(text: str, root: Path, browser: str) -> list[str]:
     snapshot = fields(text)
     system = snapshot.get("operating_system", "")
-    permuted = browser in CHROMIUM_BROWSERS
+    # Opera for Android is Chromium too, though it reads no command-line file.
+    permuted = browser in (*CHROMIUM_BROWSERS, "opera-android")
     report: list[str] = []
 
     def retained(

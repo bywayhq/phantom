@@ -309,6 +309,9 @@ class AndroidLaunch:
     # A run clears browser data, so a device that is not an emulator is
     # refused unless this is set.
     allow_physical_device: bool = False
+    # TCP ports to reverse besides those the URL and switches name, such as
+    # a port that only a page script navigates to.
+    reverse: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         if self.entry not in ENTRIES:
@@ -382,7 +385,8 @@ class AndroidSession:
             self.device.push_text(configuration, path)
             self.configured = True
             self.device.shell("am", "set-debug-app", "--persistent", package)
-        for port in reverse_ports(launch.url, launch.arguments):
+        ports = [*reverse_ports(launch.url, launch.arguments), *launch.reverse]
+        for port in dict.fromkeys(ports):
             self.device.run("reverse", f"tcp:{port}", f"tcp:{port}")
             self.reversed.append(port)
         for attempt in range(launch.typing_attempts):

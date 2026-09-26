@@ -235,6 +235,9 @@ class LaunchPlan:
     android_entry: str = "typed"
     # A run clears browser data; allow a device that is not an emulator.
     android_allow_physical_device: bool = False
+    # Host TCP ports the device reaches on its own 127.0.0.1 through
+    # `adb reverse`, besides those the URL and switches name.
+    android_reverse_ports: tuple[int, ...] = ()
 
     @property
     def launch_mode(self) -> str:
@@ -311,6 +314,7 @@ class LaunchedBrowser:
             preferences,
             entry=self.plan.android_entry,
             allow_physical_device=self.plan.android_allow_physical_device,
+            reverse=self.plan.android_reverse_ports,
         )
 
     def __enter__(self) -> LaunchedBrowser:

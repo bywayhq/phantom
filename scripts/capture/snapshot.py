@@ -29,6 +29,7 @@ from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .android_device import ANDROID_BROWSERS
 from .browser_launch import (
     CHROMIUM_BROWSERS,
     CLIENT_NAMES,
@@ -77,7 +78,7 @@ from .quic_resumption import QUIC_TRANSPORT_PARAMETERS, parse_client_hello
 FORMAT = "phantom-snapshot-v1"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.3.0"}
 HOST = "127.0.0.1"
-DESKTOP_BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, "firefox")
+BROWSERS = (*DESKTOP_CHROMIUM_BROWSERS, "firefox", *ANDROID_BROWSERS)
 # QUIC rejects a certificate from an unknown root unless
 # `--origin-to-force-quic-on` names its host (see alt_svc_race.py). Port 9 is
 # never requested, so every QUIC connection comes from the learned Alt-Svc.
@@ -945,8 +946,26 @@ def split_snapshot(text: str) -> dict[str, str]:
 
 
 def launch_plan(
-    browser: str, executable: Path, headless: bool, port: int, certificate: Certificate
+    browser: str,
+    executable: Path,
+    headless: bool,
+    port: int,
+    plain_port: int,
+    certificate: Certificate,
 ) -> LaunchPlan:
+    """The launch of one run; an Android one opens its page with an intent.
+
+    On Android the resolver rule's 127.0.0.1 becomes the emulator's route to
+    host loopback, which carries TCP and UDP alike, and `adb reverse` carries
+    the device's own 127.0.0.1 to the listeners that page scripts name.
+    """
+    android = browser in ANDROID_BROWSERS
+    options: dict = {}
+    if android:
+        options = {
+            "android_entry": "intent",
+            "android_reverse_ports": (port, plain_port),
+        }
     if browser in CHROMIUM_BROWSERS:
         return LaunchPlan(
             browser,
@@ -963,32 +982,53 @@ def launch_plan(
                 "--ignore-certificate-errors-spki-list="
                 + certificate.spki_sha256_base64,
             ),
+            **options,
+        )
+    if browser == "opera-android":
+        # Opera for Android takes no switches: it opens `localhost` through
+        # `adb reverse` and stops at the certificate.
+        return LaunchPlan(browser, executable, headless, **options)
+    preferences = (
+        ("network.dns.localDomains", HOSTNAME),
+        ("network.dns.disableIPv6", True),
+        ("network.http.http3.enable", True),
+        # The overridden test certificate counts as a third-party root,
+        # which otherwise makes Firefox close HTTP/3.
+        ("network.http.http3.disable_when_third_party_roots_found", False),
+    )
+    if android:
+        # GeckoView takes no profile files, so no certificate override.
+        return LaunchPlan(
+            browser, executable, headless, firefox_preferences=preferences, **options
         )
     return LaunchPlan(
         "firefox",
         executable,
         headless,
-        firefox_preferences=(
-            ("network.dns.localDomains", HOSTNAME),
-            ("network.dns.disableIPv6", True),
-            ("network.http.http3.enable", True),
-            # The overridden test certificate counts as a third-party root,
-            # which otherwise makes Firefox close HTTP/3.
-            ("network.http.http3.disable_when_third_party_roots_found", False),
-        ),
+        firefox_preferences=preferences,
         profile_files=(
             ("cert_override.txt", firefox_cert_override(HOSTNAME, port, certificate)),
         ),
     )
 
 
+def page_url(browser: str, port: int, token: str) -> str:
+    host = "localhost" if browser == "opera-android" else HOSTNAME
+    return f"https://{host}:{port}/?run={token}"
+
+
 async def capture_run(args: argparse.Namespace, certificate: Certificate) -> str:
     token = secrets.token_hex(8)
     async with serving(certificate, token, args.observation) as run:
         plan = launch_plan(
-            args.browser, args.browser_path, not args.headful, run.port, certificate
+            args.browser,
+            args.browser_path,
+            not args.headful,
+            run.port,
+            run.plain_port,
+            certificate,
         )
-        url = f"https://{HOSTNAME}:{run.port}/?run={token}"
+        url = page_url(args.browser, run.port, token)
         async with BrowserDriver(plan, url):
             try:
                 await asyncio.wait_for(
@@ -1037,7 +1077,7 @@ async def capture(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--browser", choices=DESKTOP_BROWSERS)
+    parser.add_argument("--browser", choices=BROWSERS)
     parser.add_argument("--browser-path", type=Path)
     parser.add_argument("--client-version")
     parser.add_argument("--operating-system")

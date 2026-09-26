@@ -12,6 +12,7 @@ from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import ConnectionTerminated, ResponseReceived, StreamEnded
 
+from scripts.capture.browser_launch import LaunchedBrowser
 from scripts.capture.cookie_crumbs import CaptureMetadata
 from scripts.capture.http2_session import (
     HOSTNAME,
@@ -23,6 +24,8 @@ from scripts.capture.snapshot import (
     SnapshotRun,
     client_hello_records,
     hello_message,
+    launch_plan,
+    page_url,
     problems,
     render_snapshot,
     reserve_shared_port,
@@ -338,6 +341,48 @@ class ScriptedRunTests(unittest.TestCase):
         quic = fields(sections["quic-client-hello.txt"])
         self.assertEqual(
             quic["handshake_hex"], self.values["quic_client_hello.handshake_hex"]
+        )
+
+
+class AndroidLaunchTests(unittest.TestCase):
+    ADB = Path("adb")
+
+    def android_launch(self, browser: str):
+        plan = launch_plan(browser, self.ADB, True, 9450, 9451, CERTIFICATE)
+        return plan, LaunchedBrowser(
+            plan, page_url(browser, 9450, "t")
+        ).android_launch()
+
+    def test_chromium_opens_the_page_by_intent_over_the_emulator_route(self) -> None:
+        plan, launch = self.android_launch("chrome-android")
+        self.assertEqual(plan.launch_mode, "android-intent")
+        self.assertEqual(launch.url, f"https://{HOSTNAME}:9450/?run=t")
+        self.assertIn(
+            f"--host-resolver-rules=MAP {HOSTNAME} 10.0.2.2, MAP * ~NOTFOUND, "
+            "EXCLUDE 127.0.0.1",
+            launch.arguments,
+        )
+        self.assertIn(
+            f"--ignore-certificate-errors-spki-list={CERTIFICATE.spki_sha256_base64}",
+            launch.arguments,
+        )
+        # `/plain` names the device's own 127.0.0.1.
+        self.assertEqual(launch.reverse, (9450, 9451))
+
+    def test_opera_opens_localhost_without_switches(self) -> None:
+        _, launch = self.android_launch("opera-android")
+        self.assertEqual(launch.url, "https://localhost:9450/?run=t")
+        self.assertEqual(launch.arguments, ())
+        self.assertIsNone(launch.configuration())
+
+    def test_firefox_gets_preferences_but_no_certificate_override(self) -> None:
+        plan, launch = self.android_launch("firefox-android")
+        self.assertEqual(plan.profile_files, ())
+        self.assertIn(("network.dns.localDomains", HOSTNAME), launch.preferences)
+        self.assertEqual(launch.reverse, (9450, 9451))
+        desktop = launch_plan("firefox", self.ADB, True, 9450, 9451, CERTIFICATE)
+        self.assertEqual(
+            [name for name, _ in desktop.profile_files], ["cert_override.txt"]
         )
 
 

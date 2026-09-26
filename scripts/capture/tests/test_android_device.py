@@ -292,6 +292,26 @@ class AndroidSessionTests(unittest.TestCase):
         )
         self.assertIn(("shell", "am", "clear-debug-app"), stopped)
 
+    def test_extra_reverse_ports_are_added_once_after_the_named_ones(self) -> None:
+        device = RecordingDevice()
+        browser = ANDROID_BROWSERS["chrome-android"]
+        launch = AndroidLaunch(
+            browser,
+            "http://127.0.0.1:9450/",
+            entry="intent",
+            settle=0,
+            reverse=(9451, 9450),
+        )
+
+        with AndroidSession(device, launch):  # type: ignore[arg-type]
+            started = [c for c in device.commands if c[0] == "reverse"]
+
+        self.assertEqual(
+            started,
+            [("reverse", "tcp:9450", "tcp:9450"), ("reverse", "tcp:9451", "tcp:9451")],
+        )
+        self.assertIn(("reverse", "--remove", "tcp:9451"), device.commands)
+
     def test_typed_entry_presses_enter_once_the_focused_field_holds_the_url(
         self,
     ) -> None:
