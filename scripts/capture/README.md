@@ -17,137 +17,91 @@ Run every command from the repository root; the Python tools need Python
 
 ## Quick fingerprint snapshot
 
-`snapshot.py` records a browser's connection fingerprint at every layer from
-one launch. A run took 1.5 to 3 seconds for each desktop browser on the
-Windows capture host, launch and teardown included:
+`snapshot.py` records a desktop browser's fingerprint at every layer from one
+headless launch on a fresh profile, and `snapshot_compare.py` compares it
+with the browser's retained fixtures:
 
 ```sh
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
-  python -m scripts.capture.snapshot --browser chrome --runs 3 \
+  python -m scripts.capture.snapshot --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
-  --output-dir <scratch-directory>/chrome
-```
-
-`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`. Without
-`--browser-path` the tool looks in the usual install location on Windows or
-macOS; for Opera on Windows it takes the newest versioned `opera.exe`.
-Without `--client-version` it reads the executable's product version on
-Windows, or `CFBundleShortVersionString` on macOS. Each run launches the
-browser headless on a fresh profile, waits for the last request, and removes
-the browser and its profile.
-
-One run serves `server.phantom.test` over TLS/TCP (ALPN `h2` and `http/1.1`)
-and over QUIC (`h3`) on one loopback port number, and plaintext HTTP/1.1 on a
-second port:
-
-1. The browser opens `/`. The response carries `Accept-CH` and `Critical-CH`
-   for every user-agent client hint, so Chromium repeats the navigation with
-   them.
-2. The page fetches `/fetch` on the same HTTP/2 connection. The response
-   carries `Alt-Svc: h3=":<port>"`, and the server then sends GOAWAY.
-3. The page navigates to `/next`, which needs a new connection and takes the
-   learned `h3` alternative, and fetches `/fetch` again. Firefox can load
-   `/next` over TCP while it validates the alternative, so a `/next` served
-   over TCP loads `/next` once more.
-4. The page navigates to `/plain` on `http://127.0.0.1:<plain-port>`, whose
-   page fetches `/done`.
-
-Chromium gets `--enable-quic`, `--origin-to-force-quic-on` for the decoy port
-9 (as in [Alt-Svc racing](#alt-svc-racing)), the certificate's
-`--ignore-certificate-errors-spki-list`, and host-resolver rules that map
-`server.phantom.test` to the listener, fail every other name, and leave the
-listener's address alone. Firefox gets the preferences of the HTTP/3 tools
-and a `cert_override.txt` for the port. The TLS server issues no session
-tickets, so every TCP ClientHello is a fresh one;
-[`tls_resumption.py`](#tls-resumption-over-tcp) records resumption.
-
-Run `n` writes `snapshot-<n>.txt` with `format=phantom-snapshot-v1`. It keeps:
-
-- every TCP and QUIC connection with its accept time, protocol, and failure;
-- every request in arrival order, with its protocol and kind (`start`,
-  `fetch`, `next`, `plain`, or `done`), and its fields in wire order: HPACK
-  representations on HTTP/2, QPACK field lines on HTTP/3, and raw header
-  lines on HTTP/1.1, as [`cookie_crumbs.py`](#cookie-crumbs) writes them;
-- the client hints as `hint_<n>=<delivery>|<name>|<value>` lines of
-  `phantom-client-hints-v2`, derived from the first navigation and the
-  `Critical-CH` retry, or `/next` when there is no retry;
-- `ja3`, `ja3_hash`, `ja4`, and `quic_ja4` of the first TCP and QUIC
-  ClientHellos, the Akamai HTTP/2 fingerprint as `h2.akamai`, and
-  `h3_fingerprint` (SETTINGS, then the pseudo-header order), for comparison
-  with fingerprinting sites;
-- the sections in the next table, each under a key prefix.
-
-| Prefix | Holds | Existing format |
-| --- | --- | --- |
-| `tls.` | The first TCP ClientHello: its records and summary fields | A complete `phantom-client-hello-v2` fixture, as `capture_client_hello` writes it |
-| `h2.` | The preface, the client frames before the first HEADERS, `initial_settings`, `connection_window_update`, every client frame, and `akamai` | The `phantom-http2-tls-v2` fields of the same names; the rest of that format is not written |
-| `quic_client_hello.` | The first QUIC ClientHello | A complete `phantom-quic-client-hello-v1` fixture |
-| `h3_startup.` | Transport parameters, SETTINGS, and the first request of the first QUIC connection | A complete `phantom-http3-client-startup-v2` fixture, as `chrome_http3.py` writes it |
-
-`--split <snapshot> --output-dir <directory>` writes the three complete
-sections as `client-hello.txt`, `quic-client-hello.txt`, and
-`http3-client-startup.txt`.
-
-Compare a snapshot with the newest retained fixtures of the same browser:
-
-```sh
+  --repeat 3 --output-dir <scratch-directory>/chrome
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.snapshot_compare --browser chrome \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
-It prints each file it compared and one line per difference. GREASE values,
-the QUIC initial source connection ID, reserved versions, and the
-`:authority` port are normalized first. A TLS extension list or QUIC
-transport parameter list that differs only in order is reported as `order
-permuted`, because Chromium permutes both on every connection.
+`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`. One run
+serves `server.phantom.test` over TLS/TCP (ALPN `h2` and `http/1.1`) and QUIC
+(`h3`) on one port number of 127.0.0.1, and plaintext HTTP/1.1 on another:
 
-A snapshot differs from the per-layer tools in these ways:
+1. The browser opens `/`. The response carries `Accept-CH` and `Critical-CH`
+   for every user-agent client hint, so Chromium repeats the navigation with
+   them.
+2. The page fetches `/fetch`. The response carries `Alt-Svc: h3=":<port>"`,
+   and the server then sends GOAWAY.
+3. The page navigates to `/next` on a new connection, which takes `h3`, and
+   fetches `/fetch` again. A `/next` served over TCP, which Firefox can do
+   while it validates the alternative, loads `/next` once more.
+4. The page navigates to `/plain` on the plaintext port, which fetches
+   `/done`.
 
-- The Python TLS server does not negotiate ALPS, so the `h2.` section has no
-  `peer_alps_*` fields, and it has none of the limit fields that
-  `capture_http2_tls` writes. Retain HTTP/2 startup fixtures with that
-  example.
-- The first HTTP/3 request is the script navigation to `/next`, after
-  `Accept-CH`. Compared with the command-line navigation in a retained
-  HTTP/3 `client-startup.txt`, it carries the requested hints and `referer`,
-  sends `sec-fetch-site: same-origin`, and has no `sec-fetch-user`. Its
-  transport parameters, SETTINGS, and QUIC ClientHello are comparable. When
-  Firefox serves `/next` over TCP, its first HTTP/3 request is the `/fetch`
-  from that page.
-- `/plain` is a cross-site navigation from `server.phantom.test`, so its
-  `sec-fetch-site` is `cross-site`.
-- Brave sends a different `accept-language` quality value on each run.
+Chromium gets the launch switches of [Alt-Svc racing](#alt-svc-racing), with
+the certificate's SPKI and a resolver rule that leaves 127.0.0.1 alone.
+Firefox gets the HTTP/3 preferences of the other QUIC tools and a
+`cert_override.txt`. The TLS server issues no session tickets.
 
-Take a snapshot first for every new browser version. A layer for which
-`snapshot_compare` reports nothing beyond the differences listed above is
-unchanged. The other tools record a changed layer for a recipe, and they are
-the only way to record behavior across connections: resumption and 0-RTT,
-Alt-Svc racing, retries and broken alternatives, EventSource reconnects,
-proxies, WebSocket openings, cookie crumbs, and ECH. Each of their scenarios
-needs its own launches.
+Run `n` writes `snapshot-<n>.txt` (`format=phantom-snapshot-v1`) with every
+connection, every request's fields in wire order as
+[`cookie_crumbs.py`](#cookie-crumbs) writes them, the client hints as
+`hint_<n>` lines of `phantom-client-hints-v2`, and these sections:
 
-On macOS the tool looks under `/Applications` for `Google Chrome.app`,
-`Microsoft Edge.app`, `Brave Browser.app`, `Opera.app`, and `Firefox.app`.
-No macOS snapshot has been recorded yet.
+| Prefix | Holds | Drop-in fixture |
+| --- | --- | --- |
+| `tls.` | The first TCP ClientHello | Yes: `phantom-client-hello-v2`, written by `--split` as `client-hello.txt` |
+| `quic_client_hello.` | The first QUIC ClientHello | Yes: `phantom-quic-client-hello-v1`, written by `--split` as `quic-client-hello.txt` |
+| `h2.` | The frames before the first HEADERS, `initial_settings`, `connection_window_update`, and every client frame | No: the `phantom-http2-tls-v2` fields of those names, without the ALPS and limit fields |
+| `h3.` | Transport parameters, SETTINGS, and the first HTTP/3 request | No: the fields of `phantom-http3-client-startup-v2`, but its request is the script navigation to `/next`, not a first navigation |
 
-Android browsers are not supported yet. A Chromium browser on the capture
-emulator could reach both listeners through the launcher's rewrite of
-`MAP server.phantom.test 127.0.0.1` to `10.0.2.2`, which carries TCP and UDP.
-The `/plain` step would need `adb reverse` for the plaintext port, because
-its URL is in the page rather than on the command line. Firefox for Android
-cannot receive `cert_override.txt`, so it would need another way to trust
-the certificate. A typed Android entry takes about 90 seconds, so a snapshot
-there would take at least that long per run.
+`--split <snapshot> --output-dir <directory>` writes the two drop-in
+fixtures. The tool exits 1 when a run timed out, did not use HTTP/3, or has
+an `*_error` line (a part it could not parse); `--allow-partial` keeps it at
+0.
 
-`run_matrix.py` (pull request #104) is not on `main`. Once it is, a manifest
-entry can run `snapshot.py` for each browser.
+`snapshot_compare.py` reads, for each layer, the newest retained fixture of
+the browser recorded on the snapshot's operating system, and prints
+`compared <path>` and one `differs ...` line per difference. It compares:
+
+- the TCP and QUIC ClientHellos: legacy version, cipher suites, extension
+  order, and every extension body, QUIC transport parameters included;
+- the HTTP/2 frames before the first HEADERS, against `http2/`;
+- the first HTTP/2 navigation's field order, HEADERS flags, and priority,
+  against the first navigation of the WebSocket `accept.txt`;
+- HTTP/3 SETTINGS;
+- the client hints.
+
+GREASE values, key shares, the ECH config ID, enc, and payload, the QUIC
+connection ID, and reserved versions are normalized first. For Chromium
+browsers an extension or transport parameter list that differs only in order
+is not a difference, because Chromium permutes both per connection. A layer
+missing from the snapshot, or with no retained fixture, is a difference. It
+does not compare HTTP/3 request fields, HTTP/2 fields other than the first
+navigation's, or HTTP/1.1.
+
+Take a snapshot first for every new browser version. The other tools record
+a changed layer for a recipe, and they are the only way to record behavior
+across connections: resumption and 0-RTT, Alt-Svc racing, retries, broken
+alternatives, EventSource reconnects, proxies, WebSocket openings, cookie
+crumbs, and ECH. [Fingerprint snapshot evidence](../../docs/explanation/validation.md#fingerprint-snapshot-evidence)
+has the runs that checked the tool against the retained fixtures.
 
 ## Which tool to run
 
 | To record | Run | Fixture area |
 | --- | --- | --- |
-| Every layer's fingerprint from one launch, to compare with the retained fixtures | [`snapshot.py`](#quick-fingerprint-snapshot) | None; its sections map to `fixtures/tls/` and `fixtures/http3/` formats |
+| Every layer's fingerprint from one launch, compared with the retained fixtures | [`snapshot.py`](#quick-fingerprint-snapshot) | A scratch directory; `--split` writes `fixtures/tls/` and `fixtures/http3/` ClientHello files |
 | A TLS ClientHello over TCP | `cargo run -p phantom-testkit --example capture_client_hello` | `fixtures/tls/` |
 | HTTP/2 startup frames | `cargo run -p phantom-net --example capture_http2_tls` | `fixtures/http2/` |
 | A QUIC ClientHello and HTTP/3 startup | [`chrome_http3.py`](#http3-startup) | `fixtures/http3/` |

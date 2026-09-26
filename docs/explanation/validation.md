@@ -1333,6 +1333,47 @@ Limits:
 - H2 extended CONNECT carries only `wss://`, which is always potentially
   trustworthy, so its trust-dependent fields have one captured value.
 
+### Fingerprint snapshot evidence
+
+Claim: a [fingerprint snapshot](../../scripts/capture/README.md#quick-fingerprint-snapshot)
+of a desktop browser records the same TLS, HTTP/2 startup, QUIC, HTTP/3
+SETTINGS, and client-hint values as the per-layer capture tools, so a
+snapshot that `snapshot_compare.py` finds equal shows those layers unchanged.
+
+Evidence: on 2026-09-26 the Windows 11 capture host ran `snapshot.py
+--repeat 3` headless for each installed desktop browser, then
+`snapshot_compare.py` on every run against the retained fixtures.
+
+| Browser | Seconds per run | Differences from the retained fixtures |
+| --- | --- | --- |
+| Chrome 154.0.8037.58 | 1.9, 2.4, 1.9 | None |
+| Edge 154.0.4258.37 | 1.8, 1.9, 2.0 | Client hints only: the brand list and versions of Edge 154 against the retained Edge 153 |
+| Brave 154.1.96.59 | 1.8, 1.8, 1.8 | None |
+| Opera 135.0.5973.92 | 2.3, 2.4, 1.9 | None |
+| Firefox 156.0.1 | 2.8, 2.8, 2.6 | TCP ClientHello `server_name` only (the retained capture used `localhost`); no retained HTTP/2 startup, QUIC ClientHello, HTTP/3 startup, or client-hint fixture to compare |
+
+Every run used HTTP/3 and parsed without an error line. The seconds include
+the browser's launch and teardown. The first HTTP/2 navigation's field
+order, flags, and priority equal the WebSocket `accept.txt` navigation for
+all five browsers.
+
+The runs also showed what varies per connection, which the comparison
+normalizes: Chromium's TLS extension and QUIC transport parameter order, and
+the length of Chromium's GREASE ECH payload, which took 144, 176, 208, and
+240 bytes. Brave's `accept-language` quality value changed between runs
+(0.5, 0.5, and 0.7, against 0.9 retained); the comparison does not read it.
+
+Reproduce with the commands in the capture README, once per browser.
+
+Limits:
+
+- The Python TLS server does not negotiate ALPS, so a snapshot cannot show
+  the peer ALPS settings that `capture_http2_tls` records.
+- The first HTTP/3 request is a script navigation after `Accept-CH`, so its
+  fields are not compared with the retained command-line navigation.
+- Snapshots were taken on Windows only; the macOS capture host has not run
+  the tool.
+
 ### Recorded coverage losses
 
 Carrying one version per browser retires evidence along with the recipes it

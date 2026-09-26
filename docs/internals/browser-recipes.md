@@ -62,11 +62,12 @@ carries one Chromium version.
 
 ## Step 1: capture each area
 
-Start with a [quick fingerprint snapshot](../../scripts/capture/README.md#quick-fingerprint-snapshot):
-three runs of `snapshot.py` take under 10 seconds per desktop browser, and
-`snapshot_compare.py` lists what changed against the retained fixtures of
-the previous build. Its `tls.` section is a complete ClientHello fixture.
-Then capture the build in all seven areas. [Capture tools](../../scripts/capture/README.md)
+Start with a [quick fingerprint snapshot](../../scripts/capture/README.md#quick-fingerprint-snapshot)
+of a desktop browser. `snapshot_compare.py` compares its ClientHellos, HTTP/2
+startup frames and first navigation, HTTP/3 SETTINGS, and client hints with
+the retained fixtures of the previous build, and lists what changed. It does
+not compare HTTP/3 request fields or HTTP/1.1. Then capture the build in all
+seven areas. [Capture tools](../../scripts/capture/README.md)
 has the options and scenarios for each tool, and
 [Capture commands and launches](../explanation/validation.md#capture-commands-and-launches)
 has the exact Chrome 154 commands and launch arguments to repeat.

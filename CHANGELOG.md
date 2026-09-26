@@ -365,13 +365,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   format is now `phantom-ech-client-hello-v2`. Chrome 154, Edge 153, and
   Brave 154 captures are retained as `ech-quic-accept.txt` and
   `ech-quic-reject.txt`.
-- `scripts/capture/snapshot.py` records a desktop browser's TLS
-  ClientHello, HTTP/2 startup, request fields over HTTP/2, HTTP/3, and
-  HTTP/1.1, client hints after `Accept-CH` and `Critical-CH`, and QUIC
-  ClientHello and HTTP/3 startup from one launch, in one file per run. A run
-  takes 1.5 to 3 seconds for Chrome, Edge, Brave, Opera, and Firefox on the
-  Windows capture host. `snapshot_compare.py` lists how a snapshot differs
-  from the browser's retained fixtures.
+- `scripts/capture/snapshot.py` records a desktop browser's fingerprint
+  from one headless launch, in one file per run: the TCP and QUIC
+  ClientHellos, HTTP/2 startup frames, request fields over HTTP/2, HTTP/3,
+  and HTTP/1.1, client hints after `Accept-CH` and `Critical-CH`, and HTTP/3
+  transport parameters and SETTINGS. On Windows it observed every layer for
+  Chrome 154, Edge 154, Brave 154, and Opera 135, and every layer but client
+  hints, which Firefox does not send, for Firefox 156. `snapshot_compare.py`
+  lists how a snapshot differs from the browser's retained fixtures.
 - `scripts/capture/tls_resumption.py` records how a browser resumes TLS 1.3
   sessions over TCP against a loopback server that issues its own tickets:
   the resumed ClientHello, the ticket each connection presents, early data,
