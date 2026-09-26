@@ -34,6 +34,9 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
+- TLS 1.3 session resumption over TCP, with the per-origin ticket count and
+  resumed ClientHello of each recipe's browser
+  ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, and on `wss://` openings, with the Chrome 154, Edge
   153, and Brave 154 recipes
@@ -98,8 +101,13 @@ anything does.
 - Resend on the same connection after a server rejects early data. Evidence:
   the Chrome 154, Edge 153, and Firefox 156 captures resend every request in
   1-RTT on that connection; Phantom opens a new one. Status: in progress.
-- TLS resumption over TCP. Evidence: none; the QUIC side is proved.
-  Blocker: a capture of a resumed TCP ClientHello.
+- Early data over TCP for the Firefox recipe. Evidence: the
+  [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
+  where Firefox 156 offers `early_data` on every resumption whose ticket
+  permits it and sends `GET`, `HEAD`, and `OPTIONS` requests in it; Phantom
+  offers no early data over TCP. Blocker: the vendored `btls` scoped-session
+  wrapper removes early-data capability, and `early_data` has no position in
+  `ClientHelloExtension` for Firefox's fixed order.
 - Per-profile HPACK indexing for WebSocket openings and ordinary requests.
   Evidence: the [WebSocket captures](explanation/validation.md#websocket-browser-evidence),
   and the [cookie crumb captures](explanation/validation.md#cookie-crumb-evidence),

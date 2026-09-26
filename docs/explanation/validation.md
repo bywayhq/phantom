@@ -35,6 +35,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
+| [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; Firefox's TCP early data not reproduced; no network partitions in Phantom |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins or SOCKS |
 | [Proxy authentication](#proxy-authentication-evidence) | Chrome 154, Edge 153, and Firefox 156 captures and browser source, plus loopback tests of Phantom | One realm; no `407` to a CONNECT captured; forwarded field position and H2 indexing differ |
@@ -368,7 +369,7 @@ Retained fixtures, each under `fixtures/<area>/chrome/154.0.8037.58/windows-11-2
 
 | Area | Files |
 | --- | --- |
-| `tls` | `client-hello.txt`, `trust-anchor-orders.txt` |
+| `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | `http2` | `client-startup.txt` |
 | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt` |
 | `client-hints` | `navigation.txt` |
@@ -467,12 +468,12 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Edge 153.0.4234.48 | `tls` | `client-hello.txt` |
+| Edge 153.0.4234.48 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Edge 153.0.4234.48 | `http2` | `client-startup.txt` |
 | Edge 153.0.4234.48 | `http3` | `client-startup.txt`, `quic-client-hello-1.txt`, `quic-client-hello-2.txt` |
 | Edge 153.0.4234.48 | `client-hints` | `navigation.txt` |
 | Edge 153.0.4234.48 | `websocket` | Nine scenarios; see [WebSocket browser evidence](#websocket-browser-evidence) |
-| Firefox 156.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE), `client-hello-chacha20-ech.txt` |
+| Firefox 156.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE), `client-hello-chacha20-ech.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Firefox 156.0 | `websocket` | Nine scenarios |
 | Firefox 156.0 | `sse` | Seventeen scenarios |
 
@@ -621,8 +622,8 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt` |
-| Opera 135.0.5973.92 | `tls` | `client-hello.txt` |
+| Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Opera 135.0.5973.92 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
 | Brave 154.1.96.59 | `http3` | `launch-mode/client-startup-devtools.txt`, `launch-mode/quic-client-hello-devtools.txt` |
@@ -2107,6 +2108,89 @@ Limits:
   the retained `quic-client-hello-1.txt`, apart from the reserved version's
   position in `version_information`. Other fresh ClientHellos were not
   compared with the startup captures.
+
+### TLS resumption over TCP evidence
+
+What is claimed: over TCP, a resumed Phantom ClientHello has the extension
+set the captures show for its recipe's browser, with `pre_shared_key` last,
+when the server's ticket does not permit early data. With the Chromium-family
+recipes this also holds when the ticket permits early data. Phantom keeps as
+many tickets per origin as the browser did, presents the newest first, and
+uses each once.
+
+Evidence: `fixtures/tls/<browser>/<version>/windows-11-26200/` retains nine
+`resumption-<scenario>.txt` fixtures, three runs each, for headless Chrome
+154.0.8037.58, Edge 153.0.4234.48, Brave 154.1.96.59, Opera 135.0.5973.92,
+and Firefox 156.0 on Windows 11 (10.0.26200). Each run used a fresh profile
+against the `tls_resumption.py` loopback server, which sends two
+NewSessionTickets after every handshake (eight after the first handshake
+only, in `issue-once`), each permitting early data except in
+`no-early-data`. [TLS resumption over TCP](../../scripts/capture/README.md#tls-resumption-over-tcp)
+lists the scenarios and the fields each fixture keeps.
+
+Observed:
+
+| Behavior | Chrome 154, Edge 153, Brave 154, Opera 135 | Firefox 156 |
+| --- | --- | --- |
+| Resumed ClientHellos, all offering one 64-byte identity and one 32-byte binder, `pre_shared_key` last, PSK mode `psk_dhe_ke` (1) | 151, 144, 111, 154 | 131 |
+| Added against the run's first, fresh ClientHello | `pre_shared_key` only | `early_data` (0x2a) and `pre_shared_key`; only `pre_shared_key` when the ticket does not permit early data (12 of 12) |
+| Removed against the fresh ClientHello | Nothing; the empty `session_ticket` stays | The empty `session_ticket` (0x23), in all 131 |
+| `early_data` offered over TCP | Never, including with tickets that permit it | 119 of 119 resumptions with such a ticket; placed after `key_share` and before `supported_versions` |
+| Requests sent in early data | None | `GET` 106 times, and `HEAD` and `OPTIONS` once each; `POST`, `PUT`, and `DELETE` never (20 on connections that used early data) |
+| Tickets used of eight issued by one connection (`issue-once`) | 2 of 8 in every run: the newest, then the one before it | 8 of 8 in every run, each once; newest first in 2 of 3 runs |
+| Ticket presented twice | Never | Never |
+| Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Four to six resumed, each with its own ticket |
+| First connection to the same host on another port (`origins`) | No ticket offered, in every run | No ticket offered, in every run |
+| A `top.partition.test` page fetching the origin (`partition`) | No ticket offered; back on the origin's own page, a ticket learned before the switch | The same |
+
+The Chromium-family browsers always presented the newest ticket they held;
+Firefox's choice between the two tickets of one connection varied. Some
+connections carried no request: the Chromium-family browsers often open a
+first connection that closes before the navigation. Firefox sometimes made a
+full handshake although earlier connections had received tickets, in 5 of
+its 24 `sequential` and `sequential-http1` connections from the fourth on.
+
+Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
+
+- `chromium_resumed_client_hellos_match_the_tcp_resumption_captures` learns a
+  ticket from a loopback server with each Chromium-family recipe and compares
+  the resumed ClientHello with every resumed ClientHello its browser's
+  `resumption-sequential.txt` keeps. Cipher suites, groups, key-share
+  groups, signature algorithms, versions, ALPN, trust anchors, the PSK modes
+  body, and the extension set are equal apart from GREASE; `pre_shared_key`
+  is last, with one identity and one 32-byte binder; the empty
+  `session_ticket` stays; and the resumed ClientHello adds only
+  `pre_shared_key` to Phantom's fresh one.
+- `firefox_resumed_client_hello_matches_the_capture_without_early_data` does
+  the same with `firefox::v156_tls` and `resumption-no-early-data.txt`, and
+  also requires the exact extension order, which is Firefox's fixed order
+  without `session_ticket` and with `pre_shared_key` appended.
+- `firefox_resumed_client_hello_lacks_only_the_early_data_firefox_offers`
+  compares with `resumption-sequential.txt`, whose tickets permit early data:
+  removing `early_data` from Firefox's order gives Phantom's order.
+- `concurrent_connections_resume_up_to_the_recipes_tickets_per_origin`
+  learns two tickets, resumes once (which stores two more), then opens three
+  connections at once. With `chromium::v154_tls` two resume and one makes a
+  full handshake, because only the two newest tickets remain; with
+  `firefox::v156_tls` all three resume.
+
+The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
+(2 for the Chromium family, 8 for Firefox) and the `session_ticket` choice as
+`TlsSettings::session_ticket_extension_when_resuming`.
+
+Limits:
+
+- Firefox 156 offers early data over TCP and sends safe requests in it when
+  its ticket permits early data. Phantom never offers early data over TCP, so
+  against such a server a resumed Firefox-profile ClientHello lacks
+  `early_data`, and its requests arrive after the handshake.
+- A Phantom client has no network partitions. Its requests behave like one
+  browser page's top-level site: each origin and route has one ticket cache.
+- Firefox's order among the tickets it holds varied between runs; Phantom
+  presents the newest first. Firefox held all eight tickets it was given, so
+  its true limit may be higher than the recipe's eight.
+- Loopback, headless, and HTTP/1.1 or HTTP/2 only. The captures cannot show
+  how long a browser keeps a ticket; every ticket was valid for one day.
 
 ### Ordered request-trailer evidence
 
