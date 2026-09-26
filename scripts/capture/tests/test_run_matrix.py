@@ -194,6 +194,28 @@ class ManifestTests(unittest.TestCase):
         )
         self.assertIn("--layer", job.command("python"))
 
+    def test_snapshot_names_one_file_per_run_and_takes_no_scenario(self) -> None:
+        (job,) = expand_manifest(
+            manifest(
+                {
+                    "tool": "snapshot",
+                    "browsers": ["chrome"],
+                    "repeat": 2,
+                    "output_dir": "out",
+                }
+            ),
+            base=Path("/repo"),
+        )
+
+        self.assertEqual(
+            [path.name for path in job.outputs], ["snapshot-1.txt", "snapshot-2.txt"]
+        )
+        command = job.command("python")
+        self.assertNotIn("--scenario", command)
+        self.assertEqual(command[command.index("--repeat") + 1], "2")
+        self.assertIn("--output-dir", command)
+        self.assertFalse(job.exclusive)
+
     def test_quic_resumption_prefix_names_the_fixture(self) -> None:
         (job,) = expand_manifest(
             manifest(

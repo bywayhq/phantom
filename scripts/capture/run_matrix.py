@@ -205,6 +205,16 @@ TOOLS = {
             run_seconds=60,
         ),
         Tool(
+            "snapshot",
+            "scripts.capture.snapshot",
+            DESKTOP_BROWSERS,
+            lambda _scenario, repeat, _args: tuple(
+                f"snapshot-{run}.txt" for run in range(1, repeat + 1)
+            ),
+            scenario_flag=None,
+            run_seconds=5,
+        ),
+        Tool(
             "chrome_ech",
             "scripts.capture.chrome_ech",
             DESKTOP_CHROMIUM,

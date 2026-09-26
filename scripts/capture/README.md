@@ -33,7 +33,9 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
-`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`. One run
+`--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`;
+[`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`
+tool for several browsers at once. One run
 serves `server.phantom.test` over TLS/TCP (ALPN `h2` and `http/1.1`) and QUIC
 (`h3`) on one port number of 127.0.0.1, and plaintext HTTP/1.1 on another:
 
@@ -192,7 +194,7 @@ Ctrl+C.
 | `browsers` | Each desktop browser a capture may name (`chrome`, `edge`, `brave`, `opera`, or `firefox`), with its executable `path` and the `version` passed as `--client-version`. Environment variables in `path` are expanded |
 | `captures[].tool` | A tool from the table below |
 | `captures[].browsers` | Browsers from `browsers` to capture |
-| `captures[].scenarios` | Scenario names, or `"all"` for every scenario the tool defines. Omit it for `client_hints`. For `startup_capture` the names are layers |
+| `captures[].scenarios` | Scenario names, or `"all"` for every scenario the tool defines. Omit it for `client_hints` and `snapshot`. For `startup_capture` the names are layers |
 | `captures[].repeat` | `--repeat` for this capture |
 | `captures[].output_dir` | Directory for the fixtures. `{browser}`, `{version}`, `{tool}`, and `{scenario}` are replaced; a relative path is relative to the repository root |
 | `captures[].args` | More arguments for the tool, such as `["--navigate", "devtools"]`. The runner refuses the arguments it sets itself |
@@ -213,6 +215,7 @@ support, an unknown scenario, or two jobs that would write the same file.
 | `sse_reconnect` | `<scenario>.txt` | All five | By default: the fixtures keep reconnect delays |
 | `alt_svc_race` | `<scenario>.txt` | Chrome, Edge | Always: it binds UDP and TCP ports drawn from the fixed range 20000-39999, and the fixtures keep race delays |
 | `startup_capture` | For run `n`: `client-hello-<n>.txt` (`tls`), `client-startup-<n>.txt` (`http2`), or `client-startup-<n>.txt` and `quic-client-hello-<n>.txt` (`http3`) | Chromium browsers | No |
+| `snapshot` | `snapshot-<n>.txt` for run `n`; omit `scenarios` | All five | No |
 | `chrome_ech` | `ech-<scenario>.txt`, or `ech-quic-<scenario>.txt` with `--quic`; `repeat` must be 1 | Chromium browsers | Always: the origin listens on `127.0.0.1:443`, and `--dns-from-policy` needs a machine-wide Edge policy |
 
 `startup_capture` at the `tls` and `http2` layers and `chrome_ech` run Cargo

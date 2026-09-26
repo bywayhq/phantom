@@ -1363,6 +1363,10 @@ the length of Chromium's GREASE ECH payload, which took 144, 176, 208, and
 240 bytes. Brave's `accept-language` quality value changed between runs
 (0.5, 0.5, and 0.7, against 0.9 retained); the comparison does not read it.
 
+One `run_matrix.py` manifest with a `snapshot` capture for all five
+browsers, `repeat` 1, ran the five jobs at once in 4.7 seconds of wall
+clock, with the same comparison results.
+
 Reproduce with the commands in the capture README, once per browser.
 
 Limits:
