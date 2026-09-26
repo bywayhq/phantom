@@ -58,6 +58,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `http2_connections: Http2ProxyConnections::Shared` to a
   `ProxyConnectTemplate` literal for the Chromium behavior, or
   `Http2ProxyConnections::ByPurpose` for Firefox's.
+- `phantom_net::proxy::HttpConnectError` gained the variant
+  `PooledSetupFailed { kind }`, returned to HTTP/2 tunnels that waited for a
+  pooled proxy connection setup that failed, so an exhaustive `match` on
+  the enum no longer compiles.
+  Migrate: add an arm for `HttpConnectError::PooledSetupFailed { kind }`,
+  or match on `HttpConnectError::kind`, which returns the failed setup's
+  kind for it.
 - `Http2HpackSettings` gained the public field `cookie_crumbs`
   (`Http2CookieCrumbs`) and `Http3RequestSettings` gained `cookie_crumbs`
   (`Http3CookieCrumbs`), so struct literals that name every field no longer
@@ -290,16 +297,24 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Opera 135, and Firefox 156 are retained under `fixtures/tls/`.
 - `phantom_net::proxy::Http2ProxyPool` and
   `HttpsProxyConnector::with_http2_proxy_pool`: HTTP/2 CONNECT tunnels
-  become streams of pooled proxy connections, keyed by proxy host, port,
-  server name, Basic credentials, and connector settings, up to the proxy's
-  `SETTINGS_MAX_CONCURRENT_STREAMS` or
-  `MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION` (100) per connection,
-  `MAX_HTTP2_PROXY_CONNECTIONS_PER_ROUTE` (8) per route, and
-  `MAX_HTTP2_PROXY_POOL_ROUTES` (32) routes. A connection that sent
-  `GOAWAY` or closed takes no new tunnels, and a CONNECT it left unprocessed
-  is sent once more on another. Without a pool, each tunnel keeps its own
-  connection. `HttpsProxyConnector::connect_forward_http2_with_credentials`
-  returns a pooled forwarding connection for a route's credentials.
+  become streams of one pooled proxy connection per route, keyed by proxy
+  host, port, server name, Basic credentials, and connector settings, for
+  at most `MAX_HTTP2_PROXY_POOL_ROUTES` (32) routes. Past the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS`, a CONNECT waits on that connection. A
+  connection that sent `GOAWAY` or closed takes no new tunnels, and a
+  CONNECT it left unprocessed is sent once more on another. Tunnels that
+  waited for a failed connection setup fail with the new
+  `HttpConnectError::PooledSetupFailed`. Without a pool, each tunnel keeps
+  its own connection.
+  `HttpsProxyConnector::connect_forward_http2_with_credentials` returns a
+  pooled forwarding connection for a route's credentials.
+- `Http2ProxyPool::with_max_connections_per_route` and
+  `ClientBuilder::max_http2_proxy_connections_per_route`, off by default: a
+  route may open up to that many proxy connections, at most
+  `HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING` (8), opening another once
+  each carries `MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION` (100) tunnels or the
+  proxy's stream limit. This departs from the browsers, which queue streams
+  on one proxy connection; a proxy sees more connections.
 - `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES` (64 KiB): the longest
   `407` body Phantom reads so the replay can use the challenged HTTP/1.1
   proxy connection.
@@ -627,10 +642,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   empty `session_ticket` extension, as Firefox 156 does, and the recipe
   keeps up to eight tickets per origin. Fresh ClientHellos are unchanged.
 - Wire and performance: through an HTTP/2 proxy, the client opens CONNECT
-  tunnels to different origins as streams 1, 3, 5, and so on of one proxy
-  connection per session, proxy, and set of Basic credentials, as Chrome
-  154, Edge 153, and Firefox 156 do, instead of one TLS connection per
-  tunnel. With the Chromium CONNECT recipe, or no recipe, forwarded
+  tunnels to different origins as streams of one proxy connection per
+  session, proxy, and set of Basic credentials, as Chrome 154, Edge 153,
+  and Firefox 156 do, instead of one TLS connection per tunnel. The streams
+  are numbered 1, 3, 5, as Chromium numbers them; Firefox starts at 3. A
+  tunnel past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that
+  connection, as in the browsers. With the Chromium CONNECT recipe, or no recipe, forwarded
   `http://` requests to every origin and WebSocket tunnels are streams of
   that connection too; with the Firefox recipe each of the three has its
   own connection. Forwarded requests to different origins now share one

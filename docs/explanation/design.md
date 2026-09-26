@@ -456,10 +456,11 @@ nothing, as Firefox does. Phantom waits until the driver has written that
 frame before it opens the replay, so the order holds on any runtime; the wait
 ends after about 50 ms if the proxy stops reading, and the replay's HEADERS
 can then come first. The connection then carries the tunnel along with any
-other tunnels on it ([Shared HTTP/2 proxy
-connections](#shared-http2-proxy-connections)). An HTTP/1.1 CONNECT replay and an H1 forwarding replay use
-the HTTP/1.1 connection that carried the `407` when the response leaves it
-open, as Chromium and Firefox do, and open a new proxy connection otherwise.
+other tunnels on it
+([Shared HTTP/2 proxy connections](#shared-http2-proxy-connections)). An
+HTTP/1.1 CONNECT replay and an H1 forwarding replay use the HTTP/1.1
+connection that carried the `407` when the response leaves it open, as
+Chromium and Firefox do, and open a new proxy connection otherwise.
 A second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
 
 The `407` leaves the connection open when it names no `close` token in
@@ -551,19 +552,26 @@ the connector settings that shape the connection (TLS, TCP, HTTP/2, and name
 resolution). Routes with other credentials never share a connection, because
 a proxy may treat a connection as authenticated once one request on it was.
 
-A new tunnel takes the oldest connection with fewer open tunnels than its
-room, the lower of the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` and 100.
-Forwarded requests on a shared connection are not counted, because they end
-quickly; the HTTP/2 layer holds a request past the proxy's limit until
-another stream ends.
-When every connection is full, the tunnel opens another, up to 8 per route;
-beyond that it takes the least loaded one, and the HTTP/2 layer holds its
-CONNECT until the proxy allows another stream. Browsers never open a second
-connection for the same key: they queue the stream on the one session. A
-tunnel is long-lived, so a queued CONNECT could wait for as long as another
-tunnel stays open; Phantom opens another connection instead. Only one setup
-runs per route at a time, and other tunnels wait for it rather than race it,
-as a browser waits for its proxy session. No lock is held across an `.await`.
+A route keeps one connection, as browsers keep one proxy session, and every
+new tunnel goes on it. Past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`,
+the HTTP/2 layer holds the CONNECT until another stream on the connection
+ends, as the browsers queue a stream on their session. A tunnel is
+long-lived, so a queued CONNECT can wait for as long as another tunnel stays
+open. `ClientBuilder::max_http2_proxy_connections_per_route` trades that
+wait for extra connections: a route then opens another connection once each
+one carries 100 tunnels (Phantom's choice) or the proxy's stream limit, up to
+the caller's maximum and at most 8, and takes the least loaded connection
+beyond that. Forwarded requests on a shared connection are not counted,
+because they end quickly. A proxy sees more connections than a browser opens
+with this option, so it is off by default.
+
+Only one setup runs per route at a time, and other tunnels wait for it
+rather than race it, as a browser waits for its proxy session. When the
+setup fails, every tunnel that waited for it fails with a
+`PooledSetupFailed` error of the same kind, so a dead proxy costs one
+connection attempt, not one per waiting tunnel. A cancelled setup wakes the
+waiters and one of them makes the next attempt. No lock is held across an
+`.await`.
 
 A connection leaves the pool when it closes, when the proxy sends `GOAWAY`,
 or when the proxy refuses a challenged CONNECT's replay. Every open tunnel

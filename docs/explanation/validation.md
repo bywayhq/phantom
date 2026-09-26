@@ -2378,8 +2378,10 @@ Further observations:
   and 5, two `wss://` CONNECTs on streams 7 and 9, and the final `fetch()` on
   stream 11 of one connection; Brave 154 and Opera 135 do the same. Firefox
   sends the navigation and final `fetch()` on streams 3 and 5 of one
-  connection, ten `https://` CONNECTs on streams 5 to 23 of a second, and
-  the `wss://` CONNECT on stream 3 of a third. In the `https-proxy-auth-*`
+  connection, ten `https://` CONNECTs on streams 5 to 23 of a second, whose
+  stream 3 carried Firefox's own background CONNECT to
+  `firefox.settings.services.mozilla.com`, and the `wss://` CONNECT on
+  stream 3 of a third. In the `https-proxy-auth-*`
   scenarios the challenged request, its replay, and later requests stay on
   those connections, and Firefox's two `ws://` CONNECTs are streams 3 and 5
   of its WebSocket connection. The second navigation of
@@ -2462,16 +2464,22 @@ Against the route matrix:
   `crates/phantom/tests/proxy_h2_multiplex.rs` checks that tunnels to three
   origins arrive as streams 1, 3, and 5 of one proxy connection, that the
   Chromium recipe adds forwarded requests and a `ws://` tunnel to it and the
-  Firefox recipe keeps them on connections of their own, and that two
-  sessions never share one. `crates/phantom-net/src/proxy/tests/http2_pool.rs`
-  checks the pool against a frame-level proxy: the proxy's
-  `SETTINGS_MAX_CONCURRENT_STREAMS` sends the next tunnel to a new
-  connection and an ended tunnel makes room again; closing one tunnel and a
-  proxy `RST_STREAM` on another leave the rest working; after a `GOAWAY`, the
+  Firefox recipe keeps them on connections of their own, that two sessions
+  never share one, and that the opt-in
+  `max_http2_proxy_connections_per_route` opens a second connection at the
+  proxy's stream limit. `crates/phantom-net/src/proxy/tests/http2_pool.rs`
+  checks the pool against a frame-level proxy: past the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS`, the next CONNECT's HEADERS reaches the
+  same connection only after a tunnel there ends; an opted-in route opens
+  connections up to its ceiling instead; a rejected CONNECT gives its place
+  back; concurrent tunnels wait for one setup, and a failed setup fails them
+  all after one connection attempt; closing one tunnel and a proxy
+  `RST_STREAM` on another leave the rest working; after a `GOAWAY`, the
   covered tunnel keeps working and a new tunnel opens a new connection, and a
   CONNECT that the `GOAWAY` left unprocessed is sent once more on a new one;
-  other credentials or other HTTP/2 settings never share a connection; and a
-  challenged CONNECT on a shared connection is replayed as its next stream.
+  other credentials or other HTTP/2 settings never share a connection; a
+  forgotten route's open tunnel keeps working; and a challenged CONNECT on a
+  shared connection is replayed as its next stream.
 
 How to reproduce: `scripts/capture/proxy_route.py --browser <browser>
 --scenario all --repeat 3`; see
@@ -2727,9 +2735,10 @@ Remaining differences:
   prints the connection whose HPACK table would hold the value, but the
   request fields pass through Phantom's own types first.
 - Phantom's first stream on a new H2 proxy connection is 1; Firefox's is 3.
-- When every proxy connection of a route is full, Phantom opens another, up
-  to 8, where both browsers queue the stream on the one connection until
-  another stream ends. No capture reaches a proxy's stream limit.
+- No capture reaches a proxy's stream limit. Phantom queues a CONNECT past
+  it on the route's one connection, as both browsers' sources do; the opt-in
+  `max_http2_proxy_connections_per_route` opens another connection
+  instead.
 - With the Firefox recipe, a proxy that allows only one concurrent stream
   gets an END_STREAM on the challenged stream, so the replay can open; no
   capture shows what Firefox does there. The vendored `http2` encoder writes

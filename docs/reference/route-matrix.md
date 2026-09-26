@@ -78,11 +78,12 @@ Notes:
   I/O. These fields do not affect forwarded requests.
 - In HTTP/2 mode, CONNECT tunnels are streams of a shared proxy connection
   with the profile's HTTP/2 settings, one per session, proxy, and set of
-  Basic credentials. It takes tunnels up to the proxy's
-  `SETTINGS_MAX_CONCURRENT_STREAMS` or 100, whichever is lower; then, or
-  after the proxy's `GOAWAY`, a new tunnel opens another connection, up to 8
-  per route. It stays open while any stream on it is open, and idle until
-  the proxy closes it or the session is dropped.
+  Basic credentials. A tunnel past the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` waits there until another stream ends.
+  After the proxy's `GOAWAY` or close, a new tunnel opens a new connection.
+  `ClientBuilder::max_http2_proxy_connections_per_route` opts into more
+  connections per route. A connection stays open while any stream on it is
+  open, and idle until the proxy closes it or the session is dropped.
 - In HTTP/2 mode, the CONNECT request (RFC 9113 section 8.5) has only
   `:method` and `:authority`, then lowercase fields.
 - In HTTP/2 mode, a connection-specific field such as `Proxy-Connection`

@@ -126,9 +126,11 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
   as browsers send them. Use `HttpProtocol::Http2` or `get_negotiated`; exact
   `HttpProtocol::Http1` fails before I/O.
 - CONNECT tunnels to different origins are streams of one proxy connection,
-  as browsers open them. A second connection opens only when the first
-  carries the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` or 100 tunnels, or
-  after the proxy's `GOAWAY`.
+  as browsers open them. A tunnel past the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection until another
+  stream ends. A new connection opens only after the proxy's `GOAWAY` or
+  close, unless you opt into more with
+  `ClientBuilder::max_http2_proxy_connections_per_route`.
 - The profile's CONNECT recipe decides what else shares that connection:
   with `chromium::v154_proxy_connect`, forwarded `http://` requests and
   WebSocket tunnels do too; with `firefox::v156_proxy_connect`, each of the

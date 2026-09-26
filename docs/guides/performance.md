@@ -87,7 +87,8 @@ fn multi_connection_client() -> Result<Client, Box<dyn std::error::Error>> {
   preface, so each looks like the browser. Several at once to one origin
   do not: Chrome, Edge, and Firefox keep one.
 - It applies to `HttpProtocol::Http2` and to `get_negotiated` requests that
-  select H2. HTTP/3 still keeps one connection per origin and route.
+  select H2; `max_http2_proxy_connections_per_route` is the same option for
+  HTTP/2 proxy routes. HTTP/3 keeps one connection per origin and route.
 
 ## Stop waiting for a stalled handshake
 

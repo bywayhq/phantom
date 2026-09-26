@@ -674,9 +674,11 @@ Supported HTTP proxies:
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
   proxy connection per session, proxy, and set of credentials, as Chrome
-  154, Edge 153, and Firefox 156 open them, up to the proxy's
-  `SETTINGS_MAX_CONCURRENT_STREAMS` or 100; a full connection, or one the
-  proxy sent `GOAWAY` on, makes the next tunnel open another. The profile's
+  154, Edge 153, and Firefox 156 open them. A tunnel past the proxy's
+  `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection, as in the
+  browsers; after the proxy's `GOAWAY` or close, the next tunnel opens a new
+  one. `ClientBuilder::max_http2_proxy_connections_per_route` opts into
+  more connections per route, a departure from the browsers. The profile's
   ALPN is offered unchanged, and a selection mismatch is a typed error with
   no fallback. A Basic `407` is answered with one replay on a new
   stream of the challenged connection, as Chrome 154, Edge 153, and Firefox

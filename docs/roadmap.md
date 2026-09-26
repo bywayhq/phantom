@@ -101,6 +101,14 @@ anything does.
 
 #### Wire fidelity
 
+- HTTP/2 stream numbering and the stream limit before SETTINGS. Evidence:
+  in the `https-proxy-*`
+  [captures](explanation/validation.md#proxy-route-browser-evidence),
+  Firefox 156 opens the first stream of each HTTP/2 connection as stream 3;
+  Phantom and Chromium use stream 1. Chromium assumes a peer allows 100
+  concurrent streams until its first SETTINGS arrive (source reading); the
+  vendored `http2` crate allows any number until then. Blocker: a vendored
+  `http2` seam for the first stream id and the initial stream limit.
 - Resend on the same connection after a server rejects early data. Evidence:
   the Chrome 154, Edge 153, and Firefox 156 captures resend every request in
   1-RTT on that connection; Phantom opens a new one. Status: in progress.
@@ -169,6 +177,9 @@ Each of these needs no capture, because no named recipe may reach it
 - A buffered request body that a retry may replay.
 - Keepalive and address-selection settings on a custom profile.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
+- More than one HTTP/2 connection per proxy route. Available as
+  `ClientBuilder::max_http2_proxy_connections_per_route`; browsers keep one
+  and queue streams on it.
 - A source address or interface binding, and client certificates.
 
 #### Request pipeline
