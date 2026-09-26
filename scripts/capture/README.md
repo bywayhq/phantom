@@ -438,38 +438,58 @@ local browser.
 
 ## Android browsers
 
-Android captures run on the `phantom-api35-play` emulator on the Windows
-capture host: a Pixel 7 device profile on the Android 15 (API 35) Google Play
-x86_64 system image, build `AE3A.240806.036`. The browsers come from the Play
-Store, signed in with a throwaway account, so each is the build Play serves to
-that device, which can trail the version Google's release API lists.
+Android captures run on the `phantom-pixel7` emulator on the Windows capture
+host: the Android 17 (API 37) Google Play x86_64 system image, build
+`CE2A.260420.019`. The emulator is rooted with Magisk v30.7 through a patched
+copy of its ramdisk, and a Magisk module sets the build properties of a
+Pixel 7: model `Pixel 7`, fingerprint
+`google/panther/panther:17/CP3A.260905.009/16091614:user/release-keys`, and
+security patch 2026-09-05. A capture therefore reports the model
+`"Pixel 7"`. Gboard's stylus handwriting is turned off. The browsers come
+from the Play Store, signed in with a throwaway account, so each is the build
+Play serves to that device, which can trail the version Google's release API
+lists.
 
 Set `ANDROID_SDK_ROOT` to the Android SDK directory; on the capture host it
 is `C:/code/tools/android-sdk`. Start the emulator from Git Bash with the
 proxy variables cleared. The emulator otherwise routes the guest's TCP
-through the host's `HTTP_PROXY`:
+through the host's `HTTP_PROXY`. Pass the patched ramdisk with `-ramdisk`,
+and boot the `onboarded` snapshot without saving over it:
 
 ```sh
 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
-  "$ANDROID_SDK_ROOT/emulator/emulator" -avd phantom-api35-play \
-  -memory 4096 -no-snapshot -no-boot-anim -no-metrics
+  "$ANDROID_SDK_ROOT/emulator/emulator" -avd phantom-pixel7 -port 5556 \
+  -ramdisk <patched-ramdisk.img> -snapshot onboarded -no-snapshot-save \
+  -memory 8192 -no-boot-anim -no-metrics
 ```
 
-The emulator offers Wi-Fi and a cellular network. Chromium sends
-`initial_rtt_us` on a fresh QUIC connection when the cellular one is the
-default, which the recipes do not model, so turn mobile data off inside the
-emulator before a capture and check that Wi-Fi is connected:
+`-port 5556` makes the device's serial `emulator-5556`.
+
+Play serves Edge for Android only as an arm64 build, which cannot start on
+the x86_64 emulator. Edge runs on `phantom-pixel7-arm`, an emulator on an
+Apple silicon Mac with the same Android 17 build as an arm64-v8a image and
+the same Magisk module. That emulator reaches the Mac's loopback at
+`10.0.2.2`. A listener that runs on the Windows host, such as the TLS and
+HTTP/2 startup examples, is reached through an `ssh -R` forward of the
+Mac's loopback port to it; the forward passes the TCP stream bytes
+unchanged.
+
+Chromium sends `initial_rtt_us` on a fresh QUIC connection when a cellular
+network is the default, which the recipes do not model. Both emulators use
+Wi-Fi only: turn mobile data off before a capture and check that Wi-Fi is
+connected:
 
 ```sh
-adb -s emulator-5554 shell svc data disable
-adb -s emulator-5554 shell cmd wifi status
+adb -s emulator-5556 shell svc data disable
+adb -s emulator-5556 shell cmd wifi status
 ```
 
 If Wi-Fi drops and `dumpsys connectivity` reports no default network,
 `svc wifi disable` followed by `svc wifi enable` restores it.
 
 Add `-no-window -no-audio` to run it without a window. Never pass
-`-wipe-data`: it signs the Play account out and removes the browsers. If adb
+`-wipe-data`: it signs the Play account out, removes the browsers, and
+discards the rooted `onboarded` state. If adb
 lists the device as `unauthorized`, create the host's public key with
 `adb pubkey ~/.android/adbkey > ~/.android/adbkey.pub` and restart the
 emulator.
@@ -488,15 +508,19 @@ Pass `--browser <name>-android`, the adb executable as `--browser-path`, and
 the device serial in `ANDROID_SERIAL`:
 
 ```sh
-ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \
   python -m scripts.capture.client_hints \
   --browser chrome-android \
   --browser-path "$ANDROID_SDK_ROOT/platform-tools/adb" \
-  --client-version 153.0.8010.52 \
-  --operating-system "Android 15 (API 35) sdk_gphone64_x86_64 emulator AE3A.240806.036" \
+  --client-version 154.0.8037.57 \
+  --operating-system "Android 17 (API 37) x86_64 emulator reporting Pixel 7 CP3A.260905.009" \
   --repeat 3 \
-  --output fixtures/client-hints/chrome-android/153.0.8010.52/android-35-emulator/navigation.txt
+  --output fixtures/client-hints/chrome-android/154.0.8037.57/android-17-pixel7-emulator/navigation.txt
 ```
+
+For Edge on the arm64 emulator, pass `--operating-system "Android 17 (API
+37) arm64 emulator reporting Pixel 7 CP3A.260905.009"`; the fixture
+directory is still `android-17-pixel7-emulator`.
 
 Each run, through `android_device.py`:
 
@@ -519,7 +543,8 @@ Each run, through `android_device.py`:
 The page load is therefore a typed address-bar navigation, and fixtures
 record `launch_mode=android-typed`. A page that another app opens through a
 `VIEW` intent has no user activation, and Chrome then leaves out
-`Sec-Fetch-User`. A `LaunchPlan` with `android_entry="intent"` opens the page
+`Sec-Fetch-User` and sends `Sec-Fetch-Site: cross-site`. A `LaunchPlan`
+with `android_entry="intent"` opens the page
 that way instead and records `android-intent`; the TLS, HTTP/2 startup, and
 QUIC captures use it, because those layers do not depend on how the page was
 opened and the intent needs no typing.
@@ -530,7 +555,7 @@ was typed. Checking the field after each chunk handles both. An "isn't
 responding" dialog, which a busy emulator shows for System UI, takes the
 focus; the launcher taps its Wait button and refocuses the address bar.
 With 2.5 GB of RAM the guest's system server died during long capture
-sessions, so start the emulator with 4 GB. On the capture
+sessions; `phantom-pixel7` runs with 8 GB. On the capture
 host a typed entry takes about 90 seconds while other builds run, so the
 Android runs use run timeouts of 240 seconds.
 
@@ -541,6 +566,10 @@ Android runs use run timeouts of 240 seconds.
 | `brave-android` | `com.brave.browser` | `/data/local/tmp/chrome-command-line` |
 | `opera-android` | `com.opera.browser` | None; the launch refuses switches |
 | `firefox-android` | `org.mozilla.firefox` | `/data/local/tmp/org.mozilla.firefox-geckoview-config.yaml`, preferences only |
+
+A typed entry does not work with Firefox for Android: the launcher opens
+`about:blank` by `VIEW` intent first, and Firefox does not resolve that
+intent. Firefox captures use `--entry intent`.
 
 Opera for Android reads no command-line file, so the launcher refuses
 switches for it: a tool can capture it only on the device's own loopback
@@ -564,7 +593,7 @@ loopback port, then open its URL on the device with `android_run.py`, which
 runs one launch as above and stops the browser after `--hold` seconds:
 
 ```sh
-ANDROID_SERIAL=emulator-5554 uv run --no-project --python 3.10 \
+ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \
   python -m scripts.capture.android_run \
   --browser chrome-android \
   --adb "$ANDROID_SDK_ROOT/platform-tools/adb" \
@@ -591,10 +620,10 @@ Limits:
   new ones from the host, so the listener sees the host's SYN, window, and
   socket options, never the device's. No TCP-layer setting can be captured
   this way.
-- An emulator is not a phone. `sec-ch-ua-model` in a capture carries the
-  emulator's model, `sdk_gphone64_x86_64`, which the recipes leave to the
-  caller, and the CPU is x86_64 rather than a phone's ARM core, which
-  Chromium's AES hardware check reads.
+- An emulator is not a phone. The Magisk module changes the identity the
+  device reports, not its hardware: the CPU of `phantom-pixel7` is x86_64
+  rather than a phone's ARM core, which Chromium's AES hardware check reads,
+  and `phantom-pixel7-arm` runs on a Mac.
 
 ## EventSource reconnects
 

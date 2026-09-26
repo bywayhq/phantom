@@ -20,6 +20,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
+- Chrome 154, Edge 153, Brave 153, Opera 102, and Firefox 156 for Android
+  recipes from Android emulator captures
+  ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes),
+  [Edge for Android 153 recipes](explanation/validation.md#edge-for-android-153-recipes)).
 - Exact and negotiated HTTP/1.1 and HTTP/2, ordered fields, streaming bodies,
   and ordered static or body-produced trailers ([Using the client](guides/client.md)).
 - Bounded response collection and opt-in decompression
@@ -100,24 +104,21 @@ anything does.
   idle-only TCP keepalive, known from Chromium source but not captured; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
-- Edge for Android. Evidence: none; Play serves Edge 153.0.4234.49 only for
-  arm64, and it crashes at startup (SIGSEGV in its native library) under the
-  x86_64 emulator's ARM translation. Blocker: an arm64 device or emulator.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
-- Per-process QUIC trust-anchor order for Chrome for Android. Evidence: 30
-  intent-launched Chrome 153 processes used 9 orders, and
-  `chrome_android::v153_http3_tls` carries the most frequent (9 of 30).
-  Blocker: a recipe setting that picks one of the captured orders per client,
-  weighted as captured, and a test of the distribution.
-- Chrome for Android on a phone, and the current stable build. Evidence:
-  Chrome 153.0.8010.52 captures on an Android 15 emulator back
-  `chrome_android::v153_*`; Google listed 155.0.8059.16 as stable, but Play
-  served 153 to the emulator. Blocker: a physical device, to check the
-  emulator's CPU, model, and network against a phone, and a Play rollout of
-  the stable build. The emulator hides TCP, so the Android TCP layer also
-  needs a phone.
+- Chrome for Android on a phone. Evidence: Chrome 154.0.8037.57 captures on
+  an Android 17 emulator that reports a Pixel 7 back
+  `chrome_android::v154_*`, and Play served that build to the emulator; no
+  record compares it with the stable version Google lists. Blocker: a
+  physical device, to check the emulator's CPU and network against a phone.
+  The emulator hides TCP, so the Android TCP layer also needs a phone.
+- Chrome 154 for Android QUIC resumption, WebSocket openings, and plaintext
+  trust. Evidence: Chrome 153 captures on the Android 15 emulator
+  ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
+  Blocker: none; rerun `quic_resumption.py`, `http2_websocket.py --scenario
+  all`, and `proxy_route.py --scenario direct-loopback direct-hostname` on
+  the Android 17 emulator.
 - Brave and Opera TCP, HTTP/1.1 connection, address cache, and cookie
   placement recipes. Evidence: none; the captured Brave 154 and Opera 135
   layers are recipes

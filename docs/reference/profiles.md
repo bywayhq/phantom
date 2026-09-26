@@ -43,11 +43,19 @@ recaptured and reverified.
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
-| Chrome 153 for Android | `chrome_android::v153_*` | Yes | Chromium | Chromium QUIC and H3; own trust-anchor orders | `v153_android_client_hints` | Chromium | Android emulator |
+| Chrome 154 for Android | `chrome_android::v154_*` | Chromium | Chromium | Chromium | `v154_android_client_hints` | Chromium | Android emulator |
+| Edge 153 for Android | `edge_android::v153_*` | Edge | Chromium | Chromium QUIC and H3; Edge H3 TLS | `v153_android_client_hints` | No | Android emulator (arm64) |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
-  "Android emulator" is the Android 15 emulator on the Windows capture host,
-  not a phone.
+  "Android emulator" is an emulator, not a phone. On the Windows capture
+  host it is an Android 17 emulator that reports a Pixel 7, and for Firefox
+  and some Chrome 153 and Brave layers an earlier Android 15 emulator. Edge
+  for Android was captured on an arm64 Android 17 emulator on a Mac that
+  reports a Pixel 7.
+- The Chrome, Edge, Brave, and Opera for Android TLS recipes leave ECH from
+  HTTPS records off, because no Android capture could use a DNS-over-HTTPS
+  resolver. Otherwise the Chrome, Edge, and Brave ones equal the desktop
+  recipe the TLS column names.
 - "Chromium" means the recipe function returns the desktop Chromium recipe,
   which the browser's own captures equal on every compared field.
   [Coverage](coverage.md#browser-profiles) gives the exact builds and how the
@@ -79,13 +87,13 @@ the host operating system or the browser name.
 | Name form | Example | Means |
 | --- | --- | --- |
 | No platform | `chromium::v154_tls`, `firefox::v156_http2` | The recipe carries no platform-specific data. It does not mean more than one platform was captured. |
-| `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v153_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
+| `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v154_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
 Every recipe comes from captures on one platform: Windows 11 for the
 `chromium`, `edge`, `brave`, `opera`, and `firefox` recipes without `macos`
-in the name, macOS 15.5 on Apple silicon for those with it, and the Android
-15 emulator for `chrome_android`, `brave_android`, `opera_android`, and
-`firefox_android`. Each recipe's rustdoc names its capture build and
+in the name, macOS 15.5 on Apple silicon for those with it, and Android
+emulators for `chrome_android`, `edge_android`, `brave_android`,
+`opera_android`, and `firefox_android`. Each recipe's rustdoc names its capture build and
 platform.
 
 On macOS, Opera sends the fields of its `windows` request templates, and
@@ -241,19 +249,24 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `firefox::v156_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 macOS value |
 | `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
-| `chrome_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Chrome 153 for Android value |
-| `chrome_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 153 for Android value |
+| `chrome_android::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
+| `chrome_android::v154_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 154 for Android value |
+| `edge_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Edge 153 for Android value |
+| `edge_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Edge 153 for Android value |
 
 - An address-bar navigation is an HTML document request with
   `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
 - "No" means no retained capture covers that protocol, so the template has
-  no field list for it.
+  no field list for it. "Chromium list" means the H3 list is the Chromium
+  one: the Android H3 captures were opened by intent and differ from it only
+  in the fields the next list names.
 - A caller slot has no captured value; you supply the field. A request that
   leaves a required caller slot empty fails before any I/O.
 - Every template carries the capture machine's `en-US` `Accept-Language`,
   from the Windows 11 host, the macOS host for a `macos` template, or, for
-  `chrome_android`, the Android emulator. Brave's templates leave it to you:
-  Brave draws the `q` value of its second language per session. On macOS,
+  `chrome_android` and `edge_android`, the Android emulator. Brave's
+  templates leave it to you: Brave draws the `q` value of its second
+  language per session. On macOS,
   Edge takes the field from the system's language list, so its templates
   match only with that list set to `en-US`; for another locale, override
   `Accept-Language`.
@@ -261,10 +274,11 @@ Each recipe's rustdoc cites the source lines. Evidence:
   on a navigation omits `application/signed-exchange;v=b3;q=0.7`,
   `Sec-GPC: 1` follows `Accept`, and `Accept-Language` is a
   required caller slot.
-- The Chrome and Brave for Android navigation templates model a URL typed into the
-  address bar. A page that another app opens through an Android intent has
-  no user activation, and Chrome then leaves out `Sec-Fetch-User`; no
-  template covers that case.
+- The Chrome, Edge, and Brave for Android navigation templates model a URL
+  typed into the address bar. A page that another app opens through an
+  Android intent has no user activation, and Chrome then leaves out
+  `Sec-Fetch-User` and sends `Sec-Fetch-Site: cross-site`; no template covers
+  that case.
 
 ### Template assembly
 

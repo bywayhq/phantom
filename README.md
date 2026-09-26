@@ -20,15 +20,15 @@ protocol or route. Phantom is maintained by
 
 ## What Phantom matches
 
-| Layer | Chrome 154 | Edge 153 | Brave 154 | Opera 135 | Firefox 156 | Chrome 153 for Android | Brave 153 for Android |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Not covered | Yes | Yes |
-| Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox | Yes | Yes |
-| Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| WebSocket openings | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only | Not covered | Not covered |
+| Layer | Chrome 154 | Edge 153 | Brave 154 | Opera 135 | Firefox 156 | Chrome 154 for Android | Edge 153 for Android | Brave 153 for Android |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | Not covered | Yes | Yes | Yes |
+| Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox | Yes | Yes | Yes |
+| Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| WebSocket openings | Yes | Yes | Yes | Yes | Yes | Yes | Not covered | Yes |
+| TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only | Not covered | Not covered | Not covered |
 
 Opera 102 for Android has TLS and client-hint recipes only; it takes no
 command-line switches, so no other layer could be captured. Firefox 156 for
@@ -36,8 +36,9 @@ Android has a TLS recipe only, equal to desktop Firefox's.
 
 Every captured recipe comes from captures of one build per browser: Windows
 11 for the desktop browsers (`chromium`, `edge`, `brave`, `opera`, and
-`firefox`), and an Android 15 emulator for the Android ones
-(`chrome_android`, `brave_android`, `opera_android`, and `firefox_android`).
+`firefox`), and Android emulators for the Android ones (`chrome_android`,
+`edge_android`, `brave_android`, `opera_android`, and `firefox_android`),
+not phones.
 [Coverage](docs/reference/coverage.md) is the full support contract, and
 [Validation](docs/explanation/validation.md) lists the evidence for each row.
 
