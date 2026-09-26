@@ -1,4 +1,9 @@
-use std::{error::Error as StdError, fmt, future::Future};
+use std::{
+    error::Error as StdError,
+    fmt,
+    future::Future,
+    pin::{Pin, pin},
+};
 
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -258,12 +263,15 @@ pub(crate) async fn socks5_tunnel_remote_dns(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    trace_connect("remote", async {
-        let auth = auth.validate()?;
-        let target = prepare_target(target_host, target_port)?;
-        let stream = connect_proxy(dialer, proxy_host, proxy_port).await?;
-        establish(stream, target, auth).await
-    })
+    trace_connect(
+        "remote",
+        pin!(async {
+            let auth = auth.validate()?;
+            let target = prepare_target(target_host, target_port)?;
+            let stream = connect_proxy(dialer, proxy_host, proxy_port).await?;
+            establish(stream, target, auth).await
+        }),
+    )
     .await
 }
 
@@ -331,25 +339,29 @@ pub(crate) async fn socks5_tunnel_local_dns(
     target_port: u16,
     auth: Socks5Auth<'_>,
 ) -> Result<tokio::net::TcpStream, Socks5Error> {
-    trace_connect("local", async {
-        let auth = auth.validate()?;
-        if target_host.is_empty() {
-            return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
-        }
-        tokio::runtime::Handle::try_current()
-            .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
-        let targets = poll_tokio_io(|| resolve(dialer.resolver, target_host, target_port))
-            .await
-            .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?
-            .map_err(Socks5Error::resolve)?;
-        let mut ordered = Vec::new();
-        for target in targets {
-            if !ordered.contains(&target) {
-                ordered.push(target);
+    trace_connect(
+        "local",
+        pin!(async {
+            let auth = auth.validate()?;
+            if target_host.is_empty() {
+                return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
             }
-        }
-        connect_local_to_addresses_with_auth(dialer, proxy_host, proxy_port, ordered, auth).await
-    })
+            tokio::runtime::Handle::try_current()
+                .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
+            let targets = poll_tokio_io(|| resolve(dialer.resolver, target_host, target_port))
+                .await
+                .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?
+                .map_err(Socks5Error::resolve)?;
+            let mut ordered = Vec::new();
+            for target in targets {
+                if !ordered.contains(&target) {
+                    ordered.push(target);
+                }
+            }
+            connect_local_to_addresses_with_auth(dialer, proxy_host, proxy_port, ordered, auth)
+                .await
+        }),
+    )
     .await
 }
 
@@ -375,11 +387,14 @@ pub(super) async fn connect_socks5_tunnel_with_auth<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    trace_connect("remote", async {
-        let auth = auth.validate()?;
-        let target = prepare_target(target_host, target_port)?;
-        establish(stream, target, auth).await
-    })
+    trace_connect(
+        "remote",
+        pin!(async {
+            let auth = auth.validate()?;
+            let target = prepare_target(target_host, target_port)?;
+            establish(stream, target, auth).await
+        }),
+    )
     .await
 }
 
@@ -479,7 +494,15 @@ pub(super) async fn connect_proxy(
         })
 }
 
-pub(super) async fn trace_connect<F, S>(dns: &'static str, operation: F) -> Result<S, Socks5Error>
+/// Runs `operation` in the SOCKS5 span and records its outcome.
+///
+/// The caller pins `operation` in its own future: an async function holds a
+/// future it takes by value twice, as the argument and as the awaited value,
+/// and this wrapper encloses a whole proxy connection setup.
+pub(super) async fn trace_connect<F, S>(
+    dns: &'static str,
+    operation: Pin<&mut F>,
+) -> Result<S, Socks5Error>
 where
     F: Future<Output = Result<S, Socks5Error>>,
 {

@@ -1,6 +1,11 @@
 //! HTTP/2 connections and one-shot requests over the crate's TLS transport.
 
-use std::{error::Error as StdError, fmt, future::Future};
+use std::{
+    error::Error as StdError,
+    fmt,
+    future::Future,
+    pin::{Pin, pin},
+};
 
 use bytes::Bytes;
 use http::{Method, Response};
@@ -244,10 +249,10 @@ impl Http2TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -266,7 +271,7 @@ impl Http2TlsConnector {
         port: u16,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream =
                 connect_tcp(host, port, self.dialer())
@@ -276,7 +281,7 @@ impl Http2TlsConnector {
                         DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
                     })?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -302,7 +307,7 @@ impl Http2TlsConnector {
         server_name: &str,
         ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = crate::direct::connect_tls_with_ech(
                 &self.tls,
@@ -314,7 +319,7 @@ impl Http2TlsConnector {
             )
             .await?;
             connect_over_tls(stream, client, false).await
-        })
+        }))
         .await
     }
 
@@ -629,7 +634,7 @@ impl Http2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = http_connect_tunnel(
                 self.dialer(),
@@ -640,7 +645,7 @@ impl Http2TlsConnector {
             )
             .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -655,7 +660,7 @@ impl Http2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = http_connect_tunnel_with_basic_auth(
                 self.dialer(),
@@ -668,7 +673,7 @@ impl Http2TlsConnector {
             )
             .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -687,7 +692,7 @@ impl Http2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = proxy_connector
                 .connect_tunnel(
@@ -699,7 +704,7 @@ impl Http2TlsConnector {
                 )
                 .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -716,7 +721,7 @@ impl Http2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = proxy_connector
                 .connect_tunnel_with_basic_auth(
@@ -729,7 +734,7 @@ impl Http2TlsConnector {
                 )
                 .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -770,7 +775,7 @@ impl Http2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = socks5_tunnel_remote_dns(
                 self.dialer(),
@@ -782,7 +787,7 @@ impl Http2TlsConnector {
             )
             .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -823,7 +828,7 @@ impl Http2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
             let stream = socks5_tunnel_local_dns(
                 self.dialer(),
@@ -835,7 +840,7 @@ impl Http2TlsConnector {
             )
             .await?;
             self.connect_prepared(stream, server_name, client).await
-        })
+        }))
         .await
     }
 
@@ -888,12 +893,16 @@ impl Http2TlsConnector {
     {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -946,19 +955,22 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream =
-                connect_tcp(host, port, self.dialer())
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = connect_tcp(host, port, self.dialer())
                     .await
                     .map_err(|error| match error {
                         DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
                         DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
                     })?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1019,20 +1031,24 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = http_connect_tunnel(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                connect_authority,
-                connect_headers,
-            )
-            .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = http_connect_tunnel(
+                    self.dialer(),
+                    proxy_host,
+                    proxy_port,
+                    connect_authority,
+                    connect_headers,
+                )
+                .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1054,22 +1070,26 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = http_connect_tunnel_with_basic_auth(
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-                proxy_host,
-                proxy_port,
-                connect_authority,
-                connect_headers,
-                credentials,
-            )
-            .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = http_connect_tunnel_with_basic_auth(
+                    self.dialer(),
+                    self.proxy_credentials.as_ref(),
+                    proxy_host,
+                    proxy_port,
+                    connect_authority,
+                    connect_headers,
+                    credentials,
+                )
+                .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1095,21 +1115,25 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = proxy_connector
-                .connect_tunnel(
-                    proxy_host,
-                    proxy_port,
-                    proxy_server_name,
-                    connect_authority,
-                    connect_headers,
-                )
-                .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = proxy_connector
+                    .connect_tunnel(
+                        proxy_host,
+                        proxy_port,
+                        proxy_server_name,
+                        connect_authority,
+                        connect_headers,
+                    )
+                    .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1133,22 +1157,26 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = proxy_connector
-                .connect_tunnel_with_basic_auth(
-                    proxy_host,
-                    proxy_port,
-                    proxy_server_name,
-                    connect_authority,
-                    connect_headers,
-                    credentials,
-                )
-                .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = proxy_connector
+                    .connect_tunnel_with_basic_auth(
+                        proxy_host,
+                        proxy_port,
+                        proxy_server_name,
+                        connect_authority,
+                        connect_headers,
+                        credentials,
+                    )
+                    .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1232,21 +1260,25 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = socks5_tunnel_remote_dns(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                target_host,
-                target_port,
-                auth,
-            )
-            .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = socks5_tunnel_remote_dns(
+                    self.dialer(),
+                    proxy_host,
+                    proxy_port,
+                    target_host,
+                    target_port,
+                    auth,
+                )
+                .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1330,21 +1362,25 @@ impl Http2TlsConnector {
     ) -> Result<Response<Http2Body>, Http2TlsError> {
         let trace_method = method.clone();
         let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(&trace_method, body_bytes, async {
-            let prepared =
-                PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-            let stream = socks5_tunnel_local_dns(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                target_host,
-                target_port,
-                auth,
-            )
-            .await?;
-            self.send_prepared_request(stream, server_name, prepared)
-                .await
-        })
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared =
+                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+                let stream = socks5_tunnel_local_dns(
+                    self.dialer(),
+                    proxy_host,
+                    proxy_port,
+                    target_host,
+                    target_port,
+                    auth,
+                )
+                .await?;
+                self.send_prepared_request(stream, server_name, prepared)
+                    .await
+            }),
+        )
         .await
     }
 
@@ -1467,7 +1503,15 @@ impl Http2TlsConnector {
         connect_over_tls(stream, client, extended_connect).await
     }
 
-    async fn trace_connect<F>(&self, operation: F) -> Result<Http2Connection, Http2TlsError>
+    /// Runs `operation` in the connection span and records its outcome.
+    ///
+    /// The caller pins `operation` in its own future: an async function holds
+    /// a future it takes by value twice, as the argument and as the awaited
+    /// value, and these wrappers enclose whole connection setups.
+    async fn trace_connect<F>(
+        &self,
+        operation: Pin<&mut F>,
+    ) -> Result<Http2Connection, Http2TlsError>
     where
         F: Future<Output = Result<Http2Connection, Http2TlsError>>,
     {
@@ -1483,11 +1527,12 @@ impl Http2TlsConnector {
         result
     }
 
+    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives.
     async fn trace_response_head<F>(
         &self,
         method: &Method,
         body_bytes: usize,
-        operation: F,
+        operation: Pin<&mut F>,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
         F: Future<Output = Result<Response<Http2Body>, Http2TlsError>>,

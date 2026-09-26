@@ -2,7 +2,7 @@ use std::{
     fmt,
     future::Future,
     io,
-    pin::Pin,
+    pin::{Pin, pin},
     sync::{Mutex, PoisonError},
     task::{Context, Poll},
 };
@@ -357,33 +357,39 @@ impl HttpsProxyConnector {
         headers: &[HttpConnectHeader],
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
         match self.protocol {
-            HttpsProxyProtocol::Http1 => trace_connect("https", async {
-                let request = PreparedConnect::new(authority, headers)?;
-                let stream = self
-                    .connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
-                    .await?;
-                establish(stream, request).await
-            })
+            HttpsProxyProtocol::Http1 => trace_connect(
+                "https",
+                pin!(async {
+                    let request = PreparedConnect::new(authority, headers)?;
+                    let stream = self
+                        .connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
+                        .await?;
+                    establish(stream, request).await
+                }),
+            )
             .await
             .map(HttpsProxyTunnel::http1),
-            HttpsProxyProtocol::Http2 => trace_connect("https_h2", async {
-                let request = &PreparedHttp2Connect::new(authority, headers)?;
-                self.http2_builder()?;
-                let target = ProxyTarget {
-                    host: proxy_host,
-                    port: proxy_port,
-                    server_name: proxy_server_name,
-                    credentials: None,
-                };
-                let rejected = self.http2_rejected;
-                let (mut stream, connection) = self
-                    .on_http2_connection(&target, |connection| async move {
-                        http2_connect::establish(&connection, request, rejected).await
-                    })
-                    .await?;
-                connection.attach(&mut stream);
-                Ok(stream)
-            })
+            HttpsProxyProtocol::Http2 => trace_connect(
+                "https_h2",
+                pin!(async {
+                    let request = &PreparedHttp2Connect::new(authority, headers)?;
+                    self.http2_builder()?;
+                    let target = ProxyTarget {
+                        host: proxy_host,
+                        port: proxy_port,
+                        server_name: proxy_server_name,
+                        credentials: None,
+                    };
+                    let rejected = self.http2_rejected;
+                    let (mut stream, connection) = self
+                        .on_http2_connection(&target, |connection| async move {
+                            http2_connect::establish(&connection, request, rejected).await
+                        })
+                        .await?;
+                    connection.attach(&mut stream);
+                    Ok(stream)
+                }),
+            )
             .await
             .map(HttpsProxyTunnel::http2),
         }
@@ -406,27 +412,33 @@ impl HttpsProxyConnector {
             credentials,
         );
         match self.protocol {
-            HttpsProxyProtocol::Http1 => trace_connect("https", async {
-                let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
-                basic_auth_exchange(&plan, &requests, || {
-                    self.connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
-                })
-                .await
-            })
+            HttpsProxyProtocol::Http1 => trace_connect(
+                "https",
+                pin!(async {
+                    let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+                    basic_auth_exchange(&plan, &requests, || {
+                        self.connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
+                    })
+                    .await
+                }),
+            )
             .await
             .map(HttpsProxyTunnel::http1),
-            HttpsProxyProtocol::Http2 => trace_connect("https_h2", async {
-                let requests = PreparedBasicHttp2Connect::new(authority, headers, credentials)?;
-                self.http2_builder()?;
-                let target = ProxyTarget {
-                    host: proxy_host,
-                    port: proxy_port,
-                    server_name: proxy_server_name,
-                    credentials: Some(credentials),
-                };
-                self.http2_basic_auth_exchange(&plan, &requests, &target)
-                    .await
-            })
+            HttpsProxyProtocol::Http2 => trace_connect(
+                "https_h2",
+                pin!(async {
+                    let requests = PreparedBasicHttp2Connect::new(authority, headers, credentials)?;
+                    self.http2_builder()?;
+                    let target = ProxyTarget {
+                        host: proxy_host,
+                        port: proxy_port,
+                        server_name: proxy_server_name,
+                        credentials: Some(credentials),
+                    };
+                    self.http2_basic_auth_exchange(&plan, &requests, &target)
+                        .await
+                }),
+            )
             .await
             .map(HttpsProxyTunnel::http2),
         }

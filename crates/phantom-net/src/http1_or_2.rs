@@ -1,6 +1,11 @@
 //! One-handshake HTTP/1.1 or HTTP/2 selection over TLS ALPN.
 
-use std::{error::Error as StdError, fmt, future::Future};
+use std::{
+    error::Error as StdError,
+    fmt,
+    future::Future,
+    pin::{Pin, pin},
+};
 
 use phantom_profile::{Http2Settings, TcpSettings, TlsSettings};
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -386,7 +391,7 @@ impl Http1Or2TlsConnector {
         server_name: &str,
         ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = crate::direct::connect_tls_with_ech(
                 &self.tls,
@@ -398,7 +403,7 @@ impl Http1Or2TlsConnector {
             )
             .await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -420,11 +425,11 @@ impl Http1Or2TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -442,14 +447,14 @@ impl Http1Or2TlsConnector {
         port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = connect_tcp(host, port, self.dialer())
                 .await
                 .map_err(Http1Or2TlsError::from_direct)?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -474,7 +479,7 @@ impl Http1Or2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = http_connect_tunnel(
                 self.dialer(),
@@ -486,7 +491,7 @@ impl Http1Or2TlsConnector {
             .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -511,7 +516,7 @@ impl Http1Or2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = http_connect_tunnel_with_basic_auth(
                 self.dialer(),
@@ -525,7 +530,7 @@ impl Http1Or2TlsConnector {
             .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -553,7 +558,7 @@ impl Http1Or2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = proxy_connector
                 .connect_tunnel(
@@ -566,7 +571,7 @@ impl Http1Or2TlsConnector {
                 .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -591,7 +596,7 @@ impl Http1Or2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = proxy_connector
                 .connect_tunnel_with_basic_auth(
@@ -605,7 +610,7 @@ impl Http1Or2TlsConnector {
                 .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -631,7 +636,7 @@ impl Http1Or2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = socks5_tunnel_remote_dns(
                 self.dialer(),
@@ -644,7 +649,7 @@ impl Http1Or2TlsConnector {
             .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
@@ -669,7 +674,7 @@ impl Http1Or2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(async {
+        self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
             let stream = socks5_tunnel_local_dns(
                 self.dialer(),
@@ -682,11 +687,19 @@ impl Http1Or2TlsConnector {
             .await?;
             let stream = self.tls.connect(server_name, stream).await?;
             select_connection(stream, client).await
-        })
+        }))
         .await
     }
 
-    async fn trace_connect<F>(&self, operation: F) -> Result<Http1Or2Connection, Http1Or2TlsError>
+    /// Runs `operation` in the connection span and records its outcome.
+    ///
+    /// The caller pins `operation` in its own future: an async function holds
+    /// a future it takes by value twice, as the argument and as the awaited
+    /// value, and this wrapper encloses a whole connection setup.
+    async fn trace_connect<F>(
+        &self,
+        operation: Pin<&mut F>,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError>
     where
         F: Future<Output = Result<Http1Or2Connection, Http1Or2TlsError>>,
     {

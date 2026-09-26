@@ -1,7 +1,7 @@
 use std::{
     io::{self, IoSliceMut},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    pin::Pin,
+    pin::{Pin, pin},
     sync::{Arc, Mutex, MutexGuard},
     task::{Context, Poll, ready},
     time::{Duration, Instant},
@@ -65,23 +65,26 @@ pub(crate) async fn associate_socks5_udp_local_with_auth(
     target: SocketAddr,
     auth: Socks5Auth<'_>,
 ) -> Result<Socks5UdpAssociation, Socks5Error> {
-    trace_connect("local", async {
-        let auth = auth.validate()?;
-        if target.port() == 0 {
-            return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
-        }
-        let target_header = encode_udp_target(target);
-        establish_udp_association(
-            dialer,
-            proxy_host,
-            proxy_port,
-            target,
-            target_header,
-            ReceiveTarget::ExactIp(target),
-            auth,
-        )
-        .await
-    })
+    trace_connect(
+        "local",
+        pin!(async {
+            let auth = auth.validate()?;
+            if target.port() == 0 {
+                return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
+            }
+            let target_header = encode_udp_target(target);
+            establish_udp_association(
+                dialer,
+                proxy_host,
+                proxy_port,
+                target,
+                target_header,
+                ReceiveTarget::ExactIp(target),
+                auth,
+            )
+            .await
+        }),
+    )
     .await
 }
 
@@ -155,20 +158,23 @@ pub(crate) async fn associate_socks5_udp_remote_with_auth(
     target: Socks5UdpRemoteTarget,
     auth: Socks5Auth<'_>,
 ) -> Result<Socks5UdpAssociation, Socks5Error> {
-    trace_connect("remote", async {
-        let auth = auth.validate()?;
-        let logical_target = SocketAddr::new(IpAddr::V4(REMOTE_VIRTUAL_IP), target.port);
-        establish_udp_association(
-            dialer,
-            proxy_host,
-            proxy_port,
-            logical_target,
-            target.target_header,
-            target.receive_target,
-            auth,
-        )
-        .await
-    })
+    trace_connect(
+        "remote",
+        pin!(async {
+            let auth = auth.validate()?;
+            let logical_target = SocketAddr::new(IpAddr::V4(REMOTE_VIRTUAL_IP), target.port);
+            establish_udp_association(
+                dialer,
+                proxy_host,
+                proxy_port,
+                logical_target,
+                target.target_header,
+                target.receive_target,
+                auth,
+            )
+            .await
+        }),
+    )
     .await
 }
 

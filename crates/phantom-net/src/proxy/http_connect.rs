@@ -1,6 +1,7 @@
 use std::{
     fmt,
     future::Future,
+    pin::{Pin, pin},
     sync::{Mutex, PoisonError},
 };
 
@@ -111,10 +112,13 @@ pub async fn connect_http_tunnel<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    trace_connect("supplied", async {
-        let request = PreparedConnect::new(authority, headers)?;
-        establish(stream, request).await
-    })
+    trace_connect(
+        "supplied",
+        pin!(async {
+            let request = PreparedConnect::new(authority, headers)?;
+            establish(stream, request).await
+        }),
+    )
     .await
 }
 
@@ -151,11 +155,14 @@ pub(crate) async fn http_connect_tunnel(
     authority: &str,
     headers: &[HttpConnectHeader],
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    trace_connect("http", async {
-        let request = PreparedConnect::new(authority, headers)?;
-        let stream = connect_proxy_tcp(dialer, proxy_host, proxy_port).await?;
-        establish(stream, request).await
-    })
+    trace_connect(
+        "http",
+        pin!(async {
+            let request = PreparedConnect::new(authority, headers)?;
+            let stream = connect_proxy_tcp(dialer, proxy_host, proxy_port).await?;
+            establish(stream, request).await
+        }),
+    )
     .await
 }
 
@@ -206,20 +213,23 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
     headers: &[HttpConnectHeader],
     credentials: &HttpBasicCredentials,
 ) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    trace_connect("http", async {
-        let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
-        let plan = BasicAuthPlan::new(
-            cache,
-            ProxyScheme::Http,
-            proxy_host,
-            proxy_port,
-            credentials,
-        );
-        basic_auth_exchange(&plan, &requests, || {
-            connect_proxy_tcp(dialer, proxy_host, proxy_port)
-        })
-        .await
-    })
+    trace_connect(
+        "http",
+        pin!(async {
+            let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+            let plan = BasicAuthPlan::new(
+                cache,
+                ProxyScheme::Http,
+                proxy_host,
+                proxy_port,
+                credentials,
+            );
+            basic_auth_exchange(&plan, &requests, || {
+                connect_proxy_tcp(dialer, proxy_host, proxy_port)
+            })
+            .await
+        }),
+    )
     .await
 }
 
@@ -511,9 +521,14 @@ fn find_head_end(bytes: &[u8]) -> Option<usize> {
         .map(|index| index + 4)
 }
 
+/// Runs `operation` in the CONNECT span and records its outcome.
+///
+/// The caller pins `operation` in its own future: an async function holds a
+/// future it takes by value twice, as the argument and as the awaited value,
+/// and this wrapper encloses a whole proxy connection setup.
 pub(super) async fn trace_connect<F, T>(
     transport: &'static str,
-    operation: F,
+    operation: Pin<&mut F>,
 ) -> Result<T, HttpConnectError>
 where
     F: Future<Output = Result<T, HttpConnectError>>,
