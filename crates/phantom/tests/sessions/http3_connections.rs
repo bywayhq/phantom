@@ -28,13 +28,15 @@ use phantom::{
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::server::{ServerSessionMemoryCache, StoresServerSessions};
 use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
     sync::{mpsc, watch},
     task::JoinHandle,
     time::{sleep, timeout},
 };
 
 use h3_support::client_settings;
-use tls_support::{TestIdentity, tls_settings};
+use tls_support::{H1_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -92,6 +94,7 @@ struct Origin {
     events: mpsc::UnboundedReceiver<Event>,
     release: watch::Sender<bool>,
     goaway: watch::Sender<Option<usize>>,
+    handshakes: watch::Sender<bool>,
     tickets: Arc<CountingStore>,
     task: JoinHandle<()>,
 }
@@ -102,7 +105,7 @@ impl Origin {
     }
 
     /// Like [`Origin::start`], and answers the `stalled` connection's
-    /// handshake only after 3 seconds.
+    /// handshake only after [`Origin::release_handshake`].
     fn with(identity: &TestIdentity, stalled: Option<usize>) -> TestResult<Self> {
         let tickets = Arc::new(CountingStore {
             inner: ServerSessionMemoryCache::new(64),
@@ -116,6 +119,7 @@ impl Origin {
         let (sender, events) = mpsc::unbounded_channel();
         let (release, released) = watch::channel(false);
         let (goaway, goaway_requested) = watch::channel(None);
+        let (handshakes, handshakes_released) = watch::channel(false);
         let task = tokio::spawn(async move {
             let mut accepted = 0;
             while let Some(incoming) = endpoint.accept().await {
@@ -124,11 +128,17 @@ impl Origin {
                 if sender.send(Event::Accepted(index)).is_err() {
                     return;
                 }
-                let (sender, released, goaway) =
-                    (sender.clone(), released.clone(), goaway_requested.clone());
+                let (sender, released, goaway, mut handshakes) = (
+                    sender.clone(),
+                    released.clone(),
+                    goaway_requested.clone(),
+                    handshakes_released.clone(),
+                );
                 tokio::spawn(async move {
-                    if stalled == Some(index) {
-                        sleep(Duration::from_secs(3)).await;
+                    if stalled == Some(index)
+                        && handshakes.wait_for(|released| *released).await.is_err()
+                    {
+                        return;
                     }
                     let _ = serve(incoming, index, sender, released, goaway).await;
                 });
@@ -139,9 +149,27 @@ impl Origin {
             events,
             release,
             goaway,
+            handshakes,
             tickets,
             task,
         })
+    }
+
+    /// Lets the stalled connection's handshake proceed.
+    fn release_handshake(&self) {
+        self.handshakes.send_replace(true);
+    }
+
+    async fn next_accepted(&mut self) -> TestResult<usize> {
+        loop {
+            match timeout(TEST_TIMEOUT, self.events.recv())
+                .await?
+                .ok_or("origin stopped")?
+            {
+                Event::Accepted(index) => return Ok(index),
+                Event::Request { .. } => {}
+            }
+        }
     }
 
     /// Sends GOAWAY on the numbered connection; its open streams finish.
@@ -190,23 +218,6 @@ impl Origin {
                 Event::Accepted(_) => {}
             }
         }
-    }
-
-    /// Returns the sorted connections of the next `count` requests, and
-    /// fails if the origin accepts a connection meanwhile.
-    async fn requests_without_new_connections(&mut self, count: usize) -> TestResult<Vec<usize>> {
-        let mut connections = Vec::new();
-        while connections.len() < count {
-            match timeout(TEST_TIMEOUT, self.events.recv())
-                .await?
-                .ok_or("origin stopped")?
-            {
-                Event::Request { connection } => connections.push(connection),
-                Event::Accepted(index) => return Err(format!("connection {index} opened").into()),
-            }
-        }
-        connections.sort_unstable();
-        Ok(connections)
     }
 }
 
@@ -447,20 +458,44 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         let identity = TestIdentity::generate()?;
         let mut origin = Origin::start(&identity)?;
         let client = client_builder(&identity)
-            .max_http3_connections_per_origin(bound(3)?)
+            .max_http3_connections_per_origin(bound(2)?)
             .build()?;
         finish(send(&client, &origin.uri("warm")).await?).await?;
 
-        // Connection 0 fills up, so a third stream opens connection 1.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
-        assert_eq!(origin.settle(4).await?, (2, 4));
+        // Both connections fill up, so the location is at its limit.
+        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3", "held-4"]);
+        assert_eq!(origin.settle(5).await?, (2, 5));
 
-        // After GOAWAY on connection 0, the next request goes to connection
-        // 1, which has room, and opens no connection.
+        // After GOAWAY on connection 0, it no longer counts: the next request
+        // opens connection 2 instead of queueing on a full one.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&client, &origin, &["held-4"]);
-        assert_eq!(origin.requests_without_new_connections(1).await?, [1]);
+        let next = spawn_held(&client, &origin, &["held-5"]);
+        assert_eq!(origin.next_accepted().await?, 2);
+        assert_eq!(origin.next_request().await?, 2);
+        origin.release();
+        join(held).await?;
+        join(next).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mut origin = Origin::start(&identity)?;
+        let client = client_builder(&identity).build()?;
+        finish(send(&client, &origin.uri("warm")).await?).await?;
+        let held = spawn_held(&client, &origin, &["held-1"]);
+        assert_eq!(origin.settle(2).await?, (1, 2));
+
+        // The one connection drains, so the next request reconnects.
+        origin.goaway(0);
+        sleep(QUIET_WINDOW).await;
+        let next = spawn_held(&client, &origin, &["held-2"]);
+        assert_eq!(origin.next_accepted().await?, 1);
+        assert_eq!(origin.next_request().await?, 1);
         origin.release();
         join(held).await?;
         join(next).await
@@ -509,7 +544,7 @@ fn a_limit_above_the_ceiling_is_rejected_at_build() -> TestResult {
 async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        // Connection 1's handshake stalls for 3 seconds.
+        // Connection 1's handshake waits until the test releases it.
         let mut origin = Origin::with(&identity, Some(1))?;
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(2)?)
@@ -524,16 +559,100 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         sleep(QUIET_WINDOW).await;
         assert!(!waiting.iter().any(JoinHandle::is_finished));
 
-        // Connection 0's streams end, which wakes the waiting request before
-        // the stalled setup finishes.
-        let started = std::time::Instant::now();
+        // Connection 0's streams end, which wakes the waiting request while
+        // connection 1's setup is still held.
         origin.release();
         assert_eq!(origin.next_request().await?, 0);
         join(waiting).await?;
-        assert!(started.elapsed() < Duration::from_secs(2));
-        for task in held {
-            task.abort();
+
+        origin.release_handshake();
+        join(held).await
+    })
+    .await
+}
+
+/// An H1 origin that advertises the H3 alternative at `alternative`'s port.
+async fn advertising_origin(
+    identity: &TestIdentity,
+    alternative: u16,
+) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let task = tokio::spawn(async move {
+        while let Ok((tcp, _)) = listener.accept().await {
+            let acceptor = acceptor.clone();
+            tokio::spawn(async move {
+                let mut stream = accept_tls_stream(tcp, acceptor).await?;
+                read_head(&mut stream).await?;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nalt-svc: h3=\":{alternative}\"\r\n\
+                     content-length: 4\r\nconnection: close\r\n\r\ndone"
+                );
+                stream.write_all(response.as_bytes()).await?;
+                stream.shutdown().await?;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            });
         }
+    });
+    Ok((address, task))
+}
+
+#[tokio::test]
+async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mut alternative = Origin::start(&identity)?;
+        let (address, origin) = advertising_origin(&identity, alternative.address.port()).await?;
+        let base = client_settings();
+        let http3 = Http3ClientSettings::new(
+            base.tls().clone(),
+            base.quic_transport().clone(),
+            base.http3().clone(),
+            base.request().clone(),
+        );
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(phantom::profile::chromium::v154_http2())
+            .with_http3(http3);
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .alt_svc(bound(8)?)
+            .max_http3_connections_per_origin(bound(2)?)
+            .build()?;
+
+        // The first request learns the alternative over HTTP/1.1.
+        let learned = timeout(
+            TEST_TIMEOUT,
+            client
+                .get_negotiated(&format!("https://{address}/warm"))?
+                .send(),
+        )
+        .await??;
+        assert_eq!(
+            learned
+                .extensions()
+                .get::<ResponseInfo>()
+                .map(ResponseInfo::protocol),
+            Some(HttpProtocol::Http1)
+        );
+        timeout(TEST_TIMEOUT, learned.into_body().collect()).await??;
+
+        // Three held requests at two streams per connection use both
+        // connections the limit allows to the alternative.
+        let held: Vec<JoinHandle<TestResult>> = ["held-1", "held-2", "held-3"]
+            .iter()
+            .map(|path| {
+                let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
+                tokio::spawn(async move {
+                    let request = client.get_negotiated(&uri)?;
+                    finish(timeout(TEST_TIMEOUT, request.send()).await??).await
+                })
+            })
+            .collect();
+        assert_eq!(alternative.settle(3).await?, (2, 3));
+        alternative.release();
+        join(held).await?;
+        origin.abort();
         Ok(())
     })
     .await
