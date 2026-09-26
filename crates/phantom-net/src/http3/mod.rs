@@ -544,7 +544,11 @@ async fn connect(
     }
     let accept_ch = Arc::new(OnceLock::new());
     if zero_rtt.is_none() {
-        let metadata = check_start(&connection, None).map_err(|(_, error)| error)?;
+        #[cfg(not(test))]
+        let alps_override = None;
+        #[cfg(test)]
+        let alps_override = peer_alps_override.as_deref();
+        let metadata = check_start(&connection, alps_override).map_err(|(_, error)| error)?;
         apply_peer_alps(&connection, &mut builder, metadata.alps.as_deref())
             .map_err(|(_, error)| error)?;
         let _ = accept_ch.set(metadata.accept_ch);
