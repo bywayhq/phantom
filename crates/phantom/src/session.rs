@@ -15,6 +15,7 @@ pub(crate) mod http1_or_2_pool;
 pub(crate) mod http1_pool;
 mod http2_connections;
 pub(crate) mod http2_pool;
+mod http3_connections;
 pub(crate) mod http3_pool;
 mod stream_count;
 
@@ -55,6 +56,10 @@ const DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize = match Non
 };
 const DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN: NonZeroUsize =
     DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN;
+/// The most HTTP/3 connections one transport location of a pool entry may
+/// keep. At this ceiling, the default 32 retained entries of four locations
+/// each pool at most 1,024 QUIC connections.
+pub(crate) const HTTP3_CONNECTIONS_PER_ORIGIN_CEILING: usize = 8;
 const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64) {
     Some(value) => value,
     None => NonZeroUsize::MIN,
@@ -78,6 +83,9 @@ pub(crate) struct ClientOptions {
     pub(crate) max_retained_http3_connections: NonZeroUsize,
     pub(crate) max_concurrent_http3_requests_per_origin: NonZeroUsize,
     pub(crate) max_pending_http3_requests_per_origin: NonZeroUsize,
+    /// HTTP/3 connections per pool entry and transport location; 1 as
+    /// browsers.
+    pub(crate) max_http3_connections_per_origin: NonZeroUsize,
     pub(crate) max_client_hint_origins: NonZeroUsize,
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
@@ -108,6 +116,7 @@ impl Default for ClientOptions {
             max_concurrent_http3_requests_per_origin:
                 DEFAULT_MAX_CONCURRENT_HTTP3_REQUESTS_PER_ORIGIN,
             max_pending_http3_requests_per_origin: DEFAULT_MAX_PENDING_HTTP3_REQUESTS_PER_ORIGIN,
+            max_http3_connections_per_origin: NonZeroUsize::MIN,
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
@@ -307,7 +316,8 @@ macro_rules! client_option_setters {
         ///
         /// The default is 32. When the limit is reached, the least recently used
         /// entry is evicted. One entry keeps connections for up to four transport
-        /// locations, so exact H3 and Alt-Svc H3 do not replace each other.
+        /// locations, so exact H3 and Alt-Svc H3 do not replace each other, and
+        /// up to [`Self::max_http3_connections_per_origin`] to each location.
         #[must_use]
         pub fn max_retained_http3_connections(mut self, maximum: std::num::NonZeroUsize) -> Self {
             self.options.max_retained_http3_connections = maximum;
@@ -317,6 +327,8 @@ macro_rules! client_option_setters {
         /// Sets the local active-request bound for each HTTP/3 pool key.
         ///
         /// The default is 100. The peer's stream limit also caps active requests.
+        /// The bound covers all of a pool key's connections when
+        /// [`Self::max_http3_connections_per_origin`] allows more than one.
         #[must_use]
         pub fn max_concurrent_http3_requests_per_origin(
             mut self,
@@ -336,6 +348,47 @@ macro_rules! client_option_setters {
             maximum: std::num::NonZeroUsize,
         ) -> Self {
             self.options.max_pending_http3_requests_per_origin = maximum;
+            self
+        }
+
+        /// Lets each HTTP/3 pool key open up to `maximum` QUIC connections to
+        /// one transport location.
+        ///
+        /// The default is 1, as Chrome, Edge, and Firefox keep one HTTP/3
+        /// connection per origin. With a higher limit, a request opens another
+        /// connection only when every connection to the location has as many
+        /// streams in flight as it can carry: the lower of
+        /// [`Self::max_concurrent_http3_requests_per_origin`] and the server's
+        /// `initial_max_streams_bidi` transport parameter. A new stream goes to
+        /// the connection with the fewest streams in flight. At the limit, the
+        /// least-loaded connection takes the stream, and QUIC holds it until
+        /// the server grants stream credit.
+        ///
+        /// One request at a time opens a connection to a location; requests
+        /// that arrive meanwhile wait for it and share it while it has room.
+        /// Each new connection makes its own QUIC handshake with the profile's
+        /// settings. It presents a session ticket when the pool entry holds
+        /// one and offers early data as the client would on any resumed
+        /// connection. On a CONNECT-UDP route, each connection has its own
+        /// proxy tunnel. A connection that is draining after the server's
+        /// GOAWAY takes no new request and does not count toward the limit.
+        ///
+        /// The limit applies to exact HTTP/3 requests and to negotiated
+        /// requests that use an Alt-Svc or HTTPS-record alternative; an origin
+        /// and its alternative are separate locations, each with its own
+        /// limit. The active and waiting bounds stay per pool key, across all
+        /// its connections, so a limit above one helps only when the server's
+        /// stream limit is below
+        /// [`Self::max_concurrent_http3_requests_per_origin`]. A server can see
+        /// several simultaneous QUIC connections from one client, which no
+        /// browser opens to one origin.
+        ///
+        /// [`Self::build`] fails with
+        /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
+        /// when `maximum` is above 8.
+        #[must_use]
+        pub fn max_http3_connections_per_origin(mut self, maximum: std::num::NonZeroUsize) -> Self {
+            self.options.max_http3_connections_per_origin = maximum;
             self
         }
 
@@ -550,6 +603,11 @@ impl ClientOptions {
                 "retry delay or Retry-After limit exceeds the runtime clock range",
             ));
         }
+        if self.max_http3_connections_per_origin.get() > HTTP3_CONNECTIONS_PER_ORIGIN_CEILING {
+            return Err(BuildError::invalid_policy(
+                "max_http3_connections_per_origin exceeds 8",
+            ));
+        }
         Ok(())
     }
 
@@ -633,6 +691,7 @@ impl ClientOptions {
             max_retained_http3_connections,
             max_concurrent_http3_requests_per_origin,
             max_pending_http3_requests_per_origin,
+            max_http3_connections_per_origin,
             max_client_hint_origins,
             max_alt_svc_origins,
             alt_svc_policy,
@@ -686,6 +745,10 @@ impl ClientOptions {
             .field(
                 "max_pending_http3_requests_per_origin",
                 max_pending_http3_requests_per_origin,
+            )
+            .field(
+                "max_http3_connections_per_origin",
+                max_http3_connections_per_origin,
             )
             .field("max_client_hint_origins", max_client_hint_origins)
             .field("max_alt_svc_origins", max_alt_svc_origins)
@@ -756,7 +819,8 @@ impl ClientOptions {
             self.max_retained_http3_connections,
             self.max_concurrent_http3_requests_per_origin,
             self.max_pending_http3_requests_per_origin,
-        );
+        )
+        .with_max_connections(self.max_http3_connections_per_origin);
         #[cfg(feature = "https-records")]
         http3.set_https_records(https_records.clone());
         Arc::new(ClientState {
@@ -1267,6 +1331,10 @@ impl fmt::Debug for Client {
             .field(
                 "max_pending_http3_requests_per_origin",
                 &self.state.http3.max_pending(),
+            )
+            .field(
+                "max_http3_connections_per_origin",
+                &self.state.http3.max_connections(),
             )
             .field("cookies_enabled", &{
                 #[cfg(feature = "cookies")]

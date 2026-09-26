@@ -1,8 +1,9 @@
 use std::{
     collections::VecDeque,
     num::NonZeroUsize,
+    pin::pin,
     sync::{
-        Arc, OnceLock,
+        Arc, MutexGuard, OnceLock, PoisonError,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -15,12 +16,14 @@ use phantom_net::http3::{
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
-use tokio::sync::{Mutex, OwnedMutexGuard};
+use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
 use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
+    http3_connections::{Candidate, Choice, Http3Spread},
+    stream_count::{OpenStream, StreamCount},
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase, within};
 use crate::{
@@ -62,6 +65,7 @@ pub(crate) struct Http3Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
+    max_connections: NonZeroUsize,
     state: Mutex<PoolState>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -77,10 +81,22 @@ impl Http3Pool {
             capacity,
             max_active,
             max_pending,
+            max_connections: NonZeroUsize::MIN,
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
         }
+    }
+
+    /// Lets each transport location of a pool entry keep up to `maximum`
+    /// connections; see [`Http3Spread`].
+    pub(super) const fn with_max_connections(mut self, maximum: NonZeroUsize) -> Self {
+        self.max_connections = maximum;
+        self
+    }
+
+    pub(super) const fn max_connections(&self) -> NonZeroUsize {
+        self.max_connections
     }
 
     /// Gives direct connections to an origin's own location the client's
@@ -154,7 +170,10 @@ impl Http3Pool {
                 },
             )
             .await?;
-        self.send_on_lease(
+        // Boxed, as the setup is: the two dispatches would otherwise enlarge
+        // every request future, and a debug build on Windows then overflows
+        // a test thread's stack.
+        Box::pin(self.send_on_lease(
             leased,
             connector,
             method,
@@ -166,7 +185,7 @@ impl Http3Pool {
             body,
             timeout_budget,
             retries,
-        )
+        ))
         .await
     }
 
@@ -215,7 +234,7 @@ impl Http3Pool {
             client_hints,
             body.as_ref(),
         )?;
-        self.send_on_lease(
+        Box::pin(self.send_on_lease(
             leased,
             connector,
             method,
@@ -227,7 +246,7 @@ impl Http3Pool {
             body,
             timeout_budget,
             retries,
-        )
+        ))
         .await
     }
 
@@ -328,6 +347,7 @@ impl Http3Pool {
         let admission = state.admission(&key, self.max_active, self.max_pending);
         let entry = Arc::new(PoolEntry::new(
             admission,
+            Http3Spread::new(self.max_connections, self.max_active),
             #[cfg(feature = "https-records")]
             self.https_records.clone(),
         ));
@@ -385,17 +405,22 @@ impl PoolKey {
     }
 }
 
-/// Transport locations that keep a connection within one origin-and-route entry.
+/// Transport locations that keep connections within one origin-and-route entry.
 ///
 /// Exact H3 dials the origin location while an Alt-Svc attempt dials the
 /// alternative; separate slots stop each switch from replacing the other's
-/// connection. The least recently used location is closed beyond this bound.
+/// connections. Each location keeps up to the pool's connection limit, and
+/// beyond this many locations' worth the least recently used connection is
+/// closed.
 const MAX_TRANSPORT_LOCATIONS_PER_ENTRY: usize = 4;
 
 struct PoolEntry {
-    /// Connections keyed by transport location, least recently used first.
-    /// Held for lookup and insertion only, never across connection setup.
-    slots: Mutex<VecDeque<ConnectionSlot>>,
+    /// The entry's connections and how streams spread across them. The lock
+    /// is held for lookup and insertion only, never across an await.
+    slots: std::sync::Mutex<Slots>,
+    /// Woken whenever a stream on one of the entry's connections ends, so a
+    /// request waiting to open a connection can take the freed room instead.
+    stream_ended: Arc<Notify>,
     /// Connect turns keyed by transport location; see [`ConnectTurn`].
     turns: ConnectTurns,
     admission: Arc<Admission>,
@@ -419,12 +444,17 @@ struct PoolEntry {
 impl PoolEntry {
     fn new(
         admission: Arc<Admission>,
+        spread: Http3Spread,
         #[cfg(feature = "https-records")] https_records: Option<
             super::alt_svc::HttpsRecordDiscovery,
         >,
     ) -> Self {
         Self {
-            slots: Mutex::new(VecDeque::new()),
+            slots: std::sync::Mutex::new(Slots {
+                connections: VecDeque::new(),
+                spread,
+            }),
+            stream_ended: Arc::new(Notify::new()),
             turns: std::sync::Mutex::new(Vec::new()),
             admission,
             origin: OnceLock::new(),
@@ -462,6 +492,18 @@ impl PoolEntry {
         }
     }
 
+    fn lock_slots(&self) -> MutexGuard<'_, Slots> {
+        self.slots.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Leases a connection to `transport` for one stream, opening one when
+    /// the location has none with room and is below its connection limit.
+    ///
+    /// Setup to one location is single-flight: the request that must open a
+    /// connection takes the location's connect turn, and the others wait for
+    /// the turn and then choose again, so they share the new connection
+    /// while it has room. With more than one connection allowed, a waiting
+    /// request also chooses again whenever a stream on the entry ends.
     async fn acquire(
         self: &Arc<Self>,
         connector: &Http3Connector,
@@ -470,26 +512,45 @@ impl PoolEntry {
         route: &Route,
         transport: Http3TransportTarget<'_>,
         control: Http3SetupControl<'_>,
-    ) -> Result<ConnectionLease, RequestError> {
+    ) -> Result<(ConnectionLease, OpenStream), RequestError> {
         let location = TransportLocation::new(transport);
-        let turn = self.connect_turn(location.clone()).await;
-        if let Some(connecting) = control.connecting {
-            connecting.store(true, Ordering::Release);
-        }
-        {
-            let mut slots = self.slots.lock().await;
-            if let Some(position) = slots.iter().position(|slot| slot.location == location)
-                && let Some(slot) = slots.remove(position)
-                && connector.can_reuse(&slot.connection).await
-            {
+        let spreads = self.lock_slots().spread.max_connections().get() > 1;
+        // Kept across wakeups, so a request keeps its place in the turn's
+        // queue while it checks for freed room.
+        let mut waiting_turn = None;
+        let turn = loop {
+            let mut stream_ended = pin!(self.stream_ended.notified());
+            // Registered before the choice, so a stream ending in between
+            // still wakes this request.
+            stream_ended.as_mut().enable();
+            if let Some(leased) = self.choose(connector, &location).await {
                 debug!(
                     outcome = "hit",
                     "HTTP/3 connection acquired from client pool"
                 );
-                let lease = slot.lease();
-                slots.push_back(slot);
-                return Ok(lease);
+                return Ok(leased);
             }
+            if !spreads {
+                break self.connect_turn(location.clone()).await;
+            }
+            let waiting =
+                waiting_turn.get_or_insert_with(|| Box::pin(self.connect_turn(location.clone())));
+            tokio::select! {
+                turn = waiting.as_mut() => break turn,
+                () = stream_ended => {}
+            }
+        };
+        if let Some(connecting) = control.connecting {
+            connecting.store(true, Ordering::Release);
+        }
+        // The setup that held the turn before may have pooled a connection
+        // with room.
+        if let Some(leased) = self.choose(connector, &location).await {
+            debug!(
+                outcome = "hit",
+                "HTTP/3 connection acquired from client pool"
+            );
+            return Ok(leased);
         }
 
         let connect = self.connect(
@@ -517,22 +578,72 @@ impl PoolEntry {
             connection,
             token: Arc::new(()),
             location,
+            streams: StreamCount::notifying(Arc::clone(&self.stream_ended)),
+            peer_limit: None,
         };
         // A connection whose early data is unanswered is pooled at once, so
         // later requests to this location share it instead of opening their
         // own; each waits for the answer unless it may go out early. A
         // rejected or failed connection is invalidated by the first request
         // that sees it.
-        let lease = slot.lease();
-        let mut slots = self.slots.lock().await;
-        if slots.len() == MAX_TRANSPORT_LOCATIONS_PER_ENTRY {
-            slots.pop_front();
-            debug!(outcome = "evicted", "HTTP/3 transport location evicted");
+        let leased = slot.lease();
+        let mut slots = self.lock_slots();
+        let retained = MAX_TRANSPORT_LOCATIONS_PER_ENTRY * slots.spread.max_connections().get();
+        if slots.connections.len() >= retained {
+            slots.connections.pop_front();
+            debug!(outcome = "evicted", "HTTP/3 pooled connection evicted");
         }
-        slots.push_back(slot);
+        slots.connections.push_back(slot);
         drop(slots);
         drop(turn);
-        Ok(lease)
+        Ok(leased)
+    }
+
+    /// Leases a reusable pooled connection to `location` for one stream, or
+    /// returns `None` when the location should open another.
+    ///
+    /// Connections that can no longer carry a request, such as one draining
+    /// after the server's GOAWAY, leave the pool first; they do not count
+    /// toward the location's connection limit.
+    async fn choose(
+        &self,
+        connector: &Http3Connector,
+        location: &TransportLocation,
+    ) -> Option<(ConnectionLease, OpenStream)> {
+        let pooled: Vec<(Http3Connection, Arc<()>)> = self
+            .lock_slots()
+            .connections
+            .iter()
+            .filter(|slot| &slot.location == location)
+            .map(|slot| (slot.connection.clone(), Arc::clone(&slot.token)))
+            .collect();
+        let mut retired = Vec::new();
+        for (connection, token) in pooled {
+            if !connector.can_reuse(&connection).await {
+                retired.push(token);
+            }
+        }
+        let mut slots = self.lock_slots();
+        let Slots {
+            connections,
+            spread,
+        } = &mut *slots;
+        connections.retain(|slot| !retired.iter().any(|token| Arc::ptr_eq(token, &slot.token)));
+        let mut positions = Vec::new();
+        let mut candidates = Vec::new();
+        for (position, slot) in connections.iter_mut().enumerate() {
+            if &slot.location == location {
+                positions.push(position);
+                candidates.push(slot.candidate());
+            }
+        }
+        let Choice::Use(chosen) = spread.choose(&candidates) else {
+            return None;
+        };
+        let slot = connections.remove(*positions.get(chosen)?)?;
+        let leased = slot.lease();
+        connections.push_back(slot);
+        Some(leased)
     }
 
     /// Opens one connection to `transport` on `route`.
@@ -731,13 +842,14 @@ impl PoolEntry {
         })
     }
 
-    async fn invalidate(&self, token: &Arc<()>) {
-        let mut slots = self.slots.lock().await;
+    fn invalidate(&self, token: &Arc<()>) {
+        let mut slots = self.lock_slots();
         if let Some(position) = slots
+            .connections
             .iter()
             .position(|slot| Arc::ptr_eq(&slot.token, token))
         {
-            slots.remove(position);
+            slots.connections.remove(position);
             debug!(
                 outcome = "invalidated",
                 "HTTP/3 pool connection invalidated"
@@ -856,22 +968,26 @@ impl Http3Admission {
         control: Http3SetupControl<'_>,
     ) -> Result<Http3Lease, RequestError> {
         let Self { entry, permit } = self;
-        let lease = acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
-            entry
-                .acquire(
+        let (lease, stream) =
+            acquire_with_retries(HttpProtocol::Http3, timeout_budget, retries, || async {
+                // Boxed: the setup state machine would otherwise enlarge every
+                // request future, and a debug build on Windows then overflows
+                // a test thread's stack.
+                Box::pin(entry.acquire(
                     connector,
                     connect_udp_proxy,
                     endpoint,
                     route,
                     transport,
                     control,
-                )
+                ))
                 .await
-        })
-        .await?;
+            })
+            .await?;
         Ok(Http3Lease {
             entry,
             lease,
+            stream,
             permit,
         })
     }
@@ -881,6 +997,9 @@ impl Http3Admission {
 pub(crate) struct Http3Lease {
     entry: Arc<PoolEntry>,
     lease: ConnectionLease,
+    /// Counts the request's stream against the connection until the
+    /// response ends; it drops before the permit.
+    stream: OpenStream,
     permit: AdmissionPermit,
 }
 
@@ -905,6 +1024,7 @@ impl Http3Lease {
             )
             .await?;
         Ok(Self {
+            stream: lease.streams.open(),
             entry,
             lease,
             permit,
@@ -938,7 +1058,7 @@ impl Http3Lease {
         match settled {
             Ok(()) => Ok(self),
             Err(error) => {
-                self.entry.invalidate(&self.lease.token).await;
+                self.entry.invalidate(&self.lease.token);
                 Err(RequestError::http3_stream(error))
             }
         }
@@ -1053,6 +1173,7 @@ async fn dispatch(
     let Http3Lease {
         entry,
         lease,
+        stream,
         permit,
     } = leased;
     let sent_headers = match client_hints {
@@ -1087,11 +1208,17 @@ async fn dispatch(
         Ok(Ok(response)) => {
             let (parts, body) = response.into_parts();
             Ok((
-                http::Response::from_parts(parts, ResponseBody::http3_with_guard(body, permit)),
+                // The stream count drops first, so the request the permit
+                // admits next sees this stream ended.
+                http::Response::from_parts(
+                    parts,
+                    ResponseBody::http3_with_guard(body, (stream, permit)),
+                ),
                 sent_headers,
             ))
         }
         Ok(Err(error)) => {
+            drop(stream);
             drop(permit);
             let error = RequestError::http3_stream(error);
             // An unprocessed replay must use another connection, so one
@@ -1103,11 +1230,12 @@ async fn dispatch(
                     && error.is_unprocessed_request()
                     && !error.is_http3_early_data_rejected())
             {
-                entry.invalidate(&lease.token).await;
+                entry.invalidate(&lease.token);
             }
             Err(error)
         }
         Err(error) => {
+            drop(stream);
             drop(permit);
             Err(error)
         }
@@ -1152,17 +1280,43 @@ fn connect_udp_tcp(
         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http3))
 }
 
+/// One pool entry's connections, least recently used first, and how
+/// streams spread across those of one location.
+struct Slots {
+    connections: VecDeque<ConnectionSlot>,
+    spread: Http3Spread,
+}
+
 struct ConnectionSlot {
     connection: Http3Connection,
     token: Arc<()>,
     location: TransportLocation,
+    streams: StreamCount,
+    /// The server's stream limit, read once the handshake completed.
+    peer_limit: Option<u64>,
 }
 
 impl ConnectionSlot {
-    fn lease(&self) -> ConnectionLease {
-        ConnectionLease {
-            connection: self.connection.clone(),
-            token: Arc::clone(&self.token),
+    /// Leases the connection for one stream, counted until the returned
+    /// guard drops.
+    fn lease(&self) -> (ConnectionLease, OpenStream) {
+        (
+            ConnectionLease {
+                connection: self.connection.clone(),
+                token: Arc::clone(&self.token),
+                streams: self.streams.clone(),
+            },
+            self.streams.open(),
+        )
+    }
+
+    fn candidate(&mut self) -> Candidate {
+        if self.peer_limit.is_none() {
+            self.peer_limit = self.connection.peer_initial_max_streams_bidi();
+        }
+        Candidate {
+            peer_limit: self.peer_limit,
+            streams: self.streams.get(),
         }
     }
 }
@@ -1171,6 +1325,7 @@ impl ConnectionSlot {
 struct ConnectionLease {
     connection: Http3Connection,
     token: Arc<()>,
+    streams: StreamCount,
 }
 
 #[cfg(test)]

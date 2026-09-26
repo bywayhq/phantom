@@ -162,8 +162,11 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 - A request sent to an alternative carries one `Alt-Used` field, which
   Phantom manages; a caller-supplied `Alt-Used` field or trailer is rejected
   before network I/O. Phantom makes no browser claim about its position.
-- Not implemented: WebSocket over H3, and more than one H3 connection per
-  origin and route.
+- One H3 connection per origin, route, and transport location, as browsers
+  keep. `ClientBuilder::max_http3_connections_per_origin` allows more when
+  the server's stream limit is the bottleneck; see
+  [Tune throughput and latency](performance.md#open-more-than-one-connection-per-origin).
+- Not implemented: WebSocket over H3.
 
 ## Next
 

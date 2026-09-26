@@ -520,6 +520,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   carries as many streams as the lower of the active bound and the peer's
   `SETTINGS_MAX_CONCURRENT_STREAMS`, and new streams go to the least-loaded
   connection. The default stays one connection, as browsers keep.
+- `ClientBuilder::max_http3_connections_per_origin`, off by default: lets
+  exact HTTP/3 requests and Alt-Svc or HTTPS-record alternatives open up to
+  that many QUIC connections, at most 8, per origin, route, and transport
+  location. A request opens another only when every connection carries as
+  many streams as the lower of the active bound and the server's
+  `initial_max_streams_bidi`, one setup at a time per location, and new
+  streams go to the least-loaded connection.
+- `Http3Connection::peer_initial_max_streams_bidi` in `phantom-net` and
+  `HandshakeData::peer_initial_max_streams_bidi` in `phantom-quic-btls`
+  report the server's `initial_max_streams_bidi` transport parameter once
+  the handshake completes.
 - `ClientBuilder::negotiated_setup_wait_limit`: bounds how long a negotiated
   request waits for another request's handshake to an origin that selected
   HTTP/2 before, as Chromium 154 does at 300 ms. The default stays

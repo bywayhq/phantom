@@ -460,8 +460,23 @@ One pool entry per origin and route keeps connections for up to four
 transport locations, so alternating exact-H3 and Alt-Svc H3 requests reuse
 their own connections under the same admission bounds. Setup is serialized
 per transport location, not per entry, and the slot table is never locked
-across connection setup, so a slow setup to one location does not delay
-another.
+across an await, so a slow setup to one location does not delay another.
+
+Each location keeps one connection unless
+`ClientBuilder::max_http3_connections_per_origin` allows more
+(`session/http3_connections.rs`). The pool counts each request's stream from
+its lease until the response body ends, and reads the server's
+`initial_max_streams_bidi` from `Http3Connection::peer_initial_max_streams_bidi`
+once the handshake completes; a connection still waiting for its early-data
+answer uses the limit another connection to the same location reported. A request takes the
+least-loaded connection with room, and only when none has room, and the
+location is below its limit, does it take the location's connect turn. It
+chooses again once it holds the turn, so requests queued behind a setup
+share the new connection. While it waits for the turn, a stream that ends on
+the entry wakes it to choose again. A connection that is no longer reusable,
+such as one draining after GOAWAY, leaves the slot table and stops counting.
+The table holds at most four locations' worth of connections, and evicts the
+least recently used beyond that.
 
 ### Session tickets
 

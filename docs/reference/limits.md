@@ -23,6 +23,7 @@ policies that stay off until you enable them.
 | Address resolver | The operating system's | `ClientBuilder::dns_resolver` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
+| More than one H3 connection per transport location | One connection | `ClientBuilder::max_http3_connections_per_origin` |
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
@@ -58,6 +59,7 @@ limit is one deadline over all attempts, delays, and the final response body.
 | Retained H3 pool entries | 32 | `max_retained_http3_connections` |
 | Active H3 requests per pool key | 100 | `max_concurrent_http3_requests_per_origin` |
 | Waiting H3 requests per pool key | 100 | `max_pending_http3_requests_per_origin` |
+| H3 connections per pool key and transport location, at most 8 | 1 | `max_http3_connections_per_origin` |
 | Origins with learned `Accept-CH` state | 64 | `max_client_hint_origins` |
 | Origins with Alt-Svc state | disabled | `alt_svc(maximum_origins)` |
 
@@ -92,8 +94,13 @@ limit is one deadline over all attempts, delays, and the final response body.
 - With more than one H2 connection allowed, a request opens another only
   when every connection to the key carries as many streams as the lower of
   the active bound and the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`. The
-  active and waiting bounds still count all of the key's connections. H3
-  keeps one connection per transport location.
+  active and waiting bounds still count all of the key's connections.
+- With more than one H3 connection allowed, a request opens another to a
+  transport location only when every connection to it carries as many
+  streams as the lower of the active bound and the server's
+  `initial_max_streams_bidi`. One setup runs at a time per location. The
+  active and waiting bounds count all of the key's connections, and
+  `ClientBuilder::build` rejects a limit above 8 with `InvalidPolicy`.
 - HTTP/2 proxy connections belong to a separate pool per session: one
   connection per proxy route, and 32 routes, least recently used first out
   (`MAX_HTTP2_PROXY_POOL_ROUTES`).

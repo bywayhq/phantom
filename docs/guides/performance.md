@@ -19,6 +19,7 @@ to your code.
 | `max_concurrent_http{2,3}_requests_per_origin` | Streams in flight per origin | Nothing; the peer's stream limit still applies | 100 |
 | `max_retained_http{1,2,3}_connections` | Reuse across many origins | Fewer new handshakes | 32 pool entries |
 | `max_http2_connections_per_origin` | H2 past the peer's stream limit | Several H2 connections to one origin | 1, as browsers |
+| `max_http3_connections_per_origin` | H3 past the server's stream limit | Several QUIC connections to one origin | 1, as browsers |
 | `negotiated_setup_wait_limit` | Requests behind a stalled handshake | A second TLS handshake to an H2 origin | No limit, as Firefox 156 |
 | `alt_svc_policy` race, `with_alternative_setup_limit` | First request to an H3 origin | Parallel QUIC and TCP setup; when QUIC setup stops | Sequential; 4 s limit, as Chrome 153 |
 | `http3_early_data` | First request on a resumed H3 connection | 0-RTT data | The profile's QUIC `early_data` |
@@ -58,10 +59,9 @@ fn parallel_client() -> Result<Client, Box<dyn std::error::Error>> {
 - An H2 server's `SETTINGS_MAX_CONCURRENT_STREAMS` caps streams per
   connection, whatever the local bound says.
 
-## Open more than one HTTP/2 connection per origin
+## Open more than one connection per origin
 
-Go past the peer's stream limit by spreading streams over several
-connections.
+Spread streams over several connections past the server's stream limit.
 
 ```rust
 use std::num::NonZeroUsize;
@@ -83,12 +83,14 @@ fn multi_connection_client() -> Result<Client, Box<dyn std::error::Error>> {
 - A new connection opens only when every connection to the key has as many
   streams in flight as the lower of the local bound and the server's limit.
   A new stream goes to the connection with the fewest.
-- Each connection makes its own handshake and sends the profile's full H2
-  preface, so each looks like the browser. Several at once to one origin
-  do not: Chrome, Edge, and Firefox keep one.
-- It applies to `HttpProtocol::Http2` and `get_negotiated` requests that
-  select H2; `max_http2_proxy_connections_per_route` is its proxy-route
-  counterpart ([limits](../reference/limits.md#connection-pools)).
+- Each connection makes its own handshake with the profile's preface, but
+  Chrome, Edge, and Firefox keep one per origin.
+- `max_http3_connections_per_origin` does the same for H3, up to 8 per
+  transport location, against the server's `initial_max_streams_bidi`. One
+  setup runs at a time, and a connection draining after GOAWAY is skipped.
+- The H2 limit applies to `HttpProtocol::Http2` and `get_negotiated`
+  requests that select H2; `max_http2_proxy_connections_per_route` is its
+  proxy-route counterpart ([limits](../reference/limits.md#connection-pools)).
 
 ## Stop waiting for a stalled handshake
 
@@ -186,8 +188,6 @@ fields of `TcpSettings` in the same way.
 
 ## Limits
 
-- HTTP/3 keeps one connection per origin, route, and transport location;
-  there is no `max_http3_connections_per_origin` yet.
 - HTTPS-record lookups use hickory's per-query timeout of 5 seconds and 2
   attempts; `HttpsRecordResolver::from_fn` replaces the resolver entirely.
 - Every timer and its source is listed in

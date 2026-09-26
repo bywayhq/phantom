@@ -11,6 +11,7 @@ mod support;
 
 mod dns_overrides;
 mod http2_connections;
+mod http3_connections;
 mod negotiated;
 mod negotiated_parallel;
 mod session;

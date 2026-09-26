@@ -68,6 +68,7 @@ fn session_builder_sets_every_client_option() -> Result<(), Box<dyn std::error::
         .max_retained_http3_connections(nonzero(9))
         .max_concurrent_http3_requests_per_origin(nonzero(10))
         .max_pending_http3_requests_per_origin(nonzero(11))
+        .max_http3_connections_per_origin(nonzero(2))
         .max_client_hint_origins(nonzero(12))
         .alt_svc(nonzero(13))
         .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
@@ -101,6 +102,7 @@ fn session_builder_sets_every_client_option() -> Result<(), Box<dyn std::error::
         max_retained_http3_connections,
         max_concurrent_http3_requests_per_origin,
         max_pending_http3_requests_per_origin,
+        max_http3_connections_per_origin,
         max_client_hint_origins,
         max_alt_svc_origins,
         alt_svc_policy,
@@ -157,6 +159,10 @@ fn session_builder_sets_every_client_option() -> Result<(), Box<dyn std::error::
         max_pending_http3_requests_per_origin,
         defaults.max_pending_http3_requests_per_origin
     );
+    assert_ne!(
+        max_http3_connections_per_origin,
+        defaults.max_http3_connections_per_origin
+    );
     assert_ne!(max_client_hint_origins, defaults.max_client_hint_origins);
     assert_ne!(max_alt_svc_origins, defaults.max_alt_svc_origins);
     assert_ne!(alt_svc_policy, defaults.alt_svc_policy);
@@ -178,11 +184,14 @@ fn session_applies_its_options() -> Result<(), Box<dyn std::error::Error>> {
         .request_timeouts(timeouts)
         .retry_policy(retry)
         .max_http2_connections_per_origin(nonzero(3))
+        .max_http3_connections_per_origin(nonzero(4))
         .build()?;
 
     assert_eq!(session.request_timeouts(), timeouts);
     assert_eq!(session.retry_policy(), retry);
     assert_eq!(session.state.http2.max_connections(), nonzero(3));
+    assert_eq!(session.state.http3.max_connections(), nonzero(4));
+    assert_eq!(client.state.http3.max_connections(), NonZeroUsize::MIN);
     assert_eq!(client.request_timeouts(), RequestTimeouts::new());
     Ok(())
 }
@@ -216,6 +225,20 @@ fn session_early_data_choice_replaces_the_clients() -> Result<(), Box<dyn std::e
 
 #[test]
 fn session_build_rejects_what_client_build_rejects() -> Result<(), Box<dyn std::error::Error>> {
+    // The ceiling itself is accepted.
+    Client::builder(profile(chromium::v154_http3_tls()))
+        .max_http3_connections_per_origin(nonzero(super::HTTP3_CONNECTIONS_PER_ORIGIN_CEILING))
+        .build()?
+        .session_builder()
+        .max_http3_connections_per_origin(nonzero(super::HTTP3_CONNECTIONS_PER_ORIGIN_CEILING))
+        .build()?;
+    let error = Client::builder(profile(chromium::v154_http3_tls()))
+        .max_http3_connections_per_origin(nonzero(9))
+        .build()
+        .err()
+        .ok_or("a client with nine HTTP/3 connections per origin was built")?;
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+
     let mut without_tickets = chromium::v154_http3_tls();
     without_tickets.session_tickets = false;
     let client = Client::builder(profile(without_tickets)).build()?;
@@ -253,6 +276,12 @@ fn session_build_rejects_what_client_build_rejects() -> Result<(), Box<dyn std::
             client
                 .session_builder()
                 .negotiated_setup_wait_limit(Duration::MAX),
+        ),
+        (
+            "more HTTP/3 connections per origin than the ceiling",
+            client
+                .session_builder()
+                .max_http3_connections_per_origin(nonzero(9)),
         ),
     ];
     #[cfg(feature = "https-records")]

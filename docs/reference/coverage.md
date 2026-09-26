@@ -503,7 +503,9 @@ Supported:
   origin and route.
 - One H2 connection per origin and route, as browsers keep; an opt-in
   `max_http2_connections_per_origin` opens more when every connection is at
-  its stream limit. H3 keeps one connection per transport location.
+  its stream limit. H3 keeps one connection per transport location; an
+  opt-in `max_http3_connections_per_origin` opens more when every connection
+  is at the server's `initial_max_streams_bidi`.
 - Bounded admission per origin and route for negotiated requests before
   protocol selection, converted to H1 or H2 admission after ALPN.
 - A bounded opt-in Alt-Svc store keyed by exact origin and route:

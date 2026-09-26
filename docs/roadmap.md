@@ -71,6 +71,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   replay, and status retries ([Retries and replays](guides/retries.md)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
+- More than one HTTP/3 connection per origin and route with
+  `ClientBuilder::max_http3_connections_per_origin`, off by default: streams
+  spread by the server's `initial_max_streams_bidi`
+  ([Tune throughput and latency](guides/performance.md#open-more-than-one-connection-per-origin)).
 - Server-sent events with Chrome and Firefox reconnects
   ([Server-sent events](guides/sse.md)).
 - WebSocket over HTTP/1.1 on direct, HTTP proxy, and SOCKS5 routes, and over
@@ -189,9 +193,6 @@ Each of these needs no capture, because no named recipe may reach it
 - WebSocket over HTTP/3 (RFC 9220) for custom profiles. The `phantom-net`
   extended CONNECT foundation exists; no shipping browser opens one, so no
   recipe will.
-- More than one HTTP/3 connection per origin and route. Blocker: the H3
-  pool's early-data and connect-turn state assume one connection, and
-  spreading streams needs the peer's `initial_max_streams_bidi`.
 - An opt-in retry of a failed exact HTTP/3 attempt over the profile's own
   HTTP/2 recipe, as a browser does once it marks an alternative broken.
 - A WebSocket handshake timeout and an explicit handshake retry.
