@@ -111,7 +111,7 @@ const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
 const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.8037.58");
 const CHROME_MACOS_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt");
-const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/153.0.4234.48");
+const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/154.0.4258.37");
 const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.92");
 const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/156.0");
 const OPERA_MACOS_HTTP3: &str =
@@ -772,7 +772,7 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
         (
             edge::v154_windows_navigation_template(),
             edge::v154_windows_fetch_no_store_template(),
-            edge::v153_macos_client_hints(),
+            edge::v154_macos_client_hints(),
             &EDGE_MACOS_WEBSOCKET,
             "edge macos",
         ),

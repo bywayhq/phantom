@@ -54,7 +54,7 @@ const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0", "no-early-data"
 const CHROME_MACOS_SEQUENTIAL: &str =
     fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
 const EDGE_MACOS_SEQUENTIAL: &str =
-    fixture!("edge", "153.0.4234.48", "macos-15.5-arm64", "sequential");
+    fixture!("edge", "154.0.4258.37", "macos-15.5-arm64", "sequential");
 const OPERA_MACOS_SEQUENTIAL: &str =
     fixture!("opera", "135.0.5973.92", "macos-15.5-arm64", "sequential");
 const FIREFOX_MACOS_SEQUENTIAL: &str =

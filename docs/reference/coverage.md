@@ -839,9 +839,8 @@ shares component data with a capture from another platform:
 - Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37), Brave 154
   (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
   come from Windows 11 captures. The `macos` client-hint and template
-  recipes of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures
-  on Apple silicon, at the same builds except Edge, whose Mac runs Edge
-  153.0.4234.48. Single retained macOS runs of the TCP
+  recipes of Chrome, Edge, Opera, and Firefox, at the same builds, come from
+  macOS 15.5 captures on Apple silicon. Single retained macOS runs of the TCP
   ClientHello and resumption and the H2 session for all four, and of the
   QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
   Windows recipes in the replay tests
@@ -874,8 +873,8 @@ How the recipes differ:
   list is `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`.
 - Edge 154 matches the Chromium H2, QUIC, and H3 recipes and omits
   trust-anchor IDs. So `edge::` carries only `v154_tls`, `v154_http3_tls`,
-  `v154_windows_client_hints`, its request templates, and the Edge 153
-  `v153_macos_client_hints`.
+  `v154_windows_client_hints`, `v154_macos_client_hints`, and its request
+  templates.
 - Brave 154 matches the Chromium H2, QUIC, H3, WebSocket, and proxy CONNECT
   recipes and omits trust-anchor IDs. `brave::` carries `v154_tls`, which
   keeps Chrome's ECH from HTTPS records, `v154_http3_tls`,

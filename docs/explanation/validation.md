@@ -26,7 +26,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Edge 153 and Firefox 156 recipes](#edge-153-and-firefox-156-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; macOS only for client hints and request fields |
 | [Edge 154 recipes](#edge-154-recipes) | Fingerprint snapshots against Edge 153, and one run of each Windows scenario whose request fields carry the brand list | One run per scenario; ECH, cookie crumbs, and H2 startup rest on Edge 153 |
 | [Brave 154 and Opera 135 recipes](#brave-154-and-opera-135-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; no TCP, SSE, or Alt-Svc evidence; Opera's H2 and H3 startups launched through DevTools |
-| [macOS recipes](#macos-recipes) | macOS 15.5 arm64 captures of Chrome 154, Edge 153, Opera 135, and Firefox 156 client hints and request fields, replayed by recipe tests | One Apple silicon host; headless only; single-sample parity runs for the other layers |
+| [macOS recipes](#macos-recipes) | macOS 15.5 arm64 captures of Chrome 154, Edge 154, Opera 135, and Firefox 156 client hints and request fields, replayed by recipe tests | One Apple silicon host; headless only; single-sample parity runs for the other layers |
 | [Opera for Android 102 recipes](#opera-for-android-102-recipes) | Android 17 emulator captures of the TLS ClientHello and client hints; Android 15 emulator captures of HTTP/1.1 requests to loopback | Opera takes no switches: no H2, QUIC, H3, or templates |
 | [Firefox for Android 156 recipe](#firefox-for-android-156-recipe) | Android 15 emulator captures of the TLS ClientHello | No certificate trust on Android, so no other layer |
 | [Chrome for Android 154 recipes](#chrome-for-android-154-recipes) | Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests; Chrome 153 captures on an Android 15 emulator for QUIC resumption and WebSocket openings | An emulator, not a phone; no TCP layer; one process per transport layer |
@@ -552,8 +552,19 @@ ticket reuse, and the position of `pre_shared_key` are unchanged.
 No Edge 154 capture repeats the ECH, cookie crumb, raw H2 startup, or
 `resumption-streams-*` scenarios, which need either an administrator policy
 or no changed field. Those Edge 153 fixtures stay, and the tests that replay
-them name Edge 153. The Mac runs Edge 153.0.4234.48, so
-`edge::v153_macos_client_hints` and the macOS fixtures stay at Edge 153.
+them name Edge 153.
+
+The Mac's Edge was updated from 153.0.4234.48 to 154.0.4258.37 with the
+signed app from Microsoft's official stable pkg, moved into `/Applications`
+in place of the old bundle without an administrator password; the pkg
+installer itself needs one. Three snapshots there matched the retained
+macOS Edge 153 H2 navigation, QUIC ClientHello, and H3 SETTINGS, and
+differed in the same client-hint values as on Windows. The macOS captures
+of [macOS recipes](#macos-recipes) were then taken again for Edge 154 in 23
+seconds: client hints and the `accept` and `h1-accept` WebSocket scenarios
+three times each with `--accept-lang=en-US`, and one TLS `sequential` and
+one H3 startup run. `edge::v154_macos_client_hints` differs from the Windows
+hints only in the platform data.
 
 Limits:
 
@@ -732,20 +743,21 @@ Limits:
 ### macOS recipes
 
 What is claimed: `chromium::v154_macos_client_hints`,
-`edge::v153_macos_client_hints`, `opera::v135_macos_client_hints`, the
+`edge::v154_macos_client_hints`, `opera::v135_macos_client_hints`, the
 Chrome templates `chromium::v154_macos_navigation_template` and
 `chromium::v154_macos_fetch_no_store_template`, and the Firefox templates
 `firefox::v156_macos_navigation_template` and
 `firefox::v156_macos_fetch_no_store_template` reproduce what those browsers
 send on macOS 15.5 on Apple silicon. On macOS, Opera 135 sends the fields
-of its Windows request templates with the macOS client hints, and Edge 153
+of its Windows request templates with the macOS client hints, and Edge 154
 does too with its language list set to `en-US`; for another locale, override
 `Accept-Language`. So neither has a separate macOS template. Every other
 layer of these browsers is the Windows recipe, and the replay tests compare
 it with the single macOS runs listed below.
 
 Evidence: the capture host is a MacBook Air (M4) on macOS 15.5 (24F74). It
-ran Chrome 154.0.8037.58 and Edge 153.0.4234.48 as installed, Opera
+ran Chrome 154.0.8037.58 as installed, Edge 154.0.4258.37 from Microsoft's
+stable pkg (see [Edge 154 recipes](#edge-154-recipes)), Opera
 135.0.5973.92 from Opera's release archive installed over the older
 135.0.5973.66, and Firefox 156.0 from Mozilla's release archive. Each
 archive's checksum and Developer ID signature were checked. Every run was
@@ -783,19 +795,19 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.client_hints \
   --browser edge \
   --browser-path "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
-  --client-version 153.0.4234.48 \
+  --client-version 154.0.4258.37 \
   --operating-system "macOS 15.5 (24F74) arm64" \
   --browser-switch=--accept-lang=en-US --repeat 3 \
-  --output fixtures/client-hints/edge/153.0.4234.48/macos-15.5-arm64/navigation.txt
+  --output fixtures/client-hints/edge/154.0.4258.37/macos-15.5-arm64/navigation.txt
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.http2_websocket \
   --browser edge \
   --browser-path "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
-  --client-version 153.0.4234.48 \
+  --client-version 154.0.4258.37 \
   --operating-system "macOS 15.5 (24F74) arm64" \
   --browser-switch=--accept-lang=en-US \
   --scenario accept h1-accept --repeat 3 \
-  --output-dir fixtures/websocket/edge/153.0.4234.48/macos-15.5-arm64
+  --output-dir fixtures/websocket/edge/154.0.4258.37/macos-15.5-arm64
 ```
 
 Chrome and Opera ran the same commands with
@@ -2108,7 +2120,7 @@ emulators.
 | Chrome 154 | Windows | 134 | 334 | 1 | +2 each |
 | Chrome 154 | macOS | 5 | 8 | 1 | +2 each |
 | Edge 153 and 154 | Windows | 156 | 459 | 1 | +2 each |
-| Edge 153 | macOS | 4 | 9 | 1 | +2 each |
+| Edge 154 | macOS | 3 | 9 | 1 | +2 each |
 | Brave 154 | Windows | 45 | 183 | 1 | +2 each |
 | Opera 135 | Windows | 101 | 331 | 1 | +2 each |
 | Opera 135 | macOS | 3 | 9 | 1 | +2 each |

@@ -36,7 +36,7 @@ recaptured and reverified.
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
-| Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`; `v153_macos_client_hints` from Edge 153 | Chromium | Windows; macOS (Edge 153) for client hints and templates |
+| Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | No | No | `v156_websocket` | Windows; macOS for templates |

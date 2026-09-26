@@ -684,7 +684,7 @@ fn chromium_family_macos_quic_captures_match_the_chromium_recipe()
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../fixtures/http3/edge/153.0.4234.48/macos-15.5-arm64/client-startup.txt"
+                "/../../fixtures/http3/edge/154.0.4258.37/macos-15.5-arm64/client-startup.txt"
             )),
             "Microsoft Edge",
         ),

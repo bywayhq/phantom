@@ -12,8 +12,7 @@
 //!
 //! Edge 154 changed only the client hints from Edge 153.0.4234.48: the brand
 //! list, its order, and the versions. The TCP and QUIC ClientHellos, the H2
-//! startup, and the H3 SETTINGS are unchanged. The macOS client hints remain
-//! those of Edge 153, the version on the retained Mac.
+//! startup, and the H3 SETTINGS are unchanged, on Windows and on macOS.
 //!
 //! There is no Edge TCP recipe. Socket options are not visible in captures,
 //! and Edge's network-stack source is not public, so no retained evidence
@@ -101,29 +100,29 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
     ])
 }
 
-/// Returns client-hint fields observed from Edge 153 on macOS 15.5 arm64.
+/// Returns client-hint fields observed from Edge 154 on macOS 15.5 arm64.
 ///
-/// Three headless runs of the retained navigation capture of Edge
-/// 153.0.4234.48 on macOS 15.5 (24F74) on Apple silicon agree. Names, order,
-/// and delivery match [`v154_windows_client_hints`]. The brand and version
-/// values are Edge 153's, and the platform data is the Mac's:
-/// `sec-ch-ua-platform` is `"macOS"`, `sec-ch-ua-platform-version` is
-/// `"15.5.0"`, and `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness`
-/// stays `"64"` and `sec-ch-ua-wow64` stays `?0`. The returned value is
-/// owned and may be customized before client creation, for example to carry
-/// another macOS or Edge version.
+/// Names, order, delivery, and the brand and version values match
+/// [`v154_windows_client_hints`]; three headless runs of the retained
+/// navigation capture of Edge 154.0.4258.37 on macOS 15.5 (24F74) on Apple
+/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
+/// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
+/// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
+/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// customized before client creation, for example to carry another macOS
+/// version.
 #[must_use]
-pub fn v153_macos_client_hints() -> ClientHintSettings {
+pub fn v154_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
         ClientHint::new(
             "sec-ch-ua",
-            r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+            r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""153.0.4234.48""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.37""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
@@ -132,7 +131,7 @@ pub fn v153_macos_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Microsoft Edge";v="153.0.4234.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53""#,
+            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -154,8 +153,8 @@ pub fn v153_macos_client_hints() -> ClientHintSettings {
 /// that is not potentially trustworthy too: to `origin.phantom.test` Edge
 /// sends no `Sec-Fetch-*` field and `Accept-Encoding: gzip, deflate`.
 ///
-/// The template also matches the Edge 153.0.4234.48 captures on macOS 15.5
-/// arm64 on HTTP/1.1 and HTTP/2, with [`v153_macos_client_hints`], so there
+/// The template also matches the Edge 154.0.4258.37 captures on macOS 15.5
+/// arm64 on HTTP/1.1 and HTTP/2, with [`v154_macos_client_hints`], so there
 /// is no separate macOS template. On macOS Edge takes `Accept-Language` from
 /// the system language list and ignores `--lang`; those captures ran with
 /// `--accept-lang=en-US`, which gives this template's `en-US,en;q=0.9`. For a

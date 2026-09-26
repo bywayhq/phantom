@@ -39,8 +39,7 @@ fn edge_android_153_client_hints_match_navigation_capture() -> TestResult {
 }
 
 /// Edge for Android sends the Chromium hint names in the Chromium order and
-/// delivery; its brand list is desktop Edge 153's, which the retained macOS
-/// Edge 153 hints carry.
+/// delivery; its brand list is desktop Edge 153's.
 #[test]
 fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
     let names = |settings: &crate::ClientHintSettings| {
@@ -51,7 +50,7 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
             .collect::<Vec<_>>()
     };
     let android = v153_android_client_hints();
-    let desktop = edge::v153_macos_client_hints();
+    let desktop = edge::v154_windows_client_hints();
     assert_eq!(names(&android), names(&desktop));
     let value = |settings: &crate::ClientHintSettings, name: &str| {
         settings
@@ -60,7 +59,10 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
             .find(|hint| hint.name() == name)
             .map(|hint| hint.value().to_vec())
     };
-    assert_eq!(value(&android, "sec-ch-ua"), value(&desktop, "sec-ch-ua"));
+    assert_eq!(
+        value(&android, "sec-ch-ua").as_deref(),
+        Some(&br#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#[..])
+    );
     let other = v153_android_client_hints_for_model("Pixel 9");
     assert!(other.validate().is_ok());
     assert_eq!(

@@ -558,7 +558,7 @@ fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
         "../../../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt"
     );
     const EDGE: &str = include_str!(
-        "../../../../fixtures/http3/edge/153.0.4234.48/macos-15.5-arm64/client-startup.txt"
+        "../../../../fixtures/http3/edge/154.0.4258.37/macos-15.5-arm64/client-startup.txt"
     );
     const OPERA: &str = include_str!(
         "../../../../fixtures/http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt"

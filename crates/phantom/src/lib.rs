@@ -296,10 +296,10 @@ pub mod profile {
     ///
     /// Edge 154 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
     /// CONNECT recipes; only its TLS ClientHellos, client hints, and request
-    /// identity differ. The macOS client hints remain those of Edge 153.
+    /// identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{
-            v153_macos_client_hints, v154_http3_tls, v154_tls, v154_windows_client_hints,
+            v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints,
             v154_windows_fetch_no_store_template, v154_windows_navigation_template,
         };
     }

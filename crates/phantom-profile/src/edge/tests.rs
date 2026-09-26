@@ -1,4 +1,4 @@
-use super::{v153_macos_client_hints, v154_http3_tls, v154_tls, v154_windows_client_hints};
+use super::{v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints};
 use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
@@ -11,7 +11,7 @@ const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
 ));
 const MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/edge/153.0.4234.48/macos-15.5-arm64/navigation.txt"
+    "/../../fixtures/client-hints/edge/154.0.4258.37/macos-15.5-arm64/navigation.txt"
 ));
 const SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -114,13 +114,13 @@ fn edge_154_http2_session_capture_matches_the_chromium_recipe()
 }
 
 #[test]
-fn edge_153_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
+fn edge_154_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
 {
-    let settings = v153_macos_client_hints();
+    let settings = v154_macos_client_hints();
     settings.validate()?;
     let capture = NavigationCapture::parse(MACOS_CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
-    assert_eq!(capture.value("client_version")?, "153.0.4234.48");
+    assert_eq!(capture.value("client_version")?, "154.0.4258.37");
     assert_eq!(
         capture.value("operating_system")?,
         "macOS 15.5 (24F74) arm64"
@@ -138,26 +138,16 @@ fn edge_153_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn 
     Ok(())
 }
 
-/// The macOS hints differ from the Windows ones in the Edge 153 brand and
-/// version values and the platform data.
+/// macOS changes only the platform hints.
 #[test]
-fn edge_153_macos_client_hints_differ_from_windows_in_version_and_platform_data() {
-    let changed = changed_hints(&v154_windows_client_hints(), &v153_macos_client_hints());
+fn edge_154_macos_client_hints_differ_from_windows_only_in_platform_data() {
+    let changed = changed_hints(&v154_windows_client_hints(), &v154_macos_client_hints());
     assert_eq!(
         changed,
         [
-            (
-                "sec-ch-ua",
-                r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
-            ),
-            ("sec-ch-ua-full-version", r#""153.0.4234.48""#),
             ("sec-ch-ua-arch", r#""arm""#),
             ("sec-ch-ua-platform", r#""macOS""#),
             ("sec-ch-ua-platform-version", r#""15.5.0""#),
-            (
-                "sec-ch-ua-full-version-list",
-                r#""Microsoft Edge";v="153.0.4234.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53""#,
-            ),
         ]
         .map(|(name, value)| (name.to_owned(), value.to_owned()))
     );
@@ -165,11 +155,11 @@ fn edge_153_macos_client_hints_differ_from_windows_in_version_and_platform_data(
 
 /// The macOS 15.5 arm64 page loads carry the same H2 settings as on Windows.
 #[test]
-fn edge_153_macos_http2_session_capture_matches_the_chromium_recipe()
+fn edge_154_macos_http2_session_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/websocket/edge/153.0.4234.48/macos-15.5-arm64/accept.txt"
+        "/../../fixtures/websocket/edge/154.0.4258.37/macos-15.5-arm64/accept.txt"
     )))?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
     assert_eq!(
