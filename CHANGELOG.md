@@ -111,7 +111,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   connection to an origin whose HTTPS record carries `ech` sends a real
   Encrypted Client Hello, with the record's public name as the outer server
   name, and its TLS handshake waits for the lookup for at most 50 ms after
-  address resolution. A QUIC connector rejects the field. (`e6e5076`)
+  address resolution. (`e6e5076`)
   Migrate: add `ech_from_https_records: false` to a struct literal to keep
   the previous behavior, or fill the rest from a recipe with struct update
   syntax, such as `..chromium::v154_tls()`. To keep ECH GREASE with the
@@ -309,6 +309,26 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Encrypted Client Hello over QUIC. `phantom_quic_btls::EchOffer` and
+  `EchOutcome`, with `QuicClientConfig::with_ech`, offer an `ECHConfigList`
+  on one connection and report whether the server accepted it, rejected it
+  with or without retry configurations, or BoringSSL refused the list;
+  `HandshakeData::ech_accepted` reports acceptance. `Http3Connector` gained
+  `connect_direct_with_ech` and `ech_from_https_records` behind the
+  `https-records` feature, and `Http3ConnectorError::ech_failure` returns
+  the `EchFailure`. A QUIC connector now accepts
+  `TlsSettings::ech_from_https_records`.
+- The `server` feature of `phantom-quic-btls` adds `QuicServerConfig`, a
+  Quinn server crypto provider on a BoringSSL context, and
+  `ServerHandshakeData`, which reports the ClientHello, the server name, and
+  ECH acceptance. It exists for loopback tests and capture tools, holds ECH
+  keys, and offers no 0-RTT or client authentication.
+- `chrome_ech.py --quic` and `capture_ech_client_hello --quic` record a
+  browser's QUIC connections to an origin whose HTTPS record lists `h3` and
+  carries `ech`, from a loopback QUIC server that decrypts ECH. The fixture
+  format is now `phantom-ech-client-hello-v2`. Chrome 154, Edge 153, and
+  Brave 154 captures are retained as `ech-quic-accept.txt` and
+  `ech-quic-reject.txt`.
 - `scripts/capture/tls_resumption.py` records how a browser resumes TLS 1.3
   sessions over TCP against a loopback server that issues its own tickets:
   the resumed ClientHello, the ticket each connection presents, early data,
@@ -654,6 +674,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Chrome 154, Edge 153, and Brave 154 HTTP/3 recipes on a
+  client with HTTPS record discovery: `chromium::v154_http3_tls` now keeps
+  `ech_from_https_records`, and `edge::v153_http3_tls` and
+  `brave::v154_http3_tls` inherit it, so a direct QUIC connection to the
+  origin's own host and port, for an HTTP/3 alternative found through its
+  HTTPS records or an exact HTTP/3 request, sends a real Encrypted Client
+  Hello when the first record listing `h3` carries `ech`, as those browsers
+  do. The connection starts once the lookup ends, at most 50 ms after
+  address resolution. After a rejection it closes with `ech_required` and
+  is not repeated over QUIC, as in the captures; a racing client's request
+  goes to the origin over TCP, which retries its own rejection once.
+  `opera::v135_http3_tls` clears the field, so Opera is unchanged, as are
+  proxy routes and Alt-Svc alternatives at another host.
 - Wire change for TLS resumption over TCP. The Chrome 154, Edge 153, Brave
   154, and Opera 135 recipes keep at most two tickets per origin, the newest
   two, instead of eight, as the browsers did in the resumption captures; a

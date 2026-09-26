@@ -38,9 +38,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
-  negotiated or exact, and on `wss://` openings, with the Chrome 154, Edge
-  153, and Brave 154 recipes
-  ([Real ECH evidence](explanation/validation.md#real-ech-evidence)).
+  negotiated or exact, on `wss://` openings, and on QUIC connections to the
+  origin, with the Chrome 154, Edge 153, and Brave 154 recipes
+  ([Real ECH evidence](explanation/validation.md#real-ech-evidence),
+  [over QUIC](explanation/validation.md#real-ech-over-quic-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
   A `407` on an HTTP/1.1 proxy connection is replayed on that connection
@@ -147,9 +148,11 @@ anything does.
 
 #### Discovery, DNS, and ECH
 
-- ECH over QUIC. Evidence: Chrome passes the record's list to QUIC
-  (`net/quic/quic_chromium_client_session.cc`); the QUIC connector rejects
-  the field. Blocker: a capture of Chrome's QUIC handshake with a record.
+- ECH on an Alt-Svc alternative at another host. Evidence: Chrome's
+  alternative job resolves that host, HTTPS record included
+  (`net/quic/quic_session_pool_direct_job.cc`); Phantom looks up only the
+  origin's records. Blocker: a capture of Chrome reaching such an
+  alternative whose own record carries `ech`.
 - DNS over HTTPS where the captured browser uses it. Blocker: none
   recorded; a caller can already supply an `AddressResolver` that queries
   over HTTPS, but no recipe does.

@@ -343,6 +343,10 @@ Supported requests and routes:
   authenticates as the public name, as Chrome 154, Edge 153, and Brave 154
   do
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
+  Their HTTP/3 recipes do the same on a QUIC connection to the origin, an
+  HTTPS-record alternative or an exact HTTP/3 request, except that a
+  rejected QUIC connection is not repeated
+  ([Real ECH over QUIC evidence](../explanation/validation.md#real-ech-over-quic-evidence)).
   Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
 
@@ -407,7 +411,8 @@ Planned:
 - Datagram APIs for specific extensions.
 - Alt-Svc racing across multiple alternatives, and a racing delay derived
   from RTT.
-- Encrypted Client Hello from a record's `ech` value on H3, and for Opera.
+- Encrypted Client Hello from a record's `ech` value for Opera, and on an
+  Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does; Phantom's address lookups go through the operating system.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.

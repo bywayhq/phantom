@@ -370,7 +370,7 @@ Retained fixtures, each under `fixtures/<area>/chrome/154.0.8037.58/windows-11-2
 
 | Area | Files |
 | --- | --- |
-| `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | `http2` | `client-startup.txt` |
 | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt` |
 | `client-hints` | `navigation.txt` |
@@ -469,7 +469,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Edge 153.0.4234.48 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Edge 153.0.4234.48 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Edge 153.0.4234.48 | `http2` | `client-startup.txt` |
 | Edge 153.0.4234.48 | `http3` | `client-startup.txt`, `quic-client-hello-1.txt`, `quic-client-hello-2.txt` |
 | Edge 153.0.4234.48 | `client-hints` | `navigation.txt` |
@@ -517,10 +517,11 @@ same layer, with `--browser brave` or `--browser opera` in the Python tools.
 | WebSocket openings and connection choice | 9 scenarios, 3 runs each | Equal to `chromium::v154_websocket` |
 | Proxy CONNECT fields | 20 proxy scenarios, 3 runs each | Equal to `chromium::v154_proxy_connect` |
 | Brave ECH from an HTTPS record | 1 `accept` and 1 `reject` run | Chrome 154's outer extension fields; one retry with the server's configuration after a rejection |
+| Brave ECH over QUIC | 3 `accept` and 3 `reject` runs | Chrome 154's outer QUIC fields without trust-anchor IDs; no QUIC connection after a rejection |
 
 The recipes follow from those results. `brave::v154_tls` and
 `brave::v154_http3_tls` remove the trust-anchor IDs from the Chromium
-recipes, and `brave::v154_tls` keeps `ech_from_https_records`.
+recipes, and both keep `ech_from_https_records`.
 `opera::v135_tls` also clears `grease_signature_algorithms`;
 `opera::v135_http3_tls` removes only the IDs, since the Chromium QUIC offer
 has no signature algorithm GREASE. Neither browser has an H2, QUIC, H3,
@@ -617,13 +618,14 @@ repeated with the committed tool, matched the retained fixtures on every
 compared field. The other layers use `client_hints.py --repeat 3`,
 `http2_websocket.py --scenario all --repeat 3`,
 `proxy_route.py --scenario all --repeat 3`, `quic_resumption.py` as in its
-section, and `chrome_ech.py --scenario accept` and `reject`.
+section, and `chrome_ech.py --scenario accept` and `reject`, without and
+with `--quic`.
 
 Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26200/`:
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Opera 135.0.5973.92 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
@@ -1890,12 +1892,9 @@ switch, while the policy is set, fails those handshakes.
 
 Limits:
 
-- Only direct HTTP/1.1 and HTTP/2 connections over TCP, on a client with
-  HTTPS record discovery, use the record's `ech`. The QUIC leg does not
-  implement it: `chromium::v154_http3_tls`
-  leaves the field unset, and a QUIC connector rejects it, although Chrome
-  passes the list to QUIC too (`net/quic/quic_chromium_client_session.cc`
-  lines 1765-1780).
+- This section covers connections over TCP. QUIC connections follow
+  [Real ECH over QUIC evidence](#real-ech-over-quic-evidence), which differs
+  after a rejection: Chrome does not repeat a QUIC connection.
 - Chrome's wait timer starts when its own DNS client has both address
   answers; Phantom starts it when the operating system's resolver returns.
   Each Phantom connection times its own wait from its own resolution.
@@ -1905,6 +1904,127 @@ Limits:
 - A record with several `ech` configurations is passed whole to BoringSSL,
   which picks one; no capture shows Chrome with more than one.
 - The capture used a single record with `alpn=h2` and a target of `.`.
+
+### Real ECH over QUIC evidence
+
+What is claimed: with the Chrome 154, Edge 153, or Brave 154 HTTP/3 recipe
+and HTTPS record discovery, a direct QUIC connection to the origin's own host
+and port, whose first record that lists `h3` carries `ech`, encrypts its
+ClientHello with that configuration, as Chrome 154.0.8037.58, Edge
+153.0.4234.48, and Brave 154.1.96.59 do. The outer server name is the
+configuration's public name, the `encrypted_client_hello` extension has the
+cipher suite, config ID, encapsulated key length, and payload length the
+browser sent, and the outer ClientHello carries the extension set the
+browser's did. When the server rejects the configuration, the connection
+closes with the TLS `ech_required` alert, QUIC error `0x179`, and is not
+repeated over QUIC, with the retry configurations or without them. This
+covers an HTTP/3 alternative found through the origin's HTTPS records and an
+exact HTTP/3 request on the direct route. The connection starts once the
+lookup ends, at most 50 ms after the addresses arrive.
+
+Evidence: `ech-quic-accept.txt` and `ech-quic-reject.txt` under
+`fixtures/tls/chrome/154.0.8037.58/windows-11-26200/`,
+`fixtures/tls/edge/153.0.4234.48/windows-11-26200/`, and
+`fixtures/tls/brave/154.1.96.59/windows-11-26200/`, from headless browsers
+on Windows 11 (10.0.26200), recorded by
+[`chrome_ech.py --quic`](../../scripts/capture/README.md#encrypted-client-hello).
+The loopback origin serves HTTP/3 from a BoringSSL QUIC server that decrypts
+ECH, the `phantom-quic-btls` `server` feature, and HTTP/1.1 over TCP on the
+same port. Its DNS-over-HTTPS server answers with one record that lists `h3`
+and `h2` and carries `ech`. Three runs of each scenario per browser agreed,
+and the first of each is retained.
+
+- `accept`: each browser opened a QUIC connection with outer server name
+  `public.phantom.test`, HKDF-SHA256, AES-128-GCM, config ID 1, a 32-byte
+  encapsulated key, and a 144-byte payload. The origin decrypted
+  `server.phantom.test` inside and served the page over HTTP/3. In two of
+  Chrome's three runs a second QUIC connection resumed the first one's
+  session, with the same outer fields and a 368-byte payload.
+- `reject`: the origin held another key. Every QUIC connection, three per
+  Chrome run, two per Edge run, and one per Brave run, offered config ID 1,
+  and the browser closed it with `0x179` after the origin completed its
+  handshake as the public name. None offered the retry configuration. The
+  page came over TCP instead: one connection rejected with config ID 1 and
+  one retry with config ID 2, which the origin accepted, as in
+  [Real ECH evidence](#real-ech-evidence).
+- Each browser's outer extension set was the same in all its QUIC
+  connections: 14 of Chrome's, 9 of Edge's, and 6 of Brave's. Chrome's equals the set of its ECH GREASE QUIC ClientHello in
+  `fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt`;
+  Edge's and Brave's lack trust-anchor IDs, as their recipes do.
+- Chrome and Brave sent one `HTTPS` and one `A` query; Edge sent an `A`, an
+  `HTTPS`, and a second `A` query. In these runs Edge read its
+  DNS-over-HTTPS server from the `Local State` preferences. Its policy key
+  under `HKLM\SOFTWARE\Policies\Microsoft\Edge` existed and held no values.
+- A diagnostic Chrome `reject` run with `--log-net-log`, not retained, shows
+  each QUIC session closing with `TLS handshake failure
+  (ENCRYPTION_FORWARD_SECURE) 121: ECH required`, and the navigation's TCP
+  job failing with `ERR_ECH_NOT_NEGOTIATED` (-183) before its retry.
+
+`crates/phantom-net/src/http3/tests/ech.rs` replays each browser's
+`ech-quic-accept.txt`: Phantom's outer QUIC ClientHello, sent with that
+browser's HTTP/3 TLS recipe to a loopback BoringSSL QUIC origin holding the
+same key, has the same outer server name, `ech_outer` fields, 144-byte
+payload included, and extension set, order ignored because both permute it.
+It replays Chrome's `ech-quic-reject.txt`: with the Chrome 154 recipe the
+connection has the rejected connection's outer fields, closes with `0x179`,
+and fails with `EchFailure::Rejected`, and no second QUIC connection
+arrives. The same file proves that a list which does not parse fails with
+`EchFailure::InvalidConfigList` before any packet, and that a lookup which
+ends within the bounded wait is used while one past it leaves GREASE.
+`crates/phantom-quic-btls/src/backend/server/tests.rs` proves the TLS layer:
+the origin receives the inner name, a rejection reports the server's retry
+configurations or none, and a rejection by a certificate without the public
+name fails verification instead. `crates/phantom/tests/https_record_ech_http3.rs`
+proves through the client facade that an exact HTTP/3 request and the
+HTTP/3 alternative of an HTTPS record have their ECH accepted once the
+record is cached, that a rejection fails the request without a second QUIC
+connection, and that a profile without the field sends no HTTPS query and
+keeps GREASE.
+
+Chrome source at tag `154.0.8037.58`, with quiche at the revision its `DEPS`
+pins, `80bf9559`, states the rules the recipe follows:
+
+- `QuicChromiumClientSession::GetSSLConfig` enables GREASE and passes the
+  endpoint's whole list (`net/quic/quic_chromium_client_session.cc` lines
+  1760-1790), which `TlsClientHandshaker` gives to
+  `SSL_set1_ech_config_list` (`quiche/quic/core/tls_client_handshaker.cc`
+  lines 163-181).
+- `QuicSessionPool::DirectJob` resolves the host, HTTPS record included,
+  before it starts a session (`DoResolveHost` and `DoResolveHostComplete`,
+  `net/quic/quic_session_pool_direct_job.cc` lines 135-189), then takes the
+  first endpoint that `SelectQuicVersion` accepts, which for an HTTPS record
+  is one listing `h3` (`DoAttemptSession`, lines 191-231, and
+  `net/quic/quic_session_pool.cc` lines 1656-1691).
+- Nothing in the QUIC path handles `SSL_R_ECH_REJECTED`. The failed
+  `DNS_ALPN_H3` job leaves the request to the main job over TCP, and
+  `JobController::MaybeReportBrokenAlternativeService` marks the DNS
+  alternative broken when the main job succeeds
+  (`net/http/http_stream_factory_job_controller.cc` lines 1262-1309).
+
+Phantom implements this through the same `TlsSettings::ech_from_https_records`
+field, set in `chromium::v154_http3_tls` and kept by `edge::v153_http3_tls`
+and `brave::v154_http3_tls`; `opera::v135_http3_tls` clears it. The
+connector checks the list, waits for the lookup as a TCP connection does,
+and offers ECH through `QuicClientConfig::with_ech`. A rejection is an
+HTTP/3 setup failure like any other: a sequential client fails the request
+and evicts the alternative, and a racing client sends it to the origin and
+marks the alternative broken. A connection that presented a session ticket
+is not repeated with a full handshake after an ECH rejection.
+
+Limits:
+
+- An Alt-Svc alternative at another host or port sends ECH GREASE. Chrome
+  would look up that host's HTTPS records; Phantom looks up only the
+  origin's.
+- After a rejection, Chrome's QUIC client checks the certificate against the
+  origin's true name (`TlsClientHandshaker::VerifyCertChain`, lines
+  578-599), and BoringSSL's default verifier, which Phantom uses, checks it
+  against the public name. The captures cannot tell them apart, since the
+  origin's certificate covered both names. A server whose certificate covers
+  only one of them fails the handshake in one client and reports a rejection
+  in the other.
+- The captures used one record, with `alpn=h3,h2` and a target of `.`, and
+  loopback port 443.
 
 ### QUIC resumption and 0-RTT evidence
 

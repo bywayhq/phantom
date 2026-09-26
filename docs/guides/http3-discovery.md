@@ -77,7 +77,8 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
 - Only negotiated requests on the direct route with no stored Alt-Svc
   alternative look up records for H3. With those recipes, every direct TLS
   connection over TCP also looks them up for its `ech`,
-  including those of exact-protocol requests and `wss://` openings. Proxy
+  including those of exact-protocol requests and `wss://` openings, and so
+  does a QUIC connection to the origin's own host and port. Proxy
   routes and IP-literal origins send no query.
 - The H3 endpoint is the origin's own host and port, so the request carries
   no `Alt-Used` field. If H3 setup fails, the location is marked broken and
@@ -141,9 +142,11 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   sources where Chrome shows one
   ([HTTPS record evidence](../explanation/validation.md#https-dns-record-evidence)).
 - Encrypted Client Hello from a record's `ech` value covers direct
-  HTTP/1.1 and HTTP/2 connections, negotiated or exact, and `wss://`
-  openings, but not H3
-  ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
+  HTTP/1.1 and HTTP/2 connections, negotiated or exact, `wss://` openings,
+  and H3 connections to the origin's own host and port, but not an Alt-Svc
+  alternative elsewhere. A rejected H3 connection fails and is not repeated
+  over QUIC, as in Chrome
+  ([Real ECH over QUIC evidence](../explanation/validation.md#real-ech-over-quic-evidence)).
 - Not implemented: racing more than one alternative (a stored Alt-Svc
   alternative is used instead of an HTTPS-record one), persisting
   brokenness or clearing it on a network change, an RTT-derived racing
