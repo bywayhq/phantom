@@ -86,10 +86,15 @@ Every recipe comes from captures on one platform: Windows 11 for the
 in the name, macOS 15.5 on Apple silicon for those with it, and the Android
 15 emulator for `chrome_android`, `brave_android`, `opera_android`, and
 `firefox_android`. Each recipe's rustdoc names its capture build and
-platform. On macOS, Edge and Opera send the fields of their `windows`
-request templates, so those two have `macos` client hints but no `macos`
-templates; the other layers are the unnamed recipes, which the macOS parity
-runs matched ([Validation](../explanation/validation.md#macos-recipes)).
+platform.
+
+On macOS, Opera sends the fields of its `windows` request templates, and
+Edge does too with its language list set to `en-US`. Edge otherwise takes
+`Accept-Language` from the system's language list, so for another locale
+override that field. Both therefore have `macos` client hints but no `macos`
+templates. Their other layers are the recipes without a platform in the
+name, which retained single macOS runs match
+([Validation](../explanation/validation.md#macos-recipes)).
 
 ## TCP socket options
 
@@ -222,6 +227,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | --- | --- | --- | --- | --- | --- |
 | `chromium::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 154 value |
 | `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
+| `chromium::v154_macos_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `chromium::v154_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `edge::v153_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `edge::v153_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
@@ -230,6 +237,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `opera::v135_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
+| `firefox::v156_macos_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 macOS value |
+| `firefox::v156_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 macOS value |
 | `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `chrome_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Chrome 153 for Android value |
@@ -241,10 +250,13 @@ Each recipe's rustdoc cites the source lines. Evidence:
   no field list for it.
 - A caller slot has no captured value; you supply the field. A request that
   leaves a required caller slot empty fails before any I/O.
-- Every template carries the capture machine's `en-US` `Accept-Language`, the
-  Windows 11 host's or, for `chrome_android`, the Android emulator's, except
-  Brave's, which leave it to you: Brave draws the `q` value of its second
-  language per session.
+- Every template carries the capture machine's `en-US` `Accept-Language`,
+  from the Windows 11 host, the macOS host for a `macos` template, or, for
+  `chrome_android`, the Android emulator. Brave's templates leave it to you:
+  Brave draws the `q` value of its second language per session. On macOS,
+  Edge takes the field from the system's language list, so its templates
+  match only with that list set to `en-US`; for another locale, override
+  `Accept-Language`.
 - The Brave templates are the Chromium templates with three changes: `Accept`
   on a navigation omits `application/signed-exchange;v=b3;q=0.7`,
   `Sec-GPC: 1` follows `Accept`, and `Accept-Language` is a

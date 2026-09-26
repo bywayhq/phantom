@@ -35,9 +35,11 @@ presented as a complete client match.
 
 Read the matrix with these conditions:
 
-- Every desktop capture comes from one Windows 11 build (10.0.26200). No macOS
-  or Linux capture of these builds exists, so platform independence is not
-  claimed. The Chrome and Brave for Android captures come from an Android 15
+- Every desktop capture comes from one Windows 11 build (10.0.26200), except
+  the macOS 15.5 arm64 captures behind the `macos` recipes. Those cover
+  client hints and request fields, with single runs of the other captured
+  layers; no Linux capture exists, so platform independence is not claimed
+  beyond them. The Chrome and Brave for Android captures come from an Android 15
   emulator on that host, not from a phone, with Wi-Fi as its default network.
 - H1's captured part is the request field order that request templates
   carry. The Chrome and Firefox recipes set a connection bound
@@ -821,11 +823,14 @@ shares component data with a capture from another platform:
 - Chrome 154 (154.0.8037.58), Edge 153 (153.0.4234.48), Brave 154
   (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
   come from Windows 11 captures. The `macos` client-hint and template
-  recipes of Chrome, Edge, Opera (135.0.5973.66), and Firefox come from
-  macOS 15.5 captures on Apple silicon, whose single TLS, QUIC, H2, and H3
-  parity runs matched the Windows recipes
+  recipes of Chrome, Edge, Opera, and Firefox, at the same builds, come from
+  macOS 15.5 captures on Apple silicon. Single retained macOS runs of the TCP
+  ClientHello and resumption and the H2 session for all four, and of the
+  QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
+  Windows recipes in the replay tests
   ([Validation](../explanation/validation.md#macos-recipes)). No Linux
-  capture exists, and no other layer is claimed to be platform independent. The retired Chrome 152 and Firefox 154 captures, which did
+  capture exists, and no other layer is claimed to be platform
+  independent. The retired Chrome 152 and Firefox 154 captures, which did
   compare two platforms, are no longer in the tree.
 - Chrome 153 for Android (153.0.8010.52) recipes come from captures on the
   Android 15 emulator described in

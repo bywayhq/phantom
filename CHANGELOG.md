@@ -354,10 +354,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `firefox::v156_macos_navigation_template`, and
   `firefox::v156_macos_fetch_no_store_template`. The Chrome templates leave
   `User-Agent` to the caller, because every macOS capture ran headless; the
-  Firefox templates carry the macOS `User-Agent`. On macOS, Edge and Opera
-  send the fields of their Windows templates. Every other layer is the
-  Windows recipe, which single macOS parity runs matched. The captures are
-  under `fixtures/*/*/*/macos-15.5-arm64/`.
+  Firefox templates carry the macOS `User-Agent`. On macOS, Opera sends the
+  fields of its Windows templates, and Edge does too with its language list
+  set to `en-US`; for another locale, override `Accept-Language`. Every other
+  layer is the Windows recipe: retained single macOS runs of the TCP
+  ClientHello and resumption, the H2 session, and, for the Chromium browsers,
+  the QUIC ClientHello and H3 startup are replayed against it. The captures
+  are under `fixtures/*/*/*/macos-15.5-arm64/`.
 - `client_hints.py` and `http2_websocket.py` take `--browser-switch` to add a
   recorded Chromium switch to the launch.
 - Encrypted Client Hello over QUIC. `phantom_quic_btls::EchOffer` and

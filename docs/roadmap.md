@@ -90,10 +90,16 @@ anything does.
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
   Blocker: a fresh-connection capture, and QUIC v2 support; Phantom speaks
   only QUIC v1.
-- Chrome on macOS. Evidence: none; Chromium's macOS idle-only keepalive is
-  known from source. Blocker: a matched Chrome build on an Apple Silicon
-  capture host. Retain each difference from the Windows recipe rather than
-  assuming the platforms match.
+- macOS beyond client hints and request fields. Delivered: `macos` client
+  hints for Chrome 154, Edge 153, and Opera 135 and `macos` request
+  templates for Chrome 154 and Firefox 156, from macOS 15.5 captures on an
+  Apple silicon Mac, with single runs of the TCP, QUIC, H2, and H3 layers
+  replayed against the Windows recipes
+  ([Validation](explanation/validation.md#macos-recipes)). Remaining: a
+  literal Chromium-family `User-Agent`, which needs a headful capture; the
+  idle-only TCP keepalive, known from Chromium source but not captured; Intel
+  Macs and other macOS versions. Blocker: a headful launch on the capture
+  host and an Intel Mac.
 - Edge for Android. Evidence: none; Play serves Edge 153.0.4234.49 only for
   arm64, and it crashes at startup (SIGSEGV in its native library) under the
   x86_64 emulator's ARM translation. Blocker: an arm64 device or emulator.

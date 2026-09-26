@@ -50,10 +50,10 @@ Phantom's claims rest on four kinds of evidence:
 | [Response-body limits](#response-body-limit-evidence) | Unit tests and an H1 loopback test | No H2 or H3 test exceeds a limit |
 | [H2 receive bounds](#adversarial-coverage) | Hostile-peer regressions | Not browser evidence |
 
-Every desktop capture comes from one Windows 11 build, except the
-[macOS recipes](#macos-recipes) from one macOS 15.5 Mac, the Chrome for
-Android captures from an Android 15 emulator on the Windows host, and no third-party
-observer backs any current recipe. [Recorded coverage losses](#recorded-coverage-losses)
+Every desktop capture comes from one Windows 11 build, except those behind
+the [macOS recipes](#macos-recipes), which come from one macOS 15.5 Mac. The
+Android captures come from an Android 15 emulator on the Windows host. No
+third-party observer backs any current recipe. [Recorded coverage losses](#recorded-coverage-losses)
 lists the checks Phantom used to run and no longer does.
 
 ## Contents
@@ -653,7 +653,9 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 Limits:
 
-- One Windows build per browser. No macOS or Linux capture of these versions
+- One Windows build per browser. Opera's macOS captures cover client hints,
+  request fields, and single runs of the other layers
+  ([macOS recipes](#macos-recipes)); Brave has none, and no Linux capture
   exists.
 - Every retained capture ran headless. One headful client-hint run per
   browser matched the headless runs, but it was not retained.
@@ -674,18 +676,20 @@ Chrome templates `chromium::v154_macos_navigation_template` and
 `chromium::v154_macos_fetch_no_store_template`, and the Firefox templates
 `firefox::v156_macos_navigation_template` and
 `firefox::v156_macos_fetch_no_store_template` reproduce what those browsers
-send on macOS 15.5 on Apple silicon. On macOS, Edge 153 and Opera 135 send
-the fields of their Windows request templates, with the macOS client hints,
-so they have no separate macOS templates. Every other layer of these
-browsers is the Windows recipe.
+send on macOS 15.5 on Apple silicon. On macOS, Opera 135 sends the fields
+of its Windows request templates with the macOS client hints, and Edge 153
+does too with its language list set to `en-US`; for another locale, override
+`Accept-Language`. So neither has a separate macOS template. Every other
+layer of these browsers is the Windows recipe, and the replay tests compare
+it with the single macOS runs listed below.
 
-Evidence: the capture host is a MacBook Air (M4) on macOS 15.5 (24F74),
-with Chrome 154.0.8037.58, Edge 153.0.4234.48, and Opera 135.0.5973.66 as
-installed there, and
-Firefox 156.0 from Mozilla's release archive, its checksum and Developer ID
-signature checked. Every run was headless, on a fresh profile in a
-throwaway directory, against a listener on 127.0.0.1. Chromium launches on
-macOS add `--use-mock-keychain`
+Evidence: the capture host is a MacBook Air (M4) on macOS 15.5 (24F74). It
+ran Chrome 154.0.8037.58 and Edge 153.0.4234.48 as installed, Opera
+135.0.5973.92 from Opera's release archive installed over the older
+135.0.5973.66, and Firefox 156.0 from Mozilla's release archive. Each
+archive's checksum and Developer ID signature were checked. Every run was
+headless, on a fresh profile in a throwaway directory, against a listener
+on 127.0.0.1. Chromium launches on macOS add `--use-mock-keychain`
 ([Browser launcher](../../scripts/capture/README.md#browser-launcher)).
 
 | Browser and layer | Samples | Result |
@@ -694,23 +698,21 @@ macOS add `--use-mock-keychain`
 | Chrome, Edge, Opera page loads and no-store `fetch()` over H1 and H2 | 3 runs each | The Windows template fields and values. `User-Agent` is a caller slot in every macOS Chromium-family template, and the headless value names `Macintosh; Intel Mac OS X 10_15_7` |
 | Chrome, Opera H3 page request | 1 startup each | The Windows template's H3 fields |
 | Firefox page loads and no-store `fetch()` over H1 and H2 | 3 runs | The Windows template, with `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0` |
-| Chrome, Edge, Opera TCP ClientHello | 1 fresh ClientHello each, from `tls_resumption.py --scenario sequential` | The Windows cipher suites, extension set, and extension contents; only the random ECH GREASE length differs |
-| Chrome, Edge, Opera QUIC ClientHello and H3 startup | 1 startup each | The Windows transport parameters, SETTINGS, and request field order; only GREASE values and the per-connection extension and parameter order differ |
+| Chrome, Edge, Opera, Firefox resumed TCP ClientHello | 1 `tls_resumption.py --scenario sequential` run each | The shape of the TLS recipe's resumed ClientHello, as for the Windows captures (`phantom-net` `tls::tests::resumption`) |
+| Chrome, Edge, Opera, Firefox H2 session | 3 page loads each | The H2 recipe's SETTINGS, WINDOW_UPDATE, priority, pseudo-header order, and static-name choice |
+| Chrome, Edge, Opera QUIC ClientHello and H3 startup | 1 startup each | `chromium::v154_quic` and the Chromium H3 control stream; Chrome's and Opera's H3 request fields equal their Windows startups apart from persona fields |
 
-An earlier probe of one run per browser, not retained, also found the TCP
-and QUIC ClientHellos, the H2 SETTINGS, WINDOW_UPDATE, and HEADERS priority,
-and TLS and QUIC resumption behavior equal to the Windows captures for
-Chrome 153, Edge, Opera, and Firefox. The host's Chrome was then updated to
-154.0.8037.58 for the retained captures. Every browser's SYN on the loopback
-interface carried the same options, which the macOS kernel sets.
+On macOS the page's final `fetch()` sometimes opened a new H2 connection,
+where on Windows it reused the page's connection. The H2 session replay
+therefore takes the connection whose first request is the document.
 
 Edge on macOS takes `Accept-Language` from the system's language list and
 ignores `--lang`. On the capture host that list gave
-`en-CA,en-US;q=0.9,en;q=0.8`, so the Edge client-hint and WebSocket captures
-ran with `--accept-lang=en-US`, passed through `--browser-switch`; they then
-sent the Windows value `en-US,en;q=0.9`. The Edge H3 startup ran with the
-shared startup launch arguments and sent the system value, so it is kept as
-parity evidence but not replayed against the template.
+`en-CA,en-US;q=0.9,en;q=0.8`. The Edge client-hint and WebSocket captures
+therefore ran with `--accept-lang=en-US`, passed through `--browser-switch`,
+and sent the Windows value `en-US,en;q=0.9`. The Edge H3 startup ran with
+the shared startup launch arguments and sent the system value, so only its
+field names are compared.
 
 Capture commands, from the repository root on the Mac, with `TMPDIR` set to
 a scratch directory:
@@ -738,34 +740,32 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
 Chrome and Opera ran the same commands with
 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` and
 `/Applications/Opera.app/Contents/MacOS/Opera` and no switch, and Firefox
-with `Firefox-156.0.app/Contents/MacOS/firefox`. The parity runs used
-`tls_resumption.py --scenario sequential --repeat 1` and
-`startup_capture.py --layer http3 --repeat 1`, with `--navigate devtools`
-for Opera.
+with `Firefox-156.0.app/Contents/MacOS/firefox`. The single runs used
+`tls_resumption.py --scenario sequential --repeat 1` for all four browsers
+and `startup_capture.py --layer http3 --repeat 1` for the Chromium browsers,
+with `--navigate devtools` for Opera.
 
 Retained fixtures, under `<area>/<browser>/<version>/macos-15.5-arm64/`:
 
 | Browser | Area | Files |
 | --- | --- | --- |
-| Chrome 154.0.8037.58, Edge 153.0.4234.48, Opera 135.0.5973.66 | `client-hints` | `navigation.txt` |
+| Chrome 154.0.8037.58, Edge 153.0.4234.48, Opera 135.0.5973.92 | `client-hints` | `navigation.txt` |
 | Chrome, Edge, Opera | `websocket` | `accept.txt`, `h1-accept.txt` |
 | Chrome, Edge, Opera | `tls` | `resumption-sequential.txt` |
 | Chrome, Edge, Opera | `http3` | `client-startup.txt`, `quic-client-hello-1.txt` |
 | Firefox 156.0 | `client-hints` | `navigation.txt`, with no hints |
 | Firefox 156.0 | `websocket` | `accept.txt`, `h1-accept.txt` |
+| Firefox 156.0 | `tls` | `resumption-sequential.txt` |
 
 Limits:
 
 - One macOS build on one Apple silicon Mac. Intel Macs and other macOS
   versions are not captured; `sec-ch-ua-arch` and
   `sec-ch-ua-platform-version` carry this host's values.
-- Opera's macOS build is 135.0.5973.66, older than the Windows
-  135.0.5973.92, and the macOS client hints carry that build.
 - Every capture ran headless, so no Chromium-family `User-Agent` literal is
   claimed for macOS.
-- The parity runs are single samples, compared after normalizing GREASE and
-  the per-connection order, as
-  [Capture normalization](#capture-normalization) describes.
+- The TCP, QUIC, H3, and resumption runs are single samples. SSE, Alt-Svc,
+  proxy, cookie, and ECH behavior is not captured on macOS.
 - Keepalive timing on macOS rests on Chromium source, as
   [TCP socket option evidence](#tcp-socket-option-evidence) records; no
   capture measured it.
