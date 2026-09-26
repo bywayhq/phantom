@@ -39,7 +39,7 @@ Phantom's claims rest on four kinds of evidence:
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 153, and Firefox 156 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin; Firefox H3 not reproduced |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
-| [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of seven browsers on Windows, macOS, and Android, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
+| [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit | No capture shows the stream limit; Chromium's cap on a stated limit not modeled |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 153, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -2043,7 +2043,8 @@ a TLS proxy, and WebSocket openings over HTTP/2.
 
 Evidence: the stream of every client HEADERS frame on every HTTP/2
 connection in the retained cookie, WebSocket, and `https-proxy-*` captures,
-on Windows 11 and, for the WebSocket captures, macOS 15.5.
+on Windows 11 and, for the WebSocket captures, macOS 15.5 and Android
+emulators.
 
 | Browser | Platform | Connections | Requests | First stream | Later streams |
 | --- | --- | --- | --- | --- | --- |
@@ -2054,8 +2055,10 @@ on Windows 11 and, for the WebSocket captures, macOS 15.5.
 | Brave 154 | Windows | 45 | 183 | 1 | +2 each |
 | Opera 135 | Windows | 101 | 331 | 1 | +2 each |
 | Opera 135 | macOS | 3 | 9 | 1 | +2 each |
-| Chrome for Android 153 | Emulator | 18 | 54 | 1 | +2 each |
-| Brave for Android 153 | Emulator | 18 | 54 | 1 | +2 each |
+| Chrome for Android 153 | Android 15 emulator | 18 | 54 | 1 | +2 each |
+| Chrome for Android 154 | Android 17 emulator | 3 | 9 | 1 | +2 each |
+| Brave for Android 153 | Android 15 and 17 emulators | 21 | 63 | 1 | +2 each |
+| Edge for Android 153 | Android 17 emulator | 3 | 9 | 1 | +2 each |
 | Firefox 156 | Windows | 99 | 246 | 3 | +2 each |
 | Firefox 156 | macOS | 3 | 9 | 3 | +2 each |
 
