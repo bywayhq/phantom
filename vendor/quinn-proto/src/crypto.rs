@@ -81,6 +81,19 @@ pub trait Session: Send + Sync + 'static {
     /// Verify the integrity of a retry packet
     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
 
+    /// Moves a client session to another QUIC version during compatible version negotiation
+    ///
+    /// RFC 9368 section 2.3 lets a server answer a client's first flight in a different version
+    /// that the client listed as available. Quinn calls this before processing the server's
+    /// first packet of `version`, and only while no key derived from the handshake exists yet.
+    /// Later Initial, Handshake, 1-RTT, and key-update keys, and Retry integrity, must then use
+    /// `version`. Returns `false`, the default, if the session cannot switch; the packet is
+    /// then dropped.
+    fn switch_version(&mut self, version: u32) -> bool {
+        let _ = version;
+        false
+    }
+
     /// Fill `output` with `output.len()` bytes of keying material derived
     /// from the [Session]'s secrets, using `label` and `context` for domain
     /// separation.

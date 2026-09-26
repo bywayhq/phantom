@@ -1,4 +1,8 @@
 fallible-key-updates.patch
 fallible-initial-keys.patch
 profiled-transport-parameters.patch
+profiled-transport-limits.patch
+reset-stream-at.patch
+ack-frequency-draft-02.patch
+quic-v2.patch
 publish-identity.patch

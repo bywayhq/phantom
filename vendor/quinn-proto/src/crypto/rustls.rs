@@ -196,6 +196,7 @@ impl crypto::Session for TlsSession {
         let (nonce, key) = match self.version {
             Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
             Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
+            Version::V2 => (RETRY_INTEGRITY_NONCE_V2, RETRY_INTEGRITY_KEY_V2),
             _ => unreachable!(),
         };
 
@@ -226,6 +227,13 @@ const RETRY_INTEGRITY_NONCE_DRAFT: [u8; 12] = [
     0xe5, 0x49, 0x30, 0xf9, 0x7f, 0x21, 0x36, 0xf0, 0x53, 0x0a, 0x8c, 0x1c,
 ];
 
+// RFC 9369 section 3.3.3
+const RETRY_INTEGRITY_KEY_V2: [u8; 16] = [
+    0x8f, 0xb4, 0xb0, 0x1b, 0x56, 0xac, 0x48, 0xe2, 0x60, 0xfb, 0xcb, 0xce, 0xad, 0x7c, 0xcc, 0x92,
+];
+const RETRY_INTEGRITY_NONCE_V2: [u8; 12] = [
+    0xd8, 0x69, 0x69, 0xbc, 0x2d, 0x7c, 0x6d, 0x99, 0x90, 0xef, 0xb0, 0x4a,
+];
 const RETRY_INTEGRITY_KEY_V1: [u8; 16] = [
     0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66, 0x57, 0x5a, 0x1d, 0x76, 0x6b, 0x54, 0xe3, 0x68, 0xc8, 0x4e,
 ];
@@ -552,6 +560,7 @@ impl crypto::ServerConfig for QuicServerConfig {
         let (nonce, key) = match version {
             Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
             Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
+            Version::V2 => (RETRY_INTEGRITY_NONCE_V2, RETRY_INTEGRITY_KEY_V2),
             _ => unreachable!(),
         };
 
@@ -659,6 +668,7 @@ fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
     match version {
         0xff00_001d..=0xff00_0020 => Ok(Version::V1Draft),
         0x0000_0001 | 0xff00_0021..=0xff00_0022 => Ok(Version::V1),
+        crate::packet::QUIC_V2 => Ok(Version::V2),
         _ => Err(UnsupportedVersion),
     }
 }

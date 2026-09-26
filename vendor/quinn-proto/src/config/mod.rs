@@ -29,7 +29,8 @@ mod transport;
 #[cfg(feature = "qlog")]
 pub use transport::QlogConfig;
 pub use transport::{
-    AckFrequencyConfig, IdleTimeout, InvalidDatagramFrameSize, MtuDiscoveryConfig, TransportConfig,
+    AckFrequencyConfig, AckFrequencyDraft, IdleTimeout, InvalidDatagramFrameSize,
+    InvalidTransportLimit, MtuDiscoveryConfig, TransportConfig,
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -45,6 +46,7 @@ pub struct EndpointConfig {
     pub(crate) connection_id_generator_factory:
         Arc<dyn Fn() -> Box<dyn ConnectionIdGenerator> + Send + Sync>,
     pub(crate) supported_versions: Vec<u32>,
+    pub(crate) compatible_versions: Vec<u32>,
     pub(crate) grease_quic_bit: bool,
     /// Minimum interval between outgoing stateless reset packets
     pub(crate) min_reset_interval: Duration,
@@ -62,6 +64,7 @@ impl EndpointConfig {
             max_udp_payload_size: (1500u32 - 28).into(), // Ethernet MTU minus IP + UDP headers
             connection_id_generator_factory: Arc::new(cid_factory),
             supported_versions: DEFAULT_SUPPORTED_VERSIONS.to_vec(),
+            compatible_versions: Vec::new(),
             grease_quic_bit: true,
             min_reset_interval: Duration::from_millis(20),
             rng_seed: None,
@@ -126,6 +129,19 @@ impl EndpointConfig {
         self
     }
 
+    /// Versions a client lets a server switch it to by compatible version negotiation
+    ///
+    /// RFC 9368 section 2.3: a server may answer a client's first flight in another version the
+    /// client listed as available in its `version_information` transport parameter. Each entry
+    /// must also be in [`Self::supported_versions`], and the crypto session must support
+    /// [`crate::crypto::Session::switch_version`]. A client that switched requires the server's
+    /// `version_information` to name the new version. Empty by default, which keeps every
+    /// connection in the version it started with.
+    pub fn compatible_versions(&mut self, versions: Vec<u32>) -> &mut Self {
+        self.compatible_versions = versions;
+        self
+    }
+
     /// Whether to accept QUIC packets containing any value for the fixed bit
     ///
     /// Enabled by default. Helps protect against protocol ossification and makes traffic less
@@ -170,6 +186,7 @@ impl fmt::Debug for EndpointConfig {
             .field("max_udp_payload_size", &self.max_udp_payload_size)
             // cid_generator_factory not debug
             .field("supported_versions", &self.supported_versions)
+            .field("compatible_versions", &self.compatible_versions)
             .field("grease_quic_bit", &self.grease_quic_bit)
             .field("rng_seed", &self.rng_seed)
             .finish_non_exhaustive()

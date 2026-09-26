@@ -1,0 +1,692 @@
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+index 4a49717..a8e155d 100644
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -46,6 +46,7 @@ pub struct TransportConfig {
+     pub(crate) ack_frequency_config: Option<AckFrequencyConfig>,
+     pub(crate) max_ack_delay: Duration,
+     pub(crate) active_connection_id_limit: Option<u8>,
++    pub(crate) reset_stream_at: bool,
+ 
+     pub(crate) persistent_congestion_threshold: u32,
+     pub(crate) keep_alive_interval: Option<Duration>,
+@@ -301,6 +302,17 @@ impl TransportConfig {
+         Ok(self)
+     }
+ 
++    /// Whether to accept reliable stream resets
++    ///
++    /// When enabled, the empty `reset_stream_at` transport parameter (`0x1d`) is advertised and
++    /// `RESET_STREAM_AT` frames (`0x24`) from the peer are processed: the stream's first
++    /// Reliable Size bytes are still delivered, then reads report the reset. Disabled by default,
++    /// in which case such a frame is a `PROTOCOL_VIOLATION`.
++    pub fn reset_stream_at(&mut self, enabled: bool) -> &mut Self {
++        self.reset_stream_at = enabled;
++        self
++    }
++
+     /// Number of peer connection IDs this endpoint stores
+     ///
+     /// Advertised as `active_connection_id_limit` when the local connection IDs are not empty. It
+@@ -497,6 +509,7 @@ impl Default for TransportConfig {
+             ack_frequency_config: None,
+             max_ack_delay: Duration::from_millis(25),
+             active_connection_id_limit: None,
++            reset_stream_at: false,
+ 
+             persistent_congestion_threshold: 3,
+             keep_alive_interval: None,
+@@ -540,6 +553,7 @@ impl fmt::Debug for TransportConfig {
+             ack_frequency_config,
+             max_ack_delay,
+             active_connection_id_limit,
++            reset_stream_at,
+             persistent_congestion_threshold,
+             keep_alive_interval,
+             crypto_buffer_size,
+@@ -578,6 +592,7 @@ impl fmt::Debug for TransportConfig {
+             .field("ack_frequency_config", ack_frequency_config)
+             .field("max_ack_delay", max_ack_delay)
+             .field("active_connection_id_limit", active_connection_id_limit)
++            .field("reset_stream_at", reset_stream_at)
+             .field(
+                 "persistent_congestion_threshold",
+                 persistent_congestion_threshold,
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 703ad59..9c915de 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -2916,6 +2916,16 @@ impl Connection {
+                         self.spaces[SpaceId::Data].pending.max_data = true;
+                     }
+                 }
++                Frame::ResetStreamAt(frame) => {
++                    if !self.config.reset_stream_at {
++                        return Err(TransportError::PROTOCOL_VIOLATION(
++                            "RESET_STREAM_AT without reset_stream_at support",
++                        ));
++                    }
++                    if self.streams.received_reset_at(frame)?.should_transmit() {
++                        self.spaces[SpaceId::Data].pending.max_data = true;
++                    }
++                }
+                 Frame::DataBlocked { offset } => {
+                     debug!(offset, "peer claims to be blocked at connection level");
+                 }
+diff --git a/src/connection/stats.rs b/src/connection/stats.rs
+index 8df96ef..4fdf89d 100644
+--- a/src/connection/stats.rs
++++ b/src/connection/stats.rs
+@@ -63,7 +63,7 @@ impl FrameStats {
+             Frame::Padding => {}
+             Frame::Ping => self.ping += 1,
+             Frame::Ack(_) => self.acks += 1,
+-            Frame::ResetStream(_) => self.reset_stream += 1,
++            Frame::ResetStream(_) | Frame::ResetStreamAt(_) => self.reset_stream += 1,
+             Frame::StopSending(_) => self.stop_sending += 1,
+             Frame::Crypto(_) => self.crypto += 1,
+             Frame::Datagram(_) => self.datagram += 1,
+diff --git a/src/connection/streams/recv.rs b/src/connection/streams/recv.rs
+index f4e07a5..3d41e53 100644
+--- a/src/connection/streams/recv.rs
++++ b/src/connection/streams/recv.rs
+@@ -18,6 +18,18 @@ pub(super) struct Recv {
+     sent_max_stream_data: u64,
+     pub(super) end: u64,
+     pub(super) stopped: bool,
++    /// Error code and Reliable Size of a RESET_STREAM_AT whose reliable bytes are still unread
++    reliable_reset: Option<(VarInt, u64)>,
++}
++
++/// Outcome of a RESET_STREAM_AT frame
++pub(super) enum ResetAt {
++    /// Reset the stream now, as RESET_STREAM would
++    Immediate,
++    /// The stream was already reset
++    Redundant,
++    /// Deliver the reliable bytes first; `previous_end` is the highest offset seen before
++    Deferred { previous_end: u64 },
+ }
+ 
+ impl Recv {
+@@ -28,6 +40,7 @@ impl Recv {
+             sent_max_stream_data: initial_max_data,
+             end: 0,
+             stopped: false,
++            reliable_reset: None,
+         })
+     }
+ 
+@@ -38,6 +51,7 @@ impl Recv {
+         self.sent_max_stream_data = initial_max_data;
+         self.end = 0;
+         self.stopped = false;
++        self.reliable_reset = None;
+     }
+ 
+     /// Process a STREAM frame
+@@ -200,6 +214,70 @@ impl Recv {
+         Ok(true)
+     }
+ 
++    /// Process a RESET_STREAM_AT frame
++    pub(super) fn reset_at(
++        &mut self,
++        error_code: VarInt,
++        final_offset: VarInt,
++        reliable_size: u64,
++        received: u64,
++        max_data: u64,
++    ) -> Result<ResetAt, TransportError> {
++        if matches!(self.state, RecvState::ResetRecvd { .. }) {
++            return Ok(ResetAt::Redundant);
++        }
++        // A later frame may lower the Reliable Size but never raise it.
++        let reliable_size = self
++            .reliable_reset
++            .map_or(reliable_size, |(_, size)| size.min(reliable_size));
++        if reliable_size == 0 || self.stopped || self.assembler.bytes_read() >= reliable_size {
++            return Ok(ResetAt::Immediate);
++        }
++
++        if let Some(offset) = self.final_offset() {
++            if offset != final_offset.into_inner() {
++                return Err(TransportError::FINAL_SIZE_ERROR("inconsistent value"));
++            }
++        } else if self.end > u64::from(final_offset) {
++            return Err(TransportError::FINAL_SIZE_ERROR(
++                "lower than high water mark",
++            ));
++        }
++        self.credit_consumed_by(final_offset.into(), received, max_data)?;
++
++        let previous_end = self.end;
++        self.end = final_offset.into();
++        self.state = RecvState::Recv {
++            size: Some(final_offset.into()),
++        };
++        self.reliable_reset = Some((error_code, reliable_size));
++        Ok(ResetAt::Deferred { previous_end })
++    }
++
++    /// Resets the stream if a pending RESET_STREAM_AT's reliable bytes have all been read
++    ///
++    /// Returns the number of buffered or never-sent bytes discarded, whose flow control credit
++    /// must be released.
++    fn complete_reliable_reset(&mut self) -> Option<u64> {
++        let (error_code, reliable_size) = self.reliable_reset?;
++        if self.assembler.bytes_read() < reliable_size {
++            return None;
++        }
++        let discarded = self.end - self.assembler.bytes_read();
++        self.state = RecvState::ResetRecvd {
++            size: self.end,
++            error_code,
++        };
++        self.reliable_reset = None;
++        self.assembler.clear();
++        Some(discarded)
++    }
++
++    /// Bytes past a pending RESET_STREAM_AT's Reliable Size are never delivered
++    fn reliable_limit(&self) -> Option<u64> {
++        self.reliable_reset.map(|(_, size)| size)
++    }
++
+     pub(super) fn reset_code(&self) -> Option<VarInt> {
+         match self.state {
+             RecvState::ResetRecvd { error_code, .. } => Some(error_code),
+@@ -297,14 +375,26 @@ impl<'a> Chunks<'a> {
+             ChunksState::Finalized => panic!("must not call next() after finalize()"),
+         };
+ 
+-        if let Some(chunk) = rs.assembler.read(max_length, self.ordered) {
++        while let Some(mut chunk) = rs.assembler.read(max_length, self.ordered) {
+             self.read += chunk.bytes.len() as u64;
++            if let Some(limit) = rs.reliable_limit() {
++                if chunk.offset >= limit {
++                    continue;
++                }
++                chunk
++                    .bytes
++                    .truncate(usize::try_from(limit - chunk.offset).unwrap_or(usize::MAX));
++            }
+             return Ok(Some(chunk));
+         }
+ 
++        if let Some(discarded) = rs.complete_reliable_reset() {
++            // Discarded bytes are released like read ones when this read is finalized.
++            self.read += discarded;
++        }
++
+         match rs.state {
+             RecvState::ResetRecvd { error_code, .. } => {
+-                debug_assert_eq!(self.read, 0, "reset streams have empty buffers");
+                 let state = mem::replace(&mut self.state, ChunksState::Reset(error_code));
+                 // At this point if we have `rs` self.state must be `ChunksState::Readable`
+                 let recv = match state {
+diff --git a/src/connection/streams/state.rs b/src/connection/streams/state.rs
+index cb1b1dc..cf55fa6 100644
+--- a/src/connection/streams/state.rs
++++ b/src/connection/streams/state.rs
+@@ -8,6 +8,7 @@ use bytes::BufMut;
+ use rustc_hash::FxHashMap;
+ use tracing::{debug, trace};
+ 
++use super::recv::ResetAt;
+ use super::{
+     PendingStreamsQueue, Recv, Retransmits, Send, SendState, ShouldTransmit, StreamEvent,
+     StreamHalf, ThinRetransmits,
+@@ -397,6 +398,62 @@ impl StreamsState {
+         })
+     }
+ 
++    /// Process incoming RESET_STREAM_AT frame
++    ///
++    /// A Reliable Size the application has already read, or zero, resets the stream at once, as
++    /// RESET_STREAM does. Otherwise the stream's final size becomes known and reads continue up to
++    /// the Reliable Size before reporting the reset. If successful, returns whether a `MAX_DATA`
++    /// frame needs to be transmitted.
++    pub(crate) fn received_reset_at(
++        &mut self,
++        frame: frame::ResetStreamAt,
++    ) -> Result<ShouldTransmit, TransportError> {
++        let frame::ResetStreamAt {
++            id,
++            error_code,
++            final_offset,
++            reliable_size,
++        } = frame;
++        self.validate_receive_id(id).inspect_err(|_e| {
++            debug!("received illegal RESET_STREAM_AT frame");
++        })?;
++
++        let window = self.stream_receive_window(id);
++        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
++            Some(stream) => stream,
++            None => {
++                trace!("received RESET_STREAM_AT on closed stream");
++                return Ok(ShouldTransmit(false));
++            }
++        };
++
++        let pending = rs.reset_at(
++            error_code,
++            final_offset,
++            reliable_size.into_inner(),
++            self.data_recvd,
++            self.local_max_data,
++        )?;
++        match pending {
++            ResetAt::Immediate => self.received_reset(frame::ResetStream {
++                id,
++                error_code,
++                final_offset,
++            }),
++            ResetAt::Redundant => Ok(ShouldTransmit(false)),
++            ResetAt::Deferred { previous_end } => {
++                // Bytes between the highest offset seen and the final size will never arrive, but
++                // they count as received. Their credit is released once the application reads up
++                // to the Reliable Size or stops the stream.
++                self.data_recvd = self
++                    .data_recvd
++                    .saturating_add(u64::from(final_offset) - previous_end);
++                self.on_stream_frame(true, id);
++                Ok(ShouldTransmit(false))
++            }
++        }
++    }
++
+     /// Process incoming `STOP_SENDING` frame
+     #[allow(unreachable_pub)] // fuzzing only
+     pub fn received_stop_sending(&mut self, id: StreamId, error_code: VarInt) {
+@@ -2336,4 +2393,155 @@ mod tests {
+         assert_eq!(stream.write(&data), Ok(smaller_send_window as usize));
+         assert_eq!(stream.write(&data), Err(WriteError::Blocked));
+     }
++
++    fn received_bytes(client: &mut StreamsState, id: StreamId, len: usize) {
++        let data = Bytes::from(vec![0xab; len]);
++        let _ = client
++            .received(
++                frame::Stream {
++                    id,
++                    offset: 0,
++                    fin: false,
++                    data,
++                },
++                len,
++            )
++            .unwrap();
++    }
++
++    fn reset_at(id: StreamId, final_offset: u32, reliable_size: u32) -> frame::ResetStreamAt {
++        frame::ResetStreamAt {
++            id,
++            error_code: 7u32.into(),
++            final_offset: final_offset.into(),
++            reliable_size: reliable_size.into(),
++        }
++    }
++
++    #[test]
++    fn reset_at_delivers_reliable_bytes_before_the_reset() {
++        let mut client = make(Side::Client);
++        let id = StreamId::new(Side::Server, Dir::Uni, 0);
++        let initial_max = client.local_max_data;
++        received_bytes(&mut client, id, 2048);
++
++        assert_eq!(
++            client.received_reset_at(reset_at(id, 4096, 1500)).unwrap(),
++            ShouldTransmit(false)
++        );
++        assert_eq!(client.data_recvd, 4096);
++
++        let mut pending = Retransmits::default();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(true).unwrap();
++        let mut delivered = 0;
++        let error = loop {
++            match chunks.next(1024) {
++                Ok(Some(chunk)) => delivered += chunk.bytes.len(),
++                Ok(None) => panic!("reset stream finished cleanly"),
++                Err(error) => break error,
++            }
++        };
++        let _ = chunks.finalize();
++        assert_eq!(delivered, 1500);
++        assert_eq!(error, crate::ReadError::Reset(7u32.into()));
++        assert_eq!(client.local_max_data - initial_max, 4096);
++    }
++
++    #[test]
++    fn reset_at_waits_for_unread_reliable_bytes() {
++        let mut client = make(Side::Client);
++        let id = StreamId::new(Side::Server, Dir::Uni, 0);
++        received_bytes(&mut client, id, 100);
++        let _ = client.received_reset_at(reset_at(id, 3000, 2000)).unwrap();
++
++        let mut pending = Retransmits::default();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(true).unwrap();
++        assert_eq!(chunks.next(usize::MAX).unwrap().unwrap().bytes.len(), 100);
++        assert_eq!(chunks.next(usize::MAX), Err(crate::ReadError::Blocked));
++        let _ = chunks.finalize();
++
++        // The rest of the reliable prefix arrives after the reset.
++        let _ = client
++            .received(
++                frame::Stream {
++                    id,
++                    offset: 100,
++                    fin: false,
++                    data: Bytes::from(vec![0xcd; 2500]),
++                },
++                2500,
++            )
++            .unwrap();
++        let mut recv = RecvStream {
++            id,
++            state: &mut client,
++            pending: &mut pending,
++        };
++        let mut chunks = recv.read(true).unwrap();
++        assert_eq!(chunks.next(usize::MAX).unwrap().unwrap().bytes.len(), 1900);
++        assert_eq!(
++            chunks.next(usize::MAX),
++            Err(crate::ReadError::Reset(7u32.into()))
++        );
++        let _ = chunks.finalize();
++    }
++
++    #[test]
++    fn reset_at_without_reliable_bytes_is_a_reset() {
++        for reliable_size in [0, 512] {
++            let mut client = make(Side::Client);
++            let id = StreamId::new(Side::Server, Dir::Uni, 0);
++            received_bytes(&mut client, id, 1024);
++            let mut pending = Retransmits::default();
++            if reliable_size > 0 {
++                let mut recv = RecvStream {
++                    id,
++                    state: &mut client,
++                    pending: &mut pending,
++                };
++                let mut chunks = recv.read(true).unwrap();
++                chunks.next(512).unwrap();
++                let _ = chunks.finalize();
++            }
++            let _ = client
++                .received_reset_at(reset_at(id, 4096, reliable_size))
++                .unwrap();
++            let mut recv = RecvStream {
++                id,
++                state: &mut client,
++                pending: &mut pending,
++            };
++            let mut chunks = recv.read(true).unwrap();
++            assert_eq!(
++                chunks.next(1024).unwrap_err(),
++                crate::ReadError::Reset(7u32.into())
++            );
++            let _ = chunks.finalize();
++            assert_eq!(client.data_recvd, 4096);
++        }
++    }
++
++    #[test]
++    fn reset_at_rejects_a_final_size_below_received_data() {
++        let mut client = make(Side::Client);
++        let id = StreamId::new(Side::Server, Dir::Uni, 0);
++        received_bytes(&mut client, id, 2048);
++        assert_eq!(
++            client
++                .received_reset_at(reset_at(id, 1024, 512))
++                .unwrap_err()
++                .code,
++            TransportErrorCode::FINAL_SIZE_ERROR
++        );
++    }
+ }
+diff --git a/src/frame.rs b/src/frame.rs
+index 01d9a02..e6b9977 100644
+--- a/src/frame.rs
++++ b/src/frame.rs
+@@ -130,6 +130,8 @@ frame_types! {
+     CONNECTION_CLOSE = 0x1c,
+     APPLICATION_CLOSE = 0x1d,
+     HANDSHAKE_DONE = 0x1e,
++    // Reliable QUIC stream resets
++    RESET_STREAM_AT = 0x24,
+     // ACK Frequency
+     ACK_FREQUENCY = 0xaf,
+     IMMEDIATE_ACK = 0x1f,
+@@ -145,6 +147,7 @@ pub(crate) enum Frame {
+     Ping,
+     Ack(Ack),
+     ResetStream(ResetStream),
++    ResetStreamAt(ResetStreamAt),
+     StopSending(StopSending),
+     Crypto(Crypto),
+     NewToken(NewToken),
+@@ -172,6 +175,7 @@ impl Frame {
+         match *self {
+             Padding => FrameType::PADDING,
+             ResetStream(_) => FrameType::RESET_STREAM,
++            ResetStreamAt(_) => FrameType::RESET_STREAM_AT,
+             Close(self::Close::Connection(_)) => FrameType::CONNECTION_CLOSE,
+             Close(self::Close::Application(_)) => FrameType::APPLICATION_CLOSE,
+             MaxData(_) => FrameType::MAX_DATA,
+@@ -582,6 +586,18 @@ impl Iter {
+                 error_code: self.bytes.get()?,
+                 final_offset: self.bytes.get()?,
+             }),
++            FrameType::RESET_STREAM_AT => {
++                let frame = ResetStreamAt {
++                    id: self.bytes.get()?,
++                    error_code: self.bytes.get()?,
++                    final_offset: self.bytes.get()?,
++                    reliable_size: self.bytes.get()?,
++                };
++                if frame.reliable_size > frame.final_offset {
++                    return Err(IterErr::Malformed);
++                }
++                Frame::ResetStreamAt(frame)
++            }
+             FrameType::CONNECTION_CLOSE => Frame::Close(Close::Connection(ConnectionClose {
+                 error_code: self.bytes.get()?,
+                 frame_type: {
+@@ -847,6 +863,28 @@ impl ResetStream {
+     }
+ }
+ 
++/// A `RESET_STREAM_AT` frame (draft-ietf-quic-reliable-stream-reset, section 4)
++///
++/// The sender abandons the stream but promises to deliver its first `reliable_size` bytes.
++#[derive(Debug, Copy, Clone)]
++pub(crate) struct ResetStreamAt {
++    pub(crate) id: StreamId,
++    pub(crate) error_code: VarInt,
++    pub(crate) final_offset: VarInt,
++    pub(crate) reliable_size: VarInt,
++}
++
++impl ResetStreamAt {
++    #[cfg(test)]
++    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
++        out.write(FrameType::RESET_STREAM_AT);
++        out.write(self.id);
++        out.write(self.error_code);
++        out.write(self.final_offset);
++        out.write(self.reliable_size);
++    }
++}
++
+ #[derive(Debug, Copy, Clone)]
+ pub(crate) struct StopSending {
+     pub(crate) id: StreamId,
+@@ -1005,4 +1043,40 @@ mod test {
+         assert_eq!(frames.len(), 1);
+         assert_matches!(&frames[0], Frame::ImmediateAck);
+     }
++
++    #[test]
++    fn reset_stream_at_round_trips() {
++        let frame = ResetStreamAt {
++            id: StreamId(3),
++            error_code: VarInt(7),
++            final_offset: VarInt(4096),
++            reliable_size: VarInt(1500),
++        };
++        let mut buf = Vec::new();
++        frame.encode(&mut buf);
++        let frames = frames(buf);
++        assert_eq!(frames.len(), 1);
++        assert_matches!(
++            &frames[0],
++            Frame::ResetStreamAt(ResetStreamAt {
++                final_offset: VarInt(4096),
++                reliable_size: VarInt(1500),
++                ..
++            })
++        );
++    }
++
++    #[test]
++    fn reset_stream_at_rejects_reliable_size_past_final_size() {
++        let frame = ResetStreamAt {
++            id: StreamId(3),
++            error_code: VarInt(7),
++            final_offset: VarInt(10),
++            reliable_size: VarInt(11),
++        };
++        let mut buf = Vec::new();
++        frame.encode(&mut buf);
++        let mut frames = Iter::new(Bytes::from(buf)).unwrap();
++        assert!(frames.next().unwrap().is_err());
++    }
+ }
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+index 1155171..2c446bc 100644
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -81,6 +81,9 @@ macro_rules! make_struct {
+             /// The endpoint is willing to receive QUIC packets containing any value for the fixed
+             /// bit
+             pub(crate) grease_quic_bit: bool,
++            /// The endpoint accepts RESET_STREAM_AT frames (the empty `reset_stream_at`
++            /// parameter)
++            pub(crate) reset_stream_at: bool,
+ 
+             /// Minimum amount of time in microseconds by which the endpoint is able to delay
+             /// sending acknowledgments
+@@ -125,6 +128,7 @@ macro_rules! make_struct {
+                     max_datagram_frame_size: None,
+                     initial_src_cid: None,
+                     grease_quic_bit: false,
++                    reset_stream_at: false,
+                     min_ack_delay: None,
+ 
+                     original_dst_cid: None,
+@@ -174,6 +178,7 @@ impl TransportParameters {
+                 .unwrap_or(VarInt(25)),
+             max_datagram_frame_size: configured_datagram_frame_size(config),
+             grease_quic_bit: endpoint_config.grease_quic_bit,
++            reset_stream_at: config.reset_stream_at,
+             min_ack_delay: Some(
+                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
+             ),
+@@ -378,6 +383,12 @@ impl TransportParameters {
+                         w.put_slice(cid);
+                     }
+                 }
++                TransportParameterId::ResetStreamAt => {
++                    if self.reset_stream_at {
++                        w.write_var(id as u64);
++                        w.write_var(0);
++                    }
++                }
+                 TransportParameterId::GreaseQuicBit => {
+                     if self.grease_quic_bit {
+                         w.write_var(id as u64);
+@@ -488,6 +499,10 @@ impl TransportParameters {
+                     0 => params.grease_quic_bit = true,
+                     _ => return Err(Error::Malformed),
+                 },
++                TransportParameterId::ResetStreamAt => match len {
++                    0 if !params.reset_stream_at => params.reset_stream_at = true,
++                    _ => return Err(Error::Malformed),
++                },
+                 TransportParameterId::MinAckDelayDraft07 => params.min_ack_delay = Some(r.get()?),
+                 _ => {
+                     macro_rules! parse {
+@@ -644,6 +659,9 @@ pub(crate) enum TransportParameterId {
+     InitialSourceConnectionId = 0x0F,
+     RetrySourceConnectionId = 0x10,
+ 
++    // The empty parameter neqo advertises for draft-ietf-quic-reliable-stream-reset support
++    ResetStreamAt = 0x1D,
++
+     // Smallest possible ID of reserved transport parameter https://datatracker.ietf.org/doc/html/rfc9000#section-22.3
+     ReservedTransportParameter = 0x1B,
+ 
+@@ -659,7 +677,7 @@ pub(crate) enum TransportParameterId {
+ 
+ impl TransportParameterId {
+     /// Array with all supported transport parameter IDs
+-    const SUPPORTED: [Self; 21] = [
++    const SUPPORTED: [Self; 22] = [
+         Self::MaxIdleTimeout,
+         Self::MaxUdpPayloadSize,
+         Self::InitialMaxData,
+@@ -680,6 +698,7 @@ impl TransportParameterId {
+         Self::InitialSourceConnectionId,
+         Self::RetrySourceConnectionId,
+         Self::GreaseQuicBit,
++        Self::ResetStreamAt,
+         Self::MinAckDelayDraft07,
+     ];
+ }
+@@ -719,6 +738,7 @@ impl TryFrom<u64> for TransportParameterId {
+             id if Self::InitialSourceConnectionId == id => Self::InitialSourceConnectionId,
+             id if Self::RetrySourceConnectionId == id => Self::RetrySourceConnectionId,
+             id if Self::GreaseQuicBit == id => Self::GreaseQuicBit,
++            id if Self::ResetStreamAt == id => Self::ResetStreamAt,
+             id if Self::MinAckDelayDraft07 == id => Self::MinAckDelayDraft07,
+             _ => return Err(()),
+         };
+@@ -901,6 +921,26 @@ mod test {
+         }
+     }
+ 
++    #[test]
++    fn reset_stream_at_is_an_empty_parameter() {
++        let params = TransportParameters {
++            reset_stream_at: true,
++            ..TransportParameters::default()
++        };
++        let mut buf = Vec::new();
++        params.write(&mut buf);
++        assert_eq!(buf, [0x1d, 0x00]);
++        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
++        assert!(read.reset_stream_at);
++
++        for malformed in [&[0x1d, 0x01, 0x00][..], &[0x1d, 0x00, 0x1d, 0x00][..]] {
++            assert_eq!(
++                TransportParameters::read(Side::Client, &mut &malformed[..]),
++                Err(Error::Malformed)
++            );
++        }
++    }
++
+     #[test]
+     fn read_length_mismatch() {
+         // `max_datagram_frame_size` claims three bytes of value but encodes a one-byte `VarInt`,

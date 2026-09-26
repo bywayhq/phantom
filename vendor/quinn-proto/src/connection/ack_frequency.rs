@@ -21,14 +21,14 @@ pub(super) struct AckFrequencyState {
 }
 
 impl AckFrequencyState {
-    pub(super) fn new(default_max_ack_delay: Duration) -> Self {
+    pub(super) fn new(default_peer_max_ack_delay: Duration, local_max_ack_delay: Duration) -> Self {
         Self {
             in_flight_ack_frequency_frame: None,
             next_outgoing_sequence_number: VarInt(0),
-            peer_max_ack_delay: default_max_ack_delay,
+            peer_max_ack_delay: default_peer_max_ack_delay,
 
             last_ack_frequency_frame: None,
-            max_ack_delay: default_max_ack_delay,
+            max_ack_delay: local_max_ack_delay,
         }
     }
 
@@ -175,7 +175,7 @@ mod tests {
         params.write(&mut encoded);
         let params = TransportParameters::read(Side::Client, &mut encoded.as_slice())
             .expect("peer parameters must pass wire-level validation");
-        let state = AckFrequencyState::new(Duration::from_millis(100));
+        let state = AckFrequencyState::new(Duration::from_millis(100), Duration::from_millis(25));
         let delay = state.candidate_max_ack_delay(
             Duration::from_millis(5),
             &AckFrequencyConfig::default(),
@@ -195,7 +195,7 @@ mod tests {
         params.write(&mut encoded);
         let params = TransportParameters::read(Side::Client, &mut encoded.as_slice())
             .expect("peer parameters must pass wire-level validation");
-        let state = AckFrequencyState::new(Duration::from_millis(100));
+        let state = AckFrequencyState::new(Duration::from_millis(100), Duration::from_millis(25));
         let delay = state.candidate_max_ack_delay(
             Duration::from_millis(5),
             &AckFrequencyConfig::default(),

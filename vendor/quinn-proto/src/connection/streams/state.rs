@@ -8,6 +8,7 @@ use bytes::BufMut;
 use rustc_hash::FxHashMap;
 use tracing::{debug, trace};
 
+use super::recv::ResetAt;
 use super::{
     PendingStreamsQueue, Recv, Retransmits, Send, SendState, ShouldTransmit, StreamEvent,
     StreamHalf, ThinRetransmits,
@@ -50,6 +51,17 @@ impl StreamRecv {
     pub(super) fn into_inner(self) -> Box<Recv> {
         match self {
             Self::Free(r) | Self::Open(r) => r,
+        }
+    }
+
+    // Give a pooled `Recv` the initial window of the stream that takes it
+    pub(super) fn rewindow(self, initial_max_data: u64) -> Self {
+        match self {
+            Self::Free(mut recv) => {
+                recv.reinit(initial_max_data);
+                Self::Free(recv)
+            }
+            Self::Open(_) => unreachable!("Self::Open in the free pool"),
         }
     }
 
@@ -128,7 +140,14 @@ pub struct StreamsState {
     /// Note this may be less than `buffered_data` if the user has set a new value.
     pub(super) send_window: u64,
     /// Configured upper bound for how much unacked data the peer can send us per stream
+    ///
+    /// Applies to locally initiated bidirectional streams, and to peer-initiated streams unless
+    /// `bidi_remote_stream_receive_window` or `uni_stream_receive_window` differ.
     pub(super) stream_receive_window: u64,
+    /// Receive window of each peer-initiated bidirectional stream
+    bidi_remote_stream_receive_window: u64,
+    /// Receive window of each peer-initiated unidirectional stream
+    uni_stream_receive_window: u64,
 
     // Pertinent state from the TransportParameters supplied by the peer
     initial_max_stream_data_uni: VarInt,
@@ -181,6 +200,8 @@ impl StreamsState {
             buffered_data: 0,
             send_window,
             stream_receive_window: stream_receive_window.into(),
+            bidi_remote_stream_receive_window: stream_receive_window.into(),
+            uni_stream_receive_window: stream_receive_window.into(),
             initial_max_stream_data_uni: 0u32.into(),
             initial_max_stream_data_bidi_local: 0u32.into(),
             initial_max_stream_data_bidi_remote: 0u32.into(),
@@ -195,6 +216,23 @@ impl StreamsState {
         }
 
         this
+    }
+
+    /// Sets distinct receive windows for peer-initiated streams, as advertised in
+    /// `initial_max_stream_data_bidi_remote` and `initial_max_stream_data_uni`
+    pub(crate) fn with_peer_stream_receive_windows(mut self, bidi: VarInt, uni: VarInt) -> Self {
+        self.bidi_remote_stream_receive_window = bidi.into();
+        self.uni_stream_receive_window = uni.into();
+        self
+    }
+
+    /// Returns the receive window of stream `id`
+    pub(super) fn stream_receive_window(&self, id: StreamId) -> u64 {
+        match id.dir() {
+            Dir::Uni => self.uni_stream_receive_window,
+            Dir::Bi if id.initiator() == self.side => self.stream_receive_window,
+            Dir::Bi => self.bidi_remote_stream_receive_window,
+        }
     }
 
     pub(crate) fn set_params(&mut self, params: &TransportParameters) {
@@ -267,11 +305,8 @@ impl StreamsState {
             debug!("received illegal STREAM frame");
         })?;
 
-        let rs = match self
-            .recv
-            .get_mut(&id)
-            .map(get_or_insert_recv(self.stream_receive_window))
-        {
+        let window = self.stream_receive_window(id);
+        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
             Some(rs) => rs,
             None => {
                 trace!("dropping frame for closed stream");
@@ -320,11 +355,8 @@ impl StreamsState {
             debug!("received illegal RESET_STREAM frame");
         })?;
 
-        let rs = match self
-            .recv
-            .get_mut(&id)
-            .map(get_or_insert_recv(self.stream_receive_window))
-        {
+        let window = self.stream_receive_window(id);
+        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
             Some(stream) => stream,
             None => {
                 trace!("received RESET_STREAM on closed stream");
@@ -364,6 +396,62 @@ impl StreamsState {
         } else {
             ShouldTransmit(false)
         })
+    }
+
+    /// Process incoming RESET_STREAM_AT frame
+    ///
+    /// A Reliable Size the application has already read, or zero, resets the stream at once, as
+    /// RESET_STREAM does. Otherwise the stream's final size becomes known and reads continue up to
+    /// the Reliable Size before reporting the reset. If successful, returns whether a `MAX_DATA`
+    /// frame needs to be transmitted.
+    pub(crate) fn received_reset_at(
+        &mut self,
+        frame: frame::ResetStreamAt,
+    ) -> Result<ShouldTransmit, TransportError> {
+        let frame::ResetStreamAt {
+            id,
+            error_code,
+            final_offset,
+            reliable_size,
+        } = frame;
+        self.validate_receive_id(id).inspect_err(|_e| {
+            debug!("received illegal RESET_STREAM_AT frame");
+        })?;
+
+        let window = self.stream_receive_window(id);
+        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
+            Some(stream) => stream,
+            None => {
+                trace!("received RESET_STREAM_AT on closed stream");
+                return Ok(ShouldTransmit(false));
+            }
+        };
+
+        let pending = rs.reset_at(
+            error_code,
+            final_offset,
+            reliable_size.into_inner(),
+            self.data_recvd,
+            self.local_max_data,
+        )?;
+        match pending {
+            ResetAt::Immediate => self.received_reset(frame::ResetStream {
+                id,
+                error_code,
+                final_offset,
+            }),
+            ResetAt::Redundant => Ok(ShouldTransmit(false)),
+            ResetAt::Deferred { previous_end } => {
+                // Bytes between the highest offset seen and the final size will never arrive, but
+                // they count as received. Their credit is released once the application reads up
+                // to the Reliable Size or stops the stream.
+                self.data_recvd = self
+                    .data_recvd
+                    .saturating_add(u64::from(final_offset) - previous_end);
+                self.on_stream_frame(true, id);
+                Ok(ShouldTransmit(false))
+            }
+        }
     }
 
     /// Process incoming `STOP_SENDING` frame
@@ -515,6 +603,7 @@ impl StreamsState {
                 None => break,
             };
             pending.max_stream_data.remove(&id);
+            let window = self.stream_receive_window(id);
             let rs = match self
                 .recv
                 .get_mut(&id)
@@ -529,7 +618,7 @@ impl StreamsState {
             }
             retransmits.get_or_create().max_stream_data.insert(id);
 
-            let (max, _) = rs.max_stream_data(self.stream_receive_window);
+            let (max, _) = rs.max_stream_data(window);
             rs.record_sent_max_stream_data(max);
 
             trace!(stream = %id, max = max, "MAX_STREAM_DATA");
@@ -950,7 +1039,9 @@ impl StreamsState {
         }
         // bidirectional OR (unidirectional AND remote)
         if bi || remote {
-            let recv = self.free_recv.pop();
+            // A pooled `Recv` still carries the window of the stream that freed it.
+            let window = self.stream_receive_window(id);
+            let recv = self.free_recv.pop().map(|recv| recv.rewindow(window));
             assert!(self.recv.insert(id, recv).is_none());
         }
     }
@@ -1004,7 +1095,8 @@ impl StreamsState {
     }
 
     pub(super) fn stream_recv_freed(&mut self, id: StreamId, recv: StreamRecv) {
-        self.free_recv.push(recv.free(self.stream_receive_window));
+        self.free_recv
+            .push(recv.free(self.stream_receive_window(id)));
         self.stream_freed(id, StreamHalf::Recv);
     }
 
@@ -2300,5 +2392,156 @@ mod tests {
         // Assert that only `smaller_send_window` bytes are accepted
         assert_eq!(stream.write(&data), Ok(smaller_send_window as usize));
         assert_eq!(stream.write(&data), Err(WriteError::Blocked));
+    }
+
+    fn received_bytes(client: &mut StreamsState, id: StreamId, len: usize) {
+        let data = Bytes::from(vec![0xab; len]);
+        let _ = client
+            .received(
+                frame::Stream {
+                    id,
+                    offset: 0,
+                    fin: false,
+                    data,
+                },
+                len,
+            )
+            .unwrap();
+    }
+
+    fn reset_at(id: StreamId, final_offset: u32, reliable_size: u32) -> frame::ResetStreamAt {
+        frame::ResetStreamAt {
+            id,
+            error_code: 7u32.into(),
+            final_offset: final_offset.into(),
+            reliable_size: reliable_size.into(),
+        }
+    }
+
+    #[test]
+    fn reset_at_delivers_reliable_bytes_before_the_reset() {
+        let mut client = make(Side::Client);
+        let id = StreamId::new(Side::Server, Dir::Uni, 0);
+        let initial_max = client.local_max_data;
+        received_bytes(&mut client, id, 2048);
+
+        assert_eq!(
+            client.received_reset_at(reset_at(id, 4096, 1500)).unwrap(),
+            ShouldTransmit(false)
+        );
+        assert_eq!(client.data_recvd, 4096);
+
+        let mut pending = Retransmits::default();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(true).unwrap();
+        let mut delivered = 0;
+        let error = loop {
+            match chunks.next(1024) {
+                Ok(Some(chunk)) => delivered += chunk.bytes.len(),
+                Ok(None) => panic!("reset stream finished cleanly"),
+                Err(error) => break error,
+            }
+        };
+        let _ = chunks.finalize();
+        assert_eq!(delivered, 1500);
+        assert_eq!(error, crate::ReadError::Reset(7u32.into()));
+        assert_eq!(client.local_max_data - initial_max, 4096);
+    }
+
+    #[test]
+    fn reset_at_waits_for_unread_reliable_bytes() {
+        let mut client = make(Side::Client);
+        let id = StreamId::new(Side::Server, Dir::Uni, 0);
+        received_bytes(&mut client, id, 100);
+        let _ = client.received_reset_at(reset_at(id, 3000, 2000)).unwrap();
+
+        let mut pending = Retransmits::default();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(true).unwrap();
+        assert_eq!(chunks.next(usize::MAX).unwrap().unwrap().bytes.len(), 100);
+        assert_eq!(chunks.next(usize::MAX), Err(crate::ReadError::Blocked));
+        let _ = chunks.finalize();
+
+        // The rest of the reliable prefix arrives after the reset.
+        let _ = client
+            .received(
+                frame::Stream {
+                    id,
+                    offset: 100,
+                    fin: false,
+                    data: Bytes::from(vec![0xcd; 2500]),
+                },
+                2500,
+            )
+            .unwrap();
+        let mut recv = RecvStream {
+            id,
+            state: &mut client,
+            pending: &mut pending,
+        };
+        let mut chunks = recv.read(true).unwrap();
+        assert_eq!(chunks.next(usize::MAX).unwrap().unwrap().bytes.len(), 1900);
+        assert_eq!(
+            chunks.next(usize::MAX),
+            Err(crate::ReadError::Reset(7u32.into()))
+        );
+        let _ = chunks.finalize();
+    }
+
+    #[test]
+    fn reset_at_without_reliable_bytes_is_a_reset() {
+        for reliable_size in [0, 512] {
+            let mut client = make(Side::Client);
+            let id = StreamId::new(Side::Server, Dir::Uni, 0);
+            received_bytes(&mut client, id, 1024);
+            let mut pending = Retransmits::default();
+            if reliable_size > 0 {
+                let mut recv = RecvStream {
+                    id,
+                    state: &mut client,
+                    pending: &mut pending,
+                };
+                let mut chunks = recv.read(true).unwrap();
+                chunks.next(512).unwrap();
+                let _ = chunks.finalize();
+            }
+            let _ = client
+                .received_reset_at(reset_at(id, 4096, reliable_size))
+                .unwrap();
+            let mut recv = RecvStream {
+                id,
+                state: &mut client,
+                pending: &mut pending,
+            };
+            let mut chunks = recv.read(true).unwrap();
+            assert_eq!(
+                chunks.next(1024).unwrap_err(),
+                crate::ReadError::Reset(7u32.into())
+            );
+            let _ = chunks.finalize();
+            assert_eq!(client.data_recvd, 4096);
+        }
+    }
+
+    #[test]
+    fn reset_at_rejects_a_final_size_below_received_data() {
+        let mut client = make(Side::Client);
+        let id = StreamId::new(Side::Server, Dir::Uni, 0);
+        received_bytes(&mut client, id, 2048);
+        assert_eq!(
+            client
+                .received_reset_at(reset_at(id, 1024, 512))
+                .unwrap_err()
+                .code,
+            TransportErrorCode::FINAL_SIZE_ERROR
+        );
     }
 }

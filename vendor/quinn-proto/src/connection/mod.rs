@@ -15,9 +15,9 @@ use thiserror::Error;
 use tracing::{debug, error, trace, trace_span, warn};
 
 use crate::{
-    Dir, Duration, EndpointConfig, Frame, INITIAL_MTU, Instant, MAX_CID_SIZE, MAX_STREAM_COUNT,
-    MIN_INITIAL_SIZE, Side, StreamId, TIMER_GRANULARITY, TokenStore, Transmit, TransportError,
-    TransportErrorCode, VarInt,
+    AckFrequencyDraft, Dir, Duration, EndpointConfig, Frame, INITIAL_MTU, Instant, MAX_CID_SIZE,
+    MAX_STREAM_COUNT, MIN_INITIAL_SIZE, Side, StreamId, TIMER_GRANULARITY, TokenStore, Transmit,
+    TransportError, TransportErrorCode, VarInt,
     cid_generator::ConnectionIdGenerator,
     cid_queue::CidQueue,
     coding::BufMutExt,
@@ -245,6 +245,8 @@ pub struct Connection {
     stats: ConnectionStats,
     /// QUIC version used for the connection.
     version: u32,
+    /// The version this client started in, once a server switched it (RFC 9368)
+    original_version: Option<u32>,
 }
 
 impl Connection {
@@ -279,6 +281,9 @@ impl Connection {
             client_hello: None,
         });
         let mut rng = StdRng::from_seed(rng_seed);
+        let active_connection_id_limit = config
+            .active_connection_id_limit
+            .map_or(CidQueue::LEN as u64, u64::from);
         let mut this = Self {
             endpoint_config,
             crypto,
@@ -339,9 +344,10 @@ impl Connection {
             path_responses: PathResponses::default(),
             close: false,
 
-            ack_frequency: AckFrequencyState::new(get_max_ack_delay(
-                &TransportParameters::default(),
-            )),
+            ack_frequency: AckFrequencyState::new(
+                get_max_ack_delay(&TransportParameters::default()),
+                config.max_ack_delay,
+            ),
             next_bundled_ack_time: None,
 
             pto_count: 0,
@@ -357,13 +363,18 @@ impl Connection {
                 config.send_window,
                 config.receive_window,
                 config.stream_receive_window,
+            )
+            .with_peer_stream_receive_windows(
+                config.receive_window_bidi_remote(),
+                config.receive_window_uni(),
             ),
             datagrams: DatagramState::default(),
             config,
-            rem_cids: CidQueue::new(rem_cid),
+            rem_cids: CidQueue::with_limit(rem_cid, active_connection_id_limit),
             rng,
             stats: ConnectionStats::default(),
             version,
+            original_version: None,
         };
         if path_validated {
             this.on_path_validated();
@@ -525,6 +536,8 @@ impl Connection {
         let mut builder_storage: Option<PacketBuilder> = None;
         let mut sent_frames = None;
         let mut pad_datagram = false;
+        // Whether the current datagram holds a client Initial packet
+        let mut client_initial_datagram = false;
         let mut pad_datagram_to_mtu = false;
         let mut congestion_blocked = false;
 
@@ -644,7 +657,7 @@ impl Connection {
                 // Finish current packet
                 if let Some(mut builder) = builder_storage.take() {
                     if pad_datagram {
-                        builder.pad_to(MIN_INITIAL_SIZE);
+                        builder.pad_to(self.required_padding(&builder, client_initial_datagram));
                     }
 
                     if num_datagrams > 1 || pad_datagram_to_mtu {
@@ -737,6 +750,7 @@ impl Connection {
                 num_datagrams += 1;
                 coalesce = true;
                 pad_datagram = false;
+                client_initial_datagram = false;
                 datagram_start = buf.len();
 
                 debug_assert_eq!(
@@ -791,6 +805,7 @@ impl Connection {
             // https://tools.ietf.org/html/draft-ietf-quic-transport-34#section-14.1
             pad_datagram |=
                 space_id == SpaceId::Initial && (self.side.is_client() || ack_eliciting);
+            client_initial_datagram |= space_id == SpaceId::Initial && self.side.is_client();
 
             if close {
                 trace!("sending CONNECTION_CLOSE");
@@ -924,7 +939,7 @@ impl Connection {
         // Finish the last packet
         if let Some(mut builder) = builder_storage {
             if pad_datagram {
-                builder.pad_to(MIN_INITIAL_SIZE);
+                builder.pad_to(self.required_padding(&builder, client_initial_datagram));
             }
 
             // If this datagram is a loss probe and `segment_size` is larger than `INITIAL_MTU`,
@@ -2279,11 +2294,15 @@ impl Connection {
     ) {
         self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
         let mut remaining = Some(data);
+        let mut versions = vec![self.version];
+        if self.may_switch_version() {
+            versions.extend_from_slice(&self.endpoint_config.compatible_versions);
+        }
         while let Some(data) = remaining {
             match PartialDecode::new(
                 data,
                 &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
-                &[self.version],
+                &versions,
                 self.endpoint_config.grease_quic_bit,
             ) {
                 Ok((partial_decode, rest)) => {
@@ -2305,6 +2324,12 @@ impl Connection {
         ecn: Option<EcnCodepoint>,
         partial_decode: PartialDecode,
     ) {
+        if let Some(version) = partial_decode.version() {
+            if version != self.version && !self.switch_version(version, &partial_decode) {
+                trace!(version, "dropping packet of another QUIC version");
+                return;
+            }
+        }
         if let Some(decoded) = packet_crypto::unprotect_header(
             partial_decode,
             &self.spaces,
@@ -2904,6 +2929,16 @@ impl Connection {
                         self.spaces[SpaceId::Data].pending.max_data = true;
                     }
                 }
+                Frame::ResetStreamAt(frame) => {
+                    if !self.config.reset_stream_at {
+                        return Err(TransportError::PROTOCOL_VIOLATION(
+                            "RESET_STREAM_AT without reset_stream_at support",
+                        ));
+                    }
+                    if self.streams.received_reset_at(frame)?.should_transmit() {
+                        self.spaces[SpaceId::Data].pending.max_data = true;
+                    }
+                }
                 Frame::DataBlocked { offset } => {
                     debug!(offset, "peer claims to be blocked at connection level");
                 }
@@ -3025,6 +3060,10 @@ impl Connection {
                     }
                 }
                 Frame::AckFrequency(ack_frequency) => {
+                    let ack_frequency = match self.config.ack_frequency_draft {
+                        AckFrequencyDraft::Draft02 => ack_frequency.read_as_draft02()?,
+                        _ => ack_frequency,
+                    };
                     // This frame can only be sent in the Data space
                     let space = &mut self.spaces[SpaceId::Data];
 
@@ -3544,6 +3583,55 @@ impl Connection {
     }
 
     /// Handle transport parameters received from the peer
+    /// Whether a server may still move this client to another version (RFC 9368)
+    ///
+    /// A server can acknowledge the client's first Initial in the original version before it
+    /// has the whole ClientHello and chooses a version, so a switch stays possible until the
+    /// server's first flight yields handshake keys.
+    fn may_switch_version(&self) -> bool {
+        self.side.is_client()
+            && self.original_version.is_none()
+            && self.highest_space == SpaceId::Initial
+            && !self.endpoint_config.compatible_versions.is_empty()
+    }
+
+    /// Adopts `version` when a server's first Initial uses it, per RFC 9368 section 2.3
+    ///
+    /// Initial keys are derived again from the same connection ID with the new version's salt.
+    /// Returns whether the packet may be processed.
+    fn switch_version(&mut self, version: u32, packet: &PartialDecode) -> bool {
+        if !self.may_switch_version()
+            || !packet.is_initial()
+            || !self.endpoint_config.compatible_versions.contains(&version)
+            || !self.endpoint_config.supported_versions.contains(&version)
+        {
+            return false;
+        }
+        if !self.crypto.switch_version(version) {
+            debug!(version, "crypto session cannot switch QUIC version");
+            return false;
+        }
+        // Initial keys come from the first Initial's Destination Connection ID, or from the
+        // Source Connection ID of a Retry; the server's own ID may already be in use.
+        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
+        let keys = match self.crypto.initial_keys(&key_cid, self.side.side()) {
+            Ok(keys) => keys,
+            Err(_) => {
+                debug!(version, "no Initial keys for the negotiated QUIC version");
+                return false;
+            }
+        };
+        debug!(
+            from = self.version,
+            to = version,
+            "compatible version negotiation"
+        );
+        self.spaces[SpaceId::Initial].crypto = Some(keys);
+        self.original_version = Some(self.version);
+        self.version = version;
+        true
+    }
+
     fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
         if Some(self.orig_rem_cid) != params.initial_src_cid
             || (self.side.is_client()
@@ -3553,6 +3641,23 @@ impl Connection {
             return Err(TransportError::TRANSPORT_PARAMETER_ERROR(
                 "CID authentication failure",
             ));
+        }
+        // RFC 9368 section 4: the server's Chosen Version must be the version in use, and a
+        // client that was switched must have been told so.
+        if self.side.is_client() {
+            match params.version_information.map(|info| info.chosen) {
+                Some(chosen) if chosen != self.version => {
+                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
+                        "server chose another version",
+                    ));
+                }
+                None if self.original_version.is_some() => {
+                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
+                        "switched version without Version Information",
+                    ));
+                }
+                _ => {}
+            }
         }
 
         self.set_peer_params(params);
@@ -3677,7 +3782,7 @@ impl Connection {
     }
 
     fn peer_supports_ack_frequency(&self) -> bool {
-        self.peer_params.min_ack_delay.is_some()
+        self.peer_params.min_ack_delay.is_some() && !self.peer_params.min_ack_delay_draft02
     }
 
     /// Send an IMMEDIATE_ACK frame to the remote endpoint
@@ -4121,6 +4226,25 @@ pub enum Event {
     DatagramReceived,
     /// One or more application datagrams have been sent after blocking
     DatagramsUnblocked,
+}
+
+impl Connection {
+    /// Size to pad a datagram that requires padding to
+    ///
+    /// A client datagram holding an Initial packet takes
+    /// `TransportConfig::min_initial_datagram_size`, bounded by the space left in the
+    /// datagram; every other datagram takes the RFC 9000 minimum.
+    fn required_padding(&self, builder: &PacketBuilder, client_initial: bool) -> u16 {
+        if !client_initial {
+            return MIN_INITIAL_SIZE;
+        }
+        let available = builder.max_size + builder.tag_len - builder.datagram_start;
+        let available = u16::try_from(available).unwrap_or(u16::MAX);
+        self.config
+            .min_initial_datagram_size
+            .min(available)
+            .max(MIN_INITIAL_SIZE)
+    }
 }
 
 fn get_max_ack_delay(params: &TransportParameters) -> Duration {

@@ -21,7 +21,7 @@ use crate::{
     cid_generator::ConnectionIdGenerator,
     cid_queue::CidQueue,
     coding::{BufExt, BufMutExt, UnexpectedEnd},
-    config::{EndpointConfig, ServerConfig, TransportConfig},
+    config::{AckFrequencyDraft, EndpointConfig, ServerConfig, TransportConfig},
     shared::ConnectionId,
 };
 
@@ -81,6 +81,9 @@ macro_rules! make_struct {
             /// The endpoint is willing to receive QUIC packets containing any value for the fixed
             /// bit
             pub(crate) grease_quic_bit: bool,
+            /// The endpoint accepts RESET_STREAM_AT frames (the empty `reset_stream_at`
+            /// parameter)
+            pub(crate) reset_stream_at: bool,
 
             /// Minimum amount of time in microseconds by which the endpoint is able to delay
             /// sending acknowledgments
@@ -88,6 +91,16 @@ macro_rules! make_struct {
             /// If a value is provided, it implies that the endpoint supports QUIC Acknowledgement
             /// Frequency
             pub(crate) min_ack_delay: Option<VarInt>,
+            /// Whether `min_ack_delay` uses the draft 02 identifier
+            ///
+            /// A peer that advertised only draft 02 is not sent ACK_FREQUENCY or IMMEDIATE_ACK,
+            /// whose draft 07 encodings it may not read.
+            pub(crate) min_ack_delay_draft02: bool,
+            /// `version_information` (RFC 9368 section 3)
+            ///
+            /// Quinn writes it only when its endpoint allows compatible version negotiation. From
+            /// a peer, only the Chosen Version is kept.
+            pub(crate) version_information: Option<VersionInformation>,
 
             // Server-only
             /// The value of the Destination Connection ID field from the first Initial packet sent
@@ -125,7 +138,10 @@ macro_rules! make_struct {
                     max_datagram_frame_size: None,
                     initial_src_cid: None,
                     grease_quic_bit: false,
+                    reset_stream_at: false,
                     min_ack_delay: None,
+                    min_ack_delay_draft02: false,
+                    version_information: None,
 
                     original_dst_cid: None,
                     retry_src_cid: None,
@@ -156,22 +172,29 @@ impl TransportParameters {
             initial_max_streams_uni: config.max_concurrent_uni_streams,
             initial_max_data: config.receive_window,
             initial_max_stream_data_bidi_local: config.stream_receive_window,
-            initial_max_stream_data_bidi_remote: config.stream_receive_window,
-            initial_max_stream_data_uni: config.stream_receive_window,
+            initial_max_stream_data_bidi_remote: config.receive_window_bidi_remote(),
+            initial_max_stream_data_uni: config.receive_window_uni(),
             max_udp_payload_size: endpoint_config.max_udp_payload_size,
             max_idle_timeout: config.max_idle_timeout.unwrap_or(VarInt(0)),
             disable_active_migration: server_config.is_some_and(|c| !c.migration),
             active_connection_id_limit: if cid_gen.cid_len() == 0 {
                 2 // i.e. default, i.e. unsent
             } else {
-                CidQueue::LEN as u32
+                config
+                    .active_connection_id_limit
+                    .map_or(CidQueue::LEN as u32, u32::from)
             }
             .into(),
+            // `TransportConfig::max_ack_delay` accepts only whole milliseconds below 2^14.
+            max_ack_delay: VarInt::from_u64(config.max_ack_delay.as_millis() as u64)
+                .unwrap_or(VarInt(25)),
             max_datagram_frame_size: configured_datagram_frame_size(config),
             grease_quic_bit: endpoint_config.grease_quic_bit,
+            reset_stream_at: config.reset_stream_at,
             min_ack_delay: Some(
                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
             ),
+            min_ack_delay_draft02: config.ack_frequency_draft == AckFrequencyDraft::Draft02,
             grease_transport_parameter: Some(ReservedTransportParameter::random(rng)),
             write_order: Some({
                 let mut order = std::array::from_fn(|i| i as u8);
@@ -373,6 +396,22 @@ impl TransportParameters {
                         w.put_slice(cid);
                     }
                 }
+                TransportParameterId::VersionInformation => {
+                    if let Some(info) = &self.version_information {
+                        w.write_var(id as u64);
+                        w.write_var(4 * (1 + info.available().len() as u64));
+                        w.write(info.chosen);
+                        for &version in info.available() {
+                            w.write(version);
+                        }
+                    }
+                }
+                TransportParameterId::ResetStreamAt => {
+                    if self.reset_stream_at {
+                        w.write_var(id as u64);
+                        w.write_var(0);
+                    }
+                }
                 TransportParameterId::GreaseQuicBit => {
                     if self.grease_quic_bit {
                         w.write_var(id as u64);
@@ -381,7 +420,11 @@ impl TransportParameters {
                 }
                 TransportParameterId::MinAckDelayDraft07 => {
                     if let Some(x) = self.min_ack_delay {
-                        w.write_var(id as u64);
+                        let id = match self.min_ack_delay_draft02 {
+                            true => MIN_ACK_DELAY_DRAFT02,
+                            false => id as u64,
+                        };
+                        w.write_var(id);
                         w.write_var(x.size() as u64);
                         w.write(x);
                     }
@@ -435,6 +478,21 @@ impl TransportParameters {
                 return Err(Error::Malformed);
             }
             let len = len as usize;
+            if id == MIN_ACK_DELAY_DRAFT02 {
+                // Kept so the value can be written back, but a draft 02 peer does not
+                // receive draft 07 frames; see `min_ack_delay_draft02`.
+                if params.min_ack_delay.is_none() {
+                    let value = r.get::<VarInt>()?;
+                    if len != value.size() {
+                        return Err(Error::Malformed);
+                    }
+                    params.min_ack_delay = Some(value);
+                    params.min_ack_delay_draft02 = true;
+                } else {
+                    r.advance(len);
+                }
+                continue;
+            }
             let Ok(id) = TransportParameterId::try_from(id) else {
                 // unknown transport parameters are ignored
                 r.advance(len);
@@ -483,7 +541,37 @@ impl TransportParameters {
                     0 => params.grease_quic_bit = true,
                     _ => return Err(Error::Malformed),
                 },
-                TransportParameterId::MinAckDelayDraft07 => params.min_ack_delay = Some(r.get()?),
+                TransportParameterId::VersionInformation => {
+                    if len < 4
+                        || len % 4 != 0
+                        || params.version_information.is_some()
+                        || r.remaining() < len
+                    {
+                        return Err(Error::Malformed);
+                    }
+                    let chosen = r.get::<u32>()?;
+                    let mut available = 0;
+                    for _ in 1..len / 4 {
+                        if r.get::<u32>()? == 0 {
+                            return Err(Error::IllegalValue);
+                        }
+                        available += 1;
+                    }
+                    // RFC 9368 section 3: a server must list its chosen version, and no endpoint
+                    // may choose version 0.
+                    if chosen == 0 || (side.is_client() && available == 0) {
+                        return Err(Error::IllegalValue);
+                    }
+                    params.version_information = Some(VersionInformation::chosen(chosen));
+                }
+                TransportParameterId::ResetStreamAt => match len {
+                    0 if !params.reset_stream_at => params.reset_stream_at = true,
+                    _ => return Err(Error::Malformed),
+                },
+                TransportParameterId::MinAckDelayDraft07 => {
+                    params.min_ack_delay = Some(r.get()?);
+                    params.min_ack_delay_draft02 = false;
+                }
                 _ => {
                     macro_rules! parse {
                         {$($(#[$doc:meta])* $name:ident ($id:ident) = $default:expr,)*} => {
@@ -639,6 +727,12 @@ pub(crate) enum TransportParameterId {
     InitialSourceConnectionId = 0x0F,
     RetrySourceConnectionId = 0x10,
 
+    // https://www.rfc-editor.org/rfc/rfc9368.html#section-3
+    VersionInformation = 0x11,
+
+    // The empty parameter neqo advertises for draft-ietf-quic-reliable-stream-reset support
+    ResetStreamAt = 0x1D,
+
     // Smallest possible ID of reserved transport parameter https://datatracker.ietf.org/doc/html/rfc9000#section-22.3
     ReservedTransportParameter = 0x1B,
 
@@ -654,7 +748,7 @@ pub(crate) enum TransportParameterId {
 
 impl TransportParameterId {
     /// Array with all supported transport parameter IDs
-    const SUPPORTED: [Self; 21] = [
+    const SUPPORTED: [Self; 23] = [
         Self::MaxIdleTimeout,
         Self::MaxUdpPayloadSize,
         Self::InitialMaxData,
@@ -674,7 +768,9 @@ impl TransportParameterId {
         Self::OriginalDestinationConnectionId,
         Self::InitialSourceConnectionId,
         Self::RetrySourceConnectionId,
+        Self::VersionInformation,
         Self::GreaseQuicBit,
+        Self::ResetStreamAt,
         Self::MinAckDelayDraft07,
     ];
 }
@@ -713,13 +809,59 @@ impl TryFrom<u64> for TransportParameterId {
             }
             id if Self::InitialSourceConnectionId == id => Self::InitialSourceConnectionId,
             id if Self::RetrySourceConnectionId == id => Self::RetrySourceConnectionId,
+            id if Self::VersionInformation == id => Self::VersionInformation,
             id if Self::GreaseQuicBit == id => Self::GreaseQuicBit,
+            id if Self::ResetStreamAt == id => Self::ResetStreamAt,
             id if Self::MinAckDelayDraft07 == id => Self::MinAckDelayDraft07,
             _ => return Err(()),
         };
         Ok(param)
     }
 }
+
+/// The `version_information` transport parameter (RFC 9368 section 3)
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) struct VersionInformation {
+    /// The version of the packets that carry the parameter
+    pub(crate) chosen: u32,
+    available: [u32; Self::MAX_AVAILABLE],
+    available_len: u8,
+}
+
+impl VersionInformation {
+    const MAX_AVAILABLE: usize = 8;
+
+    /// A peer's parameter, whose Available Versions Quinn does not use
+    fn chosen(chosen: u32) -> Self {
+        Self {
+            chosen,
+            available: [0; Self::MAX_AVAILABLE],
+            available_len: 0,
+        }
+    }
+
+    /// The local parameter of an endpoint that allows compatible version negotiation
+    ///
+    /// Available Versions lists the supported versions in preference order, at most eight.
+    pub(crate) fn local(chosen: u32, config: &EndpointConfig) -> Option<Self> {
+        if config.compatible_versions.is_empty() {
+            return None;
+        }
+        let mut info = Self::chosen(chosen);
+        for &version in config.supported_versions.iter().take(Self::MAX_AVAILABLE) {
+            info.available[usize::from(info.available_len)] = version;
+            info.available_len += 1;
+        }
+        Some(info)
+    }
+
+    fn available(&self) -> &[u32] {
+        &self.available[..usize::from(self.available_len)]
+    }
+}
+
+/// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
+const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
 
 fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {
     if len > MAX_CID_SIZE || value.is_some() || r.remaining() < len {
@@ -892,6 +1034,46 @@ mod test {
             assert_eq!(
                 TransportParameters::read(Side::Server, &mut buf.as_slice()),
                 Err(Error::IllegalValue)
+            );
+        }
+    }
+
+    #[test]
+    fn min_ack_delay_can_use_the_draft02_identifier() {
+        let params = TransportParameters {
+            min_ack_delay: Some(VarInt(1_000)),
+            min_ack_delay_draft02: true,
+            ..TransportParameters::default()
+        };
+        let mut buf = Vec::new();
+        params.write(&mut buf);
+        assert_eq!(
+            buf,
+            [0xc0, 0, 0, 0, 0xff, 0x02, 0xde, 0x1a, 0x02, 0x43, 0xe8]
+        );
+
+        // A peer's draft 02 parameter round-trips but is marked as draft 02.
+        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
+        assert_eq!(read.min_ack_delay, Some(VarInt(1_000)));
+        assert!(read.min_ack_delay_draft02);
+    }
+
+    #[test]
+    fn reset_stream_at_is_an_empty_parameter() {
+        let params = TransportParameters {
+            reset_stream_at: true,
+            ..TransportParameters::default()
+        };
+        let mut buf = Vec::new();
+        params.write(&mut buf);
+        assert_eq!(buf, [0x1d, 0x00]);
+        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
+        assert!(read.reset_stream_at);
+
+        for malformed in [&[0x1d, 0x01, 0x00][..], &[0x1d, 0x00, 0x1d, 0x00][..]] {
+            assert_eq!(
+                TransportParameters::read(Side::Client, &mut &malformed[..]),
+                Err(Error::Malformed)
             );
         }
     }

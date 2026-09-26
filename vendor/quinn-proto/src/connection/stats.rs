@@ -63,7 +63,7 @@ impl FrameStats {
             Frame::Padding => {}
             Frame::Ping => self.ping += 1,
             Frame::Ack(_) => self.acks += 1,
-            Frame::ResetStream(_) => self.reset_stream += 1,
+            Frame::ResetStream(_) | Frame::ResetStreamAt(_) => self.reset_stream += 1,
             Frame::StopSending(_) => self.stop_sending += 1,
             Frame::Crypto(_) => self.crypto += 1,
             Frame::Datagram(_) => self.datagram += 1,

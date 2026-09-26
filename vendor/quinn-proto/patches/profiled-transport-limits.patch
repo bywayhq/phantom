@@ -1,0 +1,999 @@
+diff --git a/src/cid_queue.rs b/src/cid_queue.rs
+index 3e3eec9..773ac57 100644
+--- a/src/cid_queue.rs
++++ b/src/cid_queue.rs
+@@ -11,23 +11,34 @@ type CidData = (ConnectionId, Option<ResetToken>);
+ #[derive(Debug)]
+ pub(crate) struct CidQueue {
+     /// Ring buffer indexed by `self.cursor`
+-    buffer: [Option<CidData>; Self::LEN],
++    buffer: [Option<CidData>; Self::CAPACITY],
+     /// Index at which circular buffer addressing is based
+     cursor: usize,
+     /// Sequence number of `self.buffer[cursor]`
+     ///
+     /// The sequence number of the active CID; must be the smallest among CIDs in `buffer`.
+     offset: u64,
++    /// The `active_connection_id_limit` advertised to the peer, at most `Self::CAPACITY`
++    limit: u64,
+ }
+ 
+ impl CidQueue {
++    #[cfg(test)]
+     pub(crate) fn new(cid: ConnectionId) -> Self {
+-        let mut buffer = [None; Self::LEN];
++        Self::with_limit(cid, Self::LEN as u64)
++    }
++
++    /// Creates a queue that accepts `limit` active CIDs, the advertised
++    /// `active_connection_id_limit`
++    pub(crate) fn with_limit(cid: ConnectionId, limit: u64) -> Self {
++        debug_assert!((2..=Self::CAPACITY as u64).contains(&limit));
++        let mut buffer = [None; Self::CAPACITY];
+         buffer[0] = Some((cid, None));
+         Self {
+             buffer,
+             cursor: 0,
+             offset: 0,
++            limit: limit.min(Self::CAPACITY as u64),
+         }
+     }
+ 
+@@ -46,17 +57,17 @@ impl CidQueue {
+         };
+ 
+         let retired_count = cid.retire_prior_to.saturating_sub(self.offset);
+-        if index >= Self::LEN as u64 + retired_count {
++        if index >= self.limit + retired_count {
+             return Err(InsertError::ExceedsLimit);
+         }
+ 
+         // Discard retired CIDs, if any
+-        for i in 0..(retired_count.min(Self::LEN as u64) as usize) {
+-            self.buffer[(self.cursor + i) % Self::LEN] = None;
++        for i in 0..(retired_count.min(Self::CAPACITY as u64) as usize) {
++            self.buffer[(self.cursor + i) % Self::CAPACITY] = None;
+         }
+ 
+         // Record the new CID
+-        let index = ((self.cursor as u64 + index) % Self::LEN as u64) as usize;
++        let index = ((self.cursor as u64 + index) % Self::CAPACITY as u64) as usize;
+         self.buffer[index] = Some((cid.id, Some(cid.reset_token)));
+ 
+         if retired_count == 0 {
+@@ -66,22 +77,22 @@ impl CidQueue {
+         // The active CID was retired. Find the first known CID with sequence number of at least
+         // retire_prior_to, and inform the caller that all prior CIDs have been retired, and of
+         // the new CID's reset token.
+-        self.cursor = ((self.cursor as u64 + retired_count) % Self::LEN as u64) as usize;
++        self.cursor = ((self.cursor as u64 + retired_count) % Self::CAPACITY as u64) as usize;
+         let (i, (_, token)) = self
+             .iter()
+             .next()
+             .expect("it is impossible to retire a CID without supplying a new one");
+-        self.cursor = (self.cursor + i) % Self::LEN;
++        self.cursor = (self.cursor + i) % Self::CAPACITY;
+         let orig_offset = self.offset;
+         self.offset = cid.retire_prior_to + i as u64;
+         // We don't immediately retire CIDs in the range (orig_offset +
+-        // Self::LEN)..self.offset. These are CIDs that we haven't yet received from a
++        // self.limit)..self.offset. These are CIDs that we haven't yet received from a
+         // NEW_CONNECTION_ID frame, since having previously received them would violate the
+-        // connection ID limit we specified based on Self::LEN. If we do receive a such a frame
++        // connection ID limit we specified based on self.limit. If we do receive a such a frame
+         // in the future, e.g. due to reordering, we'll retire it then. This ensures we can't be
+         // made to buffer an arbitrarily large number of RETIRE_CONNECTION_ID frames.
+         Ok(Some((
+-            orig_offset..self.offset.min(orig_offset + Self::LEN as u64),
++            orig_offset..self.offset.min(orig_offset + self.limit),
+             token.expect("non-initial CID missing reset token"),
+         )))
+     }
+@@ -94,14 +105,14 @@ impl CidQueue {
+ 
+         let orig_offset = self.offset;
+         self.offset += i as u64;
+-        self.cursor = (self.cursor + i) % Self::LEN;
++        self.cursor = (self.cursor + i) % Self::CAPACITY;
+         Some((cid_data.1.unwrap(), orig_offset..self.offset))
+     }
+ 
+     /// Iterate CIDs in CidQueue that are not `None`, including the active CID
+     fn iter(&self) -> impl Iterator<Item = (usize, CidData)> + '_ {
+-        (0..Self::LEN).filter_map(move |step| {
+-            let index = (self.cursor + step) % Self::LEN;
++        (0..Self::CAPACITY).filter_map(move |step| {
++            let index = (self.cursor + step) % Self::CAPACITY;
+             self.buffer[index].map(|cid_data| (step, cid_data))
+         })
+     }
+@@ -122,7 +133,11 @@ impl CidQueue {
+         self.offset
+     }
+ 
++    /// The `active_connection_id_limit` advertised unless configured otherwise
+     pub(crate) const LEN: usize = 5;
++
++    /// The largest `active_connection_id_limit` this queue can honor
++    pub(crate) const CAPACITY: usize = 8;
+ }
+ 
+ #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index 9f43dea..fe792f3 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -29,7 +29,8 @@ mod transport;
+ #[cfg(feature = "qlog")]
+ pub use transport::QlogConfig;
+ pub use transport::{
+-    AckFrequencyConfig, IdleTimeout, InvalidDatagramFrameSize, MtuDiscoveryConfig, TransportConfig,
++    AckFrequencyConfig, IdleTimeout, InvalidDatagramFrameSize, InvalidTransportLimit,
++    MtuDiscoveryConfig, TransportConfig,
+ };
+ 
+ /// Global configuration for the endpoint, affecting all connections
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+index 147fe18..4a49717 100644
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -8,8 +8,8 @@ use qlog::streamer::QlogStreamer;
+ #[cfg(feature = "qlog")]
+ use crate::QlogStream;
+ use crate::{
+-    Duration, INITIAL_MTU, MAX_UDP_PAYLOAD, VarInt, VarIntBoundsExceeded, congestion,
+-    connection::qlog::QlogSink,
++    Duration, INITIAL_MTU, MAX_UDP_PAYLOAD, MIN_INITIAL_SIZE, VarInt, VarIntBoundsExceeded,
++    cid_queue::CidQueue, congestion, connection::qlog::QlogSink,
+ };
+ 
+ /// Parameters governing the core QUIC state machine
+@@ -29,6 +29,8 @@ pub struct TransportConfig {
+     pub(crate) max_concurrent_uni_streams: VarInt,
+     pub(crate) max_idle_timeout: Option<VarInt>,
+     pub(crate) stream_receive_window: VarInt,
++    pub(crate) bidi_remote_stream_receive_window: Option<VarInt>,
++    pub(crate) uni_stream_receive_window: Option<VarInt>,
+     pub(crate) receive_window: VarInt,
+     pub(crate) send_window: u64,
+     pub(crate) send_fairness: bool,
+@@ -40,7 +42,10 @@ pub struct TransportConfig {
+     pub(crate) min_mtu: u16,
+     pub(crate) mtu_discovery_config: Option<MtuDiscoveryConfig>,
+     pub(crate) pad_to_mtu: bool,
++    pub(crate) min_initial_datagram_size: u16,
+     pub(crate) ack_frequency_config: Option<AckFrequencyConfig>,
++    pub(crate) max_ack_delay: Duration,
++    pub(crate) active_connection_id_limit: Option<u8>,
+ 
+     pub(crate) persistent_congestion_threshold: u32,
+     pub(crate) keep_alive_interval: Option<Duration>,
+@@ -117,6 +122,36 @@ impl TransportConfig {
+         self
+     }
+ 
++    /// Receive window for each bidirectional stream the peer opens
++    ///
++    /// Advertised as `initial_max_stream_data_bidi_remote` and applied to every
++    /// peer-initiated bidirectional stream. `None`, the default, uses
++    /// [`Self::stream_receive_window`].
++    pub fn bidi_remote_stream_receive_window(&mut self, value: Option<VarInt>) -> &mut Self {
++        self.bidi_remote_stream_receive_window = value;
++        self
++    }
++
++    /// Receive window for each unidirectional stream the peer opens
++    ///
++    /// Advertised as `initial_max_stream_data_uni` and applied to every
++    /// peer-initiated unidirectional stream. `None`, the default, uses
++    /// [`Self::stream_receive_window`].
++    pub fn uni_stream_receive_window(&mut self, value: Option<VarInt>) -> &mut Self {
++        self.uni_stream_receive_window = value;
++        self
++    }
++
++    pub(crate) fn receive_window_bidi_remote(&self) -> VarInt {
++        self.bidi_remote_stream_receive_window
++            .unwrap_or(self.stream_receive_window)
++    }
++
++    pub(crate) fn receive_window_uni(&self) -> VarInt {
++        self.uni_stream_receive_window
++            .unwrap_or(self.stream_receive_window)
++    }
++
+     /// Maximum number of bytes the peer may transmit across all streams of a connection before
+     /// becoming blocked.
+     ///
+@@ -237,6 +272,50 @@ impl TransportConfig {
+         self
+     }
+ 
++    /// Smallest UDP payload of a client datagram that carries an Initial packet
++    ///
++    /// RFC 9000 section 14.1 requires at least 1200 bytes, the default. A larger value pads
++    /// every such datagram to that size, but never beyond the current maximum UDP payload size.
++    pub fn min_initial_datagram_size(
++        &mut self,
++        value: u16,
++    ) -> Result<&mut Self, InvalidTransportLimit> {
++        if value < MIN_INITIAL_SIZE {
++            return Err(InvalidTransportLimit::InitialDatagramTooSmall);
++        }
++        self.min_initial_datagram_size = value;
++        Ok(self)
++    }
++
++    /// Largest delay this endpoint uses before acknowledging an ack-eliciting packet
++    ///
++    /// Advertised as `max_ack_delay` (RFC 9000 section 18.2) and used as the local
++    /// acknowledgement delay until the peer requests another through ACK_FREQUENCY. It must be
++    /// whole milliseconds below 2^14 milliseconds. Defaults to 25 ms, the protocol default,
++    /// which is not advertised.
++    pub fn max_ack_delay(&mut self, value: Duration) -> Result<&mut Self, InvalidTransportLimit> {
++        if value.as_millis() >= 1 << 14 || value.subsec_nanos() % 1_000_000 != 0 {
++            return Err(InvalidTransportLimit::MaxAckDelay);
++        }
++        self.max_ack_delay = value;
++        Ok(self)
++    }
++
++    /// Number of peer connection IDs this endpoint stores
++    ///
++    /// Advertised as `active_connection_id_limit` when the local connection IDs are not empty. It
++    /// must be between 2 and 8. `None`, the default, advertises 5.
++    pub fn active_connection_id_limit(
++        &mut self,
++        value: Option<u8>,
++    ) -> Result<&mut Self, InvalidTransportLimit> {
++        if value.is_some_and(|limit| !(2..=CidQueue::CAPACITY as u8).contains(&limit)) {
++            return Err(InvalidTransportLimit::ActiveConnectionIdLimit);
++        }
++        self.active_connection_id_limit = value;
++        Ok(self)
++    }
++
+     /// Specifies the ACK frequency config (see [`AckFrequencyConfig`] for details)
+     ///
+     /// The provided configuration will be ignored if the peer does not support the acknowledgement
+@@ -401,6 +480,8 @@ impl Default for TransportConfig {
+             // 30 second default recommended by RFC 9308 § 3.2
+             max_idle_timeout: Some(VarInt(30_000)),
+             stream_receive_window: STREAM_RWND.into(),
++            bidi_remote_stream_receive_window: None,
++            uni_stream_receive_window: None,
+             receive_window: VarInt::MAX,
+             send_window: (8 * STREAM_RWND).into(),
+             send_fairness: true,
+@@ -412,7 +493,10 @@ impl Default for TransportConfig {
+             min_mtu: INITIAL_MTU,
+             mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
+             pad_to_mtu: false,
++            min_initial_datagram_size: MIN_INITIAL_SIZE,
+             ack_frequency_config: None,
++            max_ack_delay: Duration::from_millis(25),
++            active_connection_id_limit: None,
+ 
+             persistent_congestion_threshold: 3,
+             keep_alive_interval: None,
+@@ -440,6 +524,8 @@ impl fmt::Debug for TransportConfig {
+             max_concurrent_uni_streams,
+             max_idle_timeout,
+             stream_receive_window,
++            bidi_remote_stream_receive_window,
++            uni_stream_receive_window,
+             receive_window,
+             send_window,
+             send_fairness,
+@@ -450,7 +536,10 @@ impl fmt::Debug for TransportConfig {
+             min_mtu,
+             mtu_discovery_config,
+             pad_to_mtu,
++            min_initial_datagram_size,
+             ack_frequency_config,
++            max_ack_delay,
++            active_connection_id_limit,
+             persistent_congestion_threshold,
+             keep_alive_interval,
+             crypto_buffer_size,
+@@ -470,6 +559,11 @@ impl fmt::Debug for TransportConfig {
+             .field("max_concurrent_uni_streams", max_concurrent_uni_streams)
+             .field("max_idle_timeout", max_idle_timeout)
+             .field("stream_receive_window", stream_receive_window)
++            .field(
++                "bidi_remote_stream_receive_window",
++                bidi_remote_stream_receive_window,
++            )
++            .field("uni_stream_receive_window", uni_stream_receive_window)
+             .field("receive_window", receive_window)
+             .field("send_window", send_window)
+             .field("send_fairness", send_fairness)
+@@ -480,7 +574,10 @@ impl fmt::Debug for TransportConfig {
+             .field("min_mtu", min_mtu)
+             .field("mtu_discovery_config", mtu_discovery_config)
+             .field("pad_to_mtu", pad_to_mtu)
++            .field("min_initial_datagram_size", min_initial_datagram_size)
+             .field("ack_frequency_config", ack_frequency_config)
++            .field("max_ack_delay", max_ack_delay)
++            .field("active_connection_id_limit", active_connection_id_limit)
+             .field(
+                 "persistent_congestion_threshold",
+                 persistent_congestion_threshold,
+@@ -526,6 +623,30 @@ impl fmt::Display for InvalidDatagramFrameSize {
+ 
+ impl std::error::Error for InvalidDatagramFrameSize {}
+ 
++/// Error returned when a local transport limit cannot be advertised.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum InvalidTransportLimit {
++    /// `max_ack_delay` must be whole milliseconds below 2^14.
++    MaxAckDelay,
++    /// `active_connection_id_limit` must be between 2 and 8.
++    ActiveConnectionIdLimit,
++    /// Datagrams carrying Initial packets must be at least 1200 bytes.
++    InitialDatagramTooSmall,
++}
++
++impl fmt::Display for InvalidTransportLimit {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        formatter.write_str(match self {
++            Self::MaxAckDelay => "max_ack_delay must be whole milliseconds below 16384",
++            Self::ActiveConnectionIdLimit => "active_connection_id_limit must be in 2..=8",
++            Self::InitialDatagramTooSmall => "Initial datagrams must be at least 1200 bytes",
++        })
++    }
++}
++
++impl std::error::Error for InvalidTransportLimit {}
++
+ #[cfg(test)]
+ mod datagram_frame_size_tests {
+     use super::*;
+diff --git a/src/connection/ack_frequency.rs b/src/connection/ack_frequency.rs
+index 20be6b9..a748da4 100644
+--- a/src/connection/ack_frequency.rs
++++ b/src/connection/ack_frequency.rs
+@@ -21,14 +21,14 @@ pub(super) struct AckFrequencyState {
+ }
+ 
+ impl AckFrequencyState {
+-    pub(super) fn new(default_max_ack_delay: Duration) -> Self {
++    pub(super) fn new(default_peer_max_ack_delay: Duration, local_max_ack_delay: Duration) -> Self {
+         Self {
+             in_flight_ack_frequency_frame: None,
+             next_outgoing_sequence_number: VarInt(0),
+-            peer_max_ack_delay: default_max_ack_delay,
++            peer_max_ack_delay: default_peer_max_ack_delay,
+ 
+             last_ack_frequency_frame: None,
+-            max_ack_delay: default_max_ack_delay,
++            max_ack_delay: local_max_ack_delay,
+         }
+     }
+ 
+@@ -175,7 +175,7 @@ mod tests {
+         params.write(&mut encoded);
+         let params = TransportParameters::read(Side::Client, &mut encoded.as_slice())
+             .expect("peer parameters must pass wire-level validation");
+-        let state = AckFrequencyState::new(Duration::from_millis(100));
++        let state = AckFrequencyState::new(Duration::from_millis(100), Duration::from_millis(25));
+         let delay = state.candidate_max_ack_delay(
+             Duration::from_millis(5),
+             &AckFrequencyConfig::default(),
+@@ -195,7 +195,7 @@ mod tests {
+         params.write(&mut encoded);
+         let params = TransportParameters::read(Side::Client, &mut encoded.as_slice())
+             .expect("peer parameters must pass wire-level validation");
+-        let state = AckFrequencyState::new(Duration::from_millis(100));
++        let state = AckFrequencyState::new(Duration::from_millis(100), Duration::from_millis(25));
+         let delay = state.candidate_max_ack_delay(
+             Duration::from_millis(5),
+             &AckFrequencyConfig::default(),
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 2910e4b..703ad59 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -279,6 +279,9 @@ impl Connection {
+             client_hello: None,
+         });
+         let mut rng = StdRng::from_seed(rng_seed);
++        let active_connection_id_limit = config
++            .active_connection_id_limit
++            .map_or(CidQueue::LEN as u64, u64::from);
+         let mut this = Self {
+             endpoint_config,
+             crypto,
+@@ -339,9 +342,10 @@ impl Connection {
+             path_responses: PathResponses::default(),
+             close: false,
+ 
+-            ack_frequency: AckFrequencyState::new(get_max_ack_delay(
+-                &TransportParameters::default(),
+-            )),
++            ack_frequency: AckFrequencyState::new(
++                get_max_ack_delay(&TransportParameters::default()),
++                config.max_ack_delay,
++            ),
+             next_bundled_ack_time: None,
+ 
+             pto_count: 0,
+@@ -357,10 +361,14 @@ impl Connection {
+                 config.send_window,
+                 config.receive_window,
+                 config.stream_receive_window,
++            )
++            .with_peer_stream_receive_windows(
++                config.receive_window_bidi_remote(),
++                config.receive_window_uni(),
+             ),
+             datagrams: DatagramState::default(),
+             config,
+-            rem_cids: CidQueue::new(rem_cid),
++            rem_cids: CidQueue::with_limit(rem_cid, active_connection_id_limit),
+             rng,
+             stats: ConnectionStats::default(),
+             version,
+@@ -525,6 +533,8 @@ impl Connection {
+         let mut builder_storage: Option<PacketBuilder> = None;
+         let mut sent_frames = None;
+         let mut pad_datagram = false;
++        // Whether the current datagram holds a client Initial packet
++        let mut client_initial_datagram = false;
+         let mut pad_datagram_to_mtu = false;
+         let mut congestion_blocked = false;
+ 
+@@ -644,7 +654,7 @@ impl Connection {
+                 // Finish current packet
+                 if let Some(mut builder) = builder_storage.take() {
+                     if pad_datagram {
+-                        builder.pad_to(MIN_INITIAL_SIZE);
++                        builder.pad_to(self.required_padding(&builder, client_initial_datagram));
+                     }
+ 
+                     if num_datagrams > 1 || pad_datagram_to_mtu {
+@@ -737,6 +747,7 @@ impl Connection {
+                 num_datagrams += 1;
+                 coalesce = true;
+                 pad_datagram = false;
++                client_initial_datagram = false;
+                 datagram_start = buf.len();
+ 
+                 debug_assert_eq!(
+@@ -791,6 +802,7 @@ impl Connection {
+             // https://tools.ietf.org/html/draft-ietf-quic-transport-34#section-14.1
+             pad_datagram |=
+                 space_id == SpaceId::Initial && (self.side.is_client() || ack_eliciting);
++            client_initial_datagram |= space_id == SpaceId::Initial && self.side.is_client();
+ 
+             if close {
+                 trace!("sending CONNECTION_CLOSE");
+@@ -924,7 +936,7 @@ impl Connection {
+         // Finish the last packet
+         if let Some(mut builder) = builder_storage {
+             if pad_datagram {
+-                builder.pad_to(MIN_INITIAL_SIZE);
++                builder.pad_to(self.required_padding(&builder, client_initial_datagram));
+             }
+ 
+             // If this datagram is a loss probe and `segment_size` is larger than `INITIAL_MTU`,
+@@ -4123,6 +4135,25 @@ pub enum Event {
+     DatagramsUnblocked,
+ }
+ 
++impl Connection {
++    /// Size to pad a datagram that requires padding to
++    ///
++    /// A client datagram holding an Initial packet takes
++    /// `TransportConfig::min_initial_datagram_size`, bounded by the space left in the
++    /// datagram; every other datagram takes the RFC 9000 minimum.
++    fn required_padding(&self, builder: &PacketBuilder, client_initial: bool) -> u16 {
++        if !client_initial {
++            return MIN_INITIAL_SIZE;
++        }
++        let available = builder.max_size + builder.tag_len - builder.datagram_start;
++        let available = u16::try_from(available).unwrap_or(u16::MAX);
++        self.config
++            .min_initial_datagram_size
++            .min(available)
++            .max(MIN_INITIAL_SIZE)
++    }
++}
++
+ fn get_max_ack_delay(params: &TransportParameters) -> Duration {
+     Duration::from_micros(params.max_ack_delay.0 * 1000)
+ }
+diff --git a/src/connection/streams/mod.rs b/src/connection/streams/mod.rs
+index fe41e73..23cf1b7 100644
+--- a/src/connection/streams/mod.rs
++++ b/src/connection/streams/mod.rs
+@@ -134,11 +134,12 @@ impl RecvStream<'_> {
+     /// Discards unread data and notifies the peer to stop transmitting. Once stopped, further
+     /// attempts to operate on a stream will yield `ClosedStream` errors.
+     pub fn stop(&mut self, error_code: VarInt) -> Result<(), ClosedStream> {
++        let window = self.state.stream_receive_window(self.id);
+         let mut entry = match self.state.recv.entry(self.id) {
+             hash_map::Entry::Occupied(s) => s,
+             hash_map::Entry::Vacant(_) => return Err(ClosedStream { _private: () }),
+         };
+-        let stream = get_or_insert_recv(self.state.stream_receive_window)(entry.get_mut());
++        let stream = get_or_insert_recv(window)(entry.get_mut());
+ 
+         let (read_credits, stop_sending) = stream.stop()?;
+         if stop_sending.should_transmit() {
+diff --git a/src/connection/streams/recv.rs b/src/connection/streams/recv.rs
+index 5361a22..f4e07a5 100644
+--- a/src/connection/streams/recv.rs
++++ b/src/connection/streams/recv.rs
+@@ -260,16 +260,16 @@ impl<'a> Chunks<'a> {
+         streams: &'a mut StreamsState,
+         pending: &'a mut Retransmits,
+     ) -> Result<Self, ReadableError> {
++        let window = streams.stream_receive_window(id);
+         let mut entry = match streams.recv.entry(id) {
+             Entry::Occupied(entry) => entry,
+             Entry::Vacant(_) => return Err(ReadableError::ClosedStream),
+         };
+ 
+-        let mut recv =
+-            match get_or_insert_recv(streams.stream_receive_window)(entry.get_mut()).stopped {
+-                true => return Err(ReadableError::ClosedStream),
+-                false => entry.remove().unwrap().into_inner(), // this can't fail due to the previous get_or_insert_with
+-            };
++        let mut recv = match get_or_insert_recv(window)(entry.get_mut()).stopped {
++            true => return Err(ReadableError::ClosedStream),
++            false => entry.remove().unwrap().into_inner(), // this can't fail due to the previous get_or_insert_with
++        };
+ 
+         recv.assembler.ensure_ordering(ordered)?;
+         Ok(Self {
+@@ -362,7 +362,8 @@ impl<'a> Chunks<'a> {
+ 
+         // If the stream hasn't finished, we may need to issue stream-level flow control credit
+         if let ChunksState::Readable(mut rs) = state {
+-            let (_, max_stream_data) = rs.max_stream_data(self.streams.stream_receive_window);
++            let (_, max_stream_data) =
++                rs.max_stream_data(self.streams.stream_receive_window(self.id));
+             should_transmit |= max_stream_data.0;
+             if max_stream_data.0 {
+                 self.pending.max_stream_data.insert(self.id);
+diff --git a/src/connection/streams/state.rs b/src/connection/streams/state.rs
+index 51bf1d8..cb1b1dc 100644
+--- a/src/connection/streams/state.rs
++++ b/src/connection/streams/state.rs
+@@ -53,6 +53,17 @@ impl StreamRecv {
+         }
+     }
+ 
++    // Give a pooled `Recv` the initial window of the stream that takes it
++    pub(super) fn rewindow(self, initial_max_data: u64) -> Self {
++        match self {
++            Self::Free(mut recv) => {
++                recv.reinit(initial_max_data);
++                Self::Free(recv)
++            }
++            Self::Open(_) => unreachable!("Self::Open in the free pool"),
++        }
++    }
++
+     // Reinitialize the stream so the inner `Recv` can be reused
+     pub(super) fn free(self, initial_max_data: u64) -> Self {
+         match self {
+@@ -128,7 +139,14 @@ pub struct StreamsState {
+     /// Note this may be less than `buffered_data` if the user has set a new value.
+     pub(super) send_window: u64,
+     /// Configured upper bound for how much unacked data the peer can send us per stream
++    ///
++    /// Applies to locally initiated bidirectional streams, and to peer-initiated streams unless
++    /// `bidi_remote_stream_receive_window` or `uni_stream_receive_window` differ.
+     pub(super) stream_receive_window: u64,
++    /// Receive window of each peer-initiated bidirectional stream
++    bidi_remote_stream_receive_window: u64,
++    /// Receive window of each peer-initiated unidirectional stream
++    uni_stream_receive_window: u64,
+ 
+     // Pertinent state from the TransportParameters supplied by the peer
+     initial_max_stream_data_uni: VarInt,
+@@ -181,6 +199,8 @@ impl StreamsState {
+             buffered_data: 0,
+             send_window,
+             stream_receive_window: stream_receive_window.into(),
++            bidi_remote_stream_receive_window: stream_receive_window.into(),
++            uni_stream_receive_window: stream_receive_window.into(),
+             initial_max_stream_data_uni: 0u32.into(),
+             initial_max_stream_data_bidi_local: 0u32.into(),
+             initial_max_stream_data_bidi_remote: 0u32.into(),
+@@ -197,6 +217,23 @@ impl StreamsState {
+         this
+     }
+ 
++    /// Sets distinct receive windows for peer-initiated streams, as advertised in
++    /// `initial_max_stream_data_bidi_remote` and `initial_max_stream_data_uni`
++    pub(crate) fn with_peer_stream_receive_windows(mut self, bidi: VarInt, uni: VarInt) -> Self {
++        self.bidi_remote_stream_receive_window = bidi.into();
++        self.uni_stream_receive_window = uni.into();
++        self
++    }
++
++    /// Returns the receive window of stream `id`
++    pub(super) fn stream_receive_window(&self, id: StreamId) -> u64 {
++        match id.dir() {
++            Dir::Uni => self.uni_stream_receive_window,
++            Dir::Bi if id.initiator() == self.side => self.stream_receive_window,
++            Dir::Bi => self.bidi_remote_stream_receive_window,
++        }
++    }
++
+     pub(crate) fn set_params(&mut self, params: &TransportParameters) {
+         self.initial_max_stream_data_uni = params.initial_max_stream_data_uni;
+         self.initial_max_stream_data_bidi_local = params.initial_max_stream_data_bidi_local;
+@@ -267,11 +304,8 @@ impl StreamsState {
+             debug!("received illegal STREAM frame");
+         })?;
+ 
+-        let rs = match self
+-            .recv
+-            .get_mut(&id)
+-            .map(get_or_insert_recv(self.stream_receive_window))
+-        {
++        let window = self.stream_receive_window(id);
++        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
+             Some(rs) => rs,
+             None => {
+                 trace!("dropping frame for closed stream");
+@@ -320,11 +354,8 @@ impl StreamsState {
+             debug!("received illegal RESET_STREAM frame");
+         })?;
+ 
+-        let rs = match self
+-            .recv
+-            .get_mut(&id)
+-            .map(get_or_insert_recv(self.stream_receive_window))
+-        {
++        let window = self.stream_receive_window(id);
++        let rs = match self.recv.get_mut(&id).map(get_or_insert_recv(window)) {
+             Some(stream) => stream,
+             None => {
+                 trace!("received RESET_STREAM on closed stream");
+@@ -515,6 +546,7 @@ impl StreamsState {
+                 None => break,
+             };
+             pending.max_stream_data.remove(&id);
++            let window = self.stream_receive_window(id);
+             let rs = match self
+                 .recv
+                 .get_mut(&id)
+@@ -529,7 +561,7 @@ impl StreamsState {
+             }
+             retransmits.get_or_create().max_stream_data.insert(id);
+ 
+-            let (max, _) = rs.max_stream_data(self.stream_receive_window);
++            let (max, _) = rs.max_stream_data(window);
+             rs.record_sent_max_stream_data(max);
+ 
+             trace!(stream = %id, max = max, "MAX_STREAM_DATA");
+@@ -950,7 +982,9 @@ impl StreamsState {
+         }
+         // bidirectional OR (unidirectional AND remote)
+         if bi || remote {
+-            let recv = self.free_recv.pop();
++            // A pooled `Recv` still carries the window of the stream that freed it.
++            let window = self.stream_receive_window(id);
++            let recv = self.free_recv.pop().map(|recv| recv.rewindow(window));
+             assert!(self.recv.insert(id, recv).is_none());
+         }
+     }
+@@ -1004,7 +1038,8 @@ impl StreamsState {
+     }
+ 
+     pub(super) fn stream_recv_freed(&mut self, id: StreamId, recv: StreamRecv) {
+-        self.free_recv.push(recv.free(self.stream_receive_window));
++        self.free_recv
++            .push(recv.free(self.stream_receive_window(id)));
+         self.stream_freed(id, StreamHalf::Recv);
+     }
+ 
+diff --git a/src/lib.rs b/src/lib.rs
+index 9c7e844..d5f5474 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -60,8 +60,8 @@ mod config;
+ pub use config::QlogConfig;
+ pub use config::{
+     AckFrequencyConfig, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
+-    InvalidDatagramFrameSize, MtuDiscoveryConfig, ServerConfig, StdSystemTime, TimeSource,
+-    TransportConfig, ValidationTokenConfig,
++    InvalidDatagramFrameSize, InvalidTransportLimit, MtuDiscoveryConfig, ServerConfig,
++    StdSystemTime, TimeSource, TransportConfig, ValidationTokenConfig,
+ };
+ 
+ pub mod crypto;
+diff --git a/src/tests/mod.rs b/src/tests/mod.rs
+index 4ee507f..3d1d453 100644
+--- a/src/tests/mod.rs
++++ b/src/tests/mod.rs
+@@ -38,6 +38,7 @@ use util::*;
+ mod initial_keys;
+ mod key_update;
+ mod token;
++mod transport_limits;
+ 
+ #[cfg(all(target_family = "wasm", target_os = "unknown"))]
+ use wasm_bindgen_test::wasm_bindgen_test as test;
+diff --git a/src/tests/transport_limits.rs b/src/tests/transport_limits.rs
+new file mode 100644
+index 0000000..bc134ca
+--- /dev/null
++++ b/src/tests/transport_limits.rs
+@@ -0,0 +1,241 @@
++use std::sync::{Arc, Mutex};
++
++use bytes::Buf;
++
++use crate::{cid_queue::CidQueue, coding::BufExt};
++
++use super::*;
++
++/// Records the transport parameters Quinn hands to the crypto provider.
++struct RecordingClientConfig {
++    inner: Arc<dyn crypto::ClientConfig>,
++    params: Arc<Mutex<Option<TransportParameters>>>,
++}
++
++impl crypto::ClientConfig for RecordingClientConfig {
++    fn start_session(
++        self: Arc<Self>,
++        version: u32,
++        server_name: &str,
++        params: &TransportParameters,
++    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
++        *self.params.lock().unwrap() = Some(*params);
++        self.inner
++            .clone()
++            .start_session(version, server_name, params)
++    }
++}
++
++fn recording_client_config(
++    transport: TransportConfig,
++) -> (ClientConfig, Arc<Mutex<Option<TransportParameters>>>) {
++    let params = Arc::new(Mutex::new(None));
++    let mut config = ClientConfig::new(Arc::new(RecordingClientConfig {
++        inner: Arc::new(client_crypto()),
++        params: params.clone(),
++    }));
++    config.transport_config(Arc::new(transport));
++    (config, params)
++}
++
++fn written_ids(params: &TransportParameters) -> Vec<u64> {
++    let mut encoded = Vec::new();
++    params.write(&mut encoded);
++    let mut ids = Vec::new();
++    let mut buf = encoded.as_slice();
++    while !buf.is_empty() {
++        let id = buf.get_var().unwrap();
++        let len = buf.get_var().unwrap() as usize;
++        buf.advance(len);
++        ids.push(id);
++    }
++    ids
++}
++
++#[test]
++fn configured_limits_are_advertised() {
++    let _guard = subscribe();
++    let mut transport = TransportConfig::default();
++    transport
++        .max_ack_delay(Duration::from_millis(20))
++        .unwrap()
++        .active_connection_id_limit(Some(8))
++        .unwrap()
++        .stream_receive_window(VarInt::from_u32(12_582_912))
++        .bidi_remote_stream_receive_window(Some(VarInt::from_u32(1_048_576)))
++        .uni_stream_receive_window(Some(VarInt::from_u32(1_048_577)));
++    let (config, params) = recording_client_config(transport);
++    let mut pair = Pair::default();
++    pair.begin_connect(config);
++
++    let params = params.lock().unwrap().expect("session started");
++    assert_eq!(params.max_ack_delay, VarInt(20));
++    assert_eq!(params.active_connection_id_limit, VarInt(8));
++    assert_eq!(
++        params.initial_max_stream_data_bidi_local,
++        VarInt(12_582_912)
++    );
++    assert_eq!(
++        params.initial_max_stream_data_bidi_remote,
++        VarInt(1_048_576)
++    );
++    assert_eq!(params.initial_max_stream_data_uni, VarInt(1_048_577));
++    let ids = written_ids(&params);
++    assert!(ids.contains(&0x0b), "max_ack_delay is advertised");
++    assert!(
++        ids.contains(&0x0e),
++        "active_connection_id_limit is advertised"
++    );
++}
++
++#[test]
++fn default_limits_keep_upstream_parameters() {
++    let (config, params) = recording_client_config(TransportConfig::default());
++    let mut pair = Pair::default();
++    pair.begin_connect(config);
++
++    let params = params.lock().unwrap().expect("session started");
++    assert_eq!(params.max_ack_delay, VarInt(25));
++    assert_eq!(
++        params.active_connection_id_limit,
++        VarInt(CidQueue::LEN as u64)
++    );
++    assert_eq!(
++        params.initial_max_stream_data_bidi_remote,
++        params.initial_max_stream_data_bidi_local
++    );
++    assert_eq!(
++        params.initial_max_stream_data_uni,
++        params.initial_max_stream_data_bidi_local
++    );
++    assert!(!written_ids(&params).contains(&0x0b));
++}
++
++#[test]
++fn invalid_limits_are_rejected() {
++    let mut transport = TransportConfig::default();
++    assert_eq!(
++        transport
++            .max_ack_delay(Duration::from_millis(1 << 14))
++            .err(),
++        Some(InvalidTransportLimit::MaxAckDelay)
++    );
++    assert_eq!(
++        transport.max_ack_delay(Duration::from_micros(1_500)).err(),
++        Some(InvalidTransportLimit::MaxAckDelay)
++    );
++    for limit in [0, 1, 9] {
++        assert_eq!(
++            transport.active_connection_id_limit(Some(limit)).err(),
++            Some(InvalidTransportLimit::ActiveConnectionIdLimit)
++        );
++    }
++    assert_eq!(
++        transport.min_initial_datagram_size(1_199).err(),
++        Some(InvalidTransportLimit::InitialDatagramTooSmall)
++    );
++}
++
++#[test]
++fn peer_initiated_uni_stream_honors_its_own_window() {
++    let _guard = subscribe();
++    let mut transport = TransportConfig::default();
++    transport
++        .stream_receive_window(VarInt::from_u32(64_000))
++        .uni_stream_receive_window(Some(VarInt::from_u32(2_000)));
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let mut pair = Pair::default();
++    let (client_ch, server_ch) = pair.connect_with(config);
++
++    let stream = pair.server_streams(server_ch).open(Dir::Uni).unwrap();
++    // The server may send only the client's uni window, not its larger bidi window.
++    let written = pair
++        .server_send(server_ch, stream)
++        .write(&[0xab; 5_000])
++        .unwrap();
++    assert_eq!(written, 2_000);
++    pair.drive();
++
++    assert_matches!(
++        pair.client_streams(client_ch).accept(Dir::Uni),
++        Some(accepted) if accepted == stream
++    );
++    let mut recv = pair.client_recv(client_ch, stream);
++    let mut chunks = recv.read(false).unwrap();
++    let mut received = 0;
++    while let Ok(Some(chunk)) = chunks.next(usize::MAX) {
++        received += chunk.bytes.len();
++    }
++    let _ = chunks.finalize();
++    assert_eq!(received, 2_000);
++}
++
++#[test]
++fn larger_connection_id_limit_accepts_more_peer_cids() {
++    let initial = ConnectionId::new(&[0; 8]);
++    let mut queue = CidQueue::with_limit(initial, 8);
++    for sequence in 1..8 {
++        let cid = frame::NewConnectionId {
++            sequence,
++            id: ConnectionId::new(&[sequence as u8; 8]),
++            reset_token: ResetToken::from([sequence as u8; RESET_TOKEN_SIZE]),
++            retire_prior_to: 0,
++        };
++        assert_eq!(queue.insert(cid), Ok(None));
++    }
++    let over = frame::NewConnectionId {
++        sequence: 8,
++        id: ConnectionId::new(&[8; 8]),
++        reset_token: ResetToken::from([8; RESET_TOKEN_SIZE]),
++        retire_prior_to: 0,
++    };
++    assert_eq!(
++        queue.insert(over),
++        Err(crate::cid_queue::InsertError::ExceedsLimit)
++    );
++}
++
++#[test]
++fn client_initial_datagrams_are_padded_to_configured_size() {
++    let _guard = subscribe();
++    let mut transport = TransportConfig::default();
++    transport.initial_mtu(1_252);
++    transport.min_initial_datagram_size(1_252).unwrap();
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let mut pair = Pair::default();
++    pair.begin_connect(config);
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++
++    let initial_sizes = pair
++        .client
++        .outbound
++        .iter()
++        .filter(|(_, datagram)| datagram[0] & 0xf0 == 0xc0)
++        .map(|(transmit, _)| transmit.size)
++        .collect::<Vec<_>>();
++    assert!(!initial_sizes.is_empty());
++    assert!(initial_sizes.iter().all(|size| *size == 1_252));
++}
++
++#[test]
++fn initial_padding_never_exceeds_the_datagram() {
++    let _guard = subscribe();
++    let mut transport = TransportConfig::default();
++    transport.min_initial_datagram_size(1_400).unwrap();
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let mut pair = Pair::default();
++    pair.begin_connect(config);
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++
++    let (transmit, _) = pair
++        .client
++        .outbound
++        .front()
++        .expect("client sent an Initial");
++    assert_eq!(transmit.size, usize::from(INITIAL_MTU));
++}
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+index 367bd36..1155171 100644
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -156,17 +156,22 @@ impl TransportParameters {
+             initial_max_streams_uni: config.max_concurrent_uni_streams,
+             initial_max_data: config.receive_window,
+             initial_max_stream_data_bidi_local: config.stream_receive_window,
+-            initial_max_stream_data_bidi_remote: config.stream_receive_window,
+-            initial_max_stream_data_uni: config.stream_receive_window,
++            initial_max_stream_data_bidi_remote: config.receive_window_bidi_remote(),
++            initial_max_stream_data_uni: config.receive_window_uni(),
+             max_udp_payload_size: endpoint_config.max_udp_payload_size,
+             max_idle_timeout: config.max_idle_timeout.unwrap_or(VarInt(0)),
+             disable_active_migration: server_config.is_some_and(|c| !c.migration),
+             active_connection_id_limit: if cid_gen.cid_len() == 0 {
+                 2 // i.e. default, i.e. unsent
+             } else {
+-                CidQueue::LEN as u32
++                config
++                    .active_connection_id_limit
++                    .map_or(CidQueue::LEN as u32, u32::from)
+             }
+             .into(),
++            // `TransportConfig::max_ack_delay` accepts only whole milliseconds below 2^14.
++            max_ack_delay: VarInt::from_u64(config.max_ack_delay.as_millis() as u64)
++                .unwrap_or(VarInt(25)),
+             max_datagram_frame_size: configured_datagram_frame_size(config),
+             grease_quic_bit: endpoint_config.grease_quic_bit,
+             min_ack_delay: Some(

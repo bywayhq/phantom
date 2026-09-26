@@ -1,0 +1,1068 @@
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index 15a75f1..a241ea5 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -46,6 +46,7 @@ pub struct EndpointConfig {
+     pub(crate) connection_id_generator_factory:
+         Arc<dyn Fn() -> Box<dyn ConnectionIdGenerator> + Send + Sync>,
+     pub(crate) supported_versions: Vec<u32>,
++    pub(crate) compatible_versions: Vec<u32>,
+     pub(crate) grease_quic_bit: bool,
+     /// Minimum interval between outgoing stateless reset packets
+     pub(crate) min_reset_interval: Duration,
+@@ -63,6 +64,7 @@ impl EndpointConfig {
+             max_udp_payload_size: (1500u32 - 28).into(), // Ethernet MTU minus IP + UDP headers
+             connection_id_generator_factory: Arc::new(cid_factory),
+             supported_versions: DEFAULT_SUPPORTED_VERSIONS.to_vec(),
++            compatible_versions: Vec::new(),
+             grease_quic_bit: true,
+             min_reset_interval: Duration::from_millis(20),
+             rng_seed: None,
+@@ -127,6 +129,19 @@ impl EndpointConfig {
+         self
+     }
+ 
++    /// Versions a client lets a server switch it to by compatible version negotiation
++    ///
++    /// RFC 9368 section 2.3: a server may answer a client's first flight in another version the
++    /// client listed as available in its `version_information` transport parameter. Each entry
++    /// must also be in [`Self::supported_versions`], and the crypto session must support
++    /// [`crate::crypto::Session::switch_version`]. A client that switched requires the server's
++    /// `version_information` to name the new version. Empty by default, which keeps every
++    /// connection in the version it started with.
++    pub fn compatible_versions(&mut self, versions: Vec<u32>) -> &mut Self {
++        self.compatible_versions = versions;
++        self
++    }
++
+     /// Whether to accept QUIC packets containing any value for the fixed bit
+     ///
+     /// Enabled by default. Helps protect against protocol ossification and makes traffic less
+@@ -171,6 +186,7 @@ impl fmt::Debug for EndpointConfig {
+             .field("max_udp_payload_size", &self.max_udp_payload_size)
+             // cid_generator_factory not debug
+             .field("supported_versions", &self.supported_versions)
++            .field("compatible_versions", &self.compatible_versions)
+             .field("grease_quic_bit", &self.grease_quic_bit)
+             .field("rng_seed", &self.rng_seed)
+             .finish_non_exhaustive()
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 189adf7..dd73a78 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -245,6 +245,8 @@ pub struct Connection {
+     stats: ConnectionStats,
+     /// QUIC version used for the connection.
+     version: u32,
++    /// The version this client started in, once a server switched it (RFC 9368)
++    original_version: Option<u32>,
+ }
+ 
+ impl Connection {
+@@ -372,6 +374,7 @@ impl Connection {
+             rng,
+             stats: ConnectionStats::default(),
+             version,
++            original_version: None,
+         };
+         if path_validated {
+             this.on_path_validated();
+@@ -2291,11 +2294,15 @@ impl Connection {
+     ) {
+         self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
+         let mut remaining = Some(data);
++        let mut versions = vec![self.version];
++        if self.may_switch_version() {
++            versions.extend_from_slice(&self.endpoint_config.compatible_versions);
++        }
+         while let Some(data) = remaining {
+             match PartialDecode::new(
+                 data,
+                 &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
+-                &[self.version],
++                &versions,
+                 self.endpoint_config.grease_quic_bit,
+             ) {
+                 Ok((partial_decode, rest)) => {
+@@ -2317,6 +2324,12 @@ impl Connection {
+         ecn: Option<EcnCodepoint>,
+         partial_decode: PartialDecode,
+     ) {
++        if let Some(version) = partial_decode.version() {
++            if version != self.version && !self.switch_version(version, &partial_decode) {
++                trace!(version, "dropping packet of another QUIC version");
++                return;
++            }
++        }
+         if let Some(decoded) = packet_crypto::unprotect_header(
+             partial_decode,
+             &self.spaces,
+@@ -3570,6 +3583,55 @@ impl Connection {
+     }
+ 
+     /// Handle transport parameters received from the peer
++    /// Whether a server may still move this client to another version (RFC 9368)
++    ///
++    /// A server can acknowledge the client's first Initial in the original version before it
++    /// has the whole ClientHello and chooses a version, so a switch stays possible until the
++    /// server's first flight yields handshake keys.
++    fn may_switch_version(&self) -> bool {
++        self.side.is_client()
++            && self.original_version.is_none()
++            && self.highest_space == SpaceId::Initial
++            && !self.endpoint_config.compatible_versions.is_empty()
++    }
++
++    /// Adopts `version` when a server's first Initial uses it, per RFC 9368 section 2.3
++    ///
++    /// Initial keys are derived again from the same connection ID with the new version's salt.
++    /// Returns whether the packet may be processed.
++    fn switch_version(&mut self, version: u32, packet: &PartialDecode) -> bool {
++        if !self.may_switch_version()
++            || !packet.is_initial()
++            || !self.endpoint_config.compatible_versions.contains(&version)
++            || !self.endpoint_config.supported_versions.contains(&version)
++        {
++            return false;
++        }
++        if !self.crypto.switch_version(version) {
++            debug!(version, "crypto session cannot switch QUIC version");
++            return false;
++        }
++        // Initial keys come from the first Initial's Destination Connection ID, or from the
++        // Source Connection ID of a Retry; the server's own ID may already be in use.
++        let key_cid = self.retry_src_cid.unwrap_or(self.initial_dst_cid);
++        let keys = match self.crypto.initial_keys(&key_cid, self.side.side()) {
++            Ok(keys) => keys,
++            Err(_) => {
++                debug!(version, "no Initial keys for the negotiated QUIC version");
++                return false;
++            }
++        };
++        debug!(
++            from = self.version,
++            to = version,
++            "compatible version negotiation"
++        );
++        self.spaces[SpaceId::Initial].crypto = Some(keys);
++        self.original_version = Some(self.version);
++        self.version = version;
++        true
++    }
++
+     fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
+         if Some(self.orig_rem_cid) != params.initial_src_cid
+             || (self.side.is_client()
+@@ -3580,6 +3642,23 @@ impl Connection {
+                 "CID authentication failure",
+             ));
+         }
++        // RFC 9368 section 4: the server's Chosen Version must be the version in use, and a
++        // client that was switched must have been told so.
++        if self.side.is_client() {
++            match params.version_information.map(|info| info.chosen) {
++                Some(chosen) if chosen != self.version => {
++                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
++                        "server chose another version",
++                    ));
++                }
++                None if self.original_version.is_some() => {
++                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
++                        "switched version without Version Information",
++                    ));
++                }
++                _ => {}
++            }
++        }
+ 
+         self.set_peer_params(params);
+ 
+diff --git a/src/crypto.rs b/src/crypto.rs
+index df0e285..ba4c579 100644
+--- a/src/crypto.rs
++++ b/src/crypto.rs
+@@ -81,6 +81,19 @@ pub trait Session: Send + Sync + 'static {
+     /// Verify the integrity of a retry packet
+     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
+ 
++    /// Moves a client session to another QUIC version during compatible version negotiation
++    ///
++    /// RFC 9368 section 2.3 lets a server answer a client's first flight in a different version
++    /// that the client listed as available. Quinn calls this before processing the server's
++    /// first packet of `version`, and only while no key derived from the handshake exists yet.
++    /// Later Initial, Handshake, 1-RTT, and key-update keys, and Retry integrity, must then use
++    /// `version`. Returns `false`, the default, if the session cannot switch; the packet is
++    /// then dropped.
++    fn switch_version(&mut self, version: u32) -> bool {
++        let _ = version;
++        false
++    }
++
+     /// Fill `output` with `output.len()` bytes of keying material derived
+     /// from the [Session]'s secrets, using `label` and `context` for domain
+     /// separation.
+diff --git a/src/crypto/rustls.rs b/src/crypto/rustls.rs
+index 3dbf421..eed7f4c 100644
+--- a/src/crypto/rustls.rs
++++ b/src/crypto/rustls.rs
+@@ -196,6 +196,7 @@ impl crypto::Session for TlsSession {
+         let (nonce, key) = match self.version {
+             Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
+             Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
++            Version::V2 => (RETRY_INTEGRITY_NONCE_V2, RETRY_INTEGRITY_KEY_V2),
+             _ => unreachable!(),
+         };
+ 
+@@ -226,6 +227,13 @@ const RETRY_INTEGRITY_NONCE_DRAFT: [u8; 12] = [
+     0xe5, 0x49, 0x30, 0xf9, 0x7f, 0x21, 0x36, 0xf0, 0x53, 0x0a, 0x8c, 0x1c,
+ ];
+ 
++// RFC 9369 section 3.3.3
++const RETRY_INTEGRITY_KEY_V2: [u8; 16] = [
++    0x8f, 0xb4, 0xb0, 0x1b, 0x56, 0xac, 0x48, 0xe2, 0x60, 0xfb, 0xcb, 0xce, 0xad, 0x7c, 0xcc, 0x92,
++];
++const RETRY_INTEGRITY_NONCE_V2: [u8; 12] = [
++    0xd8, 0x69, 0x69, 0xbc, 0x2d, 0x7c, 0x6d, 0x99, 0x90, 0xef, 0xb0, 0x4a,
++];
+ const RETRY_INTEGRITY_KEY_V1: [u8; 16] = [
+     0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66, 0x57, 0x5a, 0x1d, 0x76, 0x6b, 0x54, 0xe3, 0x68, 0xc8, 0x4e,
+ ];
+@@ -552,6 +560,7 @@ impl crypto::ServerConfig for QuicServerConfig {
+         let (nonce, key) = match version {
+             Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
+             Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
++            Version::V2 => (RETRY_INTEGRITY_NONCE_V2, RETRY_INTEGRITY_KEY_V2),
+             _ => unreachable!(),
+         };
+ 
+@@ -659,6 +668,7 @@ fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
+     match version {
+         0xff00_001d..=0xff00_0020 => Ok(Version::V1Draft),
+         0x0000_0001 | 0xff00_0021..=0xff00_0022 => Ok(Version::V1),
++        crate::packet::QUIC_V2 => Ok(Version::V2),
+         _ => Err(UnsupportedVersion),
+     }
+ }
+diff --git a/src/endpoint.rs b/src/endpoint.rs
+index ebf01dc..30d9112 100644
+--- a/src/endpoint.rs
++++ b/src/endpoint.rs
+@@ -35,7 +35,7 @@ use crate::{
+         EndpointEvent, EndpointEventInner, IssuedCid,
+     },
+     token::{IncomingToken, InvalidRetryTokenError, Token, TokenPayload},
+-    transport_parameters::{PreferredAddress, TransportParameters},
++    transport_parameters::{PreferredAddress, TransportParameters, VersionInformation},
+ };
+ 
+ /// The main entry point to the library
+@@ -357,7 +357,7 @@ impl Endpoint {
+ 
+         let ch = ConnectionHandle(self.connections.vacant_key());
+         let loc_cid = self.new_cid(ch);
+-        let params = TransportParameters::new(
++        let mut params = TransportParameters::new(
+             &config.transport,
+             &self.config,
+             self.local_cid_generator.as_ref(),
+@@ -365,6 +365,7 @@ impl Endpoint {
+             None,
+             &mut self.rng,
+         );
++        params.version_information = VersionInformation::local(config.version, &self.config);
+         let tls = config
+             .crypto
+             .start_session(config.version, server_name, &params)?;
+@@ -636,6 +637,8 @@ impl Endpoint {
+             &mut self.rng,
+         );
+         params.stateless_reset_token = Some(ResetToken::new(&*self.config.reset_key, loc_cid));
++        params.version_information =
++            VersionInformation::local(incoming.packet.header.version, &self.config);
+         params.original_dst_cid = Some(incoming.token.orig_dst_cid);
+         params.retry_src_cid = incoming.token.retry_src_cid;
+         let mut pref_addr_cid = None;
+diff --git a/src/packet.rs b/src/packet.rs
+index b5ef0c4..6a68493 100644
+--- a/src/packet.rs
++++ b/src/packet.rs
+@@ -74,6 +74,16 @@ impl PartialDecode {
+         self.space() == Some(SpaceId::Initial)
+     }
+ 
++    /// The QUIC version of a long header packet
++    pub(crate) fn version(&self) -> Option<u32> {
++        match self.plain_header {
++            ProtectedHeader::Initial(ProtectedInitialHeader { version, .. })
++            | ProtectedHeader::Long { version, .. }
++            | ProtectedHeader::Retry { version, .. } => Some(version),
++            ProtectedHeader::Short { .. } | ProtectedHeader::VersionNegotiate { .. } => None,
++        }
++    }
++
+     pub(crate) fn space(&self) -> Option<SpaceId> {
+         use ProtectedHeader::*;
+         match self.plain_header {
+@@ -292,7 +302,7 @@ impl Header {
+                 number,
+                 version,
+             }) => {
+-                w.write(u8::from(LongHeaderType::Initial) | number.tag());
++                w.write(LongHeaderType::Initial.to_byte(version) | number.tag());
+                 w.write(version);
+                 dst_cid.encode_long(w);
+                 src_cid.encode_long(w);
+@@ -313,7 +323,7 @@ impl Header {
+                 number,
+                 version,
+             } => {
+-                w.write(u8::from(LongHeaderType::Standard(ty)) | number.tag());
++                w.write(LongHeaderType::Standard(ty).to_byte(version) | number.tag());
+                 w.write(version);
+                 dst_cid.encode_long(w);
+                 src_cid.encode_long(w);
+@@ -330,7 +340,7 @@ impl Header {
+                 ref src_cid,
+                 version,
+             } => {
+-                w.write(u8::from(LongHeaderType::Retry));
++                w.write(LongHeaderType::Retry.to_byte(version));
+                 w.write(version);
+                 dst_cid.encode_long(w);
+                 src_cid.encode_long(w);
+@@ -618,7 +628,7 @@ impl ProtectedHeader {
+                 });
+             }
+ 
+-            match LongHeaderType::from_byte(first)? {
++            match LongHeaderType::from_byte(first, version)? {
+                 LongHeaderType::Initial => {
+                     let token_len = buf.get_var()? as usize;
+                     let token_start = buf.position() as usize;
+@@ -815,10 +825,16 @@ pub(crate) enum LongHeaderType {
+ }
+ 
+ impl LongHeaderType {
+-    fn from_byte(b: u8) -> Result<Self, PacketDecodeError> {
++    fn from_byte(b: u8, version: u32) -> Result<Self, PacketDecodeError> {
+         use {LongHeaderType::*, LongType::*};
+         debug_assert!(b & LONG_HEADER_FORM != 0, "not a long packet");
+-        Ok(match (b & 0x30) >> 4 {
++        let bits = (b & 0x30) >> 4;
++        // RFC 9369 section 3.2 rotates every long header type by one.
++        let bits = match version {
++            QUIC_V2 => bits.wrapping_sub(1) & 0x3,
++            _ => bits,
++        };
++        Ok(match bits {
+             0x0 => Initial,
+             0x1 => Standard(ZeroRtt),
+             0x2 => Standard(Handshake),
+@@ -826,17 +842,20 @@ impl LongHeaderType {
+             _ => unreachable!(),
+         })
+     }
+-}
+ 
+-impl From<LongHeaderType> for u8 {
+-    fn from(ty: LongHeaderType) -> Self {
++    fn to_byte(self, version: u32) -> u8 {
+         use {LongHeaderType::*, LongType::*};
+-        match ty {
+-            Initial => LONG_HEADER_FORM | FIXED_BIT,
+-            Standard(ZeroRtt) => LONG_HEADER_FORM | FIXED_BIT | (0x1 << 4),
+-            Standard(Handshake) => LONG_HEADER_FORM | FIXED_BIT | (0x2 << 4),
+-            Retry => LONG_HEADER_FORM | FIXED_BIT | (0x3 << 4),
+-        }
++        let bits: u8 = match self {
++            Initial => 0x0,
++            Standard(ZeroRtt) => 0x1,
++            Standard(Handshake) => 0x2,
++            Retry => 0x3,
++        };
++        let bits = match version {
++            QUIC_V2 => (bits + 1) & 0x3,
++            _ => bits,
++        };
++        LONG_HEADER_FORM | FIXED_BIT | (bits << 4)
+     }
+ }
+ 
+@@ -873,6 +892,9 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
+     }
+ }
+ 
++/// QUIC version 2 (RFC 9369)
++pub(crate) const QUIC_V2: u32 = 0x6b33_43cf;
++
+ pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
+ pub(crate) const FIXED_BIT: u8 = 0x40;
+ pub(crate) const SPIN_BIT: u8 = 0x20;
+diff --git a/src/tests/mod.rs b/src/tests/mod.rs
+index 3d1d453..f0ac5cf 100644
+--- a/src/tests/mod.rs
++++ b/src/tests/mod.rs
+@@ -37,6 +37,7 @@ use util::*;
+ 
+ mod initial_keys;
+ mod key_update;
++mod quic_v2;
+ mod token;
+ mod transport_limits;
+ 
+diff --git a/src/tests/quic_v2.rs b/src/tests/quic_v2.rs
+new file mode 100644
+index 0000000..bf5fad3
+--- /dev/null
++++ b/src/tests/quic_v2.rs
+@@ -0,0 +1,486 @@
++use std::{
++    any::Any,
++    sync::{
++        Arc,
++        atomic::{AtomicBool, Ordering},
++    },
++};
++
++use bytes::BytesMut;
++use rustls::quic::Version;
++
++use super::*;
++use crate::{
++    crypto::{
++        ExportKeyingMaterialError, HeaderKey, KeyPair, Keys, PacketKey,
++        rustls::{configured_provider, initial_keys, initial_suite_from_provider},
++    },
++    packet::{FixedLengthConnectionIdParser, Header, InitialHeader, PacketNumber, QUIC_V2},
++};
++
++const QUIC_V1: u32 = 1;
++
++fn endpoint_config(supported: &[u32], compatible: &[u32]) -> Arc<EndpointConfig> {
++    let mut config = EndpointConfig::default();
++    config
++        .supported_versions(supported.to_vec())
++        .compatible_versions(compatible.to_vec());
++    Arc::new(config)
++}
++
++fn pair_with(client: Arc<EndpointConfig>, server: Arc<EndpointConfig>) -> Pair {
++    Pair::new_from_endpoint(
++        Endpoint::new(client, None, true, None),
++        Endpoint::new(server, Some(Arc::new(server_config())), true, None),
++    )
++}
++
++fn long_header_type_bits(datagram: &[u8]) -> u8 {
++    assert_ne!(datagram[0] & 0x80, 0, "not a long header packet");
++    // Header protection masks only the low four bits of a long header's first byte.
++    (datagram[0] & 0x30) >> 4
++}
++
++#[test]
++fn quic_v2_long_header_types_follow_rfc_9369() {
++    use crate::packet::LongType;
++
++    let cid = ConnectionId::new(&[7; 8]);
++    let cases = [
++        (
++            Header::Initial(InitialHeader {
++                dst_cid: cid,
++                src_cid: cid,
++                token: Bytes::new(),
++                number: PacketNumber::U8(0),
++                version: QUIC_V2,
++            }),
++            0b01,
++        ),
++        (
++            Header::Long {
++                ty: LongType::ZeroRtt,
++                dst_cid: cid,
++                src_cid: cid,
++                number: PacketNumber::U8(0),
++                version: QUIC_V2,
++            },
++            0b10,
++        ),
++        (
++            Header::Long {
++                ty: LongType::Handshake,
++                dst_cid: cid,
++                src_cid: cid,
++                number: PacketNumber::U8(0),
++                version: QUIC_V2,
++            },
++            0b11,
++        ),
++        (
++            Header::Retry {
++                dst_cid: cid,
++                src_cid: cid,
++                version: QUIC_V2,
++            },
++            0b00,
++        ),
++    ];
++    for (header, bits) in cases {
++        let space = header.space();
++        let mut buf = Vec::new();
++        header.encode(&mut buf);
++        buf.resize(buf.len() + 32, 0);
++        assert_eq!((buf[0] & 0x30) >> 4, bits, "{space:?}");
++
++        let (decoded, _) = PartialDecode::new(
++            BytesMut::from(&buf[..]),
++            &FixedLengthConnectionIdParser::new(8),
++            &[QUIC_V2],
++            false,
++        )
++        .unwrap();
++        assert_eq!(decoded.version(), Some(QUIC_V2));
++        if bits != 0b00 {
++            assert_eq!(decoded.space(), Some(space));
++        }
++    }
++}
++
++#[test]
++fn quic_v1_long_header_types_are_unchanged() {
++    let cid = ConnectionId::new(&[7; 8]);
++    let mut buf = Vec::new();
++    Header::Initial(InitialHeader {
++        dst_cid: cid,
++        src_cid: cid,
++        token: Bytes::new(),
++        number: PacketNumber::U8(0),
++        version: QUIC_V1,
++    })
++    .encode(&mut buf);
++    assert_eq!(buf[0] & 0x30, 0);
++}
++
++#[test]
++fn connects_directly_in_quic_v2() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    let mut pair = pair_with(
++        endpoint_config(&versions, &[]),
++        endpoint_config(&versions, &[]),
++    );
++    let mut config = client_config();
++    config.version(QUIC_V2);
++    let client_ch = pair.begin_connect(config);
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++    let first = pair
++        .client
++        .outbound
++        .front()
++        .expect("client sent an Initial");
++    assert_eq!(long_header_type_bits(&first.1), 0b01);
++    assert_eq!(first.1[1..5], QUIC_V2.to_be_bytes());
++
++    pair.drive();
++    let server_ch = pair.server.assert_accept();
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::Connected)
++    );
++
++    let stream = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
++    pair.client_send(client_ch, stream).write(b"v2").unwrap();
++    pair.client_send(client_ch, stream).finish().unwrap();
++    pair.drive();
++    assert_matches!(
++        pair.server_streams(server_ch).accept(Dir::Uni),
++        Some(accepted) if accepted == stream
++    );
++}
++
++#[test]
++fn retry_is_authenticated_in_quic_v2() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    let mut pair = pair_with(
++        endpoint_config(&versions, &[]),
++        endpoint_config(&versions, &[]),
++    );
++    pair.server.handle_incoming = Box::new(validate_incoming);
++    let mut config = client_config();
++    config.version(QUIC_V2);
++    let client_ch = pair.begin_connect(config);
++    pair.drive();
++    pair.server.assert_accept();
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::Connected)
++    );
++}
++
++/// A rustls client session that runs its handshake in QUIC v2 but protects its first flight
++/// with QUIC v1 Initial keys until Quinn switches it, as a client that started in v1 would.
++struct SwitchingClientConfig {
++    inner: Arc<crypto::rustls::QuicClientConfig>,
++    switches: bool,
++    switched: Arc<AtomicBool>,
++}
++
++impl crypto::ClientConfig for SwitchingClientConfig {
++    fn start_session(
++        self: Arc<Self>,
++        version: u32,
++        server_name: &str,
++        params: &TransportParameters,
++    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
++        assert_eq!(version, QUIC_V1);
++        let inner = self
++            .inner
++            .clone()
++            .start_session(QUIC_V2, server_name, params)?;
++        Ok(Box::new(SwitchingSession {
++            inner,
++            switches: self.switches,
++            switched: self.switched.clone(),
++        }))
++    }
++}
++
++struct SwitchingSession {
++    inner: Box<dyn crypto::Session>,
++    switches: bool,
++    switched: Arc<AtomicBool>,
++}
++
++impl crypto::Session for SwitchingSession {
++    fn initial_keys(
++        &self,
++        dst_cid: &ConnectionId,
++        side: Side,
++    ) -> Result<Keys, crypto::CryptoError> {
++        if self.switched.load(Ordering::SeqCst) {
++            return self.inner.initial_keys(dst_cid, side);
++        }
++        let suite = initial_suite_from_provider(&configured_provider()).unwrap();
++        Ok(initial_keys(Version::V1, *dst_cid, side, &suite))
++    }
++
++    fn switch_version(&mut self, version: u32) -> bool {
++        if !self.switches || version != QUIC_V2 {
++            return false;
++        }
++        self.switched.store(true, Ordering::SeqCst);
++        true
++    }
++
++    fn handshake_data(&self) -> Option<Box<dyn Any>> {
++        self.inner.handshake_data()
++    }
++
++    fn peer_identity(&self) -> Option<Box<dyn Any>> {
++        self.inner.peer_identity()
++    }
++
++    fn early_crypto(&self) -> Option<(Box<dyn HeaderKey>, Box<dyn PacketKey>)> {
++        self.inner.early_crypto()
++    }
++
++    fn early_data_accepted(&self) -> Option<bool> {
++        self.inner.early_data_accepted()
++    }
++
++    fn is_handshaking(&self) -> bool {
++        self.inner.is_handshaking()
++    }
++
++    fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError> {
++        self.inner.read_handshake(buf)
++    }
++
++    fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError> {
++        self.inner.transport_parameters()
++    }
++
++    fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<Keys> {
++        self.inner.write_handshake(buf)
++    }
++
++    fn next_1rtt_keys(&mut self) -> Result<Option<KeyPair<Box<dyn PacketKey>>>, TransportError> {
++        self.inner.next_1rtt_keys()
++    }
++
++    fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
++        self.inner.is_valid_retry(orig_dst_cid, header, payload)
++    }
++
++    fn export_keying_material(
++        &self,
++        output: &mut [u8],
++        label: &[u8],
++        context: &[u8],
++    ) -> Result<(), ExportKeyingMaterialError> {
++        self.inner.export_keying_material(output, label, context)
++    }
++}
++
++fn switching_client_config(switches: bool) -> (ClientConfig, Arc<AtomicBool>) {
++    let switched = Arc::new(AtomicBool::new(false));
++    let config = ClientConfig::new(Arc::new(SwitchingClientConfig {
++        inner: Arc::new(client_crypto()),
++        switches,
++        switched: switched.clone(),
++    }));
++    (config, switched)
++}
++
++/// Re-protects a client's QUIC v1 Initial as QUIC v2, standing in for a server that performs
++/// compatible version negotiation (RFC 9368 section 2.3) on the client's first flight.
++fn initial_v1_as_v2(datagram: &[u8]) -> Vec<u8> {
++    let suite = initial_suite_from_provider(&configured_provider()).unwrap();
++    let (partial, rest) = PartialDecode::new(
++        BytesMut::from(datagram),
++        &FixedLengthConnectionIdParser::new(0),
++        &[QUIC_V1],
++        false,
++    )
++    .unwrap();
++    assert!(rest.is_none(), "one Initial per datagram");
++    let dst_cid = *partial.dst_cid();
++    let v1 = initial_keys(Version::V1, dst_cid, Side::Client, &suite);
++    let mut packet = partial.finish(Some(&*v1.header.local)).unwrap();
++    let number = packet.header.number().unwrap().expand(0);
++    v1.packet
++        .local
++        .decrypt(number, &packet.header_data, &mut packet.payload)
++        .unwrap();
++
++    let Header::Initial(mut header) = packet.header else {
++        panic!("client sent a non-Initial first packet");
++    };
++    header.version = QUIC_V2;
++    let v2 = initial_keys(Version::V2, dst_cid, Side::Client, &suite);
++    let mut buf = Vec::new();
++    let encode = Header::Initial(header).encode(&mut buf);
++    buf.extend_from_slice(&packet.payload);
++    buf.resize(buf.len() + v2.packet.local.tag_len(), 0);
++    encode.finish(
++        &mut buf,
++        &*v2.header.local,
++        Some((number, &*v2.packet.local)),
++    );
++    buf
++}
++
++/// Starts a v1 client and delivers its first flight to a v2-only server as v2.
++fn start_switched_connection(
++    client_versions: &[u32],
++    client_compatible: &[u32],
++    server_compatible: &[u32],
++    client_switches: bool,
++) -> (Pair, ConnectionHandle, Arc<AtomicBool>) {
++    let mut pair = pair_with(
++        endpoint_config(client_versions, client_compatible),
++        endpoint_config(&[QUIC_V2], server_compatible),
++    );
++    let (config, switched) = switching_client_config(client_switches);
++    let client_ch = pair.begin_connect(config);
++    let now = pair.time;
++    pair.client.drive_outgoing(now);
++    for (_, datagram) in pair.client.outbound.drain(..) {
++        assert_eq!(datagram[1..5], QUIC_V1.to_be_bytes());
++        let rewritten = initial_v1_as_v2(&datagram);
++        pair.server
++            .inbound
++            .push_back((now, None, rewritten.as_slice().into()));
++    }
++    pair.drive();
++    (pair, client_ch, switched)
++}
++
++#[test]
++fn server_moves_client_from_v1_to_v2() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    let (mut pair, client_ch, switched) =
++        start_switched_connection(&versions, &[QUIC_V2], &[QUIC_V2], true);
++
++    assert!(switched.load(Ordering::SeqCst));
++    let server_ch = pair.server.assert_accept();
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::Connected)
++    );
++    let stream = pair.client_streams(client_ch).open(Dir::Bi).unwrap();
++    pair.client_send(client_ch, stream).write(b"hello").unwrap();
++    pair.drive();
++    assert_matches!(
++        pair.server_streams(server_ch).accept(Dir::Bi),
++        Some(accepted) if accepted == stream
++    );
++}
++
++#[test]
++fn switched_client_requires_server_version_information() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    // The server does not advertise version_information.
++    let (mut pair, client_ch, switched) =
++        start_switched_connection(&versions, &[QUIC_V2], &[], true);
++
++    assert!(switched.load(Ordering::SeqCst));
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::HandshakeDataReady)
++    );
++    assert_matches!(
++        pair.client_conn_mut(client_ch).poll(),
++        Some(Event::ConnectionLost {
++            reason: ConnectionError::TransportError(TransportError {
++                code: TransportErrorCode::VERSION_NEGOTIATION_ERROR,
++                ..
++            })
++        })
++    );
++}
++
++#[test]
++fn client_stays_in_its_version_without_compatible_versions() {
++    let _guard = subscribe();
++    let versions = [QUIC_V1, QUIC_V2];
++    for (compatible, switches) in [(&[][..], true), (&[QUIC_V2][..], false)] {
++        let (mut pair, client_ch, switched) =
++            start_switched_connection(&versions, compatible, &[QUIC_V2], switches);
++        assert!(!switched.load(Ordering::SeqCst));
++        // The server's v2 answer is dropped. Once the client retransmits its v1 Initial, the
++        // v2-only server answers with Version Negotiation.
++        assert_matches!(
++            pair.client_conn_mut(client_ch).poll(),
++            Some(Event::ConnectionLost {
++                reason: ConnectionError::VersionMismatch
++            })
++        );
++    }
++}
++
++#[test]
++fn version_information_round_trips() {
++    let mut config = EndpointConfig::default();
++    config
++        .supported_versions(vec![QUIC_V2, QUIC_V1])
++        .compatible_versions(vec![QUIC_V2]);
++    let info = crate::transport_parameters::VersionInformation::local(QUIC_V1, &config);
++    let params = TransportParameters {
++        version_information: info,
++        ..TransportParameters::default()
++    };
++    let mut buf = Vec::new();
++    params.write(&mut buf);
++    assert_eq!(
++        buf,
++        [0x11, 0x0c, 0, 0, 0, 1, 0x6b, 0x33, 0x43, 0xcf, 0, 0, 0, 1]
++    );
++    let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
++    assert_eq!(
++        read.version_information.map(|info| info.chosen),
++        Some(QUIC_V1)
++    );
++
++    // No compatible versions: the parameter is not written.
++    let default = EndpointConfig::default();
++    assert!(crate::transport_parameters::VersionInformation::local(QUIC_V1, &default).is_none());
++}
++
++#[test]
++fn malformed_version_information_is_rejected() {
++    use crate::transport_parameters::Error;
++
++    for (side, encoded) in [
++        (Side::Server, &[0x11, 0x03, 0, 0, 1][..]),
++        (Side::Server, &[0x11, 0x04, 0, 0, 0, 0][..]),
++        (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 0][..]),
++        // A client reading a server's parameter requires it to list the chosen version.
++        (Side::Client, &[0x11, 0x04, 0, 0, 0, 1][..]),
++    ] {
++        assert!(
++            matches!(
++                TransportParameters::read(side, &mut &encoded[..]),
++                Err(Error::Malformed | Error::IllegalValue)
++            ),
++            "{encoded:02x?}"
++        );
++    }
++}
+diff --git a/src/transport_error.rs b/src/transport_error.rs
+index 047cd0a..ea1715b 100644
+--- a/src/transport_error.rs
++++ b/src/transport_error.rs
+@@ -129,4 +129,5 @@ errors! {
+     KEY_UPDATE_ERROR(0xE) "key update error";
+     AEAD_LIMIT_REACHED(0xF) "the endpoint has reached the confidentiality or integrity limit for the AEAD algorithm";
+     NO_VIABLE_PATH(0x10) "no viable network path exists";
++    VERSION_NEGOTIATION_ERROR(0x11) "the peer's Version Information does not match the negotiated version";
+ }
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+index 4d56c0b..9e6c3c9 100644
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -96,6 +96,11 @@ macro_rules! make_struct {
+             /// A peer that advertised only draft 02 is not sent ACK_FREQUENCY or IMMEDIATE_ACK,
+             /// whose draft 07 encodings it may not read.
+             pub(crate) min_ack_delay_draft02: bool,
++            /// `version_information` (RFC 9368 section 3)
++            ///
++            /// Quinn writes it only when its endpoint allows compatible version negotiation. From
++            /// a peer, only the Chosen Version is kept.
++            pub(crate) version_information: Option<VersionInformation>,
+ 
+             // Server-only
+             /// The value of the Destination Connection ID field from the first Initial packet sent
+@@ -136,6 +141,7 @@ macro_rules! make_struct {
+                     reset_stream_at: false,
+                     min_ack_delay: None,
+                     min_ack_delay_draft02: false,
++                    version_information: None,
+ 
+                     original_dst_cid: None,
+                     retry_src_cid: None,
+@@ -390,6 +396,16 @@ impl TransportParameters {
+                         w.put_slice(cid);
+                     }
+                 }
++                TransportParameterId::VersionInformation => {
++                    if let Some(info) = &self.version_information {
++                        w.write_var(id as u64);
++                        w.write_var(4 * (1 + info.available().len() as u64));
++                        w.write(info.chosen);
++                        for &version in info.available() {
++                            w.write(version);
++                        }
++                    }
++                }
+                 TransportParameterId::ResetStreamAt => {
+                     if self.reset_stream_at {
+                         w.write_var(id as u64);
+@@ -525,6 +541,29 @@ impl TransportParameters {
+                     0 => params.grease_quic_bit = true,
+                     _ => return Err(Error::Malformed),
+                 },
++                TransportParameterId::VersionInformation => {
++                    if len < 4
++                        || len % 4 != 0
++                        || params.version_information.is_some()
++                        || r.remaining() < len
++                    {
++                        return Err(Error::Malformed);
++                    }
++                    let chosen = r.get::<u32>()?;
++                    let mut available = 0;
++                    for _ in 1..len / 4 {
++                        if r.get::<u32>()? == 0 {
++                            return Err(Error::IllegalValue);
++                        }
++                        available += 1;
++                    }
++                    // RFC 9368 section 3: a server must list its chosen version, and no endpoint
++                    // may choose version 0.
++                    if chosen == 0 || (side.is_client() && available == 0) {
++                        return Err(Error::IllegalValue);
++                    }
++                    params.version_information = Some(VersionInformation::chosen(chosen));
++                }
+                 TransportParameterId::ResetStreamAt => match len {
+                     0 if !params.reset_stream_at => params.reset_stream_at = true,
+                     _ => return Err(Error::Malformed),
+@@ -688,6 +727,9 @@ pub(crate) enum TransportParameterId {
+     InitialSourceConnectionId = 0x0F,
+     RetrySourceConnectionId = 0x10,
+ 
++    // https://www.rfc-editor.org/rfc/rfc9368.html#section-3
++    VersionInformation = 0x11,
++
+     // The empty parameter neqo advertises for draft-ietf-quic-reliable-stream-reset support
+     ResetStreamAt = 0x1D,
+ 
+@@ -706,7 +748,7 @@ pub(crate) enum TransportParameterId {
+ 
+ impl TransportParameterId {
+     /// Array with all supported transport parameter IDs
+-    const SUPPORTED: [Self; 22] = [
++    const SUPPORTED: [Self; 23] = [
+         Self::MaxIdleTimeout,
+         Self::MaxUdpPayloadSize,
+         Self::InitialMaxData,
+@@ -726,6 +768,7 @@ impl TransportParameterId {
+         Self::OriginalDestinationConnectionId,
+         Self::InitialSourceConnectionId,
+         Self::RetrySourceConnectionId,
++        Self::VersionInformation,
+         Self::GreaseQuicBit,
+         Self::ResetStreamAt,
+         Self::MinAckDelayDraft07,
+@@ -766,6 +809,7 @@ impl TryFrom<u64> for TransportParameterId {
+             }
+             id if Self::InitialSourceConnectionId == id => Self::InitialSourceConnectionId,
+             id if Self::RetrySourceConnectionId == id => Self::RetrySourceConnectionId,
++            id if Self::VersionInformation == id => Self::VersionInformation,
+             id if Self::GreaseQuicBit == id => Self::GreaseQuicBit,
+             id if Self::ResetStreamAt == id => Self::ResetStreamAt,
+             id if Self::MinAckDelayDraft07 == id => Self::MinAckDelayDraft07,
+@@ -775,6 +819,47 @@ impl TryFrom<u64> for TransportParameterId {
+     }
+ }
+ 
++/// The `version_information` transport parameter (RFC 9368 section 3)
++#[derive(Debug, Copy, Clone, Eq, PartialEq)]
++pub(crate) struct VersionInformation {
++    /// The version of the packets that carry the parameter
++    pub(crate) chosen: u32,
++    available: [u32; Self::MAX_AVAILABLE],
++    available_len: u8,
++}
++
++impl VersionInformation {
++    const MAX_AVAILABLE: usize = 8;
++
++    /// A peer's parameter, whose Available Versions Quinn does not use
++    fn chosen(chosen: u32) -> Self {
++        Self {
++            chosen,
++            available: [0; Self::MAX_AVAILABLE],
++            available_len: 0,
++        }
++    }
++
++    /// The local parameter of an endpoint that allows compatible version negotiation
++    ///
++    /// Available Versions lists the supported versions in preference order, at most eight.
++    pub(crate) fn local(chosen: u32, config: &EndpointConfig) -> Option<Self> {
++        if config.compatible_versions.is_empty() {
++            return None;
++        }
++        let mut info = Self::chosen(chosen);
++        for &version in config.supported_versions.iter().take(Self::MAX_AVAILABLE) {
++            info.available[usize::from(info.available_len)] = version;
++            info.available_len += 1;
++        }
++        Some(info)
++    }
++
++    fn available(&self) -> &[u32] {
++        &self.available[..usize::from(self.available_len)]
++    }
++}
++
+ /// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
+ const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
+ 

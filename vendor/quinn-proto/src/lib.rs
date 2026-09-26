@@ -59,9 +59,9 @@ mod config;
 #[cfg(feature = "qlog")]
 pub use config::QlogConfig;
 pub use config::{
-    AckFrequencyConfig, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
-    InvalidDatagramFrameSize, MtuDiscoveryConfig, ServerConfig, StdSystemTime, TimeSource,
-    TransportConfig, ValidationTokenConfig,
+    AckFrequencyConfig, AckFrequencyDraft, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
+    InvalidDatagramFrameSize, InvalidTransportLimit, MtuDiscoveryConfig, ServerConfig,
+    StdSystemTime, TimeSource, TransportConfig, ValidationTokenConfig,
 };
 
 pub mod crypto;

@@ -8,8 +8,8 @@ use qlog::streamer::QlogStreamer;
 #[cfg(feature = "qlog")]
 use crate::QlogStream;
 use crate::{
-    Duration, INITIAL_MTU, MAX_UDP_PAYLOAD, VarInt, VarIntBoundsExceeded, congestion,
-    connection::qlog::QlogSink,
+    Duration, INITIAL_MTU, MAX_UDP_PAYLOAD, MIN_INITIAL_SIZE, VarInt, VarIntBoundsExceeded,
+    cid_queue::CidQueue, congestion, connection::qlog::QlogSink,
 };
 
 /// Parameters governing the core QUIC state machine
@@ -29,6 +29,8 @@ pub struct TransportConfig {
     pub(crate) max_concurrent_uni_streams: VarInt,
     pub(crate) max_idle_timeout: Option<VarInt>,
     pub(crate) stream_receive_window: VarInt,
+    pub(crate) bidi_remote_stream_receive_window: Option<VarInt>,
+    pub(crate) uni_stream_receive_window: Option<VarInt>,
     pub(crate) receive_window: VarInt,
     pub(crate) send_window: u64,
     pub(crate) send_fairness: bool,
@@ -40,7 +42,12 @@ pub struct TransportConfig {
     pub(crate) min_mtu: u16,
     pub(crate) mtu_discovery_config: Option<MtuDiscoveryConfig>,
     pub(crate) pad_to_mtu: bool,
+    pub(crate) min_initial_datagram_size: u16,
     pub(crate) ack_frequency_config: Option<AckFrequencyConfig>,
+    pub(crate) max_ack_delay: Duration,
+    pub(crate) active_connection_id_limit: Option<u8>,
+    pub(crate) reset_stream_at: bool,
+    pub(crate) ack_frequency_draft: AckFrequencyDraft,
 
     pub(crate) persistent_congestion_threshold: u32,
     pub(crate) keep_alive_interval: Option<Duration>,
@@ -115,6 +122,36 @@ impl TransportConfig {
     pub fn stream_receive_window(&mut self, value: VarInt) -> &mut Self {
         self.stream_receive_window = value;
         self
+    }
+
+    /// Receive window for each bidirectional stream the peer opens
+    ///
+    /// Advertised as `initial_max_stream_data_bidi_remote` and applied to every
+    /// peer-initiated bidirectional stream. `None`, the default, uses
+    /// [`Self::stream_receive_window`].
+    pub fn bidi_remote_stream_receive_window(&mut self, value: Option<VarInt>) -> &mut Self {
+        self.bidi_remote_stream_receive_window = value;
+        self
+    }
+
+    /// Receive window for each unidirectional stream the peer opens
+    ///
+    /// Advertised as `initial_max_stream_data_uni` and applied to every
+    /// peer-initiated unidirectional stream. `None`, the default, uses
+    /// [`Self::stream_receive_window`].
+    pub fn uni_stream_receive_window(&mut self, value: Option<VarInt>) -> &mut Self {
+        self.uni_stream_receive_window = value;
+        self
+    }
+
+    pub(crate) fn receive_window_bidi_remote(&self) -> VarInt {
+        self.bidi_remote_stream_receive_window
+            .unwrap_or(self.stream_receive_window)
+    }
+
+    pub(crate) fn receive_window_uni(&self) -> VarInt {
+        self.uni_stream_receive_window
+            .unwrap_or(self.stream_receive_window)
     }
 
     /// Maximum number of bytes the peer may transmit across all streams of a connection before
@@ -235,6 +272,71 @@ impl TransportConfig {
     pub fn pad_to_mtu(&mut self, value: bool) -> &mut Self {
         self.pad_to_mtu = value;
         self
+    }
+
+    /// Smallest UDP payload of a client datagram that carries an Initial packet
+    ///
+    /// RFC 9000 section 14.1 requires at least 1200 bytes, the default. A larger value pads
+    /// every such datagram to that size, but never beyond the current maximum UDP payload size.
+    pub fn min_initial_datagram_size(
+        &mut self,
+        value: u16,
+    ) -> Result<&mut Self, InvalidTransportLimit> {
+        if value < MIN_INITIAL_SIZE {
+            return Err(InvalidTransportLimit::InitialDatagramTooSmall);
+        }
+        self.min_initial_datagram_size = value;
+        Ok(self)
+    }
+
+    /// Largest delay this endpoint uses before acknowledging an ack-eliciting packet
+    ///
+    /// Advertised as `max_ack_delay` (RFC 9000 section 18.2) and used as the local
+    /// acknowledgement delay until the peer requests another through ACK_FREQUENCY. It must be
+    /// whole milliseconds below 2^14 milliseconds. Defaults to 25 ms, the protocol default,
+    /// which is not advertised.
+    pub fn max_ack_delay(&mut self, value: Duration) -> Result<&mut Self, InvalidTransportLimit> {
+        if value.as_millis() >= 1 << 14 || value.subsec_nanos() % 1_000_000 != 0 {
+            return Err(InvalidTransportLimit::MaxAckDelay);
+        }
+        self.max_ack_delay = value;
+        Ok(self)
+    }
+
+    /// Which draft of the ACK frequency extension this endpoint receives
+    ///
+    /// Selects the identifier under which the local `min_ack_delay` transport parameter is
+    /// advertised and how received ACK_FREQUENCY frames (`0xaf`) are read. Defaults to
+    /// [`AckFrequencyDraft::Draft07`]. Frames this endpoint sends always follow draft 07.
+    pub fn ack_frequency_draft(&mut self, draft: AckFrequencyDraft) -> &mut Self {
+        self.ack_frequency_draft = draft;
+        self
+    }
+
+    /// Whether to accept reliable stream resets
+    ///
+    /// When enabled, the empty `reset_stream_at` transport parameter (`0x1d`) is advertised and
+    /// `RESET_STREAM_AT` frames (`0x24`) from the peer are processed: the stream's first
+    /// Reliable Size bytes are still delivered, then reads report the reset. Disabled by default,
+    /// in which case such a frame is a `PROTOCOL_VIOLATION`.
+    pub fn reset_stream_at(&mut self, enabled: bool) -> &mut Self {
+        self.reset_stream_at = enabled;
+        self
+    }
+
+    /// Number of peer connection IDs this endpoint stores
+    ///
+    /// Advertised as `active_connection_id_limit` when the local connection IDs are not empty. It
+    /// must be between 2 and 8. `None`, the default, advertises 5.
+    pub fn active_connection_id_limit(
+        &mut self,
+        value: Option<u8>,
+    ) -> Result<&mut Self, InvalidTransportLimit> {
+        if value.is_some_and(|limit| !(2..=CidQueue::CAPACITY as u8).contains(&limit)) {
+            return Err(InvalidTransportLimit::ActiveConnectionIdLimit);
+        }
+        self.active_connection_id_limit = value;
+        Ok(self)
     }
 
     /// Specifies the ACK frequency config (see [`AckFrequencyConfig`] for details)
@@ -401,6 +503,8 @@ impl Default for TransportConfig {
             // 30 second default recommended by RFC 9308 § 3.2
             max_idle_timeout: Some(VarInt(30_000)),
             stream_receive_window: STREAM_RWND.into(),
+            bidi_remote_stream_receive_window: None,
+            uni_stream_receive_window: None,
             receive_window: VarInt::MAX,
             send_window: (8 * STREAM_RWND).into(),
             send_fairness: true,
@@ -412,7 +516,12 @@ impl Default for TransportConfig {
             min_mtu: INITIAL_MTU,
             mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
             pad_to_mtu: false,
+            min_initial_datagram_size: MIN_INITIAL_SIZE,
             ack_frequency_config: None,
+            max_ack_delay: Duration::from_millis(25),
+            active_connection_id_limit: None,
+            reset_stream_at: false,
+            ack_frequency_draft: AckFrequencyDraft::Draft07,
 
             persistent_congestion_threshold: 3,
             keep_alive_interval: None,
@@ -440,6 +549,8 @@ impl fmt::Debug for TransportConfig {
             max_concurrent_uni_streams,
             max_idle_timeout,
             stream_receive_window,
+            bidi_remote_stream_receive_window,
+            uni_stream_receive_window,
             receive_window,
             send_window,
             send_fairness,
@@ -450,7 +561,12 @@ impl fmt::Debug for TransportConfig {
             min_mtu,
             mtu_discovery_config,
             pad_to_mtu,
+            min_initial_datagram_size,
             ack_frequency_config,
+            max_ack_delay,
+            active_connection_id_limit,
+            reset_stream_at,
+            ack_frequency_draft,
             persistent_congestion_threshold,
             keep_alive_interval,
             crypto_buffer_size,
@@ -470,6 +586,11 @@ impl fmt::Debug for TransportConfig {
             .field("max_concurrent_uni_streams", max_concurrent_uni_streams)
             .field("max_idle_timeout", max_idle_timeout)
             .field("stream_receive_window", stream_receive_window)
+            .field(
+                "bidi_remote_stream_receive_window",
+                bidi_remote_stream_receive_window,
+            )
+            .field("uni_stream_receive_window", uni_stream_receive_window)
             .field("receive_window", receive_window)
             .field("send_window", send_window)
             .field("send_fairness", send_fairness)
@@ -480,7 +601,12 @@ impl fmt::Debug for TransportConfig {
             .field("min_mtu", min_mtu)
             .field("mtu_discovery_config", mtu_discovery_config)
             .field("pad_to_mtu", pad_to_mtu)
+            .field("min_initial_datagram_size", min_initial_datagram_size)
             .field("ack_frequency_config", ack_frequency_config)
+            .field("max_ack_delay", max_ack_delay)
+            .field("active_connection_id_limit", active_connection_id_limit)
+            .field("reset_stream_at", reset_stream_at)
+            .field("ack_frequency_draft", ack_frequency_draft)
             .field(
                 "persistent_congestion_threshold",
                 persistent_congestion_threshold,
@@ -525,6 +651,45 @@ impl fmt::Display for InvalidDatagramFrameSize {
 }
 
 impl std::error::Error for InvalidDatagramFrameSize {}
+
+/// Draft of the QUIC ACK frequency extension that an endpoint receives
+///
+/// Both drafts use frame type `0xaf` with four fields, but assign them different meanings.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum AckFrequencyDraft {
+    /// draft-ietf-quic-ack-frequency-02: `min_ack_delay` is `0xff02de1a`, and a frame carries a
+    /// packet tolerance and a one-byte Ignore Order flag.
+    Draft02,
+    /// draft-ietf-quic-ack-frequency-07: `min_ack_delay` is `0xff04de1b`, and a frame carries an
+    /// ack-eliciting threshold and a reordering threshold.
+    #[default]
+    Draft07,
+}
+
+/// Error returned when a local transport limit cannot be advertised.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum InvalidTransportLimit {
+    /// `max_ack_delay` must be whole milliseconds below 2^14.
+    MaxAckDelay,
+    /// `active_connection_id_limit` must be between 2 and 8.
+    ActiveConnectionIdLimit,
+    /// Datagrams carrying Initial packets must be at least 1200 bytes.
+    InitialDatagramTooSmall,
+}
+
+impl fmt::Display for InvalidTransportLimit {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::MaxAckDelay => "max_ack_delay must be whole milliseconds below 16384",
+            Self::ActiveConnectionIdLimit => "active_connection_id_limit must be in 2..=8",
+            Self::InitialDatagramTooSmall => "Initial datagrams must be at least 1200 bytes",
+        })
+    }
+}
+
+impl std::error::Error for InvalidTransportLimit {}
 
 #[cfg(test)]
 mod datagram_frame_size_tests {

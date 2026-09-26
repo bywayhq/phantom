@@ -18,6 +18,18 @@ pub(super) struct Recv {
     sent_max_stream_data: u64,
     pub(super) end: u64,
     pub(super) stopped: bool,
+    /// Error code and Reliable Size of a RESET_STREAM_AT whose reliable bytes are still unread
+    reliable_reset: Option<(VarInt, u64)>,
+}
+
+/// Outcome of a RESET_STREAM_AT frame
+pub(super) enum ResetAt {
+    /// Reset the stream now, as RESET_STREAM would
+    Immediate,
+    /// The stream was already reset
+    Redundant,
+    /// Deliver the reliable bytes first; `previous_end` is the highest offset seen before
+    Deferred { previous_end: u64 },
 }
 
 impl Recv {
@@ -28,6 +40,7 @@ impl Recv {
             sent_max_stream_data: initial_max_data,
             end: 0,
             stopped: false,
+            reliable_reset: None,
         })
     }
 
@@ -38,6 +51,7 @@ impl Recv {
         self.sent_max_stream_data = initial_max_data;
         self.end = 0;
         self.stopped = false;
+        self.reliable_reset = None;
     }
 
     /// Process a STREAM frame
@@ -200,6 +214,70 @@ impl Recv {
         Ok(true)
     }
 
+    /// Process a RESET_STREAM_AT frame
+    pub(super) fn reset_at(
+        &mut self,
+        error_code: VarInt,
+        final_offset: VarInt,
+        reliable_size: u64,
+        received: u64,
+        max_data: u64,
+    ) -> Result<ResetAt, TransportError> {
+        if matches!(self.state, RecvState::ResetRecvd { .. }) {
+            return Ok(ResetAt::Redundant);
+        }
+        // A later frame may lower the Reliable Size but never raise it.
+        let reliable_size = self
+            .reliable_reset
+            .map_or(reliable_size, |(_, size)| size.min(reliable_size));
+        if reliable_size == 0 || self.stopped || self.assembler.bytes_read() >= reliable_size {
+            return Ok(ResetAt::Immediate);
+        }
+
+        if let Some(offset) = self.final_offset() {
+            if offset != final_offset.into_inner() {
+                return Err(TransportError::FINAL_SIZE_ERROR("inconsistent value"));
+            }
+        } else if self.end > u64::from(final_offset) {
+            return Err(TransportError::FINAL_SIZE_ERROR(
+                "lower than high water mark",
+            ));
+        }
+        self.credit_consumed_by(final_offset.into(), received, max_data)?;
+
+        let previous_end = self.end;
+        self.end = final_offset.into();
+        self.state = RecvState::Recv {
+            size: Some(final_offset.into()),
+        };
+        self.reliable_reset = Some((error_code, reliable_size));
+        Ok(ResetAt::Deferred { previous_end })
+    }
+
+    /// Resets the stream if a pending RESET_STREAM_AT's reliable bytes have all been read
+    ///
+    /// Returns the number of buffered or never-sent bytes discarded, whose flow control credit
+    /// must be released.
+    fn complete_reliable_reset(&mut self) -> Option<u64> {
+        let (error_code, reliable_size) = self.reliable_reset?;
+        if self.assembler.bytes_read() < reliable_size {
+            return None;
+        }
+        let discarded = self.end - self.assembler.bytes_read();
+        self.state = RecvState::ResetRecvd {
+            size: self.end,
+            error_code,
+        };
+        self.reliable_reset = None;
+        self.assembler.clear();
+        Some(discarded)
+    }
+
+    /// Bytes past a pending RESET_STREAM_AT's Reliable Size are never delivered
+    fn reliable_limit(&self) -> Option<u64> {
+        self.reliable_reset.map(|(_, size)| size)
+    }
+
     pub(super) fn reset_code(&self) -> Option<VarInt> {
         match self.state {
             RecvState::ResetRecvd { error_code, .. } => Some(error_code),
@@ -260,16 +338,16 @@ impl<'a> Chunks<'a> {
         streams: &'a mut StreamsState,
         pending: &'a mut Retransmits,
     ) -> Result<Self, ReadableError> {
+        let window = streams.stream_receive_window(id);
         let mut entry = match streams.recv.entry(id) {
             Entry::Occupied(entry) => entry,
             Entry::Vacant(_) => return Err(ReadableError::ClosedStream),
         };
 
-        let mut recv =
-            match get_or_insert_recv(streams.stream_receive_window)(entry.get_mut()).stopped {
-                true => return Err(ReadableError::ClosedStream),
-                false => entry.remove().unwrap().into_inner(), // this can't fail due to the previous get_or_insert_with
-            };
+        let mut recv = match get_or_insert_recv(window)(entry.get_mut()).stopped {
+            true => return Err(ReadableError::ClosedStream),
+            false => entry.remove().unwrap().into_inner(), // this can't fail due to the previous get_or_insert_with
+        };
 
         recv.assembler.ensure_ordering(ordered)?;
         Ok(Self {
@@ -297,14 +375,26 @@ impl<'a> Chunks<'a> {
             ChunksState::Finalized => panic!("must not call next() after finalize()"),
         };
 
-        if let Some(chunk) = rs.assembler.read(max_length, self.ordered) {
+        while let Some(mut chunk) = rs.assembler.read(max_length, self.ordered) {
             self.read += chunk.bytes.len() as u64;
+            if let Some(limit) = rs.reliable_limit() {
+                if chunk.offset >= limit {
+                    continue;
+                }
+                chunk
+                    .bytes
+                    .truncate(usize::try_from(limit - chunk.offset).unwrap_or(usize::MAX));
+            }
             return Ok(Some(chunk));
+        }
+
+        if let Some(discarded) = rs.complete_reliable_reset() {
+            // Discarded bytes are released like read ones when this read is finalized.
+            self.read += discarded;
         }
 
         match rs.state {
             RecvState::ResetRecvd { error_code, .. } => {
-                debug_assert_eq!(self.read, 0, "reset streams have empty buffers");
                 let state = mem::replace(&mut self.state, ChunksState::Reset(error_code));
                 // At this point if we have `rs` self.state must be `ChunksState::Readable`
                 let recv = match state {
@@ -362,7 +452,8 @@ impl<'a> Chunks<'a> {
 
         // If the stream hasn't finished, we may need to issue stream-level flow control credit
         if let ChunksState::Readable(mut rs) = state {
-            let (_, max_stream_data) = rs.max_stream_data(self.streams.stream_receive_window);
+            let (_, max_stream_data) =
+                rs.max_stream_data(self.streams.stream_receive_window(self.id));
             should_transmit |= max_stream_data.0;
             if max_stream_data.0 {
                 self.pending.max_stream_data.insert(self.id);

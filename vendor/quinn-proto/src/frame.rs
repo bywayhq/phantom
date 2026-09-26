@@ -130,6 +130,8 @@ frame_types! {
     CONNECTION_CLOSE = 0x1c,
     APPLICATION_CLOSE = 0x1d,
     HANDSHAKE_DONE = 0x1e,
+    // Reliable QUIC stream resets
+    RESET_STREAM_AT = 0x24,
     // ACK Frequency
     ACK_FREQUENCY = 0xaf,
     IMMEDIATE_ACK = 0x1f,
@@ -145,6 +147,7 @@ pub(crate) enum Frame {
     Ping,
     Ack(Ack),
     ResetStream(ResetStream),
+    ResetStreamAt(ResetStreamAt),
     StopSending(StopSending),
     Crypto(Crypto),
     NewToken(NewToken),
@@ -172,6 +175,7 @@ impl Frame {
         match *self {
             Padding => FrameType::PADDING,
             ResetStream(_) => FrameType::RESET_STREAM,
+            ResetStreamAt(_) => FrameType::RESET_STREAM_AT,
             Close(self::Close::Connection(_)) => FrameType::CONNECTION_CLOSE,
             Close(self::Close::Application(_)) => FrameType::APPLICATION_CLOSE,
             MaxData(_) => FrameType::MAX_DATA,
@@ -582,6 +586,18 @@ impl Iter {
                 error_code: self.bytes.get()?,
                 final_offset: self.bytes.get()?,
             }),
+            FrameType::RESET_STREAM_AT => {
+                let frame = ResetStreamAt {
+                    id: self.bytes.get()?,
+                    error_code: self.bytes.get()?,
+                    final_offset: self.bytes.get()?,
+                    reliable_size: self.bytes.get()?,
+                };
+                if frame.reliable_size > frame.final_offset {
+                    return Err(IterErr::Malformed);
+                }
+                Frame::ResetStreamAt(frame)
+            }
             FrameType::CONNECTION_CLOSE => Frame::Close(Close::Connection(ConnectionClose {
                 error_code: self.bytes.get()?,
                 frame_type: {
@@ -847,6 +863,28 @@ impl ResetStream {
     }
 }
 
+/// A `RESET_STREAM_AT` frame (draft-ietf-quic-reliable-stream-reset, section 4)
+///
+/// The sender abandons the stream but promises to deliver its first `reliable_size` bytes.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ResetStreamAt {
+    pub(crate) id: StreamId,
+    pub(crate) error_code: VarInt,
+    pub(crate) final_offset: VarInt,
+    pub(crate) reliable_size: VarInt,
+}
+
+impl ResetStreamAt {
+    #[cfg(test)]
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write(FrameType::RESET_STREAM_AT);
+        out.write(self.id);
+        out.write(self.error_code);
+        out.write(self.final_offset);
+        out.write(self.reliable_size);
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct StopSending {
     pub(crate) id: StreamId,
@@ -930,6 +968,37 @@ pub(crate) struct AckFrequency {
 }
 
 impl AckFrequency {
+    /// Reads a frame decoded with draft 07 field names as a draft 02 frame
+    ///
+    /// Draft 02 (section 4) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
+    /// one-byte Ignore Order flag. A packet tolerance of N means acknowledging every Nth
+    /// ack-eliciting packet, which is an ack-eliciting threshold of N - 1; ignoring order is a
+    /// reordering threshold of 0, and not ignoring it is 1.
+    pub(crate) fn read_as_draft02(self) -> Result<Self, TransportError> {
+        let ack_eliciting_threshold = self
+            .ack_eliciting_threshold
+            .into_inner()
+            .checked_sub(1)
+            .ok_or(TransportError::FRAME_ENCODING_ERROR(
+                "ACK_FREQUENCY packet tolerance is zero",
+            ))?;
+        let reordering_threshold = match self.reordering_threshold.into_inner() {
+            0 => 1,
+            1 => 0,
+            _ => {
+                return Err(TransportError::FRAME_ENCODING_ERROR(
+                    "ACK_FREQUENCY Ignore Order is not 0 or 1",
+                ));
+            }
+        };
+        Ok(Self {
+            sequence: self.sequence,
+            ack_eliciting_threshold: VarInt(ack_eliciting_threshold),
+            request_max_ack_delay: self.request_max_ack_delay,
+            reordering_threshold: VarInt(reordering_threshold),
+        })
+    }
+
     pub(crate) fn encode<W: BufMut>(&self, buf: &mut W) {
         buf.write(FrameType::ACK_FREQUENCY);
         buf.write(self.sequence);
@@ -1004,5 +1073,90 @@ mod test {
         let frames = frames(buf);
         assert_eq!(frames.len(), 1);
         assert_matches!(&frames[0], Frame::ImmediateAck);
+    }
+
+    #[test]
+    fn reset_stream_at_round_trips() {
+        let frame = ResetStreamAt {
+            id: StreamId(3),
+            error_code: VarInt(7),
+            final_offset: VarInt(4096),
+            reliable_size: VarInt(1500),
+        };
+        let mut buf = Vec::new();
+        frame.encode(&mut buf);
+        let frames = frames(buf);
+        assert_eq!(frames.len(), 1);
+        assert_matches!(
+            &frames[0],
+            Frame::ResetStreamAt(ResetStreamAt {
+                final_offset: VarInt(4096),
+                reliable_size: VarInt(1500),
+                ..
+            })
+        );
+    }
+
+    #[test]
+    fn reset_stream_at_rejects_reliable_size_past_final_size() {
+        let frame = ResetStreamAt {
+            id: StreamId(3),
+            error_code: VarInt(7),
+            final_offset: VarInt(10),
+            reliable_size: VarInt(11),
+        };
+        let mut buf = Vec::new();
+        frame.encode(&mut buf);
+        let mut frames = Iter::new(Bytes::from(buf)).unwrap();
+        assert!(frames.next().unwrap().is_err());
+    }
+
+    #[test]
+    fn draft02_ack_frequency_maps_to_draft07_fields() {
+        let draft02 = |tolerance: u32, ignore_order: u32| AckFrequency {
+            sequence: VarInt(4),
+            ack_eliciting_threshold: VarInt::from_u32(tolerance),
+            request_max_ack_delay: VarInt(25_000),
+            reordering_threshold: VarInt::from_u32(ignore_order),
+        };
+
+        let frame = draft02(2, 1).read_as_draft02().unwrap();
+        assert_eq!(frame.sequence, VarInt(4));
+        assert_eq!(frame.ack_eliciting_threshold, VarInt(1));
+        assert_eq!(frame.request_max_ack_delay, VarInt(25_000));
+        assert_eq!(frame.reordering_threshold, VarInt(0));
+        assert_eq!(
+            draft02(1, 0)
+                .read_as_draft02()
+                .unwrap()
+                .reordering_threshold,
+            VarInt(1)
+        );
+
+        for (tolerance, ignore_order) in [(0, 0), (1, 2)] {
+            assert_eq!(
+                draft02(tolerance, ignore_order)
+                    .read_as_draft02()
+                    .unwrap_err()
+                    .code,
+                TransportErrorCode::FRAME_ENCODING_ERROR
+            );
+        }
+    }
+
+    #[test]
+    fn draft02_ack_frequency_ignore_order_byte_decodes() {
+        // neqo writes Ignore Order as one byte after three varints.
+        let buf = vec![0x40, 0xaf, 0x0a, 0x05, 0x47, 0xd0, 0x01];
+        let frames = frames(buf);
+        assert_matches!(
+            &frames[0],
+            Frame::AckFrequency(AckFrequency {
+                sequence: VarInt(10),
+                ack_eliciting_threshold: VarInt(5),
+                request_max_ack_delay: VarInt(2_000),
+                reordering_threshold: VarInt(1),
+            })
+        );
     }
 }

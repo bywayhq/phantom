@@ -1,0 +1,361 @@
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index fe792f3..15a75f1 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -29,8 +29,8 @@ mod transport;
+ #[cfg(feature = "qlog")]
+ pub use transport::QlogConfig;
+ pub use transport::{
+-    AckFrequencyConfig, IdleTimeout, InvalidDatagramFrameSize, InvalidTransportLimit,
+-    MtuDiscoveryConfig, TransportConfig,
++    AckFrequencyConfig, AckFrequencyDraft, IdleTimeout, InvalidDatagramFrameSize,
++    InvalidTransportLimit, MtuDiscoveryConfig, TransportConfig,
+ };
+ 
+ /// Global configuration for the endpoint, affecting all connections
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+index a8e155d..558cd37 100644
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -47,6 +47,7 @@ pub struct TransportConfig {
+     pub(crate) max_ack_delay: Duration,
+     pub(crate) active_connection_id_limit: Option<u8>,
+     pub(crate) reset_stream_at: bool,
++    pub(crate) ack_frequency_draft: AckFrequencyDraft,
+ 
+     pub(crate) persistent_congestion_threshold: u32,
+     pub(crate) keep_alive_interval: Option<Duration>,
+@@ -302,6 +303,16 @@ impl TransportConfig {
+         Ok(self)
+     }
+ 
++    /// Which draft of the ACK frequency extension this endpoint receives
++    ///
++    /// Selects the identifier under which the local `min_ack_delay` transport parameter is
++    /// advertised and how received ACK_FREQUENCY frames (`0xaf`) are read. Defaults to
++    /// [`AckFrequencyDraft::Draft07`]. Frames this endpoint sends always follow draft 07.
++    pub fn ack_frequency_draft(&mut self, draft: AckFrequencyDraft) -> &mut Self {
++        self.ack_frequency_draft = draft;
++        self
++    }
++
+     /// Whether to accept reliable stream resets
+     ///
+     /// When enabled, the empty `reset_stream_at` transport parameter (`0x1d`) is advertised and
+@@ -510,6 +521,7 @@ impl Default for TransportConfig {
+             max_ack_delay: Duration::from_millis(25),
+             active_connection_id_limit: None,
+             reset_stream_at: false,
++            ack_frequency_draft: AckFrequencyDraft::Draft07,
+ 
+             persistent_congestion_threshold: 3,
+             keep_alive_interval: None,
+@@ -554,6 +566,7 @@ impl fmt::Debug for TransportConfig {
+             max_ack_delay,
+             active_connection_id_limit,
+             reset_stream_at,
++            ack_frequency_draft,
+             persistent_congestion_threshold,
+             keep_alive_interval,
+             crypto_buffer_size,
+@@ -593,6 +606,7 @@ impl fmt::Debug for TransportConfig {
+             .field("max_ack_delay", max_ack_delay)
+             .field("active_connection_id_limit", active_connection_id_limit)
+             .field("reset_stream_at", reset_stream_at)
++            .field("ack_frequency_draft", ack_frequency_draft)
+             .field(
+                 "persistent_congestion_threshold",
+                 persistent_congestion_threshold,
+@@ -638,6 +652,21 @@ impl fmt::Display for InvalidDatagramFrameSize {
+ 
+ impl std::error::Error for InvalidDatagramFrameSize {}
+ 
++/// Draft of the QUIC ACK frequency extension that an endpoint receives
++///
++/// Both drafts use frame type `0xaf` with four fields, but assign them different meanings.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[non_exhaustive]
++pub enum AckFrequencyDraft {
++    /// draft-ietf-quic-ack-frequency-02: `min_ack_delay` is `0xff02de1a`, and a frame carries a
++    /// packet tolerance and a one-byte Ignore Order flag.
++    Draft02,
++    /// draft-ietf-quic-ack-frequency-07: `min_ack_delay` is `0xff04de1b`, and a frame carries an
++    /// ack-eliciting threshold and a reordering threshold.
++    #[default]
++    Draft07,
++}
++
+ /// Error returned when a local transport limit cannot be advertised.
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ #[non_exhaustive]
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+index 9c915de..189adf7 100644
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -15,9 +15,9 @@ use thiserror::Error;
+ use tracing::{debug, error, trace, trace_span, warn};
+ 
+ use crate::{
+-    Dir, Duration, EndpointConfig, Frame, INITIAL_MTU, Instant, MAX_CID_SIZE, MAX_STREAM_COUNT,
+-    MIN_INITIAL_SIZE, Side, StreamId, TIMER_GRANULARITY, TokenStore, Transmit, TransportError,
+-    TransportErrorCode, VarInt,
++    AckFrequencyDraft, Dir, Duration, EndpointConfig, Frame, INITIAL_MTU, Instant, MAX_CID_SIZE,
++    MAX_STREAM_COUNT, MIN_INITIAL_SIZE, Side, StreamId, TIMER_GRANULARITY, TokenStore, Transmit,
++    TransportError, TransportErrorCode, VarInt,
+     cid_generator::ConnectionIdGenerator,
+     cid_queue::CidQueue,
+     coding::BufMutExt,
+@@ -3047,6 +3047,10 @@ impl Connection {
+                     }
+                 }
+                 Frame::AckFrequency(ack_frequency) => {
++                    let ack_frequency = match self.config.ack_frequency_draft {
++                        AckFrequencyDraft::Draft02 => ack_frequency.read_as_draft02()?,
++                        _ => ack_frequency,
++                    };
+                     // This frame can only be sent in the Data space
+                     let space = &mut self.spaces[SpaceId::Data];
+ 
+@@ -3699,7 +3703,7 @@ impl Connection {
+     }
+ 
+     fn peer_supports_ack_frequency(&self) -> bool {
+-        self.peer_params.min_ack_delay.is_some()
++        self.peer_params.min_ack_delay.is_some() && !self.peer_params.min_ack_delay_draft02
+     }
+ 
+     /// Send an IMMEDIATE_ACK frame to the remote endpoint
+diff --git a/src/frame.rs b/src/frame.rs
+index e6b9977..f92190b 100644
+--- a/src/frame.rs
++++ b/src/frame.rs
+@@ -968,6 +968,37 @@ pub(crate) struct AckFrequency {
+ }
+ 
+ impl AckFrequency {
++    /// Reads a frame decoded with draft 07 field names as a draft 02 frame
++    ///
++    /// Draft 02 (section 4) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
++    /// one-byte Ignore Order flag. A packet tolerance of N means acknowledging every Nth
++    /// ack-eliciting packet, which is an ack-eliciting threshold of N - 1; ignoring order is a
++    /// reordering threshold of 0, and not ignoring it is 1.
++    pub(crate) fn read_as_draft02(self) -> Result<Self, TransportError> {
++        let ack_eliciting_threshold = self
++            .ack_eliciting_threshold
++            .into_inner()
++            .checked_sub(1)
++            .ok_or(TransportError::FRAME_ENCODING_ERROR(
++                "ACK_FREQUENCY packet tolerance is zero",
++            ))?;
++        let reordering_threshold = match self.reordering_threshold.into_inner() {
++            0 => 1,
++            1 => 0,
++            _ => {
++                return Err(TransportError::FRAME_ENCODING_ERROR(
++                    "ACK_FREQUENCY Ignore Order is not 0 or 1",
++                ));
++            }
++        };
++        Ok(Self {
++            sequence: self.sequence,
++            ack_eliciting_threshold: VarInt(ack_eliciting_threshold),
++            request_max_ack_delay: self.request_max_ack_delay,
++            reordering_threshold: VarInt(reordering_threshold),
++        })
++    }
++
+     pub(crate) fn encode<W: BufMut>(&self, buf: &mut W) {
+         buf.write(FrameType::ACK_FREQUENCY);
+         buf.write(self.sequence);
+@@ -1079,4 +1110,53 @@ mod test {
+         let mut frames = Iter::new(Bytes::from(buf)).unwrap();
+         assert!(frames.next().unwrap().is_err());
+     }
++
++    #[test]
++    fn draft02_ack_frequency_maps_to_draft07_fields() {
++        let draft02 = |tolerance: u32, ignore_order: u32| AckFrequency {
++            sequence: VarInt(4),
++            ack_eliciting_threshold: VarInt::from_u32(tolerance),
++            request_max_ack_delay: VarInt(25_000),
++            reordering_threshold: VarInt::from_u32(ignore_order),
++        };
++
++        let frame = draft02(2, 1).read_as_draft02().unwrap();
++        assert_eq!(frame.sequence, VarInt(4));
++        assert_eq!(frame.ack_eliciting_threshold, VarInt(1));
++        assert_eq!(frame.request_max_ack_delay, VarInt(25_000));
++        assert_eq!(frame.reordering_threshold, VarInt(0));
++        assert_eq!(
++            draft02(1, 0)
++                .read_as_draft02()
++                .unwrap()
++                .reordering_threshold,
++            VarInt(1)
++        );
++
++        for (tolerance, ignore_order) in [(0, 0), (1, 2)] {
++            assert_eq!(
++                draft02(tolerance, ignore_order)
++                    .read_as_draft02()
++                    .unwrap_err()
++                    .code,
++                TransportErrorCode::FRAME_ENCODING_ERROR
++            );
++        }
++    }
++
++    #[test]
++    fn draft02_ack_frequency_ignore_order_byte_decodes() {
++        // neqo writes Ignore Order as one byte after three varints.
++        let buf = vec![0x40, 0xaf, 0x0a, 0x05, 0x47, 0xd0, 0x01];
++        let frames = frames(buf);
++        assert_matches!(
++            &frames[0],
++            Frame::AckFrequency(AckFrequency {
++                sequence: VarInt(10),
++                ack_eliciting_threshold: VarInt(5),
++                request_max_ack_delay: VarInt(2_000),
++                reordering_threshold: VarInt(1),
++            })
++        );
++    }
+ }
+diff --git a/src/lib.rs b/src/lib.rs
+index d5f5474..09c7f7d 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -59,7 +59,7 @@ mod config;
+ #[cfg(feature = "qlog")]
+ pub use config::QlogConfig;
+ pub use config::{
+-    AckFrequencyConfig, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
++    AckFrequencyConfig, AckFrequencyDraft, ClientConfig, ConfigError, EndpointConfig, IdleTimeout,
+     InvalidDatagramFrameSize, InvalidTransportLimit, MtuDiscoveryConfig, ServerConfig,
+     StdSystemTime, TimeSource, TransportConfig, ValidationTokenConfig,
+ };
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+index 2c446bc..4d56c0b 100644
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -21,7 +21,7 @@ use crate::{
+     cid_generator::ConnectionIdGenerator,
+     cid_queue::CidQueue,
+     coding::{BufExt, BufMutExt, UnexpectedEnd},
+-    config::{EndpointConfig, ServerConfig, TransportConfig},
++    config::{AckFrequencyDraft, EndpointConfig, ServerConfig, TransportConfig},
+     shared::ConnectionId,
+ };
+ 
+@@ -91,6 +91,11 @@ macro_rules! make_struct {
+             /// If a value is provided, it implies that the endpoint supports QUIC Acknowledgement
+             /// Frequency
+             pub(crate) min_ack_delay: Option<VarInt>,
++            /// Whether `min_ack_delay` uses the draft 02 identifier
++            ///
++            /// A peer that advertised only draft 02 is not sent ACK_FREQUENCY or IMMEDIATE_ACK,
++            /// whose draft 07 encodings it may not read.
++            pub(crate) min_ack_delay_draft02: bool,
+ 
+             // Server-only
+             /// The value of the Destination Connection ID field from the first Initial packet sent
+@@ -130,6 +135,7 @@ macro_rules! make_struct {
+                     grease_quic_bit: false,
+                     reset_stream_at: false,
+                     min_ack_delay: None,
++                    min_ack_delay_draft02: false,
+ 
+                     original_dst_cid: None,
+                     retry_src_cid: None,
+@@ -182,6 +188,7 @@ impl TransportParameters {
+             min_ack_delay: Some(
+                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
+             ),
++            min_ack_delay_draft02: config.ack_frequency_draft == AckFrequencyDraft::Draft02,
+             grease_transport_parameter: Some(ReservedTransportParameter::random(rng)),
+             write_order: Some({
+                 let mut order = std::array::from_fn(|i| i as u8);
+@@ -397,7 +404,11 @@ impl TransportParameters {
+                 }
+                 TransportParameterId::MinAckDelayDraft07 => {
+                     if let Some(x) = self.min_ack_delay {
+-                        w.write_var(id as u64);
++                        let id = match self.min_ack_delay_draft02 {
++                            true => MIN_ACK_DELAY_DRAFT02,
++                            false => id as u64,
++                        };
++                        w.write_var(id);
+                         w.write_var(x.size() as u64);
+                         w.write(x);
+                     }
+@@ -451,6 +462,21 @@ impl TransportParameters {
+                 return Err(Error::Malformed);
+             }
+             let len = len as usize;
++            if id == MIN_ACK_DELAY_DRAFT02 {
++                // Kept so the value can be written back, but a draft 02 peer does not
++                // receive draft 07 frames; see `min_ack_delay_draft02`.
++                if params.min_ack_delay.is_none() {
++                    let value = r.get::<VarInt>()?;
++                    if len != value.size() {
++                        return Err(Error::Malformed);
++                    }
++                    params.min_ack_delay = Some(value);
++                    params.min_ack_delay_draft02 = true;
++                } else {
++                    r.advance(len);
++                }
++                continue;
++            }
+             let Ok(id) = TransportParameterId::try_from(id) else {
+                 // unknown transport parameters are ignored
+                 r.advance(len);
+@@ -503,7 +529,10 @@ impl TransportParameters {
+                     0 if !params.reset_stream_at => params.reset_stream_at = true,
+                     _ => return Err(Error::Malformed),
+                 },
+-                TransportParameterId::MinAckDelayDraft07 => params.min_ack_delay = Some(r.get()?),
++                TransportParameterId::MinAckDelayDraft07 => {
++                    params.min_ack_delay = Some(r.get()?);
++                    params.min_ack_delay_draft02 = false;
++                }
+                 _ => {
+                     macro_rules! parse {
+                         {$($(#[$doc:meta])* $name:ident ($id:ident) = $default:expr,)*} => {
+@@ -746,6 +775,9 @@ impl TryFrom<u64> for TransportParameterId {
+     }
+ }
+ 
++/// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
++const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
++
+ fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {
+     if len > MAX_CID_SIZE || value.is_some() || r.remaining() < len {
+         return Err(Error::Malformed);
+@@ -921,6 +953,26 @@ mod test {
+         }
+     }
+ 
++    #[test]
++    fn min_ack_delay_can_use_the_draft02_identifier() {
++        let params = TransportParameters {
++            min_ack_delay: Some(VarInt(1_000)),
++            min_ack_delay_draft02: true,
++            ..TransportParameters::default()
++        };
++        let mut buf = Vec::new();
++        params.write(&mut buf);
++        assert_eq!(
++            buf,
++            [0xc0, 0, 0, 0, 0xff, 0x02, 0xde, 0x1a, 0x02, 0x43, 0xe8]
++        );
++
++        // A peer's draft 02 parameter round-trips but is marked as draft 02.
++        let read = TransportParameters::read(Side::Client, &mut buf.as_slice()).unwrap();
++        assert_eq!(read.min_ack_delay, Some(VarInt(1_000)));
++        assert!(read.min_ack_delay_draft02);
++    }
++
+     #[test]
+     fn reset_stream_at_is_an_empty_parameter() {
+         let params = TransportParameters {

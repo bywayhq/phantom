@@ -22,7 +22,7 @@ This directory is the complete crates.io source for `quinn-proto` version
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
-`0.11.18-phantom.1`), keeps the upstream library name so source, tests, and
+`0.11.18-phantom.2`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -37,7 +37,7 @@ the source patches. Increase the `-phantom.N` suffix whenever the fork's
 content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
-## Why this patch exists
+## Why these patches exist
 
 Two Quinn session key boundaries could not represent every provider failure.
 `crypto::Session::next_1rtt_keys` was infallible apart from an `Option`, and
@@ -78,11 +78,91 @@ buffer, preserving Quinn's existing clamped behavior by default. It also adds
 bounded connection errors for invalid local parameters and provider-side
 encoding failure before any network I/O.
 
+The next four patches let a transport profile reproduce Firefox's QUIC
+client, whose stack is neqo. Each one is off or unchanged by default, so a
+connection that does not configure it sends and accepts what upstream does.
+
+`patches/profiled-transport-limits.patch` adds local limits that upstream
+fixes:
+
+- `TransportConfig::max_ack_delay` sets the advertised `max_ack_delay` and
+  the delay the endpoint itself uses before acknowledging. Upstream always
+  uses 25 ms, the protocol default, which is never advertised.
+- `TransportConfig::active_connection_id_limit` advertises 2 through 8 and
+  stores that many of the peer's connection IDs. Upstream advertises 5 and
+  stores 5; the queue now holds up to 8 and enforces the advertised limit.
+- `TransportConfig::bidi_remote_stream_receive_window` and
+  `uni_stream_receive_window` give streams the peer opens their own receive
+  windows, advertised as `initial_max_stream_data_bidi_remote` and
+  `initial_max_stream_data_uni`. Upstream uses `stream_receive_window` for
+  every class. A pooled receive state takes the window of the stream that
+  reuses it.
+- `TransportConfig::min_initial_datagram_size` pads each client datagram
+  that carries an Initial packet to that size, bounded by the space left in
+  the datagram. Upstream pads to 1200 bytes.
+
+Tests show the values in the parameters Quinn hands the crypto provider, a
+server limited by a client's smaller unidirectional window, a queue that
+accepts eight connection IDs, and 1252-byte Initial datagrams.
+
+`patches/reset-stream-at.patch` adds `TransportConfig::reset_stream_at`.
+When set, the endpoint advertises the empty `reset_stream_at` parameter
+(`0x1d`, the identifier neqo uses) and accepts `RESET_STREAM_AT` frames
+(`0x24`, draft-ietf-quic-reliable-stream-reset). A frame whose Reliable Size
+is zero, or already read, resets the stream as `RESET_STREAM` does.
+Otherwise the final size becomes known, reads deliver bytes up to the
+Reliable Size and then report the reset, and flow-control credit for the
+discarded bytes is released when the reset completes or the stream stops. A
+Reliable Size larger than the final size is a `FRAME_ENCODING_ERROR`, and the
+frame is a `PROTOCOL_VIOLATION` when support was not advertised. The endpoint
+never sends the frame.
+
+`patches/ack-frequency-draft-02.patch` adds
+`TransportConfig::ack_frequency_draft`. With `AckFrequencyDraft::Draft02`
+the local `min_ack_delay` is advertised under draft 02's `0xff02de1a`
+instead of draft 07's `0xff04de1b`, and a received `ACK_FREQUENCY` frame is
+read with draft 02's fields: a packet tolerance N becomes an ack-eliciting
+threshold of N - 1, and an Ignore Order byte of 1 or 0 becomes a reordering
+threshold of 0 or 1. A tolerance of 0 or another Ignore Order value is a
+`FRAME_ENCODING_ERROR`. A peer's draft 02 parameter is read and written back,
+but that peer is not sent draft 07 `ACK_FREQUENCY` or `IMMEDIATE_ACK` frames.
+
+`patches/quic-v2.patch` implements QUIC version 2 (RFC 9369) and compatible
+version negotiation (RFC 9368) for clients:
+
+- Long header packet types follow the version: in v2, Initial is `0b01`,
+  0-RTT `0b10`, Handshake `0b11`, and Retry `0b00`.
+- The rustls provider accepts `0x6b3343cf`, with the v2 Retry integrity key
+  and nonce.
+- `EndpointConfig::compatible_versions` lists the versions a server may move
+  a client to. Until the server's first flight yields handshake keys, the
+  client accepts an Initial in such a version, asks its crypto session to
+  switch with the new `Session::switch_version`, and derives Initial keys
+  again from the first Initial's Destination Connection ID, or a Retry's
+  Source Connection ID. A server may first acknowledge the client in the
+  original version; aioquic does. The default method refuses, so a provider
+  that cannot switch drops the packet.
+- The transport parameters read the peer's `version_information` (`0x11`).
+  A client closes with the new `VERSION_NEGOTIATION_ERROR` (`0x11`) when the
+  server's Chosen Version differs from the version in use, or when a client
+  that switched gets no `version_information`. An endpoint with compatible
+  versions writes its own, listing its supported versions.
+
+Tests cover the packet-type bits in both versions, a connection and a Retry
+in v2, a client moved from v1 to v2, a switched client that gets no
+`version_information`, and a client that stays in v1. The move is shown with
+a rustls session that handshakes in v2 and protects its first flight with
+v1 Initial keys, because a rustls session cannot change version; the test
+re-protects that flight as v2 for a v2-only server. Phantom's BoringSSL
+provider, which can switch, is checked against aioquic on loopback.
+
 The ordered canonical source and test deltas are stored in
-`patches/fallible-key-updates.patch`, `patches/fallible-initial-keys.patch`, and
-`patches/profiled-transport-parameters.patch`. Apply them in that order.
-`PHANTOM.md` and the patch files are packaging metadata and are not part of the
-patches.
+`patches/fallible-key-updates.patch`, `patches/fallible-initial-keys.patch`,
+`patches/profiled-transport-parameters.patch`,
+`patches/profiled-transport-limits.patch`, `patches/reset-stream-at.patch`,
+`patches/ack-frequency-draft-02.patch`, and `patches/quic-v2.patch`. Apply
+them in that order. `PHANTOM.md` and the patch files are packaging metadata
+and are not part of the patches.
 
 ## Refreshing the vendor copy
 
@@ -145,6 +225,10 @@ rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::initial_keys
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::key_update
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked datagram_frame_size
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::transport_limits
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked reset_at
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked draft02
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::quic_v2
 cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
 cargo check --manifest-path vendor/quinn-proto/Cargo.toml --no-default-features --locked
 cargo check -p phantom-quic-btls --all-targets --locked

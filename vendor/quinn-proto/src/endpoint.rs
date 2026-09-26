@@ -35,7 +35,7 @@ use crate::{
         EndpointEvent, EndpointEventInner, IssuedCid,
     },
     token::{IncomingToken, InvalidRetryTokenError, Token, TokenPayload},
-    transport_parameters::{PreferredAddress, TransportParameters},
+    transport_parameters::{PreferredAddress, TransportParameters, VersionInformation},
 };
 
 /// The main entry point to the library
@@ -357,7 +357,7 @@ impl Endpoint {
 
         let ch = ConnectionHandle(self.connections.vacant_key());
         let loc_cid = self.new_cid(ch);
-        let params = TransportParameters::new(
+        let mut params = TransportParameters::new(
             &config.transport,
             &self.config,
             self.local_cid_generator.as_ref(),
@@ -365,6 +365,7 @@ impl Endpoint {
             None,
             &mut self.rng,
         );
+        params.version_information = VersionInformation::local(config.version, &self.config);
         let tls = config
             .crypto
             .start_session(config.version, server_name, &params)?;
@@ -636,6 +637,8 @@ impl Endpoint {
             &mut self.rng,
         );
         params.stateless_reset_token = Some(ResetToken::new(&*self.config.reset_key, loc_cid));
+        params.version_information =
+            VersionInformation::local(incoming.packet.header.version, &self.config);
         params.original_dst_cid = Some(incoming.token.orig_dst_cid);
         params.retry_src_cid = incoming.token.retry_src_cid;
         let mut pref_addr_cid = None;
