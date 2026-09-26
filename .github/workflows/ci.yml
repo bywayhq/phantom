@@ -211,30 +211,39 @@ jobs:
             command -v "$tool"
           done
 
-      - name: Check optional feature matrix
+      # Clippy rather than check: code that is correct under all features,
+      # such as a struct update that names every field once a feature is
+      # off, can still warn in one row. Library rows keep the feature set
+      # that check had; test targets would add their dev-dependency
+      # features. The three --all-targets rows lint the tests without
+      # optional features.
+      - name: Lint optional feature matrix
         run: |
-          cargo check -p phantom-http --no-default-features --locked
-          cargo check -p phantom-http --no-default-features --features cookies --locked
-          cargo check -p phantom-http --no-default-features --features https-records --locked
-          cargo check -p phantom-http --no-default-features --features sse --locked
-          cargo check -p phantom-http --no-default-features --features websocket --locked
-          cargo check -p phantom-http --no-default-features --features websocket-deflate --locked
-          cargo check -p phantom-http --no-default-features --features cookies,sse --locked
-          cargo check -p phantom-http --no-default-features --features cookies,websocket --locked
-          cargo check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
-          cargo check -p phantom-http --no-default-features --features sse,websocket --locked
-          cargo check -p phantom-http --no-default-features --features serde --locked
-          cargo check -p phantom-http --no-default-features --features cookies,serde --locked
-          cargo check -p phantom-http --no-default-features --features diagnostics --locked
-          cargo check -p phantom-http --no-default-features --features cookies,https-records --locked
-          cargo check -p phantom-http --all-features --locked
-          cargo check -p phantom-net --no-default-features --locked
-          cargo check -p phantom-net --no-default-features --features https-records --locked
-          cargo check -p phantom-net --no-default-features --features qlog --locked
-          cargo check -p phantom-net --no-default-features --features keylog --locked
-          cargo check -p phantom-net --no-default-features --features https-records,qlog --locked
-          cargo check -p phantom-quic-btls --no-default-features --locked
-          cargo check -p phantom-quic-btls --no-default-features --features keylog --locked
+          cargo clippy -p phantom-http --no-default-features --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features https-records --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features sse --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features websocket --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features websocket-deflate --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies,sse --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies,websocket --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies,websocket-deflate --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features sse,websocket --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features serde --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies,serde --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features diagnostics --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features cookies,https-records --locked -- -D warnings
+          cargo clippy -p phantom-http --all-features --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --features https-records --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --features qlog --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --features keylog --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --features https-records,qlog --locked -- -D warnings
+          cargo clippy -p phantom-quic-btls --no-default-features --locked -- -D warnings
+          cargo clippy -p phantom-quic-btls --no-default-features --features keylog --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --all-targets --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --all-targets --locked -- -D warnings
+          cargo clippy -p phantom-quic-btls --no-default-features --all-targets --locked -- -D warnings
 
   downstream:
     name: Downstream
