@@ -47,7 +47,7 @@ index 15a75f1..a241ea5 100644
              .field("rng_seed", &self.rng_seed)
              .finish_non_exhaustive()
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
-index 189adf7..dd73a78 100644
+index 189adf7..4b75b45 100644
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
 @@ -245,6 +245,8 @@ pub struct Connection {
@@ -97,10 +97,10 @@ index 189adf7..dd73a78 100644
          if let Some(decoded) = packet_crypto::unprotect_header(
              partial_decode,
              &self.spaces,
-@@ -3570,6 +3583,55 @@ impl Connection {
+@@ -3569,6 +3582,55 @@ impl Connection {
+             .set(Timer::Close, now + 3 * self.pto(self.highest_space));
      }
  
-     /// Handle transport parameters received from the peer
 +    /// Whether a server may still move this client to another version (RFC 9368)
 +    ///
 +    /// A server can acknowledge the client's first Initial in the original version before it
@@ -150,9 +150,9 @@ index 189adf7..dd73a78 100644
 +        true
 +    }
 +
+     /// Handle transport parameters received from the peer
      fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
          if Some(self.orig_rem_cid) != params.initial_src_cid
-             || (self.side.is_client()
 @@ -3580,6 +3642,23 @@ impl Connection {
                  "CID authentication failure",
              ));

@@ -3582,7 +3582,6 @@ impl Connection {
             .set(Timer::Close, now + 3 * self.pto(self.highest_space));
     }
 
-    /// Handle transport parameters received from the peer
     /// Whether a server may still move this client to another version (RFC 9368)
     ///
     /// A server can acknowledge the client's first Initial in the original version before it
@@ -3632,6 +3631,7 @@ impl Connection {
         true
     }
 
+    /// Handle transport parameters received from the peer
     fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
         if Some(self.orig_rem_cid) != params.initial_src_cid
             || (self.side.is_client()
