@@ -17,7 +17,7 @@ exclude = [
 [package.metadata.phantom]
 upstream-package = "tokio-btls"
 upstream-version = "0.5.6"
-upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/ce81167653e2d8878f2e9b2218a15b9bc8351a53"
+upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/c48fddb13539e06fadedfac6039570598ff89864"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
