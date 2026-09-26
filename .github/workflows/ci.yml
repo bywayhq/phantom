@@ -132,13 +132,14 @@ jobs:
 
       - name: Lint Python tooling
         run: |
-          ruff check scripts/capture scripts/conformance scripts/docs
-          ruff format --check scripts/capture scripts/conformance scripts/docs
+          ruff check scripts/capture scripts/conformance scripts/dev scripts/docs
+          ruff format --check scripts/capture scripts/conformance scripts/dev scripts/docs
 
       - name: Test protocol tooling
         run: |
           python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
           python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
+          python -m unittest discover -s scripts/dev/tests -p 'test_*.py'
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@dfae9bf3d6f6c6f20ef4ebb3486c01a51341ff12 # v2.87.18

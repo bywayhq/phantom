@@ -300,7 +300,7 @@ chain_msrv() {
   run_step msrv-rows - feature_rows msrv msrv
 }
 chain_python() {
-  local ruff=(uvx ruff@0.16.8) paths=(scripts/capture scripts/conformance scripts/docs)
+  local ruff=(uvx ruff@0.16.8) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   run_step capture-tests - "${python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
@@ -309,6 +309,8 @@ chain_python() {
     python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
   run_step docs-tests - "${python[@]}" \
     python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
+  run_step dev-tests - "${python[@]}" \
+    python -m unittest discover -s scripts/dev/tests -p 'test_*.py'
   run_step docs-check - "${python[@]}" python scripts/docs/check_docs.py
   run_step tool-pins - bash scripts/ci/check-tool-pins.sh
 }
@@ -320,8 +322,8 @@ if [[ $quick == true ]]; then
   launch run_step docs-check - "${python[@]}" python scripts/docs/check_docs.py
 else
   steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
-    feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests docs-check
-    tool-pins)
+    feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
+    docs-check tool-pins)
   launch chain_tests
   launch chain_lint
   launch chain_msrv

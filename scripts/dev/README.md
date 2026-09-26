@@ -52,7 +52,7 @@ concurrent chains:
 | Lint | `target/gate/lint`, then `target/gate/doc` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
 | Features | `target/gate/features` | The Features job's rows, `cargo check` or `cargo clippy` as the job writes them |
-| Python | none | ruff, the three unittest suites, the docs checker, and the tool-pin check |
+| Python | none | ruff, the four unittest suites, the docs checker, and the tool-pin check |
 
 The feature rows are read from `.github/workflows/ci.yml`, so the gate checks
 the rows CI checks. The gate fails if either job has a `cargo check` or
