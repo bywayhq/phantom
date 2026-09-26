@@ -176,8 +176,9 @@ pub enum TimeoutPhase {
     /// the accepting response is validated.
     ///
     /// This one deadline covers name resolution, proxy setup, TLS, the
-    /// opening request, and its response, as a browser's handshake timer
-    /// does. `WebSocketRequestBuilder::handshake_timeout` sets it, with the
+    /// opening request, and its response, as Chromium's handshake timer
+    /// does; Firefox starts its timer after it resolves the host.
+    /// `WebSocketRequestBuilder::handshake_timeout` sets it, with the
     /// `websocket` feature.
     WebSocketHandshake,
 }

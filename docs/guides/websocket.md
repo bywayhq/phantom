@@ -131,8 +131,8 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
   It applies to every connect unless you set another value;
   `handshake_timeout(None)` removes it. Without a recipe there is no limit.
 - One deadline covers name resolution, proxy setup, TLS, pooled-session
-  admission, the opening request, and its response, as the browsers' timers
-  do. The client's `RequestTimeouts` do not apply.
+  admission, and the opening exchange, as Chromium's timer does; Firefox's
+  starts after it resolves the host. `RequestTimeouts` do not apply.
 - A connect uses the client's profile, route, trust roots, and cookie jar,
   but not its `RetryPolicy`, `RedirectPolicy`, client hints, or Alt-Svc.
 
@@ -163,8 +163,8 @@ async fn open_with_retry(client: &Client) -> Result<(), Box<dyn std::error::Erro
 
 - Retried: a failed name lookup, a failed TCP connect to the origin or
   proxy, and a SOCKS5 proxy that could not connect or resolve. Each attempt
-  sends a fresh `Sec-WebSocket-Key` on the same route and protocol and gets
-  its own handshake timeout.
+  sends a fresh `Sec-WebSocket-Key` on the same route and exact protocol or
+  profile policy, and gets its own handshake timeout.
 - Never retried: TLS failures, proxy authentication or rejection, handshake
   timeouts, and any answer from the server, a `101` or `2xx` that fails the
   handshake checks included. Browsers do not retry an opening, so the

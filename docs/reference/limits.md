@@ -130,7 +130,7 @@ closes, or sends; the last column says which.
 | Request phase and total timeouts | None | Phantom | `RequestTimeouts` | Yes: reset or closed connection |
 | Connection-setup retry delay | No retries | Phantom | `RetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Status retry delay, `Retry-After` cap | No retries | Phantom | `StatusRetry` | Yes: timing of the repeat |
-| WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 156 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection |
+| WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 156 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection, or a stream reset on a pooled H2 session |
 | WebSocket setup retry delay | No retries | Phantom | `WebSocketRetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 156; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
 | Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
