@@ -3,7 +3,7 @@ import ssl
 import unittest
 from pathlib import Path
 
-from aioquic.asyncio import QuicConnectionProtocol, connect
+from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
@@ -25,6 +25,7 @@ from scripts.capture.quic_resumption import (
     render_fixture,
     serving,
 )
+from scripts.capture.tests.loopback_quic import connect_loopback
 
 ROOT = Path(__file__).resolve().parents[3]
 CHROME_CLIENT_HELLO = (
@@ -227,10 +228,9 @@ async def exercise(scenario_name: str) -> RunResult:
             server_name=HOSTNAME,
             verify_mode=ssl.CERT_NONE,
         )
-        async with connect(
-            "127.0.0.1",
+        async with connect_loopback(
             port,
-            configuration=configuration,
+            configuration,
             create_protocol=Client,
             session_ticket_handler=tickets.append,
         ) as client:
@@ -244,10 +244,9 @@ async def exercise(scenario_name: str) -> RunResult:
             verify_mode=ssl.CERT_NONE,
             session_ticket=tickets[-1],
         )
-        async with connect(
-            "127.0.0.1",
+        async with connect_loopback(
             port,
-            configuration=resumed,
+            resumed,
             create_protocol=Client,
             wait_connected=False,
         ) as client:
