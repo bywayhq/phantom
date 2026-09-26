@@ -386,10 +386,11 @@ macro_rules! client_option_setters {
         /// Sets whether a resumed HTTP/3 connection offers early (0-RTT) data,
         /// overriding the profile.
         ///
-        /// Without this call the profile decides: a client offers early data
-        /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154 and
-        /// Edge 153 recipes do, because the captured browsers offer it on every
-        /// resumed connection. `false` turns it off for such a profile; `true`
+        /// Without this call the profile decides, and a session keeps the
+        /// choice of the client it is built from. A client offers early data
+        /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154
+        /// and Edge 153 recipes do, because the captured browsers offer it on
+        /// every resumed connection. `false` turns it off for such a profile; `true`
         /// turns it on for a profile that leaves it unset.
         ///
         /// # Replay

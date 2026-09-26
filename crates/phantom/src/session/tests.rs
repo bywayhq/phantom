@@ -248,7 +248,22 @@ fn session_build_rejects_what_client_build_rejects() -> Result<(), Box<dyn std::
                     AltSvcBrokenBackoff::CHROMIUM_153,
                 ))),
         ),
+        (
+            "an unrepresentable negotiated setup wait limit",
+            client
+                .session_builder()
+                .negotiated_setup_wait_limit(Duration::MAX),
+        ),
     ];
+    #[cfg(feature = "https-records")]
+    let rejected = rejected.into_iter().chain([(
+        "HTTPS record discovery without an Alt-Svc store",
+        client
+            .session_builder()
+            .https_record_discovery(crate::dns::HttpsRecordResolver::from_fn(|_, _| async {
+                Ok(crate::dns::HttpsRecordLookup::new(Vec::new(), None))
+            })),
+    )]);
     for (case, builder) in rejected {
         let error = builder
             .build()
