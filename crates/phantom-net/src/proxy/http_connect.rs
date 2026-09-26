@@ -257,20 +257,25 @@ where
             async move {
                 record_authentication_attempts(attempt, plan.preemptive());
                 if attempt.is_retry() {
-                    let held = challenged
-                        .lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .take();
-                    if let Some(stream) = held {
-                        match replay_on_challenged(stream, &requests.authenticated).await {
-                            Replay::Answered(result) => return result.map(AuthStep::Done),
-                            Replay::Closed => {}
+                    // Boxed: only a `407` leads here, and the replay would
+                    // otherwise enlarge every proxy connection's future.
+                    return Box::pin(async {
+                        let held = challenged
+                            .lock()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .take();
+                        if let Some(stream) = held {
+                            match replay_on_challenged(stream, &requests.authenticated).await {
+                                Replay::Answered(result) => return result.map(AuthStep::Done),
+                                Replay::Closed => {}
+                            }
                         }
-                    }
-                    let stream = connect().await?;
-                    return establish_authenticated(stream, &requests.authenticated)
-                        .await
-                        .map(AuthStep::Done);
+                        let stream = connect().await?;
+                        establish_authenticated(stream, &requests.authenticated)
+                            .await
+                            .map(AuthStep::Done)
+                    })
+                    .await;
                 }
                 let stream = connect().await?;
                 let request = if attempt.sends_credentials() {
