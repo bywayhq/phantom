@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import os
@@ -147,6 +148,28 @@ def firefox_user_js(extra: Sequence[tuple[str, bool | int | str]] = ()) -> str:
         for name, value in (*FIREFOX_PREFERENCES, *extra)
     ]
     return "\n".join(lines) + "\n"
+
+
+def add_browser_switch_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--browser-switch",
+        action="append",
+        default=[],
+        metavar="SWITCH",
+        help="extra Chromium switch, recorded in the launch arguments; "
+        "pass as --browser-switch=--name=value and repeat for more",
+    )
+
+
+def check_browser_switches(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    if not args.browser_switch:
+        return
+    if args.browser not in CHROMIUM_BROWSERS:
+        parser.error("--browser-switch applies to Chromium browsers only")
+    if any(not switch.startswith("--") for switch in args.browser_switch):
+        parser.error("each --browser-switch must start with --")
 
 
 def render_preferences(preferences: Sequence[tuple[str, bool | int | str]]) -> str:
