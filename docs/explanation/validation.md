@@ -4185,7 +4185,7 @@ Against Phantom:
   replay on the same H2 proxy connection, a second `407`, and the HPACK form
   of the forwarded `proxy-authorization` field: absent on the challenged
   request, a literal with incremental indexing on static name 49 on the
-  replay, and an index on the next request.
+  replay, and no field naming static entry 49 on the next request.
   `h2_proxy_basic_challenge_replays_once_on_the_challenged_connection` checks
   that a challenged H2 CONNECT and its replay arrive as streams 1 and 3 of one
   proxy connection.

@@ -476,7 +476,7 @@ async fn h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_cre
         );
         // As in the captures, the replay inserts `proxy-authorization` with
         // incremental indexing on static name 49, and the remembered request
-        // sends the dynamic entry's index.
+        // takes it from the dynamic table.
         let blocks = header_blocks(&record.client_wire)?;
         assert_eq!(blocks.len(), 3);
         assert_proxy_authorization_indexed(&blocks, "chrome")?;
@@ -1507,7 +1507,9 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
 /// Checks the HPACK form of `proxy-authorization` in a challenged request,
 /// its replay, and a request with remembered credentials on one connection:
 /// absent, then a literal with incremental indexing on static name 49, then
-/// an index into the dynamic table. No block carries a never-indexed field.
+/// no field naming static entry 49, so the remembered credential comes from
+/// the dynamic table. No block carries a never-indexed field. The HPACK
+/// replay of the proxy captures pins the exact representation.
 fn assert_proxy_authorization_indexed(blocks: &[&[u8]], label: &str) -> TestResult<()> {
     let [challenged, replay, remembered] = blocks else {
         return Err(format!("{label}: expected three HEADERS blocks").into());
