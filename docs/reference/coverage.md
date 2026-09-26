@@ -226,8 +226,8 @@ Supported:
   life of a connection, so they apply to every field block it sends,
   ordinary requests included, and not only to extended CONNECT. A profile
   that states none of them keeps the encoder's own behavior. Every HEADERS
-  block of the retained Chrome, Edge, Brave, Opera, and Firefox HTTP/2
-  sessions equals the recipe's byte for byte
+  block of the retained Chrome, Edge, Brave, Opera, and Firefox cookie and
+  WebSocket sessions equals the recipe's byte for byte
   ([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.

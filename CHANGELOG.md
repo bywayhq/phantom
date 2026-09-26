@@ -27,8 +27,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   table, and Huffman-codes every string. `chromium::v154_http2` indexes
   every ordinary field, `authorization` and `content-length` included, and
   fields of any size. Every HEADERS block of the retained Chrome, Edge,
-  Brave, Opera, and Firefox HTTP/2 sessions now equals the recipe's byte for
-  byte; before, 24 of 27 Firefox connections differed.
+  Brave, Opera, and Firefox cookie and WebSocket sessions now equals the
+  recipe's byte for byte; before, 24 of 27 Firefox connections differed.
+  Proxy connections still differ in `proxy-authorization`, which Phantom
+  never indexes.
   Migrate: fill the new fields from a recipe with struct update syntax, or
   add `..Http2HpackSettings::default()` to a literal to keep the previous
   encoding.

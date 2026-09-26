@@ -69,8 +69,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   HTTP/2 extended CONNECT with named Chrome, Edge, and Firefox recipes
   ([WebSocket](guides/websocket.md)).
 - Per-browser HPACK encoding: every HEADERS block of the retained Chrome,
-  Edge, Brave, Opera, and Firefox HTTP/2 sessions equals the recipe's byte
-  for byte
+  Edge, Brave, Opera, and Firefox cookie and WebSocket sessions equals the
+  recipe's byte for byte
   ([HPACK encoder evidence](explanation/validation.md#hpack-encoder-evidence)).
 
 ### Remaining
