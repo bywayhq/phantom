@@ -108,6 +108,7 @@ pub struct ServerHandshakeData {
     server_name: Option<String>,
     ech_accepted: bool,
     client_hello: Vec<u8>,
+    session_resumed: bool,
 }
 
 impl ServerHandshakeData {
@@ -130,6 +131,15 @@ impl ServerHandshakeData {
         self.ech_accepted
     }
 
+    /// Returns whether the handshake resumed a session from a ticket.
+    ///
+    /// It is `false` until the handshake completes; read it from the
+    /// established connection.
+    #[must_use]
+    pub const fn session_resumed(&self) -> bool {
+        self.session_resumed
+    }
+
     /// Returns the ClientHello message as the client sent it in its Initial
     /// packets: the outer ClientHello when it offered ECH.
     #[must_use]
@@ -146,6 +156,7 @@ impl fmt::Debug for ServerHandshakeData {
             .field("server_name", &self.server_name)
             .field("ech_accepted", &self.ech_accepted)
             .field("client_hello_len", &self.client_hello.len())
+            .field("session_resumed", &self.session_resumed)
             .finish()
     }
 }
@@ -236,7 +247,13 @@ impl ServerState {
                 server_name: session.server_name(),
                 ech_accepted: session.ech_accepted(),
                 client_hello: self.client_hello.clone(),
+                session_resumed: false,
             });
+        }
+        if session.handshake_complete
+            && let Some(data) = &mut self.handshake_data
+        {
+            data.session_resumed = session.session_reused();
         }
         if self.peer_transport_parameters.is_none() {
             self.peer_transport_parameters = session.peer_transport_parameters()?;
@@ -494,6 +511,11 @@ impl ServerSession {
 
     fn ech_accepted(&self) -> bool {
         self.ssl_ref().ech_accepted()
+    }
+
+    fn session_reused(&self) -> bool {
+        // SAFETY: the SSL is live; the query reads handshake state only.
+        unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) != 0 }
     }
 
     fn peer_transport_parameters(&self) -> Result<Option<Vec<u8>>, TransportError> {
