@@ -118,7 +118,8 @@ When more than one worktree is active, run each Cargo command through
 worktree of this repository shares:
 
 ```sh
-scripts/dev/with-cargo-lock.sh \n  cargo test -p phantom-http --test http3 --locked http3_retries::
+scripts/dev/with-cargo-lock.sh \
+  cargo test -p phantom-http --test http3 --locked http3_retries::
 RUSTDOCFLAGS="-D warnings" scripts/dev/with-cargo-lock.sh \
   cargo doc --workspace --all-features --no-deps --locked
 ```
@@ -218,28 +219,25 @@ The script:
 
 A new file needs an entry in `GROUPS` first. Build the tests with
 `--all-features` and with no features afterwards: a merged file can leave an
-import unused or a support module ungated. The script's own tests run with
-`python -m unittest discover -s scripts/dev/tests -p 'test_*.py'`; one of
-them fails while a grouped crate has a top-level test file.
+import unused or a support module ungated.
+
+The script's own tests run with
+`python -m unittest discover -s scripts/dev/tests -p 'test_*.py'`. The tests
+that run the script to completion need `rustfmt` on `PATH`, which formats
+each generated `main.rs`, and are skipped without it. One test fails while a
+grouped crate has a top-level test file.
 
 ## Disk space
 
-Measured on Windows with the dev profile, which keeps line tables for the
-workspace crates and no debug information for dependencies:
+A clean test build takes about 2.3 GB of `target/`; a full `gate.sh` run
+takes about 9 GB under `target/gate/`.
 
-| After | `target/` size |
-| --- | --- |
-| A clean `cargo test --workspace --all-targets --all-features --no-run` | 2.3 GB |
-| A full `scripts/dev/gate.sh` from a clean checkout, in `target/gate/` | 8.9 GB |
+Cargo never deletes old artifacts, so a long-lived checkout grows with each
+dependency update, toolchain, profile, and feature set.
 
-Cargo never deletes old artifacts. Each toolchain, profile, and feature set
-keeps its own build of the dependencies, BoringSSL alone taking 300 MB per
-build, so a long-lived checkout grows with every dependency update and
-toolchain change.
-
-IDEs run their own `cargo check` with incremental compilation on, because
-`CARGO_INCREMENTAL=0` applies only to commands run through the lock helper.
-Their incremental data lives in `target/debug/incremental`.
+IDEs run their own `cargo check` with incremental compilation on. Their
+incremental data lives in `target/debug/incremental`. `CARGO_INCREMENTAL=0`
+applies only to commands run through the lock helper.
 
 To reclaim space:
 
