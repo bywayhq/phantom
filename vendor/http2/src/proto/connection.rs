@@ -348,10 +348,13 @@ where
                             let complete = self.inner.streams.poll_complete(cx, &mut self.codec)?;
 
                             // Checked only once nothing more can be read, so
-                            // a frame already received still counts as a
-                            // read, and after the send path, which queues the
-                            // PING, even when writing is blocked.
+                            // a frame already received counts as a read, and
+                            // after the send path, which queues the PING. It
+                            // is skipped while writing is blocked, because
+                            // poll2 then reads nothing either; it resumes once
+                            // the codec drains.
                             if self.preface_ping
+                                && complete.is_ready()
                                 && self.inner.streams.poll_preface_ping_timeout(cx).is_ready()
                             {
                                 tracing::debug!("preface PING unanswered; closing connection");

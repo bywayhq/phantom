@@ -161,8 +161,9 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 /// Creates the sleeps that bound how long a preface PING may go unanswered.
 ///
 /// The function receives a duration and returns a future that completes once
-/// that duration has passed. The connection never reads a clock through it,
-/// so any timer works, whatever the runtime.
+/// that duration has passed. The connection measures the PING timeout only
+/// with these sleeps and reads no clock for it, so the timer may run on any
+/// runtime, or on none.
 #[derive(Clone)]
 pub struct PingTimer {
     sleep: Arc<dyn Fn(Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>,
@@ -1121,13 +1122,16 @@ impl Builder {
     /// Closes the connection when a preface PING is unanswered and nothing
     /// has been read from the peer for `timeout`.
     ///
-    /// The time runs from when the PING was queued or from the last frame
-    /// read, whichever is later, so any frame read restarts it; only the ACK
-    /// ends it. When it runs out, the connection sends GOAWAY with last
-    /// stream ID 0, `PROTOCOL_ERROR`, and the debug data `Failed ping.`,
-    /// then closes. Every open stream, and every later request, fails with an
-    /// error whose [`is_ping_timeout`](crate::Error::is_ping_timeout) is
-    /// `true`. `timer` measures the time.
+    /// A sleep of `timeout` from `timer` starts once the PING is queued and
+    /// the connection is not blocked on writing. If it ends with no frame
+    /// read since the PING was queued or the previous sleep ended, the PING
+    /// has failed; otherwise another sleep starts. The connection therefore
+    /// closes one to two timeouts after the last frame read, and only the ACK
+    /// stops the sleeps. When the PING fails, the connection sends GOAWAY
+    /// with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
+    /// `Failed ping.`, then closes. Every open stream, and every later
+    /// request, fails with an error whose
+    /// [`is_ping_timeout`](crate::Error::is_ping_timeout) is `true`.
     ///
     /// This has no effect unless [`preface_ping`](Builder::preface_ping) is
     /// set. By default an unanswered PING never closes the connection.

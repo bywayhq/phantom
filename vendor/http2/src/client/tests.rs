@@ -1399,7 +1399,8 @@ async fn a_frame_read_restarts_the_preface_ping_timeout() {
         let go_away = read_raw_frame(&mut peer).await;
         let waited = ping_read.elapsed();
         assert_eq!(go_away.kind, 7);
-        // 3 s after the PING without the read, 5 s after it with the read.
+        // 3 s after the PING without the read. With it, the first sleep ends
+        // after a read, and a second one ends 6 s after the PING.
         assert!(
             waited >= Duration::from_secs(4) && waited < Duration::from_secs(8),
             "GOAWAY after {waited:?}"
@@ -1434,6 +1435,59 @@ async fn an_acknowledged_preface_ping_keeps_the_connection() {
     })
     .await
     .expect("acknowledged preface PING test timed out");
+}
+
+#[tokio::test]
+async fn preface_ping_timeout_waits_while_writing_is_blocked() {
+    timeout(Duration::from_secs(20), async {
+        let (client_io, mut peer) = duplex(4096);
+        let mut builder = super::Builder::new();
+        builder.preface_ping(PREFACE_IDLE).preface_ping_timeout(
+            Duration::from_secs(1),
+            super::PingTimer::new(|duration| Box::pin(tokio::time::sleep(duration))),
+        );
+        let (mut sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        accept_client_handshake(&mut peer).await;
+
+        tokio::time::sleep(PAST_PREFACE_IDLE).await;
+        poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect("sender never became ready");
+        let (_response, mut body) = sender
+            .send_request(data_budget_request(), false)
+            .expect("request was rejected");
+        body.send_data(Bytes::from(vec![0x61; 60_000]), true)
+            .expect("data was rejected");
+
+        // The body fills the pipe, so the client cannot write, nor read the
+        // ACK, for three timeouts; its timeout must not run meanwhile.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let (_, ping) = read_headers_and_next_frame(&mut peer).await;
+        assert_eq!((ping.kind, ping.flags), (6, 0));
+        write_raw_frame(&mut peer, 6, 1, 0, &ping.payload).await;
+        loop {
+            let frame = read_raw_frame(&mut peer).await;
+            assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+            if frame.kind == 0 && frame.flags & 0x1 != 0 {
+                break;
+            }
+        }
+        write_raw_frame(&mut peer, 6, 0, 0, b"probe!!!").await;
+        loop {
+            let frame = read_raw_frame(&mut peer).await;
+            assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+            if frame.kind == 6 && frame.payload == b"probe!!!" {
+                break;
+            }
+        }
+        driver.abort();
+    })
+    .await
+    .expect("write-blocked preface PING timeout test timed out");
 }
 
 /// Skips connection-level frames until request HEADERS, and returns them with

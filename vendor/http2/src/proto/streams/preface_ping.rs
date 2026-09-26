@@ -18,20 +18,23 @@ use std::time::{Duration, Instant};
 /// acknowledgements included. The first PING carries the big-endian 64-bit value 1 and each
 /// later one the next value. The ACK is matched by payload.
 ///
-/// With a timeout, a PING in flight expires once nothing has been read for
-/// the timeout since the later of its queueing and the last read. This is
-/// the deadline Chromium's `SpdySession::CheckPingStatus` enforces: its
-/// first check runs a timeout after the PING, and each later one a timeout
-/// after the last read.
+/// With a timeout, a PING in flight expires when a sleep of the timeout,
+/// taken from the caller's timer, ends with no frame read since it was armed.
+/// A sleep that ends after a read re-arms for another timeout, so expiry
+/// comes one to two timeouts after the last read. Only the caller's sleeps
+/// measure this time; the idle time above uses the system clock.
 pub(super) struct PrefacePing {
     idle: Duration,
     last_read: Instant,
+    /// Frames read so far, wrapping.
+    reads: u64,
     next_payload: u64,
     in_flight: Option<[u8; 8]>,
     due: Option<[u8; 8]>,
     timeout: Option<(Duration, PingTimer)>,
-    /// When the PING in flight was queued, until it expires or is answered.
-    queued_at: Option<Instant>,
+    /// `reads` when the timeout was last armed, while a PING is unanswered
+    /// and has not expired.
+    armed_at_read: Option<u64>,
     sleep: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
 }
 
@@ -47,7 +50,8 @@ impl fmt::Debug for PrefacePing {
                 "timeout",
                 &self.timeout.as_ref().map(|(timeout, _)| timeout),
             )
-            .field("queued_at", &self.queued_at)
+            .field("reads", &self.reads)
+            .field("armed_at_read", &self.armed_at_read)
             .finish_non_exhaustive()
     }
 }
@@ -57,11 +61,12 @@ impl PrefacePing {
         PrefacePing {
             idle,
             last_read: Instant::now(),
+            reads: 0,
             next_payload: 1,
             in_flight: None,
             due: None,
             timeout,
-            queued_at: None,
+            armed_at_read: None,
             sleep: None,
         }
     }
@@ -70,10 +75,11 @@ impl PrefacePing {
     /// acknowledgement of the PING in flight, which this consumes.
     pub(super) fn recv_frame(&mut self, now: Instant, ack: Option<&[u8; 8]>) -> bool {
         self.last_read = now;
+        self.reads = self.reads.wrapping_add(1);
         match ack {
             Some(payload) if self.in_flight.as_ref() == Some(payload) => {
                 self.in_flight = None;
-                self.queued_at = None;
+                self.armed_at_read = None;
                 self.sleep = None;
                 true
             }
@@ -101,36 +107,34 @@ impl PrefacePing {
         self.next_payload = self.next_payload.wrapping_add(1);
         self.in_flight = Some(payload);
         self.due = Some(payload);
-        self.queued_at = Some(now);
+        if self.timeout.is_some() {
+            self.armed_at_read = Some(self.reads);
+        }
     }
 
-    /// Returns `Ready` once, when the PING in flight has waited the timeout
-    /// with nothing read. Without a timeout it never does.
+    /// Returns `Ready` once, when a sleep of the timeout ends with no frame
+    /// read since the timeout was armed. Without a timeout it never does.
     pub(super) fn poll_timeout(&mut self, cx: &mut Context) -> Poll<()> {
         let (timeout, timer) = match &self.timeout {
             Some((timeout, timer)) => (*timeout, timer),
             None => return Poll::Pending,
         };
         loop {
-            let quiet_since = match self.queued_at {
-                Some(queued_at) => queued_at.max(self.last_read),
+            let armed_at_read = match self.armed_at_read {
+                Some(reads) => reads,
                 None => return Poll::Pending,
             };
-            let quiet = Instant::now().saturating_duration_since(quiet_since);
-            if quiet >= timeout {
-                self.queued_at = None;
-                self.sleep = None;
-                return Poll::Ready(());
-            }
-            // A read since the sleep started moves the deadline later, so an
-            // elapsed sleep only means the deadline is checked again.
-            let sleep = self
-                .sleep
-                .get_or_insert_with(|| timer.sleep(timeout - quiet));
+            let sleep = self.sleep.get_or_insert_with(|| timer.sleep(timeout));
             if sleep.as_mut().poll(cx).is_pending() {
                 return Poll::Pending;
             }
             self.sleep = None;
+            if self.reads == armed_at_read {
+                self.armed_at_read = None;
+                return Poll::Ready(());
+            }
+            // A frame was read during the sleep: wait another timeout.
+            self.armed_at_read = Some(self.reads);
         }
     }
 
@@ -141,5 +145,57 @@ impl PrefacePing {
     /// Takes the PING due after the last request frame, if any.
     pub(super) fn take_due(&mut self) -> Option<Ping> {
         self.due.take().map(Ping::new)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::task::Waker;
+
+    const PAYLOAD: [u8; 8] = 1_u64.to_be_bytes();
+
+    /// A preface PING in flight, as `sent` leaves it, timed by `timer`.
+    fn in_flight(timer: PingTimer) -> PrefacePing {
+        let mut preface_ping =
+            PrefacePing::new(Duration::ZERO, Some((Duration::from_secs(10), timer)));
+        preface_ping.in_flight = Some(PAYLOAD);
+        preface_ping.armed_at_read = Some(preface_ping.reads);
+        preface_ping
+    }
+
+    fn poll(preface_ping: &mut PrefacePing) -> Poll<()> {
+        preface_ping.poll_timeout(&mut Context::from_waker(Waker::noop()))
+    }
+
+    fn elapsed_timer() -> PingTimer {
+        PingTimer::new(|_| Box::pin(std::future::ready(())))
+    }
+
+    #[test]
+    fn timeout_follows_the_timer_not_the_clock() {
+        let mut waiting = in_flight(PingTimer::new(|_| Box::pin(std::future::pending())));
+        waiting.last_read = Instant::now() - Duration::from_secs(60);
+        assert!(poll(&mut waiting).is_pending());
+
+        let mut elapsed = in_flight(elapsed_timer());
+        assert!(poll(&mut elapsed).is_ready());
+        assert!(poll(&mut elapsed).is_pending(), "expiry is reported once");
+    }
+
+    #[test]
+    fn a_read_during_a_sleep_arms_another() {
+        let mut preface_ping = in_flight(elapsed_timer());
+        preface_ping.recv_frame(Instant::now(), None);
+        // The first sleep saw a read, so a second one runs; it sees none.
+        assert!(poll(&mut preface_ping).is_ready());
+        assert_eq!(preface_ping.armed_at_read, None);
+    }
+
+    #[test]
+    fn the_ack_disarms_the_timeout() {
+        let mut preface_ping = in_flight(elapsed_timer());
+        assert!(preface_ping.recv_frame(Instant::now(), Some(&PAYLOAD)));
+        assert!(poll(&mut preface_ping).is_pending());
     }
 }

@@ -623,8 +623,9 @@ status check it schedules 10 seconds after each PING before it sends another;
 with `idle` at 10 seconds that wait ends before the idle time can pass again,
 because the ACK is itself a read. Without the timeout below, an unanswered
 PING leaves the connection open and no further preface PING is sent on it.
-The default sends no PING, and servers never set it. The patch adds `src/proto/streams/preface_ping.rs` and changes
-`src/client.rs`, `src/server.rs`, `src/proto/connection.rs`, and
+The default sends no PING, and servers never set it. The patch adds
+`src/proto/streams/preface_ping.rs` and changes `src/client.rs`,
+`src/server.rs`, `src/proto/connection.rs`, and
 `src/proto/streams/{counts,mod,prioritize,send,streams}.rs`. Its regressions
 in `src/client/tests.rs` use a 1 s idle time against a raw peer: no PING after
 the first request, PING 1 right after HEADERS once 1.5 s pass without a read,
@@ -664,17 +665,26 @@ tag `154.0.8037.58` and the quiche revision it pins:
 
 `ping-timeout.patch` adds the client builder option
 `preface_ping_timeout(timeout, timer)` and the public `client::PingTimer`,
-which wraps a function returning a sleep future, so the crate reads no
-runtime clock. It applies only to the preface PING. Its time runs from when
-the PING becomes due, right after its request frame, or from the last frame
-read, whichever is later; the connection measures reads per frame, not per
-socket read. When the time runs out, the connection sends
+which wraps a function returning a sleep future. It applies only to the
+preface PING, and only those sleeps measure it; the crate reads no clock for
+it. Queueing the PING arms the timeout with the count of frames read so far.
+A sleep of `timeout` then starts, and when it ends, the PING has failed if no
+frame was read since arming; otherwise the timeout re-arms and another sleep
+starts. Chromium instead checks again exactly `hung_interval_` after the last
+read, so this connection closes one to two timeouts after the last frame
+read where Chromium closes one timeout after it. Reads are counted per frame,
+not per socket read.
+
+When the PING fails, the connection sends
 `GOAWAY(0, PROTOCOL_ERROR, "Failed ping.")`, fails every stream with that
 library error, and closes, and later requests fail with it too.
-`http2::Error::is_ping_timeout` identifies it. The connection checks the time
-only when it can read no further frame, so a frame already received counts as
-a read. The connection future still ends with the error without debug data,
-as it does for every library GOAWAY.
+`http2::Error::is_ping_timeout` identifies it. The connection checks the
+timeout only when it can read no further frame, so a frame already received
+counts as a read. It does not check, or start a sleep, while writing is
+blocked, because the connection then reads nothing either; a peer that stops
+reading is not treated as one that stopped answering. The connection future
+still ends with the error without debug data, as it does for every library
+GOAWAY.
 
 The patch changes `src/client.rs`, `src/error.rs`, `src/server.rs`,
 `src/proto/{connection,error,mod}.rs`, and
@@ -683,8 +693,13 @@ Its regressions in `src/client/tests.rs` use a 1 s idle time and a Tokio
 sleep: a PING unanswered for 2 s brings that GOAWAY and the end of the byte
 stream between 1 s and 4 s after the peer reads the PING, and the open
 request, a later request, and the connection report the error; a WINDOW_UPDATE
-2 s into a 3 s timeout delays the GOAWAY to between 4 s and 8 s; and an
-acknowledged PING leaves the connection working 2 s past a 1 s timeout.
+2 s into a 3 s timeout delays the GOAWAY to between 4 s and 8 s; an
+acknowledged PING leaves the connection working 2 s past a 1 s timeout; and a
+peer that reads nothing for 3 s while a 60,000-byte body fills the pipe, then
+drains it and sends the ACK, sees no GOAWAY under a 1 s timeout. Unit tests in
+`src/proto/streams/preface_ping.rs` drive the state with sleeps that end at
+once or never: expiry follows the sleep, not the clock, a read during a sleep
+arms another, and the ACK disarms the timeout.
 
 ## Refreshing the vendor copy
 
