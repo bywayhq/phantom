@@ -1,0 +1,19 @@
+# cargo-nextest settings for the workspace. scripts/dev/gate.sh and CI run the
+# workspace tests with nextest; doctests still run with `cargo test --doc`.
+#
+# nextest runs every test in its own process, so tests cannot share a tracing
+# dispatcher, callsite interest cache, or other process-wide state, and loopback
+# servers bind port 0 or hold a ReservedPort. No test needs a serial group.
+nextest-version = { recommended = "0.9.140" }
+
+[profile.default]
+# A retried pass hides a flaky test; fix or report it instead.
+retries = 0
+# The slowest test takes about 7 seconds on a loaded Windows host, mostly
+# refused loopback connects that Windows answers after about 2 seconds.
+# Report a test after 30 seconds and stop it after 2 minutes.
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+[profile.ci]
+fail-fast = false
+failure-output = "immediate-final"
