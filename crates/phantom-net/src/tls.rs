@@ -27,11 +27,15 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
 use tracing::{Instrument, Span, debug, debug_span, field};
 
+pub use self::client_certificate::{
+    ClientCertificate, ClientCertificateError, ClientCertificateErrorKind,
+};
 use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
 use self::session_cache::TlsSessionCache;
 
+mod client_certificate;
 mod compression;
 mod configuration;
 #[cfg(feature = "keylog")]
@@ -77,6 +81,7 @@ pub(crate) struct TlsConnector {
     session_tickets_per_origin: u8,
     session_ticket_extension_when_resuming: bool,
     session_cache: Option<TlsSessionCache>,
+    client_certificate: Option<ClientCertificate>,
     #[cfg(feature = "keylog")]
     key_log: key_log::KeyLogSlot,
 }
@@ -101,6 +106,7 @@ impl fmt::Debug for TlsConnector {
             .field("ech_grease", &self.ech_grease)
             .field("ech_grease_payload_length", &self.ech_grease_payload_length)
             .field("ech_grease_aeads", &self.ech_grease_aeads)
+            .field("client_certificate", &self.client_certificate.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -185,6 +191,21 @@ impl TlsConnector {
         connector.session_cache = self
             .scoped_sessions_enabled
             .then(|| TlsSessionCache::new(self.session_tickets_per_origin));
+        connector
+    }
+
+    /// Returns a clone that presents `certificate` when a server requests
+    /// client authentication.
+    ///
+    /// The clone gets an empty session cache of its own when this connector
+    /// has one, so a session authenticated with the certificate is never
+    /// resumed by a connector without it, or the reverse.
+    pub(crate) fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
+        let mut connector = self.with_isolated_session_cache();
+        if self.session_cache.is_none() {
+            connector.session_cache = None;
+        }
+        connector.client_certificate = Some(certificate.clone());
         connector
     }
 
@@ -344,6 +365,7 @@ impl TlsConnector {
             session_tickets_per_origin: settings.session_tickets_per_origin,
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
             session_cache: None,
+            client_certificate: None,
             #[cfg(feature = "keylog")]
             key_log,
         })
@@ -503,6 +525,12 @@ impl TlsConnector {
                     .into_ssl(server_name)
                     .map_err(|error| TlsError::backend("server_name", error))?
             };
+            let mut ssl = ssl;
+            if let Some(certificate) = &self.client_certificate {
+                certificate
+                    .apply(&mut ssl)
+                    .map_err(|error| TlsError::backend("client_certificate", error))?;
+            }
             let mut stream = BoringStream::new(ssl, stream)
                 .map_err(|error| TlsError::backend("stream", error))?;
             if let Err(error) = Pin::new(&mut stream).connect().await {

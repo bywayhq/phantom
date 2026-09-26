@@ -8,7 +8,10 @@ use std::{
 use phantom_profile::TcpSettings;
 use tokio::net::TcpStream;
 
-use crate::host_resolver::{HostResolver, resolve};
+use crate::{
+    host_resolver::{HostResolver, resolve},
+    source_binding::SourceBinding,
+};
 
 const TOKIO_IO_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.";
 
@@ -20,15 +23,17 @@ pub(crate) enum DirectConnectError {
     Connect(std::io::Error),
 }
 
-/// How a connector opens its TCP connections: the profile's socket options
-/// and the client's host resolver.
+/// How a connector opens its TCP connections: the profile's socket options,
+/// the caller's source binding, and the client's host resolver.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Dialer<'a> {
     pub(crate) tcp: Option<TcpSettings>,
+    pub(crate) source: Option<&'a SourceBinding>,
     pub(crate) resolver: Option<&'a HostResolver>,
 }
 
-/// Opens one TCP connection, applying the connector's profile socket options.
+/// Opens one TCP connection, applying the connector's profile socket options
+/// and source binding.
 ///
 /// `host` is resolved through the dialer's host resolver when it has one.
 /// Without profile options the socket keeps its operating-system defaults and
@@ -39,16 +44,16 @@ pub(crate) async fn connect_tcp(
     dialer: Dialer<'_>,
 ) -> Result<TcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    let stream = match dialer.tcp {
-        Some(settings) => {
-            poll_tokio_io(|| crate::tcp::connect(host, port, settings, dialer.resolver)).await
-        }
-        None => {
+    let stream = match (dialer.tcp, dialer.source) {
+        (None, None) => {
             poll_tokio_io(|| async {
                 let addresses = resolve(dialer.resolver, host, port).await?;
                 TcpStream::connect(&*addresses).await
             })
             .await
+        }
+        (tcp, source) => {
+            poll_tokio_io(|| crate::tcp::connect(host, port, tcp, source, dialer.resolver)).await
         }
     }
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
@@ -127,7 +132,7 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
             _ = deadline => None,
         }
     };
-    let connect = connect_addresses(addresses, dialer.tcp);
+    let connect = connect_addresses(addresses, dialer);
     let (stream, result) = tokio::try_join!(connect, async {
         Ok::<_, DirectConnectError>(bounded_lookup.await)
     })?;
@@ -140,10 +145,10 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
 #[cfg(feature = "https-records")]
 pub(crate) async fn connect_tcp_address(
     address: std::net::SocketAddr,
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
 ) -> Result<TcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    connect_addresses(vec![address], tcp).await
+    connect_addresses(vec![address], dialer).await
 }
 
 /// Why a direct TLS connection that could offer Encrypted Client Hello failed.
@@ -201,7 +206,7 @@ pub(crate) async fn connect_tls_with_ech(
                 retry_configs = retry_configs.is_some(),
                 "server rejected ECH; connecting once more"
             );
-            let stream = connect_tcp_address(address, dialer.tcp)
+            let stream = connect_tcp_address(address, dialer)
                 .await
                 .map_err(DirectTlsError::Direct)?;
             tls.connect_with_ech(server_name, stream, retry_configs.as_deref())
@@ -215,11 +220,15 @@ pub(crate) async fn connect_tls_with_ech(
 #[cfg(feature = "https-records")]
 async fn connect_addresses(
     addresses: Vec<std::net::SocketAddr>,
-    tcp: Option<TcpSettings>,
+    dialer: Dialer<'_>,
 ) -> Result<TcpStream, DirectConnectError> {
-    let stream = match tcp {
-        Some(settings) => poll_tokio_io(|| crate::tcp::connect_resolved(addresses, settings)).await,
-        None => poll_tokio_io(|| async move { TcpStream::connect(&addresses[..]).await }).await,
+    let stream = match (dialer.tcp, dialer.source) {
+        (None, None) => {
+            poll_tokio_io(|| async move { TcpStream::connect(&addresses[..]).await }).await
+        }
+        (tcp, source) => {
+            poll_tokio_io(|| crate::tcp::connect_resolved(addresses, tcp, source)).await
+        }
     }
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;

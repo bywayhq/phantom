@@ -24,7 +24,8 @@ use crate::{
         ProxyCredentialCache, Socks5Auth, Socks5Error, http_connect_tunnel,
         http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
-    tls::{TlsConnector, TlsError, trace_alpn},
+    source_binding::SourceBinding,
+    tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
 };
 
 pub use crate::tls::EchFailure;
@@ -218,6 +219,7 @@ pub struct Http1Or2TlsConnector {
     tls: TlsConnector,
     http2: Http2Settings,
     tcp: Option<TcpSettings>,
+    source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
     proxy_credentials: Option<ProxyCredentialCache>,
 }
@@ -232,6 +234,7 @@ impl Http1Or2TlsConnector {
             tls: TlsConnector::new(tls)?,
             http2: http2.clone(),
             tcp: None,
+            source: None,
             host_resolver: None,
             proxy_credentials: None,
         })
@@ -248,6 +251,7 @@ impl Http1Or2TlsConnector {
             tls: TlsConnector::new_with_additional_roots(tls, roots)?,
             http2: http2.clone(),
             tcp: None,
+            source: None,
             host_resolver: None,
             proxy_credentials: None,
         })
@@ -271,6 +275,7 @@ impl Http1Or2TlsConnector {
             tls: connector.tls_connector().clone(),
             http2: connector.settings().clone(),
             tcp: connector.tcp_settings().copied(),
+            source: connector.source_binding().cloned(),
             host_resolver: connector.host_resolver().cloned(),
             proxy_credentials: connector.proxy_credential_cache().cloned(),
         })
@@ -283,6 +288,7 @@ impl Http1Or2TlsConnector {
             tls: self.tls.with_isolated_session_cache(),
             http2: self.http2.clone(),
             tcp: self.tcp,
+            source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
@@ -321,6 +327,38 @@ impl Http1Or2TlsConnector {
         self.tcp.as_ref()
     }
 
+    /// Binds every TCP socket this connector opens as `binding` says.
+    ///
+    /// The binding covers direct origin connections and connections to HTTP
+    /// and SOCKS5 proxies. An HTTPS proxy connection uses the binding of the
+    /// [`HttpsProxyConnector`] passed with it. An invalid binding fails each
+    /// connection attempt with [`std::io::ErrorKind::InvalidInput`] before
+    /// any DNS or socket I/O; see [`SourceBinding::validate`].
+    #[must_use]
+    pub fn with_source_binding(mut self, binding: SourceBinding) -> Self {
+        self.source = Some(binding);
+        self
+    }
+
+    /// Returns the source binding applied to new connections, if any.
+    #[must_use]
+    pub fn source_binding(&self) -> Option<&SourceBinding> {
+        self.source.as_ref()
+    }
+
+    /// Presents `certificate` on every TLS connection to an origin whose
+    /// server requests client authentication.
+    ///
+    /// The ClientHello does not change. A proxy connection never presents
+    /// it. The connector gets an empty TLS session cache of its own, so a
+    /// session authenticated with the certificate is resumed only by
+    /// connectors that present it.
+    #[must_use]
+    pub fn with_client_certificate(mut self, certificate: &ClientCertificate) -> Self {
+        self.tls = self.tls.with_client_certificate(certificate);
+        self
+    }
+
     /// Resolves host names through `resolver` instead of asking the operating
     /// system for every connection.
     ///
@@ -344,6 +382,7 @@ impl Http1Or2TlsConnector {
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
+            source: self.source.as_ref(),
             resolver: self.host_resolver.as_ref(),
         }
     }

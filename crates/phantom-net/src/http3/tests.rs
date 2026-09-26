@@ -354,7 +354,7 @@ async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
     let first = super::endpoint(
         remote,
         Arc::clone(&client),
-        super::ConnectionDiagnostics {
+        super::ConnectionOptions {
             qlog: Some(capture.clone()),
             ..Default::default()
         },
@@ -363,7 +363,7 @@ async fn rejects_reusing_a_qlog_capture_as_configuration() -> TestResult<()> {
     let error = match super::endpoint(
         remote,
         client,
-        super::ConnectionDiagnostics {
+        super::ConnectionOptions {
             qlog: Some(capture.clone()),
             ..Default::default()
         },
@@ -545,7 +545,7 @@ async fn send_request_head(
         client,
         settings,
         request,
-        super::ConnectionDiagnostics::default(),
+        super::ConnectionOptions::default(),
     )
     .await
 }

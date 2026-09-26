@@ -37,7 +37,8 @@ use crate::{
         associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
     },
     request::{RequestBody, RequestBodyMetadata},
-    tls::{EchFailure, TlsConnector, TlsError, TlsErrorKind},
+    source_binding::SourceBinding,
+    tls::{ClientCertificate, EchFailure, TlsConnector, TlsError, TlsErrorKind},
 };
 
 type BoxError = Box<dyn StdError + Send + Sync>;
@@ -53,6 +54,7 @@ pub struct Http3Connector {
     max_udp_payload_size: u64,
     identity: Arc<()>,
     tcp: Option<TcpSettings>,
+    source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
     #[cfg(feature = "keylog")]
     key_log: crate::tls::key_log::KeyLogSlot,
@@ -150,6 +152,7 @@ impl Http3Connector {
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
             tcp: None,
+            source: None,
             host_resolver: None,
             #[cfg(feature = "keylog")]
             key_log,
@@ -298,6 +301,7 @@ impl Http3Connector {
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
             tcp: self.tcp,
+            source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
             #[cfg(feature = "keylog")]
             key_log: self.key_log.clone(),
@@ -376,9 +380,50 @@ impl Http3Connector {
         self.host_resolver.as_ref()
     }
 
+    /// Returns a clone that binds every socket it opens as `binding` says.
+    ///
+    /// The binding covers the UDP socket of a direct QUIC connection and the
+    /// TCP control connection and UDP socket of a SOCKS5 association. A
+    /// CONNECT-UDP tunnel uses the binding of the proxy connector passed
+    /// with it, [`HttpsProxyConnector`] or another `Http3Connector`, for its
+    /// proxy leg. Resolved addresses of a family the binding has no address
+    /// for are skipped. An invalid binding fails each connection attempt with
+    /// an endpoint error before any socket I/O; see
+    /// [`SourceBinding::validate`]. The clone shares this connector's ticket
+    /// cache and identity, as [`Self::with_host_resolver`] does.
+    #[must_use]
+    pub fn with_source_binding(&self, binding: SourceBinding) -> Self {
+        let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
+        connector.source = Some(binding);
+        connector
+    }
+
+    /// Returns the source binding applied to new connections, if any.
+    #[must_use]
+    pub fn source_binding(&self) -> Option<&SourceBinding> {
+        self.source.as_ref()
+    }
+
+    /// Returns a clone that presents `certificate` on every QUIC connection
+    /// whose server requests client authentication.
+    ///
+    /// The ClientHello does not change. The clone shares this connector's
+    /// identity but gets an empty ticket cache of its own, so a session
+    /// authenticated with the certificate is resumed only by connectors that
+    /// present it.
+    #[must_use]
+    pub fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
+        let (leaf, chain, private_key) = certificate.parts();
+        self.with_crypto(
+            self.crypto
+                .with_client_certificate(leaf, chain, private_key),
+        )
+    }
+
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
+            source: self.source.as_ref(),
             resolver: self.host_resolver.as_ref(),
         }
     }
@@ -407,8 +452,9 @@ impl Http3Connector {
 
     // Without `qlog`, every remaining field is named, so the update is empty.
     #[cfg_attr(not(feature = "qlog"), expect(clippy::needless_update))]
-    fn diagnostics(&self) -> super::ConnectionDiagnostics {
-        super::ConnectionDiagnostics {
+    fn connection_options(&self) -> super::ConnectionOptions {
+        super::ConnectionOptions {
+            source: self.source.clone(),
             #[cfg(feature = "qlog")]
             qlog_dir: self.qlog_dir.clone(),
             #[cfg(test)]
@@ -421,7 +467,7 @@ impl Http3Connector {
             gate_delay: self.gate_delay.clone(),
             #[cfg(test)]
             early_race: self.early_race.clone(),
-            ..super::ConnectionDiagnostics::default()
+            ..super::ConnectionOptions::default()
         }
     }
 
@@ -737,7 +783,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
-                self.diagnostics(),
+                self.connection_options(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -1085,7 +1131,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
-                self.diagnostics(),
+                self.connection_options(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -1164,7 +1210,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
-                self.diagnostics(),
+                self.connection_options(),
             )
             .await
             .map_err(Http3ConnectorError::transaction)
@@ -1468,6 +1514,25 @@ impl Http3Connector {
         crypto: Arc<QuicClientConfig>,
         path_mtu: Option<u16>,
     ) -> Result<Http3Connection, Http3Error> {
+        let addresses = match &self.source {
+            Some(source) => {
+                source.validate().map_err(|error| {
+                    Http3Error::with_source(
+                        Http3ErrorKind::Endpoint,
+                        "invalid source binding",
+                        error,
+                    )
+                })?;
+                source.usable_addresses(addresses).map_err(|error| {
+                    Http3Error::with_source(
+                        Http3ErrorKind::Connect,
+                        "no resolved HTTP/3 address has a family the source binding covers",
+                        error,
+                    )
+                })?
+            }
+            None => addresses,
+        };
         let mut addresses = addresses.into_iter();
         let Some(mut remote) = addresses.next() else {
             return Err(Http3Error::without_source(
@@ -1483,7 +1548,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 path_mtu,
-                self.diagnostics(),
+                self.connection_options(),
             )
             .await
             {
@@ -1529,7 +1594,7 @@ impl Http3Connector {
                 &self.settings,
                 Arc::clone(&self.identity),
                 socket,
-                self.diagnostics(),
+                self.connection_options(),
             )
             .await
             {

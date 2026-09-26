@@ -33,7 +33,7 @@ async fn connected_socket_carries_requested_options() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
 
-    let stream = connect("127.0.0.1", port, chromium_like(), None).await?;
+    let stream = connect("127.0.0.1", port, Some(chromium_like()), None, None).await?;
     let socket = SockRef::from(&stream);
 
     assert!(socket.tcp_nodelay()?);
@@ -57,7 +57,7 @@ async fn racing_reaches_ipv4_when_nothing_listens_on_ipv6() -> TestResult {
     // unavailable) or is still pending when the fallback attempt reaches IPv4.
     let fallback = tokio::time::sleep(Duration::from_millis(300));
     let stream = race(vec![ipv4, ipv6], fallback, |address| {
-        connect_address(address, settings)
+        connect_address(address, Some(settings), None)
     })
     .await?;
 
@@ -71,7 +71,7 @@ async fn connect_races_resolved_names() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
 
-    let stream = connect("127.0.0.1", port, chromium_like(), None).await?;
+    let stream = connect("127.0.0.1", port, Some(chromium_like()), None, None).await?;
 
     assert_eq!(stream.peer_addr()?, listener.local_addr()?);
     Ok(())
@@ -198,7 +198,7 @@ async fn settings_that_ask_for_nothing_keep_os_defaults() -> TestResult {
         address_racing: None,
     };
 
-    let stream = connect("127.0.0.1", port, settings, None).await?;
+    let stream = connect("127.0.0.1", port, Some(settings), None, None).await?;
     let socket = SockRef::from(&stream);
 
     assert!(!socket.tcp_nodelay()?);
@@ -219,7 +219,7 @@ async fn invalid_settings_fail_before_any_connection() -> TestResult {
         address_racing: None,
     };
 
-    let error = match connect("127.0.0.1", port, settings, None).await {
+    let error = match connect("127.0.0.1", port, Some(settings), None, None).await {
         Ok(_) => return Err("invalid keepalive was applied".into()),
         Err(error) => error,
     };
@@ -244,7 +244,7 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
         address_racing: None,
     };
 
-    let error = match connect("127.0.0.1", port, settings, None).await {
+    let error = match connect("127.0.0.1", port, Some(settings), None, None).await {
         Ok(_) => return Err("keepalive without an interval was applied".into()),
         Err(error) => error,
     };

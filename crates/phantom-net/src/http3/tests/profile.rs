@@ -268,7 +268,7 @@ async fn capture_seeded_control_stream(
     let client_endpoint = super::super::endpoint(
         address,
         std::sync::Arc::clone(&crypto),
-        super::super::ConnectionDiagnostics::default(),
+        super::super::ConnectionOptions::default(),
     )?;
     let connecting = client_endpoint.connect(address, TEST_SERVER_NAME)?;
     let connecting = async {

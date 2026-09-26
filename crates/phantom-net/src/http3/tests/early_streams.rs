@@ -1004,7 +1004,7 @@ async fn an_early_session_accepts_server_streams_only_after_an_acceptance() -> T
     let client = super::super::endpoint(
         address,
         super::client_config(&identity)?,
-        super::super::ConnectionDiagnostics::default(),
+        super::super::ConnectionOptions::default(),
     )?;
     let quinn = client
         .connect(address, crate::tls::test_support::TEST_SERVER_NAME)?
@@ -1058,7 +1058,7 @@ async fn an_acceptance_wakes_a_waiting_server_stream_accept() -> TestResult<()> 
     let client = super::super::endpoint(
         address,
         super::client_config(&identity)?,
-        super::super::ConnectionDiagnostics::default(),
+        super::super::ConnectionOptions::default(),
     )?;
     let quinn = client
         .connect(address, crate::tls::test_support::TEST_SERVER_NAME)?

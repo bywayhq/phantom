@@ -689,6 +689,16 @@ fn apply_tls_profile(
             .map_err(|_| backend_failure("ALPS configuration"))?;
         ssl.set_alps_use_new_codepoint(alps.use_new_codepoint);
     }
+    if let Some(identity) = profile.client_certificate() {
+        ssl.set_certificate(&identity.certificate)
+            .map_err(|_| backend_failure("client certificate"))?;
+        ssl.set_private_key(&identity.private_key)
+            .map_err(|_| backend_failure("client private key"))?;
+        for certificate in &identity.chain {
+            ssl.add_chain_cert(certificate)
+                .map_err(|_| backend_failure("client certificate chain"))?;
+        }
+    }
     Ok(())
 }
 

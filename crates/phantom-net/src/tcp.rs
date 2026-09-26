@@ -10,31 +10,45 @@ use phantom_profile::{TcpKeepalive, TcpSettings};
 use socket2::SockRef;
 use tokio::net::{TcpSocket, TcpStream};
 
-use crate::host_resolver::HostResolver;
+use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
 
 mod address_racing;
 
 /// Resolves `host`, through `resolver` when there is one, and connects to one
 /// of its addresses.
 ///
-/// Each attempt opens a fresh socket and applies `settings` before
-/// connecting, as a browser does, so the options already cover the TLS
-/// handshake. With [`TcpSettings::address_racing`] the addresses race as
+/// Each attempt opens a fresh socket, applies `settings` when there are any,
+/// and binds it as `source` says before connecting, as a browser applies its
+/// options, so they already cover the TLS handshake. With
+/// [`TcpSettings::address_racing`] the addresses race as
 /// [`address_racing::race`] describes; otherwise they are tried one at a time
 /// in resolver order. Either way, if every attempt fails, the most recent
-/// failure is returned.
+/// failure is returned. A source binding with an address for only one family
+/// skips the addresses of the other; see [`SourceBinding`].
 pub(crate) async fn connect(
     host: &str,
     port: u16,
-    settings: TcpSettings,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
     resolver: Option<&HostResolver>,
 ) -> io::Result<TcpStream> {
-    check_settings(&settings)?;
+    check_settings(settings.as_ref(), source)?;
     let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
-    connect_resolved(addresses, settings).await
+    connect_resolved(addresses, settings, source).await
 }
 
-fn check_settings(settings: &TcpSettings) -> io::Result<()> {
+fn check_settings(
+    settings: Option<&TcpSettings>,
+    source: Option<&SourceBinding>,
+) -> io::Result<()> {
+    if let Some(source) = source {
+        source
+            .validate()
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+    }
+    let Some(settings) = settings else {
+        return Ok(());
+    };
     settings
         .validate()
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
@@ -46,10 +60,15 @@ fn check_settings(settings: &TcpSettings) -> io::Result<()> {
 /// Connects to one of `addresses`, already resolved, as [`connect`] does.
 pub(crate) async fn connect_resolved(
     addresses: Vec<SocketAddr>,
-    settings: TcpSettings,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
 ) -> io::Result<TcpStream> {
-    check_settings(&settings)?;
-    match settings.address_racing {
+    check_settings(settings.as_ref(), source)?;
+    let addresses = match source {
+        Some(source) => source.usable_addresses(addresses)?,
+        None => addresses,
+    };
+    match settings.and_then(|settings| settings.address_racing) {
         Some(racing) => {
             let fallback = crate::shutdown_timer::after(racing.fallback_delay).map_err(|_| {
                 io::Error::other("could not schedule the connection fallback timer")
@@ -61,14 +80,14 @@ pub(crate) async fn connect_resolved(
                 let _ = fallback.await;
             };
             address_racing::race(addresses, fallback, |address| {
-                connect_address(address, settings)
+                connect_address(address, settings, source)
             })
             .await
         }
         None => {
             let mut last_error = None;
             for address in addresses {
-                match connect_address(address, settings).await {
+                match connect_address(address, settings, source).await {
                     Ok(stream) => return Ok(stream),
                     Err(error) => last_error = Some(error),
                 }
@@ -85,12 +104,21 @@ fn no_addresses() -> io::Error {
     )
 }
 
-async fn connect_address(address: SocketAddr, settings: TcpSettings) -> io::Result<TcpStream> {
+async fn connect_address(
+    address: SocketAddr,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+) -> io::Result<TcpStream> {
     let socket = match address {
         SocketAddr::V4(_) => TcpSocket::new_v4()?,
         SocketAddr::V6(_) => TcpSocket::new_v6()?,
     };
-    apply_options(&socket, settings)?;
+    if let Some(settings) = settings {
+        apply_options(&socket, settings)?;
+    }
+    if let Some(source) = source {
+        source.bind_tcp(&socket, address)?;
+    }
     socket.connect(address).await
 }
 

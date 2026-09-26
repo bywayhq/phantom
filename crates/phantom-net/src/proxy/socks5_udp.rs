@@ -201,9 +201,18 @@ async fn establish_udp_association(
         .map_err(|error| Socks5Error::io(Socks5ErrorKind::Negotiation, error))?;
     let mut client_bind = control_local;
     client_bind.set_port(0);
-    let udp = UdpSocket::bind(client_bind)
-        .await
-        .map_err(|error| Socks5Error::io(Socks5ErrorKind::Connect, error))?;
+    // The control connection already left from the source address, so only
+    // an interface binding remains to apply to the UDP socket.
+    let udp = match dialer.source {
+        Some(source) => source
+            .bind_udp(control_peer, client_bind)
+            .and_then(|socket| {
+                socket.set_nonblocking(true)?;
+                UdpSocket::from_std(socket)
+            }),
+        None => UdpSocket::bind(client_bind).await,
+    }
+    .map_err(|error| Socks5Error::io(Socks5ErrorKind::Connect, error))?;
     let client_udp = udp
         .local_addr()
         .map_err(|error| Socks5Error::io(Socks5ErrorKind::Negotiation, error))?;

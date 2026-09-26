@@ -6,7 +6,9 @@ use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
+use btls::pkey::{PKey, PKeyRef, Private};
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
+use btls::x509::{X509, X509Ref};
 use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
@@ -70,6 +72,7 @@ impl QuicClientConfig {
                 ech_grease_aeads: Vec::new(),
                 alps: None,
                 session_tickets: false,
+                client_certificate: None,
             },
             sessions: None,
             offer_tickets: true,
@@ -152,8 +155,39 @@ impl QuicClientConfig {
         if !profile.session_tickets {
             self.early_data = false;
         }
-        self.tls_profile = profile;
+        let client_certificate = self.tls_profile.client_certificate.take();
+        self.tls_profile = ClientTlsProfile {
+            client_certificate,
+            ..profile
+        };
         Ok(self)
+    }
+
+    /// Returns a clone that presents `certificate`, followed by `chain`, and
+    /// signs with `private_key` when a server requests client
+    /// authentication.
+    ///
+    /// Nothing in the ClientHello changes: BoringSSL sends the certificate
+    /// only in answer to a `CertificateRequest`. The caller checks that
+    /// `private_key` belongs to `certificate`; a mismatch fails the
+    /// handshake that uses it. The clone has an empty ticket cache of its
+    /// own when this configuration has one, so a session authenticated with
+    /// the certificate is never resumed without it, or the reverse.
+    #[must_use]
+    pub fn with_client_certificate(
+        &self,
+        certificate: &X509Ref,
+        chain: &[X509],
+        private_key: &PKeyRef<Private>,
+    ) -> Self {
+        let sessions = self.sessions.as_ref().map(|_| SessionCache::default());
+        let mut config = self.clone_with_sessions(sessions);
+        config.tls_profile.client_certificate = Some(Arc::new(ClientCertificate {
+            certificate: certificate.to_owned(),
+            chain: chain.to_vec().into_boxed_slice(),
+            private_key: private_key.to_owned(),
+        }));
+        config
     }
 
     /// Returns a clone with a fresh, empty ticket cache of its own.
@@ -632,6 +666,15 @@ pub(super) struct ClientTlsProfile {
     ech_grease_aeads: Vec<u16>,
     alps: Option<AlpsSettings>,
     session_tickets: bool,
+    client_certificate: Option<Arc<ClientCertificate>>,
+}
+
+/// A certificate, its intermediates, and its private key, which a client
+/// presents only when the server sends a `CertificateRequest`.
+pub(super) struct ClientCertificate {
+    pub(super) certificate: X509,
+    pub(super) chain: Box<[X509]>,
+    pub(super) private_key: PKey<Private>,
 }
 
 impl fmt::Debug for ClientTlsProfile {
@@ -647,6 +690,7 @@ impl fmt::Debug for ClientTlsProfile {
                 &self.alps.as_ref().map(|value| value.settings.len()),
             )
             .field("session_tickets", &self.session_tickets)
+            .field("client_certificate", &self.client_certificate.is_some())
             .finish()
     }
 }
@@ -707,7 +751,12 @@ impl ClientTlsProfile {
                 .collect(),
             alps: settings.alps.clone(),
             session_tickets: settings.session_tickets,
+            client_certificate: None,
         })
+    }
+
+    pub(super) fn client_certificate(&self) -> Option<&ClientCertificate> {
+        self.client_certificate.as_deref()
     }
 
     pub(super) fn key_shares(&self) -> Option<&[KeyShare]> {

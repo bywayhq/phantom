@@ -30,6 +30,7 @@ use crate::{
         connect_selected, connect_selected_extended, translate_proxy_extended_connect_settings,
         translate_proxy_settings, validate_http2,
     },
+    source_binding::SourceBinding,
     tls::{ServerAuthentication, TlsConnector, TlsStream},
 };
 
@@ -70,6 +71,7 @@ pub struct HttpsProxyConnector {
     http2_rejected: Http2RejectedConnect,
     protocol: HttpsProxyProtocol,
     tcp: Option<TcpSettings>,
+    source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
     proxy_credentials: Option<ProxyCredentialCache>,
     http2_pool: Option<Http2ProxyPool>,
@@ -120,6 +122,7 @@ impl HttpsProxyConnector {
             http2_rejected: Http2RejectedConnect::default(),
             protocol: HttpsProxyProtocol::Http1,
             tcp: None,
+            source: None,
             host_resolver: None,
             proxy_credentials: None,
             http2_pool: None,
@@ -200,6 +203,24 @@ impl HttpsProxyConnector {
         self.tcp.as_ref()
     }
 
+    /// Binds every TCP socket this connector opens as `binding` says.
+    ///
+    /// The binding covers every connection to the HTTPS proxy. An invalid binding fails each
+    /// connection attempt with [`std::io::ErrorKind::InvalidInput`] before
+    /// any DNS or socket I/O; see [`SourceBinding::validate`].
+    #[must_use]
+    pub fn with_source_binding(mut self, binding: SourceBinding) -> Self {
+        self.source = Some(binding);
+        self.connection_settings = ConnectionSettingsId::default();
+        self
+    }
+
+    /// Returns the source binding applied to new connections, if any.
+    #[must_use]
+    pub fn source_binding(&self) -> Option<&SourceBinding> {
+        self.source.as_ref()
+    }
+
     /// Resolves host names through `resolver` instead of asking the operating
     /// system for every connection.
     ///
@@ -222,6 +243,7 @@ impl HttpsProxyConnector {
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
+            source: self.source.as_ref(),
             resolver: self.host_resolver.as_ref(),
         }
     }
@@ -264,6 +286,7 @@ impl HttpsProxyConnector {
             http2_rejected: self.http2_rejected,
             protocol: self.protocol,
             tcp: self.tcp,
+            source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
             http2_pool: self.http2_pool.clone(),

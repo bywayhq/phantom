@@ -32,13 +32,17 @@ pub mod proxy;
 pub mod request;
 mod response;
 mod shutdown_timer;
+pub mod source_binding;
 pub mod tcp;
 pub(crate) mod tls;
 
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
-pub use tls::ServerAuthentication;
+pub use source_binding::{InvalidSourceBinding, SourceBinding};
+pub use tls::{
+    ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, ServerAuthentication,
+};
 
 #[cfg(all(test, debug_assertions))]
 mod connection_setup_futures;

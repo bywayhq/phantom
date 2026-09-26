@@ -91,7 +91,7 @@ pub async fn send_get(
         crypto,
         settings,
         request,
-        ConnectionDiagnostics::default(),
+        ConnectionOptions::default(),
     )
     .await
 }
@@ -242,7 +242,7 @@ pub async fn send_request_with_body(
         crypto,
         settings,
         request,
-        ConnectionDiagnostics::default(),
+        ConnectionOptions::default(),
     )
     .await
 }
@@ -281,7 +281,7 @@ pub async fn send_request_with_body_and_trailers(
         crypto,
         settings,
         request,
-        ConnectionDiagnostics::default(),
+        ConnectionOptions::default(),
     )
     .await
 }
@@ -351,7 +351,7 @@ pub async fn send_request_with_body_and_qlog(
         crypto,
         settings,
         request,
-        ConnectionDiagnostics {
+        ConnectionOptions {
             qlog: Some(capture),
             ..Default::default()
         },
@@ -365,7 +365,7 @@ async fn send_prepared_request(
     crypto: Arc<QuicClientConfig>,
     settings: &Http3Settings,
     request: PreparedRequest,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
 ) -> Result<Response<Http3Body>, Http3Error> {
     Handle::try_current().map_err(|_| runtime_unavailable())?;
     poll_tokio_io(|| async {
@@ -374,7 +374,7 @@ async fn send_prepared_request(
             server_name,
             crypto,
             settings,
-            diagnostics,
+            options,
             None,
             None,
             None,
@@ -405,7 +405,7 @@ pub(super) async fn connect_direct(
         server_name,
         crypto,
         settings,
-        ConnectionDiagnostics::default(),
+        ConnectionOptions::default(),
         None,
         None,
         None,
@@ -420,14 +420,14 @@ pub(super) async fn connect_bound(
     settings: &Http3Settings,
     connector_identity: Arc<()>,
     path_mtu: Option<u16>,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
 ) -> Result<Http3Connection, Http3Error> {
     connect(
         remote,
         server_name,
         crypto,
         settings,
-        diagnostics,
+        options,
         Some(connector_identity),
         None,
         path_mtu,
@@ -442,14 +442,14 @@ pub(super) async fn connect_bound_with_socket(
     settings: &Http3Settings,
     connector_identity: Arc<()>,
     socket: Arc<dyn quinn::AsyncUdpSocket>,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
 ) -> Result<Http3Connection, Http3Error> {
     connect(
         remote,
         server_name,
         crypto,
         settings,
-        diagnostics,
+        options,
         Some(connector_identity),
         Some(socket),
         None,
@@ -467,7 +467,7 @@ async fn connect(
     server_name: &str,
     crypto: Arc<QuicClientConfig>,
     settings: &Http3Settings,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
     connector_identity: Option<Arc<()>>,
     socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
     path_mtu: Option<u16>,
@@ -486,20 +486,19 @@ async fn connect(
     };
     let round_trip = RoundTripRecorder::new(&crypto, server_name);
     #[cfg(test)]
-    let peer_alps_override = diagnostics.early_peer_alps.clone();
+    let peer_alps_override = options.early_peer_alps.clone();
     #[cfg(test)]
-    let remembered_override = diagnostics.remembered_settings.clone();
+    let remembered_override = options.remembered_settings.clone();
     #[cfg(test)]
-    let answer_hold = diagnostics.answer_hold.clone();
+    let answer_hold = options.answer_hold.clone();
     #[cfg(test)]
-    let gate_delay = diagnostics.gate_delay.clone();
+    let gate_delay = options.gate_delay.clone();
     #[cfg(test)]
-    let (early_race, race_observed) = match diagnostics.early_race.clone() {
+    let (early_race, race_observed) = match options.early_race.clone() {
         Some((race, observed)) => (Some(race), Some(observed)),
         None => (None, None),
     };
-    let endpoint =
-        endpoint_with_socket(remote, crypto, diagnostics, socket, path_mtu, server_name)?;
+    let endpoint = endpoint_with_socket(remote, crypto, options, socket, path_mtu, server_name)?;
 
     debug!("QUIC connection started");
     let connecting = endpoint.connect(remote, server_name).map_err(|error| {
@@ -1146,21 +1145,28 @@ fn too_many_informational() -> Http3Error {
 fn endpoint(
     remote: SocketAddr,
     crypto: Arc<QuicClientConfig>,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
 ) -> Result<quinn::Endpoint, Http3Error> {
-    endpoint_with_socket(remote, crypto, diagnostics, None, None, "")
+    endpoint_with_socket(remote, crypto, options, None, None, "")
 }
 
 fn endpoint_with_socket(
     remote: SocketAddr,
     crypto: Arc<QuicClientConfig>,
-    diagnostics: ConnectionDiagnostics,
+    options: ConnectionOptions,
     socket: Option<Arc<dyn quinn::AsyncUdpSocket>>,
     path_mtu: Option<u16>,
     server_name: &str,
 ) -> Result<quinn::Endpoint, Http3Error> {
     #[cfg(not(feature = "qlog"))]
-    let _ = diagnostics;
+    let ConnectionOptions { source, .. } = options;
+    #[cfg(feature = "qlog")]
+    let ConnectionOptions {
+        source,
+        qlog,
+        qlog_dir,
+        ..
+    } = options;
 
     let reset_key = StatelessResetKey::generate().map_err(endpoint_error)?;
     let mut endpoint_config = quinn::EndpointConfig::new(Arc::new(reset_key));
@@ -1176,7 +1182,7 @@ fn endpoint_with_socket(
             )
         })?;
     #[cfg(feature = "qlog")]
-    if let Some(capture) = diagnostics.qlog {
+    if let Some(capture) = qlog {
         let stream = capture.attach().map_err(|error| {
             Http3Error::with_source(
                 Http3ErrorKind::Configuration,
@@ -1187,7 +1193,7 @@ fn endpoint_with_socket(
         transport_config.qlog_stream(Some(stream));
     }
     #[cfg(feature = "qlog")]
-    if let Some(dir) = &diagnostics.qlog_dir {
+    if let Some(dir) = &qlog_dir {
         let stream = qlog::file_stream(dir).map_err(|error| {
             Http3Error::with_source(
                 Http3ErrorKind::Configuration,
@@ -1210,8 +1216,12 @@ fn endpoint_with_socket(
                 .map_err(endpoint_error)?
         }
         None => {
-            let socket =
-                UdpSocket::bind(endpoint_bind_address(remote.ip())).map_err(endpoint_error)?;
+            let default_local = endpoint_bind_address(remote.ip());
+            let socket = match &source {
+                Some(source) => source.bind_udp(remote, default_local),
+                None => UdpSocket::bind(default_local),
+            }
+            .map_err(endpoint_error)?;
             socket.set_nonblocking(true).map_err(endpoint_error)?;
             quinn::Endpoint::new(endpoint_config, None, socket, runtime).map_err(endpoint_error)?
         }
@@ -1293,8 +1303,12 @@ struct PendingRequest {
     recv: Option<RequestRecvStream>,
 }
 
+/// Per-connection choices that are not part of the QUIC or HTTP/3 profile.
 #[derive(Default)]
-pub(super) struct ConnectionDiagnostics {
+pub(super) struct ConnectionOptions {
+    /// Where the connection's own UDP socket binds; a SOCKS5 or CONNECT-UDP
+    /// socket is bound by its proxy leg instead.
+    pub(super) source: Option<crate::source_binding::SourceBinding>,
     #[cfg(feature = "qlog")]
     qlog: Option<QlogCapture>,
     /// Directory that receives this connection's qlog file.
