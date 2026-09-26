@@ -1463,6 +1463,22 @@ mod tests {
         assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
     }
 
+    /// `open` holds the connectors' futures for a new connection; see
+    /// `phantom_testkit::future_size`.
+    ///
+    /// With all features, this is the largest setup future, 9,536 bytes on
+    /// Windows (x86-64, Rust 1.98.1).
+    #[cfg(debug_assertions)]
+    #[test]
+    fn opening_a_connection_stays_within_the_setup_budget() {
+        use phantom_testkit::future_size::{SETUP_FUTURE_BUDGET, assert_within, future_size};
+
+        assert_within(
+            SETUP_FUTURE_BUDGET,
+            &[("PoolEntry::open", future_size(&super::PoolEntry::open))],
+        );
+    }
+
     fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
         match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
             std::task::Poll::Ready(output) => Some(output),

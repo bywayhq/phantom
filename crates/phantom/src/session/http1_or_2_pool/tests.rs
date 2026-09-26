@@ -583,3 +583,16 @@ fn acquire_leaves_connection_setup_off_the_request_future() {
     let size = phantom_testkit::future_size::future_size(&super::PoolEntry::acquire);
     assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
 }
+
+/// `open` holds the connectors' futures for a new connection; see
+/// `phantom_testkit::future_size`.
+#[cfg(debug_assertions)]
+#[test]
+fn opening_a_connection_stays_within_the_setup_budget() {
+    use phantom_testkit::future_size::{SETUP_FUTURE_BUDGET, assert_within, future_size};
+
+    assert_within(
+        SETUP_FUTURE_BUDGET,
+        &[("PoolEntry::open", future_size(&super::PoolEntry::open))],
+    );
+}

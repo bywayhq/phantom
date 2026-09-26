@@ -8,9 +8,15 @@
 //! has a 2 MiB stack, and a debug build that outgrows it aborts the test
 //! process.
 //!
-//! A future over [`FUTURE_BUDGET`](crate::future_size::FUTURE_BUDGET)
-//! should box a cold or large branch (`Box::pin`) instead of holding it
-//! inline.
+//! An async function also holds a future it takes by value twice, as the
+//! argument and as the awaited value. A wrapper that encloses a large
+//! operation, such as one that traces a whole connection setup, takes it as
+//! `Pin<&mut F>`, which the caller makes with `std::pin::pin!`.
+//!
+//! A future over [`FUTURE_BUDGET`](crate::future_size::FUTURE_BUDGET), or a
+//! setup future over
+//! [`SETUP_FUTURE_BUDGET`](crate::future_size::SETUP_FUTURE_BUDGET), should
+//! box a cold or large branch (`Box::pin`) instead of holding it inline.
 
 /// The largest future, in bytes, that a function on a request path may
 /// return in a debug build.
@@ -18,6 +24,14 @@
 /// It leaves about a quarter of headroom over the largest measured request
 /// future, so a small change or a toolchain upgrade does not fail the check.
 pub const FUTURE_BUDGET: usize = 20 * 1024;
+
+/// The largest future, in bytes, that opening a connection may return in a
+/// debug build, whether through a connector or through a pool.
+///
+/// It leaves about a quarter of headroom over the largest measured setup
+/// future. Setup runs below a request's future, so the two budgets together
+/// bound the stack a new connection needs.
+pub const SETUP_FUTURE_BUDGET: usize = 12 * 1024;
 
 /// A function whose return value has a size known without calling it.
 ///
@@ -90,17 +104,27 @@ pub fn future_size<Arguments>(function: &impl ReturnSize<Arguments>) -> usize {
 ///
 /// Panics, naming each one, when a future exceeds the budget.
 pub fn assert_within_budget(futures: &[(&str, usize)]) {
+    assert_within(FUTURE_BUDGET, futures);
+}
+
+/// Asserts that each named future is within `budget` bytes, such as
+/// [`SETUP_FUTURE_BUDGET`].
+///
+/// Prints every size, largest first, which `cargo test -- --nocapture`
+/// shows.
+///
+/// # Panics
+///
+/// Panics, naming each one, when a future exceeds `budget`.
+pub fn assert_within(budget: usize, futures: &[(&str, usize)]) {
     let mut sorted = futures.to_vec();
     sorted.sort_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(right.0)));
     for (name, size) in &sorted {
         println!("{size:>8} bytes  {name}");
     }
-    let over: Vec<_> = sorted
-        .iter()
-        .filter(|(_, size)| *size > FUTURE_BUDGET)
-        .collect();
+    let over: Vec<_> = sorted.iter().filter(|(_, size)| *size > budget).collect();
     assert!(
         over.is_empty(),
-        "futures over the {FUTURE_BUDGET}-byte budget: {over:?}"
+        "futures over the {budget}-byte budget: {over:?}"
     );
 }

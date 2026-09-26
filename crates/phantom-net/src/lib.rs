@@ -40,5 +40,7 @@ pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_chan
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use tls::ServerAuthentication;
 
+#[cfg(all(test, debug_assertions))]
+mod connection_setup_futures;
 #[cfg(test)]
 mod tracing_test;
