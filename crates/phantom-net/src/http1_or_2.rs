@@ -696,6 +696,9 @@ impl Http1Or2TlsConnector {
     /// The caller pins `operation` in its own future: an async function holds
     /// a future it takes by value twice, as the argument and as the awaited
     /// value, and this wrapper encloses a whole connection setup.
+    ///
+    /// A cancelled operation is dropped by its caller after this wrapper's
+    /// future, so outside the span and after the span records cancellation.
     async fn trace_connect<F>(
         &self,
         operation: Pin<&mut F>,

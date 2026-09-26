@@ -28,9 +28,9 @@ pub const FUTURE_BUDGET: usize = 20 * 1024;
 /// The largest future, in bytes, that opening a connection may return in a
 /// debug build, whether through a connector or through a pool.
 ///
-/// It leaves about a quarter of headroom over the largest measured setup
-/// future. Setup runs below a request's future, so the two budgets together
-/// bound the stack a new connection needs.
+/// It leaves about a quarter of headroom over the largest setup future
+/// measured, on Windows only. Setup runs below a request's future, so the
+/// two budgets together bound the stack a new connection needs.
 pub const SETUP_FUTURE_BUDGET: usize = 12 * 1024;
 
 /// A function whose return value has a size known without calling it.

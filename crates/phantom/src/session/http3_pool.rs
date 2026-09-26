@@ -596,28 +596,33 @@ impl PoolEntry {
         transport: Http3TransportTarget<'_>,
         control: Http3SetupControl<'_>,
     ) -> Result<Http3Connection, RequestError> {
-        // Pinned in place: `within` would otherwise hold a second copy.
-        let connect = pin!(self.connect(
-            connector,
-            connect_udp_proxy,
-            endpoint,
-            route,
-            transport,
-            control.early_data,
-        ));
-        match control.attempt_limit {
-            // A runtime without a time driver fails the attempt instead of
-            // panicking.
-            Some(limit) => within(limit, connect).await?.ok_or_else(|| {
-                debug!(
-                    timeout_phase = TimeoutPhase::Connect.trace_name(),
-                    protocol = HttpProtocol::Http3.trace_name(),
-                    "HTTP/3 connection attempt reached its limit"
-                );
-                RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
-            })?,
-            None => connect.await,
-        }
+        // Pinned in place: `within` would otherwise hold a second copy. The
+        // block drops the attempt before a timeout is reported, as when
+        // `within` owned it.
+        let attempt = {
+            let connect = pin!(self.connect(
+                connector,
+                connect_udp_proxy,
+                endpoint,
+                route,
+                transport,
+                control.early_data,
+            ));
+            match control.attempt_limit {
+                // A runtime without a time driver fails the attempt instead of
+                // panicking.
+                Some(limit) => within(limit, connect).await?,
+                None => return connect.await,
+            }
+        };
+        attempt.ok_or_else(|| {
+            debug!(
+                timeout_phase = TimeoutPhase::Connect.trace_name(),
+                protocol = HttpProtocol::Http3.trace_name(),
+                "HTTP/3 connection attempt reached its limit"
+            );
+            RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3))
+        })?
     }
 
     /// Leases a reusable pooled connection to `location` for one stream, or
@@ -1467,7 +1472,7 @@ mod tests {
     /// `phantom_testkit::future_size`.
     ///
     /// With all features, this is the largest setup future, 9,536 bytes on
-    /// Windows (x86-64, Rust 1.98.1).
+    /// Windows (x86-64, Rust 1.98.1), the only platform measured.
     #[cfg(debug_assertions)]
     #[test]
     fn opening_a_connection_stays_within_the_setup_budget() {

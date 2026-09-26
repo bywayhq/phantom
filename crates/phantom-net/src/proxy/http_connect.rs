@@ -531,6 +531,9 @@ fn find_head_end(bytes: &[u8]) -> Option<usize> {
 /// The caller pins `operation` in its own future: an async function holds a
 /// future it takes by value twice, as the argument and as the awaited value,
 /// and this wrapper encloses a whole proxy connection setup.
+///
+/// A cancelled operation is dropped by its caller after this wrapper's
+/// future, so outside the span and after the span records cancellation.
 pub(super) async fn trace_connect<F, T>(
     transport: &'static str,
     operation: Pin<&mut F>,

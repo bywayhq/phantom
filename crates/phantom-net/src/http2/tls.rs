@@ -1508,6 +1508,9 @@ impl Http2TlsConnector {
     /// The caller pins `operation` in its own future: an async function holds
     /// a future it takes by value twice, as the argument and as the awaited
     /// value, and these wrappers enclose whole connection setups.
+    ///
+    /// A cancelled operation is dropped by its caller after this wrapper's
+    /// future, so outside the span and after the span records cancellation.
     async fn trace_connect<F>(
         &self,
         operation: Pin<&mut F>,
@@ -1527,7 +1530,8 @@ impl Http2TlsConnector {
         result
     }
 
-    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives.
+    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives,
+    /// and drops a cancelled one in the same order.
     async fn trace_response_head<F>(
         &self,
         method: &Method,
