@@ -292,9 +292,11 @@ pub struct Http2StreamSettings {
     /// client applies as stated.
     ///
     /// A larger stated value is lowered to this one before it limits the
-    /// client's concurrent streams. It does not bound
-    /// [`Self::assumed_max_concurrent_streams`]. `None`, the default, applies
-    /// every stated value unchanged. A value must be at least 1.
+    /// client's concurrent streams. When the peer's first SETTINGS omit the
+    /// setting and no assumed limit holds, the limit is this value instead of
+    /// none. It does not bound [`Self::assumed_max_concurrent_streams`].
+    /// `None`, the default, applies every stated value unchanged. A value must
+    /// be at least 1.
     pub max_concurrent_streams_cap: Option<u32>,
 }
 
@@ -354,12 +356,12 @@ pub struct Http2Settings {
     /// Stream numbering, the stream limit assumed before the peer states one,
     /// and the cap on a stated limit.
     pub streams: Http2StreamSettings,
-    /// Read-idle time after which a PING precedes the next request frame.
+    /// Read-idle time after which a PING follows the next request frame.
     ///
-    /// When set, the client writes a PING immediately before a request's
-    /// HEADERS, or before a DATA frame with a non-empty payload, once it has
-    /// read nothing from the peer for longer than this. It sends none while
-    /// an earlier such PING awaits its ACK. The first PING's payload is the
+    /// When set, the client writes a PING right after a request's HEADERS, or
+    /// after a DATA frame with a non-empty payload, once it has read nothing
+    /// from the peer for longer than this; no other frame comes between them.
+    /// It sends none while an earlier such PING awaits its ACK. The first PING's payload is the
     /// 64-bit big-endian value 1, and each later one carries the next value.
     /// `None` sends no such PING.
     pub preface_ping_after: Option<Duration>,

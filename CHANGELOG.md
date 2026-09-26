@@ -43,15 +43,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and sends no other while it awaits the ACK. `chromium::v154_http2`, and so
   every Chromium-family recipe, sets 10 seconds, as Chromium's
   `SpdySession::MaybeSendPrefacePing` does; a pooled connection reused after
-  10 idle seconds now sends that PING. Two loopback captures of Chrome 154
-  show the PING right after the request HEADERS, before the request's DATA.
+  10 idle seconds now sends that PING. A retained loopback capture of Chrome
+  154 shows the PING right after the request HEADERS, before the request's
+  DATA, and `scripts/capture/http2_preface_ping.py` records it.
   `firefox::v156_http2` sets `None`.
   Migrate: add `preface_ping_after: None` to an `Http2Settings` literal to
   keep sending no such PING, or copy the field from `chromium::v154_http2`.
 - `Http2StreamSettings` gained the public field `max_concurrent_streams_cap:
   Option<u32>`, so struct literals that name every field no longer compile.
   A `SETTINGS_MAX_CONCURRENT_STREAMS` value the peer states above the cap is
-  lowered to it. `chromium::v154_http2` caps at 256, Chromium's
+  lowered to it, and initial SETTINGS that omit the setting lift the limit
+  only to the cap. `chromium::v154_http2` caps at 256, Chromium's
   `kMaxConcurrentStreamLimit`, so a Chromium-family connection to a peer
   that states more opens at most 256 streams at once;
   `Http2Connection::peer_max_concurrent_streams` reports the capped value.

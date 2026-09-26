@@ -1,21 +1,24 @@
 //! The PING a Chromium profile sends right after a request frame on a
 //! connection that has read nothing for longer than its idle time, against a
-//! loopback peer.
+//! loopback peer and the retained Chrome 154 capture.
 //!
-//! The recipe's 10-second idle time is shortened so the test runs quickly;
-//! everything else is the Chrome 154 recipe.
+//! The recipe's 10-second idle time is shortened to 1 second so the tests run
+//! quickly; everything else is the Chrome 154 recipe.
 
-use std::{net::Ipv4Addr, time::Duration};
+use std::{future::Future, net::Ipv4Addr, time::Duration};
 
+use bytes::Bytes;
 use http::Method;
 use phantom_profile::{Http2Settings, chromium, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
+    sync::mpsc,
     task::JoinSet,
+    time::timeout,
 };
 
-use super::{TestResult, bounded_peer_test, target};
+use super::{TestResult, target};
 use crate::http2::Http2Connection;
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
@@ -25,9 +28,31 @@ const SETTINGS: u8 = 0x4;
 const PING: u8 = 0x6;
 const GOAWAY: u8 = 0x7;
 const ACK: u8 = 0x1;
-const IDLE: Duration = Duration::from_millis(250);
-const PAST_IDLE: Duration = Duration::from_millis(400);
+const END_STREAM: u8 = 0x1;
+const END_HEADERS: u8 = 0x4;
+const IDLE: Duration = Duration::from_secs(1);
+const PAST_IDLE: Duration = Duration::from_millis(1_500);
+const SHORT_WAIT: Duration = Duration::from_millis(300);
 const PROBE: &[u8; 8] = b"probe!!!";
+/// Chrome 154 reusing one connection after idle periods, recorded by
+/// `scripts/capture/http2_preface_ping.py`.
+const CHROME_CAPTURE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt"
+));
+/// Chromium's `kSpdyDefaultConnectionAtRiskOfLossSeconds`, in milliseconds.
+const CHROME_IDLE_MS: f64 = 10_000.0;
+
+/// Bounds a test whose timeline spans several idle periods.
+async fn idle_peer_test<F>(future: F) -> TestResult<()>
+where
+    F: Future<Output = TestResult<()>>,
+{
+    match timeout(Duration::from_secs(15), future).await {
+        Ok(result) => result,
+        Err(_) => Err("preface PING test exceeded its absolute deadline".into()),
+    }
+}
 
 /// The Chrome 154 recipe waits 10 seconds without a read; Firefox 156 sends
 /// no such PING.
@@ -45,7 +70,7 @@ fn recipes_state_the_preface_ping_idle_time() {
 /// the next idle period brings PING 2.
 #[tokio::test]
 async fn chromium_recipe_pings_after_request_headers_on_a_read_idle_connection() -> TestResult<()> {
-    bounded_peer_test(async {
+    idle_peer_test(async {
         let mut settings = chromium::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         let (mut peer, connection) = start(&settings).await?;
@@ -80,7 +105,7 @@ async fn chromium_recipe_pings_after_request_headers_on_a_read_idle_connection()
 /// Without the setting, a request after the same idle period carries no PING.
 #[tokio::test]
 async fn settings_without_a_preface_ping_send_none_after_read_idle() -> TestResult<()> {
-    bounded_peer_test(async {
+    idle_peer_test(async {
         let mut settings = chromium::v154_http2();
         settings.preface_ping_after = None;
         let (mut peer, connection) = start(&settings).await?;
@@ -94,6 +119,175 @@ async fn settings_without_a_preface_ping_send_none_after_read_idle() -> TestResu
         Ok(())
     })
     .await
+}
+
+/// The retained capture: after `/a`, a request sent more than 10 seconds
+/// after the last read (`/b`, then `POST /p`) is followed at once by a PING
+/// whose payload counts 1, then 2; `/c`, sent 9 seconds after the ACK, and
+/// `/done` are not. The POST's PING comes between its HEADERS and its DATA.
+#[test]
+fn chrome_capture_pings_right_after_the_request_frame() -> TestResult<()> {
+    let frames = capture_frames()?;
+    assert_eq!(
+        request_sequence(&frames),
+        [
+            "HEADERS",
+            "HEADERS",
+            "PING 0000000000000001",
+            "HEADERS",
+            "HEADERS",
+            "PING 0000000000000002",
+            "DATA",
+            "HEADERS",
+        ]
+    );
+    let sent = |path: &str| {
+        frames
+            .iter()
+            .find(|frame| frame.path.as_deref() == Some(path))
+            .map(|frame| frame.milliseconds)
+            .ok_or(format!("capture has no request for {path}"))
+    };
+    assert!(sent("/b")? - sent("/a")? > CHROME_IDLE_MS);
+    assert!(sent("/c")? - sent("/b")? < CHROME_IDLE_MS);
+    assert!(sent("/p")? - sent("/c")? > CHROME_IDLE_MS);
+    Ok(())
+}
+
+/// Phantom's Chromium recipe, driven through the capture's timeline with the
+/// idle time scaled to 1 second, writes the capture's request frames and
+/// PINGs in the same order with the same payloads.
+#[tokio::test]
+async fn chromium_recipe_replays_the_chrome_capture_ping_sequence() -> TestResult<()> {
+    idle_peer_test(async {
+        let mut settings = chromium::v154_http2();
+        settings.preface_ping_after = Some(IDLE);
+        let (peer, connection) = start(&settings).await?;
+        let (frames, mut sequence) = mpsc::unbounded_channel();
+        let peer = tokio::spawn(answer_requests(peer, frames));
+
+        get(&connection).await?;
+        tokio::time::sleep(PAST_IDLE).await;
+        get(&connection).await?;
+        tokio::time::sleep(SHORT_WAIT).await;
+        get(&connection).await?;
+        tokio::time::sleep(PAST_IDLE).await;
+        connection
+            .send_request(
+                Method::POST,
+                "example.test",
+                target()?,
+                Vec::new(),
+                Some(Bytes::from(vec![b'x'; 100])),
+            )
+            .await?;
+        get(&connection).await?;
+        peer.abort();
+
+        let mut replayed = Vec::new();
+        while let Ok(symbol) = sequence.try_recv() {
+            replayed.push(symbol);
+        }
+        assert_eq!(replayed, request_sequence(&capture_frames()?));
+        Ok(())
+    })
+    .await
+}
+
+/// One client frame of the retained capture.
+struct CapturedFrame {
+    milliseconds: f64,
+    kind: String,
+    path: Option<String>,
+    payload: Option<String>,
+}
+
+fn capture_frames() -> TestResult<Vec<CapturedFrame>> {
+    let mut frames = Vec::new();
+    for line in CHROME_CAPTURE.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if !key.starts_with("frame_") || key == "frame_count" {
+            continue;
+        }
+        let mut frame = CapturedFrame {
+            milliseconds: 0.0,
+            kind: String::new(),
+            path: None,
+            payload: None,
+        };
+        for item in value.split(',') {
+            let (name, value) = item.split_once(':').ok_or("malformed frame item")?;
+            match name {
+                "ms" => frame.milliseconds = value.parse()?,
+                "type" => value.clone_into(&mut frame.kind),
+                "path" => frame.path = Some(value.to_owned()),
+                "payload" => frame.payload = Some(value.to_owned()),
+                _ => {}
+            }
+        }
+        frames.push(frame);
+    }
+    Ok(frames)
+}
+
+/// The request frames and PINGs from `/a` on, without the SETTINGS and
+/// WINDOW_UPDATE frames, which belong to no request.
+fn request_sequence(frames: &[CapturedFrame]) -> Vec<String> {
+    frames
+        .iter()
+        .skip_while(|frame| frame.path.as_deref() != Some("/a"))
+        .filter_map(|frame| match frame.kind.as_str() {
+            "HEADERS" | "DATA" => Some(frame.kind.clone()),
+            "PING" => Some(format!("PING {}", frame.payload.as_deref().unwrap_or(""))),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Sends one GET and waits for its response.
+async fn get(connection: &Http2Connection) -> TestResult<()> {
+    connection
+        .send_request(Method::GET, "example.test", target()?, Vec::new(), None)
+        .await?;
+    Ok(())
+}
+
+/// Records the client's request frames and PINGs in the capture's notation,
+/// acknowledges each PING, and answers each request with an empty 200 once
+/// its last frame arrives.
+async fn answer_requests(
+    mut peer: TcpStream,
+    frames: mpsc::UnboundedSender<String>,
+) -> TestResult<()> {
+    loop {
+        let (kind, flags, stream, payload) = read_frame(&mut peer).await?;
+        match kind {
+            HEADERS | DATA => {
+                let name = if kind == HEADERS { "HEADERS" } else { "DATA" };
+                frames.send(name.to_owned())?;
+                if flags & END_STREAM != 0 {
+                    // `:status: 200` is static table entry 8.
+                    write_frame(
+                        &mut peer,
+                        HEADERS,
+                        END_STREAM | END_HEADERS,
+                        stream,
+                        &[0x88],
+                    )
+                    .await?;
+                }
+            }
+            PING if flags & ACK == 0 => {
+                let hex: String = payload.iter().map(|byte| format!("{byte:02x}")).collect();
+                frames.send(format!("PING {hex}"))?;
+                write_frame(&mut peer, PING, ACK, 0, &payload).await?;
+            }
+            GOAWAY => return Err("client sent GOAWAY".into()),
+            _ => {}
+        }
+    }
 }
 
 /// Connects a client over loopback and completes the peer's side of the

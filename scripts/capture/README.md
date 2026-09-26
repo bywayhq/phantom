@@ -159,6 +159,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
 | Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
+| The PING a Chromium browser sends when it reuses an idle HTTP/2 connection | [`http2_preface_ping.py`](#http2-preface-ping) | `fixtures/http2/` |
 | Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
@@ -821,6 +822,30 @@ marked `default` when the first navigation already carried it, and
 The tool writes nothing unless the runs agree exactly and every default hint
 keeps its value and relative order. It refuses to retain `cookie`,
 `authorization`, or `proxy-authorization`.
+
+## HTTP/2 preface PING
+
+`http2_preface_ping.py` records the client frames of one HTTP/2 connection
+that a Chromium browser reuses after idle periods. The page fetches `/a`,
+waits `--idle` seconds (11.5 by default), fetches `/b`, waits `--short`
+seconds (9), fetches `/c`, waits `--idle` seconds again, and sends a 100-byte
+`POST /p` before `/done`. A run takes about 35 seconds.
+
+```sh
+uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+  python -m scripts.capture.http2_preface_ping --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --output-dir fixtures/http2/chrome/154.0.8037.58/windows-11-26200
+```
+
+It writes one `format=phantom-http2-preface-ping-v1` fixture,
+`preface-ping.txt`. Each `frame_<n>` line is one client frame of the
+connection that carried the page, after the connection preface: its time
+since the listener started, type, flags, stream, and length, the request path
+of a HEADERS frame without its query, and the payload of a PING. No other
+payload is written.
 
 ## HTTP/3 startup
 

@@ -432,9 +432,10 @@ pub fn v154_http1() -> Http1Settings {
 /// since the last read (`:2446-2456`; `net/spdy/spdy_session.h:111`). Its
 /// payload is a counter from 1, sent as a 64-bit big-endian value
 /// (`:2479-2499`). The check is on by default
-/// (`net/http/http_network_session.h:88`). Two loopback captures of Chrome
-/// 154 on Windows show the PING right after the HEADERS of a request sent
-/// after 11.5 idle seconds.
+/// (`net/http/http_network_session.h:88`). The retained loopback capture
+/// (`fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt`)
+/// shows the PING right after the HEADERS of a request sent after 11.5 idle
+/// seconds.
 ///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.

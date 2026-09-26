@@ -42,7 +42,7 @@ Phantom's claims rest on four kinds of evidence:
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
-| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source and two loopback captures of Chrome 154 reusing an idle connection | One Windows build and no retained fixture; the PING after a DATA frame and the 10-second boundary rest on source |
+| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source and a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value; no Firefox H3 recipe |
@@ -2185,8 +2185,9 @@ later request takes the next odd stream, as Chrome 154 and Firefox 156 do.
 Until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS`, both recipes open at
 most 100 streams at once, and SETTINGS that omit the setting leave that limit
 in place. A stated value above 256 is lowered to 256 by the Chromium recipe
-and applied unchanged by the Firefox recipe. This holds for direct connections, the pooled HTTP/2 connections to
-a TLS proxy, and WebSocket openings over HTTP/2.
+and applied unchanged by the Firefox recipe. This holds for direct
+connections, the pooled HTTP/2 connections to a TLS proxy, and WebSocket
+openings over HTTP/2.
 
 Evidence: the stream of every client HEADERS frame on every HTTP/2
 connection in the retained cookie, WebSocket, and `https-proxy-*` captures,
@@ -2280,8 +2281,8 @@ one awaits its ACK, and the ACK, like any frame read, restarts the idle time.
 Every Chromium-family recipe shares `chromium::v154_http2`, so each sends the
 PING. `firefox::v156_http2` sends none.
 
-Evidence: Chromium source at tag `154.0.8037.58` and two loopback captures
-of Chrome 154.0.8037.58 on Windows 11. `SpdySession::MaybeSendPrefacePing`
+Evidence: Chromium source at tag `154.0.8037.58` and loopback captures of
+Chrome 154.0.8037.58 on Windows 11, one of them retained. `SpdySession::MaybeSendPrefacePing`
 (`net/spdy/spdy_session.cc:2446-2456`) queues a PING when ping-based
 connection checking is on (`net/http/http_network_session.h:88`, on by
 default), none of its own is in flight or awaiting its status check, and the
@@ -2298,52 +2299,64 @@ Firefox 156 sends a PING of its own only from its read-timeout tick and on a
 network change (`netwerk/protocol/http/Http2Session.cpp:436-503`,
 `:4190-4212` at tag `FIREFOX_156_0_RELEASE`).
 
-The captures served one page over TLS and HTTP/2 on loopback to headless
-Chrome, with `--disable-quic`. The page fetched `/a`, waited 11.5 seconds,
-fetched `/b`, waited 9 seconds, and fetched `/c`; the second run then waited
-11.5 seconds more and sent a 100-byte `POST`. The client frames of the page's
-connection after the first request, from the second run:
+`scripts/capture/http2_preface_ping.py` serves one page over TLS and HTTP/2
+on loopback to headless Chrome, with `--disable-quic`. The page fetches `/a`,
+waits 11.5 seconds, fetches `/b`, waits 9 seconds, fetches `/c`, waits 11.5
+seconds more, and sends a 100-byte `POST /p` before `/done`. The retained
+fixture,
+[`preface-ping.txt`](../../fixtures/http2/chrome/154.0.8037.58/windows-11-26200/preface-ping.txt),
+keeps every client frame of the page's connection. Those after the first
+request:
 
 | Time (s) | Frame | Stream | Payload |
 | --- | --- | --- | --- |
-| 0.410 | HEADERS `/a` | 3 | |
-| 11.923 | HEADERS `/b` | 5 | |
-| 11.924 | PING | 0 | `0000000000000001` |
-| 11.925 | WINDOW_UPDATE | 0 | |
-| 20.931 | HEADERS `/c` | 7 | |
-| 20.932 | WINDOW_UPDATE | 0 | |
-| 32.436 | HEADERS `/p` | 9 | |
-| 32.436 | PING | 0 | `0000000000000002` |
-| 32.436 | DATA | 9 | 100 bytes |
+| 0.456 | HEADERS `/a` | 3 | |
+| 11.982 | HEADERS `/b` | 5 | |
+| 11.982 | PING | 0 | `0000000000000001` |
+| 11.985 | WINDOW_UPDATE | 0 | |
+| 20.999 | HEADERS `/c` | 7 | |
+| 20.999 | WINDOW_UPDATE | 0 | |
+| 32.516 | HEADERS `/p` | 9 | |
+| 32.516 | PING | 0 | `0000000000000002` |
+| 32.516 | DATA | 9 | 100 bytes |
+| 32.517 | WINDOW_UPDATE | 0 | |
+| 32.517 | HEADERS `/done` | 11 | |
 
-The first run showed the same frames up to `/c`. `/c` came 9 seconds after
-the ACK of PING 1 and carried no PING. The runs took 22.5 and 34.6 seconds.
+`/c` came 9 seconds after the ACK of PING 1 and carried no PING. Two earlier
+runs of the same timeline, not retained, showed the same frames. The
+retained run took 37 seconds of wall clock.
 
-`crates/phantom-net/src/http2/tests/preface_ping.rs` runs the Chromium
-recipe with its idle time shortened to 250 ms against a loopback peer: no
-PING after the first request, PING 1 right after the HEADERS of a request
-sent 400 ms later, none right after its ACK, and PING 2 after the next idle
-period; with the setting off, none. The vendored `http2` crate's tests add
-the PING after a 4,096-byte DATA frame, none after an empty END_STREAM DATA
-frame, and none while PING 1 is unanswered.
+`crates/phantom-net/src/http2/tests/preface_ping.rs` checks the fixture's
+order and payloads, then drives the Chromium recipe through the same
+timeline with its idle time scaled to 1 second against a loopback peer and
+compares the request frames and PINGs with the fixture's. Other tests there
+check no PING after the first request, PING 1 right after the HEADERS of a
+request sent 1.5 seconds later, none right after its ACK, PING 2 after the
+next idle period, and none with the setting off. The vendored `http2`
+crate's tests add the PING after a 4,096-byte DATA frame, none after an
+empty END_STREAM DATA frame, and none while PING 1 is unanswered.
 
-How to reproduce: run
-`cargo test -p phantom-net --lib http2::tests::preface_ping`. The capture
-used a one-off script built on `scripts/capture/http2_session.py` and
-`scripts/capture/browser_launch.py`; no capture tool in the repository runs
-it, and no fixture retains it.
+How to reproduce:
+
+```sh
+uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
+  python -m scripts.capture.http2_preface_ping --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.58 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --output-dir fixtures/http2/chrome/154.0.8037.58/windows-11-26200
+cargo test -p phantom-net --lib http2::tests::preface_ping
+```
 
 Limits:
 
-- One Windows build, two runs, and no retained fixture.
+- One Windows build and one retained run.
 - The capture shows no PING after a DATA frame alone; a `POST` after an idle
   period gets its PING from the HEADERS. That case and the exact 10-second
   boundary rest on source.
 - Chrome closes a session whose PING goes unanswered for 10 seconds
   (`ERR_HTTP2_PING_FAILED`). Phantom keeps the connection and sends no
   further preface PING on it.
-- A PING ACK or SETTINGS ACK that Phantom queues while its write buffer is
-  full can come between the request frame and the PING.
 - Phantom restarts the idle time when a whole frame is read; Chrome restarts
   it on every socket read, including part of a frame.
 
