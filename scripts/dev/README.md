@@ -22,8 +22,8 @@ When the lane has handed off, finish it from the integration checkout:
 git -C ../phantom-worktrees/<name> rebase main    # the lane must be clean
 git log --oneline main..lane/<name>               # review every commit
 git diff main...lane/<name>
-# Run the full gate from AGENTS.md on the rebased branch, serialized through
-# the lock below, and read its output before merging.
+# Run the full gate on the rebased branch and read its output before merging.
+scripts/dev/gate.sh
 git merge --ff-only lane/<name>
 git worktree remove ../phantom-worktrees/<name>
 git branch -d lane/<name>
@@ -37,6 +37,55 @@ Never chain the merge onto the gate. A command list joined with `;` or piped
 through `tail` or `grep` exits with the status of its last command, so a
 green exit status does not prove that Cargo passed. Search the gate output for
 `error`, `FAILED`, and `warning` first.
+
+## Integration gate
+
+`gate.sh` runs the gate from
+[AGENTS.md](../../AGENTS.md#verification-and-handoff). `cargo fmt --check`
+runs first and stops the gate when it fails. The other steps run as
+concurrent chains:
+
+| Chain | Target directory | Steps |
+| --- | --- | --- |
+| Tests | `target/gate/test`, then `target/gate/fuzz` | `cargo nextest run` and `cargo test --doc`, then Clippy and tests of the `fuzz/` crate |
+| Lint | `target/gate/lint` | Clippy, then rustdoc, which reuses Clippy's dependency builds |
+| MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
+| Features | `target/gate/features` | The Features job's rows |
+| Python | none | ruff, the three unittest suites, the docs checker, and the tool-pin check |
+
+The feature rows are read from `.github/workflows/ci.yml`, so the gate checks
+the rows CI checks. Each chain has its own target directory, so chains do not
+wait on one another's Cargo build lock; the first run builds each directory
+from scratch, and later runs are incremental. The four Cargo chains match the
+default of four slots, so the gate does not queue behind itself.
+
+```sh
+scripts/dev/gate.sh                  # the full gate
+scripts/dev/gate.sh --quick          # a lane: the crates changed since main
+scripts/dev/gate.sh --quick -p phantom-net
+```
+
+`--quick` runs formatting, Clippy, the docs checker, and nextest on the
+crates changed since the merge base with `main` (`--base REF` for another
+branch) and the crates that depend on them. A change to a manifest, the lock
+file, `vendor/`, `fixtures/`, or `.config/` tests the whole workspace. A `-p`
+list tests exactly those packages.
+
+Each step writes `target/gate/logs/<step>.log`. The script then prints the
+step, result, exit status, and duration of every step, and exits non-zero if
+any step failed. A step whose command exits 0 but whose log contains a Cargo
+`error:` or `warning:` line, `FAILED`, a nextest failure line, or a docs
+checker finding is marked `FLAG` and also fails the gate; the table is
+followed by the matching lines.
+
+Every Cargo command in the gate takes one slot through `with-cargo-lock.sh`,
+so the gate shares the machine with other worktrees under the rules below.
+When `PHANTOM_CARGO_SLOTS` is unset, the gate sets it to `--slots` (default
+4), and several chains wait for a slot. Each Cargo command gets `-j` jobs
+(default: twice the CPUs divided by slots, since a build often waits on one
+crate and leaves cores idle); `--test-threads` sets how many tests
+nextest runs at once. Without `cargo-nextest`, the tests step runs
+`cargo test` instead.
 
 ## Cargo lock
 
