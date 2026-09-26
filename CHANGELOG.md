@@ -1090,7 +1090,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   The first ClientHello of a connection is unchanged. A resumed ClientHello
   adds the `pre_shared_key` extension, which changes the wire fingerprint of
   every resumed connection. (`278645f`)
-
 - A request needs less memory and, in a debug build, less stack. In a debug
   build the future that `RequestBuilder::send` boxes shrinks from 27,008 to
   14,880 bytes, and the per-attempt allocation an HTTP/1.1, HTTP/2, or
