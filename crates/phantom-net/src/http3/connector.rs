@@ -364,6 +364,8 @@ impl Http3Connector {
         self
     }
 
+    // Without `qlog`, every remaining field is named, so the update is empty.
+    #[cfg_attr(not(feature = "qlog"), expect(clippy::needless_update))]
     fn diagnostics(&self) -> super::ConnectionDiagnostics {
         super::ConnectionDiagnostics {
             #[cfg(feature = "qlog")]
