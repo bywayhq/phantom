@@ -140,8 +140,17 @@ jobs:
           python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
           python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@dfae9bf3d6f6c6f20ef4ebb3486c01a51341ff12 # v2.87.18
+        with:
+          tool: cargo-nextest@0.9.140
+
       - name: Test
-        run: cargo test --workspace --all-targets --all-features --locked
+        run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
+
+      # nextest does not run doctests, and `cargo test --all-targets` skips them.
+      - name: Test documentation examples
+        run: cargo test --doc --workspace --all-features --locked
 
       - name: Build documentation
         env:
@@ -382,8 +391,13 @@ jobs:
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@dfae9bf3d6f6c6f20ef4ebb3486c01a51341ff12 # v2.87.18
+        with:
+          tool: cargo-nextest@0.9.140
+
       - name: Test workspace
-        run: cargo test --workspace --all-targets --all-features --locked
+        run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
 
       - name: Test native QUIC crypto release link
         run: cargo test --release -p phantom-quic-btls --lib --locked

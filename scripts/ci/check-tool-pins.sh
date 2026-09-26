@@ -10,6 +10,8 @@
 #   - Every `nightly-YYYY-MM-DD` names the same toolchain.
 #   - Every `ShellCheck X.Y.Z` in Markdown matches SHELLCHECK_VERSION in the
 #     CI workflow.
+#   - Every `cargo-nextest@VERSION` matches the recommended nextest-version in
+#     .config/nextest.toml.
 #
 # The search covers tracked files outside vendor/ and fixtures/.
 #
@@ -114,8 +116,18 @@ while IFS=: read -r path line match; do
   fi
 done < <(search 'ShellCheck [0-9]+\.[0-9]+\.[0-9]+' '*.md')
 
+nextest=$(sed -nE 's/^nextest-version = \{ recommended = "([^"]+)" \}\r?$/\1/p' .config/nextest.toml)
+if [[ -z $nextest ]]; then
+  fail ".config/nextest.toml: no recommended nextest-version"
+fi
+while IFS=: read -r path line match; do
+  if [[ ${match#cargo-nextest@} != "$nextest" ]]; then
+    fail "$path:$line: $match, but .config/nextest.toml recommends nextest $nextest"
+  fi
+done < <(search 'cargo-nextest@[0-9][0-9A-Za-z.]*')
+
 if ((failures > 0)); then
   echo "check-tool-pins: $failures mismatched pin(s)" >&2
   exit 1
 fi
-echo "check-tool-pins: ruff $ruff, ${nightly:-no nightly toolchain}, and ShellCheck $shellcheck agree"
+echo "check-tool-pins: ruff $ruff, ${nightly:-no nightly toolchain}, ShellCheck $shellcheck, and nextest $nextest agree"
