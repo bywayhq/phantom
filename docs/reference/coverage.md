@@ -852,10 +852,11 @@ Each recipe records the platform its captures came from, and no recipe
 shares component data with a capture from another platform:
 
 - Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37), Brave 154
-  (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0) recipes
+  (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0.1) recipes
   come from Windows 11 captures. The `macos` client-hint and template
-  recipes of Chrome, Edge, Opera, and Firefox, at the same builds, come from
-  macOS 15.5 captures on Apple silicon. Single retained macOS runs of the TCP
+  recipes of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures
+  on Apple silicon, at the same builds except Firefox, whose macOS captures
+  are from 156.0. Single retained macOS runs of the TCP
   ClientHello and resumption and the H2 session for all four, and of the
   QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
   Windows recipes in the replay tests

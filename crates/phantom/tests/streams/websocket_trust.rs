@@ -52,9 +52,10 @@ const EDGE_LOOPBACK: &str =
     proxy_fixture!("edge/154.0.4258.37/windows-11-26200/direct-loopback.txt");
 const EDGE_NAMED: &str =
     proxy_fixture!("edge/154.0.4258.37/windows-11-26200/http-proxy-hostname.txt");
-const FIREFOX_LOOPBACK: &str = proxy_fixture!("firefox/156.0/windows-11-26200/direct-loopback.txt");
+const FIREFOX_LOOPBACK: &str =
+    proxy_fixture!("firefox/156.0.1/windows-11-26200/direct-loopback.txt");
 const FIREFOX_NAMED: &str =
-    proxy_fixture!("firefox/156.0/windows-11-26200/http-proxy-hostname.txt");
+    proxy_fixture!("firefox/156.0.1/windows-11-26200/http-proxy-hostname.txt");
 
 /// One browser's recipe and its captures for each kind of origin.
 struct Case {

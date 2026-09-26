@@ -79,10 +79,10 @@ macro_rules! macos_websocket_set {
 }
 
 const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
-const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0");
+const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0.1");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/154.0.4258.37");
-const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0");
+const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0.1");
 const BRAVE_WEBSOCKET: [&str; 9] = websocket_set!("brave/154.1.96.59");
 /// Every Brave proxy route scenario, three runs each.
 const BRAVE_PROXY: [&str; 20] = [
@@ -670,7 +670,7 @@ fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult
 }
 
 const FIREFOX_156_H3_COOKIES: &str = include_str!(concat!(
-    "../../../../fixtures/cookies/firefox/156.0/windows-11-26200/",
+    "../../../../fixtures/cookies/firefox/156.0.1/windows-11-26200/",
     "crumbs-h3.txt"
 ));
 const FIREFOX_156_H3_SNAPSHOT: &str = include_str!(concat!(
@@ -1435,7 +1435,7 @@ fn value<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
 
 // Field names, after `Host` and the pseudo-header fields, of the page and
 // `fetch()` requests in the proxy route captures of Chrome 154.0.8037.58,
-// Edge 154.0.4258.37, and Firefox 156.0 on Windows 11 build 26200:
+// Edge 154.0.4258.37, and Firefox 156.0.1 on Windows 11 build 26200:
 // `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-hostname.txt`
 // for HTTP/1.1 and `https-proxy-hostname.txt` for HTTP/2, each three runs
 // that agree, to the plaintext origin `origin.phantom.test`. Chrome and Edge

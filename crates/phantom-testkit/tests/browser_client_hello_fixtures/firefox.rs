@@ -3,7 +3,7 @@ use phantom_testkit::tls::is_grease;
 use super::{TestResult, fixture::Fixture, redecode};
 
 const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/firefox/156.0/",
+    "../../../../fixtures/tls/firefox/156.0.1/",
     "windows-11-26200/client-hello.txt"
 ));
 
@@ -11,21 +11,24 @@ const FIXTURE_TEXT: &str = include_str!(concat!(
 async fn firefox_156_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
-    assert_eq!(fixture.value("captured_at_unix")?, "1790020622");
+    assert_eq!(fixture.value("captured_at_unix")?, "1790426576");
     assert_eq!(fixture.value("browser")?, "Mozilla Firefox");
-    assert_eq!(fixture.value("browser_version")?, "156.0");
+    assert_eq!(fixture.value("browser_version")?, "156.0.1");
     assert_eq!(
         fixture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"
     );
-    assert_eq!(fixture.value("hostname")?, "localhost");
-    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:9446");
-    assert_eq!(fixture.value("launch_mode")?, "command-line");
+    assert_eq!(fixture.value("hostname")?, "server.phantom.test");
+    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:59108");
+    assert_eq!(fixture.value("launch_mode")?, "headless");
     assert_eq!(
         fixture.value("launch_arguments")?,
-        "--headless --no-remote --profile <temporary-profile>"
+        concat!(
+            "--headless --wait-for-browser --no-remote --profile '<temporary-profile>' ",
+            "'https://server.phantom.test:<port>/?run=<token>'"
+        )
     );
-    assert_eq!(fixture.records().concat().len(), 1_887);
+    assert_eq!(fixture.records().concat().len(), 1_897);
 
     let summary = redecode(&fixture).await?;
     assert_eq!(summary.legacy_version(), 0x0303);
@@ -68,7 +71,7 @@ async fn firefox_156_fixture_retains_exact_metadata_and_client_hello() -> TestRe
     assert_eq!(
         summary.extension_layout().collect::<Vec<_>>(),
         [
-            (0x0000, 14),
+            (0x0000, 24),
             (0x0017, 0),
             (0xff01, 1),
             (0x000a, 12),

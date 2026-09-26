@@ -49,8 +49,8 @@ const CHROME_SEQUENTIAL: &str = fixture!("chrome", "154.0.8037.58", "sequential"
 const EDGE_SEQUENTIAL: &str = fixture!("edge", "154.0.4258.37", "sequential");
 const BRAVE_SEQUENTIAL: &str = fixture!("brave", "154.1.96.59", "sequential");
 const OPERA_SEQUENTIAL: &str = fixture!("opera", "135.0.5973.92", "sequential");
-const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0", "sequential");
-const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0", "no-early-data");
+const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0.1", "sequential");
+const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0.1", "no-early-data");
 const CHROME_MACOS_SEQUENTIAL: &str =
     fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
 const EDGE_MACOS_SEQUENTIAL: &str =

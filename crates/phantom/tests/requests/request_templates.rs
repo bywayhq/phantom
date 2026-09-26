@@ -80,8 +80,8 @@ const EDGE_ANDROID_H1: &str =
     fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt");
 const EDGE_ANDROID_H2: &str =
     fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt");
-const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0/windows-11-26200/h1-accept.txt");
-const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0/windows-11-26200/accept.txt");
+const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0.1/windows-11-26200/h1-accept.txt");
+const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0.1/windows-11-26200/accept.txt");
 
 /// One browser's recipes and the capture each protocol is compared with.
 struct Browser {
@@ -684,7 +684,7 @@ mod cookie_placement {
     const CHROME_SSE_COOKIE: &str =
         fixture!("sse/chrome/154.0.8037.58/windows-11-26200/set-cookie-then-close.txt");
     const FIREFOX_SSE_COOKIE: &str =
-        fixture!("sse/firefox/156.0/windows-11-26200/set-cookie-then-close.txt");
+        fixture!("sse/firefox/156.0.1/windows-11-26200/set-cookie-then-close.txt");
     /// `PROBE_COOKIE` in scripts/capture/sse_reconnect.py.
     const PROBE_COOKIE: &str = "phantom_probe=1";
     /// The `fetch` templates leave `Referer` to the caller; an address-bar

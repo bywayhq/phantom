@@ -10,7 +10,7 @@ use crate::tls::{
 
 const V156_SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt"
+    "/../../fixtures/websocket/firefox/156.0.1/windows-11-26200/accept.txt"
 ));
 
 #[test]
@@ -146,7 +146,7 @@ fn firefox_156_http2_recipe_matches_windows_session_capture()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(V156_SESSION_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Mozilla Firefox");
-    assert_eq!(capture.value("client_version")?, "156.0");
+    assert_eq!(capture.value("client_version")?, "156.0.1");
     assert_eq!(
         capture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"

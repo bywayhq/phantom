@@ -9,11 +9,11 @@ use super::{
 use crate::tls::test_support::TestResult;
 
 const WINDOWS_FIREFOX_156_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/firefox/156.0/",
+    "../../../../../fixtures/tls/firefox/156.0.1/",
     "windows-11-26200/client-hello.txt"
 ));
 const WINDOWS_FIREFOX_156_CHACHA20_ECH_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/firefox/156.0/",
+    "../../../../../fixtures/tls/firefox/156.0.1/",
     "windows-11-26200/client-hello-chacha20-ech.txt"
 ));
 const ANDROID_FIREFOX_156_FIXTURE: &str = include_str!(concat!(
@@ -107,8 +107,8 @@ async fn assert_recipe_matches_fixture(
     settings: &TlsSettings,
     ech_extension_length: usize,
 ) -> TestResult<()> {
-    // The Windows captures reached `localhost`; the Android captures mapped
-    // the test name with `network.dns.localDomains`.
+    // Each capture names the host it reached; both map the test name with
+    // `network.dns.localDomains`.
     let server_name = fixture
         .lines()
         .find_map(|line| line.strip_prefix("hostname="))

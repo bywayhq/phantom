@@ -58,7 +58,7 @@ const OPERA: &str = include_str!(concat!(
 ));
 const FIREFOX: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/cookies/firefox/156.0/windows-11-26200/crumbs-h2.txt"
+    "/../../fixtures/cookies/firefox/156.0.1/windows-11-26200/crumbs-h2.txt"
 ));
 
 #[tokio::test]

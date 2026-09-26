@@ -128,7 +128,7 @@ async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
             v154_http2(),
         ),
         (
-            "firefox/156.0",
+            "firefox/156.0.1",
             Http2RejectedConnect::LeaveOpen,
             v156_http2(),
         ),

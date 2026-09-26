@@ -57,7 +57,7 @@ macro_rules! fixture_set {
 
 const CHROME: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "154.0.4258.37");
-const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0");
+const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0.1");
 const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
 const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
 const CHROME_ANDROID: [&str; 9] = fixture_set!(
@@ -773,7 +773,7 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
             &chromium,
         ),
         (
-            proxy_fixture_set!("firefox", "156.0"),
+            proxy_fixture_set!("firefox", "156.0.1"),
             "Mozilla Firefox",
             &firefox,
         ),

@@ -71,7 +71,7 @@ Here are the first two frames Chrome 154 sent on Windows 11, from
 ```
 
 Firefox 156 on the same machine sent a different set of settings and values
-(from `fixtures/websocket/firefox/156.0/windows-11-26200/accept.txt`):
+(from `fixtures/websocket/firefox/156.0.1/windows-11-26200/accept.txt`):
 
 | | Chrome 154 | Firefox 156 |
 | --- | --- | --- |

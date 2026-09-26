@@ -240,7 +240,7 @@ fn connection_sharing_follows_the_captured_proxy_connections()
         ("edge/154.0.4258.37", chromium::v154_proxy_connect()),
         ("brave/154.1.96.59", chromium::v154_proxy_connect()),
         ("opera/135.0.5973.92", chromium::v154_proxy_connect()),
-        ("firefox/156.0", firefox::v156_proxy_connect()),
+        ("firefox/156.0.1", firefox::v156_proxy_connect()),
     ] {
         let directory = root.join(browser).join("windows-11-26200");
         for entry in std::fs::read_dir(&directory)? {

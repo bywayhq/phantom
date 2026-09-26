@@ -287,17 +287,17 @@ fn browsers() -> Vec<Browser> {
             connect: firefox::v156_proxy_connect(),
             user_agent: FIREFOX_UA,
             authenticated: [
-                proxy_fixture!("firefox/156.0", "http-proxy-auth-hostname"),
-                proxy_fixture!("firefox/156.0", "http-proxy-auth-loopback"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-hostname"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-loopback"),
             ],
             secure: [
-                proxy_fixture!("firefox/156.0", "http-proxy-secure-hostname"),
-                proxy_fixture!("firefox/156.0", "http-proxy-auth-secure-hostname"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-secure-hostname"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-secure-hostname"),
             ],
-            remembered: proxy_fixture!("firefox/156.0", "http-proxy-auth-remembered-hostname"),
+            remembered: proxy_fixture!("firefox/156.0.1", "http-proxy-auth-remembered-hostname"),
             nostore: [
-                proxy_fixture!("firefox/156.0", "http-proxy-auth-nostore-hostname"),
-                proxy_fixture!("firefox/156.0", "http-proxy-auth-nostore-loopback"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-nostore-loopback"),
             ],
         },
     ]

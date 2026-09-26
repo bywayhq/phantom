@@ -48,7 +48,7 @@ const CHROME_FRESH: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/fresh
 const CHROME_NO_CONNECT: &str =
     fixture!("chrome/154.0.8037.58/windows-11-26200/no-connect-protocol.txt");
 const CHROME_H1: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
-const FIREFOX_H1: &str = fixture!("firefox/156.0/windows-11-26200/h1-accept.txt");
+const FIREFOX_H1: &str = fixture!("firefox/156.0.1/windows-11-26200/h1-accept.txt");
 const EDGE_ACCEPT: &str = fixture!("edge/154.0.4258.37/windows-11-26200/accept.txt");
 const EDGE_FRESH: &str = fixture!("edge/154.0.4258.37/windows-11-26200/fresh-origin.txt");
 const CHROME_ANDROID_ACCEPT: &str =
@@ -59,9 +59,10 @@ const BRAVE_ANDROID_ACCEPT: &str =
     fixture!("brave-android/153.1.95.104/android-35-emulator/accept.txt");
 const BRAVE_ANDROID_FRESH: &str =
     fixture!("brave-android/153.1.95.104/android-35-emulator/fresh-origin.txt");
-const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0/windows-11-26200/accept.txt");
-const FIREFOX_FRESH: &str = fixture!("firefox/156.0/windows-11-26200/fresh-origin.txt");
-const FIREFOX_NO_CONNECT: &str = fixture!("firefox/156.0/windows-11-26200/no-connect-protocol.txt");
+const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0.1/windows-11-26200/accept.txt");
+const FIREFOX_FRESH: &str = fixture!("firefox/156.0.1/windows-11-26200/fresh-origin.txt");
+const FIREFOX_NO_CONNECT: &str =
+    fixture!("firefox/156.0.1/windows-11-26200/no-connect-protocol.txt");
 
 macro_rules! proxy_fixture {
     ($path:literal) => {
@@ -81,7 +82,7 @@ const CHROME_PROXY: &str =
 const EDGE_PROXY: &str =
     proxy_fixture!("edge/154.0.4258.37/windows-11-26200/http-proxy-loopback.txt");
 const FIREFOX_PROXY: &str =
-    proxy_fixture!("firefox/156.0/windows-11-26200/http-proxy-loopback.txt");
+    proxy_fixture!("firefox/156.0.1/windows-11-26200/http-proxy-loopback.txt");
 
 #[tokio::test]
 async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shape() -> TestResult<()>

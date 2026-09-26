@@ -96,7 +96,7 @@ const BRAVE_COOKIES: (&str, &str) =
 const OPERA_COOKIES: (&str, &str) =
     fixture!("cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h2.txt");
 const FIREFOX_COOKIES: (&str, &str) =
-    fixture!("cookies/firefox/156.0/windows-11-26200/crumbs-h2.txt");
+    fixture!("cookies/firefox/156.0.1/windows-11-26200/crumbs-h2.txt");
 
 const CHROME_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/accept.txt"),
@@ -131,13 +131,13 @@ const OPERA_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/opera/135.0.5973.92/windows-11-26200/reject-403.txt"),
 ];
 const FIREFOX_WEBSOCKET: &[(&str, &str)] = &[
-    fixture!("websocket/firefox/156.0/windows-11-26200/accept.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/accept-deflate.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/extension-mismatch.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/fresh-origin.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/no-connect-protocol.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/refused-stream.txt"),
-    fixture!("websocket/firefox/156.0/windows-11-26200/reject-403.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/accept.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/accept-deflate.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/extension-mismatch.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/fresh-origin.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/no-connect-protocol.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/refused-stream.txt"),
+    fixture!("websocket/firefox/156.0.1/windows-11-26200/reject-403.txt"),
 ];
 
 /// Every `https-proxy-*` capture in one `fixtures/proxy/` directory.
@@ -177,7 +177,7 @@ const CHROME_PROXY: &[(&str, &str)] = proxy_fixtures!("chrome/154.0.8037.58/wind
 const EDGE_PROXY: &[(&str, &str)] = proxy_fixtures!("edge/154.0.4258.37/windows-11-26200");
 const BRAVE_PROXY: &[(&str, &str)] = proxy_fixtures!("brave/154.1.96.59/windows-11-26200");
 const OPERA_PROXY: &[(&str, &str)] = proxy_fixtures!("opera/135.0.5973.92/windows-11-26200");
-const FIREFOX_PROXY: &[(&str, &str)] = proxy_fixtures!("firefox/156.0/windows-11-26200");
+const FIREFOX_PROXY: &[(&str, &str)] = proxy_fixtures!("firefox/156.0.1/windows-11-26200");
 
 #[tokio::test]
 async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {

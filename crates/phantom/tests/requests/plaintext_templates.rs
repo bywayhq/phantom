@@ -3,7 +3,7 @@
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. The expected field lists below are the requests
 //! of the proxy route captures of Chrome 154.0.8037.58, Edge 154.0.4258.37,
-//! Brave 154.1.96.59, Opera 135.0.5973.92, and Firefox 156.0 on Windows 11
+//! Brave 154.1.96.59, Opera 135.0.5973.92, and Firefox 156.0.1 on Windows 11
 //! build 26200, three agreeing runs each:
 //! `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-loopback.txt`
 //! for `http://127.0.0.1` and `direct-hostname.txt` for

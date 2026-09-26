@@ -446,7 +446,7 @@ Limits:
 
 What is claimed: Edge 153.0.4234.48 matched the Chromium recipes as below,
 which the [Edge 154 recipes](#edge-154-recipes) build on, and the
-`firefox::v156_*` recipes reproduce Firefox 156.0, both on Windows 11.
+`firefox::v156_*` recipes reproduce Firefox 156.0.1, both on Windows 11.
 
 Evidence: both are the builds installed on the Windows 11 capture host. Every
 capture used a fresh profile, a loopback listener, and the launch flags of the
@@ -460,7 +460,7 @@ Chromium or Firefox fixture for the same layer. Edge ran without
 | Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chromium::v154_http2` |
 | Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`; request fields equal except persona values |
 | Edge 153 client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery; Edge brand list and version values |
-| Firefox 156.0 TLS | 12 processes | Its own fixed extension order and a 240-byte ECH GREASE payload |
+| Firefox 156.0.1 TLS | 5 snapshot processes | Its own fixed extension order and a 240-byte ECH GREASE payload |
 | Firefox 156 H2 startup and request HEADERS | 3 retained H2 session runs, 6 connections | `m,p,a,s` pseudo-headers; non-exclusive parent 0 weight 42 |
 
 The recipes follow from those results. `edge::v154_tls` and
@@ -522,9 +522,16 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Edge 154.0.4258.37 | `cookies` | `crumbs-h1.txt`, `crumbs-h2.txt`, `crumbs-h3.txt` |
 | Edge 154.0.4258.37 | `websocket` | Nine scenarios; see [WebSocket browser evidence](#websocket-browser-evidence) |
 | Edge 154.0.4258.37 | `proxy` | Twenty scenarios; see [Proxy route browser evidence](#proxy-route-browser-evidence) |
-| Firefox 156.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE), `client-hello-chacha20-ech.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
-| Firefox 156.0 | `websocket` | Nine scenarios |
-| Firefox 156.0 | `sse` | Seventeen scenarios |
+| Firefox 156.0.1 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE, split from `http3/.../snapshot-4.txt`), `client-hello-chacha20-ech.txt` (split from `snapshot-1.txt`), nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Firefox 156.0.1 | `websocket` | Nine scenarios |
+| Firefox 156.0.1 | `sse` | Seventeen scenarios |
+
+The Firefox rows replace an earlier Firefox 156.0 set. After the machine
+updated to Firefox 156.0.1, every Windows Firefox scenario was captured
+again on 2026-09-26 with `run_matrix.py`, so each Windows layer comes from
+one build; the 156.0 Windows fixtures were removed. The macOS Firefox
+fixtures remain from 156.0. Three of the five snapshots offered ECH GREASE
+with ChaCha20-Poly1305 and two with AES-128-GCM.
 
 Limits:
 
@@ -1362,15 +1369,15 @@ What is claimed: `firefox::v156_http3_tls`, `v156_quic`, `v156_http3`, and
 reproduce the QUIC and HTTP/3 layers of Firefox 156.0.1 on Windows 11 that
 the list below names, apart from the differences under Limits.
 
-Evidence: `fixtures/http3/firefox/156.0.1/windows-11-26200/` retains three
+Evidence: `fixtures/http3/firefox/156.0.1/windows-11-26200/` retains five
 headless [fingerprint snapshots](#fingerprint-snapshot-evidence)
-(`snapshot-1.txt` to `snapshot-3.txt`, 3.2, 2.7, and 2.8 seconds a run, 9
-seconds in all), the QUIC ClientHello split from each
-(`quic-client-hello-1.txt` to `-3.txt`), and one `quic_resumption.py`
-`accept` capture of three runs and 15 connections that records each client
-unidirectional stream's type (`resumption-streams-accept.txt`, 13 seconds).
-Each process used a fresh profile against the aioquic 1.3.0 capture
-servers. All 18 connections agree on the following.
+(`snapshot-1.txt` to `snapshot-5.txt`, 1.3 to 2.4 seconds a run), the QUIC
+ClientHello split from the first three (`quic-client-hello-1.txt` to
+`-3.txt`), and the `quic_resumption.py` captures `resumption-accept.txt`
+(five runs, 25 connections), `resumption-accept-delayed.txt`, and
+`resumption-reject.txt` (three runs, 15 connections each), which record each
+client unidirectional stream. Each process used a fresh profile against the
+aioquic 1.3.0 capture servers. All 60 connections agree on the following.
 
 - Transport parameters, in this order and never permuted: `max_idle_timeout`
   30000, `initial_max_data` 25165824, `initial_max_stream_data_bidi_local`
@@ -1391,8 +1398,9 @@ servers. All 18 connections agree on the following.
   65536, `QPACK_BLOCKED_STREAMS` 20, draft 02's `ENABLE_WEBTRANSPORT`
   (0x2b603742) 0, the draft (0xffd277) and final `H3_DATAGRAM` 1, and
   `ENABLE_CONNECT_PROTOCOL` 1. The control stream's first STREAM frame held
-  35 to 39 bytes: its type and SETTINGS take 24, and the rest is one
-  reserved frame, as neqo's `HFrame::Grease` writes after SETTINGS.
+  33 to 40 bytes in the 55 resumption connections: its type and SETTINGS
+  take 24, and the rest is one reserved frame, as neqo's `HFrame::Grease`
+  writes after SETTINGS.
 - The encoder stream's first frame carries its type and a Set Dynamic Table
   Capacity of 4096, the server's table; the decoder stream's first frame is
   its type alone.
@@ -2004,20 +2012,16 @@ What is claimed: Phantom's event source matches Chrome 154 and Firefox 156 on
 and reconnect field order, over plaintext HTTP/1.1.
 
 Evidence: `fixtures/sse/` retains HTTP/1.1 EventSource captures from headless
-Chrome 154.0.8037.58 and Firefox 156.0 (build ID 20260909172920) on Windows 11
+Chrome 154.0.8037.58 and Firefox 156.0.1 on Windows 11
 (10.0.26200), recorded against a plaintext loopback server. Each of the
 seventeen scenarios ran ten times on a fresh profile. Fixtures keep the raw
 request lines and header lines in arrival order, connection reuse, and the
 delay from each server stimulus to the next request. Each file records the
 capture page and the exact launch arguments.
 
-The Firefox captures were first recorded under the label 155.0.1, which was
-passed to the capture tool by hand. Every Firefox request in them sends
-`Firefox/156.0` in its user-agent, and the machine's update history shows
-Firefox 156.0 (build ID 20260909172920) installed before the first Firefox
-capture. They were therefore moved to `firefox/156.0/` and their
-`client_version` was corrected. Nothing else in them changed; they were not
-re-captured.
+The Firefox set was captured on 2026-09-26 with `run_matrix.py`, one
+scenario at a time. It replaces a Firefox 156.0 set that was first recorded
+under a hand-typed 155.0.1 label and later relabeled.
 
 Observed on both browsers:
 
@@ -2027,8 +2031,13 @@ Observed on both browsers:
   `sec-ch-ua-mobile`; Firefox places it after `Accept-Encoding`.
 - A valid `retry` value persists across later connections, and a non-digit
   value is ignored.
-- The delay spread across ten runs stayed within about 50 ms and did not grow
-  between attempts: neither browser showed jitter or backoff.
+- After the first reconnect, the delay spread across ten runs stayed within
+  about 50 ms and did not grow between attempts: neither browser showed
+  jitter or backoff. Firefox 156.0.1's first reconnect, about a second after
+  launch on a capture host under load from other builds, came later and
+  spread wider: its median was 12 to 316 ms above the delay. The Firefox
+  156.0 set, captured on a quieter host, had kept the first reconnect within
+  about 25 ms, so the replay test allows the first reconnect 350 ms.
 - `204`, `404`, `500`, and a `text/plain` response each ended the
   EventSource, with no request during the observation window.
 - A stream with only response headers stayed open for 90 seconds; neither
@@ -2056,14 +2065,15 @@ reconnects:
   was resent on a new connection, where it failed with `ERR_EMPTY_RESPONSE`.
   Each later request was a new URL request about 3 s later, so Chrome's
   EventSource waited the retry delay after every failure.
-- One run of the same Firefox 156.0 build with
+- One run of Firefox 156.0 (build ID 20260909172920), the build before
+  156.0.1, with
   `MOZ_LOG=nsHttp:5,EventSource:5` showed one channel whose transaction
   restarted three times after `NS_BASE_STREAM_CLOSED` on fresh connections.
   The `204` answered that same channel, so the EventSource never scheduled a
   reconnect.
 
 The logs were kept outside the repository; the fixture timings of these runs
-matched the retained captures. Phantom's event source already waits the retry
+matched the captures of the same builds. Phantom's event source already waits the retry
 delay after each failure, like Chrome's. By default its HTTP/1 layer does not
 resend a request after a reused connection closes before a response;
 `RetryPolicy::with_reused_connection_replay` opts into Chrome's single
@@ -2113,8 +2123,8 @@ equal Chrome's, Edge's, Brave's, and Opera's.
 
 Evidence: `fixtures/cookies/` retains three runs per protocol from headless
 Chrome 154.0.8037.58, Edge 154.0.4258.37, Brave 154.1.96.59, Opera
-135.0.5973.92, and Firefox 156.0 on Windows 11 (10.0.26200), each on a fresh
-profile. A run loads `/start`, whose response sets five probe cookies, then
+135.0.5973.92, and Firefox 156.0.1 on Windows 11 (10.0.26200), each on a
+fresh profile. A run loads `/start`, whose response sets five probe cookies, then
 navigates to `/page`, which fetches `/fetch` and `/done`, so three requests
 on one connection carry the cookies. The probes include crumbs of 19 and 20
 bytes. Every run of a browser and protocol agrees.
@@ -2195,7 +2205,7 @@ The Brave 154 and Opera 135 openings match `chromium::v154_websocket` too;
 them.
 
 Evidence: `fixtures/websocket/` retains WebSocket openings from headless
-Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0 on Windows 11
+Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0.1 on Windows 11
 (10.0.26200). Each of nine scenarios ran three times on a fresh profile
 against loopback listeners: TLS for `server.phantom.test` (ALPN `h2` and
 `http/1.1`, a throwaway certificate) and plaintext HTTP/1.1. The page sends a
@@ -2248,7 +2258,7 @@ Further observations:
 - In one Chrome `refused-stream` run, the page session closed before the
   socket opened, so that run used the `http/1.1`-only path instead of a
   refused stream.
-- Firefox 156.0 is the build the machine had updated to.
+- Firefox 156.0.1 is the build the machine had updated to.
 
 `crates/phantom/tests/streams/websocket_profile.rs` drives
 `Client::websocket_with_profile_policy` against a loopback origin and
@@ -3423,7 +3433,7 @@ connection in QUIC v2, as these Firefox captures show.
 Evidence: `fixtures/http3/<browser>/<version>/windows-11-26200/` retains
 `resumption-accept.txt` (5 runs), `resumption-accept-delayed.txt` (3 runs),
 and `resumption-reject.txt` (3 runs) for headless Chrome 154.0.8037.58 and
-Firefox 156.0, and one run of each for Edge 154.0.4258.37, on Windows 11
+Firefox 156.0.1, and one run of each for Edge 154.0.4258.37, on Windows 11
 (10.0.26200). Versions
 are the file versions of the installed binaries. Each run used a fresh
 profile against an aioquic 1.3.0 server that sends one NewSessionTicket per
@@ -3787,7 +3797,7 @@ uses each once.
 Evidence: `fixtures/tls/<browser>/<version>/windows-11-26200/` retains nine
 `resumption-<scenario>.txt` fixtures, three runs each, for headless Chrome
 154.0.8037.58, Edge 154.0.4258.37, Brave 154.1.96.59, Opera 135.0.5973.92,
-and Firefox 156.0 on Windows 11 (10.0.26200). Each run used a fresh profile
+and Firefox 156.0.1 on Windows 11 (10.0.26200). Each run used a fresh profile
 against the `tls_resumption.py` loopback server, which sends two
 NewSessionTickets after every handshake (eight after the first handshake
 only, in `issue-once`), each permitting early data except in
@@ -3991,7 +4001,7 @@ remaining differences from the [route matrix](../reference/route-matrix.md)
 are listed at the end of this section.
 
 Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains captures from
-headless Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0 on
+headless Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0.1 on
 Windows 11 (10.0.26200). Each of six scenarios ran three times on a fresh
 profile, and the three runs agree on every request line, field order, and
 forwarding choice. One page load makes a navigation, a `ws://` opening, and a
@@ -4186,7 +4196,7 @@ remain are listed at the end of this section.
 Evidence: [`fixtures/proxy/`](../../fixtures/proxy/) retains four
 authentication scenarios per browser, `http-proxy-auth-*` and
 `https-proxy-auth-*`, with loopback and named origins, from the same headless
-Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0 builds on Windows
+Chrome 154.0.8037.58, Edge 154.0.4258.37, and Firefox 156.0.1 builds on Windows
 11 (10.0.26200). Each ran three times on a fresh profile, and the three runs
 agree on the sequence of proxy requests, connection reuse, and field order.
 The proxy answers any request for the test origin that lacks the expected

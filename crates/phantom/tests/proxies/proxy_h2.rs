@@ -617,7 +617,7 @@ async fn chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -
 
 #[tokio::test]
 async fn firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -> TestResult<()> {
-    // fixtures/proxy/firefox/156.0/*/https-proxy-*.txt.
+    // fixtures/proxy/firefox/156.0.1/*/https-proxy-*.txt.
     assert_h2_forwarding(
         firefox::v156_http2(),
         &[":method", ":path", ":authority", ":scheme"],
@@ -816,8 +816,8 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
             firefox::v156_http2(),
             firefox::v156_windows_navigation_template(),
             firefox::v156_windows_fetch_no_store_template(),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-hostname"),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-nostore-hostname"),
             &[],
         ),
     ];
@@ -939,8 +939,8 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             "firefox",
             firefox::v156_proxy_connect(),
             firefox::v156_windows_navigation_template(),
-            proxy_fixture!("firefox/156.0", "https-proxy-secure-hostname"),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-secure-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-secure-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-secure-hostname"),
         ),
     ];
     for (label, connect, navigation, anonymous, authenticated) in cases {
@@ -1100,7 +1100,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
         ),
         (
             firefox::v156_proxy_connect(),
-            proxy_fixture!("firefox/156.0", "https-proxy-secure-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-secure-hostname"),
         ),
     ];
     for (connect, fixture) in cases {
@@ -1207,8 +1207,8 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
             firefox::v156_http2(),
             firefox::v156_windows_navigation_template(),
             firefox::v156_windows_fetch_no_store_template(),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-remembered-hostname"),
-            proxy_fixture!("firefox/156.0", "https-proxy-auth-nostore-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-nostore-hostname"),
             &[],
         ),
     ];
