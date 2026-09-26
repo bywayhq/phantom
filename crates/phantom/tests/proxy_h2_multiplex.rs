@@ -13,6 +13,7 @@ use std::{
     error::Error as StdError,
     future::{Future, poll_fn},
     net::{Ipv4Addr, SocketAddr},
+    num::NonZeroUsize,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -50,6 +51,15 @@ type ProxyLog = Arc<Mutex<Vec<Seen>>>;
 /// Starts an HTTP/2 proxy that answers every CONNECT with `200` and relays
 /// it to its authority, and every other request with `200 forwarded`.
 async fn spawn_proxy(identity: &TestIdentity) -> TestResult<(SocketAddr, ProxyLog)> {
+    spawn_limited_proxy(identity, None).await
+}
+
+/// Starts the proxy of [`spawn_proxy`], announcing `max_streams` as its
+/// `SETTINGS_MAX_CONCURRENT_STREAMS`.
+async fn spawn_limited_proxy(
+    identity: &TestIdentity,
+    max_streams: Option<u32>,
+) -> TestResult<(SocketAddr, ProxyLog)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H2_ALPN)?;
@@ -62,6 +72,7 @@ async fn spawn_proxy(identity: &TestIdentity) -> TestResult<(SocketAddr, ProxyLo
                 tcp,
                 acceptor.clone(),
                 index,
+                max_streams,
                 Arc::clone(&seen),
             ));
             index += 1;
@@ -74,12 +85,17 @@ async fn serve_proxy_connection(
     tcp: TcpStream,
     acceptor: SslAcceptor,
     index: usize,
+    max_streams: Option<u32>,
     log: ProxyLog,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let stream = accept_tls_stream(tcp, acceptor)
         .await
         .map_err(|error| error.to_string())?;
-    let mut connection = ::http2::server::handshake(stream).await?;
+    let mut builder = ::http2::server::Builder::new();
+    if let Some(max_streams) = max_streams {
+        builder.max_concurrent_streams(max_streams);
+    }
+    let mut connection = builder.handshake(stream).await?;
     while let Some(accepted) = connection.accept().await {
         let (request, mut respond) = accepted?;
         let authority = request
@@ -228,7 +244,7 @@ fn seen(log: &ProxyLog) -> Vec<Seen> {
 }
 
 /// Tunnels to three origins through a client become streams 1, 3, and 5 of
-/// one proxy connection, where Phantom used to open one connection each.
+/// one proxy connection.
 #[tokio::test]
 async fn tunnels_to_different_origins_share_one_proxy_connection() -> TestResult<()> {
     bounded(async {
@@ -293,6 +309,40 @@ async fn forwarded_requests_join_the_tunnel_connection_as_the_profile_says() -> 
                 assert_eq!(placement, [(0, 1), (1, 1), (0, 3)]);
             }
         }
+        Ok(())
+    })
+    .await
+}
+
+/// With `max_http2_proxy_connections_per_route`, a tunnel that would wait
+/// behind the proxy's stream limit opens another proxy connection instead.
+#[tokio::test]
+async fn opted_in_routes_open_another_connection_at_the_proxy_stream_limit() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate()?;
+        let proxy_identity = TestIdentity::generate()?;
+        let (proxy, log) = spawn_limited_proxy(&proxy_identity, Some(1)).await?;
+        let origins = [
+            spawn_origin(&origin_identity).await?,
+            spawn_origin(&origin_identity).await?,
+        ];
+        let client = Client::builder(chromium_profile())
+            .add_root_certificate_der(origin_identity.root_der.clone())
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(Route::http_proxy(
+                HttpProxy::new(&format!("https://{proxy}"))?.with_http2_transport()?,
+            ))
+            .max_http2_proxy_connections_per_route(NonZeroUsize::new(2).ok_or("0")?)
+            .build()?;
+        // Each origin connection keeps its tunnel open.
+        for origin in origins {
+            get_https(&client, origin).await?;
+        }
+        let placement: Vec<(usize, u32)> = seen(&log)
+            .iter()
+            .map(|seen| (seen.connection, seen.stream))
+            .collect();
+        assert_eq!(placement, [(0, 1), (1, 1)]);
         Ok(())
     })
     .await

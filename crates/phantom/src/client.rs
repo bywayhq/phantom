@@ -117,6 +117,9 @@ pub(crate) struct ClientInner {
     pub(crate) websocket_https_proxy: Option<HttpsProxyConnector>,
     /// Which HTTP/2 proxy requests share a connection.
     pub(crate) http2_proxy_connections: Http2ProxyConnections,
+    /// HTTP/2 connections each proxy route may open; one unless the caller
+    /// opted into more.
+    pub(crate) http2_proxy_connections_per_route: NonZeroUsize,
     /// Proxies that accepted Basic credentials, shared with the connectors.
     /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
@@ -181,11 +184,13 @@ impl ClientInner {
         let Some(base) = self.https_proxy.take() else {
             return;
         };
-        let tunnels = Http2ProxyPool::new();
+        let per_route = self.http2_proxy_connections_per_route;
+        let new_pool = || Http2ProxyPool::with_max_connections_per_route(per_route);
+        let tunnels = new_pool();
         let separate = self.http2_proxy_connections == Http2ProxyConnections::ByPurpose;
         let own_pool = || {
             if separate {
-                Http2ProxyPool::new()
+                new_pool()
             } else {
                 tunnels.clone()
             }
@@ -279,6 +284,7 @@ impl Client {
             route: Route::Direct,
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
+            http2_proxy_connections_per_route: NonZeroUsize::MIN,
             dns_cache: None,
             host_overrides: Vec::new(),
             address_resolver: None,
@@ -571,6 +577,7 @@ pub struct ClientBuilder {
     route: Route,
     options: ClientOptions,
     preemptive_proxy_authentication: bool,
+    http2_proxy_connections_per_route: NonZeroUsize,
     /// The caller's address cache choice: `None` keeps the profile's, and
     /// `Some(None)` turns caching off.
     dns_cache: Option<Option<DnsCacheSettings>>,
@@ -618,6 +625,10 @@ impl fmt::Debug for ClientBuilder {
             .field(
                 "preemptive_proxy_authentication",
                 &self.preemptive_proxy_authentication,
+            )
+            .field(
+                "max_http2_proxy_connections_per_route",
+                &self.http2_proxy_connections_per_route,
             )
             .field("dns_cache", &self.dns_cache_settings())
             .field("host_overrides", &self.host_overrides.len())
@@ -758,6 +769,24 @@ impl ClientBuilder {
     #[must_use]
     pub fn preemptive_proxy_authentication(mut self, enabled: bool) -> Self {
         self.preemptive_proxy_authentication = enabled;
+        self
+    }
+
+    /// Lets each route through an HTTP/2 proxy open up to `maximum`
+    /// connections to it, at most 8, instead of one.
+    ///
+    /// Off by default: like Chrome and Firefox, a session keeps one HTTP/2
+    /// connection per proxy route and puts every CONNECT tunnel on it, and a
+    /// tunnel past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` waits until
+    /// another stream on it ends. With a larger `maximum`, a route opens
+    /// another connection once each connection carries 100 tunnels, or the
+    /// proxy's stream limit when that is lower, so a tunnel does not wait
+    /// behind long-lived tunnels. The trade-off: the proxy can see more
+    /// connections than a browser opens. The profile's CONNECT recipe still
+    /// decides which requests share each route's connections.
+    #[must_use]
+    pub fn max_http2_proxy_connections_per_route(mut self, maximum: NonZeroUsize) -> Self {
+        self.http2_proxy_connections_per_route = maximum;
         self
     }
 
@@ -1223,6 +1252,7 @@ impl ClientBuilder {
                 .proxy_connect()
                 .map(|template| template.http2_connections)
                 .unwrap_or_default(),
+            http2_proxy_connections_per_route: self.http2_proxy_connections_per_route,
             proxy_credentials: None,
             host_resolver: None,
             client_hints,

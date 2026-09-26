@@ -368,9 +368,11 @@ impl HttpProxy {
     /// must select `h2`; a proxy that selects `http/1.1` or no protocol fails
     /// with a proxy error instead of falling back. Each session shares one
     /// connection per proxy and set of credentials between tunnels to
-    /// different origins, up to the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`
-    /// or 100, and opens another when it is full or after the proxy's
-    /// `GOAWAY`. The profile's
+    /// different origins; past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`
+    /// a tunnel waits there until another stream ends, and after the proxy's
+    /// `GOAWAY` or close the next tunnel opens a new connection, as in the
+    /// browsers. [`ClientBuilder::max_http2_proxy_connections_per_route`]
+    /// opts into more connections per route. The profile's
     /// [`Http2ProxyConnections`](crate::profile::Http2ProxyConnections)
     /// decides whether forwarded requests and WebSocket tunnels share it too.
     /// The proxy connection uses
@@ -390,6 +392,7 @@ impl HttpProxy {
     /// may use HTTP/1.1 or HTTP/2 inside the tunnel.
     ///
     /// [`RequestErrorKind::UnsupportedRoute`]: crate::RequestErrorKind::UnsupportedRoute
+    /// [`ClientBuilder::max_http2_proxy_connections_per_route`]: crate::ClientBuilder::max_http2_proxy_connections_per_route
     ///
     /// # Errors
     ///
