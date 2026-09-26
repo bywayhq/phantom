@@ -1095,6 +1095,43 @@ async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
 }
 
 #[tokio::test]
+async fn retained_initial_stream_limit_holds_through_a_seed_without_a_limit() {
+    timeout(Duration::from_secs(5), async {
+        let (client_io, mut peer) = duplex(64 * 1024);
+        let mut builder = super::Builder::new();
+        builder
+            .initial_max_send_streams(2)
+            .retain_initial_max_send_streams(true)
+            .initial_peer_settings(Settings::default());
+        let (mut sender, connection) = builder
+            .handshake::<_, Bytes>(client_io)
+            .await
+            .expect("client handshake failed");
+        let driver = tokio::spawn(connection);
+        let mut responses = Vec::new();
+        for _ in 0..3 {
+            let (response, _) = sender
+                .send_request(data_budget_request(), true)
+                .expect("request was rejected");
+            responses.push(response);
+        }
+        read_client_preface(&mut peer).await;
+        read_request_headers(&mut peer, 1).await;
+        read_request_headers(&mut peer, 3).await;
+        // The seed counts as the initial SETTINGS, so a PING may come first.
+        assert_no_request_before_ping_ack(&mut peer).await;
+        assert_eq!(sender.current_max_send_streams(), 2);
+
+        write_raw_frame(&mut peer, 4, 0, 0, &settings_payload(&[(3, 3)])).await;
+        read_request_headers(&mut peer, 5).await;
+        assert_eq!(sender.current_max_send_streams(), 3);
+        driver.abort();
+    })
+    .await
+    .expect("seeded stream limit test timed out");
+}
+
+#[tokio::test]
 async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default() {
     timeout(Duration::from_secs(5), async {
         let (mut peer, sender, _responses, driver) = limited_client(2, false).await;

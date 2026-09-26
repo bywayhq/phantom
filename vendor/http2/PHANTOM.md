@@ -536,9 +536,11 @@ set it. The 256 ceiling is not modeled. The patch changes `src/client.rs`,
 `src/proto/streams/{counts,mod}.rs`. Its regressions in `src/client/tests.rs`
 hold a raw peer's SETTINGS back: two requests open and the third waits,
 SETTINGS without the setting keep it waiting, and a stated limit of three
-opens it; without the option, the same SETTINGS open it. A third regression
-pins upstream's `initial_stream_id` numbering from 3, which Phantom relies
-on.
+opens it; without the option, the same SETTINGS open it. Another seeds
+peer settings without the setting, as the ALPS path does, and checks that
+the limit holds through a PING round trip until the peer states a limit. A
+last regression pins upstream's `initial_stream_id` numbering from 3, which
+Phantom relies on.
 
 ## Refreshing the vendor copy
 
