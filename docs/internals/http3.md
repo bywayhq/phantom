@@ -655,8 +655,8 @@ session on the connection instead.
   takes a live 1-RTT number, and a later session would have to use other
   stream numbers. Every session therefore checks that its critical streams
   take client streams 2, 6, and 10, and one that does not fails to start;
-  the connection is closed rather than started on other stream
-  numbers.
+  the connection is closed with `H3_INTERNAL_ERROR` rather than started on
+  other stream numbers.
 - Every session applies the same start checks, in `check_start` and
   `apply_peer_alps`: a missing `h3` ALPN or malformed ALPS `ACCEPT_CH`
   closes the connection with `H3_GENERAL_PROTOCOL_ERROR`, and invalid ALPS
