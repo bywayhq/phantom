@@ -6,9 +6,9 @@ use crate::quic::{
     QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease,
 };
 
-const EDGE_153_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+const EDGE_154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
+    "/../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt"
 ));
 const BRAVE_154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -32,18 +32,18 @@ const V154_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
 ));
 
 #[test]
-fn edge_153_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(EDGE_153_WINDOWS_HTTP3_FIXTURE.contains(
+fn edge_154_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert!(EDGE_154_WINDOWS_HTTP3_FIXTURE.contains(
         "
 client=Microsoft Edge
 "
     ));
-    assert!(EDGE_153_WINDOWS_HTTP3_FIXTURE.contains(
+    assert!(EDGE_154_WINDOWS_HTTP3_FIXTURE.contains(
         "
-client_version=153.0.4234.48
+client_version=154.0.4258.37
 "
     ));
-    assert_quic_settings_match_startup(EDGE_153_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+    assert_quic_settings_match_startup(EDGE_154_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
 #[test]
@@ -488,15 +488,15 @@ const RESUMPTION_FIXTURES: [&str; 16] = [
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-accept.txt"
+        "/../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/resumption-accept.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-accept-delayed.txt"
+        "/../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/resumption-accept-delayed.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-reject.txt"
+        "/../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/resumption-reject.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

@@ -6,8 +6,8 @@ use crate::{HttpProtocol, RequestErrorKind};
 
 const CHROME_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
-const EDGE_153: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+const EDGE_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
 
 fn exact(protocol: HttpProtocol) -> ProtocolScope {
     ProtocolScope {
@@ -69,11 +69,11 @@ fn caller_fields_take_template_positions_and_spelling() {
 
 #[test]
 fn unfilled_caller_slots_emit_nothing_and_hint_values_wait_for_the_connection() {
-    let template = edge::v153_windows_fetch_no_store_template();
+    let template = edge::v154_windows_fetch_no_store_template();
     let expanded = expand(
         &template.http2_fields,
         &[],
-        Some(&edge::v153_windows_client_hints()),
+        Some(&edge::v154_windows_client_hints()),
         true,
     );
     assert_eq!(
@@ -113,7 +113,7 @@ fn caller_hints_fill_the_block_in_profile_order() {
 
 #[test]
 fn built_in_templates_validate_and_place_their_own_client_hints() {
-    let edge_user_agent = [RequestHeader::new("User-Agent", EDGE_153)];
+    let edge_user_agent = [RequestHeader::new("User-Agent", EDGE_154)];
     let cases = [
         (
             chromium::v154_windows_navigation_template(),
@@ -126,13 +126,13 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
             &[][..],
         ),
         (
-            edge::v153_windows_navigation_template(),
-            Some(edge::v153_windows_client_hints()),
+            edge::v154_windows_navigation_template(),
+            Some(edge::v154_windows_client_hints()),
             &edge_user_agent[..],
         ),
         (
-            edge::v153_windows_fetch_no_store_template(),
-            Some(edge::v153_windows_client_hints()),
+            edge::v154_windows_fetch_no_store_template(),
+            Some(edge::v154_windows_client_hints()),
             &edge_user_agent[..],
         ),
         (firefox::v156_windows_navigation_template(), None, &[][..]),
@@ -157,10 +157,10 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
 
 #[test]
 fn a_required_caller_slot_left_empty_is_rejected() {
-    let edge = edge::v153_windows_navigation_template();
-    let edge_hints = edge::v153_windows_client_hints();
+    let edge = edge::v154_windows_navigation_template();
+    let edge_hints = edge::v154_windows_client_hints();
     let referer = [RequestHeader::new("referer", "https://example.test/")];
-    for template in [&edge, &edge::v153_windows_fetch_no_store_template()] {
+    for template in [&edge, &edge::v154_windows_fetch_no_store_template()] {
         for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
             assert_eq!(
                 kind(template, exact(protocol), &referer, Some(&edge_hints)),
@@ -422,8 +422,8 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
     for template in [
         chromium::v154_windows_navigation_template(),
         chromium::v154_windows_fetch_no_store_template(),
-        edge::v153_windows_navigation_template(),
-        edge::v153_windows_fetch_no_store_template(),
+        edge::v154_windows_navigation_template(),
+        edge::v154_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
     ] {
@@ -443,7 +443,7 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
             check(
                 &prepared,
                 decoding,
-                &[RequestHeader::new("user-agent", EDGE_153)],
+                &[RequestHeader::new("user-agent", EDGE_154)],
                 None
             )
             .err()

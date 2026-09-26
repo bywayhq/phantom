@@ -493,7 +493,7 @@ pub fn v154_http2() -> Http2Settings {
 /// the cookie placeholder's final position is not observed. The
 /// compression offer is `permessage-deflate; client_max_window_bits`; Chrome
 /// always sends it, while Phantom sends it only when the caller enables
-/// compression. Edge 153.0.4234.48, Brave 154.1.96.59, and Opera
+/// compression. Edge 154.0.4258.37, Brave 154.1.96.59, and Opera
 /// 135.0.5973.92 match this recipe on every compared field.
 ///
 /// `Accept-Encoding` is a [`WebSocketField::ByTrust`] entry, as on
@@ -564,7 +564,7 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// `*-secure-hostname` captures show the same fields on the CONNECT for an
 /// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
 /// replay after a `407`, and with remembered credentials. Edge
-/// 153.0.4234.48, Brave 154.1.96.59, and Opera 135.0.5973.92 send the same
+/// 154.0.4258.37, Brave 154.1.96.59, and Opera 135.0.5973.92 send the same
 /// fields in the same order.
 ///
 /// Chrome's `User-Agent` there is its own, which the captures show equal to
@@ -742,7 +742,7 @@ pub fn v154_macos_fetch_no_store_template() -> RequestTemplate {
 /// no-store `fetch()` come before it.
 ///
 /// The retained `http-proxy-auth-*` and `https-proxy-auth-*` proxy route
-/// captures of Chrome 154 and Edge 153 show this on the replayed navigation
+/// captures of Chrome 154 and Edge 154 show this on the replayed navigation
 /// and on the default-mode `fetch()` that follows it, to loopback and named
 /// origins, with a loopback origin's client hints after it. The
 /// `*-auth-remembered-hostname` captures show the same place on a replayed
@@ -997,7 +997,7 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 /// This is a QUIC transport recipe; use it with [`v154_http3`] for the HTTP/3
 /// application settings captured from the same client.
 ///
-/// The retained resumption captures of Chrome 154 and Edge 153 add two
+/// The retained resumption captures of Chrome 154 and Edge 154 add two
 /// things to a resumed connection. Its ClientHello offers early data, so
 /// `early_data` is set; it takes effect with H3 TLS settings that enable
 /// session tickets, such as [`v154_http3_tls`]. Its transport parameters add

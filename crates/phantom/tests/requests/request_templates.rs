@@ -2,7 +2,7 @@
 //!
 //! Each test sends a templated request to a loopback origin over HTTP/1.1,
 //! HTTP/2, or HTTP/3 and compares the ordered fields the origin received with
-//! the same request kind in a retained Chrome 154, Edge 153, or Firefox 156
+//! the same request kind in a retained Chrome 154, Edge 154, or Firefox 156
 //! capture, and on HTTP/2 also the HEADERS priority. The captures ran
 //! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
 //! uses the headful `Chrome` product.
@@ -57,9 +57,9 @@ macro_rules! fixture {
 const CHROME_H1: &str = fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
 const CHROME_H2: &str = fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/accept.txt");
 const CHROME_H3: &str = fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
-const EDGE_H1: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/h1-accept.txt");
-const EDGE_H2: &str = fixture!("websocket/edge/153.0.4234.48/windows-11-26200/accept.txt");
-const EDGE_H3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
+const EDGE_H1: &str = fixture!("websocket/edge/154.0.4258.37/windows-11-26200/h1-accept.txt");
+const EDGE_H2: &str = fixture!("websocket/edge/154.0.4258.37/windows-11-26200/accept.txt");
+const EDGE_H3: &str = fixture!("http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt");
 const BRAVE_H1: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/h1-accept.txt");
 const BRAVE_H2: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/accept.txt");
 const BRAVE_H3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
@@ -105,7 +105,7 @@ fn chrome() -> Browser {
 fn edge() -> Browser {
     Browser {
         http2: chromium::v154_http2(),
-        hints: Some(edge::v153_windows_client_hints()),
+        hints: Some(edge::v154_windows_client_hints()),
         http1_capture: EDGE_H1,
         http2_capture: EDGE_H2,
         http3_capture: Some(EDGE_H3),
@@ -470,7 +470,7 @@ async fn chrome_navigation_sends_the_captured_page_request() -> TestResult<()> {
 async fn edge_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         edge(),
-        edge::v153_windows_navigation_template,
+        edge::v154_windows_navigation_template,
         Kind::Navigation,
         ALL,
     )
@@ -569,7 +569,7 @@ async fn chrome_fetch_sends_the_captured_report_request() -> TestResult<()> {
 async fn edge_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         edge(),
-        edge::v153_windows_fetch_no_store_template,
+        edge::v154_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -975,10 +975,10 @@ async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> Tes
     // requests carry one here and fail only for the missing `User-Agent`.
     for (hints, templates, language) in [
         (
-            edge::v153_windows_client_hints(),
+            edge::v154_windows_client_hints(),
             [
-                edge::v153_windows_navigation_template(),
-                edge::v153_windows_fetch_no_store_template(),
+                edge::v154_windows_navigation_template(),
+                edge::v154_windows_fetch_no_store_template(),
             ],
             None,
         ),

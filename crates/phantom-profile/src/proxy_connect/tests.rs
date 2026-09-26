@@ -17,7 +17,7 @@ fn every_connect_recipe_is_valid() {
 // `fixtures/proxy/<browser>/<version>/windows-11-26200/`: the
 // `http-proxy-auth-*` HTTP/1.1 CONNECTs and the `https-proxy-auth-*` HTTP/2
 // CONNECTs, three agreeing runs each, from Chrome 154.0.8037.58, Edge
-// 153.0.4234.48, and Firefox 156.0. Without credentials the same lists end
+// 154.0.4258.37, and Firefox 156.0. Without credentials the same lists end
 // before `Proxy-Authorization`.
 #[test]
 fn connect_recipes_name_the_captured_fields_in_order() {
@@ -226,7 +226,7 @@ fn captured_connections(capture: &str) -> Vec<Vec<(String, Purpose)>> {
         .collect()
 }
 
-// In every run of every `https-proxy-*` capture, Chrome 154, Edge 153, Brave
+// In every run of every `https-proxy-*` capture, Chrome 154, Edge 154, Brave
 // 154, and Opera 135 send all of a page's requests on one HTTP/2 proxy
 // connection, and Firefox 156 gives forwarded requests, `https://` CONNECTs,
 // and WebSocket CONNECTs a connection each.
@@ -237,7 +237,7 @@ fn connection_sharing_follows_the_captured_proxy_connections()
     let mut checked = 0;
     for (browser, recipe) in [
         ("chrome/154.0.8037.58", chromium::v154_proxy_connect()),
-        ("edge/153.0.4234.48", chromium::v154_proxy_connect()),
+        ("edge/154.0.4258.37", chromium::v154_proxy_connect()),
         ("brave/154.1.96.59", chromium::v154_proxy_connect()),
         ("opera/135.0.5973.92", chromium::v154_proxy_connect()),
         ("firefox/156.0", firefox::v156_proxy_connect()),

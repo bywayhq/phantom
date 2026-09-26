@@ -119,7 +119,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 ///   chooses one and keeps it for the session.
 ///
 /// `User-Agent` is a required caller slot for the reason given for
-/// [`crate::edge::v153_windows_navigation_template`]: every retained Brave
+/// [`crate::edge::v154_windows_navigation_template`]: every retained Brave
 /// capture ran headless and sent `HeadlessChrome`. The brand-bearing client
 /// hints come from [`v154_windows_client_hints`]. The retained proxy route
 /// captures show the Chromium change for a URL that is not potentially

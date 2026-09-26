@@ -100,7 +100,7 @@ async fn challenged_stream_ends_before_the_replay_on_a_multi_thread_runtime() ->
 
 /// Each profile sends, between the `407` and the replay, the frames its
 /// browser sends on the challenged stream in the
-/// `https-proxy-auth-secure-hostname` capture: Chrome 154, Edge 153, Brave
+/// `https-proxy-auth-secure-hostname` capture: Chrome 154, Edge 154, Brave
 /// 154, and Opera 135 an empty END_STREAM DATA frame, Firefox 156 nothing.
 /// Brave and Opera take the Chromium CONNECT and HTTP/2 recipes. Firefox's stream stays
 /// quiet while the tunnel runs.
@@ -113,7 +113,7 @@ async fn challenged_stream_frames_match_the_captures() -> TestResult<()> {
             v154_http2(),
         ),
         (
-            "edge/153.0.4234.48",
+            "edge/154.0.4258.37",
             Http2RejectedConnect::EndStream,
             v154_http2(),
         ),

@@ -81,7 +81,7 @@ macro_rules! macos_websocket_set {
 const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
 const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
-const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/153.0.4234.48");
+const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/154.0.4258.37");
 const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0");
 const BRAVE_WEBSOCKET: [&str; 9] = websocket_set!("brave/154.1.96.59");
 /// Every Brave proxy route scenario, three runs each.
@@ -137,13 +137,13 @@ const CHROME_HEADLESS_SSE: &str =
     fixture!("sse/chrome/154.0.8037.58/windows-11-26200/launch-mode/retry-750-headless.txt");
 const CHROME_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
-const EDGE_HTTP3: &str = fixture!("http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt");
+const EDGE_HTTP3: &str = fixture!("http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt");
 const BRAVE_HTTP3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
 const OPERA_HTTP3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
 const CHROME_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
-    fixture!("client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt");
+    fixture!("client-hints/edge/154.0.4258.37/windows-11-26200/navigation.txt");
 const BRAVE_CLIENT_HINTS: &str =
     fixture!("client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt");
 const OPERA_CLIENT_HINTS: &str =
@@ -318,8 +318,8 @@ fn every_template_recipe_is_valid() {
     for template in [
         chromium::v154_windows_navigation_template(),
         chromium::v154_windows_fetch_no_store_template(),
-        edge::v153_windows_navigation_template(),
-        edge::v153_windows_fetch_no_store_template(),
+        edge::v154_windows_navigation_template(),
+        edge::v154_windows_fetch_no_store_template(),
         brave::v154_windows_navigation_template(),
         brave::v154_windows_fetch_no_store_template(),
         opera::v135_windows_navigation_template(),
@@ -409,9 +409,9 @@ fn chrome_154_navigation_user_agent_is_the_headful_capture_value() -> CaptureRes
 }
 
 #[test]
-fn edge_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = edge::v153_windows_navigation_template();
-    let hints = edge::v153_windows_client_hints();
+fn edge_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = edge::v154_windows_navigation_template();
+    let hints = edge::v154_windows_client_hints();
     let (http1, http2) = observed(&[&EDGE_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -680,8 +680,8 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             "chrome",
         ),
         (
-            edge::v153_windows_fetch_no_store_template(),
-            edge::v153_windows_client_hints(),
+            edge::v154_windows_fetch_no_store_template(),
+            edge::v154_windows_client_hints(),
             &EDGE_WEBSOCKET,
             "edge",
         ),
@@ -770,8 +770,8 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
             "chrome macos",
         ),
         (
-            edge::v153_windows_navigation_template(),
-            edge::v153_windows_fetch_no_store_template(),
+            edge::v154_windows_navigation_template(),
+            edge::v154_windows_fetch_no_store_template(),
             edge::v153_macos_client_hints(),
             &EDGE_MACOS_WEBSOCKET,
             "edge macos",
@@ -898,9 +898,9 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
     // `Accept-CH`; no capture recorded a fetch after it.
     for (template, placed) in [
         (chromium::v154_windows_navigation_template(), true),
-        (edge::v153_windows_navigation_template(), true),
+        (edge::v154_windows_navigation_template(), true),
         (chromium::v154_windows_fetch_no_store_template(), false),
-        (edge::v153_windows_fetch_no_store_template(), false),
+        (edge::v154_windows_fetch_no_store_template(), false),
         (brave::v154_windows_navigation_template(), true),
         (brave::v154_windows_fetch_no_store_template(), false),
         (opera::v135_windows_navigation_template(), true),
@@ -937,13 +937,13 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             220,
         ),
         (
-            edge::v153_windows_navigation_template(),
+            edge::v154_windows_navigation_template(),
             &EDGE_WEBSOCKET,
             "document",
             256,
         ),
         (
-            edge::v153_windows_fetch_no_store_template(),
+            edge::v154_windows_fetch_no_store_template(),
             &EDGE_WEBSOCKET,
             "empty",
             220,
@@ -1038,8 +1038,8 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
         ),
         (
             EDGE_CLIENT_HINTS,
-            edge::v153_windows_client_hints(),
-            edge::v153_windows_navigation_template(),
+            edge::v154_windows_client_hints(),
+            edge::v154_windows_navigation_template(),
         ),
         (
             BRAVE_CLIENT_HINTS,
@@ -1237,8 +1237,8 @@ fn cookie_placement_presets_find_their_neighbours_in_every_template_list() {
     for template in [
         chromium::v154_windows_navigation_template(),
         chromium::v154_windows_fetch_no_store_template(),
-        edge::v153_windows_navigation_template(),
-        edge::v153_windows_fetch_no_store_template(),
+        edge::v154_windows_navigation_template(),
+        edge::v154_windows_fetch_no_store_template(),
     ] {
         assert_eq!(neighbour(&placement, &template.http1_fields), None);
         for list in [Some(&template.http2_fields), template.http3_fields.as_ref()]
@@ -1309,7 +1309,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
 fn client_hint_placement_names_fields_up_to_the_first_literal() {
     let chrome =
         client_hint_placement(&chromium::v154_windows_fetch_no_store_template().http1_fields);
-    let edge = client_hint_placement(&edge::v153_windows_fetch_no_store_template().http2_fields);
+    let edge = client_hint_placement(&edge::v154_windows_fetch_no_store_template().http2_fields);
     let names = |slots: &[super::ClientHintSlot]| {
         slots
             .iter()
@@ -1377,7 +1377,7 @@ fn value<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
 
 // Field names, after `Host` and the pseudo-header fields, of the page and
 // `fetch()` requests in the proxy route captures of Chrome 154.0.8037.58,
-// Edge 153.0.4234.48, and Firefox 156.0 on Windows 11 build 26200:
+// Edge 154.0.4258.37, and Firefox 156.0 on Windows 11 build 26200:
 // `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-hostname.txt`
 // for HTTP/1.1 and `https-proxy-hostname.txt` for HTTP/2, each three runs
 // that agree, to the plaintext origin `origin.phantom.test`. Chrome and Edge
@@ -1481,13 +1481,13 @@ fn templates_send_the_captured_plaintext_named_origin_fields() {
         // Edge leaves `User-Agent` to the caller, so it is absent here.
         (
             "edge navigation",
-            edge::v153_windows_navigation_template(),
+            edge::v154_windows_navigation_template(),
             without(CHROMIUM_NAMED_NAVIGATION_H1, "user-agent"),
             without(CHROMIUM_NAMED_NAVIGATION_H2, "user-agent"),
         ),
         (
             "edge fetch",
-            edge::v153_windows_fetch_no_store_template(),
+            edge::v154_windows_fetch_no_store_template(),
             without(CHROMIUM_NAMED_FETCH_H1, "user-agent"),
             without(CHROMIUM_NAMED_FETCH_H2, "user-agent"),
         ),
@@ -1624,8 +1624,8 @@ fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded()
     for template in [
         chromium::v154_windows_navigation_template(),
         chromium::v154_windows_fetch_no_store_template(),
-        edge::v153_windows_navigation_template(),
-        edge::v153_windows_fetch_no_store_template(),
+        edge::v154_windows_navigation_template(),
+        edge::v154_windows_fetch_no_store_template(),
     ] {
         let mut expected = direct(&template.http1_fields);
         let connection = expected

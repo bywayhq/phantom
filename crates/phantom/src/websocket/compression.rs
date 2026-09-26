@@ -128,7 +128,7 @@ impl PerMessageDeflate {
     /// Sets whether an empty text or binary message is compressed.
     ///
     /// With this on, the default, an empty message is deflated like any other
-    /// and carries RSV1, as Chrome 154 and Edge 153 do. With it off, an empty
+    /// and carries RSV1, as Chrome 154 and Edge 154 do. With it off, an empty
     /// message is sent with a zero-length payload and RSV1 clear, as Firefox
     /// 156 does; every non-empty message is still compressed. The setting has
     /// no effect until the server accepts the offer.
@@ -405,7 +405,7 @@ mod tests {
     }
 
     /// Guards the direction of the profile mapping: the retained
-    /// `accept-deflate` captures show Chrome 154 and Edge 153 compressing a
+    /// `accept-deflate` captures show Chrome 154 and Edge 154 compressing a
     /// zero-length message and Firefox 156 sending it uncompressed, so
     /// swapping the two arms must fail here.
     #[test]

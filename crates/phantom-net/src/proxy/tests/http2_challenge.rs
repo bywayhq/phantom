@@ -34,7 +34,7 @@ const ORIGIN: &str = "origin.example:443";
 const AUTHORIZATION: &[u8] = b"Basic YWxpY2U6c2VjcmV0";
 
 /// A challenged CONNECT and its replay share one proxy connection, as in the
-/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 153, and
+/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 154, and
 /// Firefox 156. The client ends the challenged stream with an empty
 /// END_STREAM DATA frame, as Chrome and Edge do, then opens the replay as
 /// the next stream. The credential is a never-indexed literal on static name

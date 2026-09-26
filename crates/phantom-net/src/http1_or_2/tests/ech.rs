@@ -479,7 +479,7 @@ async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
 
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
-    assert_accept_replays(EDGE_ACCEPT, &edge::v153_tls()).await
+    assert_accept_replays(EDGE_ACCEPT, &edge::v154_tls()).await
 }
 
 /// Brave sends Chrome's outer shape without the trust-anchor IDs extension,
@@ -507,7 +507,7 @@ async fn edge_153_rejection_is_retried_as_edge_retried_it() -> TestResult<()> {
     // Edge's first two connections, the navigation and a preconnect, were
     // rejected and the next two were their retries. Each pair is identical,
     // so the first of each stands for both.
-    let observed = replay(EDGE_REJECT, &edge::v153_tls(), TEST_ECH_KEYS[1], 2).await?;
+    let observed = replay(EDGE_REJECT, &edge::v154_tls(), TEST_ECH_KEYS[1], 2).await?;
     let [rejected, retried] = &observed[..] else {
         return Err(format!("expected two connections, saw {observed:?}").into());
     };

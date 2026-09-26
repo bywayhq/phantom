@@ -477,7 +477,7 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
 }
 
 /// A `ws://` opening whose CONNECT an HTTP/2 proxy challenges replays it as
-/// stream 3 of the challenged connection, as Chrome 154, Edge 153, and
+/// stream 3 of the challenged connection, as Chrome 154, Edge 154, and
 /// Firefox 156 do, and opens no second proxy connection.
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection()
@@ -589,7 +589,7 @@ fn assert_challenged_then_authorized(records: &[tunnel_proxy::Http2ConnectRecord
 /// A `ws://` tunnel on an HTTP/2 proxy sends the profile's CONNECT fields
 /// with the opening's `User-Agent`, as every H2 CONNECT in the
 /// `https-proxy-hostname` and `https-proxy-loopback` captures of Chrome 154,
-/// Edge 153, and Firefox 156 does: `user-agent` alone after `:method` and
+/// Edge 154, and Firefox 156 does: `user-agent` alone after `:method` and
 /// `:authority`.
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestResult<()> {

@@ -143,7 +143,7 @@ impl HttpsProxyConnector {
     /// such as a challenged one, before the replay on the same connection.
     ///
     /// The default, [`Http2RejectedConnect::EndStream`], is what Chrome 154
-    /// and Edge 153 send. It has no effect in [`HttpsProxyProtocol::Http1`]
+    /// and Edge 154 send. It has no effect in [`HttpsProxyProtocol::Http1`]
     /// mode.
     #[must_use]
     pub fn with_http2_rejected_connect(mut self, rejected: Http2RejectedConnect) -> Self {

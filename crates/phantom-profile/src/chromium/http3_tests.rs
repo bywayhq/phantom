@@ -5,8 +5,8 @@ use crate::{
 
 use super::{v154_http3, v154_http3_request};
 
-const EDGE_153_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt"
+const EDGE_154_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt"
 );
 const BRAVE_154_WINDOWS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
@@ -40,24 +40,24 @@ fn chrome_154_http3_recipe_matches_windows_capture() -> Result<(), Box<dyn std::
     assert_settings_match_control_stream(V154_WINDOWS_FIXTURE, v154_http3(), v154_http3_request())
 }
 
-/// Edge 153 shares the Chromium H3 control stream and request order; only
+/// Edge 154 shares the Chromium H3 control stream and request order; only
 /// persona values differ.
 #[test]
-fn edge_153_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+fn edge_154_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
-        fixture_field(EDGE_153_WINDOWS_FIXTURE, "client")?,
+        fixture_field(EDGE_154_WINDOWS_FIXTURE, "client")?,
         "Microsoft Edge"
     );
     assert_eq!(
-        fixture_field(EDGE_153_WINDOWS_FIXTURE, "client_version")?,
-        "153.0.4234.48"
+        fixture_field(EDGE_154_WINDOWS_FIXTURE, "client_version")?,
+        "154.0.4258.37"
     );
     assert_settings_match_control_stream(
-        EDGE_153_WINDOWS_FIXTURE,
+        EDGE_154_WINDOWS_FIXTURE,
         v154_http3(),
         v154_http3_request(),
     )?;
-    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, EDGE_153_WINDOWS_FIXTURE)
+    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, EDGE_154_WINDOWS_FIXTURE)
 }
 
 /// Brave 154 shares the Chromium H3 control stream and pseudo-header order;
@@ -578,6 +578,6 @@ fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
             .map(|(name, _)| name)
             .collect())
     };
-    assert_eq!(names(EDGE)?, names(EDGE_153_WINDOWS_FIXTURE)?);
+    assert_eq!(names(EDGE)?, names(EDGE_154_WINDOWS_FIXTURE)?);
     Ok(())
 }

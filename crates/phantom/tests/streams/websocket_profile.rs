@@ -2,7 +2,7 @@
 //!
 //! Each test drives `Client::websocket_with_profile_policy` against a loopback
 //! origin and compares what the origin observed with a retained Chrome 154,
-//! Edge 153, or Firefox 156 capture from `fixtures/websocket/`.
+//! Edge 154, or Firefox 156 capture from `fixtures/websocket/`.
 
 #[path = "websocket_profile/fixture.rs"]
 pub(crate) mod fixture;
@@ -49,8 +49,8 @@ const CHROME_NO_CONNECT: &str =
     fixture!("chrome/154.0.8037.58/windows-11-26200/no-connect-protocol.txt");
 const CHROME_H1: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
 const FIREFOX_H1: &str = fixture!("firefox/156.0/windows-11-26200/h1-accept.txt");
-const EDGE_ACCEPT: &str = fixture!("edge/153.0.4234.48/windows-11-26200/accept.txt");
-const EDGE_FRESH: &str = fixture!("edge/153.0.4234.48/windows-11-26200/fresh-origin.txt");
+const EDGE_ACCEPT: &str = fixture!("edge/154.0.4258.37/windows-11-26200/accept.txt");
+const EDGE_FRESH: &str = fixture!("edge/154.0.4258.37/windows-11-26200/fresh-origin.txt");
 const CHROME_ANDROID_ACCEPT: &str =
     fixture!("chrome-android/153.0.8010.52/android-35-emulator/accept.txt");
 const CHROME_ANDROID_FRESH: &str =
@@ -79,7 +79,7 @@ macro_rules! proxy_fixture {
 const CHROME_PROXY: &str =
     proxy_fixture!("chrome/154.0.8037.58/windows-11-26200/http-proxy-loopback.txt");
 const EDGE_PROXY: &str =
-    proxy_fixture!("edge/153.0.4234.48/windows-11-26200/http-proxy-loopback.txt");
+    proxy_fixture!("edge/154.0.4258.37/windows-11-26200/http-proxy-loopback.txt");
 const FIREFOX_PROXY: &str =
     proxy_fixture!("firefox/156.0/windows-11-26200/http-proxy-loopback.txt");
 
@@ -121,7 +121,7 @@ async fn firefox_reuses_a_capable_pooled_session_with_the_captured_connect_shape
 /// equalities and the inequalities below.
 #[tokio::test]
 async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> TestResult<()> {
-    // Chrome 154 and Edge 153: literal without indexing, naming static entry 2
+    // Chrome 154 and Edge 154: literal without indexing, naming static entry 2
     // (`:method: GET`), with `CONNECT` sent raw because Huffman ties with it.
     let chromium_method = Representation {
         kind: "without-indexing".to_owned(),
@@ -449,7 +449,7 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
     .await
 }
 
-/// Chrome 154 and Edge 153 answer `RST_STREAM(REFUSED_STREAM)` with one more
+/// Chrome 154 and Edge 154 answer `RST_STREAM(REFUSED_STREAM)` with one more
 /// extended CONNECT on the same session and the next client stream id, which
 /// the peer then accepted; see the retained `refused-stream` captures.
 #[tokio::test]

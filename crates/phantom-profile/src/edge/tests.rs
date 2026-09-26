@@ -1,4 +1,4 @@
-use super::{v153_http3_tls, v153_macos_client_hints, v153_tls, v153_windows_client_hints};
+use super::{v153_macos_client_hints, v154_http3_tls, v154_tls, v154_windows_client_hints};
 use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
@@ -7,7 +7,7 @@ use crate::http2::{
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt"
+    "/../../fixtures/client-hints/edge/154.0.4258.37/windows-11-26200/navigation.txt"
 ));
 const MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -15,30 +15,30 @@ const MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
 ));
 const SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/websocket/edge/153.0.4234.48/windows-11-26200/accept.txt"
+    "/../../fixtures/websocket/edge/154.0.4258.37/windows-11-26200/accept.txt"
 ));
 
 #[test]
-fn edge_153_windows_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
+fn edge_154_windows_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
 {
-    let settings = v153_windows_client_hints();
+    let settings = v154_windows_client_hints();
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
-    assert_eq!(capture.value("client_version")?, "153.0.4234.48");
+    assert_eq!(capture.value("client_version")?, "154.0.4258.37");
     assert_eq!(
         capture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"
     );
     assert_eq!(capture.value("launch_mode")?, "headless");
-    assert_eq!(capture.value("repeat_count")?, "3");
+    assert_eq!(capture.value("repeat_count")?, "1");
     capture.assert_runs_agree()?;
     assert_eq!(profile_hints(&settings), capture.hints()?);
     Ok(())
 }
 
 #[test]
-fn edge_153_client_hints_share_the_chromium_names_order_and_delivery() {
+fn edge_154_client_hints_share_the_chromium_names_order_and_delivery() {
     let names = |settings: crate::ClientHintSettings| {
         settings
             .hints()
@@ -47,16 +47,16 @@ fn edge_153_client_hints_share_the_chromium_names_order_and_delivery() {
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v153_windows_client_hints()),
+        names(v154_windows_client_hints()),
         names(chromium::v154_windows_client_hints())
     );
 }
 
 #[test]
-fn edge_153_recipes_keep_the_backend_ech_grease_aead_policy() {
+fn edge_154_recipes_keep_the_backend_ech_grease_aead_policy() {
     // Edge advertises AES-128-GCM like Chrome; the backend default produces
     // that choice because `aes_hardware` is set.
-    for settings in [v153_tls(), v153_http3_tls()] {
+    for settings in [v154_tls(), v154_http3_tls()] {
         assert!(settings.ech_grease);
         assert!(settings.ech_grease_aeads.is_empty());
         assert!(settings.aes_hardware);
@@ -66,11 +66,11 @@ fn edge_153_recipes_keep_the_backend_ech_grease_aead_policy() {
 /// On the wire the Edge and Chrome ClientHellos differ only in the
 /// trust-anchor IDs, with or without an HTTPS record's `ech`.
 #[test]
-fn edge_153_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
+fn edge_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     for (edge, chrome) in [
-        (v153_tls(), chromium::v154_tls()),
-        (v153_http3_tls(), chromium::v154_http3_tls()),
+        (v154_tls(), chromium::v154_tls()),
+        (v154_http3_tls(), chromium::v154_http3_tls()),
     ] {
         edge.validate()?;
         assert!(chrome.requested_trust_anchor_ids.is_some());
@@ -82,11 +82,11 @@ fn edge_153_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 }
 
 #[test]
-fn edge_153_http2_session_capture_matches_the_chromium_recipe()
+fn edge_154_http2_session_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(SESSION_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
-    assert_eq!(capture.value("client_version")?, "153.0.4234.48");
+    assert_eq!(capture.value("client_version")?, "154.0.4258.37");
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
@@ -138,16 +138,26 @@ fn edge_153_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn 
     Ok(())
 }
 
-/// macOS changes only the platform hints.
+/// The macOS hints differ from the Windows ones in the Edge 153 brand and
+/// version values and the platform data.
 #[test]
-fn edge_153_macos_client_hints_differ_from_windows_only_in_platform_data() {
-    let changed = changed_hints(&v153_windows_client_hints(), &v153_macos_client_hints());
+fn edge_153_macos_client_hints_differ_from_windows_in_version_and_platform_data() {
+    let changed = changed_hints(&v154_windows_client_hints(), &v153_macos_client_hints());
     assert_eq!(
         changed,
         [
+            (
+                "sec-ch-ua",
+                r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
+            ),
+            ("sec-ch-ua-full-version", r#""153.0.4234.48""#),
             ("sec-ch-ua-arch", r#""arm""#),
             ("sec-ch-ua-platform", r#""macOS""#),
             ("sec-ch-ua-platform-version", r#""15.5.0""#),
+            (
+                "sec-ch-ua-full-version-list",
+                r#""Microsoft Edge";v="153.0.4234.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53""#,
+            ),
         ]
         .map(|(name, value)| (name.to_owned(), value.to_owned()))
     );

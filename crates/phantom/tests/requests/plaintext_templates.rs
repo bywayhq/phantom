@@ -2,7 +2,7 @@
 //!
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. The expected field lists below are the requests
-//! of the proxy route captures of Chrome 154.0.8037.58, Edge 153.0.4234.48,
+//! of the proxy route captures of Chrome 154.0.8037.58, Edge 154.0.4258.37,
 //! Brave 154.1.96.59, Opera 135.0.5973.92, and Firefox 156.0 on Windows 11
 //! build 26200, three agreeing runs each:
 //! `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-loopback.txt`
@@ -41,13 +41,13 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
 const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
 const FIREFOX_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
 const CHROME_BRANDS: &str = r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#;
-const EDGE_BRANDS: &str = r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#;
+const EDGE_BRANDS: &str = r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#;
 const BRAVE_BRANDS: &str = r#""Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99""#;
 const OPERA_BRANDS: &str = r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#;
 /// Brave's navigation `Accept`: Chrome's without signed exchanges.
@@ -283,8 +283,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "edge navigation",
             chromium: true,
-            hints: Some(edge::v153_windows_client_hints()),
-            template: edge::v153_windows_navigation_template(),
+            hints: Some(edge::v154_windows_client_hints()),
+            template: edge::v154_windows_navigation_template(),
             caller: vec![edge_ua()],
             loopback: edge.navigation(true),
             named: edge.navigation(false),
@@ -292,8 +292,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "edge fetch",
             chromium: true,
-            hints: Some(edge::v153_windows_client_hints()),
-            template: edge::v153_windows_fetch_no_store_template(),
+            hints: Some(edge::v154_windows_client_hints()),
+            template: edge::v154_windows_fetch_no_store_template(),
             caller: vec![edge_ua(), referer()],
             loopback: edge.fetch(true),
             named: edge.fetch(false),

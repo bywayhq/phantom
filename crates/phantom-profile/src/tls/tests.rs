@@ -166,7 +166,7 @@ fn session_tickets_per_origin_must_be_between_one_and_eight() -> Result<(), Box<
 fn tcp_ticket_retention_follows_the_resumption_captures() {
     for settings in [
         crate::chromium::v154_tls(),
-        crate::edge::v153_tls(),
+        crate::edge::v154_tls(),
         crate::brave::v154_tls(),
         crate::opera::v135_tls(),
     ] {
@@ -233,8 +233,8 @@ fn ech_from_https_records_requires_ech_grease() {
 fn only_the_chrome_edge_and_brave_recipes_use_ech_from_https_records() {
     assert!(crate::chromium::v154_tls().ech_from_https_records);
     assert!(crate::chromium::v154_http3_tls().ech_from_https_records);
-    assert!(crate::edge::v153_tls().ech_from_https_records);
-    assert!(crate::edge::v153_http3_tls().ech_from_https_records);
+    assert!(crate::edge::v154_tls().ech_from_https_records);
+    assert!(crate::edge::v154_http3_tls().ech_from_https_records);
     assert!(crate::brave::v154_tls().ech_from_https_records);
     assert!(crate::brave::v154_http3_tls().ech_from_https_records);
     assert!(!crate::opera::v135_tls().ech_from_https_records);

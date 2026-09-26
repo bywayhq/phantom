@@ -28,7 +28,7 @@ use tls_support::{TestResult, read_head};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
 const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -204,25 +204,25 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "edge",
-            tls: edge::v153_tls(),
-            hints: Some(edge::v153_windows_client_hints()),
-            navigation: edge::v153_windows_navigation_template(),
-            fetch: edge::v153_windows_fetch_no_store_template(),
+            tls: edge::v154_tls(),
+            hints: Some(edge::v154_windows_client_hints()),
+            navigation: edge::v154_windows_navigation_template(),
+            fetch: edge::v154_windows_fetch_no_store_template(),
             caller: vec![RequestHeader::new("User-Agent", EDGE_UA)],
             connect: chromium::v154_proxy_connect(),
             user_agent: EDGE_UA,
             authenticated: [
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-hostname"),
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-loopback"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-hostname"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-loopback"),
             ],
             secure: [
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-secure-hostname"),
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-secure-hostname"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-secure-hostname"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-secure-hostname"),
             ],
-            remembered: proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-remembered-hostname"),
+            remembered: proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-remembered-hostname"),
             nostore: [
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-nostore-hostname"),
-                proxy_fixture!("edge/153.0.4234.48", "http-proxy-auth-nostore-loopback"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-nostore-loopback"),
             ],
         },
         Browser {

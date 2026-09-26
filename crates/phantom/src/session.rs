@@ -446,7 +446,7 @@ macro_rules! client_option_setters {
         /// Without this call the profile decides, and a session keeps the
         /// choice of the client it is built from. A client offers early data
         /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154
-        /// and Edge 153 recipes do, because the captured browsers offer it on
+        /// and Edge 154 recipes do, because the captured browsers offer it on
         /// every resumed connection. `false` turns it off for such a profile; `true`
         /// turns it on for a profile that leaves it unset.
         ///
@@ -497,7 +497,7 @@ macro_rules! client_option_setters {
         ///
         /// A profile that sets
         /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
-        /// as the Chrome 154, Edge 153, and Brave 154 recipes do, also uses the
+        /// as the Chrome 154, Edge 154, and Brave 154 recipes do, also uses the
         /// records for Encrypted Client Hello on every direct TLS connection over
         /// TCP: those of negotiated and exact-protocol HTTP/1.1 and HTTP/2
         /// requests and of `wss://` WebSocket openings. Each such connection

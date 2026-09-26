@@ -79,12 +79,12 @@ const CHROME_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/chrome/154.0.8037.58/windows-11-26200/reject-403.txt"),
 ];
 const EDGE_WEBSOCKET: &[(&str, &str)] = &[
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/accept.txt"),
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/accept-deflate.txt"),
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/extension-mismatch.txt"),
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/no-connect-protocol.txt"),
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/refused-stream.txt"),
-    fixture!("websocket/edge/153.0.4234.48/windows-11-26200/reject-403.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/accept.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/accept-deflate.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/extension-mismatch.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/no-connect-protocol.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/refused-stream.txt"),
+    fixture!("websocket/edge/154.0.4258.37/windows-11-26200/reject-403.txt"),
 ];
 const BRAVE_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/brave/154.1.96.59/windows-11-26200/accept.txt"),

@@ -2,7 +2,7 @@
 //!
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. Each test opens a `ws://` WebSocket with the
-//! Chrome 154, Edge 153, or Firefox 156 recipe, supplying only the persona and
+//! Chrome 154, Edge 154, or Firefox 156 recipe, supplying only the persona and
 //! page fields (`User-Agent`, `Origin`, `Accept-Language`) from the capture,
 //! and compares the Upgrade the origin received with the proxy route capture
 //! of that browser: `direct-loopback.txt` for `ws://127.0.0.1` and
@@ -49,9 +49,9 @@ const CHROME_LOOPBACK: &str =
 const CHROME_NAMED: &str =
     proxy_fixture!("chrome/154.0.8037.58/windows-11-26200/http-proxy-hostname.txt");
 const EDGE_LOOPBACK: &str =
-    proxy_fixture!("edge/153.0.4234.48/windows-11-26200/direct-loopback.txt");
+    proxy_fixture!("edge/154.0.4258.37/windows-11-26200/direct-loopback.txt");
 const EDGE_NAMED: &str =
-    proxy_fixture!("edge/153.0.4234.48/windows-11-26200/http-proxy-hostname.txt");
+    proxy_fixture!("edge/154.0.4258.37/windows-11-26200/http-proxy-hostname.txt");
 const FIREFOX_LOOPBACK: &str = proxy_fixture!("firefox/156.0/windows-11-26200/direct-loopback.txt");
 const FIREFOX_NAMED: &str =
     proxy_fixture!("firefox/156.0/windows-11-26200/http-proxy-hostname.txt");

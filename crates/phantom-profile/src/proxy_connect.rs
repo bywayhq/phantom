@@ -97,7 +97,7 @@ impl ProxyConnectField {
 pub enum Http2RejectedConnect {
     /// An empty DATA frame with END_STREAM, before any later stream opens.
     ///
-    /// Chrome 154 and Edge 153 do this in the
+    /// Chrome 154 and Edge 154 do this in the
     /// `https-proxy-auth-secure-hostname` captures.
     #[default]
     EndStream,
@@ -122,7 +122,7 @@ pub enum Http2ProxyConnections {
     /// Forwarded `http://` requests, CONNECT tunnels, and WebSocket tunnels
     /// are streams of one connection.
     ///
-    /// Chrome 154, Edge 153, Brave 154, and Opera 135 send a page's
+    /// Chrome 154, Edge 154, Brave 154, and Opera 135 send a page's
     /// navigation, its `fetch()`, and every CONNECT it opens on one
     /// connection in the `https-proxy-*` captures.
     #[default]

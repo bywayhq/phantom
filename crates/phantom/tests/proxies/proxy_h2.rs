@@ -177,7 +177,7 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 }
 
 /// A challenged CONNECT is replayed once, as stream 3 of the proxy
-/// connection that carried the `407` on stream 1, as Chrome 154, Edge 153,
+/// connection that carried the `407` on stream 1, as Chrome 154, Edge 154,
 /// and Firefox 156 do in the `https-proxy-auth-secure-hostname` captures.
 #[tokio::test]
 async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() -> TestResult<()> {
@@ -768,7 +768,7 @@ type ForwardingCase = (
 );
 
 /// A navigation challenged by an HTTP/2 proxy and its replay place
-/// `proxy-authorization` where Chrome 154, Edge 153, Brave 154, Opera 135,
+/// `proxy-authorization` where Chrome 154, Edge 154, Brave 154, Opera 135,
 /// and Firefox 156 do in
 /// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
 /// sends remembered credentials first places it where they do in the
@@ -776,7 +776,7 @@ type ForwardingCase = (
 /// The field stays a never-indexed literal on static name 49.
 #[tokio::test]
 async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
-    const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+    const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
     const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
     let cases: [ForwardingCase; 5] = [
@@ -792,10 +792,10 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         (
             "edge",
             chromium::v154_http2(),
-            edge::v153_windows_navigation_template(),
-            edge::v153_windows_fetch_no_store_template(),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-hostname"),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
+            edge::v154_windows_navigation_template(),
+            edge::v154_windows_fetch_no_store_template(),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-hostname"),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-nostore-hostname"),
             &[("user-agent", EDGE_UA)],
         ),
         (
@@ -923,7 +923,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
 /// The profile's CONNECT fields on an HTTP/2 proxy for an `https://`
 /// tunnel: anonymous, challenged, and on the replay after a `407`, compared
 /// with the `https://` CONNECTs of the `https-proxy-secure-hostname` and
-/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 153,
+/// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 154,
 /// Brave 154, Opera 135, and Firefox 156.
 #[tokio::test]
 async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
@@ -939,8 +939,8 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             "edge",
             chromium::v154_proxy_connect(),
             chromium::v154_windows_navigation_template(),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-secure-hostname"),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-secure-hostname"),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-secure-hostname"),
         ),
         (
             "brave",
@@ -1039,7 +1039,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
 }
 
 /// The profile's CONNECT recipe decides what the client sends on the
-/// challenged stream before the replay: Chrome 154 and Edge 153 end it, and
+/// challenged stream before the replay: Chrome 154 and Edge 154 end it, and
 /// Firefox 156 leaves it open, as in the `https-proxy-auth-secure-hostname`
 /// captures, where Firefox numbers the two streams 3 and 5.
 #[tokio::test]
@@ -1109,7 +1109,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
         ),
         (
             chromium::v154_proxy_connect(),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-secure-hostname"),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-secure-hostname"),
         ),
         (
             chromium::v154_proxy_connect(),
@@ -1172,7 +1172,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
 async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured() -> TestResult<()>
 {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
     const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -1193,10 +1193,10 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         (
             "edge",
             chromium::v154_http2(),
-            edge::v153_windows_navigation_template(),
-            edge::v153_windows_fetch_no_store_template(),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-remembered-hostname"),
-            proxy_fixture!("edge/153.0.4234.48", "https-proxy-auth-nostore-hostname"),
+            edge::v154_windows_navigation_template(),
+            edge::v154_windows_fetch_no_store_template(),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-nostore-hostname"),
             &[("user-agent", EDGE_UA)],
         ),
         (

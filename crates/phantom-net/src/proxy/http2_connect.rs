@@ -158,7 +158,7 @@ pub(super) enum Http2Replay {
 }
 
 /// Sends the credentialed CONNECT as a new stream on the challenged
-/// connection, as Chrome 154, Edge 153, and Firefox 156 do.
+/// connection, as Chrome 154, Edge 154, and Firefox 156 do.
 ///
 /// A connection whose driver has stopped is not used. Opening the stream
 /// waits for the proxy's concurrent-stream limit; a `GOAWAY` received since

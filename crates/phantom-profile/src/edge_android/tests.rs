@@ -39,7 +39,8 @@ fn edge_android_153_client_hints_match_navigation_capture() -> TestResult {
 }
 
 /// Edge for Android sends the Chromium hint names in the Chromium order and
-/// delivery; its brand list and full version list are desktop Edge 153's.
+/// delivery; its brand list is desktop Edge 153's, which the retained macOS
+/// Edge 153 hints carry.
 #[test]
 fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
     let names = |settings: &crate::ClientHintSettings| {
@@ -50,7 +51,7 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
             .collect::<Vec<_>>()
     };
     let android = v153_android_client_hints();
-    let desktop = edge::v153_windows_client_hints();
+    let desktop = edge::v153_macos_client_hints();
     assert_eq!(names(&android), names(&desktop));
     let value = |settings: &crate::ClientHintSettings, name: &str| {
         settings
@@ -72,10 +73,10 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_brands() {
 /// are desktop Edge 153's, and the other layers are the Chromium recipes.
 #[test]
 fn edge_android_153_reuses_the_desktop_edge_and_chromium_recipes() -> TestResult {
-    let mut tls = edge::v153_tls();
+    let mut tls = edge::v154_tls();
     tls.ech_from_https_records = false;
     assert_eq!(v153_tls(), tls);
-    let mut http3_tls = edge::v153_http3_tls();
+    let mut http3_tls = edge::v154_http3_tls();
     http3_tls.ech_from_https_records = false;
     assert_eq!(v153_http3_tls(), http3_tls);
     v153_tls().validate()?;
@@ -113,11 +114,11 @@ fn edge_android_153_templates_change_only_the_user_agent() {
     for (android, desktop) in [
         (
             v153_android_navigation_template(),
-            edge::v153_windows_navigation_template(),
+            edge::v154_windows_navigation_template(),
         ),
         (
             v153_android_fetch_no_store_template(),
-            edge::v153_windows_fetch_no_store_template(),
+            edge::v154_windows_fetch_no_store_template(),
         ),
     ] {
         assert_eq!(android.validate(), Ok(()));

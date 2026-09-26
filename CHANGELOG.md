@@ -19,6 +19,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- The Edge recipes move to Edge 154.0.4258.37 on Windows 11:
+  `edge::v153_tls`, `v153_http3_tls`, `v153_windows_client_hints`,
+  `v153_windows_navigation_template`, and
+  `v153_windows_fetch_no_store_template` are removed from `phantom-profile`
+  and the `phantom` facade. Only the client hints change on the wire: Edge
+  154 sends `"Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99"`
+  and the matching full version list. The TLS settings and templates are
+  unchanged. `edge::v153_macos_client_hints` stays, because the retained Mac
+  runs Edge 153, and `edge_android::v153_*` keeps its Edge 153 for Android
+  evidence.
+  Migrate: rename `edge::v153_tls` to `edge::v154_tls`, `v153_http3_tls` to
+  `v154_http3_tls`, `v153_windows_client_hints` to
+  `v154_windows_client_hints`, `v153_windows_navigation_template` to
+  `v154_windows_navigation_template`, and
+  `v153_windows_fetch_no_store_template` to
+  `v154_windows_fetch_no_store_template`. Send an Edge 154 `User-Agent` with
+  the new client hints.
 - `Http2Settings` gained the public field `streams`, of the new type
   `Http2StreamSettings`, so struct literals that name every field no longer
   compile. `first_stream_id` numbers each connection's first request, and

@@ -176,17 +176,17 @@ const CHROME_154_RESUMPTION: [&str; 3] = [
         "windows-11-26200/resumption-reject.txt"
     )),
 ];
-const EDGE_153_RESUMPTION: [&str; 3] = [
+const EDGE_154_RESUMPTION: [&str; 3] = [
     include_str!(concat!(
-        "../../../../../fixtures/http3/edge/153.0.4234.48/",
+        "../../../../../fixtures/http3/edge/154.0.4258.37/",
         "windows-11-26200/resumption-accept.txt"
     )),
     include_str!(concat!(
-        "../../../../../fixtures/http3/edge/153.0.4234.48/",
+        "../../../../../fixtures/http3/edge/154.0.4258.37/",
         "windows-11-26200/resumption-accept-delayed.txt"
     )),
     include_str!(concat!(
-        "../../../../../fixtures/http3/edge/153.0.4234.48/",
+        "../../../../../fixtures/http3/edge/154.0.4258.37/",
         "windows-11-26200/resumption-reject.txt"
     )),
 ];
@@ -241,7 +241,7 @@ const INITIAL_RTT: u64 = 0x3127;
 #[tokio::test(flavor = "current_thread")]
 async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestResult<()> {
     use super::connector::{
-        BRAVE_154_H3_STARTUP, CHROME_154_H3_STARTUP, EDGE_153_H3_STARTUP, OPERA_135_H3_STARTUP,
+        BRAVE_154_H3_STARTUP, CHROME_154_H3_STARTUP, EDGE_154_H3_STARTUP, OPERA_135_H3_STARTUP,
     };
     use super::early_data::{Served, learn_ticket};
     use phantom_profile::{brave, edge, opera};
@@ -253,9 +253,9 @@ async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestR
             CHROME_154_RESUMPTION,
         ),
         (
-            edge::v153_http3_tls(),
-            EDGE_153_H3_STARTUP,
-            EDGE_153_RESUMPTION,
+            edge::v154_http3_tls(),
+            EDGE_154_H3_STARTUP,
+            EDGE_154_RESUMPTION,
         ),
         (
             brave::v154_http3_tls(),

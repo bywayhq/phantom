@@ -414,7 +414,7 @@ async fn quic_outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<(
 
 #[tokio::test]
 async fn quic_outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
-    assert_accept_replays(EDGE_ACCEPT, &edge::v153_http3_tls()).await
+    assert_accept_replays(EDGE_ACCEPT, &edge::v154_http3_tls()).await
 }
 
 #[tokio::test]

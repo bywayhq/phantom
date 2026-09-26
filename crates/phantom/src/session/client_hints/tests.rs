@@ -324,8 +324,8 @@ mod template_slots {
 
     #[test]
     fn an_empty_user_agent_slot_keeps_the_platform_hint_before_accept() {
-        let template = edge::v153_windows_fetch_no_store_template();
-        let hints = edge::v153_windows_client_hints();
+        let template = edge::v154_windows_fetch_no_store_template();
+        let hints = edge::v154_windows_client_hints();
         assert_eq!(
             prepared(&template, true, &hints, &[], None)[..7],
             [

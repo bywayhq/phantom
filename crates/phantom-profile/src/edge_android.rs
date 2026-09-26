@@ -37,24 +37,24 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36 Edg
 /// Returns TLS settings captured from Edge 153.0.4234.49 for Android.
 ///
 /// Three fresh-process TCP ClientHellos of the retained capture equal the
-/// desktop Edge ClientHello of [`edge::v153_tls`]: the Chromium ClientHello
+/// desktop Edge ClientHello of [`edge::v154_tls`]: the Chromium ClientHello
 /// without trust-anchor IDs. [`TlsSettings::ech_from_https_records`] is
 /// unset: no Android capture shows Edge using an HTTPS record's `ech`,
 /// because the device cannot be given a DNS-over-HTTPS resolver.
 #[must_use]
 pub fn v153_tls() -> TlsSettings {
-    let mut settings = edge::v153_tls();
+    let mut settings = edge::v154_tls();
     settings.ech_from_https_records = false;
     settings
 }
 
 /// Returns TLS settings for the Edge 153.0.4234.49 for Android HTTP/3 offer.
 ///
-/// The retained QUIC ClientHello equals [`edge::v153_http3_tls`].
+/// The retained QUIC ClientHello equals [`edge::v154_http3_tls`].
 /// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
-    let mut settings = edge::v153_http3_tls();
+    let mut settings = edge::v154_http3_tls();
     settings.ech_from_https_records = false;
     settings
 }

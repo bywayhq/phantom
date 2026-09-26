@@ -20,8 +20,8 @@ const CHROME_154_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
     "../../../../../fixtures/tls/chrome/154.0.8037.58/",
     "windows-11-26200/trust-anchor-orders.txt"
 ));
-const EDGE_153_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/edge/153.0.4234.48/",
+const EDGE_154_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/edge/154.0.4258.37/",
     "windows-11-26200/client-hello.txt"
 ));
 const BRAVE_154_FIXTURE: &str = include_str!(concat!(
@@ -139,10 +139,10 @@ async fn opera_android_102_tls_recipe_matches_android_capture() -> TestResult<()
     assert_recipe_matches_fixture(OPERA_ANDROID_102_FIXTURE, &opera_android::v102_tls(), None).await
 }
 
-/// Edge 153 sends the Chromium ClientHello without trust-anchor IDs.
+/// Edge 154 sends the Chromium ClientHello without trust-anchor IDs.
 #[tokio::test]
-async fn edge_153_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(EDGE_153_FIXTURE, &edge::v153_tls(), None).await
+async fn edge_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(EDGE_154_FIXTURE, &edge::v154_tls(), None).await
 }
 
 /// Brave 154 sends the Chrome 154 ClientHello without trust-anchor IDs.
@@ -166,7 +166,7 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
     const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
     for settings in [
         v154_tls(),
-        edge::v153_tls(),
+        edge::v154_tls(),
         brave::v154_tls(),
         opera::v135_tls(),
         chrome_android::v154_tls(),

@@ -83,17 +83,17 @@ fn chrome_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<(
     Ok(())
 }
 
-/// Edge 153 offers the Chromium QUIC ClientHello without trust-anchor IDs.
+/// Edge 154 offers the Chromium QUIC ClientHello without trust-anchor IDs.
 #[test]
-fn edge_153_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+fn edge_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &edge::v153_http3_tls(),
+        &edge::v154_http3_tls(),
         &chromium::v154_quic(),
         &chromium::v154_http3(),
         &chromium::v154_http3_request(),
     )?;
-    for client_hello in [EDGE_153_H3_CLIENT_HELLO_1, EDGE_153_H3_CLIENT_HELLO_2] {
-        assert_connector_matches_quic_client_hello(&connector, EDGE_153_H3_STARTUP, client_hello)?;
+    for client_hello in [EDGE_154_H3_CLIENT_HELLO_1, EDGE_154_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(&connector, EDGE_154_H3_STARTUP, client_hello)?;
     }
     Ok(())
 }
@@ -605,16 +605,16 @@ pub(super) const CHROME_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
-pub(super) const EDGE_153_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+pub(super) const EDGE_154_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/154.0.4258.37/",
     "windows-11-26200/client-startup.txt"
 ));
-const EDGE_153_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+const EDGE_154_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/154.0.4258.37/",
     "windows-11-26200/quic-client-hello-1.txt"
 ));
-const EDGE_153_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/edge/153.0.4234.48/",
+const EDGE_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/edge/154.0.4258.37/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 

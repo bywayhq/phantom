@@ -46,7 +46,7 @@ macro_rules! fixture {
 }
 
 const CHROME_SEQUENTIAL: &str = fixture!("chrome", "154.0.8037.58", "sequential");
-const EDGE_SEQUENTIAL: &str = fixture!("edge", "153.0.4234.48", "sequential");
+const EDGE_SEQUENTIAL: &str = fixture!("edge", "154.0.4258.37", "sequential");
 const BRAVE_SEQUENTIAL: &str = fixture!("brave", "154.1.96.59", "sequential");
 const OPERA_SEQUENTIAL: &str = fixture!("opera", "135.0.5973.92", "sequential");
 const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0", "sequential");
@@ -64,12 +64,12 @@ const FIREFOX_MACOS_SEQUENTIAL: &str =
 async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> TestResult<()> {
     for (settings, fixture) in [
         (chromium::v154_tls(), CHROME_SEQUENTIAL),
-        (edge::v153_tls(), EDGE_SEQUENTIAL),
+        (edge::v154_tls(), EDGE_SEQUENTIAL),
         (brave::v154_tls(), BRAVE_SEQUENTIAL),
         (opera::v135_tls(), OPERA_SEQUENTIAL),
         // One macOS 15.5 arm64 run per browser.
         (chromium::v154_tls(), CHROME_MACOS_SEQUENTIAL),
-        (edge::v153_tls(), EDGE_MACOS_SEQUENTIAL),
+        (edge::v154_tls(), EDGE_MACOS_SEQUENTIAL),
         (opera::v135_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
         let (fresh, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
