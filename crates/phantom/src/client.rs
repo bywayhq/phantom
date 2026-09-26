@@ -773,17 +773,26 @@ impl ClientBuilder {
     }
 
     /// Lets each route through an HTTP/2 proxy open up to `maximum`
-    /// connections to it, at most 8, instead of one.
+    /// connections to it instead of one.
     ///
     /// Off by default: like Chrome and Firefox, a session keeps one HTTP/2
     /// connection per proxy route and puts every CONNECT tunnel on it, and a
     /// tunnel past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` waits until
     /// another stream on it ends. With a larger `maximum`, a route opens
-    /// another connection once each connection carries 100 tunnels, or the
-    /// proxy's stream limit when that is lower, so a tunnel does not wait
-    /// behind long-lived tunnels. The trade-off: the proxy can see more
-    /// connections than a browser opens. The profile's CONNECT recipe still
-    /// decides which requests share each route's connections.
+    /// another connection once each connection carries
+    /// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`] tunnels, or the proxy's
+    /// stream limit when that is lower, so a tunnel does not wait behind
+    /// long-lived tunnels. The trade-off: the proxy can see more connections
+    /// than a browser opens. The profile's CONNECT recipe still decides which
+    /// requests share each route's connections. Sessions keep the client's
+    /// value.
+    ///
+    /// [`Self::build`] fails with
+    /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when `maximum`
+    /// exceeds [`HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING`].
+    ///
+    /// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`]: phantom_net::proxy::MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION
+    /// [`HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING`]: phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
     #[must_use]
     pub fn max_http2_proxy_connections_per_route(mut self, maximum: NonZeroUsize) -> Self {
         self.http2_proxy_connections_per_route = maximum;
@@ -995,6 +1004,13 @@ impl ClientBuilder {
     /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
     ///   when the profile enables no HTTP protocol Phantom implements.
     pub fn build(self) -> Result<Client, BuildError> {
+        if self.http2_proxy_connections_per_route.get()
+            > phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
+        {
+            return Err(BuildError::invalid_policy(
+                "max_http2_proxy_connections_per_route exceeds                  HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING",
+            ));
+        }
         self.options.validate_policies()?;
         self.profile
             .tls()

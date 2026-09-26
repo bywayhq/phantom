@@ -1351,6 +1351,21 @@ mod tests {
         assert_eq!(authentication.kind(), RequestErrorKind::Proxy);
         assert!(!authentication.is_retryable_connection_setup());
 
+        // A tunnel that waited for a failed pooled setup is classified by the
+        // setup's kind.
+        let waited_connect = RequestError::http2_connection_setup(Http2TlsError::Proxy(
+            HttpConnectError::PooledSetupFailed {
+                kind: HttpConnectErrorKind::Connect,
+            },
+        ));
+        assert!(waited_connect.is_retryable_connection_setup());
+        let waited_tls = RequestError::http2_connection_setup(Http2TlsError::Proxy(
+            HttpConnectError::PooledSetupFailed {
+                kind: HttpConnectErrorKind::Tls,
+            },
+        ));
+        assert!(!waited_tls.is_retryable_connection_setup());
+
         let ordinary = RequestError::http2(Http2TlsError::Connect(io_error()));
         assert!(!ordinary.is_retryable_connection_setup());
     }

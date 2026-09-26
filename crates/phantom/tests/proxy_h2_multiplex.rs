@@ -23,7 +23,7 @@ use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, HttpProxy, Route,
+    BuildErrorKind, Client, HttpProtocol, HttpProxy, Route,
     profile::{ClientProfile, chromium, firefox},
 };
 use tokio::{
@@ -346,6 +346,25 @@ async fn opted_in_routes_open_another_connection_at_the_proxy_stream_limit() -> 
         Ok(())
     })
     .await
+}
+
+/// A value above the pool's ceiling fails the build instead of being
+/// lowered.
+#[test]
+fn a_proxy_connection_maximum_above_the_ceiling_fails_the_build() -> TestResult<()> {
+    let ceiling = phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING;
+    Client::builder(chromium_profile())
+        .max_http2_proxy_connections_per_route(NonZeroUsize::new(ceiling).ok_or("0")?)
+        .build()?;
+    let error = match Client::builder(chromium_profile())
+        .max_http2_proxy_connections_per_route(NonZeroUsize::new(ceiling + 1).ok_or("0")?)
+        .build()
+    {
+        Ok(_) => return Err("a maximum above the ceiling was accepted".into()),
+        Err(error) => error,
+    };
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+    Ok(())
 }
 
 /// A session keeps its own proxy connections, as it keeps its own pools.
