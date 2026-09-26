@@ -45,9 +45,13 @@ pub fn v102_tls() -> TlsSettings {
 /// values carry Opera's four-brand list, which names `OperaMobile`, `Opera`
 /// 137, and Chromium 152 and puts the greased brand last, `?1`, the
 /// `"Android"` platform at version `"15"` (Opera sends no minor versions),
-/// the emulator's model, and an empty `sec-ch-ua-form-factors`.
+/// and an empty `sec-ch-ua-form-factors`.
+///
+/// `sec-ch-ua-model` is the `model` argument, for the reason given for
+/// [`crate::chrome_android::v153_android_client_hints`]: the captured value
+/// names the emulator, so the recipe sends no default model.
 #[must_use]
-pub fn v102_android_client_hints() -> ClientHintSettings {
+pub fn v102_android_client_hints(model: &str) -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
@@ -61,7 +65,11 @@ pub fn v102_android_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""sdk_gphone64_x86_64""#, AcceptCh),
+        ClientHint::new(
+            "sec-ch-ua-model",
+            crate::chrome_android::model_value(model),
+            AcceptCh,
+        ),
         ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(

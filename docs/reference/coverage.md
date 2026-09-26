@@ -139,9 +139,12 @@ Supported:
 
 - Typed, ordered profiles.
 - Recipes backed by retained captures: Chrome 154, Edge 153, Brave 154,
-  Opera 135, and Firefox 156 from Windows captures, and Chrome 153 and Brave
-  153 for Android from Android emulator captures. Phantom carries one version per browser, the
-  current stable build on the capture host. See
+  Opera 135, and Firefox 156 from Windows captures, and Chrome 153, Brave
+  153, Opera 102, and Firefox 156 for Android from Android emulator captures.
+  Phantom carries one version per browser. For a desktop browser it is the
+  current stable build on the capture host. For an Android browser it is the
+  build the Play Store served to the emulator, which can trail stable: Play
+  served Chrome 153 while Google listed 155.0.8059.16 as stable. See
   [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
 - [ALPN](glossary.md#alpn) and [ALPS](glossary.md#alps).
@@ -859,8 +862,8 @@ How the recipes differ:
 - `chrome_android::v153_*` returns the Chromium H2, QUIC, H3, H3 request,
   and WebSocket recipes, which the Android captures equal, and carries its
   own TLS recipes (the trust-anchor orders differ and ECH from HTTPS records
-  is off), `v153_android_client_hints` (`?1`, `"Android"`, the emulator's
-  model), and navigation and fetch templates with Chrome's reduced Android
+  is off), `v153_android_client_hints` (`?1`, `"Android"`, and a device
+  model the caller passes), and navigation and fetch templates with Chrome's reduced Android
   `User-Agent`.
 - `firefox::v156_*` covers TLS, TCP, H2, WebSocket, cookie placement, and the
   request templates. Firefox sends no user-agent client hints, so it has no
@@ -925,7 +928,11 @@ Randomized fields:
 - Chrome 153 for Android does not sort its trust-anchor IDs. Every captured
   process sent one unsorted TCP order, which `chrome_android::v153_tls`
   carries; the QUIC order differed between processes, and
-  `chrome_android::v153_http3_tls` carries the most frequent one.
+  `chrome_android::v153_http3_tls` carries the most frequent one. That order
+  was sent by 9 of 30 captured processes and none of 5 typed runs, so every
+  client built from the recipe sends one order that most Chrome processes do
+  not, and a server that compares many connections can see the lack of
+  variety.
 - Firefox 156 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
   and ChaCha20-Poly1305. The recipe lists both, and the backend draws one
   uniformly for each connection. A 200-connection distribution test bounds

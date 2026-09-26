@@ -699,6 +699,12 @@ Chrome/153.0.0.0 Mobile Safari/537.36`, on every request. `sec-ch-ua` is
 `Accept-CH`, Chrome adds platform version `"15.0.0"`, an empty architecture and
 bitness, model `"sdk_gphone64_x86_64"`, and form factor `"Mobile"`.
 
+That model names the Android emulator, and a server that asks for
+`sec-ch-ua-model` would learn the client is not a phone. The Chrome and Opera
+for Android client-hint recipes therefore take the model as an argument and
+send no default; the replay tests pass the emulator's model to compare with
+the captures. Brave sends an empty model, which its recipe keeps.
+
 #### Chrome for Android trust-anchor ID order
 
 Chrome 153 does not contain Chromium commit `942bda4298c1`, which sorts the
@@ -796,6 +802,11 @@ Limits:
   checks.
 - One build, served by a staged rollout, which trails the stable version
   Google lists.
+- `chrome_android::v153_http3_tls` carries one QUIC trust-anchor order, sent
+  by 9 of 30 intent processes and none of the 5 typed runs. Real Chrome
+  processes spread over at least nine orders, so clients built from the
+  recipe share an order that most Chrome processes do not send. Phantom
+  does not choose an order per process.
 
 ### Brave for Android 153 recipes
 

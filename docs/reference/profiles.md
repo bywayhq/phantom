@@ -28,8 +28,10 @@ needs.
 ## Built-in recipes
 
 Phantom carries one version per browser: the current stable build on the
-capture host. Older versions are retired, so a recipe name always points at a
-build that can be recaptured and reverified.
+capture host for a desktop browser, and for an Android browser the build the
+Play Store served to the capture emulator, which can trail stable. Older
+versions are retired, so a recipe name always points at a build that can be
+recaptured and reverified.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |

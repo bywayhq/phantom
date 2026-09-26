@@ -228,9 +228,10 @@ Limits:
   new ones from the host, so the listener sees the host's SYN, window, and
   socket options, never the device's. No TCP-layer setting can be captured
   this way.
-- An emulator is not a phone. `sec-ch-ua-model` carries the emulator's model,
-  `sdk_gphone64_x86_64`, and the CPU is x86_64 rather than a phone's ARM
-  core, which Chromium's AES hardware check reads.
+- An emulator is not a phone. `sec-ch-ua-model` in a capture carries the
+  emulator's model, `sdk_gphone64_x86_64`, which the recipes leave to the
+  caller, and the CPU is x86_64 rather than a phone's ARM core, which
+  Chromium's AES hardware check reads.
 
 ## EventSource reconnects
 

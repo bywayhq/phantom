@@ -29,7 +29,7 @@ const ANDROID_EMULATOR: &str = "Android 15 (API 35) sdk_gphone64_x86_64 emulator
 #[test]
 fn chrome_android_153_client_hints_match_navigation_capture()
 -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v153_android_client_hints();
+    let settings = v153_android_client_hints("sdk_gphone64_x86_64");
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Google Chrome");
@@ -52,7 +52,7 @@ fn chrome_android_153_client_hints_share_the_chromium_names_order_and_delivery()
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v153_android_client_hints()),
+        names(v153_android_client_hints("sdk_gphone64_x86_64")),
         names(chromium::v154_windows_client_hints())
     );
 }
@@ -245,5 +245,21 @@ fn chrome_android_153_tls_recipes_change_only_the_trust_anchor_order() -> TestRe
         expected.ech_from_https_records = false;
         assert_eq!(android, expected);
     }
+    Ok(())
+}
+
+/// The model is the caller's: a profile built for a phone sends that phone's
+/// model, never the emulator's, and the value is a structured-field string.
+#[test]
+fn chrome_android_153_client_hints_send_the_callers_model() -> TestResult {
+    let settings = v153_android_client_hints("Pixel 7");
+    settings.validate()?;
+    let model = settings
+        .hints()
+        .iter()
+        .find(|hint| hint.name() == "sec-ch-ua-model")
+        .ok_or("the recipe omits sec-ch-ua-model")?;
+    assert_eq!(model.value(), br#""Pixel 7""#);
+    assert_eq!(super::model_value(r#"a"b\c"#), r#""a\"b\\c""#);
     Ok(())
 }

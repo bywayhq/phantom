@@ -408,7 +408,7 @@ fn edge_153_navigation_matches_every_captured_page_request() -> CaptureResult<()
 #[test]
 fn chrome_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     let template = chrome_android::v153_android_navigation_template();
-    let hints = chrome_android::v153_android_client_hints();
+    let hints = chrome_android::v153_android_client_hints("sdk_gphone64_x86_64");
     let (http1, http2) = observed(&[&CHROME_ANDROID_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -604,7 +604,7 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
         ),
         (
             chrome_android::v153_android_fetch_no_store_template(),
-            chrome_android::v153_android_client_hints(),
+            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
             &CHROME_ANDROID_WEBSOCKET,
             "chrome android",
         ),
@@ -808,7 +808,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
         ),
         (
             CHROME_ANDROID_CLIENT_HINTS,
-            chrome_android::v153_android_client_hints(),
+            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
             chrome_android::v153_android_navigation_template(),
         ),
         (
@@ -1530,7 +1530,7 @@ fn android_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureRe
     for (template, hints, fixtures, version) in [
         (
             chrome_android::v153_android_navigation_template(),
-            chrome_android::v153_android_client_hints(),
+            chrome_android::v153_android_client_hints("sdk_gphone64_x86_64"),
             CHROME_ANDROID_DIRECT,
             "153.0.8010.52",
         ),

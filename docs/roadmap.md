@@ -97,6 +97,11 @@ anything does.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
+- Per-process QUIC trust-anchor order for Chrome for Android. Evidence: 30
+  intent-launched Chrome 153 processes used 9 orders, and
+  `chrome_android::v153_http3_tls` carries the most frequent (9 of 30).
+  Blocker: a recipe setting that picks one of the captured orders per client,
+  weighted as captured, and a test of the distribution.
 - Chrome for Android on a phone, and the current stable build. Evidence:
   Chrome 153.0.8010.52 captures on an Android 15 emulator back
   `chrome_android::v153_*`; Google listed 155.0.8059.16 as stable, but Play

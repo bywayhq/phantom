@@ -27,9 +27,11 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
   fork needs its own captures in every area. A layer it shares with Chrome is
   shared only after a test shows the capture equals the Chromium recipe.
 - Phantom carries one version per browser: the current stable build on the
-  capture host. A new version replaces the old one.
-- Captures come from the Windows 11 development host, the only capture host.
-  A Windows capture never backs a macOS or Linux recipe.
+  capture host, or for an Android browser the build Play serves to the
+  capture emulator. A new version replaces the old one.
+- Captures come from the Windows 11 development host, and Android captures
+  from the emulator on it. A Windows capture never backs a macOS or Linux
+  recipe, and an emulator capture is not a phone capture.
 - Launching a local browser needs the human's approval for the session, as
   the `browser-capture` skill in `.claude/skills/` states.
 

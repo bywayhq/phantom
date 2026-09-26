@@ -10,7 +10,7 @@ const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
 #[test]
 fn opera_android_102_client_hints_match_navigation_capture()
 -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v102_android_client_hints();
+    let settings = v102_android_client_hints("sdk_gphone64_x86_64");
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Opera");
@@ -32,7 +32,7 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v102_android_client_hints()),
+        names(v102_android_client_hints("sdk_gphone64_x86_64")),
         names(chromium::v154_windows_client_hints())
     );
 }

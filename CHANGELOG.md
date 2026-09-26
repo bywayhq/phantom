@@ -382,13 +382,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   startup listener, on the command line or through a DevTools navigation.
 - Chrome for Android recipes in `phantom_profile::chrome_android` and
   `phantom::profile::chrome_android`, captured from Chrome 153.0.8010.52 on
-  an Android 15 emulator: `v153_tls` and `v153_http3_tls` (the desktop
-  Chromium ClientHellos with Chrome 153's unsorted trust-anchor orders and
-  without ECH from HTTPS records), `v153_android_client_hints`,
-  `v153_android_navigation_template`, `v153_android_fetch_no_store_template`,
-  and `v153_http2`, `v153_quic`, `v153_http3`, `v153_http3_request`, and
-  `v153_websocket`, which return the desktop Chromium recipes that the
-  Android captures equal. Through those recipes Chrome for Android splits
+  an Android 15 emulator. That is the build Play served to the emulator,
+  which trailed the stable Android build, 155.0.8059.16, when captured; the
+  Android recipes carry the Play-served build rather than current stable.
+  `v153_tls` and `v153_http3_tls` are the desktop Chromium ClientHellos with
+  Chrome 153's unsorted trust-anchor orders and without ECH from HTTPS
+  records; the QUIC order varies per browser process, and the recipe's order
+  was seen in 9 of 30 captured processes. `v153_android_client_hints(model)`
+  takes the device model and has no default, because the captured model names
+  the emulator. The navigation and fetch templates are
+  `v153_android_navigation_template` and
+  `v153_android_fetch_no_store_template`. `v153_http2`, `v153_quic`,
+  `v153_http3`, `v153_http3_request`, and `v153_websocket` return the desktop
+  Chromium recipes that the Android captures equal. Through those recipes Chrome for Android splits
   `cookie` into crumbs on H2 and H3, which no Android capture checks. There
   is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
   cookie-placement recipe.
@@ -396,7 +402,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   returns `firefox::v156_tls`, which its ClientHellos equal.
 - Opera for Android recipes in `opera_android`, from Opera 102.1.5206.90382
   (Chromium 152) on the same emulator: `v102_tls`, Chrome 154's ClientHello
-  without trust-anchor IDs, and `v102_android_client_hints`. Opera for
+  without trust-anchor IDs, and `v102_android_client_hints(model)`. Opera for
   Android reads no command-line file, so no other layer was captured.
 - Brave for Android recipes in `brave_android`, captured from Brave 1.95.104
   (Chromium 153) on the same emulator: `v153_tls` (desktop Brave's

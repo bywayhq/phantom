@@ -76,7 +76,8 @@ fn profiles() -> [ClientProfile; 5] {
             chrome_android::v153_http3(),
             chrome_android::v153_http3_request(),
         ))
-        .with_client_hints(chrome_android::v153_android_client_hints());
+        // The model a phone reports; the capture's emulator model is never sent.
+        .with_client_hints(chrome_android::v153_android_client_hints("Pixel 7"));
 
     [firefox, edge, brave, opera, android]
 }

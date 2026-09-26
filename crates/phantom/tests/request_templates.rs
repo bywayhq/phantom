@@ -147,7 +147,9 @@ fn brave_android() -> Browser {
 fn chrome_android() -> Browser {
     Browser {
         http2: chrome_android::v153_http2(),
-        hints: Some(chrome_android::v153_android_client_hints()),
+        hints: Some(chrome_android::v153_android_client_hints(
+            "sdk_gphone64_x86_64",
+        )),
         http1_capture: CHROME_ANDROID_H1,
         http2_capture: CHROME_ANDROID_H2,
         http3_capture: Some(CHROME_ANDROID_H3),

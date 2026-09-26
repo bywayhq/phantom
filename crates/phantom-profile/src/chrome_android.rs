@@ -108,13 +108,18 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 /// and delivery equal [`chromium::v154_windows_client_hints`]: the three
 /// default hints, then eight more after `Accept-CH`. The values carry
 /// Chrome 153's brand list, `?1` for `sec-ch-ua-mobile`, the `"Android"`
-/// platform at version `"15.0.0"`, an empty architecture and bitness, the
-/// `"Mobile"` form factor, and the emulator's model,
-/// `"sdk_gphone64_x86_64"`. A phone sends its own model and Android version;
-/// replace those two values for another device. The returned value is owned
-/// and may be customized before client creation.
+/// platform at version `"15.0.0"`, an empty architecture and bitness, and
+/// the `"Mobile"` form factor.
+///
+/// `sec-ch-ua-model` carries the device model, which Chrome sends to an
+/// origin that asks for it. The capture's value, `"sdk_gphone64_x86_64"`,
+/// names the Android emulator, and a server that sees it knows the client is
+/// not a phone, so the recipe has no default: pass the model of the phone the
+/// profile stands for, such as `"Pixel 7"`, as Android's `Build.MODEL`
+/// reports it. It is sent as a structured-field string. The platform version
+/// is Android 15's; change it on the returned value for another release.
 #[must_use]
-pub fn v153_android_client_hints() -> ClientHintSettings {
+pub fn v153_android_client_hints(model: &str) -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
@@ -128,7 +133,7 @@ pub fn v153_android_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""sdk_gphone64_x86_64""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-model", model_value(model), AcceptCh),
         ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
@@ -187,6 +192,12 @@ pub fn v153_http2() -> Http2Settings {
 /// and from the TCP order of [`v153_tls`]. No fixed list reproduces a
 /// per-process order, so this recipe carries the order sent most often,
 /// as the retired Chrome 153 desktop recipe did.
+///
+/// That order was sent by 9 of 30 intent-launched processes, and by none of
+/// the 5 typed-entry runs. Every client built from this recipe sends it on
+/// every QUIC connection, where Chrome processes spread over at least nine
+/// orders, so a server that records the order across many connections can
+/// tell a fleet of these clients from real Chrome by the lack of variety.
 /// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
 #[must_use]
 pub fn v153_http3_tls() -> TlsSettings {
@@ -276,6 +287,21 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     chromium::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT))
+}
+
+/// Encodes a device model as the structured-field string `sec-ch-ua-model`
+/// carries: in quotes, with each quote and backslash escaped.
+pub(crate) fn model_value(model: &str) -> String {
+    let mut value = String::with_capacity(model.len() + 2);
+    value.push('"');
+    for character in model.chars() {
+        if matches!(character, '"' | '\\') {
+            value.push('\\');
+        }
+        value.push(character);
+    }
+    value.push('"');
+    value
 }
 
 fn trust_anchor_ids(ids: &[&[u8]]) -> Vec<Box<[u8]>> {
