@@ -346,15 +346,6 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
         (
             {
                 let mut settings = base.clone();
-                settings.ech_grease = true;
-                settings.ech_from_https_records = true;
-                settings
-            },
-            "ech_from_https_records",
-        ),
-        (
-            {
-                let mut settings = base.clone();
                 settings.session_tickets = true;
                 settings
             },
@@ -378,6 +369,20 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
             .unwrap_or_else(|| panic!("invalid QUIC TLS {field} was accepted"));
         assert_eq!(error.field(), field);
     }
+}
+
+/// The field tells the caller to offer an HTTPS record's `ech` through
+/// `QuicClientConfig::with_ech`; the profile itself changes nothing.
+#[test]
+fn quic_tls_profile_accepts_ech_from_https_records() {
+    let mut settings = h3_tls_settings();
+    settings.ech_grease = true;
+    settings.ech_from_https_records = true;
+    let context = client_context(true);
+    test_ok(
+        QuicClientConfig::new(context.0).with_tls_profile(&settings),
+        "QUIC TLS profile with ECH from HTTPS records",
+    );
 }
 
 #[test]

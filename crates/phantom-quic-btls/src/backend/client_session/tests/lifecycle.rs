@@ -23,6 +23,7 @@ fn offering(context: &OwnedContext, session: &SslSession, early_data: bool) -> C
             &ClientTlsProfile::default(),
             Some(session),
             early_data,
+            None,
         ),
         "client offering a session",
     )

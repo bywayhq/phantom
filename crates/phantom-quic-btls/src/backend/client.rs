@@ -18,6 +18,7 @@ use rustls_pki_types::DnsName;
 use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
 use super::quic_callbacks::{SessionDelivery, enable_session_delivery, session_delivery};
+use crate::ech::{EchOffer, EchOutcome};
 #[cfg(test)]
 use crate::key_schedule::TestDerivationFailure;
 use crate::key_schedule::{
@@ -51,6 +52,7 @@ pub struct QuicClientConfig {
     offer_tickets: bool,
     early_data: bool,
     application_state: Option<ApplicationState>,
+    ech: Option<EchOffer>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -74,6 +76,7 @@ impl QuicClientConfig {
             offer_tickets: true,
             early_data: false,
             application_state: None,
+            ech: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -96,6 +99,7 @@ impl QuicClientConfig {
             sessions: None,
             offer_tickets: true,
             application_state: None,
+            ech: None,
             #[cfg(test)]
             derivation_failure: None,
         })
@@ -172,6 +176,7 @@ impl QuicClientConfig {
             offer_tickets: true,
             early_data: self.early_data,
             application_state: None,
+            ech: None,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -193,6 +198,7 @@ impl QuicClientConfig {
             offer_tickets: false,
             early_data: self.early_data,
             application_state: self.application_state.clone(),
+            ech: self.ech.clone(),
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -246,6 +252,7 @@ impl QuicClientConfig {
             offer_tickets: self.offer_tickets,
             early_data: self.early_data,
             application_state: self.application_state.clone(),
+            ech: self.ech.clone(),
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -265,6 +272,25 @@ impl QuicClientConfig {
     pub fn with_application_state(&self, state: &ApplicationState) -> Self {
         let mut config = self.clone_with_sessions(self.sessions.clone());
         config.application_state = Some(state.clone());
+        config
+    }
+
+    /// Returns a clone whose connection offers Encrypted Client Hello with
+    /// the `ECHConfigList` of `offer` and records the result there.
+    ///
+    /// The clone shares this configuration's ticket cache. Use it for one
+    /// connection, with a new [`EchOffer`] each time. The ClientHello keeps
+    /// every field of the TLS profile. BoringSSL encrypts it under the first
+    /// configuration in the list it supports and sends an outer ClientHello
+    /// that names the configuration's public name, as Chromium's QUIC client
+    /// does with the `ech` value of an HTTPS record. When the server rejects
+    /// the offer, BoringSSL checks its certificate against the public name,
+    /// records [`EchOutcome::Rejected`], and fails the handshake with the
+    /// `ech_required` alert.
+    #[must_use]
+    pub fn with_ech(&self, offer: &EchOffer) -> Self {
+        let mut config = self.clone_with_sessions(self.sessions.clone());
+        config.ech = Some(offer.clone());
         config
     }
 
@@ -369,6 +395,7 @@ pub struct HandshakeData {
     protocol: Vec<u8>,
     peer_application_settings: Option<Vec<u8>>,
     session_resumed: bool,
+    ech_accepted: bool,
 }
 
 impl HandshakeData {
@@ -395,6 +422,13 @@ impl HandshakeData {
     pub const fn session_resumed(&self) -> bool {
         self.session_resumed
     }
+
+    /// Returns whether the server accepted the Encrypted Client Hello
+    /// offered through [`QuicClientConfig::with_ech`].
+    #[must_use]
+    pub const fn ech_accepted(&self) -> bool {
+        self.ech_accepted
+    }
 }
 
 impl fmt::Debug for HandshakeData {
@@ -407,6 +441,7 @@ impl fmt::Debug for HandshakeData {
                 &self.peer_application_settings.as_ref().map(Vec::len),
             )
             .field("session_resumed", &self.session_resumed)
+            .field("ech_accepted", &self.ech_accepted)
             .finish()
     }
 }
@@ -493,13 +528,22 @@ impl crypto::ClientConfig for QuicClientConfig {
             &self.tls_profile,
             session.as_deref(),
             early_data,
+            self.ech.as_ref().map(EchOffer::config_list),
         )
-        .map_err(|error| map_start_error(server_name, error))?;
+        .map_err(|error| {
+            if error == ClientSessionError::InvalidEchConfigList
+                && let Some(offer) = &self.ech
+            {
+                offer.record(EchOutcome::InvalidConfigList);
+            }
+            map_start_error(server_name, error)
+        })?;
         backend
             .start_handshake()
             .map_err(|error| map_start_error(server_name, error))?;
 
         let mut state = SessionState::new(version, backend);
+        state.ech = self.ech.clone();
         state.remembered_transport_parameters = remembered.filter(|_| early_data);
         state.ticket_sink = self.sessions.clone().map(|sessions| TicketSink {
             sessions,
@@ -569,12 +613,6 @@ impl ClientTlsProfile {
             return Err(QuicTlsProfileError::invalid(
                 "alpn_protocols",
                 "QUIC requires the exact `h3` ALPN protocol",
-            ));
-        }
-        if settings.ech_from_https_records {
-            return Err(QuicTlsProfileError::unsupported(
-                "ech_from_https_records",
-                "QUIC connections do not use ECH from HTTPS records",
             ));
         }
         if settings
@@ -781,6 +819,8 @@ struct SessionState {
     /// The ticket issuer's transport parameters, applied to 0-RTT data until
     /// the server's current parameters arrive.
     remembered_transport_parameters: Option<Box<[u8]>>,
+    /// Receives the result of this connection's Encrypted Client Hello offer.
+    ech: Option<EchOffer>,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -808,6 +848,7 @@ impl SessionState {
             application_state: None,
             early_secret: None,
             remembered_transport_parameters: None,
+            ech: None,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -853,7 +894,13 @@ impl SessionState {
                 protocol,
                 peer_application_settings: self.backend.peer_application_settings()?,
                 session_resumed: self.backend.session_reused(),
+                ech_accepted: self.backend.ech_accepted(),
             });
+            if self.backend.ech_offered()
+                && let Some(offer) = &self.ech
+            {
+                offer.record(EchOutcome::Accepted);
+            }
         }
         if self.peer_transport_parameters.is_none() {
             self.peer_transport_parameters = self.backend.peer_transport_parameters()?;
@@ -894,7 +941,7 @@ impl SessionState {
     }
 }
 
-struct OutboundHandshake {
+pub(super) struct OutboundHandshake {
     queues: [VecDeque<Vec<u8>>; 3],
     level: EncryptionLevel,
 }
@@ -909,11 +956,11 @@ impl Default for OutboundHandshake {
 }
 
 impl OutboundHandshake {
-    fn stage(&mut self, chunk: HandshakeChunk) {
+    pub(super) fn stage(&mut self, chunk: HandshakeChunk) {
         self.queues[level_index(chunk.level)].push_back(chunk.bytes);
     }
 
-    fn write(
+    pub(super) fn write(
         &mut self,
         destination: &mut Vec<u8>,
         handshake_keys: &mut Option<Keys>,
@@ -991,10 +1038,16 @@ impl crypto::Session for QuicSession {
 
     fn read_handshake(&mut self, buffer: &[u8]) -> Result<bool, TransportError> {
         let mut state = self.lock();
-        state
-            .backend
-            .provide_handshake_data(buffer)
-            .map_err(|error| map_session_error(&state.backend, error))?;
+        if let Err(error) = state.backend.provide_handshake_data(buffer) {
+            if let ClientSessionError::EchRejected { retry_configs } = &error
+                && let Some(offer) = &state.ech
+            {
+                offer.record(EchOutcome::Rejected {
+                    retry_configs: retry_configs.as_deref().map(Box::from),
+                });
+            }
+            return Err(map_session_error(&state.backend, error));
+        }
         state
             .collect_backend_state()
             .map_err(|error| error.into_transport(&state.backend))?;
@@ -1077,7 +1130,7 @@ impl crypto::Session for QuicSession {
     }
 }
 
-enum AdapterError {
+pub(super) enum AdapterError {
     Backend(ClientSessionError),
     Crypto,
 }
@@ -1100,7 +1153,7 @@ impl From<ClientSessionError> for AdapterError {
     }
 }
 
-fn keys_from_pair(pair: SecretPair) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
+pub(super) fn keys_from_pair(pair: SecretPair) -> Result<(Keys, TrafficKeySchedule), AdapterError> {
     let schedule =
         TrafficKeySchedule::from_local_remote(pair.cipher_suite, pair.local, pair.remote)
             .map_err(|_| AdapterError::Crypto)?;
@@ -1128,7 +1181,7 @@ fn keys_from_schedule(
     Ok((traffic_keys_into_quinn(keys), schedule))
 }
 
-fn initial_keys_into_quinn(keys: crate::InitialKeys) -> Keys {
+pub(super) fn initial_keys_into_quinn(keys: crate::InitialKeys) -> Keys {
     let (local, remote) = keys.into_parts();
     let (local_header, local_packet) = local.into_parts();
     let (remote_header, remote_packet) = remote.into_parts();
@@ -1159,7 +1212,7 @@ fn traffic_keys_into_quinn(keys: TrafficKeys) -> Keys {
     }
 }
 
-fn packet_pair_into_quinn(keys: PacketKeyPair) -> KeyPair<Box<dyn crypto::PacketKey>> {
+pub(super) fn packet_pair_into_quinn(keys: PacketKeyPair) -> KeyPair<Box<dyn crypto::PacketKey>> {
     KeyPair {
         local: Box::new(keys.local),
         remote: Box::new(keys.remote),
@@ -1250,7 +1303,7 @@ fn map_session_error(backend: &ClientSession, error: ClientSessionError) -> Tran
     }
 }
 
-fn transport_error(code: TransportErrorCode, reason: &'static str) -> TransportError {
+pub(super) fn transport_error(code: TransportErrorCode, reason: &'static str) -> TransportError {
     TransportError {
         code,
         frame: None,

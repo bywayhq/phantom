@@ -213,6 +213,7 @@ fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
             &ClientTlsProfile::default(),
             Some(&session),
             false,
+            None,
         ),
         "client with expired session",
     );

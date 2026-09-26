@@ -58,6 +58,14 @@ pub(super) enum ClientSessionError {
     PeerIdentityTooLarge,
     ExportBeforeHandshake,
     AllocationFailed,
+    /// BoringSSL did not accept the `ECHConfigList` to offer.
+    InvalidEchConfigList,
+    /// The server could not decrypt the offered ECH and authenticated as
+    /// the configuration's public name; BoringSSL released these retry
+    /// configurations, which that authentication covers.
+    EchRejected {
+        retry_configs: Option<Vec<u8>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,13 +74,16 @@ pub(super) enum HandshakeProgress {
     Complete,
 }
 
-struct OwnedSsl(NonNull<ffi::SSL>);
+pub(super) struct OwnedSsl(NonNull<ffi::SSL>);
 
 // SAFETY: `OwnedSsl` has one owner; moving it transfers all access to the SSL.
 unsafe impl Send for OwnedSsl {}
 
 impl OwnedSsl {
-    unsafe fn new(context: NonNull<ffi::SSL_CTX>) -> Result<Self, ClientSessionError> {
+    /// # Safety
+    ///
+    /// `context` must point to a live `SSL_CTX`.
+    pub(super) unsafe fn new(context: NonNull<ffi::SSL_CTX>) -> Result<Self, ClientSessionError> {
         // SAFETY: the caller supplies a live context; SSL_new retains its own context reference.
         let ssl = unsafe { ffi::SSL_new(context.as_ptr()) };
         let Some(ssl) = NonNull::new(ssl) else {
@@ -81,8 +92,12 @@ impl OwnedSsl {
         Ok(Self(ssl))
     }
 
-    const fn as_ptr(&self) -> *mut ffi::SSL {
+    pub(super) const fn as_ptr(&self) -> *mut ffi::SSL {
         self.0.as_ptr()
+    }
+
+    pub(super) const fn as_non_null(&self) -> NonNull<ffi::SSL> {
+        self.0
     }
 }
 
@@ -110,6 +125,7 @@ pub(super) struct ClientSession {
     /// Whether BoringSSL was asked to send 0-RTT data with the offered session.
     offered_early_data: bool,
     early_data_rejected: bool,
+    ech_offered: bool,
 }
 
 impl fmt::Debug for ClientSession {
@@ -138,6 +154,7 @@ impl ClientSession {
             &ClientTlsProfile::default(),
             None,
             false,
+            None,
         )
     }
 
@@ -148,6 +165,10 @@ impl ClientSession {
     /// session to a hostname, and a resumed handshake does not repeat
     /// certificate verification. With `early_data`, BoringSSL also offers
     /// 0-RTT when the session permits it; without a session it has no effect.
+    ///
+    /// With `ech_config_list`, the ClientHello offers Encrypted Client Hello
+    /// with the first configuration BoringSSL supports, as Chromium's QUIC
+    /// client does with the list of the origin's HTTPS record.
     pub(super) fn new_with_profile(
         context: &SslContext,
         server_name: &str,
@@ -155,6 +176,7 @@ impl ClientSession {
         tls_profile: &ClientTlsProfile,
         session: Option<&SslSessionRef>,
         early_data: bool,
+        ech_config_list: Option<&[u8]>,
     ) -> Result<Self, ClientSessionError> {
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
@@ -178,6 +200,9 @@ impl ClientSession {
         // SAFETY: the safe context owner is live and SSL_new retains its own reference.
         let mut ssl = unsafe { OwnedSsl::new(context) }?;
         apply_tls_profile(&mut ssl, tls_profile)?;
+        if let Some(list) = ech_config_list {
+            apply_ech_config_list(&mut ssl, list)?;
+        }
         apply_server_name(&mut ssl, server_name)?;
         let pointer = ssl.as_ptr();
 
@@ -247,6 +272,7 @@ impl ClientSession {
             offered_session: session.is_some(),
             offered_early_data: early_data,
             early_data_rejected: false,
+            ech_offered: ech_config_list.is_some(),
         })
     }
 
@@ -422,6 +448,22 @@ impl ClientSession {
         self.handshake_complete && unsafe { ffi::SSL_early_data_accepted(self.ssl.as_ptr()) } != 0
     }
 
+    /// Returns whether the completed handshake used the offered ECH
+    /// configuration. A server that rejects it fails the handshake instead.
+    pub(super) fn ech_accepted(&self) -> bool {
+        if !self.handshake_complete {
+            return false;
+        }
+        // SAFETY: the SSL remains live and no mutable SSL operation overlaps this borrow.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        ssl.ech_accepted()
+    }
+
+    /// Returns whether this session offers a real ECH configuration.
+    pub(super) const fn ech_offered(&self) -> bool {
+        self.ech_offered
+    }
+
     /// Returns whether the peer rejected offered 0-RTT data.
     pub(super) const fn early_data_rejected(&self) -> bool {
         self.early_data_rejected
@@ -512,8 +554,27 @@ impl ClientSession {
                 }
                 continue;
             }
+            if ssl_error == ffi::SSL_ERROR_SSL
+                && self.ech_offered
+                && self.callbacks.terminal_error().is_none()
+                && take_ech_rejection()
+            {
+                return Err(ClientSessionError::EchRejected {
+                    retry_configs: self.ech_retry_configs(),
+                });
+            }
             return Err(self.operation_failure("TLS handshake", Some(ssl_error)));
         }
+    }
+
+    /// Copies the retry configurations BoringSSL released with
+    /// `SSL_R_ECH_REJECTED`; an empty list counts as none.
+    fn ech_retry_configs(&self) -> Option<Vec<u8>> {
+        // SAFETY: the SSL remains live and no mutable SSL operation overlaps this borrow.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        ssl.get_ech_retry_configs()
+            .filter(|configs| !configs.is_empty())
+            .map(<[u8]>::to_vec)
     }
 
     fn process_post_handshake(&self) -> Result<(), ClientSessionError> {
@@ -636,6 +697,29 @@ fn apply_tls_profile(
     Ok(())
 }
 
+fn apply_ech_config_list(ssl: &mut OwnedSsl, list: &[u8]) -> Result<(), ClientSessionError> {
+    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
+    ssl.set_ech_config_list(list).map_err(|_| {
+        drain_error_queue();
+        ClientSessionError::InvalidEchConfigList
+    })
+}
+
+/// `ERR_LIB_SSL`, the sixteenth library code in BoringSSL's
+/// `include/openssl/err.h`.
+const ERR_LIB_SSL: i32 = 16;
+/// `SSL_R_ECH_REJECTED` in BoringSSL's `include/openssl/ssl.h`.
+const SSL_R_ECH_REJECTED: i32 = 319;
+
+/// Empties this thread's BoringSSL error queue and returns whether it held
+/// `SSL_R_ECH_REJECTED`.
+fn take_ech_rejection() -> bool {
+    btls::error::ErrorStack::get().errors().iter().any(|entry| {
+        entry.library_code() == ERR_LIB_SSL && entry.reason_code() == SSL_R_ECH_REJECTED
+    })
+}
+
 fn apply_server_name(ssl: &mut OwnedSsl, server_name: &str) -> Result<(), ClientSessionError> {
     // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
@@ -654,7 +738,7 @@ fn apply_server_name(ssl: &mut OwnedSsl, server_name: &str) -> Result<(), Client
     .map_err(|_| backend_failure("verification server name"))
 }
 
-fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {
+pub(super) fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {
     match level {
         EncryptionLevel::Initial => ffi::ssl_encryption_level_t::ssl_encryption_initial,
         EncryptionLevel::Handshake => ffi::ssl_encryption_level_t::ssl_encryption_handshake,
@@ -662,7 +746,9 @@ fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {
     }
 }
 
-fn encryption_level(level: ffi::ssl_encryption_level_t) -> Result<EncryptionLevel, CallbackError> {
+pub(super) fn encryption_level(
+    level: ffi::ssl_encryption_level_t,
+) -> Result<EncryptionLevel, CallbackError> {
     match level {
         ffi::ssl_encryption_level_t::ssl_encryption_initial => Ok(EncryptionLevel::Initial),
         ffi::ssl_encryption_level_t::ssl_encryption_handshake => Ok(EncryptionLevel::Handshake),

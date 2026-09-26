@@ -7,6 +7,8 @@
 //! Retry-integrity, and stateless-reset keys. The concrete key types also
 //! offer checked methods that return [`CryptoError`]; their Quinn trait
 //! implementations, which have no error channel, fail closed instead.
+//! [`QuicClientConfig::with_ech`] offers Encrypted Client Hello on one
+//! connection and reports the result through an [`EchOffer`].
 //!
 //! All `unsafe` code is confined to the private `backend` module, the
 //! BoringSSL FFI boundary. The rest of the crate denies `unsafe_code`, and
@@ -21,6 +23,7 @@
 // unsafe operations without crossing an explicit, reviewable module boundary.
 #[allow(unsafe_code, reason = "private BoringSSL FFI boundary")]
 mod backend;
+mod ech;
 mod error;
 mod header;
 mod hkdf;
@@ -45,6 +48,7 @@ pub use backend::client::{
     HandshakeData, InvalidServerName, PeerIdentity, QuicClientConfig, QuicTlsProfileError,
     QuicTlsProfileErrorKind,
 };
+pub use ech::{EchOffer, EchOutcome};
 pub use error::{CryptoError, Result};
 pub use header::HeaderProtectionKey;
 pub use initial::{InitialKeys, derive_initial_keys};
