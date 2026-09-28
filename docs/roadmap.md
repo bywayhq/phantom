@@ -228,6 +228,12 @@ Each of these needs no capture, because no named recipe may reach it
 
 #### Publication
 
+- Give each `phantom-testkit` dev-dependency an exact version, as
+  `phantom-profile` already has: `crates/phantom`, `crates/phantom-net`, and
+  `crates/phantom-quic-btls` name it by path alone. A downstream
+  `cargo deny check --all-features` reads a versionless path dependency as a
+  wildcard; Phantom's own `deny.toml` allows wildcards, so only a consumer
+  sees it.
 - Publish to crates.io. Blocker: the `btls-sys` git dependency in the
   workspace manifest and in the vendored `btls` manifest, which crates.io
   rejects; the release script refuses to publish while either remains.
