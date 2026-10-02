@@ -351,8 +351,11 @@ authentication on every leg. It validates credentials the same way as
 
 1. The first request omits credentials.
 2. A 407 with a valid Basic challenge is retried exactly once, on a fresh
-   proxy connection. `Proxy-Authorization` follows the route's fields; HTTP/2
-   and HTTP/3 encode it as a never-indexed literal.
+   proxy connection. `Proxy-Authorization` follows the route's fields.
+   HTTP/3 encodes it as a never-indexed literal. On HTTP/2 the profile's
+   `Http2SensitiveProxyAuthorization` decides, and the browser recipes
+   index it
+   ([Cookie crumbs and compression](../explanation/design.md#cookie-crumbs-and-compression)).
 3. A second 407 fails with `ConnectUdpErrorKind::Authentication` and status
    407.
 
