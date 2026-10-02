@@ -20,27 +20,39 @@ protocol or route. Phantom is maintained by
 
 ## What Phantom matches
 
-| Layer | Chrome 154 | Edge 154 | Brave 154 | Opera 135 | Firefox 156 | Chrome 154 for Android | Edge 153 for Android | Brave 153 for Android |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TLS ClientHello | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| HTTP/2 SETTINGS, priority, pseudo-header order | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| QUIC and HTTP/3 | Yes | Yes | Yes | Yes | [Yes, with known differences](docs/explanation/validation.md#firefox-156-http3-recipe) | Yes | Yes | Yes |
-| Client hints | Yes | Yes | Yes | Yes | Not sent by Firefox | Yes | Yes | Yes |
-| Navigation and `fetch` request templates | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| WebSocket openings | Yes | Yes | Yes | Yes | Yes | Yes | Not covered | Yes |
-| TCP socket options, from browser source | Yes | Not covered | Not covered | Not covered | Partial: `TCP_NODELAY` only | Not covered | Not covered | Not covered |
+Phantom carries [recipes](docs/reference/glossary.md#recipe) for Chrome,
+Edge, Brave, Opera, and Firefox, from one desktop build and one Android build
+of each.
+[Coverage](docs/reference/coverage.md#at-a-glance) names every build and
+shows, layer by layer, what Phantom reproduces for it.
 
-Opera 102 for Android has TLS and client-hint recipes only; it takes no
-command-line switches, so no other layer could be captured. Firefox 156 for
-Android has a TLS recipe only, equal to desktop Firefox's.
+For each desktop build, and for Chrome, Edge, and Brave for Android, the
+recipes and [request templates](docs/reference/glossary.md#request-template)
+reproduce the browser's:
 
-Every captured recipe comes from captures of one build per browser: Windows
-11 for the desktop browsers (`chromium`, `edge`, `brave`, `opera`, and
-`firefox`), and Android emulators for the Android ones (`chrome_android`,
-`edge_android`, `brave_android`, `opera_android`, and `firefox_android`),
-not phones.
-[Coverage](docs/reference/coverage.md) is the full support contract, and
-[Validation](docs/explanation/validation.md) lists the evidence for each row.
+- TLS ClientHello;
+- HTTP/2 SETTINGS, priority, and pseudo-header order;
+- QUIC transport parameters and HTTP/3 settings;
+- client hints;
+- request fields of a navigation and a `fetch`, in the browser's order;
+- WebSocket opening request.
+
+Exceptions to that list:
+
+- Firefox sends no client hints, and its QUIC and HTTP/3 recipes have
+  [known differences](docs/explanation/validation.md#firefox-156-http3-recipe).
+- Edge for Android has no WebSocket opening recipe.
+- Opera for Android has only TLS and client-hint recipes, and Firefox for
+  Android only a TLS recipe.
+- Only desktop Chrome, Brave, and Firefox have TCP socket options, taken from
+  browser source, and Firefox's set only `TCP_NODELAY`.
+
+Most recipes come from [captures](docs/reference/glossary.md#capture) of real
+browsers: on Windows 11 for the desktop builds, with some client-hint and
+request-template recipes also from macOS, and on Android emulators, not
+phones, for the Android builds. Tests compare Phantom's output with the
+captures, and [Validation](docs/explanation/validation.md) lists the evidence
+for each layer.
 
 Beyond the browser layers, the client supports:
 
@@ -104,7 +116,7 @@ No Cargo feature is enabled by default:
 | Feature | Adds |
 | --- | --- |
 | `cookies` | A cookie jar owned by the client, with size limits |
-| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the Chrome 154, Edge 154, and Brave 154 recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; adds the `hickory-resolver` dependency |
+| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the desktop Chrome, Edge, and Brave recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; adds the `hickory-resolver` dependency |
 | `sse` | Server-sent events, with a limited number of reconnects |
 | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
 | `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |
