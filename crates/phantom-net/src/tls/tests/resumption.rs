@@ -472,16 +472,28 @@ fn assert_same_resumed_shape(
         actual_summary.alpn_protocols(),
         expected_summary.alpn_protocols()
     );
-    // Chrome 154 sorts its trust-anchor IDs; Opera 136 keeps one order per
-    // process, which a recipe cannot follow, so the IDs compare as a set.
-    let sorted_ids = |summary: &ClientHelloSummary| {
-        summary.requested_trust_anchor_ids().map(|ids| {
-            let mut ids = ids.to_vec();
-            ids.sort_unstable();
-            ids
-        })
-    };
-    assert_eq!(sorted_ids(&actual_summary), sorted_ids(&expected_summary));
+    // Chrome 154 sends its trust-anchor IDs sorted, so a sorted recipe list
+    // compares in order. Opera 136 keeps one order per process, which a
+    // recipe cannot follow, so its unsorted list compares as a set.
+    let recipe_sorted = settings
+        .requested_trust_anchor_ids
+        .as_ref()
+        .is_none_or(|ids| ids.is_sorted());
+    if recipe_sorted {
+        assert_eq!(
+            actual_summary.requested_trust_anchor_ids(),
+            expected_summary.requested_trust_anchor_ids()
+        );
+    } else {
+        let sorted_ids = |summary: &ClientHelloSummary| {
+            summary.requested_trust_anchor_ids().map(|ids| {
+                let mut ids = ids.to_vec();
+                ids.sort_unstable();
+                ids
+            })
+        };
+        assert_eq!(sorted_ids(&actual_summary), sorted_ids(&expected_summary));
+    }
     assert_eq!(
         actual_summary.extension_types().last(),
         Some(&PRE_SHARED_KEY)
