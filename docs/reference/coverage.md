@@ -154,10 +154,8 @@ Not modeled:
 Supported:
 
 - Typed, ordered profiles.
-- Recipes backed by retained captures: Chrome 154, Edge 154, Brave 154,
-  Opera 135, and Firefox 156 from Windows captures, and Chrome 154, Edge
-  153, Brave 153, Opera 102, and Firefox 156 for Android from Android
-  emulator captures. Phantom carries one version per browser. For a desktop
+- Recipes backed by retained captures for every build in
+  [At a glance](#at-a-glance). Phantom carries one version per browser. For a desktop
   browser it is the current stable build on the capture host. For an Android
   browser it is the build the Play Store served to the emulator, which can
   trail stable. See
