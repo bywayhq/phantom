@@ -408,10 +408,6 @@ class PortTests(unittest.TestCase):
             udp.close()
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class InitialDatagramTests(unittest.TestCase):
     def test_reads_version_1_and_version_2_initials(self) -> None:
         v1 = bytes([0xC3]) + (1).to_bytes(4, "big") + bytes([11]) + bytes(11)
@@ -429,3 +425,7 @@ class InitialDatagramTests(unittest.TestCase):
         handshake = bytes([0xE3]) + (1).to_bytes(4, "big") + bytes([8]) + bytes(9)
         self.assertIsNone(initial_datagram(handshake))
         self.assertIsNone(initial_datagram(bytes([0x43]) + bytes(40)))
+
+
+if __name__ == "__main__":
+    unittest.main()
