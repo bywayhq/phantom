@@ -334,10 +334,20 @@ def expand_manifest(
         )
     ids: set[str] = set()
     seen: dict[Path, str] = {}
+    directories: dict[str, str] = {}
     for job in jobs:
         if job.id in ids:
             raise ManifestError(f"job {job.id} appears twice")
         ids.add(job.id)
+        # Attempts of two jobs with one digest would remove each other's
+        # temporary directories.
+        directory = attempt_directory(job.id, 1)
+        if directory in directories:
+            raise ManifestError(
+                f"jobs {directories[directory]} and {job.id} share the "
+                f"temporary directory name {directory}"
+            )
+        directories[directory] = job.id
         for output in job.outputs:
             key = Path(os.path.normcase(output.resolve()))
             if key in seen:
@@ -631,6 +641,30 @@ def slug(job_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", job_id)
 
 
+# Firefox 157 on Windows does not start with a profile path of 209 or more
+# characters: it writes only `parent.lock` and two other files, and never
+# loads a page or publishes its remote protocol endpoint.
+PROFILE_PATH_LIMIT = 208
+# What `browser_launch` adds below an attempt's temporary directory.
+PROFILE_NAME = "phantom-capture-profile-" + "x" * 8
+
+
+def attempt_directory(job_id: str, attempt: int) -> str:
+    """A short name for one attempt's temporary directory.
+
+    The browser profile lives inside it, so the name is a digest rather than
+    the job ID, which can be 60 characters long.
+    """
+    digest = hashlib.sha256(job_id.encode()).hexdigest()[:8]
+    return f"{digest}.{attempt}"
+
+
+def longest_profile_path(work_dir: Path, attempts: int) -> int:
+    """The longest browser profile path one of `attempts` attempts can get."""
+    name = attempt_directory("", attempts)
+    return len(str(work_dir / "tmp" / name / PROFILE_NAME))
+
+
 def end_attempt(container: ProcessContainer, temporary: Path) -> None:
     container.close()
     # A browser outside the container still names the attempt's directory.
@@ -688,7 +722,7 @@ def run_attempt(
 ) -> Attempt:
     """Run one attempt of `job` as a subprocess and check its outputs."""
     name = f"{slug(job.id)}.{attempt}"
-    temporary = work_dir / "tmp" / name
+    temporary = work_dir / "tmp" / attempt_directory(job.id, attempt)
     shutil.rmtree(temporary, ignore_errors=True)
     temporary.mkdir(parents=True)
     log = work_dir / "logs" / f"{name}.log"
@@ -1050,6 +1084,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if "'" in str(work_dir):
         # Stopping a hung attempt names this path in a PowerShell string.
         parser.error("the work directory path cannot contain a single quote")
+    longest = longest_profile_path(work_dir, args.retries + 1)
+    if sys.platform == "win32" and longest > PROFILE_PATH_LIMIT:
+        parser.error(
+            f"the work directory path is too long: a browser profile in it "
+            f"could take {longest} characters, and Firefox on Windows does "
+            f"not start past {PROFILE_PATH_LIMIT}"
+        )
     print(
         f"{len(jobs)} jobs, concurrency {args.jobs}, work directory {work_dir}",
         file=sys.stderr,

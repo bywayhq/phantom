@@ -305,7 +305,14 @@ after the attempt starts, and each file ends with a newline and has no
 fixture instead of failing, and no retained fixture holds one.
 
 A failed attempt is run again at once. Each attempt's standard output and
-standard error go to `<work-dir>/logs/<job>.<attempt>.log`.
+standard error go to `<work-dir>/logs/<job>.<attempt>.log`. Its temporary
+directory, which holds the browser profile, is
+`<work-dir>/tmp/<digest>.<attempt>`, where the digest is the first eight hex
+digits of the SHA-256 of the job ID. Firefox 157 on Windows does not start
+from a profile path of 209 or more characters: it never loads the page or
+publishes its remote protocol endpoint, so the attempt times out. On Windows
+the runner therefore refuses a work directory deep enough for a profile path
+to pass 208 characters.
 
 On Windows each attempt's processes, the browsers included, belong to a Job
 Object that ends them when it closes. On other systems the tool leads a new

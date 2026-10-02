@@ -15,6 +15,7 @@ from scripts.capture.browser_launch import FIREFOX_START_LIMIT_SECONDS
 from scripts.capture.process_container import ProcessContainer
 from scripts.capture.run_matrix import (
     LOCK_DIRECTORY,
+    PROFILE_PATH_LIMIT,
     TOOLS,
     Attempt,
     Attempts,
@@ -24,8 +25,10 @@ from scripts.capture.run_matrix import (
     JobResult,
     ManifestError,
     Tool,
+    attempt_directory,
     attempt_timeout,
     expand_manifest,
+    longest_profile_path,
     main,
     order_jobs,
     output_problem,
@@ -770,10 +773,17 @@ class SubprocessTests(unittest.TestCase):
             b"run_0_timed_out=false\nrun_1_timed_out=false\n",
         )
         log = Path(result.attempts[0].log).read_text()
-        temporary = self.root / "work" / "tmp" / "fake-chrome-ok.1"
+        temporary = self.root / "work" / "tmp" / attempt_directory(result.job.id, 1)
         self.assertIn(f"temp={temporary}", log)
         self.assertIn(f"lock_dir={LOCK_DIRECTORY}", log)
         self.assertFalse(temporary.exists())
+
+    def test_an_attempt_reports_the_job_object_it_got(self) -> None:
+        (result,), _wall = self.run_jobs(fake_capture())
+
+        self.assertEqual(result.status, "ok")
+        log = Path(result.attempts[0].log).read_text()
+        self.assertNotIn("refused the job object", log)
 
     def test_launches_take_turns_only_beside_other_jobs(self) -> None:
         def lock_dir(*captures, limit):
@@ -921,6 +931,63 @@ class DryRunTests(unittest.TestCase):
             "--netlog-dir '<work-dir>/netlog/alt_svc_race-chrome-udp-blackhole'",
             output.getvalue().replace("\\", "/"),
         )
+
+
+class WorkDirectoryTests(unittest.TestCase):
+    LONGEST_ID = "proxy_route/firefox/https-proxy-auth-remembered-hostname"
+
+    def test_attempt_directories_are_short_and_distinct(self) -> None:
+        names = {
+            attempt_directory(job_id, attempt)
+            for job_id in (self.LONGEST_ID, "sse_reconnect/firefox/retry-0")
+            for attempt in (1, 2)
+        }
+        self.assertEqual(len(names), 4)
+        self.assertTrue(all(len(name) <= 10 for name in names), names)
+
+    def test_profile_paths_leave_room_in_a_deep_work_directory(self) -> None:
+        # About as deep as the scratch directory where a Firefox 157 matrix
+        # lost two jobs to the limit.
+        work_dir = Path("C:/") / ("w" * 120)
+        self.assertLessEqual(longest_profile_path(work_dir, 2), PROFILE_PATH_LIMIT)
+
+    def test_jobs_sharing_a_temporary_directory_name_are_refused(self) -> None:
+        captures = manifest(fake_capture(scenarios=["ok", "fail"]))
+        with (
+            mock.patch(
+                "scripts.capture.run_matrix.attempt_directory",
+                lambda _job_id, attempt: f"00000000.{attempt}",
+            ),
+            self.assertRaisesRegex(ManifestError, "share the temporary directory"),
+        ):
+            expand_manifest(captures, base=Path("."), tools=FAKE_TOOLS)
+
+    def test_a_work_directory_too_deep_for_a_browser_profile_is_refused(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "m.json"
+            path.write_text(
+                json.dumps(
+                    manifest(
+                        {
+                            "tool": "snapshot",
+                            "browsers": ["chrome"],
+                            "output_dir": "out",
+                        }
+                    )
+                )
+            )
+            deep = Path(directory) / ("w" * PROFILE_PATH_LIMIT)
+            errors = io.StringIO()
+            with (
+                mock.patch.object(sys, "platform", "win32"),
+                contextlib.redirect_stderr(errors),
+                self.assertRaises(SystemExit),
+            ):
+                main([str(path), "--work-dir", str(deep)])
+
+        self.assertIn("work directory path is too long", errors.getvalue())
 
 
 if __name__ == "__main__":

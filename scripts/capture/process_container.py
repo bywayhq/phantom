@@ -38,15 +38,11 @@ class ProcessContainer:
         self.job: int | None = None
         if sys.platform == "win32":
             self.job = _windows_job(process.pid)
-
-    @property
-    def contained(self) -> bool:
-        """Whether every descendant is stopped with the container.
-
-        False when Windows refused the Job Object; `close` then stops the
-        process tree by parent and relies on the caller's profile sweep.
-        """
-        return sys.platform != "win32" or self.job is not None
+        # Whether every descendant is stopped with the container. False when
+        # Windows refused the Job Object; `close` then stops the process tree
+        # by parent and relies on the caller's profile sweep. Kept after
+        # `close`, which releases the job.
+        self.contained = sys.platform != "win32" or self.job is not None
 
     def close(self) -> None:
         """End every process still in the container. Safe to call twice."""
