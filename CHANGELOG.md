@@ -1202,7 +1202,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   broken, and the next request after each broken period fails again. An
   exact HTTP/3 request fails the same way on every attempt. Since the retry
   configurations are not kept, this lasts until the cached record expires,
-  after its TTL or at most one day. `opera::v135_http3_tls` clears the
+  after its TTL or at most one day. `opera::v136_http3_tls` clears the
   field, so Opera is unchanged, as are proxy routes and Alt-Svc
   alternatives at another host. To fall back to TCP as Chrome does, use
   `AltSvcPolicy::race`; to keep ECH GREASE on HTTP/3, set

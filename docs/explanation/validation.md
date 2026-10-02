@@ -3642,7 +3642,7 @@ pins, `80bf9559`, states the rules the recipe follows:
 
 Phantom implements this through the same `TlsSettings::ech_from_https_records`
 field, set in `chromium::v154_http3_tls` and kept by `edge::v154_http3_tls`
-and `brave::v154_http3_tls`; `opera::v135_http3_tls` clears it. The
+and `brave::v154_http3_tls`; `opera::v136_http3_tls` clears it. The
 connector checks the list, waits for the lookup as a TCP connection does,
 and offers ECH through `QuicClientConfig::with_ech`. A rejection is an
 HTTP/3 setup failure like any other: a sequential client fails the request
