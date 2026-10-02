@@ -314,6 +314,30 @@ publishes its remote protocol endpoint, so the attempt times out. On Windows
 the runner therefore refuses a work directory deep enough for a profile path
 to pass 208 characters.
 
+A direct launch shows the limit without the runner. In PowerShell, this
+starts Firefox headless on an empty profile whose path is 208 characters,
+then 209, and checks for the remote protocol endpoint file after ten seconds:
+
+```powershell
+foreach ($length in 208, 209) {
+  $base = "$env:LOCALAPPDATA\Temp\pfl$length"
+  $path = "$base\" + ("p" * ($length - "$base\".Length))
+  New-Item -ItemType Directory -Force $path | Out-Null
+  $firefox = Start-Process -PassThru "C:\Program Files\Mozilla Firefox\firefox.exe" `
+    -ArgumentList "--headless", "--no-remote", "--profile", "`"$path`"",
+    "--remote-debugging-port", "0", "about:blank"
+  Start-Sleep -Seconds 10
+  "$($path.Length): $(Test-Path "$path\WebDriverBiDiServer.json")"
+  taskkill /PID $firefox.Id /T /F | Out-Null
+}
+```
+
+On the Windows 11 capture host, with Firefox 157.0, it prints `208: True`
+and `209: False`. The 208-character profile holds 53 entries after ten
+seconds; at 209 characters Firefox has already exited, leaving two, so
+`taskkill` reports that it found no such process. Delete the two `pfl`
+directories afterwards.
+
 On Windows each attempt's processes, the browsers included, belong to a Job
 Object that ends them when it closes. On other systems the tool leads a new
 process group. When an attempt ends, passes, fails, or reaches its timeout,
