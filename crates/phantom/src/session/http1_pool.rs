@@ -551,7 +551,8 @@ impl PoolEntry {
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection = Box::pin(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+        let connection =
+            super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
         Ok(reservation.into_lease(connection))
     }
 
@@ -648,7 +649,7 @@ impl PoolEntry {
                             if let Some(credentials) = proxy.basic_credentials() {
                                 // Bound the challenge/retry state machine without
                                 // adding allocation to unauthenticated connections.
-                                Box::pin(connector.connect_https_connect_with_basic_auth(
+                                super::box_send(connector.connect_https_connect_with_basic_auth(
                                     proxy_connector,
                                     proxy.host(),
                                     proxy.port(),
@@ -676,7 +677,7 @@ impl PoolEntry {
                             }
                         } else {
                             if let Some(credentials) = proxy.basic_credentials() {
-                                Box::pin(connector.connect_http_connect_with_basic_auth(
+                                super::box_send(connector.connect_http_connect_with_basic_auth(
                                     proxy.host(),
                                     proxy.port(),
                                     &connect_authority,

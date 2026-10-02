@@ -147,7 +147,7 @@ impl WebSocketRequestBuilder {
                             })?,
                         );
                         if let Some(credentials) = proxy.basic_credentials() {
-                            Box::pin(
+                            crate::session::box_send(
                                 connector.upgrade_get_plaintext_https_connect_with_basic_auth(
                                     proxy_connector,
                                     proxy.host(),
@@ -176,7 +176,7 @@ impl WebSocketRequestBuilder {
                                 .await
                         }
                     } else if let Some(credentials) = proxy.basic_credentials() {
-                        Box::pin(
+                        crate::session::box_send(
                             connector.upgrade_get_plaintext_http_connect_with_basic_auth(
                                 proxy.host(),
                                 proxy.port(),
@@ -259,18 +259,20 @@ impl WebSocketRequestBuilder {
                         if let Some(credentials) = proxy.basic_credentials() {
                             // Keep the challenge/retry state machine out of the
                             // ordinary WebSocket connection future's stack frame.
-                            Box::pin(connector.upgrade_get_https_connect_with_basic_auth(
-                                proxy_connector,
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.host(),
-                                &authority,
-                                proxy.ordered_connect_headers(),
-                                credentials,
-                                request.endpoint.host(),
-                                request.target,
-                                prepared.headers,
-                            ))
+                            crate::session::box_send(
+                                connector.upgrade_get_https_connect_with_basic_auth(
+                                    proxy_connector,
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.host(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    credentials,
+                                    request.endpoint.host(),
+                                    request.target,
+                                    prepared.headers,
+                                ),
+                            )
                             .await
                         } else {
                             connector
@@ -289,16 +291,18 @@ impl WebSocketRequestBuilder {
                         }
                     } else {
                         if let Some(credentials) = proxy.basic_credentials() {
-                            Box::pin(connector.upgrade_get_http_connect_with_basic_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                &authority,
-                                proxy.ordered_connect_headers(),
-                                credentials,
-                                request.endpoint.host(),
-                                request.target,
-                                prepared.headers,
-                            ))
+                            crate::session::box_send(
+                                connector.upgrade_get_http_connect_with_basic_auth(
+                                    proxy.host(),
+                                    proxy.port(),
+                                    &authority,
+                                    proxy.ordered_connect_headers(),
+                                    credentials,
+                                    request.endpoint.host(),
+                                    request.target,
+                                    prepared.headers,
+                                ),
+                            )
                             .await
                         } else {
                             connector

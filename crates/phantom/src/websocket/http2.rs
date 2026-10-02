@@ -223,7 +223,7 @@ impl WebSocketRequestBuilder {
                     if let Some(credentials) = proxy.basic_credentials() {
                         // Keep the challenge/retry state machine out of the
                         // ordinary WebSocket connection future's stack frame.
-                        Box::pin(
+                        crate::session::box_send(
                             connector.send_extended_connect_https_connect_with_basic_auth(
                                 proxy_connector,
                                 proxy.host(),
@@ -240,7 +240,7 @@ impl WebSocketRequestBuilder {
                         )
                         .await
                     } else {
-                        Box::pin(connector.send_extended_connect_https_connect(
+                        crate::session::box_send(connector.send_extended_connect_https_connect(
                             proxy_connector,
                             proxy.host(),
                             proxy.port(),
@@ -255,7 +255,7 @@ impl WebSocketRequestBuilder {
                         .await
                     }
                 } else if let Some(credentials) = proxy.basic_credentials() {
-                    Box::pin(
+                    crate::session::box_send(
                         connector.send_extended_connect_http_connect_with_basic_auth(
                             proxy.host(),
                             proxy.port(),

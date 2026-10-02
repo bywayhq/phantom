@@ -22,7 +22,9 @@ use super::{
 use crate::{
     AltSvcRace, Client, HttpProtocol, RequestError, Route, TimeoutPhase,
     session::{
+        SendBox,
         alt_svc::{AlternativeTarget, PendingLookup, invalidates_alternative},
+        box_send,
         client_hints::{Dispatched, RestartHints},
         http3_pool::{Http3Fields, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
@@ -181,7 +183,7 @@ pub(super) async fn send_once_raced(
 
     let connecting = Arc::new(AtomicBool::new(false));
     let awaits_lookup = lookup.is_some();
-    let alternative_setup = Box::pin(alternative_setup(
+    let alternative_setup = box_send(alternative_setup(
         client.clone(),
         request.endpoint.clone(),
         route.clone(),
@@ -256,7 +258,7 @@ pub(super) async fn send_once_raced(
             // Boxed: this path holds two request futures and a retry, which
             // would otherwise enlarge every poll frame of this function, and
             // a debug build on Windows then overflows a test thread's stack.
-            Box::pin(send_after_early_win(
+            boxed_send_after_early_win(
                 client,
                 request,
                 attempt,
@@ -267,7 +269,7 @@ pub(super) async fn send_once_raced(
                 leased,
                 connection,
                 fields,
-            ))
+            )
             .await
         }
         RaceOutcome::Origin { leased, loser } => {
@@ -321,6 +323,37 @@ pub(super) async fn send_once_raced(
 /// unprocessed replay may have reached another connection that answered
 /// with a status the retry policy repeats; that response may have stored
 /// cookies or client hints, so the race then builds the lists again.
+#[allow(clippy::too_many_arguments)]
+fn boxed_send_after_early_win<'a>(
+    client: &'a Client,
+    request: &'a ResolvedRequest,
+    attempt: AttemptRequest<'a>,
+    route: &'a Route,
+    lifecycle: AttemptLifecycle<'a>,
+    alternative: AlternativeTarget,
+    race: AltSvcRace,
+    leased: Http3Lease,
+    connection: phantom_net::http3::Http3Connection,
+    fields: RacedFields,
+) -> SendBox<'a, Result<AttemptOutcome, RequestError>> {
+    // A named return type, unlike an `async fn`, lets the compiler prove
+    // this future `Send` inside the recursion through `send_once_raced`;
+    // see `box_send`.
+    box_send(send_after_early_win(
+        client,
+        request,
+        attempt,
+        route,
+        lifecycle,
+        alternative,
+        race,
+        leased,
+        connection,
+        fields,
+    ))
+}
+
+/// The future that [`boxed_send_after_early_win`] boxes.
 #[allow(clippy::too_many_arguments)]
 async fn send_after_early_win(
     client: &Client,
@@ -580,7 +613,7 @@ fn continue_alternative<F>(
     race: AltSvcRace,
     setup: Pin<Box<F>>,
 ) where
-    F: Future<Output = Result<Http3Lease, RequestError>> + Send + 'static,
+    F: Future<Output = Result<Http3Lease, RequestError>> + Send + ?Sized + 'static,
 {
     let Ok(runtime) = tokio::runtime::Handle::try_current() else {
         return;
@@ -811,7 +844,7 @@ async fn dispatch_http3(
     // raced request holds this path and the origin's in one future.
     let sent = match leased {
         Some(leased) => {
-            Box::pin(client.state.http3.send_request_on_lease(
+            box_send(client.state.http3.send_request_on_lease(
                 leased,
                 connector,
                 method,
@@ -827,7 +860,7 @@ async fn dispatch_http3(
             .await
         }
         None => {
-            Box::pin(client.state.http3.send_request(
+            box_send(client.state.http3.send_request(
                 connector,
                 client.inner.connect_udp_proxy.as_deref(),
                 &request.endpoint,
@@ -851,7 +884,7 @@ async fn dispatch_http3(
 
 /// The candidate that finished setup first. When the origin wins, `loser`
 /// holds the alternative's failure or its unfinished setup.
-pub(super) enum RaceOutcome<A, O, F> {
+pub(super) enum RaceOutcome<A, O, F: ?Sized> {
     Alternative(A),
     Origin { leased: O, loser: Candidate<F> },
 }
@@ -872,7 +905,7 @@ pub(super) async fn race_setup<A, O, F, S, G>(
     timeout_budget: TimeoutBudget,
 ) -> Result<RaceOutcome<A, O, F>, RequestError>
 where
-    F: Future<Output = Result<A, RequestError>>,
+    F: Future<Output = Result<A, RequestError>> + ?Sized,
     S: FnOnce() -> G,
     G: Future<Output = Result<O, RequestError>>,
 {
@@ -934,7 +967,7 @@ where
 }
 
 /// The alternative candidate's state; `Taken` only after the race returned.
-pub(super) enum Candidate<F> {
+pub(super) enum Candidate<F: ?Sized> {
     Pending(Pin<Box<F>>),
     Failed(RequestError),
     Taken,

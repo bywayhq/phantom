@@ -395,7 +395,7 @@ impl WebSocketRequestBuilder {
         }
         let policy = self.retry_policy;
         if policy.max_connection_failures().is_none() {
-            return Box::pin(self.connect_within_timeout(span))
+            return crate::session::box_send(self.connect_within_timeout(span))
                 .instrument(span.clone())
                 .await;
         }
@@ -410,7 +410,7 @@ impl WebSocketRequestBuilder {
                 let builder = builder.ok_or_else(|| {
                     WebSocketError::invalid_request("WebSocket retry has no attempt left")
                 })?;
-                Box::pin(builder.connect_within_timeout(&span))
+                crate::session::box_send(builder.connect_within_timeout(&span))
                     .instrument(span.clone())
                     .await
             }
@@ -481,10 +481,13 @@ impl WebSocketRequestBuilder {
         }
         match self.selection {
             WebSocketSelection::Exact(HttpProtocol::Http1) => {
-                Box::pin(self.connect_http1(Http1UpgradeConnector::Profile)).await
+                crate::session::box_send(self.connect_http1(Http1UpgradeConnector::Profile)).await
             }
             WebSocketSelection::Exact(HttpProtocol::Http2) => {
-                Box::pin(self.connect_http2(Http2Target::NewConnection, request_span)).await
+                crate::session::box_send(
+                    self.connect_http2(Http2Target::NewConnection, request_span),
+                )
+                .await
             }
             WebSocketSelection::Exact(protocol) => {
                 Err(WebSocketError::protocol_unavailable(protocol))
@@ -534,7 +537,7 @@ impl WebSocketRequestBuilder {
                     Ok(true) => {
                         request_span.record("connection", "http2_session");
                         self.headers = std::mem::take(&mut self.http2_headers);
-                        return Box::pin(self.connect_http2(
+                        return crate::session::box_send(self.connect_http2(
                             Http2Target::Session(session, Box::new(permit), refused_stream_retry),
                             request_span,
                         ))
@@ -552,11 +555,15 @@ impl WebSocketRequestBuilder {
             WebSocketNewConnection::Http2ExtendedConnect => {
                 request_span.record("connection", "new_http2");
                 self.headers = std::mem::take(&mut self.http2_headers);
-                Box::pin(self.connect_http2(Http2Target::NewConnection, request_span)).await
+                crate::session::box_send(
+                    self.connect_http2(Http2Target::NewConnection, request_span),
+                )
+                .await
             }
             WebSocketNewConnection::Http1Upgrade => {
                 request_span.record("connection", "new_http1");
-                Box::pin(self.connect_http1(Http1UpgradeConnector::PolicyAlpn)).await
+                crate::session::box_send(self.connect_http1(Http1UpgradeConnector::PolicyAlpn))
+                    .await
             }
             _ => Err(WebSocketError::invalid_request(
                 "profile WebSocket policy names an unsupported connection",

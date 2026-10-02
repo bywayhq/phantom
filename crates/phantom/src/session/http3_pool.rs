@@ -538,7 +538,7 @@ impl PoolEntry {
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection = Box::pin(self.open(
+        let connection = super::box_send(self.open(
             connector,
             connect_udp_proxy,
             endpoint,
@@ -703,16 +703,18 @@ impl PoolEntry {
         };
         let presented_ticket = origin.has_ticket_for(endpoint.host())
             || http3_proxy.is_some_and(|(proxy, host)| proxy.has_ticket_for(host));
-        let first = self
-            .connect_with(
-                early_origin.unwrap_or(origin),
-                http3_proxy.map(|(proxy, _)| proxy),
-                endpoint,
-                route,
-                transport,
-                connect_udp_proxy,
-            )
-            .await;
+        // Boxed apart from `open`, which nests this future in its attempt
+        // limit: together the two carry the compiler's `Send` proof past the
+        // default recursion limit; see `box_send`.
+        let first = super::box_send(self.connect_with(
+            early_origin.unwrap_or(origin),
+            http3_proxy.map(|(proxy, _)| proxy),
+            endpoint,
+            route,
+            transport,
+            connect_udp_proxy,
+        ))
+        .await;
         match first {
             Err(failure) if presented_ticket && failure.is_handshake() => {
                 debug!(
@@ -721,14 +723,14 @@ impl PoolEntry {
                 );
                 let origin = origin.without_ticket_offers();
                 let http3_proxy = http3_proxy.map(|(proxy, _)| proxy.without_ticket_offers());
-                self.connect_with(
+                super::box_send(self.connect_with(
                     &origin,
                     http3_proxy.as_ref(),
                     endpoint,
                     route,
                     transport,
                     connect_udp_proxy,
-                )
+                ))
                 .await
                 .map_err(SetupFailure::into_request_error)
             }
@@ -1468,10 +1470,10 @@ mod tests {
         assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
     }
 
-    /// `open` holds the connectors' futures for a new connection; see
-    /// `phantom_testkit::future_size`.
+    /// `connect_with` holds the connectors' futures for a new connection,
+    /// boxed apart from `open`; see `phantom_testkit::future_size`.
     ///
-    /// With all features, this is the largest setup future, 9,736 bytes on
+    /// With all features, `connect_with` is 8,728 bytes and `open` 1,120 on
     /// Windows (x86-64, Rust 1.99.0), the only platform measured.
     #[cfg(debug_assertions)]
     #[test]
@@ -1480,7 +1482,13 @@ mod tests {
 
         assert_within(
             SETUP_FUTURE_BUDGET,
-            &[("PoolEntry::open", future_size(&super::PoolEntry::open))],
+            &[
+                ("PoolEntry::open", future_size(&super::PoolEntry::open)),
+                (
+                    "PoolEntry::connect_with",
+                    future_size(&super::PoolEntry::connect_with),
+                ),
+            ],
         );
     }
 

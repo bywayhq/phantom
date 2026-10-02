@@ -461,7 +461,8 @@ impl RequestBuilder {
             span.record("selected_protocol", protocol.trace_name());
         }
         // Keep the public future small when callers join many requests.
-        let result = Box::pin(self.send_inner(&span).instrument(span.clone())).await;
+        let result =
+            crate::session::box_send(self.send_inner(&span).instrument(span.clone())).await;
         if let Err(error) = &result
             && let Some(phase) = error.timeout_phase()
         {

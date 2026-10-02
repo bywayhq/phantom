@@ -971,7 +971,7 @@ async fn dispatch_attempt(
             // Boxed: HTTP/3's send future is the largest of the three
             // protocols', and inline it would enlarge the future of every
             // HTTP/1.1 and HTTP/2 request as well.
-            Box::pin(client.state.http3.send_request(
+            crate::session::box_send(client.state.http3.send_request(
                 connector,
                 client.inner.connect_udp_proxy.as_deref(),
                 endpoint,

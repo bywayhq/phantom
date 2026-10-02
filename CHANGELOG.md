@@ -1617,6 +1617,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Nightly Rust 2026-09-01 no longer warns with
+  `recursion_depth_exceeding_limit` (rust-lang/rust#159228), which the
+  compiler says will become an error, when it proves that a request or
+  WebSocket future is `Send`: neither when building `phantom-http` nor in a
+  crate that spawns `RequestBuilder::send` or
+  `WebSocketRequestBuilder::connect`. The stable toolchain the gate uses does
+  not report this, so it was measured on that nightly only.
 - Dropping an HTTP/2 tunnel after its connection closed no longer queues a
   `RST_STREAM` that nothing writes, which left the stream in the vendored
   `http2` store and failed its debug assertion in debug builds.

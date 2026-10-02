@@ -775,7 +775,7 @@ impl PoolEntry {
             };
             // Connector futures include bounded proxy-authentication state
             // machines; keep them off this future's stack.
-            let attempt = Box::pin(self.acquire(
+            let attempt = crate::session::box_send(self.acquire(
                 connector,
                 https_proxy,
                 endpoint,
@@ -1083,7 +1083,8 @@ impl PoolEntry {
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection = Box::pin(self.open(connector, https_proxy, endpoint, route)).await?;
+        let connection =
+            super::box_send(self.open(connector, https_proxy, endpoint, route)).await?;
         Ok(reservation.finish(connection.into()))
     }
 
@@ -1151,7 +1152,7 @@ impl PoolEntry {
                     if let Some(credentials) = proxy.basic_credentials() {
                         // The retry state machine is large; one allocation per
                         // authenticated proxy connection bounds this future.
-                        Box::pin(connector.connect_https_connect_with_basic_auth(
+                        super::box_send(connector.connect_https_connect_with_basic_auth(
                             proxy_connector,
                             proxy.host(),
                             proxy.port(),
@@ -1179,7 +1180,7 @@ impl PoolEntry {
                     }
                 } else if let Some(credentials) = proxy.basic_credentials() {
                     // See the TLS-proxy branch above.
-                    Box::pin(connector.connect_http_connect_with_basic_auth(
+                    super::box_send(connector.connect_http_connect_with_basic_auth(
                         proxy.host(),
                         proxy.port(),
                         &connect_authority,

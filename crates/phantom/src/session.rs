@@ -19,6 +19,25 @@ mod http3_connections;
 pub(crate) mod http3_pool;
 mod stream_count;
 
+/// A future boxed by [`box_send`].
+pub(crate) type SendBox<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
+/// Boxes `future` as a `Send` trait object.
+///
+/// The connector futures are deep: a request future nests the request path,
+/// the pool, and the connector state machines, and proving the whole nest
+/// `Send` exceeds the compiler's default recursion limit
+/// (rust-lang/rust#159228), in this crate and in a caller that spawns a
+/// request. A trait object ends that proof where it is created, so each
+/// existing box on the request and connection setup paths uses this helper
+/// instead of `Box::pin`.
+pub(crate) fn box_send<'a, T>(
+    future: impl std::future::Future<Output = T> + Send + 'a,
+) -> SendBox<'a, T> {
+    Box::pin(future)
+}
+
 pub use alt_svc::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
     AltSvcSnapshotError, AltSvcSnapshotErrorKind,
