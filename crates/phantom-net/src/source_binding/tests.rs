@@ -3,7 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
-use tokio::net::{TcpListener, UdpSocket};
+use tokio::net::TcpListener;
 
 use super::{SourceBinding, WSAENOBUFS, retry_past_reserved_ports};
 
@@ -149,11 +149,11 @@ async fn udp_socket_sends_from_the_bound_address_not_the_default() -> TestResult
     // as a SOCKS5 association passes its control connection's address, so
     // the bound address must differ from it.
     let bound = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
-    if std::net::UdpSocket::bind((bound, 0)).is_err() {
+    if phantom_testkit::udp::bind((bound, 0).into()).is_err() {
         eprintln!("skipped: 127.0.0.2 is not a local address on this host");
         return Ok(());
     }
-    let server = UdpSocket::bind((IPV4_LOOPBACK, 0)).await?;
+    let server = phantom_testkit::udp::bind_tokio((IPV4_LOOPBACK, 0).into())?;
     let binding = SourceBinding::new().with_address(bound);
 
     let socket = binding.bind_udp(server.local_addr()?, SocketAddr::new(IPV4_LOOPBACK, 0))?;

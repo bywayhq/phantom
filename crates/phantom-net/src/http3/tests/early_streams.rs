@@ -98,7 +98,7 @@ impl Wake for CountingWaker {
 async fn an_early_session_opens_only_on_a_published_acceptance() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = trusting_connector(&identity)?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, false)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -175,7 +175,7 @@ async fn a_rejection_between_two_polls_of_a_request_waiting_for_credit_refuses_i
 {
     let identity = TestIdentity::generate()?;
     let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         one_stream_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -228,7 +228,7 @@ async fn a_rejection_between_two_polls_of_a_request_waiting_for_credit_refuses_i
 async fn a_handshake_that_completes_after_the_permit_holds_the_stream() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -293,7 +293,7 @@ async fn a_handshake_that_completes_after_the_permit_holds_the_stream() -> TestR
 async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = trusting_connector(&identity)?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, false)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -362,7 +362,7 @@ async fn a_held_stream_is_reset_unused_after_a_rejection() -> TestResult<()> {
 async fn a_taken_critical_stream_number_closes_with_internal_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = trusting_connector(&identity)?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, false)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -448,7 +448,7 @@ async fn credit_wait_rejection(gate_delay: Option<GateDelay>) -> TestResult<Reje
     if let Some(delay) = gate_delay {
         early = early.with_test_gate_delay(delay);
     }
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         one_stream_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -532,7 +532,7 @@ async fn handshake_window_rejection(
         early = early.with_test_gate_delay(delay);
     }
     let early = Arc::new(early);
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -634,7 +634,7 @@ async fn a_parked_request_does_not_open_before_invalid_metadata_is_found() -> Te
             .with_test_early_peer_alps(&alps_frame(0x89, &[0x05]))
             .with_test_answer_hold(Arc::clone(&hold)),
     );
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         one_stream_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -822,7 +822,7 @@ async fn a_rejection_while_the_early_session_starts_keeps_the_connection() -> Te
     let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
         .with_test_early_race(EarlyRace::StartAfterHandshake, Arc::default());
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -868,7 +868,7 @@ async fn an_acceptance_while_the_early_session_starts_keeps_the_connection() -> 
     let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
         .with_test_early_race(EarlyRace::StartAfterHandshake, Arc::default());
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -909,7 +909,7 @@ async fn check_rejection_with(race: EarlyRace) -> TestResult<Arc<RaceObserved>> 
     let early = trusting_connector_with(&identity, &typed_critical_streams())?
         .with_isolated_session_cache()
         .with_test_early_race(race, Arc::clone(&observed));
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -986,7 +986,7 @@ async fn a_discarded_session_polled_before_the_answer_keeps_the_connection() -> 
 #[tokio::test(flavor = "current_thread")]
 async fn an_early_session_accepts_server_streams_only_after_an_acceptance() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, false)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -1040,7 +1040,7 @@ async fn an_early_session_accepts_server_streams_only_after_an_acceptance() -> T
 #[tokio::test(flavor = "current_thread")]
 async fn an_acceptance_wakes_a_waiting_server_stream_accept() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, false)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;

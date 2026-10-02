@@ -244,7 +244,7 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
     )?;
     // Nothing listens on this UDP port, so the outer QUIC connection never
     // completes; the name lookup precedes it.
-    let port = std::net::UdpSocket::bind("127.0.0.1:0")?
+    let port = phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?
         .local_addr()?
         .port();
     let authority = format!("{PROXY}:{port}");

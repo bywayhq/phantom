@@ -418,7 +418,7 @@ fn endpoint_binds_loopback_only_for_a_loopback_remote() {
 #[tokio::test(flavor = "current_thread")]
 async fn connects_over_ipv6_when_loopback_is_available() -> TestResult<()> {
     let bind_address: SocketAddr = "[::1]:0".parse()?;
-    if std::net::UdpSocket::bind(bind_address).is_err() {
+    if phantom_testkit::udp::bind(bind_address).is_err() {
         return Ok(());
     }
 
@@ -641,13 +641,20 @@ fn server_endpoint_with_transport(
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
     config.transport_config(Arc::new(transport));
-    let endpoint = quinn::Endpoint::new(
+    let endpoint = quic_server(config, bind_address)?;
+    Ok((endpoint.local_addr()?, endpoint))
+}
+
+/// A QUIC endpoint that serves `config` on `local`, as
+/// `quinn::Endpoint::server` does, with a bind to port 0 that survives a
+/// Windows reserved port block.
+fn quic_server(config: quinn::ServerConfig, local: SocketAddr) -> std::io::Result<quinn::Endpoint> {
+    quinn::Endpoint::new(
         quinn::EndpointConfig::default(),
         Some(config),
-        phantom_testkit::udp::bind(bind_address)?,
+        phantom_testkit::udp::bind(local)?,
         Arc::new(quinn::TokioRuntime),
-    )?;
-    Ok((endpoint.local_addr()?, endpoint))
+    )
 }
 
 async fn accept_request(

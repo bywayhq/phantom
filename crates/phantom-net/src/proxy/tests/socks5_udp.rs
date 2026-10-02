@@ -39,7 +39,7 @@ async fn oversized_relayed_datagram_is_dropped_and_later_datagrams_are_delivered
 #[tokio::test]
 async fn datagram_from_a_non_relay_source_is_dropped() -> TestResult {
     let association = Association::open().await?;
-    let spoofer = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let spoofer = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
     spoofer
         .send_to(&relayed(b"spoofed"), association.client)
         .await?;
@@ -89,7 +89,7 @@ impl Association {
     async fn open() -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = listener.local_addr()?;
-        let relay = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let relay = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let relay_address = relay.local_addr()?;
         let (control, action) = oneshot::channel();
         let proxy = tokio::spawn(async move {

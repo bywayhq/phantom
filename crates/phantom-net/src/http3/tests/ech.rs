@@ -99,7 +99,7 @@ fn server(
     }
     let crypto = QuicServerConfig::new(builder.build().into_context());
     let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
-    let endpoint = quinn::Endpoint::server(config, "127.0.0.1:0".parse()?)?;
+    let endpoint = super::quic_server(config, "127.0.0.1:0".parse()?)?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 

@@ -66,12 +66,7 @@ fn server(identity: &TestIdentity) -> TestResult<(SocketAddr, quinn::Endpoint)> 
     });
     let crypto = QuicServerConfig::new(builder.build().into_context());
     let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
-    let endpoint = quinn::Endpoint::new(
-        quinn::EndpointConfig::default(),
-        Some(config),
-        phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?,
-        Arc::new(quinn::TokioRuntime),
-    )?;
+    let endpoint = super::quic_server(config, "127.0.0.1:0".parse()?)?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 

@@ -681,7 +681,7 @@ fn an_undecodable_message_is_a_resolve_error() -> TestResult<()> {
 
 /// Answers every query with its own question and `answers`, byte for byte.
 async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<std::net::SocketAddr> {
-    let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await?;
+    let socket = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     let address = socket.local_addr()?;
     tokio::spawn(async move {
         let mut buffer = vec![0; 512];

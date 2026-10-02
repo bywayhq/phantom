@@ -10,7 +10,7 @@ use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use http::{Method, Response, StatusCode};
 use phantom_profile::chromium;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use tokio::{net::UdpSocket, task::JoinHandle, time::timeout};
+use tokio::{task::JoinHandle, time::timeout};
 use tracing::instrument::WithSubscriber;
 
 use super::super::{
@@ -115,8 +115,10 @@ pub(super) fn spawn_h3_server(endpoint: quinn::Endpoint, served: Served) -> Join
 /// Forwards one client's datagrams to `server` at once and the server's
 /// replies after [`RELAY_DELAY`].
 pub(super) async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
-    let front = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
-    let back = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let front = Arc::new(phantom_testkit::udp::bind_tokio(
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?);
+    let back = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
     back.connect(server).await?;
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
@@ -193,7 +195,7 @@ pub(super) async fn learn_ticket(
     isolated: &Http3Connector,
     served: &Served,
 ) -> TestResult<(SocketAddr, quinn::Endpoint, JoinHandle<()>)> {
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -299,7 +301,7 @@ async fn a_server_that_reduces_a_remembered_setting_is_closed_with_settings_erro
     const H3_SETTINGS_ERROR: u32 = 0x109;
     let identity = TestIdentity::generate()?;
     let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -669,7 +671,7 @@ pub(super) fn unprocessed(error: &(dyn std::error::Error + 'static)) -> Option<H
 async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -732,7 +734,7 @@ async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResu
 async fn rejected_early_data_discards_the_remembered_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let early = trusting_connector(&identity)?.with_isolated_session_cache();
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = super::quic_server(
         server_config(&identity, true)?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
