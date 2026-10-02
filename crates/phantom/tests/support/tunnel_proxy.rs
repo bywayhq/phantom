@@ -83,6 +83,25 @@ pub(crate) async fn https1_connect(
     Ok(request)
 }
 
+/// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`, returning
+/// the client certificate the proxy's handshake received, if any.
+pub(crate) async fn https1_connect_recording_client_certificate(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<Option<Vec<u8>>> {
+    let (tcp, _) = listener.accept().await?;
+    let mut downstream = accept_tls_stream(tcp, acceptor).await?;
+    let presented = downstream
+        .ssl()
+        .peer_certificate()
+        .map(|certificate| certificate.to_der())
+        .transpose()?;
+    read_head(&mut downstream).await?;
+    establish_relay(downstream, origin).await?;
+    Ok(presented)
+}
+
 /// Accepts one plaintext HTTP/1.1 CONNECT and answers it with `status`.
 pub(crate) async fn http1_connect_status(
     listener: TcpListener,

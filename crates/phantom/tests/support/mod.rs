@@ -4,6 +4,7 @@
 // without every feature leaves some of them unused.
 #![allow(dead_code)]
 
+pub(crate) mod client_certificate;
 #[cfg(feature = "https-records")]
 pub(crate) mod ech;
 pub(crate) mod h2;

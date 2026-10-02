@@ -1,6 +1,7 @@
 //! Exact HTTP/3 over RFC 9298 CONNECT-UDP (MASQUE) proxies reached over
 //! HTTP/3, HTTP/2 extended CONNECT, or HTTP/1.1 Upgrade.
 
+use crate::support::client_certificate as client_certificate_support;
 use crate::support::h3 as h3_support;
 use crate::support::masque as masque_support;
 use crate::support::tls as tls_support;
@@ -36,6 +37,7 @@ use tracing::{
     subscriber::Interest,
 };
 
+use client_certificate_support::{ClientIdentity, presented_leaf, quic_endpoint_requiring};
 use h3_support::server_endpoint;
 use masque_support::{
     MasqueProxy, MasqueStreamProxy, ProxyMode, StreamLeg, StreamMode, masque_client_settings,
@@ -63,6 +65,39 @@ async fn exact_h3_over_connect_udp_completes_request() -> TestResult<()> {
         assert_eq!(response.into_body().collect().await?.to_bytes(), "/hello");
         assert_eq!(proxy.requests().len(), 1);
         assert_eq!(origin.requests(), ["/hello"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn connect_udp_proxy_never_receives_the_client_certificate() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let client_identity = ClientIdentity::p256()?;
+        let origin = Origin::serve(quic_endpoint_requiring(
+            &origin_identity,
+            &client_identity.authority_der,
+        )?);
+        let proxy = MasqueProxy::spawn_requesting_client_certificates(
+            &proxy_identity,
+            ProxyMode::Relay,
+            &client_identity.authority_der,
+        )?;
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
+            .client_certificate(client_identity.certificate()?)
+            .build()?;
+
+        let response = client
+            .get(HttpProtocol::Http3, &origin.uri("/authenticated"))?
+            .send()
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(proxy.connections(), 1);
+        assert_eq!(proxy.client_certificates(), 0);
+        assert_eq!(origin.presented(), [Some(client_identity.leaf_der)]);
         Ok(())
     })
     .await
@@ -1129,25 +1164,37 @@ struct Origin {
     address: SocketAddr,
     connections: Arc<AtomicUsize>,
     requests: Arc<Mutex<Vec<String>>>,
+    /// The client certificate each connection presented, if any.
+    presented: Arc<Mutex<Vec<Option<Vec<u8>>>>>,
     task: JoinHandle<()>,
 }
 
 impl Origin {
     fn spawn(identity: &TestIdentity) -> TestResult<Self> {
-        let (address, endpoint) = server_endpoint(identity)?;
+        Ok(Self::serve(server_endpoint(identity)?))
+    }
+
+    fn serve((address, endpoint): (SocketAddr, quinn::Endpoint)) -> Self {
         let connections = Arc::new(AtomicUsize::new(0));
         let requests = Arc::new(Mutex::new(Vec::new()));
+        let presented = Arc::new(Mutex::new(Vec::new()));
         let task_connections = Arc::clone(&connections);
         let task_requests = Arc::clone(&requests);
+        let task_presented = Arc::clone(&presented);
         let task = tokio::spawn(async move {
             while let Some(incoming) = endpoint.accept().await {
                 let requests = Arc::clone(&task_requests);
                 let connections = Arc::clone(&task_connections);
+                let presented = Arc::clone(&task_presented);
                 tokio::spawn(async move {
                     let Ok(connection) = incoming.await else {
                         return;
                     };
                     connections.fetch_add(1, Ordering::SeqCst);
+                    presented
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push(presented_leaf(&connection));
                     let Ok(mut connection) = h3::server::Connection::<_, Bytes>::new(
                         h3_quinn::Connection::new(connection),
                     )
@@ -1169,12 +1216,13 @@ impl Origin {
                 });
             }
         });
-        Ok(Self {
+        Self {
             address,
             connections,
             requests,
+            presented,
             task,
-        })
+        }
     }
 
     fn uri(&self, path: &str) -> String {
@@ -1187,6 +1235,13 @@ impl Origin {
 
     fn requests(&self) -> Vec<String> {
         self.requests
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn presented(&self) -> Vec<Option<Vec<u8>>> {
+        self.presented
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()

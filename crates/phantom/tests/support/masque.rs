@@ -24,6 +24,7 @@ use tokio::{
     task::JoinHandle,
 };
 
+use crate::support::client_certificate::{presented_leaf, rustls_config_requesting};
 use crate::support::h3::client_settings;
 use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, is_peer_gone, read_head,
@@ -81,6 +82,8 @@ impl ObservedConnectUdp {
 struct ProxyLog {
     connections: usize,
     requests: Vec<ObservedConnectUdp>,
+    /// Outer connections on which the client presented a certificate.
+    client_certificates: usize,
 }
 
 /// A running CONNECT-UDP proxy; aborted on drop.
@@ -96,13 +99,30 @@ impl MasqueProxy {
         Self::spawn_with_session_storage(identity, mode, None)
     }
 
+    /// A proxy whose TLS server asks for an optional client certificate
+    /// issued by `client_authority` on every outer connection.
+    pub(crate) fn spawn_requesting_client_certificates(
+        identity: &TestIdentity,
+        mode: ProxyMode,
+        client_authority: &[u8],
+    ) -> TestResult<Self> {
+        let tls = rustls_config_requesting(identity, client_authority, false)?;
+        Self::spawn_on(relay_endpoint_with(tls)?, mode)
+    }
+
     /// A proxy whose TLS server keeps its resumable sessions in `storage`.
     pub(crate) fn spawn_with_session_storage(
         identity: &TestIdentity,
         mode: ProxyMode,
         storage: Option<Arc<dyn rustls::server::StoresServerSessions>>,
     ) -> TestResult<Self> {
-        let (address, endpoint) = relay_endpoint(identity, storage)?;
+        Self::spawn_on(relay_endpoint(identity, storage)?, mode)
+    }
+
+    fn spawn_on(
+        (address, endpoint): (SocketAddr, quinn::Endpoint),
+        mode: ProxyMode,
+    ) -> TestResult<Self> {
         let log = Arc::new(Mutex::new(ProxyLog::default()));
         let (close, close_rx) = watch::channel(false);
         let task_log = Arc::clone(&log);
@@ -140,6 +160,11 @@ impl MasqueProxy {
         lock(&self.log).requests.clone()
     }
 
+    /// Returns how many outer connections presented a client certificate.
+    pub(crate) fn client_certificates(&self) -> usize {
+        lock(&self.log).client_certificates
+    }
+
     /// Closes every open outer QUIC connection.
     pub(crate) fn close_connections(&self) {
         let _ = self.close.send(true);
@@ -164,6 +189,9 @@ async fn serve_connection(
     mut close: watch::Receiver<bool>,
 ) -> TestResult<()> {
     let quinn = incoming.await?;
+    if presented_leaf(&quinn).is_some() {
+        lock(&log).client_certificates += 1;
+    }
     let mut builder = h3::server::builder();
     builder
         .enable_extended_connect(mode != ProxyMode::WithoutExtendedConnect)
@@ -326,6 +354,12 @@ fn relay_endpoint(
     if let Some(storage) = storage {
         tls.session_storage = storage;
     }
+    relay_endpoint_with(tls)
+}
+
+/// A QUIC server endpoint for `tls` whose path MTU carries a full relayed
+/// Initial.
+fn relay_endpoint_with(tls: rustls::ServerConfig) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     let mut transport = quinn::TransportConfig::default();
     transport.initial_mtu(1_400).min_mtu(1_400);

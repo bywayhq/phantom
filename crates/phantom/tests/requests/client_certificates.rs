@@ -1,87 +1,31 @@
 //! A client certificate answers a server's request for client authentication.
 
-use std::{net::Ipv4Addr, sync::Arc, time::Duration};
+use std::{net::Ipv4Addr, time::Duration};
 
 use btls::{
     pkey::PKey,
-    rsa::Rsa,
     ssl::{SslAcceptor, SslVerifyMode},
     x509::X509,
 };
 use bytes::Bytes;
 use http::{Response, StatusCode};
 use phantom::{
-    BuildErrorKind, Client, ClientCertificate, ClientCertificateErrorKind, HttpProtocol,
-    RequestError, RequestErrorKind,
+    BuildErrorKind, Client, ClientCertificate, ClientCertificateErrorKind, HttpProtocol, HttpProxy,
+    RequestError, RequestErrorKind, Route,
     profile::{CipherSuite, ClientProfile, NamedGroup, SignatureScheme, TlsSettings, TlsVersion},
 };
 use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello};
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
-    KeyUsagePurpose, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384,
-};
-use rustls::{
-    RootCertStore,
-    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
-    server::WebPkiClientVerifier,
-};
+use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
-use crate::support::{h3 as h3_support, tls as tls_support};
+use crate::support::{
+    client_certificate::{ClientIdentity, presented_leaf, quic_endpoint_requiring},
+    h3 as h3_support, tls as tls_support,
+    tunnel_proxy::https1_connect_recording_client_certificate,
+};
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
-
-/// A client certificate issued by a private authority, in the forms a
-/// caller and a test server need.
-struct ClientIdentity {
-    authority_der: Vec<u8>,
-    leaf_der: Vec<u8>,
-    chain_pem: String,
-    key_pem: String,
-}
-
-impl ClientIdentity {
-    fn issue(key: KeyPair) -> TestResult<Self> {
-        let mut authority_params = CertificateParams::new(Vec::<String>::new())?;
-        authority_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        authority_params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
-        let authority = CertifiedIssuer::self_signed(
-            authority_params,
-            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?,
-        )?;
-
-        let mut leaf_params = CertificateParams::new(Vec::<String>::new())?;
-        leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-        leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
-        leaf_params.use_authority_key_identifier_extension = true;
-        let leaf = leaf_params.signed_by(&key, &authority)?;
-
-        Ok(Self {
-            authority_der: authority.der().to_vec(),
-            leaf_der: leaf.der().to_vec(),
-            chain_pem: format!("{}{}", leaf.pem(), authority.pem()),
-            key_pem: key.serialize_pem(),
-        })
-    }
-
-    fn p256() -> TestResult<Self> {
-        Self::issue(KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)?)
-    }
-
-    fn rsa() -> TestResult<Self> {
-        let key = PKey::from_rsa(Rsa::generate(2048)?)?;
-        let pem = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
-        Self::issue(KeyPair::from_pem(&pem)?)
-    }
-
-    fn certificate(&self) -> TestResult<ClientCertificate> {
-        Ok(ClientCertificate::from_pem(
-            self.chain_pem.as_bytes(),
-            self.key_pem.as_bytes(),
-        )?)
-    }
-}
 
 /// TLS settings for HTTP/1.1 at `version` that can sign with RSA and P-256.
 fn tls(version: TlsVersion) -> TlsSettings {
@@ -206,6 +150,47 @@ async fn certificate_is_not_sent_unless_the_server_requests_it() -> TestResult<(
 }
 
 #[tokio::test]
+async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResult<()> {
+    let origin = TestIdentity::generate()?;
+    let proxy = TestIdentity::generate()?;
+    let identity = ClientIdentity::p256()?;
+    let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let origin_address = origin_listener.local_addr()?;
+    let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let proxy_address = proxy_listener.local_addr()?;
+    // The proxy sends a CertificateRequest and accepts whatever comes back.
+    let mut proxy_acceptor = proxy.acceptor_builder(H1_ALPN)?;
+    proxy_acceptor.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
+    let proxy_task = tokio::spawn(https1_connect_recording_client_certificate(
+        proxy_listener,
+        proxy_acceptor.build(),
+        origin_address,
+    ));
+    let origin_acceptor = acceptor(&origin, Some(&identity.authority_der))?;
+    let client = Client::builder(ClientProfile::new(tls(TlsVersion::Tls13)))
+        .add_root_certificate_der(origin.root_der.clone())
+        .add_proxy_root_certificate_der(proxy.root_der.clone())
+        .route(Route::http_connect(HttpProxy::new(&format!(
+            "https://{proxy_address}"
+        ))?))
+        .client_certificate(identity.certificate()?)
+        .build()?;
+
+    let (presented_to_origin, status) = timeout(TEST_TIMEOUT, async {
+        tokio::join!(
+            serve_one(origin_listener, origin_acceptor),
+            get(&client, format!("https://{origin_address}/"))
+        )
+    })
+    .await?;
+
+    assert_eq!(status?, StatusCode::NO_CONTENT);
+    assert_eq!(presented_to_origin?, Some(identity.leaf_der));
+    assert_eq!(timeout(TEST_TIMEOUT, proxy_task).await???, None);
+    Ok(())
+}
+
+#[tokio::test]
 async fn server_that_requires_a_certificate_rejects_a_client_without_one() -> TestResult<()> {
     let server = TestIdentity::generate()?;
     let identity = ClientIdentity::p256()?;
@@ -289,7 +274,7 @@ fn key_of_another_certificate_is_a_key_mismatch() -> TestResult<()> {
 }
 
 #[test]
-fn der_and_pem_forms_are_parsed_alike() -> TestResult<()> {
+fn der_input_is_parsed_and_checked_like_pem() -> TestResult<()> {
     let identity = ClientIdentity::p256()?;
     let key = PKey::private_key_from_pem(identity.key_pem.as_bytes())?;
     let key_der = key.private_key_to_der()?;
@@ -359,29 +344,6 @@ fn profile_that_cannot_sign_with_the_key_is_an_invalid_policy() -> TestResult<()
     Ok(())
 }
 
-/// A QUIC endpoint that requires a certificate issued by `client_authority`.
-fn quic_endpoint_requiring(
-    server: &TestIdentity,
-    client_authority: &[u8],
-) -> TestResult<(std::net::SocketAddr, quinn::Endpoint)> {
-    let mut roots = RootCertStore::empty();
-    roots.add(CertificateDer::from(client_authority.to_vec()))?;
-    let verifier = WebPkiClientVerifier::builder(Arc::new(roots)).build()?;
-    let mut tls = rustls::ServerConfig::builder()
-        .with_client_cert_verifier(verifier)
-        .with_single_cert(
-            vec![CertificateDer::from(server.leaf_der().to_vec())],
-            PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(server.private_key_der().to_vec())),
-        )?;
-    tls.alpn_protocols = vec![b"h3".to_vec()];
-    let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
-    let endpoint = quinn::Endpoint::server(
-        quinn::ServerConfig::with_crypto(Arc::new(crypto)),
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?;
-    Ok((endpoint.local_addr()?, endpoint))
-}
-
 /// Answers one HTTP/3 request and returns the client certificate the
 /// connection received.
 async fn serve_one_http3(
@@ -390,10 +352,7 @@ async fn serve_one_http3(
 ) -> TestResult<Option<Vec<u8>>> {
     let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
     let connection = incoming.await?;
-    let presented = connection
-        .peer_identity()
-        .and_then(|identity| identity.downcast::<Vec<CertificateDer<'static>>>().ok())
-        .and_then(|chain| chain.first().map(|certificate| certificate.to_vec()));
+    let presented = presented_leaf(&connection);
     let mut connection =
         h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection)).await?;
     let resolver = connection
