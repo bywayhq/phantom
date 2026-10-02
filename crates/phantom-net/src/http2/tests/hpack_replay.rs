@@ -51,8 +51,9 @@ use tokio::{
 
 use super::{OriginForm, RequestHeader, TestResult};
 use crate::http2::{
-    Http2Connection, Http2Peer, prepare_classic_connect, translate_proxy_settings,
-    translate_settings,
+    Http2Builder, Http2Connection, Http2Error, Http2Peer, prepare_classic_connect,
+    translate_extended_connect_settings, translate_proxy_extended_connect_settings,
+    translate_proxy_settings, translate_settings,
 };
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
@@ -344,74 +345,73 @@ async fn never_indexed_proxy_authorization_does_not_reproduce_a_proxy_session() 
 }
 
 /// The recipes index a sensitive `proxy-authorization` only on a connection
-/// to a proxy. Toward an origin, where no capture shows a browser sending it,
-/// it stays a never-indexed literal on static name 49.
+/// to a proxy, both on an ordinary one and on the extended CONNECT one that
+/// carries CONNECT-UDP. Toward an origin, where no capture shows a browser
+/// sending it, it stays a never-indexed literal on static name 49.
 #[tokio::test]
 async fn only_proxy_connections_index_a_sensitive_proxy_authorization() -> TestResult<()> {
-    for (settings, kind, expected) in [
+    type Translate = fn(&Http2Settings) -> Result<Http2Builder, Http2Error>;
+    const ORIGIN: [(&str, usize); 2] = [("never-indexed", 49), ("never-indexed", 49)];
+    const PROXY: [(&str, usize); 2] = [("incremental", 49), ("indexed", 62)];
+    let connections: [(&str, Translate, _); 4] = [
+        ("origin", translate_settings, ORIGIN),
+        ("proxy", translate_proxy_settings, PROXY),
         (
-            chromium::v154_http2(),
-            Http2Peer::Origin,
-            [("never-indexed", 49), ("never-indexed", 49)],
+            "extended CONNECT origin",
+            translate_extended_connect_settings,
+            ORIGIN,
         ),
         (
-            chromium::v154_http2(),
-            Http2Peer::Proxy,
-            [("incremental", 49), ("indexed", 62)],
+            "extended CONNECT proxy",
+            translate_proxy_extended_connect_settings,
+            PROXY,
         ),
-        (
-            firefox::v156_http2(),
-            Http2Peer::Origin,
-            [("never-indexed", 49), ("never-indexed", 49)],
-        ),
-        (
-            firefox::v156_http2(),
-            Http2Peer::Proxy,
-            [("incremental", 49), ("indexed", 62)],
-        ),
+    ];
+    for (recipe, settings) in [
+        ("Chromium", chromium::v154_http2()),
+        ("Firefox", firefox::v156_http2()),
     ] {
-        let (client, mut server) = duplex(1 << 20);
-        let task = tokio::spawn(async move {
-            let mut preface = [0_u8; CLIENT_PREFACE.len()];
-            server.read_exact(&mut preface).await?;
-            write_frame(&mut server, 0x04, 0, 0, &[]).await?;
-            server.flush().await?;
-            let mut last = Vec::new();
-            for _ in 0..2 {
-                let (stream_id, _, block) = read_request_block(&mut server, true).await?;
-                last.push(*shape(&block)?.last().ok_or("empty HPACK block")?);
-                write_frame(&mut server, 0x01, 0x05, stream_id, &[0x88]).await?;
+        for (kind, translate, expected) in connections {
+            let (client, mut server) = duplex(1 << 20);
+            let task = tokio::spawn(async move {
+                let mut preface = [0_u8; CLIENT_PREFACE.len()];
+                server.read_exact(&mut preface).await?;
+                write_frame(&mut server, 0x04, 0, 0, &[]).await?;
                 server.flush().await?;
-            }
-            while read_frame(&mut server).await.is_ok() {}
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(last)
-        });
-        let builder = match kind {
-            Http2Peer::Origin => translate_settings(&settings)?,
-            Http2Peer::Proxy => translate_proxy_settings(&settings)?,
-        };
-        let connection = timeout(
-            SESSION_TIMEOUT,
-            Http2Connection::connect_with_builder(client, builder),
-        )
-        .await??;
-        for _ in 0..2 {
-            let credential = RequestHeader::new("proxy-authorization", CAPTURE_CREDENTIAL);
-            timeout(
+                let mut last = Vec::new();
+                for _ in 0..2 {
+                    let (stream_id, _, block) = read_request_block(&mut server, true).await?;
+                    last.push(*shape(&block)?.last().ok_or("empty HPACK block")?);
+                    write_frame(&mut server, 0x01, 0x05, stream_id, &[0x88]).await?;
+                    server.flush().await?;
+                }
+                while read_frame(&mut server).await.is_ok() {}
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(last)
+            });
+            let builder = translate(&settings)?;
+            let connection = timeout(
                 SESSION_TIMEOUT,
-                connection.send_request(
-                    Method::GET,
-                    "origin.test",
-                    OriginForm::parse("/")?,
-                    vec![credential.sensitive()],
-                    None,
-                ),
+                Http2Connection::connect_with_builder(client, builder),
             )
             .await??;
+            for _ in 0..2 {
+                let credential = RequestHeader::new("proxy-authorization", CAPTURE_CREDENTIAL);
+                timeout(
+                    SESSION_TIMEOUT,
+                    connection.send_request(
+                        Method::GET,
+                        "origin.test",
+                        OriginForm::parse("/")?,
+                        vec![credential.sensitive()],
+                        None,
+                    ),
+                )
+                .await??;
+            }
+            drop(connection);
+            let got = timeout(SESSION_TIMEOUT, task).await???;
+            assert_eq!(got, expected, "{recipe} {kind}");
         }
-        drop(connection);
-        let got = timeout(SESSION_TIMEOUT, task).await???;
-        assert_eq!(got, expected, "{kind:?}");
     }
     Ok(())
 }
