@@ -1,3 +1,5 @@
+mod hash_set_order;
+
 use super::{v135_macos_client_hints, v136_http3_tls, v136_tls, v136_windows_client_hints};
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
