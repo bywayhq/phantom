@@ -169,6 +169,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
 | Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
 | The PING a Chromium browser sends when it reuses an idle HTTP/2 connection | [`http2_preface_ping.py`](#http2-preface-ping) | `fixtures/http2/` |
+| Socket options, connection attempts, and host lookups inside a Chromium browser on Windows | [`socket_hooks.py`](#socket-hooks) | `fixtures/socket-hooks/` |
 | Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
@@ -921,7 +922,7 @@ Use `--layer http3` for the QUIC ClientHello and HTTP/3 startup, and
 `--layer tls` for the TCP ClientHello. Run `n` writes `client-hello-<n>.txt`
 for TLS, `client-startup-<n>.txt` for HTTP/2, and `client-startup-<n>.txt`
 with `quic-client-hello-<n>.txt` for HTTP/3; retain a run under the names in
-[Validation](../../docs/explanation/validation.md#brave-154-and-opera-135-recipes).
+[Validation](../../docs/explanation/validation.md#brave-154-and-opera-136-recipes).
 Each listener prints a line starting with `listening on <address>` on
 standard error once it has bound, and the tool launches the browser when it
 reads that line. It gives up after `--server-start` seconds (default 30).
@@ -1480,6 +1481,77 @@ The tool refuses to write any cookie other than the probes, whether in a
 field or inserted into the QPACK table, and any `authorization` or
 `proxy-authorization` field. Browsers launch as for the WebSocket tool for
 `h1` and `h2`, and as for the QUIC resumption tool for `h3`.
+
+## Socket hooks
+
+`socket_hooks.py` records what no wire capture shows: the socket options a
+Chromium browser sets, the order and timing of its connection attempts, and
+its host lookups, including the ones its cache answers without a query. It
+spawns the browser under [Frida](https://frida.re/) with child gating, loads
+the agent in `socket_hooks.js` into the network service process (the
+utility process started with
+`--utility-sub-type=network.mojom.NetworkService`) before that process runs,
+and lets every other child run unhooked. A loopback HTTP/1.1 origin serves
+the page and records the connections it accepts, so each log carries wire
+evidence beside the hook evidence. It writes one
+`format=phantom-socket-hooks-v1` fixture per scenario, named
+`hooks-<scenario>.txt`. Windows only: the agent hooks `ws2_32.dll` and
+`dnsapi.dll`.
+
+Capture Opera on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with frida==17.9.10   --with-requirements scripts/requirements.txt   python -m scripts.capture.socket_hooks --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/136.0.6008.52/opera.exe"   --client-version 136.0.6008.52   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --output-dir fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200
+```
+
+Frida is pinned in `scripts/capture/hooks-requirements.txt` rather than in
+`scripts/requirements.txt`, because no other tool needs it; each retained
+log names the version it was taken with in `hook_tool`. `--raw-dir` also
+writes each run's undecoded agent reports, for diagnosis; they are not
+fixture inputs.
+
+| Scenario | Page | Question |
+| --- | --- | --- |
+| `single` | Fetches `/done` | The options on each TCP socket to the origin |
+| `parallel` | Fetches `/slow` ten times at once; each response takes 1.5 s | How many connections one origin gets at once |
+| `idle` | Fetches `/fast`, again 290 s later, and again 600 s after the start | Whether a used connection idle 290 s is reused and one idle 310 s is replaced |
+| `lookups` | Fetches `http://127.0.0.1.nip.io:<port>/close` every 10 s, 13 times; the origin closes each connection | How often the browser looks the name up |
+| `lookups-system` | The same, with `AsyncDns` added to `--disable-features` | The same through the system resolver |
+| `happy-eyeballs` | Loads `http://localhost:<port>/`; only `127.0.0.1` listens | The order of attempts to `[::1]` and `127.0.0.1` |
+| `happy-eyeballs-slow` | The same, with the agent failing `SIO_TCP_INITIAL_RTO` on IPv6 sockets | The delay before the IPv4 attempt while the `[::1]` attempt is still pending |
+
+`127.0.0.1.nip.io` is a public name whose DNS answer is `127.0.0.1`, so a
+lookup leaves the host while the connection stays on loopback. Chromium
+fails a refused loopback connect at once on Windows, where Windows would
+otherwise retransmit the SYN for about two seconds; `happy-eyeballs-slow`
+undoes that for IPv6 sockets only, so the browser's fallback timer can fire.
+The fixture names the change in `hook_intervention`.
+
+Each fixture starts with its provenance: `evidence=hook`, the browser and
+build, the operating system, the Frida version, the agent's path and SHA-256
+(`hook_agent_sha256`), the tool's SHA-256, the launch arguments, and the
+network service's command line with handles and the profile path replaced.
+Each run then has summary lines and every event in call order, one compact
+JSON object per `run_<n>_event_<i>` line:
+
+| Line | Holds |
+| --- | --- |
+| `origin_tcp_option_set_<i>` | How many sockets to the origin set each list of options, in call order: `setsockopt` options and `SIO_KEEPALIVE_VALS` (`onoff/time_ms/interval_ms`) and `SIO_TCP_INITIAL_RTO` (`rtt_ms/max_syn_retransmissions`) |
+| `origin_tcp_option_callers` | The modules that made those calls |
+| `origin_connect_attempts` | Each `connect` to the origin port, as `ms:address` |
+| `origin_ipv4_after_ipv6_ms` | Milliseconds from an IPv6 attempt to the IPv4 attempt that followed it |
+| `lookups` | Each lookup of `127.0.0.1.nip.io` or a name under it: a resolver call or a DNS query the browser sent itself |
+| `server_connection_<i>` | Each connection the origin accepted: when, when it closed, how long it sat idle before closing, and its requests |
+
+Events name sockets `s0`, `s1`, and so on from creation to close, give times
+in milliseconds from the first report, and replace every address other than
+loopback and unspecified ones with `<external>`, so a log names no DNS
+server or remote host by address. Host names the browser looked up for its
+own background requests stay in the DNS query events.
+
+`test_socket_hooks.py` checks the decoding, the summaries, and the origin,
+and that every retained log names the agent in the repository by its
+digest: change `socket_hooks.js` and the logs must be taken again.
 
 ## Next
 
