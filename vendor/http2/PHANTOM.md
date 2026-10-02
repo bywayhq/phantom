@@ -550,8 +550,9 @@ and `NeverIndexAuthorization` field rules, an incremental literal on static
 name 49 and then index 62, a nameless further value sent without indexing,
 another sensitive field that stays never-indexed, an encoder whose `Debug`
 output shows the entry as sensitive and not the credential, and the default,
-which sends the field never-indexed on every request. `crates/phantom-net/src/http2/tests/hpack_replay.rs` replays the
-retained proxy sessions through the browser recipes, which set `FieldRule`.
+which sends the field never-indexed on every request.
+`crates/phantom-net/src/http2/tests/hpack_replay.rs` replays the retained
+proxy sessions through the browser recipes, which set `FieldRule`.
 
 ## Stream limit before SETTINGS
 

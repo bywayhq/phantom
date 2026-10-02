@@ -2255,11 +2255,12 @@ included (see
 The proxy route captures under [`fixtures/proxy/`](../../fixtures/proxy/)
 add the replayable HTTP/2 proxy connections of their nine `https-proxy-*`
 scenarios: CONNECT tunnels and requests forwarded with `:scheme` `http`,
-whose blocks carry 306 `proxy-authorization` fields. They keep each field's representation, its
-index or size, and each block's length, not the block bytes, and the
-credential is replaced with a marker. A connection that starts with, or
-carries, a browser background request, whose fields the capture tool does
-not retain, is not replayed, because its table state is unknown.
+whose blocks carry 306 `proxy-authorization` fields. They keep each field's
+representation, its index or size, and each block's length, not the block
+bytes, and the credential is replaced with a marker. A connection that
+starts with, or carries, a browser background request, whose fields the
+capture tool does not retain, is not replayed, because its table state is
+unknown.
 
 | Browser | Proxy connections replayed | HEADERS blocks | Representations, indexes, and length equal to Phantom's |
 | --- | --- | --- | --- |
@@ -2326,8 +2327,9 @@ Limits:
   table entry matches it, although Chromium has no such form. Two
   exceptions follow the recipes: a `cookie` field sent as crumbs, whose
   crumb rule decides, and `proxy-authorization` on a connection to a proxy,
-  which the recipes' field rule decides. Phantom marks the cookie jar's field (split into crumbs
-  under both recipes) and the generated `proxy-authorization`
+  which the recipes' field rule decides. Phantom marks the cookie jar's
+  field (split into crumbs under both recipes) and the generated
+  `proxy-authorization`
   ([Proxy authentication evidence](#proxy-authentication-evidence)).
 - A proxy capture proves a block's representations, indexes, and length,
   not its bytes. With the fields known, only the Huffman flag of a string
