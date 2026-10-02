@@ -71,6 +71,8 @@ pub(crate) struct ObservedSocks5UdpRelay {
     pub(crate) target: Option<Socks5UdpTarget>,
     pub(crate) client_datagrams: usize,
     pub(crate) origin_datagrams: usize,
+    /// The address the client's datagrams came from, once one arrived.
+    pub(crate) client_peer: Option<SocketAddr>,
 }
 
 pub(crate) async fn forward_one_socks5_udp_associate(
@@ -218,6 +220,7 @@ pub(crate) async fn serve_socks5_udp_associate_stream(
                 target: None,
                 client_datagrams: 0,
                 origin_datagrams: 0,
+                client_peer: None,
             });
         }
         Socks5UdpAssociateReply::Malformed => {
@@ -229,6 +232,7 @@ pub(crate) async fn serve_socks5_udp_associate_stream(
                 target: None,
                 client_datagrams: 0,
                 origin_datagrams: 0,
+                client_peer: None,
             });
         }
     }
@@ -370,6 +374,7 @@ async fn relay_until_control_closes(
         target,
         client_datagrams,
         origin_datagrams,
+        client_peer,
     })
 }
 

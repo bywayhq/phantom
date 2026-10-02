@@ -12,9 +12,11 @@ use phantom::{
     Socks5Proxy,
     profile::{ClientProfile, chromium},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
-use crate::support::{h3 as h3_support, tls as tls_support};
+use crate::support::{
+    h3 as h3_support, socks5_udp::forward_one_socks5_udp_associate, tls as tls_support,
+};
 use tls_support::{TestIdentity, TestResult, read_head};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -242,6 +244,65 @@ async fn http3_without_an_address_of_the_bound_family_fails() -> TestResult<()> 
             .await
             .is_err()
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn socks5_udp_association_sends_from_the_bound_address() -> TestResult<()> {
+    // A second loopback address shows the binding, since an unbound client
+    // would leave from 127.0.0.1. macOS has only 127.0.0.1 by default.
+    let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+    let source = if std::net::UdpSocket::bind((source, 0)).is_ok() {
+        source
+    } else {
+        eprintln!("127.0.0.2 is not available; binding to 127.0.0.1 instead");
+        IPV4_LOOPBACK
+    };
+    let identity = TestIdentity::generate()?;
+    let (origin, endpoint) = h3_support::server_endpoint(&identity)?;
+    let proxy_listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
+    let proxy_address = proxy_listener.local_addr()?;
+    let proxy = tokio::spawn(forward_one_socks5_udp_associate(proxy_listener, origin));
+    let (done, done_received) = oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let (_, mut stream, _connection) = h3_support::accept_request(&endpoint).await?;
+        stream
+            .send_response(
+                http::Response::builder()
+                    .status(http::StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let _ = done_received.await;
+        Ok::<_, Box<dyn Error + Send + Sync>>(())
+    });
+    let client = Client::builder(
+        ClientProfile::new(chromium::v154_tls()).with_http3(h3_support::client_settings()),
+    )
+    .add_root_certificate_der(identity.root_der.clone())
+    .route(Route::socks5(Socks5Proxy::new(&format!(
+        "socks5://{proxy_address}"
+    ))?))
+    .local_address(source)
+    .build()?;
+
+    let response = timeout(
+        TEST_TIMEOUT,
+        client
+            .get(HttpProtocol::Http3, &format!("https://{origin}/"))?
+            .send(),
+    )
+    .await??;
+    assert_eq!(response.status(), http::StatusCode::NO_CONTENT);
+    drop(response);
+    drop(client);
+    let _ = done.send(());
+    timeout(TEST_TIMEOUT, server).await???;
+    let observed = timeout(TEST_TIMEOUT, proxy).await???;
+
+    assert!(observed.client_datagrams > 0);
+    assert_eq!(observed.client_peer.map(|peer| peer.ip()), Some(source));
     Ok(())
 }
 

@@ -201,8 +201,10 @@ async fn establish_udp_association(
         .map_err(|error| Socks5Error::io(Socks5ErrorKind::Negotiation, error))?;
     let mut client_bind = control_local;
     client_bind.set_port(0);
-    // The control connection already left from the source address, so only
-    // an interface binding remains to apply to the UDP socket.
+    // A source binding gives the UDP socket its address for the proxy's
+    // family, which the control connection already left from, and its
+    // interface. Without one, the socket takes the control connection's
+    // local address.
     let udp = match dialer.source {
         Some(source) => source
             .bind_udp(control_peer, client_bind)
