@@ -118,7 +118,7 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 ## Reconnect like Chrome or Firefox
 
-The default delays match Chrome 154. For Firefox 156, wait 5 seconds before
+The default delays match Chrome 154. For Firefox 157, wait 5 seconds before
 the first reconnect and raise short server `retry` values to 500 ms:
 
 ```rust

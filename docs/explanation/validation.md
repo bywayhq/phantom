@@ -42,7 +42,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
-| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 156 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
+| [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 157 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures | No subprotocols, H3, proxies, macOS, or Safari |
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
@@ -534,15 +534,13 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Edge 154.0.4258.37 | `proxy` | Twenty scenarios; see [Proxy route browser evidence](#proxy-route-browser-evidence) |
 | Firefox 157.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE, split from `http3/.../snapshot-4.txt`), `client-hello-chacha20-ech.txt` (split from `snapshot-1.txt`), nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Firefox 157.0 | `websocket` | Nine scenarios |
-| Firefox 156.0.1 | `sse` | Seventeen scenarios, not yet captured again at 157.0 |
+| Firefox 157.0 | `sse` | Seventeen scenarios |
 
 The Firefox 157.0 rows replace a Firefox 156.0.1 set. After the capture host
-updated to Firefox 157.0, every Windows Firefox scenario except the
-EventSource reconnects was captured again on 2026-10-02, and the replaced
-156.0.1 fixtures were removed; see
+updated to Firefox 157.0, every Windows Firefox scenario was captured again
+on 2026-10-02, and the replaced 156.0.1 fixtures were removed; see
 [Firefox 157 against Firefox 156.0.1](#firefox-157-against-firefox-15601).
-The EventSource fixtures stay at 156.0.1 until a run on a quiet host, and
-the macOS Firefox fixtures remain from 156.0. Three of the five snapshots
+The macOS Firefox fixtures remain from 156.0. Three of the five snapshots
 offered ECH GREASE with ChaCha20-Poly1305 and two with AES-128-GCM.
 
 Limits:
@@ -564,17 +562,21 @@ ClientHello's signature lists. The `firefox::v157_*` recipes are the
 Evidence: Firefox 157.0 (build ID 20260924084938) was the build installed
 on the Windows 11 capture host on 2026-10-02; `application.ini` named the
 same version and build before and after each batch. Other worktrees were
-building with Cargo during the captures.
+building with Cargo during every batch but the EventSource one, which ran on
+a quiet host.
 
 | Batch | Runs | Wall clock |
 | --- | --- | --- |
 | `snapshot.py --repeat 5` | 5 headless snapshots, 1.3 to 1.5 seconds each | 9 seconds |
 | `run_matrix.py`, every job alone | 44 jobs: nine `tls_resumption`, three `quic_resumption`, three `cookie_crumbs`, nine `http2_websocket`, and twenty `proxy_route` scenarios | 565 seconds |
 | `proxy_route.py --scenario https-proxy-auth-remembered-hostname --repeat 3` | 3 | 7 seconds |
+| `run_matrix.py`, every job alone, on a quiet host | 17 `sse_reconnect` scenarios, ten runs each | 2,234 seconds |
+| `sse_reconnect.py --scenario retry-persists-across-reconnect --repeat 10` | 10 | 58 seconds |
 
 Under the runner, `https-proxy-auth-remembered-hostname` timed out on both
 attempts, after the browser published no remote protocol endpoint, as it
-did for 156.0.1; run directly, it passed on the first attempt.
+did for 156.0.1, and so did one run of `retry-persists-across-reconnect` in
+each of its two attempts; run directly, each passed on the first attempt.
 
 | Layer | Compared | Result |
 | --- | --- | --- |
@@ -586,6 +588,7 @@ did for 156.0.1; run directly, it passed on the first attempt.
 | HTTP/3 | Snapshots and the cookie capture | Equal SETTINGS, reserved frame, stream order, QPACK encoding, and field orders |
 | Request fields | Every request | Equal names, order, and values except `User-Agent`, which names `rv:157.0` and `Firefox/157.0` |
 | Cookies, WebSocket openings, proxy routes | 3, 9, and 20 scenarios | Equal apart from `User-Agent`, ports, keys, and the position of the client's SETTINGS acknowledgment on proxy connections, which varied the same way in both builds |
+| EventSource reconnects | 17 scenarios, 10 runs each | Equal request counts, fields, and terminations; reconnect delays as in [SSE browser reconnect evidence](#sse-browser-reconnect-evidence) |
 
 Firefox 157 adds `security.tls.enable_mldsa`, off by default. `SetKyberPolicy`
 then removes ML-DSA from NSS's TLS key-exchange policy
@@ -606,12 +609,11 @@ with `--browser firefox --client-version 157.0 --repeat 5`, then a
 `run_matrix.py` manifest with `tls_resumption`, `cookie_crumbs`,
 `http2_websocket`, and `proxy_route` for scenarios `all`, and
 `quic_resumption` for `accept` (`repeat` 5) and `accept-delayed` and
-`reject`.
+`reject`, and a second manifest with `sse_reconnect` for scenarios `all`
+(`repeat` 10).
 
 Limits:
 
-- The EventSource reconnects are not yet compared; their fixtures are
-  Firefox 156.0.1's.
 - The QUIC resumption differences are counts of resumed connections, which
   depend on when a ticket arrives; three runs per scenario cannot tell a
   change in Firefox from host load.
@@ -2374,21 +2376,26 @@ so and states what they cover.
 
 ### SSE browser reconnect evidence
 
-What is claimed: Phantom's event source matches Chrome 154 and Firefox 156 on
+What is claimed: Phantom's event source matches Chrome 154 and Firefox 157 on
 `Last-Event-ID` handling, retry persistence, termination, reconnect delays,
 and reconnect field order, over plaintext HTTP/1.1.
 
 Evidence: `fixtures/sse/` retains HTTP/1.1 EventSource captures from headless
-Chrome 154.0.8037.58 and Firefox 156.0.1 on Windows 11
+Chrome 154.0.8037.58 and Firefox 157.0 on Windows 11
 (10.0.26200), recorded against a plaintext loopback server. Each of the
 seventeen scenarios ran ten times on a fresh profile. Fixtures keep the raw
 request lines and header lines in arrival order, connection reuse, and the
 delay from each server stimulus to the next request. Each file records the
 capture page and the exact launch arguments.
 
-The Firefox set was captured on 2026-09-26 with `run_matrix.py`, one
-scenario at a time. It replaces a Firefox 156.0 set that was first recorded
-under a hand-typed 155.0.1 label and later relabeled.
+The Firefox set was captured on 2026-10-02 with `run_matrix.py`, one
+scenario at a time, on a host with no build running: no Cargo, `rustc`, or
+linker process appeared, and 205 CPU samples taken every 10 seconds averaged
+8.8% and peaked at 19.1%. `retry-persists-across-reconnect`, whose first run
+timed out in both of the runner's attempts, was captured by
+`sse_reconnect.py` directly. The set replaces a Firefox 156.0.1 set captured
+on 2026-09-26 while other builds loaded the host, which had replaced a
+Firefox 156.0 set.
 
 Observed on both browsers:
 
@@ -2398,16 +2405,15 @@ Observed on both browsers:
   `sec-ch-ua-mobile`; Firefox places it after `Accept-Encoding`.
 - A valid `retry` value persists across later connections, and a non-digit
   value is ignored.
-- After the first reconnect, the delay spread across ten runs stayed within
-  about 50 ms and did not grow between attempts: neither browser showed
-  jitter or backoff. Firefox 156.0.1's first reconnect, about a second after
-  launch on a capture host under load from other builds, came later and
-  spread wider: its median was 12 to 316 ms above the delay. The Firefox
-  156.0 set, captured on a quieter host, had kept the first reconnect within
-  about 25 ms, so the replay test allows Firefox's first reconnect 350 ms
-  until a quiet-host recapture, which the
-  [roadmap](../roadmap.md#browser-recipes) tracks; Chrome's keeps the 30 ms
-  bound.
+- The delay spread across ten runs stayed within about 50 ms, apart from one
+  Firefox run whose third `invalid-retry-ignored` reconnect came 71 ms late,
+  and did not grow between attempts: neither browser showed jitter or
+  backoff. Firefox 157.0's median overshoot was 12 to 19 ms on the first
+  reconnect and 3 to 13 ms on later ones. The first reconnect comes about a
+  second after launch, and it is the one host load delays: in the Firefox
+  156.0.1 set, captured under load from other builds, its median was 12 to
+  316 ms above the delay, while the 156.0 and 157.0 sets, both captured on
+  quiet hosts, kept it within 25 ms.
 - `204`, `404`, `500`, and a `text/plain` response each ended the
   EventSource, with no request during the observation window.
 - A stream with only response headers stayed open for 90 seconds; neither
@@ -2416,10 +2422,10 @@ Observed on both browsers:
 
 Where they differ:
 
-| Behavior | Chrome 154 | Firefox 156 |
+| Behavior | Chrome 154 | Firefox 157 |
 | --- | --- | --- |
 | Delay without `retry` | 3 s | 5 s |
-| `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed about 510 ms) |
+| `retry: 0` and `retry: 100` | honored (about 1 ms and 110 ms) | raised to 500 ms (observed 512 to 519 ms) |
 | Request after a reset before any response | one HTTP-stack resend on a new connection when the failed request reused a connection, then the retry delay | HTTP-stack transaction restarts on new connections |
 | Reconnect target after a followed `307` | redirected URL | original URL |
 | `Cookie` position on the reconnect | last of 16 fields | after `Referer`, before `Sec-Fetch-Dest` |
@@ -2453,8 +2459,9 @@ A five-run comparison of headless and headful Chrome on `retry-750`, retained
 under `launch-mode/`, gave medians within 1 ms of each other, so headless
 timers are not throttled.
 
-Other background traffic continued during the captures. Firefox 156 still
-contacted Remote Settings, and Chrome contacted Google update and messaging
+Other background traffic continued during the captures. Firefox 156, the
+last Firefox build checked for it, still contacted Remote Settings, and
+Chrome contacted Google update and messaging
 services, because release builds ignore those services' test-only switches.
 That traffic used separate remote connections and never reached the loopback
 listener.
@@ -2467,8 +2474,7 @@ non-digit retry; and termination on `204`, `404`, `500`, and `text/plain`.
 
 With Firefox options (`initial_retry` 5 s, `min_retry` 500 ms) and Chrome
 defaults, each browser's median delay per attempt must lie between Phantom's
-exact delay and 30 ms above it, or 350 ms above it for Firefox's first
-reconnect. This covers `retry-0`, `retry-100`,
+exact delay and 30 ms above it. This covers `retry-0`, `retry-100`,
 `retry-750`, and the default delay. A template built from each browser's
 captured reconnect fields, with `SseHeader::last_event_id` at the captured
 position, reproduces the browser's field lines except the `Host` port.

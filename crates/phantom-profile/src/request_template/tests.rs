@@ -79,6 +79,7 @@ macro_rules! macos_websocket_set {
 }
 
 const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
+const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/157.0");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/154.0.4258.37");
 const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/157.0");
@@ -662,8 +663,8 @@ fn brave_android_153_navigation_matches_every_captured_page_request() -> Capture
 #[test]
 fn firefox_157_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     let template = firefox::v157_windows_navigation_template();
-    let (http1, http2) = observed(&[&FIREFOX_WEBSOCKET], "page", "document")?;
-    assert_all_match(&template, Protocol::Http1, None, &http1, 9, "firefox h1");
+    let (http1, http2) = observed(&[&FIREFOX_SSE, &FIREFOX_WEBSOCKET], "page", "document")?;
+    assert_all_match(&template, Protocol::Http1, None, &http1, 170, "firefox h1");
     assert_all_match(&template, Protocol::Http2, None, &http2, 18, "firefox h2");
     Ok(())
 }

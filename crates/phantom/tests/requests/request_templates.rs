@@ -684,7 +684,7 @@ mod cookie_placement {
     const CHROME_SSE_COOKIE: &str =
         fixture!("sse/chrome/154.0.8037.58/windows-11-26200/set-cookie-then-close.txt");
     const FIREFOX_SSE_COOKIE: &str =
-        fixture!("sse/firefox/156.0.1/windows-11-26200/set-cookie-then-close.txt");
+        fixture!("sse/firefox/157.0/windows-11-26200/set-cookie-then-close.txt");
     /// `PROBE_COOKIE` in scripts/capture/sse_reconnect.py.
     const PROBE_COOKIE: &str = "phantom_probe=1";
     /// The `fetch` templates leave `Referer` to the caller; an address-bar

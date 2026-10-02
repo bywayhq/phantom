@@ -2,7 +2,7 @@
 //!
 //! Each test replays a scenario from `fixtures/sse/` against Phantom over
 //! plaintext HTTP/1.1 with the same server stimuli, then compares the reconnect
-//! requests, delays, and termination with what Chrome 154 and Firefox 156 did.
+//! requests, delays, and termination with what Chrome 154 and Firefox 157 did.
 //! Delays are measured with a paused clock, so Phantom's values are exact and
 //! browser medians may exceed them by at most `TIMER_SLACK`.
 
@@ -24,12 +24,6 @@ use tls_support::{TestResult, read_head, tls_settings};
 
 /// Largest browser timer overshoot accepted above Phantom's exact delay.
 const TIMER_SLACK: Duration = Duration::from_millis(30);
-/// Largest overshoot accepted on Firefox's first reconnect. The Firefox
-/// 156.0.1 captures were taken on a loaded host, and the first reconnect's
-/// median came up to 316 ms late while later ones kept within `TIMER_SLACK`.
-/// Pending a recapture on a quiet host, which restores `TIMER_SLACK`; see
-/// "Firefox EventSource reconnects on a quiet host" in `docs/roadmap.md`.
-const FIREFOX_FIRST_RECONNECT_SLACK: Duration = Duration::from_millis(350);
 /// Paused-clock window in which no request may follow a terminal response.
 const OBSERVATION: Duration = Duration::from_secs(10);
 const FAST_RETRY: &str = "retry: 200\n";
@@ -48,15 +42,7 @@ impl Browser {
     fn directory(self) -> &'static str {
         match self {
             Self::Chrome => "chrome/154.0.8037.58/windows-11-26200",
-            Self::Firefox => "firefox/156.0.1/windows-11-26200",
-        }
-    }
-
-    /// Largest overshoot accepted on this browser's first reconnect.
-    fn first_reconnect_slack(self) -> Duration {
-        match self {
-            Self::Chrome => TIMER_SLACK,
-            Self::Firefox => FIREFOX_FIRST_RECONNECT_SLACK,
+            Self::Firefox => "firefox/157.0/windows-11-26200",
         }
     }
 
@@ -287,13 +273,9 @@ async fn retry_delays_match_each_browser_with_its_options() -> TestResult<()> {
             assert_eq!(delays.len(), scenario(name).len() - 1);
             for (index, delay) in delays.iter().enumerate() {
                 let median = fixture.median_after_stimulus(index + 1)?;
-                let slack = match index {
-                    0 => browser.first_reconnect_slack(),
-                    _ => TIMER_SLACK,
-                };
                 assert!(
                     median >= delay.saturating_sub(Duration::from_millis(1))
-                        && median <= *delay + slack,
+                        && median <= *delay + TIMER_SLACK,
                     "{browser:?} {name} attempt {}: browser median {median:?}, Phantom {delay:?}",
                     index + 1
                 );

@@ -150,14 +150,6 @@ anything does.
   Firefox captures are from 157.0. Blocker: none; update the Mac's Firefox
   and capture the navigation, TLS, and WebSocket sets under
   `fixtures/*/firefox/156.0/macos-15.5-arm64` again.
-- Firefox EventSource reconnects at 157.0 on a quiet host. Evidence: the 17
-  Firefox scenarios under `fixtures/sse/` are still Firefox 156.0.1's, the
-  one Windows Firefox layer not yet recaptured at 157.0. They were captured
-  while builds loaded the host, and the first reconnect's median came up to
-  316 ms late, so the replay test allows Firefox's first reconnect 350 ms
-  instead of 30 ms
-  ([SSE browser reconnect evidence](explanation/validation.md#sse-browser-reconnect-evidence)).
-  Blocker: a capture run with no builds loading the machine.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.

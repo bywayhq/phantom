@@ -43,7 +43,7 @@ use crate::{
 /// `Upgrade-Insecure-Requests` and the `Sec-Fetch-*` fields in
 /// `OnBeforeConnect`, and `Priority`, `Pragma`, and `Cache-Control` in
 /// `SetupChannelForTransaction`; its HTTP/2 compressor appends `te` last. The
-/// retained Firefox 156 HTTP/1.1 EventSource reconnect capture sends `Cookie`
+/// retained Firefox 157 HTTP/1.1 EventSource reconnect capture sends `Cookie`
 /// after `Referer` and before `Sec-Fetch-Dest`. The other neighbors come from
 /// Firefox source, not from a capture.
 #[must_use]

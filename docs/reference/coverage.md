@@ -73,7 +73,7 @@ Read the matrix with these conditions:
   list is the Chromium one, compared with H3 captures opened by intent.
   Fetch templates cover H1 and H2 for all eight.
 - Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
-  156 over plaintext H1 only.
+  157 over plaintext H1 only.
 
 [Validation](../explanation/validation.md) holds the evidence for every
 "Captured" and "Browser source" cell.
@@ -670,7 +670,7 @@ Supported SSE (`sse` feature):
   - an optional idle timeout on DATA activity that is safe to cancel;
   - cookies; and
   - termination on a 204 response.
-- Differential tests that replay retained Chrome 154 and Firefox 156 Windows
+- Differential tests that replay retained Chrome 154 and Firefox 157 Windows
   HTTP/1.1 captures.
 
 Supported WebSocket (`websocket` feature):
