@@ -677,10 +677,13 @@ Opera 136 sends Chromium 152's trust-anchor IDs: the 28 that Chrome 154
 sends and `d6790902`, `d6790903`, `d6790909`, and `d679090e`, which Chrome
 154 does not send
 ([Chrome 154 trust-anchor ID order](#chrome-154-trust-anchor-id-order)).
-Chromium 152 encodes the list in hash-set order. The retained
+Chromium 152 encodes the list in hash-set order.
 `fixtures/tls/opera/136.0.6008.52/windows-11-26200/trust-anchor-orders.txt`
-tallies the order of every Opera 136 ClientHello the retained captures
-hold, naming the capture each came from:
+tallies the order of every Opera 136 ClientHello in the retained startup
+captures and in run 0 of the retained resumption captures, and names the
+fixture that holds each one's bytes. The TLS startups other than
+`client-hello.txt` are retained under `startup-runs/` beside it, and the
+third H3 startup as `quic-client-hello-3.txt`:
 
 | Transport | ClientHellos | Processes | Distinct orders | Within one process | Most frequent order |
 | --- | --- | --- | --- | --- | --- |
@@ -692,11 +695,12 @@ of 58 of the 59 later connections differs from the run's first connection.
 `opera::v136_tls` sends the most frequent TCP order, and
 `opera::v136_http3_tls` the one QUIC order seen twice. Neither recipe draws
 a new order: per process over TCP, per connection over QUIC.
-`opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones` checks
-both recipes against the tally. The retained `client-hello.txt` is TLS
-startup run 3, one of the five with the TCP recipe's order, so its replay
-also compares the order; the other TCP replays, and every QUIC replay,
-compare the IDs as a set.
+`opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones` reads
+each ClientHello's order again from those fixtures, checks it against the
+tally, and checks both recipes against the most frequent orders. The
+retained `client-hello.txt` is TLS startup run 3, one of the five with the
+TCP recipe's order, so its replay also compares the order; the other TCP
+replays, and every QUIC replay, compare the IDs as a set.
 
 | Browser and layer | Samples | Result against the Chromium recipes |
 | --- | --- | --- |
@@ -897,9 +901,10 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Browser | Area | Files |
 | --- | --- | --- |
 | Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
-| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, the other 19 TLS startups as `startup-runs/client-hello-<n>.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
+| Opera 136.0.6008.52 | `http3` | `quic-client-hello-3.txt`, the third H3 startup, for `trust-anchor-orders.txt` |
 | Brave 154.1.96.59 | `http3` | `launch-mode/client-startup-devtools.txt`, `launch-mode/quic-client-hello-devtools.txt` |
 | Both | `client-hints` | `navigation.txt` |
 | Both | `cookies` | `crumbs-h1.txt`, `crumbs-h2.txt`, `crumbs-h3.txt` |
@@ -1999,14 +2004,14 @@ Each system-resolver lookup was two `getaddrinfo` calls from the browser
 module within a few milliseconds; the calls those make inside `ws2_32.dll`
 and `dnsapi.dll` are not counted. A lookup comes at the first fetch after
 the answer expires, so an answer that expires right after a fetch is renewed
-up to 10 s late; the test accepts gaps of 60 to 70 s. The `happy-eyeballs` scenarios load the page from `127.0.0.1` and
-fetch `http://localhost:<port>/done` on a second port where only
-`127.0.0.1` listens, so the browser's startup connections to the page do not
-mix with the attempts measured; each browser ran two connect jobs for that
-fetch. In `happy-eyeballs-slow` the agent made the browser's
-`SIO_TCP_INITIAL_RTO` call fail on IPv6 sockets, so the refused `[::1]`
-attempt stayed pending, and the log names that change in
-`hook_intervention`.
+up to 10 s late; the test accepts gaps of 60 to 70 s. The
+`happy-eyeballs` scenarios load the page from `127.0.0.1` and fetch
+`http://localhost:<port>/done` on a second port where only `127.0.0.1`
+listens, so the browser's startup connections to the page do not mix with
+the attempts measured; each browser ran two connect jobs for that fetch.
+In `happy-eyeballs-slow` the agent made the browser's `SIO_TCP_INITIAL_RTO`
+call fail on IPv6 sockets, so the refused `[::1]` attempt stayed pending,
+and the log names that change in `hook_intervention`.
 
 These results reproduce Chromium source at the tags the recipes cite, which
 is what validates the method on Chrome:
