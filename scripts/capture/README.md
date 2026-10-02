@@ -170,6 +170,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
 | The PING a Chromium browser sends when it reuses an idle HTTP/2 connection | [`http2_preface_ping.py`](#http2-preface-ping) | `fixtures/http2/` |
 | Socket options, connection attempts, and host lookups inside a Chromium browser on Windows | [`socket_hooks.py`](#socket-hooks) | `fixtures/socket-hooks/` |
+| The same for Firefox on Windows, with keepalive over each connection's life and Firefox's MOZ_LOG | [`firefox_socket_hooks.py`](#firefox-socket-hooks) | `fixtures/socket-hooks/firefox/` |
 | Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
@@ -1563,6 +1564,90 @@ own background requests stay in the DNS query events.
 `test_socket_hooks.py` checks the decoding, the summaries, and the origin,
 and that every retained log names the agent in the repository by its
 digest: change `socket_hooks.js` and the logs must be taken again.
+
+## Firefox socket hooks
+
+`firefox_socket_hooks.py` records the same calls as
+[`socket_hooks.py`](#socket-hooks) inside Firefox, which opens its HTTP
+connections in its parent process and changes their keepalive while they
+live. It loads `socket_hooks.js` unchanged and `firefox_socket_hooks.js`
+after it, as one Frida script. The extension adds `shutdown`, the
+`SO_ERROR` read that tells how a connect failed, the hints of each
+`getaddrinfo` call, and each `DnsQuery_A` call with the TTLs it returned.
+
+Firefox's launcher process marks itself failed in the registry when it starts
+under Frida, and Firefox then runs without it for 45 days
+(`toolkit/xre/LauncherRegistryInfo.cpp:17-21` at tag `FIREFOX_157_0_RELEASE`).
+Without the launcher, Firefox also ignored the page URL on the command line.
+If that ever happens, delete the `<path to firefox.exe>|Launcher`,
+`|Browser`, and `|LauncherCrashTime` values under
+`HKCU\Software\Mozilla\Firefox\Launcher`; the next ordinary launch writes
+new timestamps, with `|Launcher` lower than `|Browser`.
+
+The tool therefore launches Firefox the way `browser_launch.py` always
+does, waits for the page request, finds the parent process by the run's
+profile path, and attaches then. The page waits on `/go` until the hooks
+report ready, and only then reaches the measured origin on a second
+loopback port as `127.0.0.1.nip.io`. Firefox's own MOZ_LOG
+(`nsSocketTransport:5,nsHttp:5,nsHostResolver:5,GetAddrInfo:5`) runs beside
+the hooks; the log keeps the lines about the measured origin.
+
+Capture Firefox 157 on Windows. The retained set ran `h2` and `websocket`
+twice, `backup` five times, and the other three scenarios once:
+
+```sh
+run() {
+  uv run --no-project --python 3.10 \
+    --with-requirements scripts/requirements.txt \
+    --with-requirements scripts/capture/hooks-requirements.txt \
+    python -m scripts.capture.firefox_socket_hooks \
+    --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
+    --client-version 157.0 \
+    --operating-system "Windows 11 Home 10.0.26200 x64" \
+    --output-dir fixtures/socket-hooks/firefox/157.0/windows-11-26200 \
+    "$@"
+}
+run --scenario h2 websocket --repeat 2
+run --scenario backup --repeat 5
+run --scenario http1-long http1-idle dns-cache
+```
+
+The tool refuses to start when `application.ini` beside the executable names
+another version, and fails when the version changed during the capture.
+
+| Scenario | Measured origin | Question |
+| --- | --- | --- |
+| `http1-idle` | HTTP/1.1; `/fast` at once and 90 s later, then idle | Keepalive on a pooled connection past the short-lived period, and when Firefox closes it |
+| `http1-long` | HTTP/1.1; `/trickle` sends one chunk every 5 s for 85 s | When an active connection switches to long-lived keepalive |
+| `h2` | TLS with ALPN `h2` only; `/fast` twice | Keepalive before and after HTTP/2 is negotiated |
+| `websocket` | `ws://`; the origin sends a frame every 5 s; the page closes after 20 s | Keepalive after the 101 response |
+| `backup` | HTTP/1.1; `/fast`, then three concurrent `/slow` (3 s each), then `/fast` after the origin closed every connection | Connection attempts when the name resolves to `[::1]` then `127.0.0.1` and only `127.0.0.1` listens, and the family of later connections |
+| `dns-cache` | HTTP/1.1; `/close` at 0, 30, 65, and 95 s | How long Firefox keeps the name's answer |
+
+The `backup` scenario makes `getaddrinfo` resolve `localhost` in place of
+`127.0.0.1.nip.io` and drops the answer's canonical name, so Firefox's TTL
+lookup still names `127.0.0.1.nip.io`; the fixture names the change in
+`hook_intervention`. A refused loopback connect takes about two seconds on
+Windows, which keeps the `[::1]` attempt pending past Firefox's backup timer.
+The page uses `127.0.0.1` itself, and the TLS origin's throwaway certificate
+is trusted through `cert_override.txt` in the run's profile.
+
+The header adds to the Chromium tool's: `browser_build_id`, the extension and
+its SHA-256 (`hook_agent_extension_sha256`), `decoder_sha256` for
+`socket_hooks.py`, whose decoders the tool reuses, and `moz_log`. Each run
+then has these lines besides the events:
+
+| Line | Holds |
+| --- | --- |
+| `launcher_process` | `true` when the hooked parent process is a child of Firefox's launcher process, `false` when Firefox started without the launcher |
+| `origin_socket_<i>` | One socket that connected to the measured port: its address, when it connected, the error NSPR read if the connect failed, the options set before `connect`, and each later option, keepalive change, and `shutdown` as `+ms` after the connect |
+| `lookup_calls` | Each `getaddrinfo` call for the name with its flags and family, its answers, and each `DnsQuery_A` with the answer TTLs |
+| `server_connection_<i>` | Each connection the origin accepted: address family, when it opened and closed, how it closed (`fin` from the client, `server`, `reset`, or `websocket`), and its requests |
+| `moz_log_<i>` | A retained MOZ_LOG line: milliseconds from the first hook report, the module, and the message, with object addresses renamed `p<n>` |
+
+`test_firefox_socket_hooks.py` checks the decoding, the summaries, the MOZ_LOG
+filter, and the origin, and that every retained log names the agent, the
+extension, the tool, and the decoder in the repository by their digests.
 
 ## Next
 
