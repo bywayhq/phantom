@@ -1,13 +1,14 @@
 //! Replays the Frida hook logs under `fixtures/socket-hooks/firefox/` against
-//! the Firefox TCP and address cache recipes. The logs record what the parent
-//! process of Firefox 157.0 did on Windows 11;
-//! `scripts/capture/firefox_socket_hooks.py` wrote them.
+//! the Firefox TCP and address cache recipes and the default UDP settings.
+//! The logs record what the parent process of Firefox 157.0 did on Windows
+//! 11; `scripts/capture/firefox_socket_hooks.py` wrote them.
 
 use std::time::Duration;
 
 use super::{v157_dns_cache, v157_tcp};
-use crate::tcp::{
-    TcpAddressAdvance, TcpAddressSelection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+use crate::{
+    tcp::{TcpAddressAdvance, TcpAddressSelection, TcpKeepalivePolicy, TcpKeepaliveSchedule},
+    udp::UdpSettings,
 };
 
 macro_rules! hook_log {
@@ -197,6 +198,28 @@ fn firefox_sockets_set_nodelay_and_the_send_buffer_before_connecting() -> TestRe
         }
     }
     assert!(count >= 30, "{count} sockets");
+    Ok(())
+}
+
+/// No call in the logs sets `SO_RANDOMIZE_PORT` on any socket. Every UDP
+/// socket in them is one that `ws2_32.dll` opened inside the system resolver;
+/// Firefox's own code opened none, because no scenario uses HTTP/3. A
+/// Firefox profile takes no UDP settings, which leaves the option off.
+#[test]
+fn firefox_sets_no_port_randomization_on_any_socket() -> TestResult {
+    assert!(!UdpSettings::default().port_randomization);
+    let mut udp_sockets = 0;
+    for log in ALL {
+        assert_provenance(log)?;
+        for line in log.lines().filter(|line| line.contains("_event_")) {
+            assert!(!line.contains("\"option\":\"SO_RANDOMIZE_PORT\""), "{line}");
+            if line.contains("\"kind\":\"socket\"") && line.contains("\"type\":2") {
+                assert!(line.contains("\"caller\":\"WS2_32.dll\""), "{line}");
+                udp_sockets += 1;
+            }
+        }
+    }
+    assert!(udp_sockets >= 10, "{udp_sockets} UDP sockets");
     Ok(())
 }
 

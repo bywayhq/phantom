@@ -21,6 +21,7 @@ pub mod quic;
 pub mod request_template;
 pub mod tcp;
 pub mod tls;
+pub mod udp;
 pub mod websocket;
 
 mod client;
@@ -60,6 +61,7 @@ pub use tls::{
     ClientHelloExtensionOrder, EchGreaseAead, EchGreasePayloadLength, InvalidTlsSettings,
     NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
 };
+pub use udp::UdpSettings;
 pub use websocket::{
     InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,

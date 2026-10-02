@@ -21,11 +21,12 @@
 //! options or cache lifetimes. Frida hook logs of Edge 154.0.4258.48's network
 //! service, under `fixtures/socket-hooks/`, show the `TCP_NODELAY`, keepalive,
 //! and `SO_RANDOMIZE_PORT` of [`chromium::v154_tcp`] on every origin socket,
-//! its 300 ms IPv4 fallback, six connections to one origin as in
-//! [`chromium::v154_http1`], and system-resolver answers kept for the 60 s of
-//! [`chromium::v154_dns_cache`], as Chrome 154's logs do. Edge profiles
-//! therefore use those recipes; Edge has no TCP, HTTP/1.1 connection, or
-//! address cache recipe of its own. Edge, like Chrome 154, fails a refused
+//! the `SO_RANDOMIZE_PORT` of [`chromium::v154_udp`] on every UDP socket it
+//! opens, QUIC sockets among them, its 300 ms IPv4 fallback, six connections
+//! to one origin as in [`chromium::v154_http1`], and system-resolver answers
+//! kept for the 60 s of [`chromium::v154_dns_cache`], as Chrome 154's logs
+//! do. Edge profiles therefore use those recipes; Edge has no TCP, UDP,
+//! HTTP/1.1 connection, or address cache recipe of its own. Edge, like Chrome 154, fails a refused
 //! loopback connect at once, so its unmodified run tried IPv4 3 ms after the
 //! refused `[::1]` attempt; the 300 ms fallback shows in the run whose hook
 //! kept that attempt pending.

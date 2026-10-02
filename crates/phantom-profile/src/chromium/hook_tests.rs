@@ -1,16 +1,18 @@
 //! Replays the Frida hook logs under `fixtures/socket-hooks/` against the
-//! Chromium TCP, HTTP/1.1, and address cache recipes. The logs record what
+//! Chromium TCP, UDP, HTTP/1.1, and address cache recipes. The logs record what
 //! the network service process of Chrome 154, Edge 154, and Opera 136 did on
 //! Windows 11; `scripts/capture/socket_hooks.py` wrote them.
 
 use std::time::Duration;
 
-use super::{v154_dns_cache, v154_http1, v154_tcp};
+use super::{v154_dns_cache, v154_http1, v154_tcp, v154_udp};
 use crate::tcp::{TcpAddressRacing, TcpAddressSelection, TcpKeepalivePolicy};
 
 struct HookLogs {
     browser: &'static str,
     version: &'static str,
+    /// The browser's network code, which the logs name as each call's caller.
+    module: &'static str,
     single: &'static str,
     parallel: &'static str,
     idle: &'static str,
@@ -24,10 +26,11 @@ struct HookLogs {
 }
 
 macro_rules! hook_logs {
-    ($browser:literal, $version:literal, $fast_fail:literal) => {
+    ($browser:literal, $version:literal, $module:literal, $fast_fail:literal) => {
         HookLogs {
             browser: $browser,
             version: $version,
+            module: $module,
             single: hook_log!($browser, $version, "single"),
             parallel: hook_log!($browser, $version, "parallel"),
             idle: hook_log!($browser, $version, "idle"),
@@ -63,9 +66,9 @@ fn racing() -> Result<TcpAddressRacing, String> {
 }
 
 const LOGS: [HookLogs; 3] = [
-    hook_logs!("chrome", "154.0.8037.58", true),
-    hook_logs!("edge", "154.0.4258.48", true),
-    hook_logs!("opera", "136.0.6008.52", false),
+    hook_logs!("chrome", "154.0.8037.58", "chrome.dll", true),
+    hook_logs!("edge", "154.0.4258.48", "msedge.dll", true),
+    hook_logs!("opera", "136.0.6008.52", "opera_browser.dll", false),
 ];
 
 fn field<'a>(log: &'a str, key: &str) -> Result<&'a str, String> {
@@ -142,6 +145,129 @@ fn chromium_family_sockets_set_the_chromium_tcp_options() -> Result<(), String> 
             let (count, options) = sets[0].split_once("x ").ok_or("bad option set")?;
             assert!(count.parse::<usize>().map_err(|e| e.to_string())? >= 4);
             assert_eq!(options, expected, "{}", logs.browser);
+        }
+    }
+    Ok(())
+}
+
+/// The value of `key` in one flat JSON event of a log, without its quotes.
+fn event_value<'a>(event: &'a str, key: &str) -> Option<&'a str> {
+    let start = event.find(&format!("\"{key}\":"))? + key.len() + 3;
+    let rest = event.get(start..)?;
+    match rest.strip_prefix('"') {
+        Some(text) => text.split('"').next(),
+        None => rest.split([',', '}']).next(),
+    }
+}
+
+/// One UDP socket that the browser's network code opened.
+struct UdpSocket {
+    id: String,
+    ipv6: bool,
+    /// The options set before `connect`, as `OPTION=value`, in call order.
+    before_connect: Vec<String>,
+    connected: bool,
+    /// The options set after `connect`.
+    after_connect: Vec<String>,
+}
+
+/// The UDP sockets that `module` opened in a log's first run, in order.
+fn browser_udp_sockets(log: &str, module: &str) -> Vec<UdpSocket> {
+    let mut sockets: Vec<UdpSocket> = Vec::new();
+    for line in log.lines() {
+        let Some((key, event)) = line.split_once('=') else {
+            continue;
+        };
+        if !key.starts_with("run_0_event_") {
+            continue;
+        }
+        let Some(id) = event_value(event, "socket") else {
+            continue;
+        };
+        match event_value(event, "kind") {
+            Some("socket") => {
+                if event_value(event, "protocol") == Some("17")
+                    && event_value(event, "caller") == Some(module)
+                {
+                    sockets.push(UdpSocket {
+                        id: id.to_owned(),
+                        ipv6: event_value(event, "family") == Some("23"),
+                        before_connect: Vec::new(),
+                        connected: false,
+                        after_connect: Vec::new(),
+                    });
+                }
+            }
+            // A closed socket's name can come back for a later socket.
+            Some("close") => {
+                if let Some(socket) = sockets.iter_mut().find(|socket| socket.id == id) {
+                    socket.id.clear();
+                }
+            }
+            Some("setsockopt") => {
+                if let Some(socket) = sockets.iter_mut().find(|socket| socket.id == id) {
+                    let option = format!(
+                        "{}={}",
+                        event_value(event, "option").unwrap_or("?"),
+                        event_value(event, "value").unwrap_or("?")
+                    );
+                    if socket.connected {
+                        socket.after_connect.push(option);
+                    } else {
+                        socket.before_connect.push(option);
+                    }
+                }
+            }
+            Some("connect") => {
+                if let Some(socket) = sockets.iter_mut().find(|socket| socket.id == id) {
+                    socket.connected = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    sockets
+}
+
+/// Every UDP socket the browsers' network code opened set
+/// `SO_RANDOMIZE_PORT` before connecting, after only the dual-stack
+/// `IPV6_V6ONLY` of an IPv6 socket, as the recipe asks: DNS sockets, the
+/// IPv6 reachability probe, and, in the Chrome and Edge logs, QUIC sockets,
+/// which set their buffers and ECN after connecting.
+#[test]
+fn chromium_family_udp_sockets_randomize_their_port_before_connecting() -> Result<(), String> {
+    assert!(v154_udp().port_randomization);
+    for logs in &LOGS {
+        let mut count = 0;
+        let mut quic = 0;
+        for log in [
+            logs.single,
+            logs.parallel,
+            logs.idle,
+            logs.lookups,
+            logs.lookups_system,
+            logs.happy_eyeballs,
+            logs.happy_eyeballs_slow,
+        ] {
+            assert_provenance(log, logs)?;
+            for socket in browser_udp_sockets(log, logs.module) {
+                let mut expected = Vec::new();
+                if socket.ipv6 {
+                    expected.push("IPV6_V6ONLY=0");
+                }
+                expected.push("SO_RANDOMIZE_PORT=1");
+                assert_eq!(socket.before_connect, expected, "{}", logs.browser);
+                assert!(socket.connected, "{}", logs.browser);
+                if socket.after_connect.first().map(String::as_str) == Some("SO_RCVBUF=1048576") {
+                    quic += 1;
+                }
+                count += 1;
+            }
+        }
+        assert!(count >= 50, "{}: {count} UDP sockets", logs.browser);
+        // Opera's runs opened no QUIC connection.
+        if logs.browser != "opera" {
+            assert!(quic >= 1, "{}: no QUIC socket", logs.browser);
         }
     }
     Ok(())

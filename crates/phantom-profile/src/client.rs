@@ -3,7 +3,7 @@
 use crate::{
     ClientHintSettings, CookiePlacement, DnsCacheSettings, Http1Settings, Http2Settings,
     Http3RequestSettings, Http3Settings, ProxyConnectTemplate, TcpSettings, TlsSettings,
-    WebSocketSettings, quic::QuicTransportSettings,
+    UdpSettings, WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -61,6 +61,7 @@ impl Http3ClientSettings {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClientProfile {
     tcp: Option<TcpSettings>,
+    udp: Option<UdpSettings>,
     dns_cache: Option<DnsCacheSettings>,
     tls: TlsSettings,
     http1: Option<Http1Settings>,
@@ -78,6 +79,7 @@ impl ClientProfile {
     pub fn new(tls: TlsSettings) -> Self {
         Self {
             tcp: None,
+            udp: None,
             dns_cache: None,
             tls,
             http1: None,
@@ -96,6 +98,15 @@ impl ClientProfile {
     #[must_use]
     pub fn with_tcp(mut self, tcp: TcpSettings) -> Self {
         self.tcp = Some(tcp);
+        self
+    }
+
+    /// Adds UDP socket options applied to every UDP socket that carries QUIC.
+    ///
+    /// Without them, UDP sockets keep their operating-system defaults.
+    #[must_use]
+    pub fn with_udp(mut self, udp: UdpSettings) -> Self {
+        self.udp = Some(udp);
         self
     }
 
@@ -170,6 +181,12 @@ impl ClientProfile {
     #[must_use]
     pub fn tcp(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Returns the profile's UDP socket options when configured.
+    #[must_use]
+    pub fn udp(&self) -> Option<&UdpSettings> {
+        self.udp.as_ref()
     }
 
     /// Returns the profile's address cache settings when configured.
@@ -252,6 +269,15 @@ mod tests {
         let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
 
         assert_eq!(profile.tcp(), Some(&tcp));
+    }
+
+    #[test]
+    fn with_udp_owns_and_exposes_udp_settings() {
+        let udp = chromium::v154_udp();
+        let profile = ClientProfile::new(chromium::v154_tls()).with_udp(udp);
+
+        assert_eq!(profile.udp(), Some(&udp));
+        assert_eq!(ClientProfile::new(chromium::v154_tls()).udp(), None);
     }
 
     #[test]

@@ -15,12 +15,13 @@
 //! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
 //! against [`chromium::v154_cookie_placement`] with the H2 and H3 recipes.
 //!
-//! The TCP options, the HTTP/1.1 connection bound, and the address cache are
-//! not visible in a capture. Brave 1.96.59 builds Chromium tag
+//! The TCP and UDP options, the HTTP/1.1 connection bound, and the address
+//! cache are not visible in a capture. Brave 1.96.59 builds Chromium tag
 //! `154.0.8037.58` (`package.json` in `brave-core` at tag `v1.96.59`), the tag
-//! behind [`chromium::v154_tcp`], [`chromium::v154_http1`], and
-//! [`chromium::v154_dns_cache`], and none of its patches or overrides changes
-//! a value those recipes cite, so they serve Brave unchanged. The one Brave
+//! behind [`chromium::v154_tcp`], [`chromium::v154_udp`],
+//! [`chromium::v154_http1`], and [`chromium::v154_dns_cache`], and none of
+//! its patches or overrides changes a value those recipes cite, so they serve
+//! Brave unchanged. The one Brave
 //! change that reaches these layers enables
 //! `kPartitionConnectionsByNetworkIsolationKey`
 //! (`patches/net-base-features.cc.patch` in `brave-core`), which keys

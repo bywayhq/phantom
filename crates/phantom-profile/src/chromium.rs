@@ -39,6 +39,8 @@ use crate::{
     },
 };
 
+use crate::udp::UdpSettings;
+
 use crate::tcp::{
     TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
     TcpSettings,
@@ -351,6 +353,35 @@ pub fn v154_tcp() -> TcpSettings {
         port_randomization: Some(TcpPortRandomization {
             minimum_windows_build: 22_621,
         }),
+    }
+}
+
+/// Returns the UDP socket options Chromium 154.0.8037.58 sets on Windows.
+///
+/// From Chromium source at tag `154.0.8037.58`, not from a capture: socket
+/// options are not visible on the wire. Every UDP socket Chromium connects
+/// gets `SO_RANDOMIZE_PORT` right before `connect`, with no feature or
+/// Windows version gate (`net/socket/udp_socket_win.cc:559-575`), so its
+/// local port is random on every Windows. That covers QUIC sockets, which
+/// `QuicSessionPool` connects before setting any other option
+/// (`net/quic/quic_session_pool.cc:1334-1378`), and the built-in DNS
+/// client's sockets (`net/socket/udp_client_socket.cc:69-89`). A socket that
+/// binds an explicit address instead, as WebRTC's do, does not get it
+/// (`net/socket/udp_socket_win.cc:587-602`). The same lines are at
+/// `152.0.7977.130`, the Chromium version Opera 136 reports.
+///
+/// Phantom binds its QUIC sockets rather than connecting them, and sets
+/// [`UdpSettings::port_randomization`] before that bind. Chromium ignores a
+/// failure to set the option; Phantom fails the connection attempt instead,
+/// as it does for every profile socket option. Every Windows that Rust
+/// supports has the option.
+///
+/// Brave 1.96.59 builds the same Chromium tag, so this recipe also serves
+/// Brave 154 (see [`crate::brave`]).
+#[must_use]
+pub fn v154_udp() -> UdpSettings {
+    UdpSettings {
+        port_randomization: true,
     }
 }
 
