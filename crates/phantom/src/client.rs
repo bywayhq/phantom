@@ -1496,7 +1496,7 @@ impl ClientBuilder {
             > phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
         {
             return Err(BuildError::invalid_policy(
-                "max_http2_proxy_connections_per_route exceeds                  HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING",
+                "max_http2_proxy_connections_per_route exceeds HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING",
             ));
         }
         self.options.validate_policies()?;

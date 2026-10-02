@@ -1678,6 +1678,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- The `BuildError` for a `max_http2_proxy_connections_per_route` above the
+  ceiling no longer contains a run of spaces left by a broken line
+  continuation in its message.
 - Nightly Rust 2026-09-01 no longer warns with
   `recursion_depth_exceeding_limit` (rust-lang/rust#159228) when it proves
   that a request or WebSocket future is `Send`. The warning appeared when
