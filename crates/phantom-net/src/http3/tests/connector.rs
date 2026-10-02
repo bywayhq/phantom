@@ -438,6 +438,53 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn certificate_clone_does_not_reuse_a_connection_opened_without_the_certificate()
+-> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let without_certificate = trusting_connector(&identity)?;
+    let key = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
+    let certificate = rcgen::CertificateParams::new(Vec::<String>::new())?.self_signed(&key)?;
+    let with_certificate =
+        without_certificate.with_client_certificate(&crate::tls::ClientCertificate::from_der(
+            [certificate.der().as_ref()],
+            &key.serialize_der(),
+        )?);
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let _connection: h3::server::Connection<_, bytes::Bytes> =
+            h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let host = address.ip().to_string();
+    let connection = without_certificate
+        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .await?;
+
+    assert!(without_certificate.can_reuse(&connection).await);
+    assert!(!with_certificate.can_reuse(&connection).await);
+    let error = with_certificate
+        .send_get_on(
+            &connection,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            Vec::new(),
+        )
+        .await
+        .err()
+        .ok_or("a connection without the certificate carried a request for its clone")?;
+    assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn reuse_check_is_prompt_while_a_request_waits_for_peer_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = std::sync::Arc::new(trusting_connector(&identity)?);

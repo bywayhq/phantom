@@ -407,13 +407,16 @@ impl Http3Connector {
     /// Returns a clone that presents `certificate` on every QUIC connection
     /// whose server requests client authentication.
     ///
-    /// The ClientHello does not change. The clone shares this connector's
-    /// identity but gets an empty ticket cache of its own, so a session
-    /// authenticated with the certificate is resumed only by connectors that
-    /// present it.
+    /// The ClientHello does not change. The clone gets an identity and an
+    /// empty ticket cache of its own, so neither its connections nor a
+    /// session authenticated with the certificate are shared with connectors
+    /// that do not present it.
     #[must_use]
     pub fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
-        self.with_crypto(self.crypto.with_client_certificate(certificate.quic()))
+        let mut connector =
+            self.with_crypto(self.crypto.with_client_certificate(certificate.quic()));
+        connector.identity = Arc::new(());
+        connector
     }
 
     fn dialer(&self) -> Dialer<'_> {
