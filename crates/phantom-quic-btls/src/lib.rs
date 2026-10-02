@@ -51,8 +51,8 @@ mod tests;
 mod version_2_tests;
 
 pub use backend::client::{
-    HandshakeData, InvalidServerName, PeerIdentity, QuicClientConfig, QuicTlsProfileError,
-    QuicTlsProfileErrorKind,
+    HandshakeData, InvalidServerName, PeerIdentity, QuicClientCertificate, QuicClientConfig,
+    QuicTlsProfileError, QuicTlsProfileErrorKind,
 };
 #[cfg(feature = "server")]
 pub use backend::server::{QuicServerConfig, ServerHandshakeData};

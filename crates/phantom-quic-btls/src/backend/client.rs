@@ -6,9 +6,9 @@ use std::net::IpAddr;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use btls::pkey::{PKey, PKeyRef, Private};
+use btls::pkey::{PKey, Private};
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
-use btls::x509::{X509, X509Ref};
+use btls::x509::X509;
 use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
@@ -163,30 +163,19 @@ impl QuicClientConfig {
         Ok(self)
     }
 
-    /// Returns a clone that presents `certificate`, followed by `chain`, and
-    /// signs with `private_key` when a server requests client
-    /// authentication.
+    /// Returns a clone that presents `certificate` when a server requests
+    /// client authentication.
     ///
     /// Nothing in the ClientHello changes: BoringSSL sends the certificate
-    /// only in answer to a `CertificateRequest`. The caller checks that
-    /// `private_key` belongs to `certificate`; a mismatch fails the
-    /// handshake that uses it. The clone has an empty ticket cache of its
-    /// own when this configuration has one, so a session authenticated with
-    /// the certificate is never resumed without it, or the reverse.
+    /// only in answer to a `CertificateRequest`. The clone has an empty
+    /// ticket cache of its own when this configuration has one, so a session
+    /// authenticated with the certificate is never resumed without it, or
+    /// the reverse.
     #[must_use]
-    pub fn with_client_certificate(
-        &self,
-        certificate: &X509Ref,
-        chain: &[X509],
-        private_key: &PKeyRef<Private>,
-    ) -> Self {
+    pub fn with_client_certificate(&self, certificate: &QuicClientCertificate) -> Self {
         let sessions = self.sessions.as_ref().map(|_| SessionCache::default());
         let mut config = self.clone_with_sessions(sessions);
-        config.tls_profile.client_certificate = Some(Arc::new(ClientCertificate {
-            certificate: certificate.to_owned(),
-            chain: chain.to_vec().into_boxed_slice(),
-            private_key: private_key.to_owned(),
-        }));
+        config.tls_profile.client_certificate = Some(Arc::clone(&certificate.inner));
         config
     }
 
@@ -667,6 +656,69 @@ pub(super) struct ClientTlsProfile {
     alps: Option<AlpsSettings>,
     session_tickets: bool,
     client_certificate: Option<Arc<ClientCertificate>>,
+}
+
+/// A client certificate chain and the private key of its first
+/// certificate, for [`QuicClientConfig::with_client_certificate`].
+///
+/// Cloning is cheap: clones share the parsed certificates and key.
+#[derive(Clone)]
+pub struct QuicClientCertificate {
+    inner: Arc<ClientCertificate>,
+}
+
+impl QuicClientCertificate {
+    /// Parses a DER certificate chain, the client certificate first, and a
+    /// DER private key: a PKCS #8 `PrivateKeyInfo`, or an RSA or EC key in
+    /// its traditional encoding.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`QuicTlsProfileError`] of kind
+    /// [`QuicTlsProfileErrorKind::InvalidProfile`] for the field
+    /// `client_certificate` when the chain is empty, a certificate or the key
+    /// does not parse, or the key does not belong to the first certificate.
+    pub fn from_der<'a>(
+        certificate_chain: impl IntoIterator<Item = &'a [u8]>,
+        private_key: &[u8],
+    ) -> Result<Self, QuicTlsProfileError> {
+        let invalid = |message: &str| QuicTlsProfileError::invalid("client_certificate", message);
+        let mut chain = certificate_chain
+            .into_iter()
+            .map(X509::from_der)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| invalid("a certificate is not valid DER"))?
+            .into_iter();
+        let certificate = chain
+            .next()
+            .ok_or_else(|| invalid("the certificate chain holds no certificate"))?;
+        let private_key = PKey::private_key_from_der(private_key)
+            .map_err(|_| invalid("the private key is not a DER private key"))?;
+        let matches = certificate
+            .public_key()
+            .is_ok_and(|public_key| public_key.public_eq(&private_key));
+        if !matches {
+            return Err(invalid(
+                "the private key does not match the first certificate",
+            ));
+        }
+        Ok(Self {
+            inner: Arc::new(ClientCertificate {
+                certificate,
+                chain: chain.collect(),
+                private_key,
+            }),
+        })
+    }
+}
+
+impl fmt::Debug for QuicClientCertificate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("QuicClientCertificate")
+            .field("intermediate_count", &self.inner.chain.len())
+            .finish_non_exhaustive()
+    }
 }
 
 /// A certificate, its intermediates, and its private key, which a client

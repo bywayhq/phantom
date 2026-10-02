@@ -413,11 +413,7 @@ impl Http3Connector {
     /// present it.
     #[must_use]
     pub fn with_client_certificate(&self, certificate: &ClientCertificate) -> Self {
-        let (leaf, chain, private_key) = certificate.parts();
-        self.with_crypto(
-            self.crypto
-                .with_client_certificate(leaf, chain, private_key),
-        )
+        self.with_crypto(self.crypto.with_client_certificate(certificate.quic()))
     }
 
     fn dialer(&self) -> Dialer<'_> {

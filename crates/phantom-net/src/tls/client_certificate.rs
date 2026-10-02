@@ -10,6 +10,7 @@ use btls::{
     x509::X509,
 };
 use phantom_profile::SignatureScheme;
+use phantom_quic_btls::QuicClientCertificate;
 
 /// A certificate chain and the private key of its first certificate, which a
 /// TLS client presents when a server asks for client authentication.
@@ -35,6 +36,8 @@ struct Identity {
     certificate: X509,
     chain: Box<[X509]>,
     private_key: PKey<Private>,
+    /// The same certificate, chain, and key for QUIC sessions.
+    quic: QuicClientCertificate,
 }
 
 impl ClientCertificate {
@@ -138,11 +141,14 @@ impl ClientCertificate {
                 "the private key does not match the first certificate",
             ));
         }
+        let chain: Box<[X509]> = chain.collect();
+        let quic = quic_certificate(&certificate, &chain, &private_key)?;
         Ok(Self {
             identity: Arc::new(Identity {
                 certificate,
-                chain: chain.collect(),
+                chain,
                 private_key,
+                quic,
             }),
         })
     }
@@ -199,13 +205,9 @@ impl ClientCertificate {
         }
     }
 
-    /// Returns the client certificate, the intermediates, and the key.
-    pub(crate) fn parts(&self) -> (&X509, &[X509], &PKey<Private>) {
-        (
-            &self.identity.certificate,
-            &self.identity.chain,
-            &self.identity.private_key,
-        )
+    /// Returns the certificate, chain, and key in the QUIC adapter's form.
+    pub(crate) fn quic(&self) -> &QuicClientCertificate {
+        &self.identity.quic
     }
 
     /// Installs the certificate, its chain, and its key on one connection.
@@ -217,6 +219,34 @@ impl ClientCertificate {
         }
         Ok(())
     }
+}
+
+/// Hands the parsed certificate, chain, and key to the QUIC adapter as DER.
+fn quic_certificate(
+    certificate: &X509,
+    chain: &[X509],
+    private_key: &PKey<Private>,
+) -> Result<QuicClientCertificate, ClientCertificateError> {
+    let encode = |error: ErrorStack| {
+        ClientCertificateError::with_source(
+            ClientCertificateErrorKind::Certificate,
+            "the certificate chain cannot be encoded for QUIC",
+            error,
+        )
+    };
+    let certificates = std::iter::once(certificate)
+        .chain(chain)
+        .map(|certificate| certificate.to_der())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(encode)?;
+    let key = private_key.private_key_to_der().map_err(encode)?;
+    QuicClientCertificate::from_der(certificates.iter().map(Vec::as_slice), &key).map_err(|error| {
+        ClientCertificateError::with_source(
+            ClientCertificateErrorKind::Certificate,
+            "the QUIC adapter rejected the certificate chain",
+            error,
+        )
+    })
 }
 
 impl fmt::Debug for ClientCertificate {
@@ -247,7 +277,7 @@ pub enum ClientCertificateErrorKind {
 pub struct ClientCertificateError {
     kind: ClientCertificateErrorKind,
     message: &'static str,
-    source: Option<ErrorStack>,
+    source: Option<Box<dyn StdError + Send + Sync>>,
 }
 
 impl ClientCertificateError {
@@ -259,15 +289,15 @@ impl ClientCertificateError {
         }
     }
 
-    const fn with_source(
+    fn with_source(
         kind: ClientCertificateErrorKind,
         message: &'static str,
-        source: ErrorStack,
+        source: impl StdError + Send + Sync + 'static,
     ) -> Self {
         Self {
             kind,
             message,
-            source: Some(source),
+            source: Some(Box::new(source)),
         }
     }
 
@@ -287,7 +317,7 @@ impl fmt::Display for ClientCertificateError {
 impl StdError for ClientCertificateError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         self.source
-            .as_ref()
+            .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
     }
 }
