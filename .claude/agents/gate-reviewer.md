@@ -21,7 +21,10 @@ correctness, the brief, or a stated rule:
 2. Wire behavior: silent protocol, route, or fingerprint fallbacks; client
    identity in transport code instead of profiles; changed observable
    ordering; configuration exposed without being applied and tested.
-3. Safety: new `unsafe` outside the `phantom-quic-btls` backend module;
+3. Safety: new `unsafe` outside the two audited FFI modules (the
+   `phantom-quic-btls` backend and `phantom-net`'s
+   `tcp::windows_port_randomization`), or an unsafe block there without a
+   `SAFETY` comment;
    panics on recoverable input or network failures.
 4. Vendor: edits under `vendor/` that are not reflected in `patches/series`,
    a publish-identity patch that is not last, or version pins that disagree
