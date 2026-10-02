@@ -543,15 +543,15 @@ their own. Every request on such a connection follows one rule
 
 - A replay-safe request (a safe method, no body, and no trailers) goes out
   as early data while the early data is unanswered, with the client hints
-  known before the handshake. Under a dynamic QPACK policy it is encoded
+  its fields were built with; the connection knows no ALPS `ACCEPT_CH` yet. Under a dynamic QPACK policy it is encoded
   with the SETTINGS remembered with the ticket; see
   [Remembered SETTINGS](#remembered-settings). A connection that started
   without them holds such a request until the server's SETTINGS arrive, with
   the server's first flight.
 - Every other request waits in the pool, within the connect timeout phase,
   for `Http3Connector::early_data_settled_on`, and keeps its body until
-  then. It is then sent with the client hints the handshake's ALPS
-  delivered.
+  then. When the handshake's ALPS `ACCEPT_CH` names a hint its fields lack,
+  it restarts with the hint instead of being sent.
 - If the server accepted, the request is sent on the connection.
 - If the server rejected the early data, Quinn has discarded every stream
   opened before the handshake (RFC 9001, section 4.6.2). The connection
@@ -734,8 +734,8 @@ control-stream SETTINGS that arrived first. Only then does the connection
 report its early data as accepted. If the metadata is invalid, the connection
 is closed, and the requests on it fail with the same `Http3Error` a full
 handshake reports. A request sent as early data went out before any ALPS was
-known, so it carries no client hints requested through ALPS `ACCEPT_CH`;
-requests sent after the handshake do.
+known, so ALPS `ACCEPT_CH` never restarts it; a request dispatched after the
+handshake restarts when the entry names a hint its fields lack.
 
 Because the connection is pooled before its early data is answered, `n`
 concurrent requests to one resumed location share one connection, as the

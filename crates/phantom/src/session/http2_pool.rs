@@ -18,7 +18,7 @@ use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
-    client_hints::ClientHintContext,
+    client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http2_connections::{Choice, Http2Spread},
     stream_count::{OpenStream, StreamCount},
 };
@@ -129,6 +129,11 @@ impl Http2Pool {
         self.max_pending
     }
 
+    /// Sends one request whose `headers` already carry its client hints.
+    ///
+    /// On a connection whose ALPS `ACCEPT_CH` names a hint the fields lack,
+    /// nothing is sent and [`Dispatched::Restart`] returns the body for a
+    /// request built again with the hint.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn send_request(
         &self,
@@ -147,16 +152,12 @@ impl Http2Pool {
         priority: Option<Http2Priority>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        let prepared_validation_headers = client_hints
-            .map(|context| context.prepare(headers.clone(), None))
-            .transpose()?;
-        let validation_headers = prepared_validation_headers.as_deref().unwrap_or(&headers);
+    ) -> Result<Dispatched<(http::Response<ResponseBody>, Vec<RequestHeader>)>, RequestError> {
         validate_request_body_source_with_trailers(
             &method,
             authority,
             &target,
-            validation_headers,
+            &headers,
             body.as_ref(),
             &trailers,
         )
@@ -189,15 +190,21 @@ impl Http2Pool {
                         .await
                 })
                 .await?;
+            // Nothing is written on a connection whose ACCEPT_CH asks for a
+            // hint the request lacks; the request restarts with it.
+            if let Some(hints) = client_hints.and_then(|context| {
+                context.connection_restart(
+                    &headers,
+                    lease.connection.accept_ch_for_origin(context.origin()),
+                )
+            }) {
+                drop(lease);
+                drop(permit);
+                return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
+            }
             let response_timeout =
                 timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;
-            let sent_headers = match client_hints {
-                Some(context) => context.prepare(
-                    headers.clone(),
-                    lease.connection.accept_ch_for_origin(context.origin()),
-                )?,
-                None => headers.clone(),
-            };
+            let sent_headers = headers.clone();
             let result = response_timeout
                 .run(async {
                     Ok::<_, RequestError>(match mode {
@@ -234,7 +241,7 @@ impl Http2Pool {
             match result {
                 Ok(Ok(response)) => {
                     let (parts, body) = response.into_parts();
-                    return Ok((
+                    return Ok(Dispatched::Sent((
                         http::Response::from_parts(
                             parts,
                             // The stream count drops first, so the request the
@@ -242,7 +249,7 @@ impl Http2Pool {
                             ResponseBody::http2_with_guard(body, (lease.stream, permit)),
                         ),
                         sent_headers,
-                    ));
+                    )));
                 }
                 Ok(Err(error)) => {
                     // An unprocessed replay must use another connection, so

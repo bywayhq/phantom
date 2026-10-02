@@ -4,7 +4,13 @@ use crate::support::h2 as h2_support;
 use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
 
-use std::{future::poll_fn, net::Ipv4Addr, pin::Pin, time::Duration};
+use std::{
+    future::poll_fn,
+    net::Ipv4Addr,
+    pin::Pin,
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use btls::ssl::{Ssl, SslAcceptor, SslVersion};
 use bytes::Bytes;
@@ -14,9 +20,10 @@ use phantom::{
     Client, HttpProtocol, RequestErrorKind, RequestHeader,
     profile::{
         AlpsSettings, CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings,
-        ClientProfile, NamedGroup, TlsVersion, chromium,
+        ClientProfile, Http3ClientSettings, NamedGroup, TlsVersion, chromium,
     },
 };
+use phantom_quic_btls::QuicServerConfig;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
@@ -26,7 +33,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
-use h3_support::{accept_request, client_settings, server_endpoint};
+use h3_support::{accept_request, client_settings, quic_server, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -282,8 +289,13 @@ async fn negotiated_http2_applies_alps_and_retains_response_accept_ch() -> TestR
     .await
 }
 
+/// The first connection's ACCEPT_CH restarts the request with
+/// `Sec-CH-UA-Arch`; the graceful-GOAWAY replacement's names
+/// `Sec-CH-UA-Platform-Version`, so the request restarts again and keeps the
+/// first hint, as Chromium merges each restart's hints into the request.
 #[tokio::test]
-async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> {
+async fn http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for() -> TestResult<()>
+{
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -308,33 +320,17 @@ async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> 
                 accept_tls_with_alps(&listener, &acceptor, &replacement_settings).await?;
             let mut connection = ::http2::server::handshake(replacement).await?;
             let (request, mut response) = accept_http2(&mut connection).await?;
-            assert_eq!(
-                request.headers().get("sec-ch-ua"),
-                Some(&"baseline".parse()?)
-            );
-            assert!(!request.headers().contains_key("sec-ch-ua-arch"));
-            assert_eq!(
-                request.headers().get("sec-ch-ua-platform-version"),
-                Some(&"\"15.5.0\"".parse()?)
-            );
+            assert_hints(request.headers(), true)?;
+            // The request already carries the critical hint, so no
+            // Critical-CH retry follows.
             response.send_response(
                 Response::builder()
-                    .status(StatusCode::OK)
-                    .header("accept-ch", ACCEPT_CH_VALUE)
+                    .status(StatusCode::NO_CONTENT)
                     .header("critical-ch", "Sec-CH-UA-Arch")
                     .body(())?,
                 true,
             )?;
-
-            let (retry, mut retry_response) = accept_http2(&mut connection).await?;
-            assert_hints(retry.headers(), true)?;
-            retry_response.send_response(
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body(())?,
-                true,
-            )?;
-            drop((request, response, retry, retry_response));
+            drop((request, response));
             drive_http2_until_client_done(&mut connection, wait_for_client).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
@@ -352,6 +348,309 @@ async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> 
         Ok(())
     })
     .await
+}
+
+/// A hint learned while a request waits for admission reaches only the next
+/// request: the waiting request's fields were fixed when it was built, as
+/// Chromium fixes a request's hints before it asks for a connection.
+#[tokio::test]
+async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request() -> TestResult<()>
+{
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (first_arrived, wait_for_first) = oneshot::channel();
+        let (answer_first, wait_to_answer) = oneshot::channel::<()>();
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls(&listener, &acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (first, mut first_response) = accept_http2(&mut connection).await?;
+            assert_hints(first.headers(), false)?;
+            let _ = first_arrived.send(());
+            // The connection must keep running while the answer is held.
+            tokio::select! {
+                result = poll_fn(|context| connection.poll_closed(context)) => {
+                    result?;
+                    return Err("HTTP/2 client closed before the first answer".into());
+                }
+                result = wait_to_answer => {
+                    result.map_err(|_| "client stopped before the first answer")?;
+                }
+            }
+            first_response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .header("accept-ch", ACCEPT_CH_VALUE)
+                    .body(())?,
+                true,
+            )?;
+
+            let (waiting, mut waiting_response) = accept_http2(&mut connection).await?;
+            assert_hints(waiting.headers(), false)?;
+            waiting_response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            let (next, mut next_response) = accept_http2(&mut connection).await?;
+            assert_hints(next.headers(), true)?;
+            next_response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            drop((first, waiting, waiting_response, next, next_response));
+            drive_http2_until_client_done(&mut connection, wait_for_client).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        // One active request per origin, so the second waits for the first.
+        let session = Client::builder(
+            ClientProfile::new(tls_settings())
+                .with_http2(chromium::v154_http2())
+                .with_client_hints(client_hint_settings()),
+        )
+        .add_root_certificate_der(identity.root_der.clone())
+        .max_concurrent_http2_requests_per_origin(std::num::NonZeroUsize::MIN)
+        .build()?;
+        let url = format!("https://{address}/");
+        let first = tokio::spawn({
+            let session = session.clone();
+            let url = url.clone();
+            async move { send_and_drain(&session, HttpProtocol::Http2, &url).await }
+        });
+        wait_for_first
+            .await
+            .map_err(|_| "server stopped before the first request")?;
+        let waiting = tokio::spawn({
+            let session = session.clone();
+            let url = url.clone();
+            async move { send_and_drain(&session, HttpProtocol::Http2, &url).await }
+        });
+        // Long enough for the second request to build its fields and queue.
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        answer_first
+            .send(())
+            .map_err(|_| "server stopped before the first answer")?;
+        first.await??;
+        waiting.await??;
+        send_and_drain(&session, HttpProtocol::Http2, &url).await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/2 server stopped before client completion")?;
+        drop(session);
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+/// A restart writes nothing of the request, so a one-shot streaming body
+/// goes out unpolled with the restarted request.
+#[tokio::test]
+async fn http2_alps_accept_ch_restart_sends_a_streaming_body_once() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let origin = format!("https://{address}");
+        let application_settings = accept_ch_alps(&origin, "Sec-CH-UA-Platform-Version");
+        let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+        acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+        acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+        let acceptor = acceptor.build();
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut response) = accept_http2(&mut connection).await?;
+            assert_eq!(request.method(), http::Method::POST);
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
+            let mut body = request.into_body();
+            let mut received = Vec::new();
+            while let Some(chunk) = poll_fn(|context| {
+                if let std::task::Poll::Ready(item) = body.poll_data(context) {
+                    return std::task::Poll::Ready(item.transpose());
+                }
+                // The connection must run for the body to arrive.
+                match connection.poll_closed(context) {
+                    std::task::Poll::Ready(result) => std::task::Poll::Ready(result.map(|()| None)),
+                    std::task::Poll::Pending => std::task::Poll::Pending,
+                }
+            })
+            .await?
+            {
+                received.extend_from_slice(&chunk);
+            }
+            assert_eq!(received, b"one-shot");
+            response.send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            drop(response);
+            drive_http2_until_client_done(&mut connection, wait_for_client).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let response = alps_client(&identity)?
+            .request(
+                HttpProtocol::Http2,
+                http::Method::POST,
+                &format!("{origin}/"),
+            )?
+            .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        client_done
+            .send(())
+            .map_err(|_| "HTTP/2 server stopped before client completion")?;
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+/// A BoringSSL QUIC server whose ALPS names `Sec-CH-UA-Platform-Version` in
+/// ACCEPT_CH sees one request on the connection, carrying that hint: the
+/// request restarted before anything of it was written.
+#[tokio::test]
+async fn http3_alps_accept_ch_restarts_the_request_with_the_missing_hint() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        // The ALPS entry names the origin, whose port is known only once the
+        // endpoint is bound.
+        let alps_origin = Arc::new(OnceLock::new());
+        let endpoint = quic_server(
+            ::quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::new(
+                http3_alps_context(&identity, Arc::clone(&alps_origin))?,
+            ))),
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let address = endpoint.local_addr()?;
+        let origin = format!("https://{address}");
+        alps_origin
+            .set(origin.clone())
+            .map_err(|_| "ALPS origin set twice")?;
+        let (client_done, wait_for_client) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, mut connection) = accept_request(&endpoint).await?;
+            assert_eq!(
+                request.headers().get("sec-ch-ua"),
+                Some(&"baseline".parse()?)
+            );
+            assert!(!request.headers().contains_key("sec-ch-ua-arch"));
+            assert_eq!(
+                request.headers().get("sec-ch-ua-platform-version"),
+                Some(&"\"15.5.0\"".parse()?)
+            );
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.finish().await?;
+            drop(stream);
+            tokio::select! {
+                request = connection.accept() => match request {
+                    Ok(Some(_)) => return Err("client sent a second HTTP/3 request".into()),
+                    Ok(None) => return Err("HTTP/3 client closed before completion".into()),
+                    Err(error) => return Err(error.into()),
+                },
+                result = wait_for_client => {
+                    result.map_err(|_| "client stopped before HTTP/3 response completion")?;
+                }
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        });
+
+        let mut tls = h3_support::client_tls_settings();
+        tls.alps = Some(AlpsSettings {
+            protocol: Box::from(&b"h3"[..]),
+            settings: Box::default(),
+            use_new_codepoint: true,
+        });
+        let profile = ClientProfile::new(tls_settings())
+            .with_http3(Http3ClientSettings::new(
+                tls,
+                chromium::v154_quic(),
+                chromium::v154_http3(),
+                chromium::v154_http3_request(),
+            ))
+            .with_client_hints(client_hint_settings());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let response = client
+            .get(HttpProtocol::Http3, &format!("{origin}/"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        server.await??;
+        Ok(())
+    })
+    .await
+}
+
+/// A TLS 1.3 context for `h3` whose every connection sends an HTTP/3
+/// ACCEPT_CH frame through ALPS for `origin`, once it is set.
+fn http3_alps_context(
+    identity: &TestIdentity,
+    origin: Arc<OnceLock<String>>,
+) -> TestResult<btls::ssl::SslContext> {
+    let mut acceptor = identity.acceptor_builder(b"\x02h3")?;
+    acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+    acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+    acceptor.set_select_certificate_callback(move |mut hello| {
+        let Some(origin) = origin.get() else {
+            return Err(btls::ssl::SelectCertError::ERROR);
+        };
+        let settings = http3_accept_ch_alps(origin, "Sec-CH-UA-Platform-Version");
+        let ssl = hello.ssl_mut();
+        ssl.add_application_settings_with_payload(b"h3", &settings)
+            .map_err(|_| btls::ssl::SelectCertError::ERROR)?;
+        ssl.set_alps_use_new_codepoint(true);
+        Ok(())
+    });
+    Ok(acceptor.build().into_context())
+}
+
+/// Encodes an HTTP/3 ACCEPT_CH frame (type 0x89) with one entry.
+fn http3_accept_ch_alps(origin: &str, value: &str) -> Vec<u8> {
+    let mut entry = Vec::new();
+    push_varint(&mut entry, origin.len());
+    entry.extend_from_slice(origin.as_bytes());
+    push_varint(&mut entry, value.len());
+    entry.extend_from_slice(value.as_bytes());
+    let mut frame = Vec::new();
+    push_varint(&mut frame, 0x89);
+    push_varint(&mut frame, entry.len());
+    frame.extend(entry);
+    frame
+}
+
+/// Appends a QUIC variable-length integer of at most two bytes.
+fn push_varint(buffer: &mut Vec<u8>, value: usize) {
+    match (u8::try_from(value), u16::try_from(value)) {
+        (Ok(byte), _) if byte < 0x40 => buffer.push(byte),
+        (_, Ok(two)) if two < 0x4000 => buffer.extend((0x4000 | two).to_be_bytes()),
+        _ => panic!("test ALPS value exceeds a two-byte varint"),
+    }
 }
 
 #[tokio::test]

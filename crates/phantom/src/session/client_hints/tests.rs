@@ -5,7 +5,8 @@ use phantom_net::request::RequestHeader;
 use phantom_profile::{ClientHint, ClientHintDelivery, ClientHintSettings};
 
 use super::{
-    ClientHintContext, ClientHintStore, OriginKey, parse_token_list, prepare_default_fields,
+    ClientHintContext, ClientHintStore, OriginKey, RestartHints, parse_token_list,
+    prepare_default_fields,
 };
 use crate::{RequestError, authority::Endpoint};
 
@@ -113,7 +114,7 @@ fn http_and_https_origins_on_one_host_and_port_are_distinct() {
     let http = ClientHintContext::new(&endpoint, "http://127.0.0.1:8443", &settings, Some(&store));
     let names = |context: ClientHintContext<'_>| -> Vec<String> {
         context
-            .prepare(Vec::new(), None)
+            .prepare(Vec::new())
             .unwrap_or_default()
             .iter()
             .map(|field| field.name().to_owned())
@@ -186,7 +187,7 @@ fn unknown_only_replacement_clears_previous_preferences() {
 }
 
 #[test]
-fn connection_preferences_augment_session_state_without_persisting() -> Result<(), RequestError> {
+fn connection_accept_ch_naming_a_missing_hint_asks_for_a_restart() -> Result<(), RequestError> {
     let store = ClientHintStore::new(NonZeroUsize::MIN);
     let endpoint = endpoint("example.test");
     let settings = settings();
@@ -197,50 +198,90 @@ fn connection_preferences_augment_session_state_without_persisting() -> Result<(
     let context =
         ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
 
-    let prepared = context.prepare(
-        vec![RequestHeader::new("Sec-CH-UA-Platform-Version", "caller")],
-        Some(b"Sec-CH-UA-Platform-Version, Sec-CH-Unknown"),
-    )?;
+    // The list carries the stored hint and nothing the connection asks for.
+    let built = context.prepare(Vec::new())?;
     assert_eq!(
-        prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
-        ["sec-ch-ua", "sec-ch-ua-arch", "Sec-CH-UA-Platform-Version"]
-    );
-    assert_eq!(
-        value(&prepared, "sec-ch-ua-platform-version"),
-        Some(b"caller".as_slice())
-    );
-
-    let without_connection = context.prepare(Vec::new(), None)?;
-    assert_eq!(
-        without_connection
-            .iter()
-            .map(RequestHeader::name)
-            .collect::<Vec<_>>(),
+        built.iter().map(RequestHeader::name).collect::<Vec<_>>(),
         ["sec-ch-ua", "sec-ch-ua-arch"]
+    );
+    // A stored hint, a default hint, and an unknown token ask for nothing.
+    assert_eq!(
+        context.connection_restart(&built, Some(b"Sec-CH-UA-Arch, Sec-CH-UA, Sec-CH-Unknown")),
+        None
+    );
+    // A requested hint the list lacks restarts the request.
+    let missing =
+        context.connection_restart(&built, Some(b"Sec-CH-UA-Platform-Version, Sec-CH-Unknown"));
+    assert_eq!(missing.as_deref(), Some(&[2][..]));
+
+    // The restarted list carries it, and the connection asks for nothing more.
+    let mut restart = RestartHints::default();
+    restart.add(&missing.unwrap_or_default());
+    let restarted = context.with_restart_hints(&restart);
+    let rebuilt = restarted.prepare(Vec::new())?;
+    assert_eq!(
+        rebuilt.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+        ["sec-ch-ua", "sec-ch-ua-arch", "sec-ch-ua-platform-version"]
+    );
+    assert_eq!(
+        restarted.connection_restart(&rebuilt, Some(b"Sec-CH-UA-Platform-Version")),
+        None
+    );
+    // The restart taught the store nothing.
+    assert_eq!(store.prepare(&endpoint, &settings, Vec::new()).len(), 2);
+    Ok(())
+}
+
+#[test]
+fn caller_supplied_hint_satisfies_the_connection() -> Result<(), RequestError> {
+    let endpoint = endpoint("example.test");
+    let settings = settings();
+    let context = ClientHintContext::new(&endpoint, "https://example.test", &settings, None);
+    let built = context.prepare(vec![RequestHeader::new("Sec-CH-UA-Arch", "caller")])?;
+    assert_eq!(
+        context.connection_restart(&built, Some(b"Sec-CH-UA-Arch")),
+        None
     );
     Ok(())
 }
 
 #[test]
-fn empty_or_malformed_connection_value_does_not_clear_session_state() -> Result<(), RequestError> {
-    let store = ClientHintStore::new(NonZeroUsize::MIN);
+fn hint_already_restarted_for_is_not_asked_again() -> Result<(), RequestError> {
     let endpoint = endpoint("example.test");
     let settings = settings();
-    let sent = prepare_default_fields(&settings, Vec::new());
-    let mut learned = HeaderMap::new();
-    learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
-    store.learn_and_should_retry(&endpoint, true, &settings, &learned, &sent);
-    let context =
-        ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
+    let mut restart = RestartHints::default();
+    restart.add(&[1]);
+    let context = ClientHintContext::new(&endpoint, "https://example.test", &settings, None)
+        .with_restart_hints(&restart);
+    // Even a list that lost the hint asks for no second restart for it.
+    let sent = [RequestHeader::new("sec-ch-ua", "baseline")];
+    assert_eq!(
+        context.connection_restart(&sent, Some(b"Sec-CH-UA-Arch")),
+        None
+    );
+    Ok(())
+}
 
+#[test]
+fn empty_absent_or_malformed_connection_value_asks_for_nothing() -> Result<(), RequestError> {
+    let endpoint = endpoint("example.test");
+    let settings = settings();
+    let context = ClientHintContext::new(&endpoint, "https://example.test", &settings, None);
+    let built = context.prepare(Vec::new())?;
+
+    assert_eq!(context.connection_restart(&built, None), None);
     for value in [&b""[..], &b"\xff"[..], &b"\"not-a-token\""[..]] {
-        let prepared = context.prepare(Vec::new(), Some(value))?;
-        assert_eq!(
-            prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
-            ["sec-ch-ua", "sec-ch-ua-arch"]
-        );
+        assert_eq!(context.connection_restart(&built, Some(value)), None);
     }
     Ok(())
+}
+
+#[test]
+fn restart_hints_accumulate_in_ascending_order() {
+    let mut restart = RestartHints::default();
+    restart.add(&[2]);
+    restart.add(&[1, 2]);
+    assert_eq!(restart.indices, [1, 2]);
 }
 
 mod template_slots {
@@ -367,20 +408,25 @@ mod template_slots {
         let fields = expand(&fetch.http2_fields, &[], Some(&hints), true);
 
         // Default hints alone are the captured fetch shape.
-        assert_eq!(
-            kind(context(&prepared_fetch).prepare(fields.clone(), None)),
-            None
-        );
+        assert_eq!(kind(context(&prepared_fetch).prepare(fields.clone())), None);
 
-        // A hint requested through ALPS ACCEPT_CH, or supplied by the caller.
+        // A hint a connection's ALPS ACCEPT_CH restarted the request for, or
+        // supplied by the caller.
+        // `sec-ch-ua-arch` is index 3 of the Chromium hints.
+        let mut restart = super::super::RestartHints::default();
+        restart.add(&[3]);
         assert_eq!(
-            kind(context(&prepared_fetch).prepare(fields.clone(), Some(b"Sec-CH-UA-Arch"))),
+            kind(
+                context(&prepared_fetch)
+                    .with_restart_hints(&restart)
+                    .prepare(fields.clone())
+            ),
             Some(RequestErrorKind::RequestTemplate)
         );
         let caller = [RequestHeader::new("sec-ch-ua-arch", "\"x86\"")];
         let with_caller = expand(&fetch.http2_fields, &caller, Some(&hints), true);
         assert_eq!(
-            kind(context(&prepared_fetch).prepare(with_caller, None)),
+            kind(context(&prepared_fetch).prepare(with_caller)),
             Some(RequestErrorKind::RequestTemplate)
         );
 
@@ -389,7 +435,7 @@ mod template_slots {
         learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
         store.learn_and_should_retry(&endpoint, true, &hints, &learned, &[]);
         assert_eq!(
-            kind(context(&prepared_fetch).prepare(fields, None)),
+            kind(context(&prepared_fetch).prepare(fields)),
             Some(RequestErrorKind::RequestTemplate)
         );
 
@@ -397,7 +443,9 @@ mod template_slots {
         let navigation_fields = expand(&navigation.http2_fields, &[], Some(&hints), true);
         assert_eq!(
             kind(
-                context(&prepared_navigation).prepare(navigation_fields, Some(b"Sec-CH-UA-Model"))
+                context(&prepared_navigation)
+                    .with_restart_hints(&restart)
+                    .prepare(navigation_fields)
             ),
             None
         );
@@ -408,7 +456,11 @@ mod template_slots {
         slotless.requested_client_hint_placement = true;
         let slotless_fields = expand(&slotless.http2_fields, &[], None, true);
         assert_eq!(
-            kind(context(&prepare(&slotless)).prepare(slotless_fields, Some(b"Sec-CH-UA-Arch"))),
+            kind(
+                context(&prepare(&slotless))
+                    .with_restart_hints(&restart)
+                    .prepare(slotless_fields)
+            ),
             Some(RequestErrorKind::RequestTemplate)
         );
     }

@@ -12,14 +12,15 @@ use crate::support::tls::{TestIdentity, TestResult};
 
 pub(crate) fn client_settings() -> Http3ClientSettings {
     Http3ClientSettings::new(
-        tls_settings(),
+        client_tls_settings(),
         chromium::v154_quic(),
         chromium::v154_http3(),
         chromium::v154_http3_request(),
     )
 }
 
-fn tls_settings() -> TlsSettings {
+/// The TLS settings of [`client_settings`].
+pub(crate) fn client_tls_settings() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls13,
         max_version: TlsVersion::Tls13,

@@ -32,7 +32,9 @@ use tokio::{
 use tokio_btls::SslStream;
 use tracing::Span;
 
-use super::super::{EarlyDataConnection, Http1Or2Pool, NegotiatedLease, validate_request};
+use super::super::{
+    Dispatched, EarlyDataConnection, Http1Or2Pool, NegotiatedLease, validate_request,
+};
 use super::{TestResult, bound};
 use crate::{
     RequestTimeouts, RetryPolicy, Route, authority::Endpoint, retry::ConnectionSetupRetryState,
@@ -151,7 +153,7 @@ async fn send(
         None,
         None,
     )?;
-    let (response, _, _) = pool
+    let Dispatched::Sent((response, _, _)) = pool
         .send_request(
             connector,
             None,
@@ -170,7 +172,10 @@ async fn send(
             budget,
             retries,
         )
-        .await?;
+        .await?
+    else {
+        return Err("a request without client hints restarted".into());
+    };
     assert_eq!(response.status(), StatusCode::OK);
     Ok(())
 }

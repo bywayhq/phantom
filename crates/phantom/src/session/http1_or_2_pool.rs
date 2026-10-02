@@ -27,7 +27,7 @@ use tracing::{Span, debug};
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
-    client_hints::ClientHintContext,
+    client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
     http2_pool::{is_graceful_goaway, send_on},
@@ -136,7 +136,10 @@ impl Http1Or2Pool {
     /// returned for the same method, target, trailers, and body.
     ///
     /// A graceful `GOAWAY` retry and a restart after rejected early data send
-    /// these fields again; neither builds nor checks them anew.
+    /// these fields again; neither builds nor checks them anew. On an H2
+    /// connection whose ALPS `ACCEPT_CH` names a hint the fields lack, nothing
+    /// is sent and [`Dispatched::Restart`] returns the body for a request
+    /// built again with the hint.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn send_request(
         &self,
@@ -156,7 +159,7 @@ impl Http1Or2Pool {
         leased: Option<NegotiatedLease>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<NegotiatedResponse, RequestError> {
+    ) -> Result<Dispatched<NegotiatedResponse>, RequestError> {
         // A raced connection was admitted by this pool for this endpoint.
         let mut leased = leased;
         let entry = match &leased {
@@ -272,7 +275,12 @@ impl Http1Or2Pool {
                     )
                     .await
                 {
-                    Ok(response) => return Ok(response),
+                    Ok(Dispatched::Sent(response)) => return Ok(Dispatched::Sent(response)),
+                    // A replay-safe request has no body; any it had stays here.
+                    Ok(Dispatched::Restart(mut restart)) => {
+                        restart.body = restart.body.or(body);
+                        return Ok(Dispatched::Restart(restart));
+                    }
                     Err(_) if early_data.alpn_changed() => {
                         restart_connector =
                             Some(restart_without_early_data(&entry, connector, endpoint));
@@ -330,7 +338,11 @@ impl Http1Or2Pool {
                 )
                 .await
             {
-                Ok(response) => return Ok(response),
+                Ok(Dispatched::Sent(response)) => return Ok(Dispatched::Sent(response)),
+                Ok(Dispatched::Restart(mut restart)) => {
+                    restart.body = restart.body.or(body);
+                    return Ok(Dispatched::Restart(restart));
+                }
                 Err(DispatchFailure::Request(error)) => return Err(error),
                 Err(DispatchFailure::GracefulGoaway(_)) => {
                     // The protocol admission was released with the refused
@@ -896,7 +908,7 @@ impl PoolEntry {
         body: Option<RequestBody>,
         retire_unprocessed: bool,
         timeout_budget: TimeoutBudget,
-    ) -> Result<NegotiatedResponse, DispatchFailure> {
+    ) -> Result<Dispatched<NegotiatedResponse>, DispatchFailure> {
         let NegotiatedRequest {
             method,
             authority,
@@ -939,7 +951,7 @@ impl PoolEntry {
                 match result {
                     Ok(Ok(response)) => {
                         let (parts, body) = response.into_parts();
-                        Ok((
+                        Ok(Dispatched::Sent((
                             Response::from_parts(
                                 parts,
                                 ResponseBody::http1_with_guard(
@@ -952,7 +964,7 @@ impl PoolEntry {
                             ),
                             HttpProtocol::Http1,
                             http1_sent_headers,
-                        ))
+                        )))
                     }
                     Ok(Err(error)) => {
                         // The lease drops before the permit, so the next
@@ -975,12 +987,18 @@ impl PoolEntry {
                     token,
                     stream,
                 } = lease;
-                let sent_headers = prepare_headers(
-                    client_hints,
-                    http2_headers,
-                    client_hints
-                        .and_then(|context| connection.accept_ch_for_origin(context.origin())),
-                )?;
+                // Nothing is written on a connection whose ACCEPT_CH asks for
+                // a hint the request lacks; the request restarts with it.
+                if let Some(hints) = client_hints.and_then(|context| {
+                    context.connection_restart(
+                        &http2_headers,
+                        connection.accept_ch_for_origin(context.origin()),
+                    )
+                }) {
+                    drop((stream, permit));
+                    return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
+                }
+                let sent_headers = http2_headers;
                 let result = timeout_budget
                     .run(
                         TimeoutPhase::ResponseHead,
@@ -1005,7 +1023,7 @@ impl PoolEntry {
                 match result {
                     Ok(Ok(response)) => {
                         let (parts, body) = response.into_parts();
-                        Ok((
+                        Ok(Dispatched::Sent((
                             Response::from_parts(
                                 parts,
                                 // The stream count drops first, so the
@@ -1014,7 +1032,7 @@ impl PoolEntry {
                             ),
                             HttpProtocol::Http2,
                             sent_headers,
-                        ))
+                        )))
                     }
                     Ok(Err(error)) => {
                         drop(stream);
@@ -1632,18 +1650,9 @@ pub(crate) fn validate_request(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
 ) -> Result<NegotiatedFields, RequestError> {
-    let http1_sent_headers = prepare_headers(client_hints, http1_headers, None)?;
-    // Without client hints the H2 fields are sent as they are, so they are
-    // checked in place; with hints, the hints known before the connection is
-    // chosen are placed in a copy.
-    let http2_prepared;
-    let http2_validation_headers = match client_hints {
-        Some(context) => {
-            http2_prepared = context.prepare(http2_headers.clone(), None)?;
-            &http2_prepared[..]
-        }
-        None => &http2_headers[..],
-    };
+    // Both lists carry the hints known now, before a connection is chosen.
+    let http1_sent_headers = prepare_headers(client_hints, http1_headers)?;
+    let http2_headers = prepare_headers(client_hints, http2_headers)?;
     let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
     http1_wire_headers.push(RequestHeader::new(
         "Host",
@@ -1662,7 +1671,7 @@ pub(crate) fn validate_request(
         method,
         endpoint.authority().as_str(),
         target,
-        http2_validation_headers,
+        &http2_headers,
         body,
         trailers,
     )
@@ -1779,7 +1788,7 @@ struct NegotiatedRequest<'a> {
 pub(crate) struct NegotiatedFields {
     /// `Host`, then the H1 fields with client hints placed.
     http1_wire_headers: Vec<RequestHeader>,
-    /// The H2 fields before client hints are placed for the connection.
+    /// The H2 fields with client hints placed.
     http2_headers: Vec<RequestHeader>,
 }
 
@@ -1889,10 +1898,9 @@ struct Http1RequestGuard {
 fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
     headers: Vec<RequestHeader>,
-    connection_accept_ch: Option<&[u8]>,
 ) -> Result<Vec<RequestHeader>, RequestError> {
     match client_hints {
-        Some(context) => context.prepare(headers, connection_accept_ch),
+        Some(context) => context.prepare(headers),
         None => Ok(headers),
     }
 }

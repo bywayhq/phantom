@@ -245,10 +245,10 @@ dropped unread, so an unbounded body cannot stall the retry.
 A negotiated request builds its HTTP/1.1 and HTTP/2 field lists once per
 redirect hop and checks them before any I/O. A request that races an Alt-Svc
 alternative builds and checks its HTTP/3 list at the same time. Each list
-takes the template, your fields, and the cookie jar's value. The HTTP/1.1
-list also carries the client hints known at that moment. The HTTP/2 and
-HTTP/3 lists are checked with those hints but carry none: each dispatch
-places hints from the client's store and the connection's ALPS `ACCEPT_CH`.
+takes the template, your fields, the cookie jar's value, and the client
+hints known at that moment: the profile's defaults and those the origin
+requested through `Accept-CH`. A hint that another response teaches later
+reaches the next request, not this one.
 
 The race's winner sends its lists as they were built. So does every attempt
 of the request that repeats one no response answered: a graceful `GOAWAY`
@@ -272,6 +272,29 @@ stored cookies or requested client hints, so they build and check the lists
 again. Each redirect hop builds its own for its URL, method, body, and
 fields. An exact request builds its one list again for a reused-connection
 replay and an unprocessed-request replay as well.
+
+A connection's ALPS `ACCEPT_CH` never adds a field to a list already built.
+When the connection's entry for the origin names a hint the list lacks, the
+request stops before any of it is written, the connection stays pooled, and
+the request starts again with that hint: it builds and checks its lists
+anew, reading the cookie jar and the stored hints again, and takes a
+connection from the pool again, usually the same one. The entry teaches the
+origin nothing. Chromium behaves the same way.
+`AcceptCHFrameInterceptor::OnConnected` runs once the request has a stream
+and before the request is written
+(`services/network/accept_ch_frame_interceptor.cc` lines 90-146, called from
+`URLLoader::ProcessAcceptCHFrameOnConnected`,
+`services/network/url_loader.cc` lines 920-942 at 154.0.8037.58). When the
+entry names a hint the request lacks, `NavigationURLLoaderImpl::OnAcceptCHFrameReceived`
+aborts the loader, merges the hints into the request's fields, and starts
+the navigation again (`content/browser/loader/navigation_url_loader_impl.cc`
+lines 1757-1923), computing them with the entry's hints added only for that
+call (lines 1838-1846). A restart writes nothing, so any method and any
+body may restart, a streaming body included. The hints a request restarted
+for stay for the rest of its hop, so it restarts at most once per hint the
+profile sends on request; Chromium's own bound, 20 restarts per navigation
+(`accept_ch_restart_limit_ = kMaxRedirects`, line 1873), is out of reach of
+every named recipe.
 
 ## Safety boundary
 

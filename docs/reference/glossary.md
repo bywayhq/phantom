@@ -15,7 +15,7 @@ A response field in which a
 [client hints](#client-hints) on later requests. Phantom keeps bounded
 `Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make the
 same request for a whole connection with an `ACCEPT_CH` setting sent through
-[ALPS](#alps). See [Client hints](../guides/request-templates.md#send-client-hints).
+[ALPS](#alps); a request that lacks a hint it names restarts with it. See [Client hints](../guides/request-templates.md#send-client-hints).
 
 ## ALPN
 

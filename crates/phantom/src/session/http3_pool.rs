@@ -21,7 +21,7 @@ use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
-    client_hints::ClientHintContext,
+    client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http3_connections::{Candidate, Choice, Http3Spread},
     stream_count::{OpenStream, StreamCount},
 };
@@ -141,7 +141,7 @@ impl Http3Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+    ) -> Result<Dispatched<Http3Response>, RequestError> {
         let leased = self
             .admit(endpoint, route, timeout_budget)
             .await?
@@ -211,7 +211,7 @@ impl Http3Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+    ) -> Result<Dispatched<Http3Response>, RequestError> {
         self.send_on_lease(
             leased,
             connector,
@@ -232,12 +232,13 @@ impl Http3Pool {
     /// rule of [`sends_before_handshake`].
     ///
     /// A replay-safe request on a connection whose early data is unanswered
-    /// goes out as early data, with the client hints known before the
-    /// handshake. If the server rejects the early data, it processed none of
-    /// it (RFC 9001, section 4.6.2); the connection starts HTTP/3 again after
-    /// the handshake, and the request is sent again on it, as Chromium does.
-    /// Any other request waits for the answer, keeps its body until then, and
-    /// uses the client hints the completed handshake delivered.
+    /// goes out as early data; the connection knows no ALPS `ACCEPT_CH` yet.
+    /// If the server rejects the early data, it processed none of it (RFC
+    /// 9001, section 4.6.2); the connection starts HTTP/3 again after the
+    /// handshake, and the request is sent again on it, as Chromium does,
+    /// unless the handshake's `ACCEPT_CH` restarts it. Any other request
+    /// waits for the answer, keeps its body until then, and restarts when the
+    /// completed handshake's `ACCEPT_CH` asks for a hint it lacks.
     #[allow(clippy::too_many_arguments)]
     async fn send_on_lease(
         &self,
@@ -252,7 +253,7 @@ impl Http3Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+    ) -> Result<Dispatched<Http3Response>, RequestError> {
         let mut leased = leased;
         if sends_before_handshake(
             is_replay_safe(&method, body.as_ref(), &trailers),
@@ -283,6 +284,11 @@ impl Http3Pool {
                         "HTTP/3 early data rejected; sending again on the connection"
                     );
                     leased = Http3Lease::readmit(entry, lease, timeout_budget).await?;
+                }
+                // A replay-safe request has no body; any it had stays here.
+                Ok(Dispatched::Restart(mut restart)) => {
+                    restart.body = restart.body.or(body);
+                    return Ok(Dispatched::Restart(restart));
                 }
                 result => return result,
             }
@@ -1083,16 +1089,17 @@ const fn sends_before_handshake(
     replay_safe && early_data_pending && !requests_wait_for_peer_settings
 }
 
-/// One request's HTTP/3 field list, which [`validate_request`] checked.
-///
-/// Automatic client hints are not placed yet: each dispatch places them for
-/// the connection it uses.
+/// One request's HTTP/3 field list, which [`validate_request`] checked, with
+/// its client hints.
 #[derive(Clone)]
 pub(crate) struct Http3Fields(Vec<RequestHeader>);
 
+/// A response and the fields its request carried.
+pub(crate) type Http3Response = (http::Response<ResponseBody>, Vec<RequestHeader>);
+
 /// Checks one request's H3 and route representation before any I/O and
-/// returns its field list for [`Http3Pool::send_request`] or
-/// [`Http3Pool::send_request_on_lease`].
+/// returns its field list, with its client hints placed, for
+/// [`Http3Pool::send_request`] or [`Http3Pool::send_request_on_lease`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn validate_request(
     connector: &Http3Connector,
@@ -1107,15 +1114,12 @@ pub(crate) fn validate_request(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
 ) -> Result<Http3Fields, RequestError> {
+    let headers = match client_hints {
+        Some(context) => context.prepare(headers)?,
+        None => headers,
+    };
     validate_wire(
-        connector,
-        method,
-        authority,
-        target,
-        &headers,
-        trailers,
-        client_hints,
-        body,
+        connector, method, authority, target, &headers, trailers, body,
     )?;
     if let Route::ConnectUdp(proxy) = route {
         let path = connect_udp_path(proxy, transport)?;
@@ -1149,19 +1153,14 @@ fn validate_wire(
     target: &OriginForm,
     headers: &[RequestHeader],
     trailers: &[RequestHeader],
-    client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
 ) -> Result<(), RequestError> {
-    let prepared_validation_headers = client_hints
-        .map(|context| context.prepare(headers.to_vec(), None))
-        .transpose()?;
-    let validation_headers = prepared_validation_headers.as_deref().unwrap_or(headers);
     connector
         .validate_request_body_source_with_trailers(
             method.clone(),
             authority,
             target,
-            validation_headers,
+            headers,
             body,
             trailers,
         )
@@ -1181,20 +1180,26 @@ async fn dispatch(
     body: Option<RequestBody>,
     timeout_budget: TimeoutBudget,
     retries: &ConnectionSetupRetryState,
-) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
+) -> Result<Dispatched<Http3Response>, RequestError> {
     let Http3Lease {
         entry,
         lease,
         stream,
         permit,
     } = leased;
-    let sent_headers = match client_hints {
-        Some(context) => context.prepare(
-            headers,
+    // Nothing is written on a connection whose ACCEPT_CH asks for a hint the
+    // request lacks; the request restarts with it. A connection whose early
+    // data is unanswered knows no ACCEPT_CH yet.
+    if let Some(hints) = client_hints.and_then(|context| {
+        context.connection_restart(
+            &headers,
             lease.connection.accept_ch_for_origin(context.origin()),
-        )?,
-        None => headers,
-    };
+        )
+    }) {
+        drop((stream, permit));
+        return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
+    }
+    let sent_headers = headers;
     let result = timeout_budget
         .run(
             TimeoutPhase::ResponseHead,
@@ -1219,7 +1224,7 @@ async fn dispatch(
     match result {
         Ok(Ok(response)) => {
             let (parts, body) = response.into_parts();
-            Ok((
+            Ok(Dispatched::Sent((
                 // The stream count drops first, so the request the permit
                 // admits next sees this stream ended.
                 http::Response::from_parts(
@@ -1227,7 +1232,7 @@ async fn dispatch(
                     ResponseBody::http3_with_guard(body, (stream, permit)),
                 ),
                 sent_headers,
-            ))
+            )))
         }
         Ok(Err(error)) => {
             drop(stream);

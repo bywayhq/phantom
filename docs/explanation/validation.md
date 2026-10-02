@@ -42,6 +42,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
+| [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, plus loopback tests against BoringSSL H2 and QUIC servers | No capture of a Chrome restart |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 157 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures | No subprotocols, H3, proxies, macOS, or Safari |
@@ -2406,6 +2407,67 @@ is a real reduction, not a restatement.
 These sections cover individual client features. Most rest on loopback tests
 of Phantom's own contract. Where a section also has browser captures, it says
 so and states what they cover.
+
+### ALPS `ACCEPT_CH` restart evidence
+
+What is claimed: the Chromium-family recipes fix a request's client hints
+when its field lists are built, on HTTP/1.1, HTTP/2, and HTTP/3 alike. On
+HTTP/2 and HTTP/3, when the connection's ALPS `ACCEPT_CH` entry for the
+origin names a hint the request lacks, the request is not written; it starts
+again with the hint, as Chromium 154 restarts a navigation.
+
+Evidence: Chromium source at tag `154.0.8037.58`; no capture shows a
+restart.
+
+| Step | Chromium source |
+| --- | --- |
+| Hints are request fields, set before a connection is chosen | The check compares the entry with the request's own fields, `url_request_->extra_request_headers()` (`services/network/url_loader.cc` lines 939-941) |
+| The check runs once the request has a stream, before it is written | `URLLoader::ProcessAcceptCHFrameOnConnected` passes the connection's entry and the request's fields to `AcceptCHFrameInterceptor::OnConnected` (`services/network/url_loader.cc` lines 920-942; `services/network/accept_ch_frame_interceptor.cc` lines 90-146) |
+| Only hints the request lacks count | `ComputeAcceptCHFrameHints` drops each hint already among the request's fields (`accept_ch_frame_interceptor.cc` lines 26-52) |
+| The restart carries the hints and nothing is stored | `OnAcceptCHFrameReceived` computes the fields with the entry's hints added and cleared again, merges them into the request, and restarts it (`navigation_url_loader_impl.cc` lines 1838-1846, 1904, 1922) |
+| Restarts are bounded | `accept_ch_restart_limit_ = kMaxRedirects`, 20, per navigation (`navigation_url_loader_impl.h` line 315, `navigation_url_loader_impl.cc` line 1873) |
+
+Differences from Chromium:
+
+- Chromium attaches the observer only to navigations
+  (`content/browser/loader/navigation_url_loader_impl.cc` lines 2161-2181;
+  `services/network/url_loader_factory.cc` lines 365-370); a subresource
+  request never restarts. Phantom's client-hint model treats every request as a
+  top-level one, so any request with client hints may restart.
+- Phantom bounds restarts by the profile's hints: each restart adds at least
+  one hint the request keeps for the rest of its hop, so a request restarts
+  at most once per hint the profile sends on request, 8 with
+  `chromium::v154_windows_client_hints`. Chromium's limit of 20 is never
+  reached.
+- A restarted Chromium navigation runs its whole loader again. Phantom
+  restarts within the attempt it was in: the same exact protocol, or the
+  same negotiated or Alt-Svc path, and the same route.
+
+Tests:
+
+| Test | What it proves |
+| --- | --- |
+| `client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe` | An H2 server whose ALPS names two hints sees one request, carrying both and the caller's value |
+| `client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once` | A POST with a one-shot streaming body restarts, and the server receives the hint and the body once |
+| `client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for` | After a graceful `GOAWAY`, the replacement connection's entry restarts the request again, which keeps the first connection's hint |
+| `client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request` | A hint an `Accept-CH` response teaches while a built request waits for admission is absent from that request and present on the next |
+| `client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint` | A BoringSSL QUIC server whose ALPS names a hint sees one H3 request, carrying it |
+| `field_lists::tests::an_accept_ch_restart_builds_the_lists_again_with_the_hint` | A negotiated restart builds and checks its HTTP/1.1 and HTTP/2 lists a second time, and the server sees one request |
+| `session::client_hints::tests::*` | Which entries ask for a restart: a missing requested hint does; a present, default, caller-supplied, unknown, already restarted, empty, or malformed one does not |
+
+The first five are in `crates/phantom/tests/requests/client_hints.rs`, the
+others in `crates/phantom/src`. Byte-for-byte replays of the captured
+requests, which carry no ALPS `ACCEPT_CH`, are unchanged.
+
+How to reproduce: read the cited files at the tag above, and run the listed
+tests.
+
+Limits:
+
+- No capture of Chrome restarting a request exists, so which fields the
+  restarted navigation rebuilds rests on source.
+- The test servers send `ACCEPT_CH` only through ALPS; frames sent after the
+  handshake are not supported.
 
 ### SSE browser reconnect evidence
 

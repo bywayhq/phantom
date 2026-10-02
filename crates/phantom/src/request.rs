@@ -827,6 +827,15 @@ impl RequestBodySource {
         *self = Self::Absent;
     }
 
+    /// Takes back a streaming body that an attempt returned unpolled, so the
+    /// next attempt sends it. Owned bytes are copied for each attempt and
+    /// need nothing back.
+    pub(crate) fn restore(&mut self, body: Option<RequestBody>) {
+        if let (Self::Streaming(slot @ None), Some(body)) = (&mut *self, body) {
+            *slot = Some(body);
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn replayable_bytes(&self) -> Option<&Bytes> {
         match self {

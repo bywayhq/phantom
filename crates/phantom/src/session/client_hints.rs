@@ -5,7 +5,7 @@ use std::{
 };
 
 use http::{HeaderMap, header::HeaderName};
-use phantom_net::request::RequestHeader;
+use phantom_net::request::{RequestBody, RequestHeader};
 use phantom_profile::{ClientHintDelivery, ClientHintSettings, request_template::ClientHintSlot};
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
@@ -15,6 +15,13 @@ use crate::{PreparedRequestTemplate, RequestError, authority::Endpoint};
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
 const CRITICAL_CH: HeaderName = HeaderName::from_static("critical-ch");
 
+/// The client hints of one request, fixed when its field lists are built.
+///
+/// Chromium sets a request's hints as request fields before it asks for a
+/// connection, so a hint that a response teaches in the meantime reaches the
+/// next request, not this one. A connection's ALPS `ACCEPT_CH` adds nothing
+/// to a list already built: it restarts the request instead (see
+/// [`Self::connection_restart`]).
 #[derive(Clone, Copy)]
 pub(crate) struct ClientHintContext<'a> {
     endpoint: &'a Endpoint,
@@ -22,6 +29,7 @@ pub(crate) struct ClientHintContext<'a> {
     settings: &'a ClientHintSettings,
     store: Option<&'a ClientHintStore>,
     template: Option<&'a PreparedRequestTemplate>,
+    restart: &'a [usize],
 }
 
 impl<'a> ClientHintContext<'a> {
@@ -37,12 +45,20 @@ impl<'a> ClientHintContext<'a> {
             settings,
             store,
             template: None,
+            restart: &[],
         }
     }
 
     /// Places automatic hints at the template's client-hint slots.
     pub(crate) fn with_template(mut self, template: Option<&'a PreparedRequestTemplate>) -> Self {
         self.template = template;
+        self
+    }
+
+    /// Adds the hints that connections' `ACCEPT_CH` restarted the request
+    /// for.
+    pub(crate) fn with_restart_hints(mut self, restart: &'a RestartHints) -> Self {
+        self.restart = &restart.indices;
         self
     }
 
@@ -54,7 +70,9 @@ impl<'a> ClientHintContext<'a> {
         self.origin.starts_with("https://")
     }
 
-    /// Adds the enabled client hints to `caller`.
+    /// Adds the enabled client hints to `caller`: the default hints, those
+    /// the origin requested through `Accept-CH` so far, and the restart
+    /// hints.
     ///
     /// # Errors
     ///
@@ -65,28 +83,14 @@ impl<'a> ClientHintContext<'a> {
     pub(crate) fn prepare(
         self,
         caller: Vec<RequestHeader>,
-        connection_accept_ch: Option<&[u8]>,
     ) -> Result<Vec<RequestHeader>, RequestError> {
         let stored = self.store.and_then(|store| {
             store.active_indices(&OriginKey::new(self.endpoint, self.is_https()))
         });
-        let connection = connection_accept_ch.and_then(|value| match std::str::from_utf8(value) {
-            Ok(value) => match parse_token_list(value) {
-                Ok(tokens) => Some(requested_indices(self.settings, &tokens)),
-                Err(()) => {
-                    debug!(outcome = "malformed", "ignored ALPS ACCEPT_CH value");
-                    None
-                }
-            },
-            Err(_) => {
-                debug!(outcome = "malformed", "ignored ALPS ACCEPT_CH value");
-                None
-            }
-        });
         let prepared = prepare_fields(
             self.settings,
             stored.as_deref(),
-            connection.as_deref(),
+            Some(self.restart),
             caller,
             self.template,
         );
@@ -99,6 +103,97 @@ impl<'a> ClientHintContext<'a> {
             return Err(RequestError::request_template_requested_hint());
         }
         Ok(prepared)
+    }
+
+    /// Returns the hints a connection's ALPS `ACCEPT_CH` asks for that `sent`
+    /// lacks, when the request must restart to carry them.
+    ///
+    /// Chromium checks a connection's `ACCEPT_CH` once the request has a
+    /// stream and before it writes the request. When the entry names a hint
+    /// the request lacks, the browser abandons that request unsent and starts
+    /// it again with the hint (`AcceptCHFrameInterceptor::OnConnected`,
+    /// `services/network/accept_ch_frame_interceptor.cc` lines 90-146, called
+    /// from `URLLoader::ProcessAcceptCHFrameOnConnected`,
+    /// `services/network/url_loader.cc` lines 920-942;
+    /// `NavigationURLLoaderImpl::OnAcceptCHFrameReceived`,
+    /// `content/browser/loader/navigation_url_loader_impl.cc` lines
+    /// 1757-1923 at tag `154.0.8037.58`). The entry teaches the origin
+    /// nothing: the browser computes the restarted request's hints with the
+    /// entry's hints added and clears them again (`:1838-1846`).
+    ///
+    /// An empty or malformed entry asks for nothing. A hint this request
+    /// already restarted for is not asked for again, so restarts end after at
+    /// most one per hint the profile sends on request.
+    pub(crate) fn connection_restart(
+        self,
+        sent: &[RequestHeader],
+        connection_accept_ch: Option<&[u8]>,
+    ) -> Option<Box<[usize]>> {
+        let value = connection_accept_ch.filter(|value| !value.is_empty())?;
+        let tokens = match std::str::from_utf8(value)
+            .map_err(|_| ())
+            .and_then(parse_token_list)
+        {
+            Ok(tokens) => tokens,
+            Err(()) => {
+                debug!(outcome = "malformed", "ignored ALPS ACCEPT_CH value");
+                return None;
+            }
+        };
+        let missing: Box<[usize]> = requested_indices(self.settings, &tokens)
+            .iter()
+            .copied()
+            .filter(|index| {
+                self.restart.binary_search(index).is_err()
+                    && !contains_field(sent, self.settings.hints()[*index].name())
+            })
+            .collect();
+        (!missing.is_empty()).then_some(missing)
+    }
+}
+
+/// The hints that connections' ALPS `ACCEPT_CH` restarted one request for.
+///
+/// They only accumulate: Chromium merges each restart's hints into the
+/// request's fields (`navigation_url_loader_impl.cc` line 1904 at tag
+/// `154.0.8037.58`), so a later restart keeps the earlier ones.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RestartHints {
+    /// Profile hint indices, ascending.
+    indices: Vec<usize>,
+}
+
+impl RestartHints {
+    pub(crate) fn add(&mut self, hints: &[usize]) {
+        self.indices.extend_from_slice(hints);
+        self.indices.sort_unstable();
+        self.indices.dedup();
+    }
+}
+
+/// A request that stopped before any of it was written, because its
+/// connection's ALPS `ACCEPT_CH` asks for hints the request lacks.
+pub(crate) struct AcceptChRestart {
+    /// Profile hint indices to add; see [`ClientHintContext::connection_restart`].
+    pub(crate) hints: Box<[usize]>,
+    /// The request body, not polled, for the restarted request.
+    pub(crate) body: Option<RequestBody>,
+}
+
+/// What a dispatch did with its request.
+pub(crate) enum Dispatched<T> {
+    /// The request was sent, with its outcome.
+    Sent(T),
+    /// The request must restart with more client hints; nothing was sent.
+    Restart(AcceptChRestart),
+}
+
+impl<T> Dispatched<T> {
+    pub(crate) fn map<U>(self, sent: impl FnOnce(T) -> U) -> Dispatched<U> {
+        match self {
+            Self::Sent(outcome) => Dispatched::Sent(sent(outcome)),
+            Self::Restart(restart) => Dispatched::Restart(restart),
+        }
     }
 }
 
@@ -224,14 +319,14 @@ pub(crate) fn prepare_default_fields(
 fn prepare_fields(
     settings: &ClientHintSettings,
     stored: Option<&[usize]>,
-    connection: Option<&[usize]>,
+    restart: Option<&[usize]>,
     caller: Vec<RequestHeader>,
     template: Option<&PreparedRequestTemplate>,
 ) -> Vec<RequestHeader> {
     let enabled = |index: usize| {
         settings.hints()[index].delivery() == ClientHintDelivery::Default
             || stored.is_some_and(|indices| indices.binary_search(&index).is_ok())
-            || connection.is_some_and(|indices| indices.binary_search(&index).is_ok())
+            || restart.is_some_and(|indices| indices.binary_search(&index).is_ok())
     };
     let slots = template.map_or(&[][..], PreparedRequestTemplate::client_hint_slots);
     if !slots.is_empty() {

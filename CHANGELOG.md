@@ -1179,6 +1179,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- HTTP/2 and HTTP/3 requests carry the client hints known when their fields
+  are built, as HTTP/1.1 requests already did, and as Chromium sets a
+  request's hints before it chooses a connection. A hint that a response
+  teaches while a request waits for a connection reaches the next request,
+  not that one. A connection's ALPS `ACCEPT_CH` no longer adds a field at
+  dispatch: when it names a hint the request lacks, the request stops before
+  anything of it is written and starts again with the hint, building its
+  fields again, as Chromium 154 restarts a navigation. Any method and body
+  may restart, a streaming body included, and a request restarts at most
+  once per hint the profile sends on request. The hint stays with the
+  request for its redirect hop, so a replacement connection after a
+  graceful `GOAWAY` sends it too
+  ([evidence](docs/explanation/validation.md#alps-accept_ch-restart-evidence)).
 - A request that races an Alt-Svc alternative against its origin builds and
   checks its HTTP/3, HTTP/1.1, and HTTP/2 field lists once, before the race,
   and the winner sends them without building them again. A negotiated

@@ -27,7 +27,7 @@ use super::{
     template::{ForwardedCredentials, Forwarding},
 };
 use crate::session::{
-    client_hints::ClientHintContext,
+    client_hints::{AcceptChRestart, ClientHintContext, Dispatched, RestartHints},
     http1_or_2_pool::{NegotiatedFields, NegotiatedLease},
     http1_pool::{ChallengedConnection, Http1ConnectionMode},
     http2_pool::Http2ConnectionMode,
@@ -120,6 +120,7 @@ async fn send_once_exact(
         request_span.record("proxy_attempts", 1_u64);
     }
     let client_hint_origin = client_hint_origin(client, request);
+    let mut restart_hints = RestartHints::default();
     let mut fresh_connection = false;
     // An H1 forwarding `407` that leaves its proxy connection open parks the
     // connection here for the credentialed replay.
@@ -152,7 +153,13 @@ async fn send_once_exact(
         };
         let prepared_headers =
             route_attempt_headers(client, request, protocol, &request_headers, forwarding);
-        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        let prepared = prepare_attempt(
+            client,
+            request,
+            client_hint_origin.as_deref(),
+            &restart_hints,
+            body,
+        )?;
         if challenged {
             request_span.record("proxy_authentication_retry", true);
             request_span.record("proxy_attempts", 2_u64);
@@ -187,7 +194,11 @@ async fn send_once_exact(
         )
         .await;
         let dispatched = match dispatched {
-            Ok(dispatched) => dispatched,
+            Ok(Dispatched::Sent(dispatched)) => dispatched,
+            Ok(Dispatched::Restart(restart)) => {
+                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                continue;
+            }
             Err(error) => {
                 // A proxy that closes the challenged connection before it
                 // answers the replay gets an idempotent replay once more on a
@@ -346,11 +357,18 @@ pub(super) async fn send_once_origin(
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
+    let mut restart_hints = RestartHints::default();
     let mut fresh_http1_connection = false;
     let keeps_fields = may_replay_unanswered(retries, body);
 
     loop {
-        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        let prepared = prepare_attempt(
+            client,
+            request,
+            client_hint_origin.as_deref(),
+            &restart_hints,
+            body,
+        )?;
         let attempt_fields = match fields.take() {
             Some(fields) => fields,
             None => field_lists::negotiated(
@@ -390,7 +408,12 @@ pub(super) async fn send_once_origin(
             )
             .await;
         let (response, protocol, sent_headers) = match sent {
-            Ok(sent) => sent,
+            Ok(Dispatched::Sent(sent)) => sent,
+            // The lists are built again with the connection's hints.
+            Ok(Dispatched::Restart(restart)) => {
+                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                continue;
+            }
             Err(error) => {
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_http1_connection = true;
@@ -449,6 +472,27 @@ pub(super) fn may_replay_unanswered(
             body,
             RequestBodySource::Absent | RequestBodySource::Bytes(_)
         )
+}
+
+/// Starts the request again with the hints its connection's ALPS
+/// `ACCEPT_CH` asked for; see [`ClientHintContext::connection_restart`].
+///
+/// Nothing of the request was written, so any method and body may restart:
+/// a streaming body comes back unpolled. The next attempt builds its lists
+/// again, reading the cookie jar and the stored hints as a new request does,
+/// as Chromium's restarted navigation reads its cookies again.
+pub(super) fn begin_accept_ch_restart(
+    restart: AcceptChRestart,
+    restart_hints: &mut RestartHints,
+    body: &mut RequestBodySource,
+) {
+    restart_hints.add(&restart.hints);
+    body.restore(restart.body);
+    tracing::debug!(
+        retry = 1,
+        reason = "accept_ch",
+        "restarting request with the client hints its connection's ACCEPT_CH asks for"
+    );
 }
 
 /// Starts the one replay after a reused HTTP/1.1 connection closed before
@@ -661,22 +705,26 @@ pub(super) fn prepare_attempt<'a>(
     client: &'a Client,
     request: &'a ResolvedRequest,
     client_hint_origin: Option<&'a str>,
+    restart_hints: &'a RestartHints,
     body: &mut RequestBodySource,
 ) -> Result<PreparedAttempt<'a>, RequestError> {
-    let client_hints = attempt_client_hints(client, request, client_hint_origin);
+    let client_hints = attempt_client_hints(client, request, client_hint_origin, restart_hints);
     let body = body.next_attempt()?;
     Ok(PreparedAttempt { client_hints, body })
 }
 
 /// Returns the client-hint context of one attempt, which places automatic
-/// hints at the request template's slots.
+/// hints at the request template's slots, with the hints the request
+/// restarted for.
 ///
-/// Validation before I/O and the attempt itself use this one context, so a
-/// template's hint placement and requested-hint refusal apply to both.
+/// Building the lists and the connection's `ACCEPT_CH` check use this one
+/// context, so a template's hint placement and requested-hint refusal apply
+/// to both.
 pub(super) fn attempt_client_hints<'a>(
     client: &'a Client,
     request: &'a ResolvedRequest,
     client_hint_origin: Option<&'a str>,
+    restart_hints: &'a RestartHints,
 ) -> Option<ClientHintContext<'a>> {
     client
         .inner
@@ -687,6 +735,7 @@ pub(super) fn attempt_client_hints<'a>(
             client
                 .client_hint_context(&request.endpoint, origin, settings)
                 .with_template(request.template.as_ref())
+                .with_restart_hints(restart_hints)
         })
 }
 
@@ -764,6 +813,15 @@ pub(super) struct DispatchOutcome {
     pub(super) sent_headers: Vec<RequestHeader>,
 }
 
+impl From<(Response<ResponseBody>, Vec<RequestHeader>)> for DispatchOutcome {
+    fn from((response, sent_headers): (Response<ResponseBody>, Vec<RequestHeader>)) -> Self {
+        Self {
+            response,
+            sent_headers,
+        }
+    }
+}
+
 pub(super) struct AttemptOutcome {
     pub(super) response: Response<ResponseBody>,
     pub(super) protocol: HttpProtocol,
@@ -795,7 +853,7 @@ async fn dispatch_attempt(
     http1_connect: Http1Connect<'_>,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
-) -> Result<DispatchOutcome, RequestError> {
+) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
 
@@ -806,7 +864,7 @@ async fn dispatch_attempt(
                 .http1
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
-            let sent_headers = prepare_headers(client_hints, request_headers, None)?;
+            let sent_headers = prepare_headers(client_hints, request_headers)?;
             let mut headers = Vec::with_capacity(sent_headers.len() + 1);
             headers.push(RequestHeader::new(
                 "Host",
@@ -842,10 +900,10 @@ async fn dispatch_attempt(
                     retries,
                 )
                 .await?;
-            Ok(DispatchOutcome {
+            Ok(Dispatched::Sent(DispatchOutcome {
                 response,
                 sent_headers,
-            })
+            }))
         }
         HttpProtocol::Http2 => {
             let connector = client
@@ -864,6 +922,8 @@ async fn dispatch_attempt(
                     client.inner.https_proxy.as_ref(),
                 )
             };
+            // The hints are fixed here, before a connection is chosen.
+            let headers = prepare_headers(client_hints, request_headers)?;
             client
                 .state
                 .http2
@@ -876,7 +936,7 @@ async fn dispatch_attempt(
                     method,
                     endpoint.authority().as_str(),
                     target,
-                    request_headers,
+                    headers,
                     request_trailers,
                     client_hints,
                     body,
@@ -885,10 +945,7 @@ async fn dispatch_attempt(
                     retries,
                 )
                 .await
-                .map(|(response, sent_headers)| DispatchOutcome {
-                    response,
-                    sent_headers,
-                })
+                .map(|dispatched| dispatched.map(DispatchOutcome::from))
         }
         HttpProtocol::Http3 => {
             let connector = client
@@ -930,10 +987,7 @@ async fn dispatch_attempt(
                 retries,
             ))
             .await
-            .map(|(response, sent_headers)| DispatchOutcome {
-                response,
-                sent_headers,
-            })
+            .map(|dispatched| dispatched.map(DispatchOutcome::from))
         }
     }
 }
@@ -1047,10 +1101,9 @@ impl<'a> ForwardAuthentication<'a> {
 fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
     headers: Vec<RequestHeader>,
-    connection_accept_ch: Option<&[u8]>,
 ) -> Result<Vec<RequestHeader>, RequestError> {
     match client_hints {
-        Some(context) => context.prepare(headers, connection_accept_ch),
+        Some(context) => context.prepare(headers),
         None => Ok(headers),
     }
 }

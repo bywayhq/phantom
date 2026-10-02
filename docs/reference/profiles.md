@@ -550,19 +550,31 @@ origin:
 
 On H2 and H3, a server can send an `ACCEPT_CH` entry through ALPS during the
 TLS handshake, so the first request on a connection carries the requested
-hints.
+hints. A request's hints are fixed when its fields are built, so the entry
+never adds a field to a request about to be sent. When the entry names a
+hint the request lacks, the request stops before anything of it is written
+and starts again with the hint, on the same connection when it is still
+pooled, as Chromium 154 restarts a navigation.
 
-- The entry applies to requests whose origin matches it exactly, and adds to
-  the hints learned from responses.
-- It belongs to that connection only. It is never copied into the client's
-  store, does not carry over to a replacement connection, and does not clear
+- The entry applies to requests whose origin matches it exactly. Default
+  hints, hints learned from responses, and hints you supply all count as
+  present.
+- A restart builds the request's fields again, reading the cookie jar and
+  learned hints again. Any method and body may restart, a streaming body
+  included, because none of it was sent.
+- The hints a request restarted for stay with it for the rest of its
+  redirect hop, so a replacement connection whose entry names another hint
+  restarts it again with both. A request restarts at most once per hint the
+  profile sends on request.
+- The entry is never copied into the client's store and does not clear
   learned hints when it is empty or malformed.
 - If an origin appears more than once, the first valid entry wins.
   Non-canonical origins are ignored. At most 1,024 distinct origins are kept
   per connection.
-- A live BoringSSL integration test covers first-request behavior on H2. H3
-  has component tests; a live H3 request test is planned
+- Live BoringSSL integration tests cover the restart on H2 and H3
   ([Coverage](coverage.md#http3)).
+- A request sent as HTTP/3 early data goes out before the connection knows
+  its entry, so it never restarts.
 
 ### `Critical-CH` retry
 
@@ -582,7 +594,9 @@ method is safe, Phantom retries the request once.
 The model covers top-level requests from a standalone client. It does not
 support:
 
-- Permissions Policy delegation or subresource browsing contexts;
+- Permissions Policy delegation or subresource browsing contexts. Chromium
+  restarts only navigations for ALPS `ACCEPT_CH`; Phantom treats every
+  request as one;
 - persistence, or expiry other than explicit replacement;
 - restarting a full navigation across a redirect chain already followed;
 - `ACCEPT_CH` frames sent after the handshake.

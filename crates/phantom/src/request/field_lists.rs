@@ -1,11 +1,9 @@
 //! The field lists a negotiated request builds and checks before any I/O.
 //!
 //! A list is built from the request template, the caller's fields, the
-//! cookie jar, and, on HTTP/3 to an alternative, `Alt-Used`; it is checked
-//! with the request's method, target, trailers, body, and the client hints
-//! known before a connection is chosen. The HTTP/1.1 list carries those
-//! hints; each HTTP/2 or HTTP/3 dispatch places its own for the connection
-//! it uses. Each list is built and checked once.
+//! cookie jar, the client hints known before a connection is chosen, and, on
+//! HTTP/3 to an alternative, `Alt-Used`; it is checked with the request's
+//! method, target, trailers, and body. Each list is built and checked once.
 //! The attempt that wins a race sends it as built, and so does every attempt
 //! that repeats a request the server did not answer: a graceful `GOAWAY`
 //! retry, a restart after rejected early data, a reused-connection replay, an
@@ -14,8 +12,11 @@
 //!
 //! An attempt that follows a response builds and checks the lists again. The
 //! response may have stored cookies or requested client hints, and a
-//! `Critical-CH` retry exists to send those hints. A redirect hop builds them
-//! again for its own URL, method, body, and fields.
+//! `Critical-CH` retry exists to send those hints. So does a request that
+//! restarts because its connection's ALPS `ACCEPT_CH` asked for a hint it
+//! lacked: nothing of it was sent, and it is built again with that hint. A
+//! redirect hop builds the lists again for its own URL, method, body, and
+//! fields.
 
 use http::Method;
 use phantom_net::request::{RequestBody, RequestHeader};
@@ -28,7 +29,7 @@ use crate::{
     Client, HttpProtocol, RequestError, Route,
     session::{
         alt_svc::AlternativeTarget,
-        client_hints::ClientHintContext,
+        client_hints::{ClientHintContext, RestartHints},
         http1_or_2_pool::{self, NegotiatedFields},
         http3_pool::{self, Http3Fields, Http3TransportTarget},
     },
@@ -70,11 +71,13 @@ pub(super) fn raced(
         }
     };
     let hint_origin = client_hint_origin(client, request);
+    // A race starts a request, so no connection has restarted it yet.
+    let no_restart = RestartHints::default();
     let fields = AttemptFields {
         method: &attempt.method,
         headers: &attempt.headers,
         trailers: &attempt.trailers,
-        client_hints: attempt_client_hints(client, request, hint_origin.as_deref()),
+        client_hints: attempt_client_hints(client, request, hint_origin.as_deref(), &no_restart),
         body,
     };
     let http3 = alternative_fields(client, request, route, alternative, &fields)?;

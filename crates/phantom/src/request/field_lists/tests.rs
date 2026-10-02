@@ -390,6 +390,90 @@ async fn a_critical_ch_retry_builds_the_lists_again_with_the_requested_hint() ->
     .await?
 }
 
+/// A connection whose ALPS `ACCEPT_CH` names a hint the request lacks
+/// restarts the request before anything of it is sent; the restart builds
+/// and checks the lists again with the hint, and the server sees one request.
+#[tokio::test]
+async fn an_accept_ch_restart_builds_the_lists_again_with_the_hint() -> TestResult {
+    timeout(TEST_TIMEOUT, async {
+        let identity = Identity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin = listener.local_addr()?;
+        let settings = http2_accept_ch_alps(&format!("https://{origin}"), "sec-ch-ua-arch");
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await?;
+            let mut ssl = Ssl::new(acceptor.context())?;
+            ssl.add_application_settings_with_payload(b"h2", &settings)?;
+            ssl.set_alps_use_new_codepoint(true);
+            let mut stream = SslStream::new(ssl, tcp)?;
+            Pin::new(&mut stream).accept().await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut response) = connection
+                .accept()
+                .await
+                .ok_or("client sent no request")??;
+            let arch = request.headers().get("sec-ch-ua-arch").cloned();
+            response.send_response(
+                http::Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+                true,
+            )?;
+            // A second request on the connection would be the unrestarted one.
+            let extra = timeout(Duration::from_millis(200), connection.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((arch, matches!(extra, Ok(Some(_)))))
+        });
+        let client = client_builder(
+            &identity,
+            profile(false).with_client_hints(chromium::v154_windows_client_hints()),
+        )
+        .build()?;
+        counts::take();
+
+        let response = client
+            .get_negotiated(&format!("https://{origin}/"))?
+            .send()
+            .await?;
+
+        assert_eq!(
+            counts::take(),
+            Counts {
+                built: [2, 2, 0],
+                checked: [2, 2, 0],
+            }
+        );
+        assert_eq!(protocol(&response)?, HttpProtocol::Http2);
+        let (arch, extra) = server.await??;
+        drop(response);
+        assert_eq!(
+            arch.as_ref().map(http::HeaderValue::as_bytes),
+            Some(&b"\"x86\""[..])
+        );
+        assert!(!extra, "the server saw a second request");
+        Ok(())
+    })
+    .await?
+}
+
+/// Encodes HTTP/2 ALPS with an empty SETTINGS frame and one ACCEPT_CH entry.
+fn http2_accept_ch_alps(origin: &str, value: &str) -> Vec<u8> {
+    let mut entry = Vec::new();
+    entry.extend(
+        u16::try_from(origin.len())
+            .unwrap_or(u16::MAX)
+            .to_be_bytes(),
+    );
+    entry.extend_from_slice(origin.as_bytes());
+    entry.extend(u16::try_from(value.len()).unwrap_or(u16::MAX).to_be_bytes());
+    entry.extend_from_slice(value.as_bytes());
+    let length = u32::try_from(entry.len()).unwrap_or(0).to_be_bytes();
+    let mut encoded = vec![0, 0, 0, 0x4, 0, 0, 0, 0, 0];
+    encoded.extend([length[1], length[2], length[3], 0x89, 0, 0, 0, 0, 0]);
+    encoded.extend(entry);
+    encoded
+}
+
 /// A status retry follows a response, which may store cookies, so the retry
 /// builds its lists again and carries the cookie.
 #[cfg(feature = "cookies")]

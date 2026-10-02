@@ -13,8 +13,8 @@ use super::{
     RequestBodySource, ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, DispatchOutcome,
-        begin_status_retry, begin_unprocessed_replay, client_hint_origin, may_replay_unanswered,
-        observe_response, prepare_attempt, send_once_origin, store_cookies,
+        begin_accept_ch_restart, begin_status_retry, begin_unprocessed_replay, client_hint_origin,
+        may_replay_unanswered, observe_response, prepare_attempt, send_once_origin, store_cookies,
     },
     field_lists::{self, AttemptFields, RacedFields},
     replay::ReplayClass,
@@ -23,6 +23,7 @@ use crate::{
     AltSvcRace, Client, HttpProtocol, RequestError, Route, TimeoutPhase,
     session::{
         alt_svc::{AlternativeTarget, PendingLookup, invalidates_alternative},
+        client_hints::{Dispatched, RestartHints},
         http3_pool::{Http3Fields, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
     timeout::TimeoutBudget,
@@ -661,10 +662,17 @@ async fn send_on_alternative(
     let endpoint = &request.endpoint;
     let transport = Http3TransportTarget::new(alternative.host(), alternative.port());
     let client_hint_origin = client_hint_origin(client, request);
+    let mut restart_hints = RestartHints::default();
     let keeps_fields = may_replay_unanswered(request_retries, body);
 
     loop {
-        let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        let prepared = prepare_attempt(
+            client,
+            request,
+            client_hint_origin.as_deref(),
+            &restart_hints,
+            body,
+        )?;
         let attempt_fields = match fields.take() {
             Some(fields) => fields,
             None => field_lists::alternative_fields(
@@ -701,9 +709,14 @@ async fn send_on_alternative(
         )
         .await;
         let dispatched = match dispatched {
-            Ok(dispatched) => {
+            Ok(Dispatched::Sent(dispatched)) => {
                 *responded = true;
                 dispatched
+            }
+            // The list is built again with the connection's hints.
+            Ok(Dispatched::Restart(restart)) => {
+                begin_accept_ch_restart(restart, &mut restart_hints, body);
+                continue;
             }
             Err(error) => {
                 // An unprocessed replay stays on this alternative and keeps it.
@@ -787,7 +800,7 @@ async fn dispatch_http3(
     body: Option<RequestBody>,
     timeout_budget: TimeoutBudget,
     retries: &mut crate::retry::ConnectionSetupRetryState,
-) -> Result<DispatchOutcome, RequestError> {
+) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let connector = client
         .inner
         .http3
@@ -833,10 +846,7 @@ async fn dispatch_http3(
             .await
         }
     };
-    sent.map(|(response, sent_headers)| DispatchOutcome {
-        response,
-        sent_headers,
-    })
+    sent.map(|dispatched| dispatched.map(DispatchOutcome::from))
 }
 
 /// The candidate that finished setup first. When the origin wins, `loser`
