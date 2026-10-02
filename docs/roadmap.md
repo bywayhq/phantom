@@ -172,9 +172,14 @@ anything does.
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where Firefox 156 offers `early_data` on every resumption whose ticket
   permits it and sends `GET`, `HEAD`, and `OPTIONS` requests in it; Phantom
-  offers no early data over TCP. Blocker: the vendored `btls` scoped-session
-  wrapper removes early-data capability, and `early_data` has no position in
-  `ClientHelloExtension` for Firefox's fixed order.
+  offers no early data over TCP. Blocker: native BoringSSL. The reviewed
+  `btls-sys` fork's record size limit patch (`0005-record-size-limit.patch`)
+  never offers early data from a client that sends `record_size_limit`, and
+  strips the early-data capability from a ticket issued on a connection that
+  negotiated a limit. Firefox sends `record_size_limit` in every ClientHello,
+  so the recipe cannot offer early data until that patch changes. The
+  wrapper changes, an `early_data` position in `ClientHelloExtension`, and
+  the request handling need no native change.
 - Closing a TLS connection without `close_notify`. Evidence: source only;
   Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),

@@ -3842,14 +3842,14 @@ Observed:
 
 | Behavior | Chrome 154, Edge 154, Brave 154, Opera 135 | Firefox 156 |
 | --- | --- | --- |
-| Resumed ClientHellos, all offering one 64-byte identity and one 32-byte binder, `pre_shared_key` last, PSK mode `psk_dhe_ke` (1) | 151, 146, 111, 154 | 131 |
+| Resumed ClientHellos, all offering one 64-byte identity and one 32-byte binder, `pre_shared_key` last, PSK mode `psk_dhe_ke` (1) | 151, 146, 111, 154 | 120 |
 | Added against the run's first, fresh ClientHello | `pre_shared_key` only | `early_data` (0x2a) and `pre_shared_key`; only `pre_shared_key` when the ticket does not permit early data (12 of 12) |
-| Removed against the fresh ClientHello | Nothing; the empty `session_ticket` stays | The empty `session_ticket` (0x23), in all 131 |
-| `early_data` offered over TCP | Never, including with tickets that permit it | 119 of 119 resumptions with such a ticket; placed after `key_share` and before `supported_versions` |
-| Requests sent in early data | None | `GET` 106 times, and `HEAD` and `OPTIONS` once each; `POST`, `PUT`, and `DELETE` never (20 on connections that used early data) |
+| Removed against the fresh ClientHello | Nothing; the empty `session_ticket` stays | The empty `session_ticket` (0x23), in all 120 |
+| `early_data` offered over TCP | Never, including with tickets that permit it | 108 of 108 resumptions with such a ticket; placed after `key_share` and before `supported_versions`, with `record_size_limit` (0x1c) still sent |
+| Requests sent in early data | None | `GET` 101 times, and `HEAD` and `OPTIONS` 3 times each; `POST`, `PUT`, and `DELETE` never (17 on connections that used early data) |
 | Tickets used of eight issued by one connection (`issue-once`) | 2 of 8 in every run: the newest, then the one before it | 8 of 8 in every run, each once; newest first in 2 of 3 runs |
 | Ticket presented twice | Never | Never |
-| Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Four to six resumed, each with its own ticket |
+| Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Two resumed in every run, each with its own ticket |
 | First connection to the same host on another port (`origins`) | No ticket offered, in every run | No ticket offered, in every run |
 | A `top.partition.test` page fetching the origin (`partition`) | No ticket offered; back on the origin's own page, a ticket learned before the switch | The same |
 
@@ -3857,7 +3857,7 @@ The Chromium-family browsers always presented the newest ticket they held;
 Firefox's choice between the two tickets of one connection varied. Some
 connections carried no request: the Chromium-family browsers often open a
 first connection that closes before the navigation. Firefox sometimes made a
-full handshake although earlier connections had received tickets, in 5 of
+full handshake although earlier connections had received tickets, in 6 of
 its 24 `sequential` and `sequential-http1` connections from the fourth on.
 
 Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
@@ -3893,7 +3893,11 @@ Limits:
 - Firefox 156 offers early data over TCP and sends safe requests in it when
   its ticket permits early data. Phantom never offers early data over TCP, so
   against such a server a resumed Firefox-profile ClientHello lacks
-  `early_data`, and its requests arrive after the handshake.
+  `early_data`, and its requests arrive after the handshake. The reviewed
+  `btls-sys` fork's record size limit patch disables a client's early data
+  whenever it sends `record_size_limit`, as the Firefox recipe does, so
+  closing this gap needs a native BoringSSL change
+  ([roadmap](../roadmap.md)).
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.
 - Firefox's order among the tickets it holds varied between runs; Phantom
