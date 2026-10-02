@@ -26,6 +26,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use crate::support::{
+    h3::quic_server,
     shared_port,
     tls::{H2_ALPN, TestIdentity, TestResult, is_peer_gone},
 };
@@ -728,7 +729,7 @@ fn h3_endpoint(identity: &TestIdentity, bind: SocketAddr) -> TestResult<Endpoint
     let server_config = quinn::ServerConfig::with_crypto(Arc::new(
         quinn::crypto::rustls::QuicServerConfig::try_from(crypto)?,
     ));
-    Ok(Endpoint::server(server_config, bind)?)
+    Ok(quic_server(server_config, bind)?)
 }
 
 #[derive(Clone)]

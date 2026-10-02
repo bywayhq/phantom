@@ -160,7 +160,7 @@ impl DnsServer {
     pub async fn spawn(
         responder: impl Fn(&DnsQuery) -> DnsReply + Send + Sync + 'static,
     ) -> io::Result<Self> {
-        let socket = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
+        let socket = Arc::new(crate::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?);
         let address = socket.local_addr()?;
         let queries = Arc::new(Mutex::new(Vec::new()));
         let responder: Arc<Responder> = Arc::new(responder);

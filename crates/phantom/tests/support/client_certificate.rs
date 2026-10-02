@@ -18,6 +18,7 @@ use rustls::{
     server::WebPkiClientVerifier,
 };
 
+use super::h3::quic_server;
 use super::tls::{TestIdentity, TestResult};
 
 /// A client certificate issued by a private authority, in the forms a
@@ -104,7 +105,7 @@ pub(crate) fn quic_endpoint_requiring(
 ) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let tls = rustls_config_requesting(server, client_authority, true)?;
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = quic_server(
         quinn::ServerConfig::with_crypto(Arc::new(crypto)),
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;

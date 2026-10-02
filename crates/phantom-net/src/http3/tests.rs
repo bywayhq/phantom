@@ -641,7 +641,12 @@ fn server_endpoint_with_transport(
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
     config.transport_config(Arc::new(transport));
-    let endpoint = quinn::Endpoint::server(config, bind_address)?;
+    let endpoint = quinn::Endpoint::new(
+        quinn::EndpointConfig::default(),
+        Some(config),
+        phantom_testkit::udp::bind(bind_address)?,
+        Arc::new(quinn::TokioRuntime),
+    )?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 

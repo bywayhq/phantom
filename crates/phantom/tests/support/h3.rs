@@ -61,11 +61,26 @@ pub(crate) fn server_endpoint(
         .with_single_cert(vec![certificate], private_key)?;
     tls.alpn_protocols = vec![b"h3".to_vec()];
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = quic_server(
         quinn::ServerConfig::with_crypto(Arc::new(crypto)),
         "127.0.0.1:0".parse()?,
     )?;
     Ok((endpoint.local_addr()?, endpoint))
+}
+
+/// A QUIC endpoint that serves `config` on `local`, as
+/// `quinn::Endpoint::server` does, with a bind to port 0 that survives a
+/// Windows reserved port block.
+pub(crate) fn quic_server(
+    config: quinn::ServerConfig,
+    local: SocketAddr,
+) -> std::io::Result<quinn::Endpoint> {
+    quinn::Endpoint::new(
+        quinn::EndpointConfig::default(),
+        Some(config),
+        phantom_testkit::udp::bind(local)?,
+        Arc::new(quinn::TokioRuntime),
+    )
 }
 
 pub(crate) async fn accept_request(

@@ -14,3 +14,7 @@ pub mod http2;
 
 /// Helpers for capturing TLS wire data.
 pub mod tls;
+
+/// UDP sockets for loopback test peers that survive a Windows reserved port
+/// block.
+pub mod udp;

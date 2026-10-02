@@ -193,7 +193,7 @@ pub(crate) async fn serve_socks5_udp_associate_stream(
         }
     };
     let client_address = read_udp_associate(&mut control).await?;
-    let relay = UdpSocket::bind(SocketAddr::new(loopback_for(origin.ip()), 0)).await?;
+    let relay = phantom_testkit::udp::bind_tokio(SocketAddr::new(loopback_for(origin.ip()), 0))?;
     let relay_address = relay.local_addr()?;
     let association = ObservedSocks5UdpAssociation {
         client_address,

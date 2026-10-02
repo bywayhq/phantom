@@ -19,13 +19,13 @@ use phantom::profile::{Http3ClientSettings, Http3PseudoHeader, Http3RequestSetti
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    net::{TcpListener, UdpSocket},
+    net::TcpListener,
     sync::{mpsc, watch},
     task::JoinHandle,
 };
 
 use crate::support::client_certificate::{presented_leaf, rustls_config_requesting};
-use crate::support::h3::client_settings;
+use crate::support::h3::{client_settings, quic_server};
 use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, is_peer_gone, read_head,
 };
@@ -247,7 +247,7 @@ async fn serve_connection(
     }
 
     let target = parse_target(&observed.path).ok_or("CONNECT-UDP path has no target")?;
-    let udp = UdpSocket::bind("127.0.0.1:0").await?;
+    let udp = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     udp.connect(target).await?;
     stream
         .send_response(
@@ -365,7 +365,7 @@ fn relay_endpoint_with(tls: rustls::ServerConfig) -> TestResult<(SocketAddr, qui
     transport.initial_mtu(1_400).min_mtu(1_400);
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
     config.transport_config(Arc::new(transport));
-    let endpoint = quinn::Endpoint::server(config, "127.0.0.1:0".parse()?)?;
+    let endpoint = quic_server(config, "127.0.0.1:0".parse()?)?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 
@@ -755,7 +755,7 @@ async fn relay_capsules(
     target: SocketAddr,
     log: Arc<Mutex<StreamLog>>,
 ) -> TestResult<()> {
-    let udp = UdpSocket::bind("127.0.0.1:0").await?;
+    let udp = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     udp.connect(target).await?;
     let mut preamble = UNKNOWN_CAPSULE.to_vec();
     preamble.extend(encode_capsule(0, UNKNOWN_CONTEXT_PAYLOAD));

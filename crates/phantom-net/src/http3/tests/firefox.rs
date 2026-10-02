@@ -66,7 +66,12 @@ fn server(identity: &TestIdentity) -> TestResult<(SocketAddr, quinn::Endpoint)> 
     });
     let crypto = QuicServerConfig::new(builder.build().into_context());
     let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
-    let endpoint = quinn::Endpoint::server(config, "127.0.0.1:0".parse()?)?;
+    let endpoint = quinn::Endpoint::new(
+        quinn::EndpointConfig::default(),
+        Some(config),
+        phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?,
+        Arc::new(quinn::TokioRuntime),
+    )?;
     Ok((endpoint.local_addr()?, endpoint))
 }
 
@@ -294,7 +299,7 @@ async fn first_flight_of(
     connector: Http3Connector,
     bind: SocketAddr,
 ) -> TestResult<Vec<InitialDatagram>> {
-    let socket = UdpSocket::bind(bind).await?;
+    let socket = phantom_testkit::udp::bind_tokio(bind)?;
     let address = socket.local_addr()?;
     let host = address.ip().to_string();
     let attempt = tokio::spawn(async move {
@@ -424,7 +429,7 @@ fn v2_server(
     endpoint_config
         .supported_versions(vec![QUIC_V2])
         .compatible_versions(vec![QUIC_V2]);
-    let socket = std::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let socket = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
     let endpoint = quinn::Endpoint::new(
         endpoint_config,
         Some(quinn::ServerConfig::with_crypto(crypto.clone())),
@@ -566,7 +571,7 @@ async fn follow_a_server_to_version_2(
     connector: Http3Connector,
 ) -> TestResult<()> {
     let (server_address, endpoint, keys) = v2_server(identity)?;
-    let relay_socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let relay_socket = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
     let relay_address = relay_socket.local_addr()?;
     let client_v2_packets = Arc::new(AtomicUsize::new(0));
     let relay = tokio::spawn(v2_relay(
