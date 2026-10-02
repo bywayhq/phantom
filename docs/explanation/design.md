@@ -240,6 +240,39 @@ the total deadline, or an honored `Retry-After` exceeds the caller's cap,
 Phantom returns the response instead of waiting. The intermediate body is
 dropped unread, so an unbounded body cannot stall the retry.
 
+### Fields of a repeated attempt
+
+A negotiated request builds its HTTP/1.1 and HTTP/2 field lists once per
+redirect hop and checks them before any I/O. A request that races an Alt-Svc
+alternative builds and checks its HTTP/3 list at the same time. Each list
+takes the template, your fields, and the cookie jar's value. The HTTP/1.1
+list also carries the client hints known at that moment. The HTTP/2 and
+HTTP/3 lists are checked with those hints but carry none: each dispatch
+places hints from the client's store and the connection's ALPS `ACCEPT_CH`.
+
+The race's winner sends its lists as they were built. So does every attempt
+of the request that repeats one no response answered: a graceful `GOAWAY`
+retry, a restart after rejected early data, a reused-connection replay, an
+unprocessed-request replay, and a race started again after an early-data
+handshake failed. A cookie that another request stores in the meantime is
+sent from the next request on. Browsers behave the same way: Chromium sets a
+request's `Cookie` once, before it asks for a connection, in
+`URLRequestHttpJob::SetCookieHeaderAndStart`
+(`net/url_request/url_request_http_job.cc` lines 835-979 at 154.0.8037.58),
+and `HttpNetworkTransaction::ResetConnectionAndRequestForResend` rebuilds the
+resent headers from those same extra headers
+(`net/http/http_network_transaction.cc` lines 1429 and 2338-2361).
+Firefox's `nsHttpTransaction::Restart` keeps the request head it was given,
+removing only a sticky `Proxy-Authorization` and `Alt-Used`, and rewinds the
+request stream it already wrote (`netwerk/protocol/http/nsHttpTransaction.cpp`
+lines 1963-2036 at `FIREFOX_156_0_RELEASE`).
+
+A `Critical-CH` retry and a status retry follow a response, which may have
+stored cookies or requested client hints, so they build and check the lists
+again. Each redirect hop builds its own for its URL, method, body, and
+fields. An exact request builds its one list again for a reused-connection
+replay and an unprocessed-request replay as well.
+
 ## Safety boundary
 
 A fingerprinting client works inside the TLS handshake and a native TLS

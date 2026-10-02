@@ -32,7 +32,7 @@ use tokio::{
 use tokio_btls::SslStream;
 use tracing::Span;
 
-use super::super::{EarlyDataConnection, Http1Or2Pool, NegotiatedLease};
+use super::super::{EarlyDataConnection, Http1Or2Pool, NegotiatedLease, validate_request};
 use super::{TestResult, bound};
 use crate::{
     RequestTimeouts, RetryPolicy, Route, authority::Endpoint, retry::ConnectionSetupRetryState,
@@ -140,6 +140,17 @@ async fn send(
     budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
 ) -> TestResult {
+    let target = OriginForm::parse(path)?;
+    let fields = validate_request(
+        endpoint,
+        &Method::GET,
+        &target,
+        Vec::new(),
+        Vec::new(),
+        &[],
+        None,
+        None,
+    )?;
     let (response, _, _) = pool
         .send_request(
             connector,
@@ -148,9 +159,8 @@ async fn send(
             &Route::Direct,
             &Span::none(),
             Method::GET,
-            OriginForm::parse(path)?,
-            Vec::new(),
-            Vec::new(),
+            target,
+            fields,
             Vec::new(),
             None,
             None,

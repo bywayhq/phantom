@@ -47,7 +47,7 @@ impl<'a> Http3TransportTarget<'a> {
         Self { host, port }
     }
 
-    fn for_origin(endpoint: &'a Endpoint) -> Self {
+    pub(crate) fn for_origin(endpoint: &'a Endpoint) -> Self {
         Self::new(endpoint.host(), endpoint.port())
     }
 }
@@ -121,6 +121,9 @@ impl Http3Pool {
         self.max_pending
     }
 
+    /// Connects to `transport` and sends one request with the `fields` that
+    /// [`validate_request`] returned for the same route, transport, method,
+    /// authority, target, trailers, and body.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn send_request(
         &self,
@@ -128,31 +131,17 @@ impl Http3Pool {
         connect_udp_proxy: Option<&ConnectUdpConnectors>,
         endpoint: &Endpoint,
         route: &Route,
-        alternative: Option<Http3TransportTarget<'_>>,
+        transport: Http3TransportTarget<'_>,
         method: Method,
         authority: &str,
         target: OriginForm,
-        headers: Vec<RequestHeader>,
+        fields: Http3Fields,
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        let transport = alternative.unwrap_or_else(|| Http3TransportTarget::for_origin(endpoint));
-        validate_request(
-            connector,
-            connect_udp_proxy,
-            route,
-            transport,
-            &method,
-            authority,
-            &target,
-            &headers,
-            &trailers,
-            client_hints,
-            body.as_ref(),
-        )?;
         let leased = self
             .admit(endpoint, route, timeout_budget)
             .await?
@@ -176,7 +165,7 @@ impl Http3Pool {
             method,
             authority,
             target,
-            headers,
+            fields.0,
             trailers,
             client_hints,
             body,
@@ -204,8 +193,10 @@ impl Http3Pool {
         Ok(Http3Admission { entry, permit })
     }
 
-    /// Validates, then dispatches one request on a lease from
-    /// [`Http3Admission::connect`].
+    /// Dispatches one request on a lease from [`Http3Admission::connect`],
+    /// with the `fields` that [`validate_request`] returned for the lease's
+    /// route and transport and for the same method, authority, target,
+    /// trailers, and body.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn send_request_on_lease(
         &self,
@@ -214,30 +205,20 @@ impl Http3Pool {
         method: Method,
         authority: &str,
         target: OriginForm,
-        headers: Vec<RequestHeader>,
+        fields: Http3Fields,
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<(http::Response<ResponseBody>, Vec<RequestHeader>), RequestError> {
-        validate_wire(
-            connector,
-            &method,
-            authority,
-            &target,
-            &headers,
-            &trailers,
-            client_hints,
-            body.as_ref(),
-        )?;
         self.send_on_lease(
             leased,
             connector,
             method,
             authority,
             target,
-            headers,
+            fields.0,
             trailers,
             client_hints,
             body,
@@ -1102,7 +1083,16 @@ const fn sends_before_handshake(
     replay_safe && early_data_pending && !requests_wait_for_peer_settings
 }
 
-/// Checks one request's H3 and route representation before any I/O.
+/// One request's HTTP/3 field list, which [`validate_request`] checked.
+///
+/// Automatic client hints are not placed yet: each dispatch places them for
+/// the connection it uses.
+#[derive(Clone)]
+pub(crate) struct Http3Fields(Vec<RequestHeader>);
+
+/// Checks one request's H3 and route representation before any I/O and
+/// returns its field list for [`Http3Pool::send_request`] or
+/// [`Http3Pool::send_request_on_lease`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn validate_request(
     connector: &Http3Connector,
@@ -1112,17 +1102,17 @@ pub(crate) fn validate_request(
     method: &Method,
     authority: &str,
     target: &OriginForm,
-    headers: &[RequestHeader],
+    headers: Vec<RequestHeader>,
     trailers: &[RequestHeader],
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
-) -> Result<(), RequestError> {
+) -> Result<Http3Fields, RequestError> {
     validate_wire(
         connector,
         method,
         authority,
         target,
-        headers,
+        &headers,
         trailers,
         client_hints,
         body,
@@ -1148,7 +1138,7 @@ pub(crate) fn validate_request(
         }
         .map_err(RequestError::http3)?;
     }
-    Ok(())
+    Ok(Http3Fields(headers))
 }
 
 #[allow(clippy::too_many_arguments)]

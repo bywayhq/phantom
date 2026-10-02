@@ -21,16 +21,17 @@ use crate::{
 use super::{
     PreparedRequestTemplate, ProtocolSelection, RequestBodySource, ResolvedRequest,
     alt_svc_attempt::{NegotiatedPlan, plan, send_once_alt_svc, send_once_raced},
+    field_lists::{self, AttemptFields},
     replay::{ReplayClass, ReplayState},
     secure_context::is_potentially_trustworthy,
     template::{ForwardedCredentials, Forwarding},
 };
 use crate::session::{
     client_hints::ClientHintContext,
-    http1_or_2_pool::NegotiatedLease,
+    http1_or_2_pool::{NegotiatedFields, NegotiatedLease},
     http1_pool::{ChallengedConnection, Http1ConnectionMode},
     http2_pool::Http2ConnectionMode,
-    http3_pool::Http3TransportTarget,
+    http3_pool::{self, Http3TransportTarget},
 };
 
 pub(super) struct AttemptRequest<'a> {
@@ -171,7 +172,6 @@ async fn send_once_exact(
             prepared.client_hints,
             prepared.body,
             route,
-            None,
             Http1Connect {
                 forward_authorization: sends_forward_credentials,
                 // The single retry after an H1 forwarding challenge uses the
@@ -301,19 +301,23 @@ async fn send_once_negotiated(
                 alternative,
                 race,
                 lookup,
+                None,
             )
             .await
         }
         NegotiatedPlan::Origin => {
-            send_once_origin(client, request, attempt, route, lifecycle, None).await
+            send_once_origin(client, request, attempt, route, lifecycle, None, None).await
         }
     }
 }
 
 /// Sends a negotiated request to the origin over H1 or H2.
 ///
-/// `leased` is a connection a race already admitted and established; the
-/// first attempt uses it, and later attempts acquire from the pool.
+/// `leased` is a connection a race already admitted and established, and
+/// `fields` the lists the race built and checked; the first attempt uses
+/// both. Later attempts acquire from the pool, and send the same lists until
+/// a response arrives; see [`field_lists`].
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn send_once_origin(
     client: &Client,
     request: &ResolvedRequest,
@@ -321,6 +325,7 @@ pub(super) async fn send_once_origin(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
     mut leased: Option<NegotiatedLease>,
+    mut fields: Option<NegotiatedFields>,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
         request_span,
@@ -342,13 +347,26 @@ pub(super) async fn send_once_origin(
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
     let mut fresh_http1_connection = false;
+    let keeps_fields = may_replay_unanswered(retries, body);
 
     loop {
-        let http1_request_headers =
-            attempt_headers(client, request, HttpProtocol::Http1, &request_headers);
-        let http2_request_headers =
-            attempt_headers(client, request, HttpProtocol::Http2, &request_headers);
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        let attempt_fields = match fields.take() {
+            Some(fields) => fields,
+            None => field_lists::negotiated(
+                client,
+                request,
+                &AttemptFields {
+                    method: &method,
+                    headers: &request_headers,
+                    trailers: &request_trailers,
+                    client_hints: prepared.client_hints,
+                    body: prepared.body.as_ref(),
+                },
+            )?,
+        };
+        // A replay after no response sends these lists again.
+        let kept_fields = keeps_fields.then(|| attempt_fields.clone());
         let sent = client
             .state
             .http1_or_2
@@ -360,8 +378,7 @@ pub(super) async fn send_once_origin(
                 request_span,
                 method.clone(),
                 request.target.clone(),
-                http1_request_headers,
-                http2_request_headers,
+                attempt_fields,
                 request_trailers.clone(),
                 prepared.client_hints,
                 prepared.body,
@@ -377,17 +394,21 @@ pub(super) async fn send_once_origin(
             Err(error) => {
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_http1_connection = true;
+                    fields = kept_fields;
                     continue;
                 }
                 // The pool already retired the connection that refused it; the
                 // replacement is negotiated under the same selection rule.
                 if begin_unprocessed_replay(&error, &method, body, retries, replays) {
+                    fields = kept_fields;
                     continue;
                 }
                 return Err(error);
             }
         };
 
+        // The response may store cookies and client hints, so a later
+        // attempt builds its lists again.
         let critical_retry_requested = observe_response(
             client,
             request,
@@ -415,6 +436,19 @@ pub(super) async fn send_once_origin(
         }
         return Ok(AttemptOutcome { response, protocol });
     }
+}
+
+/// Returns whether the retry policy may replay this request after an attempt
+/// that got no response, so the attempt's lists are kept for the replay.
+pub(super) fn may_replay_unanswered(
+    retries: &ConnectionSetupRetryState,
+    body: &RequestBodySource,
+) -> bool {
+    (retries.replays_reused_connections() || retries.replays_unprocessed_requests())
+        && matches!(
+            body,
+            RequestBodySource::Absent | RequestBodySource::Bytes(_)
+        )
 }
 
 /// Starts the one replay after a reused HTTP/1.1 connection closed before
@@ -615,6 +649,8 @@ fn route_attempt_headers(
         None => (request_headers.to_vec(), false),
     };
     inject_cookie(client, request, protocol, &mut headers);
+    #[cfg(test)]
+    field_lists::counts::built(protocol);
     if !placed && let Some(credentials) = forwarding.credentials {
         headers.push(credentials.field.clone());
     }
@@ -733,44 +769,6 @@ pub(super) struct AttemptOutcome {
     pub(super) protocol: HttpProtocol,
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(super) async fn dispatch(
-    client: &Client,
-    request: &ResolvedRequest,
-    protocol: HttpProtocol,
-    method: Method,
-    request_headers: Vec<RequestHeader>,
-    request_trailers: Vec<RequestHeader>,
-    client_hints: Option<ClientHintContext<'_>>,
-    body: Option<RequestBody>,
-    route: &Route,
-    http3_transport: Option<Http3TransportTarget<'_>>,
-    forward_authorization: bool,
-    timeout_budget: TimeoutBudget,
-    retries: &mut ConnectionSetupRetryState,
-) -> Result<DispatchOutcome, RequestError> {
-    dispatch_attempt(
-        client,
-        request,
-        protocol,
-        method,
-        request_headers,
-        request_trailers,
-        client_hints,
-        body,
-        route,
-        http3_transport,
-        Http1Connect {
-            forward_authorization,
-            fresh_connection: false,
-            challenged: None,
-        },
-        timeout_budget,
-        retries,
-    )
-    .await
-}
-
 /// HTTP/1 pool connection choices for one attempt; H3 ignores them.
 struct Http1Connect<'a> {
     /// Whether the forwarded fields already carry the route's credentials;
@@ -794,7 +792,6 @@ async fn dispatch_attempt(
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<RequestBody>,
     route: &Route,
-    http3_transport: Option<Http3TransportTarget<'_>>,
     http1_connect: Http1Connect<'_>,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
@@ -899,6 +896,20 @@ async fn dispatch_attempt(
                 .http3
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+            let transport = Http3TransportTarget::for_origin(endpoint);
+            let fields = http3_pool::validate_request(
+                connector,
+                client.inner.connect_udp_proxy.as_deref(),
+                route,
+                transport,
+                &method,
+                endpoint.authority().as_str(),
+                &target,
+                request_headers,
+                &request_trailers,
+                client_hints,
+                body.as_ref(),
+            )?;
             // Boxed: HTTP/3's send future is the largest of the three
             // protocols', and inline it would enlarge the future of every
             // HTTP/1.1 and HTTP/2 request as well.
@@ -907,11 +918,11 @@ async fn dispatch_attempt(
                 client.inner.connect_udp_proxy.as_deref(),
                 endpoint,
                 route,
-                http3_transport,
+                transport,
                 method,
                 endpoint.authority().as_str(),
                 target,
-                request_headers,
+                fields,
                 request_trailers,
                 client_hints,
                 body,

@@ -1098,6 +1098,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- A request that races an Alt-Svc alternative against its origin builds and
+  checks its HTTP/3, HTTP/1.1, and HTTP/2 field lists once, before the race,
+  and the winner sends them without building them again. A negotiated
+  request builds its HTTP/1.1 and HTTP/2 lists once per redirect hop: a
+  reused-connection replay, an unprocessed-request replay, and a race started
+  again after an early-data handshake failed send them again, while a
+  `Critical-CH` or status retry builds them again with the cookies and client
+  hints its response stored. A cookie that another request stores during a
+  race, or before such a replay, is sent from the next request on
+  ([Fields of a repeated attempt](docs/explanation/design.md#fields-of-a-repeated-attempt)).
 - Wire change for the Firefox recipe over TCP: a resumed direct connection
   whose ticket permits early data offers `early_data` and sends `GET`,
   `HEAD`, `OPTIONS`, and `TRACE` requests without a body as early data. After

@@ -116,6 +116,11 @@ impl Http1Or2Pool {
         self.https_records = discovery;
     }
 
+    /// Sends one negotiated request with the `fields` that [`validate_request`]
+    /// returned for the same method, target, trailers, and body.
+    ///
+    /// A graceful `GOAWAY` retry and a restart after rejected early data send
+    /// these fields again; neither builds nor checks them anew.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn send_request(
         &self,
@@ -126,8 +131,7 @@ impl Http1Or2Pool {
         request_span: &Span,
         method: Method,
         target: OriginForm,
-        http1_headers: Vec<RequestHeader>,
-        http2_headers: Vec<RequestHeader>,
+        fields: NegotiatedFields,
         trailers: Vec<RequestHeader>,
         client_hints: Option<ClientHintContext<'_>>,
         body: Option<RequestBody>,
@@ -137,17 +141,6 @@ impl Http1Or2Pool {
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<NegotiatedResponse, RequestError> {
-        let http1_wire_headers = validate_request(
-            endpoint,
-            &method,
-            &target,
-            http1_headers,
-            &http2_headers,
-            &trailers,
-            client_hints,
-            body.as_ref(),
-        )?;
-
         // A raced connection was admitted by this pool for this endpoint.
         let mut leased = leased;
         let entry = match &leased {
@@ -168,10 +161,6 @@ impl Http1Or2Pool {
             http2_priority,
             trailers,
             client_hints,
-        };
-        let fields = NegotiatedFields {
-            http1_wire_headers,
-            http2_headers,
         };
         let retire_unprocessed = retries.replays_unprocessed_requests();
         let mut retried_graceful_goaway = false;
@@ -1599,18 +1588,21 @@ pub(crate) struct NegotiatedLease {
 }
 
 /// Checks one negotiated request's H1 and H2 representations before any I/O
-/// and returns the H1 wire fields: `Host`, then the H1 fields as sent.
+/// and returns both lists for [`Http1Or2Pool::send_request`].
+///
+/// The check covers `method`, `target`, `trailers`, and `body` as well, so
+/// the request sent with the returned lists must carry the same ones.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn validate_request(
     endpoint: &Endpoint,
     method: &Method,
     target: &OriginForm,
     http1_headers: Vec<RequestHeader>,
-    http2_headers: &[RequestHeader],
+    http2_headers: Vec<RequestHeader>,
     trailers: &[RequestHeader],
     client_hints: Option<ClientHintContext<'_>>,
     body: Option<&RequestBody>,
-) -> Result<Vec<RequestHeader>, RequestError> {
+) -> Result<NegotiatedFields, RequestError> {
     let http1_sent_headers = prepare_headers(client_hints, http1_headers, None)?;
     // Without client hints the H2 fields are sent as they are, so they are
     // checked in place; with hints, the hints known before the connection is
@@ -1618,10 +1610,10 @@ pub(crate) fn validate_request(
     let http2_prepared;
     let http2_validation_headers = match client_hints {
         Some(context) => {
-            http2_prepared = context.prepare(http2_headers.to_vec(), None)?;
+            http2_prepared = context.prepare(http2_headers.clone(), None)?;
             &http2_prepared[..]
         }
-        None => http2_headers,
+        None => &http2_headers[..],
     };
     let mut http1_wire_headers = Vec::with_capacity(http1_sent_headers.len() + 1);
     http1_wire_headers.push(RequestHeader::new(
@@ -1646,7 +1638,10 @@ pub(crate) fn validate_request(
         trailers,
     )
     .map_err(RequestError::negotiated_http2_validation)?;
-    Ok(http1_wire_headers)
+    Ok(NegotiatedFields {
+        http1_wire_headers,
+        http2_headers,
+    })
 }
 
 /// The connection of a lease, asked whether the server has answered its TLS
@@ -1748,9 +1743,11 @@ struct NegotiatedRequest<'a> {
     client_hints: Option<ClientHintContext<'a>>,
 }
 
-/// The field lists of one negotiated request. A dispatch consumes only the
-/// list of the protocol its connection selected.
-struct NegotiatedFields {
+/// The field lists of one negotiated request, which [`validate_request`]
+/// checked. A dispatch consumes only the list of the protocol its connection
+/// selected.
+#[derive(Clone)]
+pub(crate) struct NegotiatedFields {
     /// `Host`, then the H1 fields with client hints placed.
     http1_wire_headers: Vec<RequestHeader>,
     /// The H2 fields before client hints are placed for the connection.

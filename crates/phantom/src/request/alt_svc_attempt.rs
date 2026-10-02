@@ -13,18 +13,17 @@ use super::{
     RequestBodySource, ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, DispatchOutcome,
-        attempt_client_hints, attempt_headers, begin_status_retry, begin_unprocessed_replay,
-        client_hint_origin, dispatch, observe_response, prepare_attempt, send_once_origin,
-        store_cookies,
+        begin_status_retry, begin_unprocessed_replay, client_hint_origin, may_replay_unanswered,
+        observe_response, prepare_attempt, send_once_origin, store_cookies,
     },
+    field_lists::{self, AttemptFields, RacedFields},
     replay::ReplayClass,
 };
 use crate::{
     AltSvcRace, Client, HttpProtocol, RequestError, Route, TimeoutPhase,
     session::{
         alt_svc::{AlternativeTarget, PendingLookup, invalidates_alternative},
-        http1_or_2_pool,
-        http3_pool::{self, Http3Lease, Http3SetupControl, Http3TransportTarget},
+        http3_pool::{Http3Fields, Http3Lease, Http3SetupControl, Http3TransportTarget},
     },
     timeout::TimeoutBudget,
 };
@@ -132,6 +131,8 @@ pub(super) async fn send_once_alt_svc(
         lifecycle,
         &alternative,
         None,
+        None,
+        &mut false,
     )
     .await
 }
@@ -139,9 +140,11 @@ pub(super) async fn send_once_alt_svc(
 /// Races alternative QUIC setup against delayed origin H1/H2 setup, then
 /// sends the request once, on the winner.
 ///
-/// Both candidates keep the request's origin identity and route. Both request
-/// representations are validated before either candidate performs I/O, and
-/// the request body is prepared only for the winner.
+/// Both candidates keep the request's origin identity and route. The H3,
+/// H1, and H2 lists are built and checked once, before either candidate
+/// performs I/O, unless `fields` already holds them; the winner sends its
+/// lists without building them again. The request body is prepared only for
+/// the winner.
 ///
 /// With a pending HTTPS-record `lookup`, the origin does not wait at all and
 /// alternative setup begins only once the lookup advertises `h3`; a lookup
@@ -157,8 +160,12 @@ pub(super) async fn send_once_raced(
     alternative: AlternativeTarget,
     race: AltSvcRace,
     lookup: Option<PendingLookup>,
+    fields: Option<RacedFields>,
 ) -> Result<AttemptOutcome, RequestError> {
-    validate_both(client, request, &attempt, route, &alternative)?;
+    let fields = match fields {
+        Some(fields) => fields,
+        None => field_lists::raced(client, request, &attempt, route, &alternative)?,
+    };
     let AttemptLifecycle {
         request_span,
         timeout_budget,
@@ -240,6 +247,8 @@ pub(super) async fn send_once_raced(
                     lifecycle,
                     &alternative,
                     Some(leased),
+                    Some(fields.http3),
+                    &mut false,
                 )
                 .await;
             }
@@ -256,6 +265,7 @@ pub(super) async fn send_once_raced(
                 race,
                 leased,
                 connection,
+                fields,
             ))
             .await
         }
@@ -286,7 +296,16 @@ pub(super) async fn send_once_raced(
                 }
                 Candidate::Pending(_) => {}
             }
-            send_once_origin(client, request, attempt, route, lifecycle, Some(leased)).await
+            send_once_origin(
+                client,
+                request,
+                attempt,
+                route,
+                lifecycle,
+                Some(leased),
+                Some(fields.negotiated),
+            )
+            .await
         }
     }
 }
@@ -295,6 +314,12 @@ pub(super) async fn send_once_raced(
 /// resumed with early data, was still running; then confirms the
 /// alternative, marks QUIC to the origin recently broken, or races again,
 /// as `after_early_win` decides.
+///
+/// A race started again sends `fields` again when no attempt on the
+/// alternative got a response. A failed handshake starts it, but an
+/// unprocessed replay may have reached another connection that answered
+/// with a status the retry policy repeats; that response may have stored
+/// cookies or client hints, so the race then builds the lists again.
 #[allow(clippy::too_many_arguments)]
 async fn send_after_early_win(
     client: &Client,
@@ -306,6 +331,7 @@ async fn send_after_early_win(
     race: AltSvcRace,
     leased: Http3Lease,
     connection: phantom_net::http3::Http3Connection,
+    fields: RacedFields,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptRequest {
         method,
@@ -319,6 +345,15 @@ async fn send_after_early_win(
         retries,
         replays,
     } = lifecycle;
+    let RacedFields { http3, negotiated } = fields;
+    let replayable = matches!(
+        &*body,
+        RequestBodySource::Absent | RequestBodySource::Bytes(_)
+    );
+    // Only a request that may be raced again keeps its HTTP/3 list.
+    let kept_http3 =
+        races_again(alternative.allows_early_data(), replayable).then(|| http3.clone());
+    let mut responded = false;
     let result = send_on_alternative(
         client,
         request,
@@ -337,6 +372,8 @@ async fn send_after_early_win(
         },
         &alternative,
         Some(leased),
+        Some(http3),
+        &mut responded,
     )
     .await;
     // A response head arrives only after the handshake completed, so
@@ -348,10 +385,6 @@ async fn send_after_early_win(
             Ok(connection.early_data_handshake_failed().await)
         })
         .await;
-    let replayable = matches!(
-        &*body,
-        RequestBodySource::Absent | RequestBodySource::Bytes(_)
-    );
     match after_early_win(
         handshake_failed.ok(),
         result.is_ok(),
@@ -394,6 +427,9 @@ async fn send_after_early_win(
         alternative.without_early_data(),
         race,
         None,
+        kept_http3
+            .filter(|_| !responded)
+            .map(|http3| RacedFields { http3, negotiated }),
     ))
     .await
 }
@@ -590,69 +626,15 @@ fn continue_alternative<F>(
     );
 }
 
-/// Checks the H3 and H1/H2 representations of the first attempt before
-/// either candidate performs I/O.
-fn validate_both(
-    client: &Client,
-    request: &ResolvedRequest,
-    attempt: &AttemptRequest<'_>,
-    route: &Route,
-    alternative: &AlternativeTarget,
-) -> Result<(), RequestError> {
-    let http3 = client
-        .inner
-        .http3
-        .as_ref()
-        .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    let owned_body;
-    let body = match &*attempt.body {
-        RequestBodySource::Absent => None,
-        RequestBodySource::Bytes(bytes) => {
-            owned_body = RequestBody::from_bytes(bytes.clone());
-            Some(&owned_body)
-        }
-        RequestBodySource::Streaming(Some(body)) => Some(body),
-        RequestBodySource::Streaming(None) => {
-            return Err(RequestError::request_body_not_replayable());
-        }
-    };
-    let hint_origin = client_hint_origin(client, request);
-    let client_hints = attempt_client_hints(client, request, hint_origin.as_deref());
-    let mut http3_headers = attempt_headers(client, request, HttpProtocol::Http3, &attempt.headers);
-    if let Some(alt_used) = alternative.alt_used() {
-        http3_headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
-    }
-    http3_pool::validate_request(
-        http3,
-        client.inner.connect_udp_proxy.as_deref(),
-        route,
-        Http3TransportTarget::new(alternative.host(), alternative.port()),
-        &attempt.method,
-        request.endpoint.authority().as_str(),
-        &request.target,
-        &http3_headers,
-        &attempt.trailers,
-        client_hints,
-        body,
-    )?;
-    http1_or_2_pool::validate_request(
-        &request.endpoint,
-        &attempt.method,
-        &request.target,
-        attempt_headers(client, request, HttpProtocol::Http1, &attempt.headers),
-        &attempt_headers(client, request, HttpProtocol::Http2, &attempt.headers),
-        &attempt.trailers,
-        client_hints,
-        body,
-    )?;
-    Ok(())
-}
-
 /// Sends a request to a learned alternative.
 ///
-/// `leased` is a connection a race already admitted and established; the
-/// first attempt uses it. Later attempts, such as status retries, stay on
-/// this alternative and acquire from the pool.
+/// `leased` is a connection a race already admitted and established, and
+/// `fields` the H3 list the race built and checked; the first attempt uses
+/// both. Later attempts, such as status retries, stay on this alternative and
+/// acquire from the pool, and send the same list until a response arrives;
+/// see [`field_lists`]. `responded` is set once any attempt gets a response,
+/// even one a retry then repeats.
+#[allow(clippy::too_many_arguments)]
 async fn send_on_alternative(
     client: &Client,
     request: &ResolvedRequest,
@@ -661,6 +643,8 @@ async fn send_on_alternative(
     lifecycle: AttemptLifecycle<'_>,
     alternative: &AlternativeTarget,
     mut leased: Option<Http3Lease>,
+    mut fields: Option<Http3Fields>,
+    responded: &mut bool,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptLifecycle {
         request_span: _,
@@ -677,56 +661,54 @@ async fn send_on_alternative(
     let endpoint = &request.endpoint;
     let transport = Http3TransportTarget::new(alternative.host(), alternative.port());
     let client_hint_origin = client_hint_origin(client, request);
+    let keeps_fields = may_replay_unanswered(request_retries, body);
 
     loop {
-        let mut prepared_headers =
-            attempt_headers(client, request, HttpProtocol::Http3, &request_headers);
-        if let Some(alt_used) = alternative.alt_used() {
-            prepared_headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
-        }
         let prepared = prepare_attempt(client, request, client_hint_origin.as_deref(), body)?;
+        let attempt_fields = match fields.take() {
+            Some(fields) => fields,
+            None => field_lists::alternative_fields(
+                client,
+                request,
+                route,
+                alternative,
+                &AttemptFields {
+                    method: &method,
+                    headers: &request_headers,
+                    trailers: &request_trailers,
+                    client_hints: prepared.client_hints,
+                    body: prepared.body.as_ref(),
+                },
+            )?,
+        };
+        // A replay after no response sends this list again.
+        let kept_fields = keeps_fields.then(|| attempt_fields.clone());
         // Alternative setup failures evict the advertisement instead of retrying.
         let mut setup_retries = request_retries.for_alternative_setup();
-        let dispatched = match leased.take() {
-            Some(leased) => {
-                dispatch_on_lease(
-                    client,
-                    request,
-                    leased,
-                    method.clone(),
-                    prepared_headers,
-                    request_trailers.clone(),
-                    prepared.client_hints,
-                    prepared.body,
-                    timeout_budget,
-                    &mut setup_retries,
-                )
-                .await
-            }
-            None => {
-                dispatch(
-                    client,
-                    request,
-                    HttpProtocol::Http3,
-                    method.clone(),
-                    prepared_headers,
-                    request_trailers.clone(),
-                    prepared.client_hints,
-                    prepared.body,
-                    route,
-                    Some(transport),
-                    false,
-                    timeout_budget,
-                    &mut setup_retries,
-                )
-                .await
-            }
-        };
+        let dispatched = dispatch_http3(
+            client,
+            request,
+            route,
+            transport,
+            leased.take(),
+            method.clone(),
+            attempt_fields,
+            request_trailers.clone(),
+            prepared.client_hints,
+            prepared.body,
+            timeout_budget,
+            &mut setup_retries,
+        )
+        .await;
         let dispatched = match dispatched {
-            Ok(dispatched) => dispatched,
+            Ok(dispatched) => {
+                *responded = true;
+                dispatched
+            }
             Err(error) => {
                 // An unprocessed replay stays on this alternative and keeps it.
                 if begin_unprocessed_replay(&error, &method, body, request_retries, replays) {
+                    fields = kept_fields;
                     continue;
                 }
                 if invalidates_alternative(&error) {
@@ -747,6 +729,8 @@ async fn send_on_alternative(
             });
         }
 
+        // The response may store cookies and client hints, so a later
+        // attempt builds its list again.
         let critical_retry_requested = observe_response(
             client,
             request,
@@ -787,13 +771,17 @@ async fn send_on_alternative(
     }
 }
 
+/// Sends one attempt to the alternative at `transport`, on `leased` when a
+/// race established it.
 #[allow(clippy::too_many_arguments)]
-async fn dispatch_on_lease(
+async fn dispatch_http3(
     client: &Client,
     request: &ResolvedRequest,
-    leased: Http3Lease,
+    route: &Route,
+    transport: Http3TransportTarget<'_>,
+    leased: Option<Http3Lease>,
     method: http::Method,
-    headers: Vec<RequestHeader>,
+    fields: Http3Fields,
     trailers: Vec<RequestHeader>,
     client_hints: Option<crate::session::client_hints::ClientHintContext<'_>>,
     body: Option<RequestBody>,
@@ -805,23 +793,47 @@ async fn dispatch_on_lease(
         .http3
         .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+    let authority = request.endpoint.authority().as_str();
     // Boxed for the reason `dispatch_attempt` boxes its HTTP/3 send: a
     // raced request holds this path and the origin's in one future.
-    Box::pin(client.state.http3.send_request_on_lease(
-        leased,
-        connector,
-        method,
-        request.endpoint.authority().as_str(),
-        request.target.clone(),
-        headers,
-        trailers,
-        client_hints,
-        body,
-        timeout_budget,
-        retries,
-    ))
-    .await
-    .map(|(response, sent_headers)| DispatchOutcome {
+    let sent = match leased {
+        Some(leased) => {
+            Box::pin(client.state.http3.send_request_on_lease(
+                leased,
+                connector,
+                method,
+                authority,
+                request.target.clone(),
+                fields,
+                trailers,
+                client_hints,
+                body,
+                timeout_budget,
+                retries,
+            ))
+            .await
+        }
+        None => {
+            Box::pin(client.state.http3.send_request(
+                connector,
+                client.inner.connect_udp_proxy.as_deref(),
+                &request.endpoint,
+                route,
+                transport,
+                method,
+                authority,
+                request.target.clone(),
+                fields,
+                trailers,
+                client_hints,
+                body,
+                timeout_budget,
+                retries,
+            ))
+            .await
+        }
+    };
+    sent.map(|(response, sent_headers)| DispatchOutcome {
         response,
         sent_headers,
     })

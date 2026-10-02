@@ -36,6 +36,10 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   starts both together.
 - The request is sent once, on the winner, and `ResponseInfo` reports the
   winner's protocol. Later retries and replays stay on that protocol.
+- The fields for both candidates are built and checked before either setup
+  starts, and the winner sends them as built, so a cookie stored during the
+  race reaches the next request
+  ([fields of a repeated attempt](../explanation/design.md#fields-of-a-repeated-attempt)).
 - An alternative that fails while the origin succeeds is marked broken and
   not raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling
   per failure, capped at two days; a successful alternative connection resets

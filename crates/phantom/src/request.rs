@@ -20,6 +20,7 @@ use crate::{
 
 mod alt_svc_attempt;
 mod attempt;
+mod field_lists;
 mod replay;
 pub(crate) mod secure_context;
 pub(crate) mod template;
@@ -1273,10 +1274,10 @@ mod tests {
     /// build's poll frames grow with them; see `phantom_testkit::future_size`.
     ///
     /// With all features, the largest, `RequestBuilder::send_inner`, is
-    /// 14,880 bytes on Windows and on Linux (x86-64, Rust 1.98.1). When this
-    /// fails, for example after a toolchain upgrade, run it with
-    /// `--nocapture` to see every size, then box the largest cold branch
-    /// with `Box::pin`. Raise `FUTURE_BUDGET` only with the measurements
+    /// 15,080 bytes as measured on Windows (x86-64, Rust 1.98.1); other
+    /// platforms may differ. When this fails, for example after a toolchain
+    /// upgrade, run it with `--nocapture` to see every size, then box the
+    /// largest cold branch with `Box::pin`. Raise `FUTURE_BUDGET` only with the measurements
     /// that justify it, and never box the path of an ordinary request.
     #[cfg(debug_assertions)]
     #[test]
@@ -1297,7 +1298,6 @@ mod tests {
             ),
             ("send_once", future_size(&attempt::send_once)),
             ("send_once_origin", future_size(&attempt::send_once_origin)),
-            ("dispatch", future_size(&attempt::dispatch)),
             (
                 "send_once_alt_svc",
                 future_size(&alt_svc_attempt::send_once_alt_svc),
