@@ -114,6 +114,9 @@ jobs:
       - name: Lint
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
+      - name: Check unsafe code boundaries
+        run: scripts/ci/check-unsafe-boundaries.sh
+
       - name: Install ShellCheck
         env:
           SHELLCHECK_VERSION: v0.11.0

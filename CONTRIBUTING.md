@@ -105,7 +105,8 @@ ordering, and return an error when a requested protocol, route, or
 fingerprint cannot be honored; never fall back. Expose configuration only
 once it is applied, validated, and tested. Keep recoverable failures panic-free, and add
 no unsafe code outside the two audited FFI modules in
-[Design](docs/explanation/design.md#unsafe-code). When public behavior
+[Design](docs/explanation/design.md#unsafe-code), which
+`scripts/ci/check-unsafe-boundaries.sh` enforces. When public behavior
 changes, update the guide, coverage contract, or design boundary, and never
 document unverified support.
 

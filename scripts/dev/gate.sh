@@ -364,6 +364,7 @@ chain_python() {
     python -m unittest discover -s scripts/dev/tests -p 'test_*.py'
   run_step docs-check - "${python[@]}" python scripts/docs/check_docs.py
   run_step tool-pins - bash scripts/ci/check-tool-pins.sh
+  run_step unsafe-boundaries - bash scripts/ci/check-unsafe-boundaries.sh
 }
 
 if [[ $quick == true ]]; then
@@ -374,7 +375,7 @@ if [[ $quick == true ]]; then
 else
   steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
-    docs-check tool-pins)
+    docs-check tool-pins unsafe-boundaries)
   launch chain_tests
   launch chain_lint
   launch chain_msrv

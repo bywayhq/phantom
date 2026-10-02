@@ -74,8 +74,9 @@ Use a sibling worktree only when independent work can proceed concurrently.
   `tcp::windows_port_randomization` FFI module of `phantom-net`, each of
   which documents every unsafe block; see
   [Design](docs/explanation/design.md#unsafe-code), which also holds the
-  `phantom-net` module's audit. Adding unsafe code anywhere else requires a
-  new documented and audited FFI boundary.
+  `phantom-net` module's audit. `scripts/ci/check-unsafe-boundaries.sh`
+  fails when unsafe code is allowed anywhere else. Adding unsafe code
+  anywhere else requires a new documented and audited FFI boundary.
 - Change a vendored crate only through its `patches/series`, as its
   `PHANTOM.md` describes; never make an unrecorded edit under `vendor/`.
 
@@ -185,7 +186,8 @@ nextest runs each test in its own process and does not run doctests, hence
 the separate `cargo test --doc`; without nextest, `cargo test --workspace
 --all-targets --all-features --locked` runs the same tests. The script also
 runs the fuzz crate's Clippy and tests, the optional feature rows of the CI
-Features and MSRV jobs, and `scripts/ci/check-tool-pins.sh`.
+Features and MSRV jobs, `scripts/ci/check-tool-pins.sh`, and
+`scripts/ci/check-unsafe-boundaries.sh`.
 
 Read the output of every gate command. A command list joined with `;` or
 piped through `tail` or `grep` reports the status of its last command, not of

@@ -381,6 +381,11 @@ Both crates follow the same rules:
   `windows_port_randomization` pass a `BorrowedSocket` and get an
   `io::Result`, or ask for the Windows version and get an
   `Option<WindowsVersion>`.
+- `scripts/ci/check-unsafe-boundaries.sh` fails when an `allow(unsafe_code`
+  or `expect(unsafe_code` attribute appears anywhere outside `vendor/` but
+  the two module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
+  `crates/phantom-net/src/tcp.rs`, or when a manifest sets `unsafe_code` to
+  `allow` or `warn`. CI's Quality job and `scripts/dev/gate.sh` run it.
 
 Safe code in either crate cannot add unsafe operations without moving them
 into that module, where review concentrates. A change to it needs the same
