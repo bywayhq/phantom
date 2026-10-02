@@ -14,6 +14,31 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings::ech_grease_payload_length` is an `EchGreasePayloadLength`
+  instead of an `Option<u16>`. `BackendDefault` keeps the TLS backend's
+  length, drawn per connection; `Exact(n)` sends `n` payload bytes; and
+  `FromClientHello { maximum_name_length }` sizes the payload from the
+  ClientHello that carries it, as Firefox 157's NSS does. `firefox::v157_tls`,
+  `firefox::v157_http3_tls`, and `firefox_android::v156_tls` now use
+  `FromClientHello { maximum_name_length: 100 }`: a fresh ClientHello to a
+  host name still carries 240 bytes, but a resumed one carries Firefox's 368
+  with the capture servers' tickets where it carried 240, and one to an IP
+  literal is padded by the address text, as Firefox pads it
+  ([evidence](docs/explanation/validation.md#firefox-ech-grease-payload-evidence)).
+  The Chromium-family recipes keep `BackendDefault`.
+  Migrate: replace `ech_grease_payload_length: None` with
+  `EchGreasePayloadLength::BackendDefault` and `Some(n)` with
+  `EchGreasePayloadLength::Exact(n)`. To keep the old Firefox length, set
+  `Exact(240)` on the returned settings.
+- `TlsSettings` gained the public field
+  `tls12_extensions_in_tls13_client_hello` (`bool`), so struct literals that
+  name every field no longer compile. When it is set, a ClientHello whose
+  minimum version is TLS 1.3 also sends an empty `extended_master_secret`
+  and a `renegotiation_info` with an empty renegotiated connection, as NSS
+  does; a ClientHello that also offers TLS 1.2 sends both anyway. The
+  Firefox recipes set it, and every other recipe leaves it `false`.
+  Migrate: add `tls12_extensions_in_tls13_client_hello: false` to a
+  `TlsSettings` literal, or build it from a recipe with `..recipe`.
 - `TcpSettings` gained the public field `port_randomization`
   (`Option<TcpPortRandomization>`), so struct literals that name every field
   no longer compile. `TcpPortRandomization { minimum_windows_build }` sets
@@ -651,6 +676,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientHelloExtensionOrder::PermutedWithTail` shuffles a ClientHello's
+  extensions per connection and then writes the listed ones last, before
+  only `padding` and `pre_shared_key`, and
+  `ClientHelloExtension::QuicTransportParameters` names
+  `quic_transport_parameters` (0x39) in such a list.
 - `scripts/capture/firefox_socket_hooks.py` and the Frida agent extension
   `scripts/capture/firefox_socket_hooks.js` record Firefox's socket options,
   keepalive changes, connection attempts, and host lookups on Windows from
@@ -1252,6 +1282,30 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `firefox::v157_http3_tls` sends the QUIC ClientHello Firefox 157 sends.
+  It keeps `quic_transport_parameters` and then `encrypted_client_hello`
+  last after the shuffled extensions, where all of them were shuffled, and
+  now sends `record_size_limit` 16385, an empty `extended_master_secret`,
+  and a `renegotiation_info` of one zero byte, which it left out. QUIC
+  carries no TLS records, so the limit applies to nothing there. A captured
+  ClientHello and Phantom's now differ only in per-connection values and
+  the order of the shuffled extensions
+  ([evidence](docs/explanation/validation.md#firefox-157-http3-recipe)).
+  To keep the old ClientHello, set `record_size_limit: None`,
+  `tls12_extensions_in_tls13_client_hello: false`, and `extension_order:
+  ClientHelloExtensionOrder::Permuted` on the returned settings.
+- `btls-sys` moves to `bywayhq/btls` commit `f478ea16`, whose native
+  patches 0014 to 0017 write a fixed extension tail after the shuffled
+  extensions, negotiate `record_size_limit` over QUIC, send
+  `extended_master_secret` and `renegotiation_info` in a TLS 1.3-only
+  ClientHello on request, and size the ECH GREASE payload from the
+  ClientHello. The `phantom-btls` and `phantom-tokio-btls` forks move to
+  `0.5.6-phantom.5`: `btls` adds
+  `SslContextBuilder::set_extension_order_tail`,
+  `set_tls12_extensions_in_tls13_client_hello` on `SslContextBuilder` and
+  `SslRef`, and `SslRef::set_ech_grease_payload_from_client_hello`. A
+  downstream lockfile changes only the `btls-sys` revision and those two
+  versions.
 - HTTP/2 and HTTP/3 requests carry the client hints known when their fields
   are built, as HTTP/1.1 requests already did, and as Chromium sets a
   request's hints before it chooses a connection. A hint that a response

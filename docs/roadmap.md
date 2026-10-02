@@ -48,6 +48,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - TLS 1.3 session resumption over TCP, with the per-origin ticket count and
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
+- Firefox's ECH GREASE payload length, sized from each ClientHello as NSS
+  does: 240 bytes fresh and 368 resumed over TCP and QUIC, and padded by the
+  host text of an IP literal
+  ([Firefox ECH GREASE payload](explanation/validation.md#firefox-ech-grease-payload-evidence)).
 - Early data over TCP in the Firefox recipe: a resumed direct connection
   offers `early_data` where Firefox 157 does, sends replay-safe requests in
   it, sends them again on the same connection after a rejection, and restarts
@@ -144,14 +148,13 @@ anything does.
 
 - Firefox HTTP/3 beyond the recipe. Delivered: `firefox::v157_http3_tls`,
   `v157_quic`, `v157_http3`, and `v157_http3_request` from Firefox 157.0
-  captures, with QUIC v2 and compatible version negotiation
+  captures, with QUIC v2 and compatible version negotiation, and the QUIC
+  ClientHello's fixed tail of `quic_transport_parameters` and
+  `encrypted_client_hello` and its `record_size_limit`,
+  `extended_master_secret`, and `renegotiation_info` extensions
   ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
-  Remaining: the QUIC ClientHello's fixed tail of `quic_transport_parameters`
-  and `encrypted_client_hello`, and its `record_size_limit`,
-  `extended_master_secret`, and `renegotiation_info` extensions; the
-  position of `Alt-Used`. Blocker: the first four need changes to the
-  BoringSSL fork; `Alt-Used` needs a template slot for a field the client
-  generates.
+  Remaining: the position of `Alt-Used`. Blocker: a template slot for a
+  field the client generates.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 135 and `macos` request
   templates for Chrome 154 and Firefox 156, from macOS 15.5 captures on an
@@ -227,18 +230,6 @@ anything does.
   where `firefox::v157_dns_cache` keeps it 60 s. Blocker: Phantom resolves through the operating
   system, which reports no TTL; a resolver that returns record TTLs, and a
   cache that honors them, are needed.
-- The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
-  [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
-  where every Firefox 156.0.1 and 157.0 resumption sends a 368-byte payload
-  against 240 bytes on a fresh connection; the recipe sends 240 bytes on
-  both. NSS sizes the GREASE payload from the ClientHello it has built,
-  `pre_shared_key` included: `tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`,
-  called from `ssl3con.c:5889` at tag `FIREFOX_157_0_RELEASE`) encodes an
-  inner ClientHello from the outer extensions and pads it with
-  `tls13_PadChInner` to the `security.tls.ech.grease_size` name target
-  (100) and a multiple of 32 bytes. Blocker: a fixed recipe length cannot
-  follow a ticket's size; modelling that rule needs a ClientHello-dependent
-  length in the TLS backend.
 - Early data on Firefox-profile WebSocket openings and on connections that
   offer ECH from HTTPS records. Evidence: Firefox 157 disables TCP early data
   only on proxy connections and origins that failed before

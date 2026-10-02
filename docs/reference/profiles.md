@@ -107,6 +107,32 @@ captures are of Opera 135, whose TLS ClientHello `opera::v136_tls` does not
 match, so `opera::v135_macos_client_hints` has no TLS recipe of its build;
 with `opera::v136_tls` it presents a mixed identity.
 
+## TLS ClientHello shape
+
+Three `TlsSettings` fields shape the ClientHello beyond its lists of
+values: `extension_order`, `ech_grease_payload_length`, and
+`tls12_extensions_in_tls13_client_hello`.
+
+| Recipe | `extension_order` | `ech_grease_payload_length` | `tls12_extensions_in_tls13_client_hello` |
+| --- | --- | --- | --- |
+| Chromium-family `*_tls` and `*_http3_tls` | `Permuted`: every extension shuffled per connection | `BackendDefault`: 144, 176, 208, or 240 bytes, drawn per connection | `false` |
+| `firefox::v157_tls` | `Fixed`: Firefox's order | `FromClientHello { maximum_name_length: 100 }` | `true`; no effect, as the recipe also offers TLS 1.2 |
+| `firefox::v157_http3_tls` | `PermutedWithTail`: shuffled, then `quic_transport_parameters` and `encrypted_client_hello` | `FromClientHello { maximum_name_length: 100 }` | `true` |
+
+- `PermutedWithTail` writes its list after the shuffled extensions; only
+  `padding` and `pre_shared_key` follow it.
+- `FromClientHello` sizes the GREASE payload as the NSS of Firefox 157
+  does, from the ClientHello that carries it, so the length depends on the
+  connection: 240 bytes on a fresh Firefox-profile ClientHello to a host
+  name, more with a session ticket (368 with the capture servers' tickets),
+  and padded by the address text for an IP literal
+  ([Validation](../explanation/validation.md#firefox-ech-grease-payload-evidence)).
+  `Exact(n)` sends `n` bytes on every connection.
+- `tls12_extensions_in_tls13_client_hello` adds an empty
+  `extended_master_secret` and a one-byte `renegotiation_info` to a
+  ClientHello that offers only TLS 1.3, as every Firefox QUIC ClientHello
+  does.
+
 ## TCP socket options
 
 `TcpSettings` applies to every TCP socket the client opens: to origins, to

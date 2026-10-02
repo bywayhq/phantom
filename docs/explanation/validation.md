@@ -55,6 +55,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
 | [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; no network partitions in Phantom |
+| [Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence) | NSS source, and Firefox 157 fresh, resumed, and IP-literal ClientHellos over TCP and QUIC, replayed against Phantom and an independent model of NSS's rule | Resumed lengths with early data compared through the rule; no QUIC capture to an IPv6 literal |
 | [Request trailers](#ordered-request-trailer-evidence), [forward proxies](#forward-proxy-evidence), [H3 over SOCKS5](#h3-socks5-udp-evidence) | Loopback tests | No browser-capture fidelity |
 | [Proxy routes in browsers](#proxy-route-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom | Plaintext origins only; no `https://` or `wss://` origins or SOCKS |
 | [Proxy authentication](#proxy-authentication-evidence) | Chrome 154, Edge 154, and Firefox 157 captures and browser source, plus loopback tests of Phantom | One realm; no `407` to a CONNECT captured; forwarded field position and H2 indexing differ |
@@ -1622,7 +1623,13 @@ aioquic 1.3.0 capture servers. All 60 connections agree on the following.
   brotli, and no `ec_point_formats`, `session_ticket`, or
   `signed_certificate_timestamp`. Its `delegated_credentials` list is the
   TCP one. Its extension order changes on every connection, except that
-  `quic_transport_parameters` and `encrypted_client_hello` are always last.
+  `quic_transport_parameters` and `encrypted_client_hello` are always last,
+  followed only by `pre_shared_key` when it resumes. Like the TCP one, it
+  sends `record_size_limit` 16385, an empty `extended_master_secret`, and a
+  `renegotiation_info` of one zero byte, although QUIC carries no TLS
+  records and offers only TLS 1.3, and an ECH GREASE payload of 240 bytes
+  fresh and 368 resumed
+  ([Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence)).
   Firefox 156.0.1 also offered ML-DSA-44, -65, and -87 in both signature
   lists; Firefox 157.0 does not
   ([Firefox 157 against Firefox 156.0.1](#firefox-157-against-firefox-15601)).
@@ -1663,12 +1670,28 @@ Tests replay the captures:
 - `firefox_157_quic_offer_and_streams_match_windows_capture` connects the
   recipes to a loopback BoringSSL QUIC server. The ClientHello matches each
   retained one in cipher suites, groups, key shares, both signature lists,
-  ALPN, server name, extension set, and the delegated-credential, status
-  request, certificate-compression, and PSK-mode bodies; the transport
-  parameters match each snapshot in order, identifier and length widths,
-  and value, apart from the connection ID bytes and the reserved version.
+  ALPN, server name, extension set, the last two extensions
+  (`quic_transport_parameters`, then `encrypted_client_hello`), the ECH
+  GREASE payload length, and the delegated-credential, status request,
+  certificate-compression, PSK-mode, `extended_master_secret` (empty),
+  `renegotiation_info` (`00`), and `record_size_limit` (`4001`) bodies. The
+  order of the other extensions is drawn per connection by both, so it is
+  not compared. The transport parameters match each snapshot in order,
+  identifier and length widths, and value, apart from the connection ID
+  bytes and the reserved version.
   The control stream carries the captured SETTINGS frame byte for byte and
   one reserved frame, and streams 2, 6, and 10 carry types 0, 2, and 3.
+- `firefox_157_resumed_quic_client_hello_matches_the_resumption_captures`
+  learns a ticket that permits early data and records the resumed
+  ClientHello. Against each resumed ClientHello of the three resumption
+  captures, it has the same extension set, ends with
+  `quic_transport_parameters`, `encrypted_client_hello`, and
+  `pre_shared_key`, and has the same `early_data`, PSK-mode,
+  `extended_master_secret`, `renegotiation_info`, and `record_size_limit`
+  bodies. Its ECH GREASE payload follows NSS's rule; see
+  [Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence).
+- `firefox_157_quic_client_hello_pads_ech_grease_by_an_ip_literal_host`
+  records the ClientHellos to `127.0.0.1` and `::1`; see the same section.
 - `firefox_157_initial_datagrams_match_the_capture` receives the two
   Initial datagrams on a bare IPv4 UDP socket and compares them with the
   first two of each snapshot: the size, the version, and the Source
@@ -1719,11 +1742,9 @@ quic_version_interop -- <port> <dir>/root.der`.
 
 Limits:
 
-- Four ClientHello differences remain, all in BoringSSL. Its permutation
-  also moves `quic_transport_parameters` and `encrypted_client_hello`. It
-  refuses `record_size_limit` on QUIC, which Firefox sends (16385). It omits
-  `extended_master_secret` and `renegotiation_info` from a TLS 1.3-only
-  offer, and Firefox sends both.
+- The order of the shuffled extensions is drawn per connection, by
+  BoringSSL for Phantom and by NSS for Firefox, so no two ClientHellos are
+  expected to share it; only the fixed tail is compared.
 - Firefox sends `Alt-Used` after `accept-encoding`, or after `referer` on a
   `fetch`, on requests to an origin it reached through Alt-Svc. Phantom
   generates the field and appends it last.
@@ -4527,20 +4548,26 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   is last, with one identity and one 32-byte binder; the empty
   `session_ticket` stays; and the resumed ClientHello adds only
   `pre_shared_key` to Phantom's fresh one.
-- `firefox_resumed_client_hello_matches_the_capture_without_early_data` does
-  the same with `firefox::v157_tls` and `resumption-no-early-data.txt`, and
-  also requires the exact extension order, which is Firefox's fixed order
-  without `session_ticket` and with `pre_shared_key` appended.
+- `firefox_resumed_client_hello_matches_the_capture_without_early_data`
+  learns a 64-byte ticket, as long as the capture server's, from a loopback
+  rustls server, and compares the resumed `firefox::v157_tls` ClientHello
+  with every resumed ClientHello of `resumption-no-early-data.txt` byte for
+  byte apart from the random, the session ID, key-share keys, the ECH GREASE
+  AEAD, configuration ID, encapsulated key, and payload bytes, and the PSK
+  identity, ticket age, and binder bytes. The ECH GREASE payload is 368
+  bytes in both. The extension order is Firefox's fixed order without
+  `session_ticket` and with `pre_shared_key` appended.
 - `firefox_resumed_client_hello_with_early_data_matches_the_capture`
   learns a ticket that permits early data and compares the resumed ClientHello
   with every resumed ClientHello of the Windows and macOS
-  `resumption-sequential.txt`, field by field and byte for byte apart from the
-  random, the session ID, key-share keys, the ECH GREASE AEAD, configuration
-  ID, encapsulated key, and payload, and the PSK identity, ticket age, and
-  binder. The extension order is Firefox's fixed order without
+  `resumption-sequential.txt` the same way, apart from the ECH GREASE payload
+  length. The extension order is Firefox's fixed order without
   `session_ticket`, with an empty `early_data` between `key_share` and
   `supported_versions`, `record_size_limit` still sent, and `pre_shared_key`
-  last. The ECH GREASE payload is the one difference; see the limits.
+  last. Only a BoringSSL loopback server issues tickets that permit early
+  data here, and its tickets are longer than the capture server's, so the
+  payload length is compared through NSS's rule; see
+  [Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence).
 - `chromium_recipes_never_offer_early_data_over_tcp` resumes a ticket that
   permits early data with the Chrome, Edge, Brave, and Opera recipes; none
   offers `early_data`.
@@ -4636,12 +4663,6 @@ data has arrived:
 
 Limits:
 
-- Every Firefox 157 resumed ClientHello carries a 368-byte ECH GREASE
-  payload, against 240 bytes in a fresh one, with or without early data. The
-  recipe sends 240 bytes on both, so a resumed Firefox-profile ClientHello is
-  128 bytes shorter. The captures show one ticket size only, so the rule
-  behind Firefox's length is not known
-  ([roadmap](../roadmap.md)).
 - No capture shows a server rejecting early data; the rejection paths follow
   Firefox's source. Firefox's other early-data rules are not modeled: it
   stops offering early data to an origin after certain TLS alerts, and
@@ -4659,6 +4680,115 @@ Limits:
   its true limit may be higher than the recipe's eight.
 - Loopback, headless, and HTTP/1.1 or HTTP/2 only. The captures cannot show
   how long a browser keeps a ticket; every ticket was valid for one day.
+
+### Firefox ECH GREASE payload evidence
+
+What is claimed: `firefox::v157_tls` and `firefox::v157_http3_tls` size the
+ECH GREASE payload as Firefox 157 does, from the ClientHello that carries
+it, so a fresh ClientHello to a host name carries 240 payload bytes, one
+that resumes with the capture servers' tickets 368, and one to an IP
+literal the length Firefox pads it to.
+
+Evidence: NSS at tag `FIREFOX_157_0_RELEASE` sizes the payload in
+`tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`, called from
+`ssl3con.c:5889`) after every other extension, `pre_shared_key` included, is
+built and before padding. It encodes the EncodedClientHelloInner a real ECH
+offer of that ClientHello would encrypt: `server_name` and `pre_shared_key` in
+full, `supported_versions` with TLS 1.3 alone, no `ec_point_formats`,
+`extended_master_secret`, `session_ticket`, or `renegotiation_info`, and every
+other extension named in `ech_outer_extensions`. `tls13_PadChInner` pads it by
+a `maximum_name_length` of 100 less the length of the URL host, to a multiple
+of 32 bytes, and the AEAD adds 16. Firefox sets the 100 from
+`security.tls.ech.grease_size` over TCP; neqo leaves NSS's default, also 100.
+The rule gives the payload of every retained Firefox 157.0 ClientHello: the 87
+ClientHello records under `fixtures/tls/firefox/157.0/` and
+`fixtures/http3/firefox/157.0/`, some repeated between a snapshot and the file
+split from it, and every one under `ip-literal/`.
+
+| ClientHellos | Payload bytes | Fixtures |
+| --- | --- | --- |
+| Fresh, TCP and QUIC, to a host name | 240 | `client-hello*.txt`, `resumption-*.txt`, and the QUIC snapshots and resumption captures |
+| Resumed, TCP and QUIC, each with a 64-byte ticket; a 32-byte binder over TCP and a 48-byte one over QUIC | 368 | The same resumption captures |
+| Fresh TCP to `127.0.0.1` and `[::1]`, at the default `grease_size` | 240 | `ip-literal/tcp-ipv4.txt`, `tcp-ipv6.txt` |
+| Fresh QUIC to `127.0.0.1` | 208 | `ip-literal/quic-ipv4.txt` and three runs at other `grease_size` values |
+
+`fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/` keeps ClientHellos
+Firefox 157.0 sent on 2026-10-02 on the Windows 11 capture host, headless with
+fresh profiles, to `https://127.0.0.1:<port>/` and `https://[::1]:<port>/`.
+Over TCP a listener read each ClientHello and closed the connection, so
+Firefox retried, and its later ClientHellos drop `compress_certificate`. Over
+QUIC the alt-svc test mapping pointed Firefox at `h3` on the same port, and a
+UDP socket decrypted the client's Initial packets with the Initial keys.
+Neither listener answered. Firefox sends no `server_name` to an IP literal,
+yet pads by the address text, an IPv6 address without brackets: the TCP runs
+set `grease_size` on either side of the value where one more byte of padding
+adds a 32-byte block. With the 9-byte `127.0.0.1`, 93 gives 208 bytes and 94
+gives 240; with the 3-byte `::1`, 87 gives 208 and 88 gives 240. Padding by no
+host would give 240 bytes at 93 and at 87. The TCP capture script did not
+record the `grease_size` it set. The sweep labeled each run with a number; 84
+plus the label matches both boundaries, and the fixture names carry that
+inferred value. The QUIC runs record it (77, 85, and 86), and all gave 208, as
+QUIC does not read the preference. The QUIC capture to `[::1]` received no
+datagram, so the IPv6 literal is verified over TCP only.
+
+The recipes set `EchGreasePayloadLength::FromClientHello` with a
+`maximum_name_length` of 100. The backend builds the same inner ClientHello
+from the ClientHello it is about to send (native patch 0017 of the btls fork,
+described in `vendor/btls/PHANTOM.md`), and Phantom passes the host of an IP
+literal, with no brackets, for the padding; a host name pads by the server
+name.
+
+Tests, in `crates/phantom-net`, check the lengths against
+`tls::test_support::nss_ech_grease`, a model of the rule written from NSS
+rather than from the patch:
+
+- `firefox_157_captured_ech_grease_payloads_follow_the_nss_rule` checks the
+  model against the 87 TCP and QUIC records: 41 fresh at 240 bytes and 46
+  resumed at 368.
+- `firefox_157_tls_recipe_matches_windows_capture` and the QUIC
+  `firefox_157_quic_offer_and_streams_match_windows_capture` send 240 bytes,
+  as the fresh captures do.
+- `firefox_resumed_client_hello_matches_the_capture_without_early_data`
+  resumes with a 64-byte ticket and sends 368 bytes, byte for byte as the
+  capture apart from per-connection values
+  ([TLS resumption over TCP](#tls-resumption-over-tcp-evidence)).
+- `firefox_resumed_client_hello_with_early_data_matches_the_capture` and
+  `firefox_157_resumed_quic_client_hello_matches_the_resumption_captures`
+  resume with a loopback server's ticket, whose length differs from the
+  capture server's. Each payload equals the model's length for Phantom's own
+  ClientHello, every captured payload equals the model's 368, and the model
+  gives 368 for Phantom's ClientHello with the captured `pre_shared_key`
+  length.
+- `firefox_157_ip_literal_captures_pad_ech_grease_by_the_host_text` checks
+  the model against every TCP ClientHello in `ip-literal/`, the retries
+  included, and that padding by no host would miss the boundary runs.
+- `firefox_157_recipe_matches_the_ip_literal_captures` sends the first TCP
+  ClientHello shape of each IP-literal capture, without `server_name`, with
+  the same extension layout and a 240-byte payload, to `127.0.0.1` and
+  `::1`.
+- `firefox_157_quic_client_hello_pads_ech_grease_by_an_ip_literal_host`
+  sends 208 bytes over QUIC to `127.0.0.1`, with the extension set and tail
+  of the four QUIC captures, and the model's length to `::1`.
+
+How to reproduce: the fresh and resumed lengths come from the snapshot and
+resumption captures above. For an IP literal, point a fresh headless
+Firefox profile at `https://127.0.0.1:<port>/` with a TCP listener on that
+port that reads the ClientHello and closes, and set
+`security.tls.ech.grease_size` to move the padding; for QUIC, also set
+`network.http.http3.alt-svc-mapping-for-testing` to
+`127.0.0.1;h3=:<port>` and read the CRYPTO frames of the client's Initial
+packets on a UDP socket at that port.
+
+Limits:
+
+- A resumed payload depends on the ticket and the binder hash the server
+  chose. The early-data cases are compared through the model, because no
+  loopback server here issues early-data tickets as short as the capture
+  servers'.
+- The IPv6 literal is captured over TCP only; over QUIC the recipe follows
+  the rule.
+- The rule is read from the NSS of Firefox 157.0. A later NSS that changes the
+  inner ClientHello or the padding changes the length.
 
 ### Ordered request-trailer evidence
 

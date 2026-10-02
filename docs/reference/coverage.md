@@ -1066,6 +1066,19 @@ Randomized fields:
   and ChaCha20-Poly1305. The recipe lists both, and the backend draws one
   uniformly for each connection. A 200-connection distribution test bounds
   the split.
+- Firefox 157 sizes its ECH GREASE payload from the ClientHello that carries
+  it, over TCP and QUIC. `firefox::v157_tls` and `v157_http3_tls` do the
+  same, so a fresh ClientHello to a host name carries 240 bytes, one resumed
+  with the capture servers' tickets 368, and one to `127.0.0.1` or `::1`
+  the length Firefox pads it to
+  ([evidence](../explanation/validation.md#firefox-ech-grease-payload-evidence)).
+- Firefox 157's QUIC ClientHello shuffles its extensions per connection but
+  keeps `quic_transport_parameters` and then `encrypted_client_hello` last,
+  and sends `record_size_limit` 16385, `extended_master_secret`, and
+  `renegotiation_info`. `firefox::v157_http3_tls` does all of this; only the
+  shuffled order, drawn per connection, differs between any two
+  ClientHellos
+  ([evidence](../explanation/validation.md#firefox-157-http3-recipe)).
 
 The runtime uses the validated settings it receives. It does not branch on the
 host OS or the client-family name. OS-specific code exists only for real
