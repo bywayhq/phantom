@@ -21,10 +21,11 @@ use zeroize::Zeroizing;
 /// profile's `signature_schemes` all allow, because BoringSSL takes the
 /// client's signing preferences from that list;
 /// [`Self::check_signature_schemes`] tells whether a profile has one.
-/// Ed25519 keys are rejected, because no profile has an Ed25519 signature
-/// scheme: a PKCS #8 v1 key parses and then fails that check, and a v2 key,
-/// which carries its public key, fails to parse with kind
-/// [`PrivateKey`](ClientCertificateErrorKind::PrivateKey).
+/// Ed25519 keys are rejected: a PKCS #8 v1 key parses but fails that check,
+/// because no profile has an Ed25519 signature scheme, and a v2 key, which
+/// carries its public key, fails to parse with kind
+/// [`PrivateKey`](ClientCertificateErrorKind::PrivateKey), because BoringSSL
+/// reads only version 0 of `PrivateKeyInfo`.
 /// Cloning is cheap: clones share the parsed certificates and key.
 ///
 /// A connector with a client certificate sends the same ClientHello as one

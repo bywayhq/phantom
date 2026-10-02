@@ -184,8 +184,8 @@ fn client_with_certificate(
   read. If the body fails, no trailers are sent.
 - One client certificate serves every origin the client reaches; for
   another certificate, build another client. An encrypted private key is
-  not accepted. Ed25519 keys are rejected, because no profile has an
-  Ed25519 signature scheme.
+  not accepted. Ed25519 keys are rejected: no profile has an Ed25519
+  signature scheme, and a PKCS #8 v2 key does not parse.
 - The cookie, SSE, and WebSocket APIs need their
   [Cargo features](../getting-started.md#optional-features).
 

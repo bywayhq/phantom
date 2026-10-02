@@ -19,7 +19,7 @@ use phantom::{
 };
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello, is_grease};
-use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384};
+use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384, PKCS_ED25519};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
 use crate::support::{
@@ -532,6 +532,25 @@ fn ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy() -> TestResult<
         .ok_or("the client failed with another error")?;
 
     assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+    Ok(())
+}
+
+#[test]
+fn pkcs8_v2_ed25519_key_is_a_private_key_error() -> TestResult<()> {
+    // rcgen, like ring and aws-lc-rs, writes a PKCS #8 v2 Ed25519 key, with
+    // its public key; BoringSSL reads only version 0 of PrivateKeyInfo.
+    let key = KeyPair::generate_for(&PKCS_ED25519)?;
+    let key_der = key.serialize_der();
+    let key_pem = key.serialize_pem();
+    let identity = ClientIdentity::issue(key)?;
+
+    for result in [
+        ClientCertificate::from_pem(identity.chain_pem.as_bytes(), key_pem.as_bytes()),
+        ClientCertificate::from_der([identity.leaf_der.as_slice()], &key_der),
+    ] {
+        let error = result.err().ok_or("a PKCS #8 v2 Ed25519 key parsed")?;
+        assert_eq!(error.kind(), ClientCertificateErrorKind::PrivateKey);
+    }
     Ok(())
 }
 
