@@ -204,10 +204,10 @@ anything does.
   cache that honors them, are needed.
 - The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
-  where every Firefox 156.0.1 and 157.0 resumption sends a 368-byte payload against 240
-  bytes on a fresh connection; the recipe sends 240 bytes on both. NSS sizes
-  the GREASE payload from the ClientHello it has built, `pre_shared_key`
-  included: `tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`,
+  where every Firefox 156.0.1 and 157.0 resumption sends a 368-byte payload
+  against 240 bytes on a fresh connection; the recipe sends 240 bytes on
+  both. NSS sizes the GREASE payload from the ClientHello it has built,
+  `pre_shared_key` included: `tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`,
   called from `ssl3con.c:5889` at tag `FIREFOX_157_0_RELEASE`) encodes an
   inner ClientHello from the outer extensions and pads it with
   `tls13_PadChInner` to the `security.tls.ech.grease_size` name target
