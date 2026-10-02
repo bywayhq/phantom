@@ -769,7 +769,7 @@ impl Http2Connection {
     /// The connection preface and SETTINGS go out at once, as early data, as
     /// Firefox sends them even when no request may (`Http2Session::ReadSegmentsAgain`,
     /// `netwerk/protocol/http/Http2Session.cpp:2683-2707` at tag
-    /// `FIREFOX_156_0_RELEASE`). A request that is not replay safe waits for
+    /// `FIREFOX_157_0_RELEASE`). A request that is not replay safe waits for
     /// `early_data` to be answered before its HEADERS are written; the
     /// connection driver keeps reading, which completes the handshake.
     pub(super) async fn connect_with_early_data<T>(

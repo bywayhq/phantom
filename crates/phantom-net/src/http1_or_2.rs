@@ -294,7 +294,7 @@ impl Http1Or2TlsConnector {
     /// requests whose early data the server rejected under another ALPN
     /// protocol (`MaybeRemoveSSLToken` and `nsHttpTransaction::Restart`,
     /// `netwerk/protocol/http/nsHttpTransaction.cpp:1390-1403` and
-    /// `:1993-1999` at tag `FIREFOX_156_0_RELEASE`, under
+    /// `:1993-1999` at tag `FIREFOX_157_0_RELEASE`, under
     /// `network.http.remove_resumption_token_when_early_data_failed`, true by
     /// default), so the restarted connection makes a full handshake.
     pub fn forget_session_tickets(&self, server_name: &str) {
@@ -309,7 +309,7 @@ impl Http1Or2TlsConnector {
     /// server rejected before selecting another ALPN protocol, and they do not
     /// try early data again (`nsHttpTransaction::Close`,
     /// `netwerk/protocol/http/nsHttpTransaction.cpp:1546-1579` at tag
-    /// `FIREFOX_156_0_RELEASE`); a connection from this clone carries them,
+    /// `FIREFOX_157_0_RELEASE`); a connection from this clone carries them,
     /// after [`Self::forget_session_tickets`] has removed the peer's tickets.
     #[must_use]
     pub fn without_early_data(&self) -> Self {

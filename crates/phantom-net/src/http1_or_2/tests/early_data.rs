@@ -152,7 +152,7 @@ async fn http2_sends_a_rejected_get_once_more_on_the_same_connection() -> TestRe
 /// Firefox disables early data on every proxy connection
 /// (`TlsHandshaker::InitSSLParams`,
 /// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
-/// `FIREFOX_156_0_RELEASE`). The ticket learned directly permits early data,
+/// `FIREFOX_157_0_RELEASE`). The ticket learned directly permits early data,
 /// and the connection through a CONNECT tunnel resumes it without offering
 /// any.
 #[tokio::test]

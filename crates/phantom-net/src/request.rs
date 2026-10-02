@@ -607,7 +607,7 @@ impl fmt::Debug for RequestHeader {
 /// sends a TCP request as early data when its method is safe
 /// (`nsHttpRequestHead::IsSafeMethod`,
 /// `netwerk/protocol/http/nsHttpRequestHead.cpp:345-360` at tag
-/// `FIREFOX_156_0_RELEASE`), which also admits a body and `PROPFIND`,
+/// `FIREFOX_157_0_RELEASE`), which also admits a body and `PROPFIND`,
 /// `REPORT`, and `SEARCH`; Phantom holds those back.
 #[must_use]
 pub fn is_replay_safe(method: &Method, has_body: bool, has_trailers: bool) -> bool {

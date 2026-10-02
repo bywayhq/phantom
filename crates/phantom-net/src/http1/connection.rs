@@ -63,7 +63,7 @@ impl Http1Connection {
     /// before it is written, as Firefox writes only a safe method's request
     /// before the handshake completes (`TlsHandshaker::Check0RttEnabled`,
     /// `netwerk/protocol/http/TlsHandshaker.cpp:304-320` at tag
-    /// `FIREFOX_156_0_RELEASE`). The idle connection keeps reading, which
+    /// `FIREFOX_157_0_RELEASE`). The idle connection keeps reading, which
     /// completes the handshake.
     pub(crate) async fn connect_with_early_data<T>(
         stream: T,

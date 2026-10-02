@@ -7,8 +7,8 @@
 //! writes the same bytes again before anything else, so the protocol layer
 //! never sees the rejection. Firefox 157 does the same on the same connection:
 //! HTTP/1.1 rewinds its request stream (`nsHttpTransaction::Finish0RTT`,
-//! `netwerk/protocol/http/nsHttpTransaction.cpp:3363-3373` at tag
-//! `FIREFOX_156_0_RELEASE`) and HTTP/2 resends its output queue from the
+//! `netwerk/protocol/http/nsHttpTransaction.cpp:3414-3424` at tag
+//! `FIREFOX_157_0_RELEASE`) and HTTP/2 resends its output queue from the
 //! connection preface (`Http2Session::Finish0RTT`,
 //! `netwerk/protocol/http/Http2Session.cpp:3384-3393`).
 //!

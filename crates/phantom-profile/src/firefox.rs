@@ -86,7 +86,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// resumption in those captures. Firefox disables early data on proxy
 /// connections (`TlsHandshaker::InitSSLParams`,
 /// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
-/// `FIREFOX_156_0_RELEASE`), and so does this recipe.
+/// `FIREFOX_157_0_RELEASE`), and so does this recipe.
 ///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
@@ -190,7 +190,7 @@ pub fn v157_tls() -> TlsSettings {
 
 /// Returns the TCP socket options Firefox 157.0 sets on every socket.
 ///
-/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
+/// From Firefox source at tag `FIREFOX_157_0_RELEASE`, not from a capture:
 /// `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on each new
 /// socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`).
 ///
@@ -199,17 +199,17 @@ pub fn v157_tls() -> TlsSettings {
 /// over time: a 10-second idle time for roughly the first 60 seconds of an
 /// HTTP/1 connection, then 600 seconds, with a probe interval derived from the
 /// measured RTT, and none once a connection negotiates HTTP/2
-/// (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`, `:2124-2239`;
-/// `modules/libpref/init/all.js:1270-1278`). One fixed socket option cannot
+/// (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`, `:2126-2241`;
+/// `modules/libpref/init/all.js:1262-1270`). One fixed socket option cannot
 /// reproduce that schedule.
 ///
 /// Firefox's address selection is not modeled either, so addresses are tried
 /// one at a time in resolver order. Firefox 157 release builds keep the Happy
 /// Eyeballs implementation behind the nightly-only
 /// `network.http.happy_eyeballs_enabled` pref
-/// (`modules/libpref/init/StaticPrefList.yaml:17057-17060`). The release path
+/// (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). The release path
 /// opens a backup connection restricted to IPv4 250 ms after the first
-/// (`modules/libpref/init/all.js:1213`, `:1245`;
+/// (`modules/libpref/init/all.js:1205`, `:1237`;
 /// `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`), and its primary
 /// connection's address order also depends on per-host family preferences
 /// learned from earlier connections and on the DNS record's failure history
@@ -226,22 +226,22 @@ pub fn v157_tcp() -> TcpSettings {
 
 /// Returns the address cache of Firefox 157.0 release builds.
 ///
-/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture.
+/// From Firefox source at tag `FIREFOX_157_0_RELEASE`, not from a capture.
 /// `network.dnsCacheEntries` is 1600 outside nightly builds
-/// (`modules/libpref/init/StaticPrefList.yaml:15551-15559`), and an answer
+/// (`modules/libpref/init/StaticPrefList.yaml:15647-15655`), and an answer
 /// without a TTL from the operating system is kept for
-/// `network.dnsCacheExpiration`, 60 seconds (`:15561-15565`;
-/// `netwerk/dns/nsHostResolver.cpp:1310-1317`). A failed lookup is kept for
+/// `network.dnsCacheExpiration`, 60 seconds (`:15657-15661`;
+/// `netwerk/dns/nsHostResolver.cpp:1311-1318`). A failed lookup is kept for
 /// `NEGATIVE_RECORD_LIFETIME`, 60 seconds
-/// (`netwerk/dns/nsHostResolver.cpp:65-67`, `:1303-1308`).
+/// (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`).
 ///
 /// Two parts are not modeled. On Windows `network.dns.get-ttl` is on
-/// (`modules/libpref/init/StaticPrefList.yaml:15567-15575`), so Firefox keeps
+/// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`), so Firefox keeps
 /// an answer for its record TTL; Phantom sees no TTL and keeps each answer
 /// for 60 seconds. Firefox also serves an expired answer for up to
 /// `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
-/// the name again in the background (`:15584-15589`;
-/// `netwerk/dns/nsHostResolver.cpp:1265-1283`); Phantom resolves an expired
+/// the name again in the background (`:15680-15685`;
+/// `netwerk/dns/nsHostResolver.cpp:1266-1284`); Phantom resolves an expired
 /// name before it connects.
 #[must_use]
 pub fn v157_dns_cache() -> DnsCacheSettings {
@@ -254,21 +254,21 @@ pub fn v157_dns_cache() -> DnsCacheSettings {
 
 /// Returns the HTTP/1.1 connection policy of Firefox 157.0.
 ///
-/// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
+/// From Firefox source at tag `FIREFOX_157_0_RELEASE`, not from a capture:
 /// `network.http.max-persistent-connections-per-server` is 6
-/// (`modules/libpref/init/all.js:1158-1161`). Firefox applies it to direct
+/// (`modules/libpref/init/all.js:1150-1153`). Firefox applies it to direct
 /// and CONNECT-tunneled connections and counts active connections together
 /// with those still connecting
-/// (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1150-1157`, `:1342-1378`;
-/// `netwerk/protocol/http/ConnectionEntry.cpp:284-292`).
+/// (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1202-1209`, `:1394-1430`;
+/// `netwerk/protocol/http/ConnectionEntry.cpp:289-297`).
 ///
 /// Three differences are not modeled. Phantom also counts idle connections,
 /// which Firefox reuses before it opens another. Firefox uses
 /// `network.http.max-persistent-connections-per-proxy`, 32, for plaintext
-/// requests forwarded through an HTTP proxy (`modules/libpref/init/all.js:1167-1170`),
+/// requests forwarded through an HTTP proxy (`modules/libpref/init/all.js:1159-1162`),
 /// where this recipe keeps 6. And urgent-start requests may exceed the limit
 /// by `network.http.max-urgent-start-excessive-connections-per-host`, 3
-/// (`modules/libpref/init/all.js:1163-1165`).
+/// (`modules/libpref/init/all.js:1155-1157`).
 #[must_use]
 pub fn v157_http1() -> Http1Settings {
     Http1Settings {
@@ -336,7 +336,7 @@ pub fn v157_http1() -> Http1Settings {
 ///
 /// No PING precedes a request on a read-idle connection. `Http2Session` sends
 /// a PING of its own only from its read-timeout tick and on a network change
-/// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_156_0_RELEASE`),
+/// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_157_0_RELEASE`),
 /// which Phantom does not model.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
@@ -438,9 +438,9 @@ pub fn v157_http2() -> Http2Settings {
 /// cancels it in `CallStartWebsocketData` when the handshake completes, and
 /// aborts the connection with `NS_ERROR_NET_TIMEOUT_EXTERNAL` when it fires
 /// (`netwerk/protocol/websocket/WebSocketChannel.cpp` lines 1200, 1403-1420,
-/// 2974-2980, and 3342-3351 at `FIREFOX_156_0_RELEASE`). The value is the
+/// 2974-2980, and 3342-3351 at `FIREFOX_157_0_RELEASE`). The value is the
 /// `network.websocket.timeout.open` preference, 20 seconds by default
-/// (`modules/libpref/init/all.js` line 1325). Firefox resolves the host for
+/// (`modules/libpref/init/all.js` line 1317). Firefox resolves the host for
 /// its per-host admission queue before that timer starts; Phantom's deadline
 /// includes that lookup.
 #[must_use]
@@ -549,7 +549,11 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// `delegated_credentials` schemes. They differ from the TCP offer in these
 /// fields:
 ///
-/// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes;
+/// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes,
+///   and offers no ML-DSA scheme: `security.tls.enable_mldsa`, off by default,
+///   removes ML-DSA from the NSS policy that filters neqo's default list
+///   (`security/manager/ssl/nsNSSComponent.cpp:1025-1033` at
+///   `FIREFOX_157_0_RELEASE`);
 /// - `compress_certificate` lists zlib, zstd, then brotli;
 /// - no `ec_point_formats`, `session_ticket`, or `signed_certificate_timestamp`;
 /// - the extension order changes on every connection
@@ -636,13 +640,13 @@ pub fn v157_http3_tls() -> TlsSettings {
 ///
 /// The five snapshots record every Initial datagram Firefox sent over IPv4
 /// loopback: 1252 bytes each, a 1280-byte path MTU less the IPv4 and UDP
-/// headers, as neqo 0.30.1 computes it (`neqo-transport/src/pmtud.rs`). The
+/// headers, as neqo 0.31.1 computes it (`neqo-transport/src/pmtud.rs`). The
 /// recipe sets that MTU, so Initial datagrams are 1252 bytes over IPv4 and
-/// 1232 over IPv6. The first Initials' Destination Connection IDs were 8, 8,
-/// 8, 9, and 11 bytes. The recipe draws that length as neqo's
+/// 1232 over IPv6. The first Initials' Destination Connection IDs were 8, 14,
+/// 13, 8, and 8 bytes. The recipe draws that length as neqo's
 /// `ConnectionId::generate_initial` does: `max(8, 5 + (b & (b >> 4)))` for a
 /// random byte `b` (`neqo-transport/src/cid.rs` lines 54 to 59 in neqo
-/// 0.30.1, the version Firefox 156.0.1 vendors).
+/// 0.31.1, the version Firefox 157.0 vendors).
 ///
 /// A resumed Firefox connection offers early data, so `early_data` is set;
 /// it takes effect with TLS settings that enable session tickets, such as
@@ -793,8 +797,8 @@ const V156_MACOS_USER_AGENT: &str =
 /// is true, its default) to `nsHttpHandler::AddStandardRequestHeaders`, which
 /// then sends `network.http.accept-encoding.secure` instead of
 /// `network.http.accept-encoding` (`netwerk/protocol/http/HttpBaseChannel.cpp`
-/// lines 325-329 and 351, `nsHttpHandler.cpp` lines 806-812, and
-/// `modules/libpref/init/all.js` lines 1187-1188 at `FIREFOX_156_0_RELEASE`).
+/// lines 325-329 and 351, `nsHttpHandler.cpp` lines 814-820, and
+/// `modules/libpref/init/all.js` lines 1179-1180 at `FIREFOX_157_0_RELEASE`).
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V157_ACCEPT_ENCODING, V157_PLAINTEXT_ACCEPT_ENCODING)
 }
@@ -859,7 +863,7 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// `Accept-Encoding`, only to a potentially trustworthy URL, so those entries
 /// are [`RequestField::ByTrust`]. `SecFetch::AddSecFetchHeader` returns early
 /// unless `nsMixedContentBlocker::IsPotentiallyTrustworthyOrigin` holds
-/// (`dom/security/SecFetch.cpp` lines 383-387 at `FIREFOX_156_0_RELEASE`). The
+/// (`dom/security/SecFetch.cpp` lines 383-387 at `FIREFOX_157_0_RELEASE`). The
 /// retained proxy route captures show the navigation to the plaintext name
 /// `origin.phantom.test` without them, with `Accept-Encoding: gzip, deflate`,
 /// and with the remaining fields in the same order on HTTP/1.1 and HTTP/2.

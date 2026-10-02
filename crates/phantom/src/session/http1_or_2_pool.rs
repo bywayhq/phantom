@@ -536,7 +536,7 @@ const MAX_HTTP2_KEYS: usize = 500;
 /// outlives its sockets, so an evicted entry does not start over as a first
 /// contact. It is keyed by origin and route, as Firefox keys the
 /// `ConnectionEntry` that holds `mUsingSpdy`
-/// (`netwerk/protocol/http/nsHttpConnectionInfo.cpp:212-232`) and as Phantom
+/// (`netwerk/protocol/http/nsHttpConnectionInfo.cpp:211-231`) and as Phantom
 /// keys its other learned state; Chromium keys it by origin alone.
 #[derive(Default)]
 struct Http2Keys {
@@ -1228,7 +1228,7 @@ struct ConnectionState {
     /// connection selects H1: every writer sets it to true
     /// (`net/http/http_stream_factory_job.cc:1304-1306`,
     /// `net/http/http_stream_pool_attempt_manager.cc:823-825`;
-    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1023`, `:3920`).
+    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1023`, `:3987`).
     selected_http2: bool,
 }
 
@@ -1264,8 +1264,8 @@ impl ConnectionState {
     /// connection attempts to such a server until the first one finishes, for
     /// at most 300 ms (`net/http/http_stream_factory_job.cc:749-775`,
     /// `:1417-1429`), and Firefox 157 holds them until the attempt reports
-    /// its protocol (`netwerk/protocol/http/ConnectionEntry.cpp:225-248`,
-    /// `nsHttpConnectionMgr.cpp:1399-1409`). Phantom waits as Firefox does,
+    /// its protocol (`netwerk/protocol/http/ConnectionEntry.cpp:230-253`,
+    /// `nsHttpConnectionMgr.cpp:1451-1461`). Phantom waits as Firefox does,
     /// unless the caller sets a limit
     /// (`ClientBuilder::negotiated_setup_wait_limit`).
     /// A key whose protocol is unknown waits only when every slot is taken
@@ -1705,7 +1705,7 @@ impl EarlyDataConnection {
 /// processed none of the requests. Firefox restarts them without early data
 /// (`nsHttpTransaction::Close`,
 /// `netwerk/protocol/http/nsHttpTransaction.cpp:1546-1579` at tag
-/// `FIREFOX_156_0_RELEASE`) after removing every resumption token for the peer
+/// `FIREFOX_157_0_RELEASE`) after removing every resumption token for the peer
 /// (`nsHttpTransaction::Restart`, `:1993-1999`), so the restarted connection
 /// makes a full handshake.
 fn restart_without_early_data(

@@ -325,7 +325,7 @@ async fn first_flight_of(
 /// The snapshots record Firefox's Initial datagrams over IPv4 loopback. neqo
 /// draws a Destination Connection ID of 8 to 20 bytes
 /// (`ConnectionId::generate_initial`, `neqo-transport/src/cid.rs` lines 54 to
-/// 59 in neqo 0.30.1), so only that range is compared.
+/// 59 in neqo 0.31.1), so only that range is compared.
 #[tokio::test(flavor = "current_thread")]
 async fn firefox_157_initial_datagrams_match_the_capture() -> TestResult<()> {
     let actual = first_flight((Ipv4Addr::LOCALHOST, 0).into()).await?;
@@ -346,7 +346,7 @@ async fn firefox_157_initial_datagrams_match_the_capture() -> TestResult<()> {
 }
 
 /// neqo starts a path at a 1280-byte IP MTU less the IPv6 and UDP headers
-/// (`neqo-transport/src/pmtud.rs` lines 76 to 81 in neqo 0.30.1). No capture
+/// (`neqo-transport/src/pmtud.rs` lines 76 to 81 in neqo 0.31.1). No capture
 /// covers IPv6.
 #[tokio::test(flavor = "current_thread")]
 async fn firefox_157_initial_datagrams_leave_room_for_ipv6_headers() -> TestResult<()> {

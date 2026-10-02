@@ -10,6 +10,6 @@ fn chromium_154_opens_six_http1_connections_per_origin() {
 #[test]
 fn firefox_157_opens_six_http1_connections_per_origin() {
     // `network.http.max-persistent-connections-per-server`,
-    // `modules/libpref/init/all.js:1161` at `FIREFOX_156_0_RELEASE`.
+    // `modules/libpref/init/all.js:1153` at `FIREFOX_157_0_RELEASE`.
     assert_eq!(firefox::v157_http1().max_connections_per_origin.get(), 6);
 }

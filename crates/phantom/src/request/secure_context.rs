@@ -18,7 +18,7 @@ use url::{Host, Url};
 /// that a request URL cannot reach. Firefox 157 answers the same in
 /// `nsMixedContentBlocker::IsPotentiallyTrustworthyOrigin`
 /// (`dom/security/nsMixedContentBlocker.cpp` lines 221-248 and 294-362 at
-/// `FIREFOX_156_0_RELEASE`), apart from its off-by-default `.onion` and
+/// `FIREFOX_157_0_RELEASE`), apart from its off-by-default `.onion` and
 /// host allowlist preferences.
 ///
 /// Chromium sends client hints and `Sec-Fetch-*` fields, and both browsers

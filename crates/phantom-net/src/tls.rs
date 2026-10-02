@@ -457,7 +457,7 @@ impl TlsConnector {
     /// Firefox disables early data on proxy connections
     /// (`TlsHandshaker::InitSSLParams`,
     /// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
-    /// `FIREFOX_156_0_RELEASE`), so only direct routes call this.
+    /// `FIREFOX_157_0_RELEASE`), so only direct routes call this.
     pub(crate) async fn connect_offering_early_data<S>(
         &self,
         server_name: &str,
