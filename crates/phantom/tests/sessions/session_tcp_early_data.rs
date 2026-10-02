@@ -196,16 +196,26 @@ async fn negotiated_request_reports_a_handshake_failure_after_early_data() -> Te
 /// counts against the connect phase of that connection attempt only.
 #[tokio::test]
 async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestResult<()> {
+    // The POST's admission wait exceeds its connect limit by half the limit;
+    // the early-data wait that follows takes SERVER_DELAY, a fifth of it.
+    const ADMISSION_WAIT: Duration = Duration::from_millis(1500);
+    const CONNECT_LIMIT: Duration = Duration::from_millis(1000);
     bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
         let acceptor = acceptor(&identity, &offers, [H1_ALPN, H1_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
+        let (slow_head_read, wait_for_slow_head) = oneshot::channel();
         let server = tokio::spawn(async move {
             let mut slow = accept(&listener, &acceptor, Duration::ZERO).await?;
             tls_support::read_head(&mut slow).await?;
-            tokio::time::sleep(Duration::from_millis(600)).await;
+            slow_head_read
+                .send(())
+                .map_err(|_| "client stopped before the slow request was read")?;
+            // The POST, sent once the head is read, waits in pool admission
+            // for all of this, which is longer than its connect limit.
+            tokio::time::sleep(ADMISSION_WAIT).await;
             slow.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                 .await?;
             slow.shutdown().await?;
@@ -237,12 +247,14 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
         let slow_uri = format!("https://{address}/slow");
         let slow = send_negotiated(&session, Method::GET, &slow_uri);
         let post = async {
-            // Queue behind the slow request once it holds the connection.
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            // The slow request holds the origin's only connection from here on.
+            wait_for_slow_head
+                .await
+                .map_err(|_| "server stopped before reading the slow request")?;
             let response = session
                 .request_negotiated(Method::POST, &format!("https://{address}/post"))?
                 .body("payload")
-                .timeouts(RequestTimeouts::new().connect(Duration::from_millis(400)))
+                .timeouts(RequestTimeouts::new().connect(CONNECT_LIMIT))
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);
