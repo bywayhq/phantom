@@ -374,6 +374,7 @@ async def serving_http3(
     from aioquic.quic.events import ProtocolNegotiated, StreamDataReceived
 
     from .quic_resumption import load_certificate
+    from .reserved_ports import open_past_reserved_ports
 
     class CookieProtocol(QuicConnectionProtocol):
         def __init__(self, *args, **kwargs) -> None:
@@ -429,8 +430,12 @@ async def serving_http3(
 
     configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
     load_certificate(configuration, certificate)
-    server = await serve(
-        listen_host, 0, configuration=configuration, create_protocol=CookieProtocol
+    server = await open_past_reserved_ports(
+        lambda host, port: serve(
+            host, port, configuration=configuration, create_protocol=CookieProtocol
+        ),
+        listen_host,
+        0,
     )
     try:
         yield server._transport.get_extra_info("sockname")[1]

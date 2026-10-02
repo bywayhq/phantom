@@ -10,13 +10,7 @@ from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import StreamDataReceived
 
-from scripts.capture.chrome_http3 import (
-    WSAENOBUFS,
-    Capture,
-    CaptureProtocol,
-    record_bound_port,
-    serve_past_reserved_ports,
-)
+from scripts.capture.chrome_http3 import Capture, CaptureProtocol, record_bound_port
 from scripts.capture.http3_wire import (
     CONTROL_STREAM,
     HEADERS_FRAME,
@@ -207,45 +201,7 @@ class CaptureBoundaryTests(unittest.TestCase):
             capture.packet_spans()
 
 
-class RefusedAtReservedBlock(OSError):
-    winerror = WSAENOBUFS
-
-
 class ListenPortTests(unittest.TestCase):
-    @staticmethod
-    def serve_over(port: int, outcomes: list[OSError | None]) -> tuple[object, int]:
-        """Serve with one outcome per bind; return the result and the bind count."""
-        binds = 0
-
-        async def serve_at(host: str, port: int) -> str:
-            nonlocal binds
-            outcome = outcomes[binds]
-            binds += 1
-            if outcome is not None:
-                raise outcome
-            return f"{host}:{port}"
-
-        try:
-            result: object = asyncio.run(
-                serve_past_reserved_ports(serve_at, "127.0.0.1", port)
-            )
-        except OSError as error:
-            result = error
-        return result, binds
-
-    def test_a_bind_to_port_zero_refused_at_a_reserved_block_is_retried(self) -> None:
-        refused = RefusedAtReservedBlock()
-
-        self.assertEqual(self.serve_over(0, [refused, None]), ("127.0.0.1:0", 2))
-        self.assertEqual(self.serve_over(0, [refused] * 5), (refused, 4))
-
-    def test_other_errors_and_explicit_ports_are_not_retried(self) -> None:
-        refused = RefusedAtReservedBlock()
-        in_use = OSError("address in use")
-
-        self.assertEqual(self.serve_over(0, [in_use, None]), (in_use, 1))
-        self.assertEqual(self.serve_over(9447, [refused, None]), (refused, 1))
-
     def test_the_bound_port_replaces_the_placeholder(self) -> None:
         metadata = argparse.Namespace(
             listen="127.0.0.1:0",

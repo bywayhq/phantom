@@ -12,6 +12,8 @@ from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
 
+from scripts.capture.reserved_ports import open_past_reserved_ports
+
 
 @contextlib.asynccontextmanager
 async def connect_loopback(
@@ -25,9 +27,12 @@ async def connect_loopback(
     connection = QuicConnection(
         configuration=configuration, session_ticket_handler=session_ticket_handler
     )
-    transport, protocol = await asyncio.get_running_loop().create_datagram_endpoint(
-        lambda: create_protocol(connection),
-        local_addr=("127.0.0.1", 0),
+    transport, protocol = await open_past_reserved_ports(
+        lambda host, port: asyncio.get_running_loop().create_datagram_endpoint(
+            lambda: create_protocol(connection), local_addr=(host, port)
+        ),
+        "127.0.0.1",
+        0,
     )
     try:
         protocol.connect(("127.0.0.1", port), transmit=wait_connected)

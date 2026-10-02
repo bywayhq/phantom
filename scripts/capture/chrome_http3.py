@@ -46,18 +46,13 @@ from .http3_wire import (
 from .quic_flight import PacketSummary
 from .quic_packet_diff import QuicPacketAnalysis, QuicPacketCapture
 from .quic_summary import SymbolicSpan
+from .reserved_ports import open_past_reserved_ports
 
 SUPPORTED_AIOQUIC = "1.3.0"
 MAX_STREAM_CAPTURE = 256 * 1024
 # `--launch-arguments` may write the listening port as this placeholder; the
 # fixture records the port the server bound.
 PORT_PLACEHOLDER = "<port>"
-# Windows hands out UDP ports for binds to port 0 from one counter for the
-# whole host. When the counter reaches a reserved block (`netsh int ipv4 show
-# excludedportrange protocol=udp`), the bind can fail with WSAENOBUFS and the
-# counter moves past the block, so the next bind gets a port.
-WSAENOBUFS = 10055
-RESERVED_PORT_RETRIES = 3
 
 
 @dataclass
@@ -408,19 +403,6 @@ class CaptureProtocol(QuicConnectionProtocol):
                 self.transmit()
 
 
-async def serve_past_reserved_ports(serve_at, host: str, port: int):
-    """Return `await serve_at(host, port)`, retrying a refused bind to port 0."""
-    retries = 0
-    while True:
-        try:
-            return await serve_at(host, port)
-        except OSError as error:
-            refused = getattr(error, "winerror", None) == WSAENOBUFS
-            if port != 0 or not refused or retries == RESERVED_PORT_RETRIES:
-                raise
-            retries += 1
-
-
 def record_bound_port(metadata: argparse.Namespace, port: int) -> None:
     """Write the bound `port` into the listen address and launch arguments."""
     host = metadata.listen.rsplit(":", 1)[0]
@@ -459,7 +441,7 @@ async def run(args: argparse.Namespace) -> CaptureResult:
     configuration.load_cert_chain(args.certificate, args.private_key)
     if packet_capture is not None:
         configuration.secrets_log_file = packet_capture
-    server = await serve_past_reserved_ports(
+    server = await open_past_reserved_ports(
         lambda host, port: serve(
             host,
             port,

@@ -69,6 +69,7 @@ from .http3_wire import (
     parse_parameters,
     pull_varint,
 )
+from .reserved_ports import open_past_reserved_ports
 
 SUPPORTED_AIOQUIC = "1.3.0"
 FORMAT = "phantom-quic-resumption-v1"
@@ -834,18 +835,22 @@ async def serving(
     load_certificate(configuration, certificate)
     restore = install_hooks(scenario.accept_early_data)
     try:
-        server = await serve(
+        server = await open_past_reserved_ports(
+            lambda host, port: serve(
+                host,
+                port,
+                configuration=configuration,
+                create_protocol=lambda *values, **kwargs: ResumptionProtocol(
+                    *values,
+                    run=run,
+                    handshake_delay_ms=scenario.handshake_delay_ms,
+                    **kwargs,
+                ),
+                session_ticket_fetcher=run.fetch_ticket,
+                session_ticket_handler=run.store_ticket,
+            ),
             listen_host,
             0,
-            configuration=configuration,
-            create_protocol=lambda *values, **kwargs: ResumptionProtocol(
-                *values,
-                run=run,
-                handshake_delay_ms=scenario.handshake_delay_ms,
-                **kwargs,
-            ),
-            session_ticket_fetcher=run.fetch_ticket,
-            session_ticket_handler=run.store_ticket,
         )
         try:
             yield run, server._transport.get_extra_info("sockname")[1]

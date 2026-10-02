@@ -1404,7 +1404,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   line, and writes it into `listen_address` and in place of each `<port>` in
   `--launch-arguments`. `startup_capture.py` passes port 0 instead of a
   probed and released port checked against a hardcoded Windows reserved
-  range.
+  range. The capture and conformance QUIC servers that bind port 0 retry a
+  bind that fails with os error 10055.
 
 ### Removed
 
