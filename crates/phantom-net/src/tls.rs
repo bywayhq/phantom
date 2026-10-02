@@ -20,8 +20,8 @@ use btls::{
     x509::{X509, store::X509StoreBuilder},
 };
 use phantom_profile::{
-    AlpsSettings, CipherSuite, EchGreaseAead, InvalidTlsSettings, NamedGroup, TlsSettings,
-    TlsVersion,
+    AlpsSettings, CipherSuite, EchGreaseAead, EchGreasePayloadLength, InvalidTlsSettings,
+    NamedGroup, TlsSettings, TlsVersion,
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
@@ -76,7 +76,7 @@ pub(crate) struct TlsConnector {
     alps: Option<AlpsSettings>,
     tls13_key_shares: Option<Box<[NamedGroup]>>,
     ech_grease: bool,
-    ech_grease_payload_length: Option<u16>,
+    ech_grease_payload_length: EchGreasePayloadLength,
     ech_grease_aeads: Box<[EchGreaseAead]>,
     ech_from_https_records: bool,
     scoped_sessions_enabled: bool,
@@ -305,7 +305,8 @@ impl TlsConnector {
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
             ech_grease = settings.ech_grease,
-            ech_grease_payload_length_configured = settings.ech_grease_payload_length.is_some(),
+            ech_grease_payload_length_configured =
+                settings.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault,
             ech_grease_aead_count = settings.ech_grease_aeads.len(),
             server_authentication = server_authentication.trace_name(),
             outcome = field::Empty,
@@ -514,11 +515,11 @@ impl TlsConnector {
                 ServerAuthentication::WebPki
             ));
             configuration.set_enable_ech_grease(self.ech_grease);
-            if let Some(payload_length) = self.ech_grease_payload_length {
-                configuration
-                    .set_ech_grease_payload_length(usize::from(payload_length))
-                    .map_err(|error| TlsError::backend("ech_grease_payload_length", error))?;
-            }
+            configuration::apply_ech_grease_payload_length(
+                &mut configuration,
+                self.ech_grease_payload_length,
+                server_name,
+            )?;
             if !self.ech_grease_aeads.is_empty() {
                 let aead_ids = self
                     .ech_grease_aeads

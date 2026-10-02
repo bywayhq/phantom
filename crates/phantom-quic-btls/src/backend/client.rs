@@ -9,7 +9,9 @@ use std::time::Duration;
 use btls::pkey::{PKey, Private};
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use btls::x509::X509;
-use phantom_profile::{AlpsSettings, CipherSuite, NamedGroup, TlsSettings, TlsVersion};
+use phantom_profile::{
+    AlpsSettings, CipherSuite, EchGreasePayloadLength, NamedGroup, TlsSettings, TlsVersion,
+};
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -68,7 +70,7 @@ impl QuicClientConfig {
             tls_profile: ClientTlsProfile {
                 key_shares: None,
                 ech_grease: false,
-                ech_grease_payload_length: None,
+                ech_grease_payload: EchGreasePayload::BackendDefault,
                 ech_grease_aeads: Vec::new(),
                 alps: None,
                 session_tickets: false,
@@ -647,11 +649,23 @@ impl crypto::ClientConfig for QuicClientConfig {
     }
 }
 
+/// How a [`ClientTlsProfile`] sizes the GREASE ECH payload, from
+/// [`EchGreasePayloadLength`].
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) enum EchGreasePayload {
+    #[default]
+    BackendDefault,
+    Exact(u16),
+    FromClientHello {
+        maximum_name_length: u8,
+    },
+}
+
 #[derive(Clone, Default)]
 pub(super) struct ClientTlsProfile {
     key_shares: Option<Box<[KeyShare]>>,
     ech_grease: bool,
-    ech_grease_payload_length: Option<u16>,
+    ech_grease_payload: EchGreasePayload,
     ech_grease_aeads: Vec<u16>,
     alps: Option<AlpsSettings>,
     session_tickets: bool,
@@ -735,7 +749,7 @@ impl fmt::Debug for ClientTlsProfile {
             .debug_struct("ClientTlsProfile")
             .field("key_shares", &self.key_shares)
             .field("ech_grease", &self.ech_grease)
-            .field("ech_grease_payload_length", &self.ech_grease_payload_length)
+            .field("ech_grease_payload", &self.ech_grease_payload)
             .field("ech_grease_aeads", &self.ech_grease_aeads)
             .field(
                 "alps",
@@ -792,10 +806,25 @@ impl ClientTlsProfile {
             .map(key_share)
             .collect::<Result<Vec<_>, _>>()?
             .into_boxed_slice();
+        let ech_grease_payload = match settings.ech_grease_payload_length {
+            EchGreasePayloadLength::BackendDefault => EchGreasePayload::BackendDefault,
+            EchGreasePayloadLength::Exact(length) => EchGreasePayload::Exact(length),
+            EchGreasePayloadLength::FromClientHello {
+                maximum_name_length,
+            } => EchGreasePayload::FromClientHello {
+                maximum_name_length,
+            },
+            _ => {
+                return Err(QuicTlsProfileError::unsupported(
+                    "ech_grease_payload_length",
+                    "this ECH GREASE payload length policy is not supported",
+                ));
+            }
+        };
         Ok(Self {
             key_shares: Some(key_shares),
             ech_grease: settings.ech_grease,
-            ech_grease_payload_length: settings.ech_grease_payload_length,
+            ech_grease_payload,
             ech_grease_aeads: settings
                 .ech_grease_aeads
                 .iter()
@@ -819,8 +848,8 @@ impl ClientTlsProfile {
         self.ech_grease
     }
 
-    pub(super) const fn ech_grease_payload_length(&self) -> Option<u16> {
-        self.ech_grease_payload_length
+    pub(super) const fn ech_grease_payload(&self) -> EchGreasePayload {
+        self.ech_grease_payload
     }
 
     pub(super) fn ech_grease_aeads(&self) -> &[u16] {

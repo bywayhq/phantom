@@ -5,7 +5,7 @@ use crate::http2::{
 };
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-    EchGreaseAead, NamedGroup, SignatureScheme, TlsVersion,
+    EchGreaseAead, EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsVersion,
 };
 
 const V157_SESSION_FIXTURE: &str = include_str!(concat!(
@@ -104,6 +104,7 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
     assert!(settings.session_tickets);
     assert!(settings.tcp_early_data);
     assert_eq!(settings.record_size_limit, Some(16_385));
+    assert!(settings.tls12_extensions_in_tls13_client_hello);
     assert!(settings.requested_trust_anchor_ids.is_none());
     assert!(!settings.grease);
     assert!(!settings.grease_signature_algorithms);
@@ -131,7 +132,12 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
         ])
     );
     assert!(settings.ech_grease);
-    assert_eq!(settings.ech_grease_payload_length, Some(240));
+    assert_eq!(
+        settings.ech_grease_payload_length,
+        EchGreasePayloadLength::FromClientHello {
+            maximum_name_length: 100
+        }
+    );
     assert_eq!(
         settings.ech_grease_aeads,
         [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
@@ -254,6 +260,27 @@ fn firefox_156_macos_http2_session_capture_matches_the_recipe()
         assert_eq!(run, navigation);
     }
     Ok(())
+}
+
+#[test]
+fn firefox_157_http3_tls_keeps_the_quic_tail_and_tcp_extensions() {
+    let settings = v157_http3_tls();
+    assert_eq!(settings.min_version, TlsVersion::Tls13);
+    assert_eq!(
+        settings.extension_order,
+        ClientHelloExtensionOrder::PermutedWithTail(vec![
+            ClientHelloExtension::QuicTransportParameters,
+            ClientHelloExtension::EncryptedClientHello,
+        ])
+    );
+    assert_eq!(settings.record_size_limit, Some(16_385));
+    assert!(settings.tls12_extensions_in_tls13_client_hello);
+    assert_eq!(
+        settings.ech_grease_payload_length,
+        EchGreasePayloadLength::FromClientHello {
+            maximum_name_length: 100
+        }
+    );
 }
 
 #[test]

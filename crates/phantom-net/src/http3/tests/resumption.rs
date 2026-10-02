@@ -320,7 +320,7 @@ fn resumed_client_hello(connector: &Http3Connector, startup: &str) -> TestResult
 }
 
 /// Returns the raw ClientHellos of the resumed connections a capture keeps.
-fn resumed_captured_client_hellos(capture: &str) -> TestResult<Vec<Vec<u8>>> {
+pub(super) fn resumed_captured_client_hellos(capture: &str) -> TestResult<Vec<Vec<u8>>> {
     let fields: std::collections::BTreeMap<&str, &str> = capture
         .lines()
         .filter_map(|line| line.split_once('='))

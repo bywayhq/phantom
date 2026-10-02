@@ -4,7 +4,9 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use btls::x509::X509;
-use phantom_profile::{CipherSuite, EchGreaseAead, NamedGroup, TlsVersion, chromium};
+use phantom_profile::{
+    CipherSuite, EchGreaseAead, EchGreasePayloadLength, NamedGroup, TlsVersion, chromium,
+};
 use quinn_proto::crypto;
 use quinn_proto::{
     ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
@@ -393,7 +395,7 @@ fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
     settings.groups = vec![NamedGroup::X25519];
     settings.key_shares = settings.groups.clone();
     settings.ech_grease = true;
-    settings.ech_grease_payload_length = Some(64);
+    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(64);
     settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
 
     let context = client_context(true);

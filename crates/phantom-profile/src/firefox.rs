@@ -35,7 +35,8 @@ use crate::{
     },
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-        EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+        EchGreaseAead, EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsSettings,
+        TlsVersion,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
@@ -72,14 +73,26 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// Captured from five fresh Firefox 157.0 processes (Windows 11 build
 /// 26200), the fingerprint snapshots under `fixtures/http3/firefox/157.0/`;
 /// `fixtures/tls/firefox/157.0/` keeps two of their ClientHellos, one for
-/// each ECH GREASE AEAD. The fixed extension order and the exact ECH GREASE
-/// payload length retain the stable wire shape observed across those
-/// captures.
+/// each ECH GREASE AEAD. The fixed extension order retains the stable wire
+/// shape observed across those captures.
 /// Firefox picks its ECH GREASE AEAD per connection from AES-128-GCM and
 /// ChaCha20-Poly1305 with equal probability; this recipe lists both, so each
 /// connection draws one the same way. The delegated-credential vector includes
 /// legacy ECDSA-SHA1 because Firefox advertised it; TLS 1.3 authentication
 /// cannot select that legacy scheme.
+///
+/// NSS sizes the ECH GREASE payload from the ClientHello that carries it,
+/// padded for a `maximum_name_length` of 100
+/// ([`EchGreasePayloadLength::FromClientHello`]). Every fresh ClientHello to a
+/// host name in the captures carries 240 payload bytes, every resumed one
+/// 368, and a fresh one to `127.0.0.1` or `[::1]` 240. The recipe sends the
+/// same fresh lengths; a resumed length depends on the server's ticket, and
+/// with a ticket as long as the capture servers' it is 368. Firefox takes the
+/// 100 from
+/// `security.tls.ech.grease_size` over TCP, and NSS sends the TLS 1.2
+/// `extended_master_secret` and `renegotiation_info` extensions whatever its
+/// minimum version ([`TlsSettings::tls12_extensions_in_tls13_client_hello`]),
+/// which matters only to [`v157_http3_tls`].
 ///
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. A resumed ClientHello omits the empty `session_ticket`
@@ -161,6 +174,7 @@ pub fn v157_tls() -> TlsSettings {
         session_ticket_extension_when_resuming: false,
         tcp_early_data: true,
         record_size_limit: Some(16_385),
+        tls12_extensions_in_tls13_client_hello: true,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
@@ -185,7 +199,9 @@ pub fn v157_tls() -> TlsSettings {
             ClientHelloExtension::EncryptedClientHello,
         ]),
         ech_grease: true,
-        ech_grease_payload_length: Some(240),
+        ech_grease_payload_length: EchGreasePayloadLength::FromClientHello {
+            maximum_name_length: 100,
+        },
         ech_grease_aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
         ech_from_https_records: false,
         request_ocsp_staple: true,
@@ -612,10 +628,15 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// Firefox 157.0 QUIC ClientHellos (`fixtures/http3/firefox/157.0/`, three
 /// fresh processes and the first connection of each resumption run) offer TLS
 /// 1.3 alone, the three TLS 1.3 cipher suites in the TCP order, the `h3` ALPN
-/// protocol, and the TCP groups, key shares, status request, and ECH GREASE
-/// (with a 240-byte payload and one of the two AEADs), and the TCP
-/// `delegated_credentials` schemes. They differ from the TCP offer in these
-/// fields:
+/// protocol, and the TCP groups, key shares, status request,
+/// `record_size_limit` (16385), and ECH GREASE (one of the two AEADs, with a
+/// payload sized from the ClientHello: 240 bytes fresh, 368 resumed, and 208
+/// to `127.0.0.1`), and the TCP `delegated_credentials` schemes. Like the TCP
+/// offer, they carry an empty `extended_master_secret` and a
+/// `renegotiation_info` of one zero byte, which BoringSSL leaves out of a TLS
+/// 1.3-only ClientHello unless
+/// [`TlsSettings::tls12_extensions_in_tls13_client_hello`] is set. They differ
+/// from the TCP offer in these fields:
 ///
 /// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes,
 ///   and offers no ML-DSA scheme: `security.tls.enable_mldsa`, off by default,
@@ -624,23 +645,13 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 ///   `FIREFOX_157_0_RELEASE`);
 /// - `compress_certificate` lists zlib, zstd, then brotli;
 /// - no `ec_point_formats`, `session_ticket`, or `signed_certificate_timestamp`;
-/// - the extension order changes on every connection
-///   ([`ClientHelloExtensionOrder::Permuted`]).
+/// - the extension order changes on every connection, except that
+///   `quic_transport_parameters` and then `encrypted_client_hello` always
+///   come last, before `pre_shared_key`
+///   ([`ClientHelloExtensionOrder::PermutedWithTail`]).
 ///
-/// Three differences from Firefox remain, all in BoringSSL:
-///
-/// - Firefox keeps `quic_transport_parameters` and then
-///   `encrypted_client_hello` last and permutes only the extensions before
-///   them. BoringSSL's permutation also moves those two, so a Phantom
-///   ClientHello can place them anywhere.
-/// - Firefox sends `record_size_limit` (16385) over QUIC, where TLS has no
-///   records. Phantom's BoringSSL refuses the extension on a QUIC
-///   connection, so `record_size_limit` is `None` and the extension is
-///   absent.
-/// - Firefox sends the TLS 1.2 `extended_master_secret` and
-///   `renegotiation_info` extensions although it offers only TLS 1.3.
-///   BoringSSL omits both from a TLS 1.3-only ClientHello, and QUIC requires
-///   TLS 1.3.
+/// QUIC carries no TLS records, so `record_size_limit` limits nothing on
+/// these connections; Firefox sends it anyway, and so does the recipe.
 ///
 /// `session_tickets` is enabled because Firefox resumes QUIC sessions: in the
 /// retained resumption captures a resumed ClientHello adds `early_data` and,
@@ -675,8 +686,10 @@ pub fn v157_http3_tls() -> TlsSettings {
     ];
     settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
     settings.request_signed_certificate_timestamps = false;
-    settings.record_size_limit = None;
-    settings.extension_order = ClientHelloExtensionOrder::Permuted;
+    settings.extension_order = ClientHelloExtensionOrder::PermutedWithTail(vec![
+        ClientHelloExtension::QuicTransportParameters,
+        ClientHelloExtension::EncryptedClientHello,
+    ]);
     // QUIC early data follows `v157_quic`; this field covers TCP only.
     settings.tcp_early_data = false;
     settings

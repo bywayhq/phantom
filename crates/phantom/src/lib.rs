@@ -231,8 +231,8 @@ pub mod profile {
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
         ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings,
-        ClientProfile, CookiePlacement, DnsCacheSettings, EchGreaseAead, Http1IdleTimeout,
-        Http1Settings, Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings,
+        ClientProfile, CookiePlacement, DnsCacheSettings, EchGreaseAead, EchGreasePayloadLength,
+        Http1IdleTimeout, Http1Settings, Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings,
         Http2HuffmanCoding, Http2IndexingLimit, Http2NameReference, Http2Priority,
         Http2ProxyConnections, Http2PseudoHeader, Http2RejectedConnect,
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,

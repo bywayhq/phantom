@@ -1,11 +1,11 @@
 //! Translation from browser-neutral TLS settings to BoringSSL configuration.
 
-use std::fmt;
+use std::{fmt, net::IpAddr};
 
-use btls::ssl::{ExtensionType, KeyShare, SslContextBuilder, SslOptions, SslVersion};
+use btls::ssl::{ExtensionType, KeyShare, SslContextBuilder, SslOptions, SslRef, SslVersion};
 use phantom_profile::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-    NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+    EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
 };
 
 use super::{
@@ -34,6 +34,20 @@ pub(super) fn apply(
             .map_err(|error| TlsError::backend("record_size_limit", error))?;
     }
     apply_extension_order(builder, &settings.extension_order)?;
+    builder.set_tls12_extensions_in_tls13_client_hello(
+        settings.tls12_extensions_in_tls13_client_hello,
+    );
+    if !matches!(
+        settings.ech_grease_payload_length,
+        EchGreasePayloadLength::BackendDefault
+            | EchGreasePayloadLength::Exact(_)
+            | EchGreasePayloadLength::FromClientHello { .. }
+    ) {
+        return Err(TlsError::unsupported(
+            "ech_grease_payload_length",
+            settings.ech_grease_payload_length,
+        ));
+    }
     builder.set_aes_hw_override(settings.aes_hardware);
     if settings.session_tickets {
         builder.clear_options(SslOptions::NO_TICKET);
@@ -109,8 +123,46 @@ pub(super) fn extension_order_trace_name(order: &ClientHelloExtensionOrder) -> &
         ClientHelloExtensionOrder::BackendDefault => "backend_default",
         ClientHelloExtensionOrder::Permuted => "permuted",
         ClientHelloExtensionOrder::Fixed(_) => "fixed",
+        ClientHelloExtensionOrder::PermutedWithTail(_) => "permuted_with_tail",
         _ => "unsupported",
     }
+}
+
+/// Sizes the GREASE ECH payload of one connection to `server_name`, the host
+/// of the URL it serves.
+pub(super) fn apply_ech_grease_payload_length(
+    ssl: &mut SslRef,
+    length: EchGreasePayloadLength,
+    server_name: &str,
+) -> Result<(), TlsError> {
+    let result = match length {
+        EchGreasePayloadLength::BackendDefault => return Ok(()),
+        EchGreasePayloadLength::Exact(length) => {
+            ssl.set_ech_grease_payload_length(usize::from(length))
+        }
+        EchGreasePayloadLength::FromClientHello {
+            maximum_name_length,
+        } => ssl.set_ech_grease_payload_from_client_hello(
+            maximum_name_length,
+            ip_literal_host(server_name),
+        ),
+        _ => return Err(TlsError::unsupported("ech_grease_payload_length", length)),
+    };
+    result.map_err(|error| TlsError::backend("ech_grease_payload_length", error))
+}
+
+/// Returns `server_name` without brackets when it is an IP literal.
+///
+/// NSS pads a GREASE ECH payload by the length of the URL host. For a host
+/// name that is the server name BoringSSL sends; an IP literal sends no
+/// server name, so the address text is passed instead, an IPv6 address
+/// without brackets as Firefox 157 pads it.
+fn ip_literal_host(server_name: &str) -> Option<&str> {
+    let host = server_name
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(server_name);
+    host.parse::<IpAddr>().is_ok().then_some(host)
 }
 
 fn version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {
@@ -216,18 +268,23 @@ fn apply_extension_order(
         ClientHelloExtensionOrder::Permuted => builder.set_permute_extensions(true),
         ClientHelloExtensionOrder::Fixed(extensions) => {
             builder.set_permute_extensions(false);
-            let extensions = extensions
-                .iter()
-                .copied()
-                .map(extension_type)
-                .collect::<Result<Vec<_>, _>>()?;
             builder
-                .set_extension_permutation(&extensions)
+                .set_extension_permutation(&extension_types(extensions)?)
+                .map_err(|error| TlsError::backend("extension_order", error))?;
+        }
+        ClientHelloExtensionOrder::PermutedWithTail(extensions) => {
+            builder.set_permute_extensions(true);
+            builder
+                .set_extension_order_tail(&extension_types(extensions)?)
                 .map_err(|error| TlsError::backend("extension_order", error))?;
         }
         _ => return Err(TlsError::unsupported("extension_order", order)),
     }
     Ok(())
+}
+
+fn extension_types(extensions: &[ClientHelloExtension]) -> Result<Vec<ExtensionType>, TlsError> {
+    extensions.iter().copied().map(extension_type).collect()
 }
 
 fn extension_type(extension: ClientHelloExtension) -> Result<ExtensionType, TlsError> {
@@ -257,6 +314,9 @@ fn extension_type(extension: ClientHelloExtension) -> Result<ExtensionType, TlsE
             Some(ExtensionType::APPLICATION_SETTINGS_OLD)
         }
         ClientHelloExtension::EncryptedClientHello => Some(ExtensionType::ENCRYPTED_CLIENT_HELLO),
+        ClientHelloExtension::QuicTransportParameters => {
+            Some(ExtensionType::QUIC_TRANSPORT_PARAMETERS_STANDARD)
+        }
         _ => None,
     };
     require_supported("extension_order", extension, mapped)

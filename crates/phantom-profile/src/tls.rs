@@ -264,6 +264,8 @@ pub enum ClientHelloExtension {
     ApplicationSettingsLegacy,
     /// Encrypted ClientHello or ECH GREASE.
     EncryptedClientHello,
+    /// QUIC transport parameters, sent only by QUIC connections.
+    QuicTransportParameters,
 }
 
 /// Controls the ordering of known ClientHello extensions.
@@ -281,6 +283,44 @@ pub enum ClientHelloExtensionOrder {
     /// configurable extension whose relative position belongs to the captured
     /// fingerprint.
     Fixed(Vec<ClientHelloExtension>),
+    /// Randomize the other extensions for each connection, then write the
+    /// listed ones last, in this order.
+    ///
+    /// Only `padding` and `pre_shared_key` follow the listed extensions, and
+    /// a listed extension is written only when the connection sends it
+    /// anyway, so a list may name an extension that only QUIC or only a
+    /// resumption sends. The second ClientHello after a HelloRetryRequest
+    /// keeps the first one's order. The list must not be empty or repeat an
+    /// extension.
+    PermutedWithTail(Vec<ClientHelloExtension>),
+}
+
+/// How the payload of a GREASE ECH extension is sized.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum EchGreasePayloadLength {
+    /// Keep the TLS backend's policy, which draws a length per connection.
+    #[default]
+    BackendDefault,
+    /// Send this exact nonzero number of payload bytes.
+    ///
+    /// The length must leave room for the ECHClientHelloOuter framing in the
+    /// TLS extension body.
+    Exact(u16),
+    /// Size the payload from the ClientHello that carries it, as the NSS of
+    /// Firefox 157 does.
+    ///
+    /// The payload is as long as the encrypted EncodedClientHelloInner that a
+    /// real ECH offer of the same ClientHello would carry, padded for an
+    /// ECHConfig whose `maximum_name_length` is this value. The length
+    /// therefore grows with a session ticket. The padding subtracts the
+    /// length of the URL host: the server name, or for an IP literal, which
+    /// sends no server name, the address text (an IPv6 address without
+    /// brackets). Firefox 157 uses 100.
+    FromClientHello {
+        /// The `maximum_name_length` the padding assumes.
+        maximum_name_length: u8,
+    },
 }
 
 /// ALPS configuration for one ALPN protocol.
@@ -391,8 +431,19 @@ pub struct TlsSettings {
     /// Maximum protected TLS record plaintext the client accepts.
     ///
     /// `None` omits the RFC 8449 extension. Configured values use the wire
-    /// range `64..=16385`; TLS 1.2 applies its protocol maximum of 16384.
+    /// range `64..=16385`; TLS 1.2 applies its protocol maximum of 16384. A
+    /// QUIC connection sends and negotiates the extension, but QUIC carries
+    /// no TLS records, so no limit applies there.
     pub record_size_limit: Option<u16>,
+    /// Whether a ClientHello whose minimum version is TLS 1.3 still sends an
+    /// empty `extended_master_secret` and a `renegotiation_info` with an empty
+    /// renegotiated connection, as NSS does.
+    ///
+    /// Both extensions only matter to TLS 1.2 and earlier. A ClientHello that
+    /// also offers TLS 1.2 sends them either way, so this changes only a TLS
+    /// 1.3-only offer, such as every QUIC ClientHello. With real ECH, only
+    /// the outer ClientHello carries them.
+    pub tls12_extensions_in_tls13_client_hello: bool,
     /// Optional trust anchor IDs advertised to guide server certificate selection.
     ///
     /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
@@ -408,12 +459,11 @@ pub struct TlsSettings {
     pub extension_order: ClientHelloExtensionOrder,
     /// Whether to emit a GREASE ECH extension without an ECH configuration.
     pub ech_grease: bool,
-    /// Optional exact nonzero byte length for the random GREASE ECH payload.
+    /// How the random GREASE ECH payload is sized.
     ///
-    /// `None` retains the TLS backend's randomized payload-length policy. A
-    /// configured length requires [`Self::ech_grease`] and must leave room for
-    /// the ECHClientHelloOuter framing in the TLS extension body.
-    pub ech_grease_payload_length: Option<u16>,
+    /// Any value other than [`EchGreasePayloadLength::BackendDefault`]
+    /// requires [`Self::ech_grease`].
+    pub ech_grease_payload_length: EchGreasePayloadLength,
     /// HPKE AEADs from which each connection's GREASE ECH extension draws one.
     ///
     /// Every connection selects one listed AEAD uniformly at random; a
@@ -497,26 +547,27 @@ impl TlsSettings {
                 "session tickets per origin must be between 1 and 8",
             ));
         }
-        if self.ech_grease_payload_length.is_some() && !self.ech_grease {
-            return Err(InvalidTlsSettings::new(
-                "ech_grease_payload_length",
-                "an exact ECH GREASE payload length requires ECH GREASE to be enabled",
-            ));
-        }
-        if self.ech_grease_payload_length == Some(0) {
-            return Err(InvalidTlsSettings::new(
-                "ech_grease_payload_length",
-                "an exact ECH GREASE payload length must be nonzero",
-            ));
-        }
-        if self
-            .ech_grease_payload_length
-            .is_some_and(|length| length > MAX_ECH_GREASE_PAYLOAD_LENGTH)
+        if self.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault
+            && !self.ech_grease
         {
             return Err(InvalidTlsSettings::new(
                 "ech_grease_payload_length",
-                "ECH GREASE payload and framing exceed the TLS extension body limit",
+                "an ECH GREASE payload length policy requires ECH GREASE to be enabled",
             ));
+        }
+        if let EchGreasePayloadLength::Exact(length) = self.ech_grease_payload_length {
+            if length == 0 {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_payload_length",
+                    "an exact ECH GREASE payload length must be nonzero",
+                ));
+            }
+            if length > MAX_ECH_GREASE_PAYLOAD_LENGTH {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_payload_length",
+                    "ECH GREASE payload and framing exceed the TLS extension body limit",
+                ));
+            }
         }
         if !self.ech_grease_aeads.is_empty() && !self.ech_grease {
             return Err(InvalidTlsSettings::new(
@@ -652,18 +703,20 @@ impl TlsSettings {
             }
         }
 
-        if let ClientHelloExtensionOrder::Fixed(extensions) = &self.extension_order {
+        if let ClientHelloExtensionOrder::Fixed(extensions)
+        | ClientHelloExtensionOrder::PermutedWithTail(extensions) = &self.extension_order
+        {
             if extensions.is_empty() {
                 return Err(InvalidTlsSettings::new(
                     "extension_order",
-                    "fixed extension order must contain at least one extension",
+                    "a fixed extension order or tail must contain at least one extension",
                 ));
             }
             for (index, extension) in extensions.iter().enumerate() {
                 if extensions[..index].contains(extension) {
                     return Err(InvalidTlsSettings::new(
                         "extension_order",
-                        "fixed extension order must not contain duplicates",
+                        "a fixed extension order or tail must not contain duplicates",
                     ));
                 }
             }

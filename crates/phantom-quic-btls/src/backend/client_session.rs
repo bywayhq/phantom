@@ -19,7 +19,7 @@ use super::{
         Alert, CallbackError, CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
         SecretPair,
     },
-    client::ClientTlsProfile,
+    client::{ClientTlsProfile, EchGreasePayload},
 };
 
 const H3_ALPN: &[u8] = &[2, b'h', b'3'];
@@ -199,7 +199,7 @@ impl ClientSession {
             NonNull::new(context.as_ptr()).ok_or(ClientSessionError::X509ContextRequired)?;
         // SAFETY: the safe context owner is live and SSL_new retains its own reference.
         let mut ssl = unsafe { OwnedSsl::new(context) }?;
-        apply_tls_profile(&mut ssl, tls_profile)?;
+        apply_tls_profile(&mut ssl, tls_profile, server_name)?;
         if let Some(list) = ech_config_list {
             apply_ech_config_list(&mut ssl, list)?;
         }
@@ -668,6 +668,7 @@ const fn resets_early_data_reject(
 fn apply_tls_profile(
     ssl: &mut OwnedSsl,
     profile: &ClientTlsProfile,
+    server_name: &str,
 ) -> Result<(), ClientSessionError> {
     // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
@@ -676,9 +677,22 @@ fn apply_tls_profile(
             .map_err(|_| backend_failure("client key shares"))?;
     }
     ssl.set_enable_ech_grease(profile.ech_grease());
-    if let Some(payload_length) = profile.ech_grease_payload_length() {
-        ssl.set_ech_grease_payload_length(usize::from(payload_length))
-            .map_err(|_| backend_failure("ECH GREASE payload length"))?;
+    match profile.ech_grease_payload() {
+        EchGreasePayload::BackendDefault => {}
+        EchGreasePayload::Exact(length) => {
+            ssl.set_ech_grease_payload_length(usize::from(length))
+                .map_err(|_| backend_failure("ECH GREASE payload length"))?
+        }
+        // NSS pads by the URL host. An IP literal sends no server name, so
+        // its text is passed; a host name is the server name set below.
+        EchGreasePayload::FromClientHello {
+            maximum_name_length,
+        } => ssl
+            .set_ech_grease_payload_from_client_hello(
+                maximum_name_length,
+                server_name.parse::<IpAddr>().is_ok().then_some(server_name),
+            )
+            .map_err(|_| backend_failure("ECH GREASE payload length"))?,
     }
     if !profile.ech_grease_aeads().is_empty() {
         ssl.set_ech_grease_aeads(profile.ech_grease_aeads())

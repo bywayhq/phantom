@@ -6,7 +6,7 @@ use phantom_testkit::tls::ClientHelloSummary;
 use super::{
     capture_client_hello_from_server_name, capture_client_hellos_from, client_hello_fixture,
 };
-use crate::tls::test_support::TestResult;
+use crate::tls::test_support::{TestResult, nss_ech_grease};
 
 const WINDOWS_FIREFOX_157_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox/157.0/",
@@ -24,6 +24,36 @@ const ANDROID_FIREFOX_156_CHACHA20_ECH_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/firefox-android/156.0.1/",
     "android-35-emulator/client-hello-chacha20-ech.txt"
 ));
+macro_rules! ip_literal_fixture {
+    ($name:literal) => {
+        include_str!(concat!(
+            "../../../../../fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/",
+            $name,
+            ".txt"
+        ))
+    };
+}
+
+/// Firefox 157's TCP ClientHellos to `https://127.0.0.1:<port>/` and
+/// `https://[::1]:<port>/`, with the `security.tls.ech.grease_size` each
+/// run used: 100 by default, and on either side of the size at which one
+/// more byte of padding adds a 32-byte block for that host.
+const IP_LITERAL_CAPTURES: [(&str, &str, usize); 6] = [
+    (ip_literal_fixture!("tcp-ipv4"), "127.0.0.1", 100),
+    (
+        ip_literal_fixture!("tcp-ipv4-grease-size-93"),
+        "127.0.0.1",
+        93,
+    ),
+    (
+        ip_literal_fixture!("tcp-ipv4-grease-size-94"),
+        "127.0.0.1",
+        94,
+    ),
+    (ip_literal_fixture!("tcp-ipv6"), "::1", 100),
+    (ip_literal_fixture!("tcp-ipv6-grease-size-87"), "::1", 87),
+    (ip_literal_fixture!("tcp-ipv6-grease-size-88"), "::1", 88),
+];
 const FIREFOX_SERVER_NAME: &str = "localhost";
 // ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
 const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
@@ -68,6 +98,152 @@ async fn firefox_157_recipe_draws_either_ech_grease_aead_per_connection() -> Tes
         &v157_tls(),
     )
     .await
+}
+
+macro_rules! firefox_157_fixtures {
+    ($directory:literal: $($name:literal),+ $(,)?) => {
+        [$(include_str!(concat!(
+            "../../../../../fixtures/",
+            $directory,
+            "/firefox/157.0/windows-11-26200/",
+            $name,
+            ".txt"
+        ))),+]
+    };
+}
+
+/// Every ClientHello record in the Firefox 157.0 TCP and QUIC fixtures to a
+/// host name, fresh or resumed, carries the ECH GREASE payload NSS's rule
+/// gives it with a `maximum_name_length` of 100. The files split from a
+/// snapshot repeat some records.
+#[test]
+fn firefox_157_captured_ech_grease_payloads_follow_the_nss_rule() -> TestResult<()> {
+    let tcp = firefox_157_fixtures!("tls":
+        "client-hello",
+        "client-hello-chacha20-ech",
+        "resumption-issue-once",
+        "resumption-methods",
+        "resumption-methods-http1",
+        "resumption-no-early-data",
+        "resumption-origins",
+        "resumption-parallel",
+        "resumption-partition",
+        "resumption-sequential",
+        "resumption-sequential-http1",
+    );
+    let quic = firefox_157_fixtures!("http3":
+        "quic-client-hello-1",
+        "quic-client-hello-2",
+        "quic-client-hello-3",
+        "resumption-accept",
+        "resumption-accept-delayed",
+        "resumption-reject",
+        "snapshot-1",
+        "snapshot-2",
+        "snapshot-3",
+        "snapshot-4",
+        "snapshot-5",
+    );
+    let mut lengths = Vec::new();
+    for fixture in tcp.into_iter().chain(quic) {
+        for (key, value) in fixture.lines().filter_map(|line| line.split_once('=')) {
+            if !(key.ends_with("client_hello_hex") || key.ends_with("handshake_hex")) {
+                continue;
+            }
+            let hello = client_hello_fixture::decode_hex(value)?;
+            if hello.first() != Some(&1) {
+                continue;
+            }
+            let sent = nss_ech_grease::sent_payload_length(&hello)?;
+            assert_eq!(
+                sent,
+                nss_ech_grease::payload_length(&hello, 100, None)?,
+                "{key}"
+            );
+            lengths.push(sent);
+        }
+    }
+    let fresh = lengths.iter().filter(|&&length| length == 240).count();
+    let resumed = lengths.iter().filter(|&&length| length == 368).count();
+    assert_eq!((fresh, resumed, lengths.len()), (41, 46, 87));
+    Ok(())
+}
+
+/// Firefox sends no `server_name` to an IP literal but pads its ECH GREASE
+/// payload by the address text, an IPv6 address without brackets. Each pair
+/// of runs straddles the `grease_size` at which one more byte of padding
+/// adds a 32-byte block, which pins the padded length: padding by no host
+/// would already add that block in the run below the boundary.
+#[test]
+fn firefox_157_ip_literal_captures_pad_ech_grease_by_the_host_text() -> TestResult<()> {
+    for (fixture, host, grease_size) in IP_LITERAL_CAPTURES {
+        let hellos = fixture_client_hellos(fixture)?;
+        // Firefox retries a connection the listener closed, and the later
+        // ClientHellos drop `compress_certificate`; the rule covers them too.
+        for hello in &hellos {
+            let summary = ClientHelloSummary::from_handshake_bytes(hello)?;
+            assert_eq!(summary.server_name(), None);
+            assert_eq!(
+                nss_ech_grease::sent_payload_length(hello)?,
+                nss_ech_grease::payload_length(hello, grease_size, Some(host.len()))?,
+                "{host} at grease_size {grease_size}"
+            );
+        }
+        let first = hellos.first().ok_or("the capture holds no ClientHello")?;
+        let below_boundary = grease_size == 93 || grease_size == 87;
+        let sent = nss_ech_grease::sent_payload_length(first)?;
+        assert_eq!(sent, if below_boundary { 208 } else { 240 });
+        if below_boundary {
+            assert_ne!(
+                nss_ech_grease::payload_length(first, grease_size, Some(0))?,
+                sent
+            );
+        }
+    }
+    Ok(())
+}
+
+/// To an IP literal the recipe sends Firefox's first ClientHello shape: no
+/// `server_name`, the same extensions and lengths, and the same 240-byte ECH
+/// GREASE payload, padded by the address text.
+#[tokio::test]
+async fn firefox_157_recipe_matches_the_ip_literal_captures() -> TestResult<()> {
+    for (fixture, host) in [
+        (ip_literal_fixture!("tcp-ipv4"), "127.0.0.1"),
+        (ip_literal_fixture!("tcp-ipv6"), "::1"),
+    ] {
+        let expected_hello = fixture_client_hellos(fixture)?
+            .into_iter()
+            .next()
+            .ok_or("the capture holds no ClientHello")?;
+        let expected = ClientHelloSummary::from_handshake_bytes(&expected_hello)?;
+        let actual_capture = capture_client_hello_from_server_name(&v157_tls(), host).await?;
+        let actual_hello = actual_capture.handshake_bytes();
+        let actual = actual_capture.summary()?;
+        assert_stable_vectors(&actual, &expected);
+        assert_eq!(actual.server_name(), None);
+        assert_eq!(
+            actual.extension_layout().collect::<Vec<_>>(),
+            expected.extension_layout().collect::<Vec<_>>()
+        );
+        assert_eq!(nss_ech_grease::sent_payload_length(actual_hello)?, 240);
+        assert_eq!(
+            nss_ech_grease::sent_payload_length(actual_hello)?,
+            nss_ech_grease::payload_length(actual_hello, 100, Some(host.len()))?
+        );
+    }
+    Ok(())
+}
+
+/// Returns every ClientHello a capture script's `client_hello_<n>_hex` lines
+/// hold.
+fn fixture_client_hellos(fixture: &str) -> TestResult<Vec<Vec<u8>>> {
+    fixture
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .filter(|(key, _)| key.starts_with("client_hello_") && key.ends_with("_hex"))
+        .map(|(_, value)| Ok(client_hello_fixture::decode_hex(value)?))
+        .collect()
 }
 
 /// Replays both retained AEAD branches, then requires one connector's

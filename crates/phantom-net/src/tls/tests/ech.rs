@@ -1,5 +1,5 @@
 use phantom_profile::{
-    EchGreaseAead,
+    EchGreaseAead, EchGreasePayloadLength,
     chromium::{v154_http3_tls, v154_tls},
 };
 
@@ -10,7 +10,7 @@ use super::{
 #[tokio::test]
 async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<()> {
     let mut settings = v154_tls();
-    settings.ech_grease_payload_length = Some(239);
+    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
 
     let capture = capture_client_hello_from(&settings).await?;
     let ech_body_length =
@@ -28,7 +28,10 @@ async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<
 #[tokio::test]
 async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResult<()> {
     let settings = v154_tls();
-    assert_eq!(settings.ech_grease_payload_length, None);
+    assert_eq!(
+        settings.ech_grease_payload_length,
+        EchGreasePayloadLength::BackendDefault
+    );
 
     let capture = capture_client_hello_from(&settings).await?;
     let ech_body_length = capture
@@ -46,7 +49,7 @@ fn exact_ech_grease_payload_without_ech_fails_before_stream_io() -> TestResult<(
     let mut settings = v154_tls();
     settings.ech_grease = false;
     settings.ech_from_https_records = false;
-    settings.ech_grease_payload_length = Some(239);
+    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
 
     let error = match TlsConnector::new(&settings) {
         Ok(_) => return Err("ECH GREASE payload length unexpectedly built a connector".into()),

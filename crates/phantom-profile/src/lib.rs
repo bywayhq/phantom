@@ -57,8 +57,8 @@ pub use tcp::{
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
-    ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,
-    TlsSettings, TlsVersion,
+    ClientHelloExtensionOrder, EchGreaseAead, EchGreasePayloadLength, InvalidTlsSettings,
+    NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
 };
 pub use websocket::{
     InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,

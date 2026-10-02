@@ -23,7 +23,7 @@ use super::super::Http3Connector;
 use super::connector::{client_hello_extension, fixture_hex};
 use super::{TEST_TIMEOUT, TestResult, accept_request, server_endpoint};
 use crate::request::{OriginForm, RequestHeader};
-use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
+use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity, nss_ech_grease};
 
 const SNAPSHOTS: [&str; 3] = [
     include_str!("../../../../../fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt"),
@@ -41,10 +41,47 @@ const CLIENT_HELLOS: [&str; 3] = [
         "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-3.txt"
     ),
 ];
+const RESUMPTIONS: [&str; 3] = [
+    include_str!(
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/resumption-accept.txt"
+    ),
+    include_str!(
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/resumption-accept-delayed.txt"
+    ),
+    include_str!(
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/resumption-reject.txt"
+    ),
+];
+/// Firefox 157's QUIC ClientHellos to `https://127.0.0.1:<port>/`, by the
+/// `security.tls.ech.grease_size` each run set, which QUIC does not read.
+const IP_LITERAL_CLIENT_HELLOS: [&str; 4] = [
+    include_str!(
+        "../../../../../fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/quic-ipv4.txt"
+    ),
+    include_str!(
+        "../../../../../fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/quic-ipv4-grease-size-77.txt"
+    ),
+    include_str!(
+        "../../../../../fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/quic-ipv4-grease-size-85.txt"
+    ),
+    include_str!(
+        "../../../../../fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/quic-ipv4-grease-size-86.txt"
+    ),
+];
 const H3_ALPN_WIRE: &[u8] = b"\x02h3";
+const EXTENDED_MASTER_SECRET: u16 = 0x17;
+const RECORD_SIZE_LIMIT: u16 = 0x1c;
+const EARLY_DATA: u16 = 0x2a;
+const PRE_SHARED_KEY: u16 = 0x29;
+const PSK_KEY_EXCHANGE_MODES: u16 = 0x2d;
 const QUIC_TRANSPORT_PARAMETERS: u16 = 0x39;
-/// `record_size_limit`, `extended_master_secret`, and `renegotiation_info`.
-const OMITTED_BY_BORINGSSL: [u16; 3] = [0x1c, 0x17, 0xff01];
+const RENEGOTIATION_INFO: u16 = 0xff01;
+const ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
+/// neqo writes these two after its shuffled extensions, and before only
+/// `pre_shared_key`.
+const QUIC_TAIL: [u16; 2] = [QUIC_TRANSPORT_PARAMETERS, ENCRYPTED_CLIENT_HELLO];
+/// NSS's default ECH GREASE `maximum_name_length`, which QUIC uses.
+const ECH_MAXIMUM_NAME_LENGTH: usize = 100;
 const QUIC_V1: u32 = 1;
 const QUIC_V2: u32 = 0x6b33_43cf;
 
@@ -60,14 +97,59 @@ fn connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
 
 /// A loopback BoringSSL QUIC server that records the ClientHello.
 fn server(identity: &TestIdentity) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    server_at(identity, (Ipv4Addr::LOCALHOST, 0).into())
+}
+
+fn server_at(
+    identity: &TestIdentity,
+    bind: SocketAddr,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let mut builder = identity.acceptor_builder()?;
     builder.set_alpn_select_callback(|_, offered| {
         select_next_proto(H3_ALPN_WIRE, offered).ok_or(AlpnError::NOACK)
     });
     let crypto = QuicServerConfig::new(builder.build().into_context());
     let config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
-    let endpoint = super::quic_server(config, "127.0.0.1:0".parse()?)?;
+    let endpoint = super::quic_server(config, bind)?;
     Ok((endpoint.local_addr()?, endpoint))
+}
+
+/// Returns the ClientHello of `connector`'s next connection to `server_name`
+/// at a recording server bound to `bind`. The handshake itself may fail.
+async fn recorded_client_hello(
+    identity: &TestIdentity,
+    connector: &Http3Connector,
+    bind: SocketAddr,
+    server_name: &str,
+) -> TestResult<Vec<u8>> {
+    let (address, endpoint) = server_at(identity, bind)?;
+    let host = address.ip().to_string();
+    // A resumed connection that offers 0-RTT returns before the server
+    // answers, so the attempt holds it until the server has the ClientHello.
+    let attempt = async {
+        let _connection = connector
+            .connect_direct(&host, address.port(), server_name)
+            .await;
+        std::future::pending::<()>().await;
+    };
+    let observed = async {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let mut connecting = incoming.accept()?;
+        let data = connecting
+            .handshake_data()
+            .await?
+            .downcast::<ServerHandshakeData>()
+            .map_err(|_| "unexpected server handshake data")?;
+        TestResult::Ok(data.client_hello().to_vec())
+    };
+    let client_hello = timeout(TEST_TIMEOUT, async {
+        tokio::select! {
+            () = attempt => Err("the client stopped before the server saw it".into()),
+            client_hello = observed => client_hello,
+        }
+    })
+    .await??;
+    Ok(client_hello)
 }
 
 /// One transport parameter: identifier, identifier width, length width, value.
@@ -188,24 +270,35 @@ async fn firefox_157_quic_offer_and_streams_match_windows_capture() -> TestResul
         );
         assert_eq!(actual.alpn_protocols(), expected.alpn_protocols());
         assert_eq!(actual.server_name(), expected.server_name());
-        // BoringSSL refuses record_size_limit on QUIC connections and omits the
-        // TLS 1.2 extensions from a TLS 1.3-only offer.
-        let mut captured_extensions = extension_set(&expected);
-        captured_extensions.retain(|extension| !OMITTED_BY_BORINGSSL.contains(extension));
-        assert_eq!(extension_set(&actual), captured_extensions);
-        // delegated_credentials, status_request, compress_certificate, and
-        // psk_key_exchange_modes bodies.
-        for extension in [0x22, 0x05, 0x1b, 0x2d] {
+        // The same extensions; the order of all but the last two is drawn
+        // per connection.
+        assert_eq!(extension_set(&actual), extension_set(&expected));
+        assert!(actual.extension_types().ends_with(&QUIC_TAIL));
+        assert!(expected.extension_types().ends_with(&QUIC_TAIL));
+        // delegated_credentials, status_request, compress_certificate,
+        // psk_key_exchange_modes, and the TLS 1.2 extensions of a TLS
+        // 1.3-only offer.
+        for extension in [
+            0x22,
+            0x05,
+            0x1b,
+            PSK_KEY_EXCHANGE_MODES,
+            EXTENDED_MASTER_SECRET,
+            RENEGOTIATION_INFO,
+            RECORD_SIZE_LIMIT,
+        ] {
             assert_eq!(
                 client_hello_extension(&client_hello, extension),
                 client_hello_extension(&expected_hello, extension),
                 "extension {extension:#06x}"
             );
         }
+        assert_tls12_extensions_and_record_size_limit(&client_hello);
         assert_eq!(
-            client_hello_extension(&client_hello, 0xfe0d).map(<[u8]>::len),
-            client_hello_extension(&expected_hello, 0xfe0d).map(<[u8]>::len),
+            client_hello_extension(&client_hello, ENCRYPTED_CLIENT_HELLO).map(<[u8]>::len),
+            client_hello_extension(&expected_hello, ENCRYPTED_CLIENT_HELLO).map(<[u8]>::len),
         );
+        assert_eq!(nss_ech_grease::sent_payload_length(&expected_hello)?, 240);
         let captured =
             transport_parameters(&fixture_hex(snapshot, "h3.transport_parameters_hex")?)?;
         assert_parameters_match(&actual_parameters, &captured);
@@ -240,6 +333,159 @@ async fn firefox_157_quic_offer_and_streams_match_windows_capture() -> TestResul
     }
     types.sort_unstable();
     assert_eq!(types, [(2, 0x00), (6, 0x02), (10, 0x03)]);
+    Ok(())
+}
+
+/// An empty `extended_master_secret`, a `renegotiation_info` with an empty
+/// renegotiated connection, and a `record_size_limit` of 16385.
+fn assert_tls12_extensions_and_record_size_limit(client_hello: &[u8]) {
+    assert_eq!(
+        client_hello_extension(client_hello, EXTENDED_MASTER_SECRET),
+        Some(&b""[..])
+    );
+    assert_eq!(
+        client_hello_extension(client_hello, RENEGOTIATION_INFO),
+        Some(&[0][..])
+    );
+    assert_eq!(
+        client_hello_extension(client_hello, RECORD_SIZE_LIMIT),
+        Some(&[0x40, 0x01][..])
+    );
+}
+
+/// A resumed ClientHello adds `early_data` and, after the fixed tail,
+/// `pre_shared_key`, as every resumed Firefox 157 QUIC ClientHello in the
+/// resumption captures does. Their ECH GREASE payload is 368 bytes, sized
+/// by NSS from a ClientHello whose `pre_shared_key` carries the capture
+/// server's 64-byte ticket and a 48-byte SHA-384 binder. The loopback
+/// server's ticket and binder have other lengths, so the payload is compared
+/// through NSS's rule: Phantom's payload follows the rule for its own
+/// ClientHello, and the rule gives 368 for that ClientHello with the
+/// captured `pre_shared_key` length.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_157_resumed_quic_client_hello_matches_the_resumption_captures() -> TestResult<()> {
+    use super::early_data::{Served, learn_ticket};
+    use super::resumption::resumed_captured_client_hellos;
+
+    let identity = TestIdentity::generate()?;
+    let connector = connector(&identity)?.with_isolated_session_cache();
+    let (_address, _endpoint, server) =
+        learn_ticket(&identity, &connector, &Served::default()).await?;
+    // The ticket is kept by server name, so the next connection presents it
+    // to the recording server too.
+    let resumed = recorded_client_hello(
+        &identity,
+        &connector,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+        TEST_SERVER_NAME,
+    )
+    .await?;
+    server.abort();
+
+    let actual = ClientHelloSummary::from_handshake_bytes(&resumed)?;
+    let mut tail = QUIC_TAIL.to_vec();
+    tail.push(PRE_SHARED_KEY);
+    assert!(actual.extension_types().ends_with(&tail));
+    assert!(actual.extension_types().contains(&EARLY_DATA));
+    assert_tls12_extensions_and_record_size_limit(&resumed);
+    assert_eq!(
+        nss_ech_grease::sent_payload_length(&resumed)?,
+        nss_ech_grease::payload_length(&resumed, ECH_MAXIMUM_NAME_LENGTH, None)?
+    );
+
+    let mut compared = 0;
+    for capture in RESUMPTIONS {
+        for captured in resumed_captured_client_hellos(capture)? {
+            let expected = ClientHelloSummary::from_handshake_bytes(&captured)?;
+            assert!(expected.extension_types().ends_with(&tail));
+            assert_eq!(extension_set(&actual), extension_set(&expected));
+            for extension in [
+                EARLY_DATA,
+                PSK_KEY_EXCHANGE_MODES,
+                EXTENDED_MASTER_SECRET,
+                RENEGOTIATION_INFO,
+                RECORD_SIZE_LIMIT,
+            ] {
+                assert_eq!(
+                    client_hello_extension(&resumed, extension),
+                    client_hello_extension(&captured, extension),
+                    "extension {extension:#06x}"
+                );
+            }
+            let pre_shared_key = nss_ech_grease::pre_shared_key_length(&captured)?;
+            assert_eq!(nss_ech_grease::sent_payload_length(&captured)?, 368);
+            assert_eq!(
+                nss_ech_grease::payload_length(&captured, ECH_MAXIMUM_NAME_LENGTH, None)?,
+                368
+            );
+            assert_eq!(
+                nss_ech_grease::payload_length_with_pre_shared_key(
+                    &resumed,
+                    ECH_MAXIMUM_NAME_LENGTH,
+                    None,
+                    pre_shared_key
+                )?,
+                368
+            );
+            compared += 1;
+        }
+    }
+    assert!(compared >= 3, "too few resumed captures were compared");
+    Ok(())
+}
+
+/// Firefox's QUIC ClientHello to `127.0.0.1` sends no `server_name` and pads
+/// its ECH GREASE payload by the address text, to 208 bytes whatever
+/// `security.tls.ech.grease_size` says. The recipe sends the same extensions
+/// and the same length there. No QUIC capture to `[::1]` exists; there the
+/// recipe follows NSS's rule for the three-byte host `::1`.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_157_quic_client_hello_pads_ech_grease_by_an_ip_literal_host() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = connector(&identity)?;
+    let ipv4 = recorded_client_hello(
+        &identity,
+        &connector,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+        "127.0.0.1",
+    )
+    .await?;
+    let actual = ClientHelloSummary::from_handshake_bytes(&ipv4)?;
+    assert_eq!(actual.server_name(), None);
+    assert!(actual.extension_types().ends_with(&QUIC_TAIL));
+    assert_eq!(nss_ech_grease::sent_payload_length(&ipv4)?, 208);
+    for capture in IP_LITERAL_CLIENT_HELLOS {
+        let captured = fixture_hex(capture, "client_hello_0_hex")?;
+        let expected = ClientHelloSummary::from_handshake_bytes(&captured)?;
+        assert_eq!(expected.server_name(), None);
+        assert!(expected.extension_types().ends_with(&QUIC_TAIL));
+        assert_eq!(extension_set(&actual), extension_set(&expected));
+        assert_eq!(nss_ech_grease::sent_payload_length(&captured)?, 208);
+        assert_eq!(
+            nss_ech_grease::payload_length(
+                &captured,
+                ECH_MAXIMUM_NAME_LENGTH,
+                Some("127.0.0.1".len())
+            )?,
+            208
+        );
+    }
+
+    let ipv6 = recorded_client_hello(
+        &identity,
+        &connector,
+        (Ipv6Addr::LOCALHOST, 0).into(),
+        "::1",
+    )
+    .await?;
+    assert_eq!(
+        ClientHelloSummary::from_handshake_bytes(&ipv6)?.server_name(),
+        None
+    );
+    assert_eq!(
+        nss_ech_grease::sent_payload_length(&ipv6)?,
+        nss_ech_grease::payload_length(&ipv6, ECH_MAXIMUM_NAME_LENGTH, Some("::1".len()))?
+    );
     Ok(())
 }
 

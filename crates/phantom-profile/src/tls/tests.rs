@@ -64,12 +64,13 @@ fn minimal_settings() -> TlsSettings {
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,
+        tls12_extensions_in_tls13_client_hello: false,
         requested_trust_anchor_ids: None,
         grease: false,
         grease_signature_algorithms: false,
         extension_order: ClientHelloExtensionOrder::BackendDefault,
         ech_grease: false,
-        ech_grease_payload_length: None,
+        ech_grease_payload_length: EchGreasePayloadLength::BackendDefault,
         ech_grease_aeads: Vec::new(),
         ech_from_https_records: false,
         request_ocsp_staple: false,
@@ -350,7 +351,7 @@ fn every_distinct_ech_grease_aead_choice_is_valid() -> Result<(), InvalidTlsSett
 #[test]
 fn exact_ech_grease_payload_length_requires_ech_grease() {
     let mut settings = minimal_settings();
-    settings.ech_grease_payload_length = Some(239);
+    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
 
     let error = settings.validate().err();
     assert_eq!(
@@ -363,7 +364,7 @@ fn exact_ech_grease_payload_length_requires_ech_grease() {
 fn exact_ech_grease_payload_length_must_be_nonzero() {
     let mut settings = minimal_settings();
     settings.ech_grease = true;
-    settings.ech_grease_payload_length = Some(0);
+    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(0);
 
     let error = settings.validate().err();
     assert_eq!(
@@ -376,13 +377,36 @@ fn exact_ech_grease_payload_length_must_be_nonzero() {
 fn exact_ech_grease_payload_and_framing_must_fit_the_extension_body() {
     let mut settings = minimal_settings();
     settings.ech_grease = true;
-    settings.ech_grease_payload_length = Some(MAX_ECH_GREASE_PAYLOAD_LENGTH + 1);
+    settings.ech_grease_payload_length =
+        EchGreasePayloadLength::Exact(MAX_ECH_GREASE_PAYLOAD_LENGTH + 1);
 
     let error = settings.validate().err();
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease_payload_length")
     );
+}
+
+#[test]
+fn ech_grease_payload_from_the_client_hello_requires_ech_grease() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.ech_grease_payload_length = EchGreasePayloadLength::FromClientHello {
+        maximum_name_length: 100,
+    };
+    let error = settings.validate().err();
+    assert_eq!(
+        error.as_ref().map(InvalidTlsSettings::field),
+        Some("ech_grease_payload_length")
+    );
+
+    settings.ech_grease = true;
+    for maximum_name_length in [0, 100, u8::MAX] {
+        settings.ech_grease_payload_length = EchGreasePayloadLength::FromClientHello {
+            maximum_name_length,
+        };
+        settings.validate()?;
+    }
+    Ok(())
 }
 
 #[test]
@@ -476,7 +500,7 @@ fn certificate_compression_accepts_unique_order_and_rejects_duplicates()
 }
 
 #[test]
-fn fixed_extension_order_must_be_nonempty_and_unique() {
+fn fixed_extension_order_and_tail_must_be_nonempty_and_unique() {
     for extensions in [
         Vec::new(),
         vec![
@@ -484,14 +508,29 @@ fn fixed_extension_order_must_be_nonempty_and_unique() {
             ClientHelloExtension::ServerName,
         ],
     ] {
-        let mut settings = minimal_settings();
-        settings.extension_order = ClientHelloExtensionOrder::Fixed(extensions);
-        let error = settings.validate().err();
-        assert_eq!(
-            error.as_ref().map(InvalidTlsSettings::field),
-            Some("extension_order")
-        );
+        for order in [
+            ClientHelloExtensionOrder::Fixed(extensions.clone()),
+            ClientHelloExtensionOrder::PermutedWithTail(extensions.clone()),
+        ] {
+            let mut settings = minimal_settings();
+            settings.extension_order = order;
+            let error = settings.validate().err();
+            assert_eq!(
+                error.as_ref().map(InvalidTlsSettings::field),
+                Some("extension_order")
+            );
+        }
     }
+}
+
+#[test]
+fn permuted_extension_order_accepts_a_quic_tail() -> Result<(), InvalidTlsSettings> {
+    let mut settings = minimal_settings();
+    settings.extension_order = ClientHelloExtensionOrder::PermutedWithTail(vec![
+        ClientHelloExtension::QuicTransportParameters,
+        ClientHelloExtension::EncryptedClientHello,
+    ]);
+    settings.validate()
 }
 
 #[test]

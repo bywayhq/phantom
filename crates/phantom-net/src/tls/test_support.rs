@@ -30,6 +30,8 @@ use tokio_btls::SslStream as BoringStream;
 
 use super::{TlsConnector, TlsError, TlsStream};
 
+pub(crate) mod nss_ech_grease;
+
 pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 pub(crate) const TEST_SERVER_NAME: &str = "server.phantom.test";
 pub(crate) const H2_ALPN_WIRE: &[u8] = b"\x02h2";

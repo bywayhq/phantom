@@ -1,6 +1,10 @@
 //! TLS 1.3 resumption over TCP, compared with the browser resumption captures.
 
-use std::{io, time::Duration};
+use std::{
+    io,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use phantom_profile::{TlsSettings, brave, chromium, edge, firefox, opera};
 use phantom_testkit::tls::{
@@ -17,7 +21,7 @@ use crate::tls::{
     TlsConnector,
     test_support::{
         TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn,
-        accept_tls_with_early_data, connect_local, loopback_listener,
+        accept_tls_with_early_data, connect_local, loopback_listener, nss_ech_grease,
     },
 };
 
@@ -28,11 +32,31 @@ const EARLY_DATA: u16 = 0x002a;
 const PSK_KEY_EXCHANGE_MODES: u16 = 0x002d;
 const ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
 
-/// Whether the loopback server's tickets permit early data.
+/// The length of the ticket in every resumed ClientHello of Firefox's TCP
+/// resumption captures, which the capture server issued.
+const FIREFOX_CAPTURE_TICKET_LENGTH: usize = 64;
+/// Firefox's ECH GREASE `maximum_name_length`, `security.tls.ech.grease_size`.
+const FIREFOX_ECH_MAXIMUM_NAME_LENGTH: usize = 100;
+
+/// The loopback server that issues the ticket.
 #[derive(Clone, Copy)]
 enum Tickets {
+    /// A BoringSSL server whose tickets do not permit early data.
     WithoutEarlyData,
+    /// A BoringSSL server whose tickets permit early data.
     PermittingEarlyData,
+    /// A rustls server whose tickets are this many bytes long and do not
+    /// permit early data. A BoringSSL ticket carries the encrypted session
+    /// and is longer than any capture server's.
+    FixedLength(usize),
+}
+
+/// Whether [`normalized_client_hello`] keeps the length of the ECH GREASE
+/// payload, which NSS derives from the ClientHello and so from the ticket.
+#[derive(Clone, Copy)]
+enum EchPayloadLength {
+    Kept,
+    Cleared,
 }
 
 macro_rules! fixture {
@@ -121,16 +145,39 @@ async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
 #[tokio::test]
 async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -> TestResult<()> {
     let settings = firefox::v157_tls();
-    let (fresh, resumed) =
-        fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
+    let (fresh, resumed) = fresh_and_resumed_client_hellos(
+        &settings,
+        Tickets::FixedLength(FIREFOX_CAPTURE_TICKET_LENGTH),
+    )
+    .await?;
     let captured = resumed_client_hellos(FIREFOX_NO_EARLY_DATA)?;
     assert!(!captured.is_empty());
     let resumed_types = resumed.summary()?.extension_types().to_vec();
+    let actual = normalized_client_hello(resumed.handshake_bytes(), EchPayloadLength::Kept)?;
+    assert_eq!(
+        nss_ech_grease::ticket_length(resumed.handshake_bytes())?,
+        FIREFOX_CAPTURE_TICKET_LENGTH
+    );
+    // With a ticket as long as the capture server's, the ECH GREASE payload
+    // is Firefox's 368 bytes, so the ClientHellos match byte for byte apart
+    // from per-connection values.
+    assert_eq!(
+        nss_ech_grease::sent_payload_length(resumed.handshake_bytes())?,
+        368
+    );
     for expected in &captured {
         assert_same_resumed_shape(resumed.handshake_bytes(), expected, &settings)?;
         assert_eq!(
             resumed_types,
             ClientHelloSummary::from_handshake_bytes(expected)?.extension_types()
+        );
+        assert_eq!(
+            nss_ech_grease::ticket_length(expected)?,
+            FIREFOX_CAPTURE_TICKET_LENGTH
+        );
+        assert_eq!(
+            actual,
+            normalized_client_hello(expected, EchPayloadLength::Kept)?
         );
     }
     // Firefox's fixed order, less the empty `session_ticket`, plus the PSK.
@@ -144,7 +191,11 @@ async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -
 /// With a ticket that permits early data, the resumed ClientHello equals every
 /// resumed ClientHello of Firefox's `resumption-sequential.txt`, all of which
 /// offer `early_data`, byte for byte apart from per-connection values and the
-/// ECH GREASE payload length, pinned below.
+/// ECH GREASE payload length. That length follows the ticket, which only a
+/// BoringSSL loopback server here issues with early data, and a BoringSSL
+/// ticket is longer than the capture server's; NSS's rule, applied to the
+/// same ClientHello with the captured `pre_shared_key` length, gives
+/// Firefox's 368.
 #[tokio::test]
 async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> TestResult<()> {
     let settings = firefox::v157_tls();
@@ -155,24 +206,52 @@ async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> T
     let mut captured = resumed_client_hellos(FIREFOX_SEQUENTIAL)?;
     captured.extend(resumed_client_hellos(FIREFOX_MACOS_SEQUENTIAL)?);
     assert!(!captured.is_empty());
-    let actual = normalized_client_hello(resumed.handshake_bytes())?;
+    let actual = normalized_client_hello(resumed.handshake_bytes(), EchPayloadLength::Cleared)?;
+    let resumed = resumed.handshake_bytes();
+    assert_eq!(
+        nss_ech_grease::sent_payload_length(resumed)?,
+        nss_ech_grease::payload_length(resumed, FIREFOX_ECH_MAXIMUM_NAME_LENGTH, None)?
+    );
     for expected in &captured {
-        assert_same_resumed_shape(resumed.handshake_bytes(), expected, &settings)?;
+        assert_same_resumed_shape(resumed, expected, &settings)?;
         assert_eq!(
             resumed_types,
             ClientHelloSummary::from_handshake_bytes(expected)?.extension_types()
         );
-        assert_eq!(actual, normalized_client_hello(expected)?);
+        assert_eq!(
+            actual,
+            normalized_client_hello(expected, EchPayloadLength::Cleared)?
+        );
         assert_eq!(
             client_hello_fixture::extension_payload(expected, EARLY_DATA)?,
             b""
         );
-        // Firefox's resumed ECH GREASE payload is 128 bytes longer than its
-        // fresh one, with or without early data; the recipe keeps the fresh
-        // 240 bytes. This pins that difference.
-        assert_eq!(ech_payload_length(expected)?, 368);
-        assert_eq!(ech_payload_length(resumed.handshake_bytes())?, 240);
+        // The ticket makes Firefox's payload 128 bytes longer than the fresh
+        // 240, and the rule gives the same length for Phantom's ClientHello
+        // with the captured ticket.
+        assert_eq!(
+            nss_ech_grease::ticket_length(expected)?,
+            FIREFOX_CAPTURE_TICKET_LENGTH
+        );
+        assert_eq!(nss_ech_grease::sent_payload_length(expected)?, 368);
+        assert_eq!(
+            nss_ech_grease::payload_length(expected, FIREFOX_ECH_MAXIMUM_NAME_LENGTH, None)?,
+            368
+        );
+        assert_eq!(
+            nss_ech_grease::payload_length_with_pre_shared_key(
+                resumed,
+                FIREFOX_ECH_MAXIMUM_NAME_LENGTH,
+                None,
+                nss_ech_grease::pre_shared_key_length(expected)?
+            )?,
+            368
+        );
     }
+    assert_eq!(
+        nss_ech_grease::sent_payload_length(fresh.handshake_bytes())?,
+        240
+    );
     // Firefox's fixed order, less the empty `session_ticket`, with
     // `early_data` between `key_share` and `supported_versions` and the PSK
     // last.
@@ -258,17 +337,32 @@ async fn fresh_and_resumed_client_hellos(
         .with_isolated_session_cache();
     let fresh = capture_offering_early_data(&connector).await?;
 
-    let acceptor = identity.acceptor(TestServerAlpn::H2)?;
     let (address, listener) = loopback_listener().await?;
-    let server = tokio::spawn(async move {
-        let early_data = matches!(tickets, Tickets::PermittingEarlyData);
-        let mut stream =
-            accept_tls_with_early_data(&listener, &acceptor, early_data, Duration::ZERO).await?;
-        stream.write_all(b"x").await?;
-        stream.flush().await?;
-        let _ = stream.read_to_end(&mut Vec::new()).await;
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-    });
+    let server = match tickets {
+        Tickets::WithoutEarlyData | Tickets::PermittingEarlyData => {
+            let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+            tokio::spawn(async move {
+                let early_data = matches!(tickets, Tickets::PermittingEarlyData);
+                let mut stream =
+                    accept_tls_with_early_data(&listener, &acceptor, early_data, Duration::ZERO)
+                        .await?;
+                stream.write_all(b"x").await?;
+                stream.flush().await?;
+                let _ = stream.read_to_end(&mut Vec::new()).await;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            })
+        }
+        Tickets::FixedLength(length) => {
+            let config = fixed_length_ticket_server_config(&identity, length)?;
+            tokio::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let tcp = tcp.into_std()?;
+                tcp.set_nonblocking(false)?;
+                tokio::task::spawn_blocking(move || serve_one_byte(config, tcp)).await??;
+                Ok(())
+            })
+        }
+    };
     let mut stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     // Reading the server's first byte processes the tickets sent before it.
     let mut byte = [0_u8; 1];
@@ -278,6 +372,77 @@ async fn fresh_and_resumed_client_hellos(
 
     let resumed = capture_offering_early_data(&connector).await?;
     Ok((fresh, resumed))
+}
+
+/// A rustls ticketer whose tickets are opaque handles of a fixed length,
+/// standing for the sessions it keeps.
+#[derive(Debug)]
+struct FixedLengthTickets {
+    length: usize,
+    sessions: Mutex<Vec<Vec<u8>>>,
+}
+
+impl rustls::server::ProducesTickets for FixedLengthTickets {
+    fn enabled(&self) -> bool {
+        true
+    }
+
+    fn lifetime(&self) -> u32 {
+        3_600
+    }
+
+    fn encrypt(&self, plain: &[u8]) -> Option<Vec<u8>> {
+        let mut sessions = self.sessions.lock().ok()?;
+        let mut handle = vec![0; self.length];
+        handle
+            .get_mut(..8)?
+            .copy_from_slice(&u64::try_from(sessions.len()).ok()?.to_be_bytes());
+        sessions.push(plain.to_vec());
+        Some(handle)
+    }
+
+    fn decrypt(&self, cipher: &[u8]) -> Option<Vec<u8>> {
+        let index = usize::try_from(u64::from_be_bytes(*cipher.first_chunk::<8>()?)).ok()?;
+        self.sessions.lock().ok()?.get(index).cloned()
+    }
+}
+
+/// A TLS 1.3 rustls server for `h2` whose tickets are `ticket_length` bytes.
+fn fixed_length_ticket_server_config(
+    identity: &TestIdentity,
+    ticket_length: usize,
+) -> TestResult<Arc<rustls::ServerConfig>> {
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let mut config = rustls::ServerConfig::builder_with_provider(provider)
+        .with_protocol_versions(&[&rustls::version::TLS13])?
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![rustls::pki_types::CertificateDer::from(
+                identity.leaf_der().to_vec(),
+            )],
+            rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+                identity.private_key_der().to_vec(),
+            )),
+        )?;
+    config.alpn_protocols = vec![b"h2".to_vec()];
+    config.ticketer = Arc::new(FixedLengthTickets {
+        length: ticket_length,
+        sessions: Mutex::default(),
+    });
+    Ok(Arc::new(config))
+}
+
+/// Completes one handshake, which sends the tickets, writes one byte, and
+/// holds the connection until the client closes it.
+fn serve_one_byte(config: Arc<rustls::ServerConfig>, tcp: std::net::TcpStream) -> io::Result<()> {
+    use std::io::{Read, Write};
+
+    let connection = rustls::ServerConnection::new(config).map_err(io::Error::other)?;
+    let mut stream = rustls::StreamOwned::new(connection, tcp);
+    stream.write_all(b"x")?;
+    stream.flush()?;
+    let _ = stream.read_to_end(&mut Vec::new());
+    Ok(())
 }
 
 /// Captures the ClientHello of a direct connection. A ClientHello that offers
@@ -314,7 +479,10 @@ async fn capture_offering_early_data(connector: &TlsConnector) -> TestResult<Cli
 /// encapsulated key, and payload, and the PSK identities, ticket ages, and
 /// binders, of which only the counts and binder lengths stay. Every other
 /// byte stays, in order, with each extension's type and body.
-fn normalized_client_hello(handshake: &[u8]) -> TestResult<Vec<u8>> {
+fn normalized_client_hello(
+    handshake: &[u8],
+    ech_payload_length: EchPayloadLength,
+) -> TestResult<Vec<u8>> {
     let body = handshake.get(4..).ok_or("truncated ClientHello")?;
     let mut reader = Reader(body);
     let mut normalized = Vec::new();
@@ -340,7 +508,7 @@ fn normalized_client_hello(handshake: &[u8]) -> TestResult<Vec<u8>> {
         let body = extensions.vector16()?;
         let body = match extension_type {
             KEY_SHARE => normalized_key_share(body)?,
-            ENCRYPTED_CLIENT_HELLO => normalized_ech(body)?,
+            ENCRYPTED_CLIENT_HELLO => normalized_ech(body, ech_payload_length)?,
             PRE_SHARED_KEY => {
                 let (identities, binders) = psk_shape(body)?;
                 let mut shape = vec![u8::try_from(identities)?];
@@ -372,10 +540,11 @@ fn normalized_key_share(body: &[u8]) -> TestResult<Vec<u8>> {
     Ok(normalized)
 }
 
-/// Keeps the ECH outer type, KDF, and encapsulated key length. The AEAD and
-/// configuration ID are drawn per connection, the key and payload are random,
-/// and [`ech_payload_length`] compares the payload length on its own.
-fn normalized_ech(body: &[u8]) -> TestResult<Vec<u8>> {
+/// Keeps the ECH outer type, KDF, the encapsulated key length, and the
+/// payload length unless `payload_length` clears it. The AEAD and
+/// configuration ID are drawn per connection, and the key and payload are
+/// random.
+fn normalized_ech(body: &[u8], payload_length: EchPayloadLength) -> TestResult<Vec<u8>> {
     let mut reader = Reader(body);
     let mut normalized = reader.take(3)?.to_vec();
     reader.take(3)?;
@@ -383,20 +552,15 @@ fn normalized_ech(body: &[u8]) -> TestResult<Vec<u8>> {
     let encapsulated_key = reader.vector16()?;
     normalized.extend_from_slice(&u16::try_from(encapsulated_key.len())?.to_be_bytes());
     normalized.resize(normalized.len() + encapsulated_key.len(), 0);
-    reader.vector16()?;
+    let payload = reader.vector16()?;
+    if let EchPayloadLength::Kept = payload_length {
+        normalized.extend_from_slice(&u16::try_from(payload.len())?.to_be_bytes());
+        normalized.resize(normalized.len() + payload.len(), 0);
+    }
     if !reader.0.is_empty() {
         return Err("trailing bytes in the ECH extension".into());
     }
     Ok(normalized)
-}
-
-/// Returns the length of the ECH GREASE payload.
-fn ech_payload_length(handshake: &[u8]) -> TestResult<usize> {
-    let body = client_hello_fixture::extension_payload(handshake, ENCRYPTED_CLIENT_HELLO)?;
-    let mut reader = Reader(body);
-    reader.take(6)?;
-    reader.vector16()?;
-    Ok(reader.vector16()?.len())
 }
 
 struct Reader<'a>(&'a [u8]);
