@@ -38,6 +38,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 17 and Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
 | [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests | As for Chrome for Android; no WebSocket opening recipe, and no resumption or proxy capture |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, Brave's included, plus socket read-back tests | No wire capture confirms the options; field trials cannot be ruled out |
+| [UDP socket options](#udp-socket-option-evidence) | Browser source at Chromium's tags, hook logs of Chrome 154, Edge 154, and Opera 136, plus socket read-back tests | Firefox's hook logs hold no QUIC socket; its absence rests on source |
 | [Socket hooks](#socket-hook-evidence) | Hook logs of Chrome 154, Edge 154, and Opera 136 on Windows: socket options, address racing, connections per origin, idle reuse, and lookups, replayed against the Chromium recipes | One run per scenario on one Windows host; loopback origins only |
 | [Firefox socket hooks](#firefox-socket-hook-evidence) | Hook logs and MOZ_LOG lines of Firefox 157.0 on Windows: socket options, keepalive over each connection's life, the IPv4 backup connection the recipe leaves out, and lookups, replayed against `firefox::v157_tcp` | One to five runs per scenario on one Windows host; loopback origins only |
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs and Firefox's grace period not modeled |
@@ -1868,6 +1869,69 @@ Limits:
   trial that enables Happy Eyeballs v3 or a different fallback delay for some
   users.
 
+### UDP socket option evidence
+
+What is claimed: `chromium::v154_udp` sets `SO_RANDOMIZE_PORT` on the UDP
+socket of every QUIC connection, as Chromium 154 sets it on every UDP socket
+it connects on Windows, and as Chrome 154, Edge 154, and Opera 136 do in
+their hook logs. Firefox 157 does not set it, and a Firefox profile takes no
+UDP settings.
+
+Evidence: browser source at Chromium tags `154.0.8037.58` and
+`152.0.7977.130`, whose lines below are the same, and the hook logs of
+[Socket hook evidence](#socket-hook-evidence).
+
+| Browser | Source behavior |
+| --- | --- |
+| Chromium 154 | `UDPSocketWin::Connect` calls `InternalConnect`, which sets `SO_RANDOMIZE_PORT` and then calls `connect`, with no feature or Windows version check, and ignores a failure, which its comment expects on a socket that is already bound (`net/socket/udp_socket_win.cc:544-575`). `UDPClientSocket::Connect` opens the socket and calls it (`net/socket/udp_client_socket.cc:69-89`). The QUIC session pool connects each QUIC socket first and only then sets its receive buffer, do-not-fragment, ECN, and send buffer options (`net/quic/quic_session_pool.cc:1334-1378`, and `:1196-1268` for the asynchronous path), and the built-in DNS client opens its sockets the same way (`net/dns/dns_transaction.cc:696-700`). A socket that binds an address instead, through `UDPSocketWin::Bind`, does not get the option (`net/socket/udp_socket_win.cc:587-602`); WebRTC's sockets bind that way (`services/network/p2p/socket_udp.cc:112-113`, `:250-260`; `net/socket/udp_server_socket.cc:20`). |
+| Firefox 157 | No Firefox code sets the option. On 2026-10-02 Searchfox's `firefox-release` tree, at 157.0.1, holds the name `SO_RANDOMIZE_PORT` only in the vendored `windows-sys` and `winapi` crates (`third_party/rust/`). |
+
+The Windows SDK declares `SO_RANDOMIZE_PORT` for Windows Vista and later
+(`ws2def.h`, `_WIN32_WINNT >= 0x0600`), so every Windows that Rust supports
+has it. On the hook host, a loopback check that is not retained bound 200
+IPv4 UDP sockets to port 0 one after another: without the option every port
+was one above the last, and with it none was. The same check found that
+Windows rejects the option on a bound UDP socket with `WSAEINVAL`, and that
+20,000 binds with the option set returned no error.
+
+Differences from the browsers:
+
+- Chromium connects its UDP sockets and sets the option right before the
+  `connect` that gives a socket its port. Phantom's QUIC sockets are bound,
+  not connected, and Phantom sets the option before that bind. Quinn sets
+  its own socket options after the bind, as Chromium sets its QUIC options
+  after `connect`.
+- Chromium ignores a failure to set the option. Phantom fails that
+  connection attempt instead.
+- Chromium sets `IPV6_V6ONLY` to 0 on each IPv6 socket when it creates it
+  (`net/socket/socket_descriptor.cc:29-35`); Phantom does not. Phantom's
+  IPv6 QUIC sockets send only to IPv6 peers, so no packet shows the
+  difference.
+- Phantom opens no UDP socket for DNS. Its lookups go through the operating
+  system, whose own sockets take the host's port choice.
+
+Tests:
+
+| Test | What it proves |
+| --- | --- |
+| `udp::tests::port_randomization` (`phantom-net`) | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_udp` and not without UDP settings; a bound UDP socket rejects it with `WSAEINVAL`; eight successive Chromium-profile sockets, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart |
+| `udp::tests::paths` (`phantom-net`) | The UDP socket of a direct HTTP/3 connection, with and without a source binding, and of a SOCKS5 UDP association, with local and remote DNS, has the option exactly when the connector has Chromium's UDP settings |
+| `udp::tests::a_socket_takes_port_randomization_only_when_the_settings_ask` (`phantom-net`) | On every platform, a socket has the option only on Windows and only with `chromium::v154_udp`, not with default or absent settings |
+| `profile_udp_settings_reach_every_http3_connector` (facade) | A profile's UDP settings reach the HTTP/3 connector and the CONNECT-UDP proxy's HTTP/3 connector the client builds |
+| `chromium_family_udp_sockets_randomize_their_port_before_connecting` (`phantom-profile`) | In every Chromium-family hook log, each UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket; the Chrome and Edge logs include QUIC sockets |
+| `firefox_sets_no_port_randomization_on_any_socket` (`phantom-profile`) | No call in the Firefox hook logs sets the option, and every UDP socket in them came from `ws2_32.dll` |
+
+How to reproduce: read the cited files at the tags above, and run the listed
+tests on Windows.
+
+Limits:
+
+- The Firefox hook scenarios open no HTTP/3 connection, so no log shows
+  Firefox's QUIC socket; the claim for it rests on the source search.
+- Opera's hook logs hold no QUIC socket; its DNS and IPv6 probe sockets set
+  the option.
+- No wire capture shows a browser's UDP source ports.
+
 ### HTTP/1.1 connection bound evidence
 
 What is claimed: `chromium::v154_http1` and `firefox::v157_http1` allow 6
@@ -2140,10 +2204,11 @@ Limits:
 ### Socket hook evidence
 
 What is claimed: on Windows 11, Edge 154.0.4258.48 and Opera 136.0.6008.52
-set the TCP options, race addresses, bound HTTP/1.1 connections to one
-origin, and keep system-resolver answers as `chromium::v154_tcp`,
-`chromium::v154_http1`, and `chromium::v154_dns_cache` do, and as Chrome
-154.0.8037.58 does. Edge and Opera profiles therefore use those recipes.
+set the TCP and UDP options, race addresses, bound HTTP/1.1 connections to
+one origin, and keep system-resolver answers as `chromium::v154_tcp`,
+`chromium::v154_udp`, `chromium::v154_http1`, and `chromium::v154_dns_cache`
+do, and as Chrome 154.0.8037.58 does. Edge and Opera profiles therefore use
+those recipes.
 
 Evidence: hook logs, a class of evidence distinct from wire captures. A wire
 capture records what reached a loopback listener; a hook log records the
@@ -2234,8 +2299,11 @@ Differences from the browsers:
   address. Phantom sets it before binding, so its source-bound connections
   get random ports where Chromium's would not, and it fails a connection
   attempt that Windows rejects the option for.
-- The logs show `SO_RANDOMIZE_PORT` on the browsers' UDP sockets too.
-  Phantom's UDP sockets keep the host's port choice.
+- The logs show `SO_RANDOMIZE_PORT` on every UDP socket the browsers'
+  network code opened, before `connect`: DNS sockets, the IPv6 reachability
+  probe, and, for Chrome and Edge, QUIC sockets. `chromium::v154_udp` sets
+  it on Phantom's QUIC sockets
+  ([UDP socket option evidence](#udp-socket-option-evidence)).
 - The browsers resolve with their built-in DNS client by default and keep an
   answer for its record TTL. Phantom resolves through the operating system
   and keeps an answer for the 60 s the browsers use on that path.
@@ -2251,6 +2319,7 @@ retained logs of all three browsers:
 | `chromium_154_tries_ipv4_right_after_a_failed_ipv6_attempt` | Chrome and Edge try IPv4 within 150 ms of a refused `[::1]` attempt |
 | `chromium_family_system_resolver_keeps_an_answer_for_the_cache_ttl` | Successive system-resolver lookups are at least the recipe's 60 s and less than 70 s apart |
 | `chromium_family_built_in_resolver_keeps_an_answer_past_the_recipe_ttl` | The built-in client sent one A and one HTTPS query in 120 s |
+| `chromium_family_udp_sockets_randomize_their_port_before_connecting` | Every UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket, as `chromium::v154_udp` asks; the Chrome and Edge logs include QUIC sockets |
 | `chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request` | The connection idle 290 s carried the next request; the one idle 310 s, past the recipe's `idle_timeout`, closed as the replacement opened |
 
 How to reproduce: run `socket_hooks.py --scenario all` once per browser with
@@ -2382,6 +2451,7 @@ retained logs:
 | `firefox_starts_an_ipv4_backup_250_ms_after_a_slow_first_attempt` | Not modeled: in all five runs the IPv4 attempt started 250 to 310 ms after the `[::1]` one, and the first attempt moved to `127.0.0.1` when `[::1]` was refused; the recipe tries addresses in order |
 | `firefox_keeps_the_slower_connection_with_its_setup_time_interval` | Not modeled: the slower connection carried a later request with a two-second interval |
 | `firefox_remembers_the_address_family_of_an_origin` | Not modeled: every later connection went to `127.0.0.1` alone |
+| `firefox_sets_no_port_randomization_on_any_socket` | No call sets `SO_RANDOMIZE_PORT`, and every UDP socket came from `ws2_32.dll`, not Firefox's code; no scenario uses HTTP/3 |
 | `firefox_resolves_without_ai_addrconfig` | Every `getaddrinfo` call passed `AI_CANONNAME` alone |
 | `firefox_keeps_an_answer_for_its_record_ttl` | Not modeled: no lookup after the first second, and a TTL longer than the 95 s of fetches |
 

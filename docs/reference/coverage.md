@@ -34,7 +34,8 @@ presented as a complete client match.
   because a capture cannot show it.
 - **Hook logs**: the browser's own Winsock and resolver calls, recorded as a
   [hook log](glossary.md#hook-log) inside the process that opens its
-  connections, match the recipe: `chromium::v154_tcp` for Edge and Opera
+  connections, match the recipe: `chromium::v154_tcp` and
+  `chromium::v154_udp` for Edge and Opera
   ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)),
   `firefox::v157_tcp` for Firefox
   ([Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
@@ -177,9 +178,6 @@ Not modeled:
 - Chromium 154's immediate failure of a refused loopback connect
   (`SIO_TCP_INITIAL_RTO`), which the Chrome 154 and Edge 154 hook logs show.
   It applies only to loopback peers, and `chromium::v154_tcp` leaves it out.
-- `SO_RANDOMIZE_PORT` on UDP sockets. The Chromium-family hook logs show it
-  on UDP sockets too; Phantom's QUIC and SOCKS5 UDP sockets keep the
-  host's port choice.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP
@@ -344,6 +342,15 @@ Supported:
 - A BoringSSL-backed Quinn client: handshake, packet and header protection,
   key updates, live Retry, and endpoint HMAC.
 - Typed transport settings taken from captures.
+- Windows port randomization for the UDP socket (`ClientProfile::with_udp`,
+  `UdpSettings`): `SO_RANDOMIZE_PORT` before the socket binds, on a direct
+  connection, a connection to a CONNECT-UDP proxy, and a SOCKS5 UDP
+  association. `chromium::v154_udp` sets it on every Windows, as Chromium
+  154 does on every UDP socket it connects, and as Chrome 154, Edge 154, and
+  Opera 136 do in the hook logs
+  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
+  If Windows rejects it, that connection attempt fails. It has no effect off
+  Windows.
 - An exact, seeded [transport-parameter](glossary.md#transport-parameters)
   serializer with randomized permitted order and [GREASE](glossary.md#grease).
 - A reusable connection lifecycle owned by H3.

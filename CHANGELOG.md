@@ -681,6 +681,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   only `padding` and `pre_shared_key`, and
   `ClientHelloExtension::QuicTransportParameters` names
   `quic_transport_parameters` (0x39) in such a list.
+- `UdpSettings`, set with `ClientProfile::with_udp`, applies socket options
+  to every UDP socket that carries QUIC: the socket of a direct HTTP/3
+  connection, of the connection to a CONNECT-UDP proxy, and of a SOCKS5 UDP
+  association. Its one field, `port_randomization`, sets `SO_RANDOMIZE_PORT`
+  before the socket binds, so Windows picks a random local port instead of
+  the next one in sequence; a rejection fails the connection attempt, and
+  the field has no effect off Windows. `chromium::v154_udp` sets it, as
+  Chromium 154 does on every UDP socket it connects, on every Windows; the
+  Chrome 154, Edge 154, and Opera 136 hook logs show it on each UDP socket
+  their network code opens, and Firefox 157 sets it on none. Brave, Edge,
+  and Opera profiles take `chromium::v154_udp`; a Firefox profile takes no
+  UDP settings
+  ([evidence](docs/explanation/validation.md#socket-hook-evidence)). The
+  Windows FFI module of `phantom-net` moved from
+  `tcp::windows_port_randomization` to `windows_port_randomization`, since it
+  now serves both transports
+  ([audit](docs/explanation/design.md#windows-port-randomization-audit)).
 - `scripts/capture/firefox_socket_hooks.py` and the Frida agent extension
   `scripts/capture/firefox_socket_hooks.js` record Firefox's socket options,
   keepalive changes, connection attempts, and host lookups on Windows from

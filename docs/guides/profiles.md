@@ -7,7 +7,7 @@ Choose a built-in browser profile, or change one to build your own.
 A [profile](../reference/glossary.md#profile) decides what a server can
 observe about your client's connections: the TLS ClientHello, HTTP/2 SETTINGS
 and pseudo-header order, QUIC transport parameters, HTTP/3 settings, TCP
-socket options, HTTP/1.1 connection counts, and
+and UDP socket options, HTTP/1.1 connection counts, and
 [client hints](../fingerprinting.md#client-hints). You build one from
 [recipes](../reference/glossary.md#recipe), most of them taken from browser
 [captures](../reference/glossary.md#capture). The fields of each
@@ -33,10 +33,11 @@ fn profiles() -> [ClientProfile; 5] {
         .with_http2(firefox::v157_http2())
         .with_cookie_placement(firefox::v157_cookie_placement());
 
-    // Edge 154: its own TLS and client hints; Chromium TCP, HTTP/1.1,
+    // Edge 154: its own TLS and client hints; Chromium TCP, UDP, HTTP/1.1,
     // address cache, H2, QUIC, and H3 recipes.
     let edge = ClientProfile::new(edge::v154_tls())
         .with_tcp(chromium::v154_tcp())
+        .with_udp(chromium::v154_udp())
         .with_http1(chromium::v154_http1())
         .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
@@ -52,6 +53,7 @@ fn profiles() -> [ClientProfile; 5] {
     // H3 TLS, and client hints, and both place cookies as Chromium does.
     let brave = ClientProfile::new(brave::v154_tls())
         .with_tcp(chromium::v154_tcp())
+        .with_udp(chromium::v154_udp())
         .with_http1(chromium::v154_http1())
         .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
@@ -65,6 +67,7 @@ fn profiles() -> [ClientProfile; 5] {
         .with_cookie_placement(chromium::v154_cookie_placement());
     let opera = ClientProfile::new(opera::v136_tls())
         .with_tcp(chromium::v154_tcp())
+        .with_udp(chromium::v154_udp())
         .with_http1(chromium::v154_http1())
         .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
@@ -157,6 +160,10 @@ fn chrome_on_macos() -> ClientProfile {
   the host's choice. If Windows rejects the option, the connection fails
   rather than proceeding from a sequential port
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
+- `chromium::v154_udp` asks Windows for a random local port for each QUIC
+  socket on every Windows, as Chromium does; a Firefox profile takes no
+  `with_udp`, so its QUIC sockets keep the host's sequential ports
+  ([UDP socket options](../reference/profiles.md#udp-socket-options)).
 
 ## Next
 

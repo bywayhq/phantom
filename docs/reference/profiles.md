@@ -1,7 +1,7 @@
 # Profile reference
 
-Lookup tables for profile components, built-in recipes, TCP socket options,
-HTTP/1.1 connections, request templates, required caller fields, and
+Lookup tables for profile components, built-in recipes, TCP and UDP socket
+options, HTTP/1.1 connections, request templates, required caller fields, and
 client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
@@ -13,6 +13,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | --- | --- |
 | `ClientProfile::new(tls)` | TLS ClientHello for H1 and H2 |
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
+| `with_udp(settings)` | UDP socket options for every UDP socket that carries QUIC ([details](#udp-socket-options)) |
 | `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
 | `with_dns_cache(settings)` | How long the client reuses the addresses it resolves ([details](#address-cache)) |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, HPACK encoder choices, stream numbering, and the stream limit assumed before the peer's SETTINGS |
@@ -221,6 +222,32 @@ resolved addresses.
 Phantom applies these settings exactly or fails; it never connects with
 options the profile did not ask for. Evidence:
 [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+
+## UDP socket options
+
+`UdpSettings` applies to every UDP socket that carries QUIC: the socket of a
+direct HTTP/3 connection, of the connection to a CONNECT-UDP proxy, and of a
+SOCKS5 UDP association. It sets its options before the socket binds.
+
+| Recipe | Local port on Windows |
+| --- | --- |
+| None (no `with_udp`) | OS default (sequential) |
+| `chromium::v154_udp` | Random (`SO_RANDOMIZE_PORT`) on every Windows |
+| Brave, Edge, Opera | `chromium::v154_udp` |
+| Firefox | None: Firefox 157 sets no UDP option, so its profiles take no `with_udp` |
+| Android browsers | Not covered |
+
+- Chromium sets `SO_RANDOMIZE_PORT` on every UDP socket it connects, with
+  no feature or Windows version gate, right before `connect`, and ignores a
+  failure. Phantom binds its QUIC sockets instead of connecting them, sets
+  the option before the bind, and fails the connection attempt if Windows
+  rejects it. Off Windows the setting changes nothing.
+- Chrome 154, Edge 154, and Opera 136 set the option on every UDP socket
+  their network code opens in the Windows 11 hook logs; Firefox 157's
+  source sets it nowhere
+  ([Validation](../explanation/validation.md#udp-socket-option-evidence)).
+- Phantom resolves names through the operating system, which opens its own
+  DNS sockets; `UdpSettings` does not reach them.
 
 ## HTTP/1.1 connections
 
