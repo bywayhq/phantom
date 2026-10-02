@@ -151,10 +151,12 @@ fn chrome_on_macos() -> ClientProfile {
   IPv4 backup attempt after 250 ms, keeps the slower connection, and
   remembers an origin's address family
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-  Brave, Edge, and Opera use `chromium::v154_tcp`.
-- `chromium::v154_tcp` asks Windows for a random local port only from
-  Windows 11 22H2 (build 22621), as Chromium does; on older Windows and on
-  other operating systems the port is the host's choice.
+- `chromium::v154_tcp`, which Brave, Edge, and Opera also use, asks Windows
+  for a random local port only from Windows 11 22H2 (build 22621), as
+  Chromium does; on older Windows and on other operating systems the port is
+  the host's choice. If Windows rejects the option, the connection fails
+  rather than proceeding from a sequential port
+  ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
 
 ## Next
 

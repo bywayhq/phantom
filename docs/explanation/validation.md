@@ -1799,7 +1799,7 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `tcp::tests::host_check_*` | The build-time host check for every combination of platform capabilities. The facade rejects a Windows keepalive without an interval as `BuildErrorKind::InvalidProfile` |
 | `tcp::tests::connected_socket_carries_requested_options` | `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time and interval. Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values |
 | `tcp::tests::paths` | Options on every socket opened by the direct, forward proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths, `SO_RANDOMIZE_PORT` included on Windows |
-| `tcp::tests::port_randomization` | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_tcp` from build 22621 and not by `firefox::v157_tcp` or a minimum build past the host; a bound socket rejects it with `WSAEINVAL`; eight successive Chromium-profile connections, with and without a source binding, get local ports that are not sequential |
+| `tcp::tests::port_randomization` | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_tcp` from build 22621 and not by `firefox::v157_tcp` or a minimum build past the host; a bound socket rejects it with `WSAEINVAL`; eight successive Chromium-profile connections, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart |
 | `tcp::backup_connection::tests` | With scripted attempt outcomes and a test-controlled delay: no backup for a fast primary, an IPv4-only backup that can win, the next address only after a refused, unreachable, or timed-out connect, no backup after an early primary failure or for an IPv6-only host, and the returned error |
 | `tcp::keepalive_schedule::tests` | The interval from the setup time, the 72 s switch of `firefox::v157_tcp`, and the phases applied for an opened connection, HTTP/2, an upgrade, a reused connection, and, on a four-second schedule, an active against an idle connection and a switch moved later by a second request |
 | `tcp::tests::keepalive_paths` | The phases a Firefox profile's connection goes through, and its idle state after each response, on plaintext HTTP/1.1 requests, a `101` upgrade, HTTP/1.1 or HTTP/2 chosen by ALPN, and an HTTP/2 connection to an HTTPS proxy; a Chromium profile opens no schedule; the send buffer is set before connecting |
@@ -2182,10 +2182,11 @@ Differences from the browsers:
   connects ([Design](design.md#windows-port-randomization-audit)). With it,
   Windows picks each connection's local port at random instead of in
   sequence, which a server sees in the source ports of successive
-  connections. Chromium sets it after binding a socket and ignores the
-  failure; Phantom sets it first, so its source-bound connections get random
-  ports where Chromium's would not, and it fails a connection attempt that
-  Windows rejects the option for.
+  connections. Chromium sets it right before `connect` and ignores a
+  failure, which Windows returns on a socket it has bound to a local
+  address. Phantom sets it before binding, so its source-bound connections
+  get random ports where Chromium's would not, and it fails a connection
+  attempt that Windows rejects the option for.
 - The logs show `SO_RANDOMIZE_PORT` on the browsers' UDP sockets too.
   Phantom's UDP sockets keep the host's port choice.
 - The browsers resolve with their built-in DNS client by default and keep an
