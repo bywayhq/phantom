@@ -260,7 +260,7 @@ before merging a change to the QUIC or TLS paths.
 
 | Workflow | Pull request | Push to `main` | Weekly schedule and manual dispatch |
 | --- | --- | --- | --- |
-| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Documentation, Features, Downstream, Vendor, MSRV, and the Windows Platform job | Same, plus the macOS Platform job | Every job, whatever changed |
+| [CI](.github/workflows/ci.yml) | Linux jobs: Quality, Documentation, Features, Downstream, Vendor, MSRV, and the macOS and Windows Platform jobs | Same as pull requests | Every job, whatever changed |
 | [Parser fuzzing](.github/workflows/fuzz.yml) | 15 seconds per target when parser paths change | Same as pull requests | 300 seconds per target |
 | [Sanitizers](.github/workflows/sanitizers.yml) | `phantom-quic-btls` and the HTTP/3 loopback tests under ASan when QUIC, TLS, testkit, or vendored paths change; each job times out at 60 minutes | Same as pull requests | Both jobs, whatever changed |
 | Conformance suites | Only with the `conformance` label | When the suite's paths change | Yes, with the workflow's scheduled or chosen case set |
@@ -293,10 +293,8 @@ Change the classification together with its cases in
 
 ### Run the jobs a pull request skips
 
-Pull requests run the Windows Platform job, because Windows is the development
-host. macOS runs only on the push to `main`, so a macOS-specific failure can
-still land. Before merging a change that may behave differently there,
-dispatch CI for the branch, which runs every job:
+Pull requests skip the jobs their change class does not need. To run every
+job on a branch, dispatch CI for it:
 
 ```console
 gh workflow run ci.yml --ref <branch>
