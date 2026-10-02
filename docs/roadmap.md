@@ -128,6 +128,12 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   carries the compiled-in set of 28 identifiers, not a set from
   component-updated PKI metadata
   ([Chrome 154 trust-anchor ID order](explanation/validation.md#chrome-154-trust-anchor-id-order)).
+- Windows TCP port randomization: `chromium::v154_tcp`, and so the Brave,
+  Edge, and Opera profiles, set `SO_RANDOMIZE_PORT` on every TCP socket from
+  Windows 11 22H2 (build 22621), as the Chrome 154, Edge 154, and Opera 136
+  hook logs show, through a new audited FFI module in `phantom-net`
+  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence),
+  [Design](explanation/design.md#windows-port-randomization-audit)).
 
 ### Remaining
 
@@ -170,16 +176,12 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Windows TCP port randomization. Evidence: hook logs of Chrome 154, Edge
-  154, and Opera 136 show `SO_RANDOMIZE_PORT` on every TCP socket, which
-  Chromium 154 sets right before `connect` on Windows 11 22H2 and later
-  (`net/socket/tcp_socket_win.cc:1048-1053`, `net/base/features.cc:308-314`)
-  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
-  Blocker: no safe Rust API sets the option. `socket2` 0.6.5, the newest
-  release, exposes neither `SO_RANDOMIZE_PORT` nor a general `setsockopt`,
-  and a `windows-sys` call would be unsafe code outside the one allowed FFI
-  module ([Design](explanation/design.md#unsafe-code)). It needs a `socket2`
-  method or a new documented and audited FFI boundary.
+- Windows UDP port randomization. Evidence: the Chrome 154, Edge 154, and
+  Opera 136 hook logs show `SO_RANDOMIZE_PORT` on UDP sockets as well as TCP
+  ones ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
+  Phantom sets it on TCP sockets only. Blocker: none; read where Chromium
+  sets it on UDP sockets, then apply it to the QUIC and SOCKS5 UDP sockets
+  through the same FFI module.
 - Opera 136 and Edge 154.0.4258.48 on macOS. Evidence: the macOS captures
   are of Opera 135.0.5973.92 and Edge 154.0.4258.37, so
   `opera::v135_macos_client_hints` and `edge::v154_macos_client_hints` carry

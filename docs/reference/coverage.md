@@ -140,6 +140,12 @@ Supported:
 - Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
+- Windows port randomization (`TcpPortRandomization`): `SO_RANDOMIZE_PORT`
+  before the socket is bound or connects, from a minimum Windows build.
+  `chromium::v154_tcp` sets it from build 22621 (Windows 11 22H2), as Chrome
+  154, Edge 154, and Opera 136 do in the hook logs
+  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
+  It has no effect off Windows.
 - A backup connection (`TcpBackupConnection`) for custom profiles: an IPv4
   attempt that starts while a first attempt in resolver order has not
   connected. The losing attempt is closed, which Firefox does not do, so no
@@ -168,10 +174,12 @@ Not modeled:
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
-- Windows TCP port randomization (`SO_RANDOMIZE_PORT`), which Chrome 154,
-  Edge 154, and Opera 136 set on every TCP socket, and Chromium 154's
-  immediate failure of a refused loopback connect (`SIO_TCP_INITIAL_RTO`).
-  Hook logs show both; `chromium::v154_tcp` sets neither.
+- Chromium 154's immediate failure of a refused loopback connect
+  (`SIO_TCP_INITIAL_RTO`), which the Chrome 154 and Edge 154 hook logs show.
+  It applies only to loopback peers, and `chromium::v154_tcp` leaves it out.
+- `SO_RANDOMIZE_PORT` on UDP sockets. The Chromium-family hook logs show it
+  on UDP sockets too; Phantom's QUIC and SOCKS5 UDP sockets keep the
+  host's port choice.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP

@@ -115,13 +115,13 @@ UDP association. It sets socket options before connecting, keepalive before
 connecting or over the connection's life, and how the client tries a host's
 resolved addresses.
 
-| Recipe | `TCP_NODELAY` | `SO_SNDBUF` | Keepalive | Address order |
-| --- | --- | --- | --- | --- |
-| None (no `with_tcp`) | OS default | OS default | OS default | One at a time, resolver order |
-| `chromium::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
-| `firefox::v157_tcp` | Set (Nagle off) | 524,288 bytes, as Firefox on Windows | Scheduled: 10 s idle, then 600 s; off for HTTP/2 | One at a time, resolver order; the next only after a refused, unreachable, or timed-out connect |
-| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
-| Android browsers | Not covered | Not covered | Not covered | Not covered |
+| Recipe | `TCP_NODELAY` | `SO_SNDBUF` | Keepalive | Address order | Local port on Windows |
+| --- | --- | --- | --- | --- | --- |
+| None (no `with_tcp`) | OS default | OS default | OS default | One at a time, resolver order | OS default (sequential) |
+| `chromium::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay | Random (`SO_RANDOMIZE_PORT`) from build 22621, Windows 11 22H2 |
+| `firefox::v157_tcp` | Set (Nagle off) | 524,288 bytes, as Firefox on Windows | Scheduled: 10 s idle, then 600 s; off for HTTP/2 | One at a time, resolver order; the next only after a refused, unreachable, or timed-out connect | OS default (sequential) |
+| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
+| Android browsers | Not covered | Not covered | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
@@ -166,10 +166,16 @@ resolved addresses.
   keepalive changes of `firefox::v157_tcp`, and the backup connection it
   leaves out
   ([Validation](../explanation/validation.md#firefox-socket-hook-evidence)).
-- Chrome, Edge, and Opera on Windows 11 also set `SO_RANDOMIZE_PORT` on
-  each TCP socket before connecting, and Chrome and Edge fail a refused
-  loopback connect at once with `SIO_TCP_INITIAL_RTO`. No recipe sets either
-  option.
+- `TcpPortRandomization` sets `SO_RANDOMIZE_PORT` from a minimum Windows
+  build, after the other options and before a source binding binds the
+  socket; Windows rejects the option on a bound socket, and a rejection
+  fails the connection attempt. Chromium sets it from build 22621 and
+  ignores a failure. Off Windows it changes nothing. Chrome, Edge, and Opera
+  set it on every TCP socket in the Windows 11 hook logs, and Firefox 157
+  does not.
+- Chrome and Edge fail a refused loopback connect at once with
+  `SIO_TCP_INITIAL_RTO`. No recipe sets that option; it applies only to
+  loopback peers.
 - The Android emulator ends the device's TCP connections and opens new ones
   from the host, so no Android browser's socket option reaches a capture.
 

@@ -1733,17 +1733,19 @@ encode were.
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). |
+| `chromium::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). On Windows, right before `connect`, it also sets `SO_RANDOMIZE_PORT` when `kTcpPortRandomizationWin` is enabled, which it is by default, and `base::win::GetVersion()` is at least the feature's minimum, `WIN11_22H2`, build 22621 (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`; `net/base/features.cc:308-314`; `base/win/windows_version.cc:386-404`). |
 | `firefox::v157_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` and, on Windows, a 524,288-byte send buffer on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1465`, `netwerk/base/nsSocketTransportService2.cpp:1536-1538`). Each HTTP/1 transaction starts short-lived keepalive (10 s idle, `network.http.tcp_keepalive.short_lived_idle_time`) with an interval of the connection's setup time in whole seconds, at least one, and arms a switch to the long-lived 600 s (`netwerk/protocol/http/nsHttpConnection.cpp:686`, `:2126-2241`; `modules/libpref/init/all.js:1263-1270`). The switch comes 60 s, less the remainder modulo the idle time, plus 10 probe intervals and 2 s later on Windows (`nsHttpConnection.cpp:2167-2190`, `netwerk/base/nsSocketTransportService2.h:63-70`), and is skipped for an idle pooled connection (`:1411-1414`). HTTP/2 disables keepalive (`:405-406`, `:2243-2262`), and taking the transport for an upgrade switches at once (`:1303-1320`). |
 | Firefox address selection, not in `firefox::v157_tcp` | Release builds keep Happy Eyeballs behind the nightly-only `network.http.happy_eyeballs_enabled` (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). `DnsAndConnectSocket` arms a 250 ms backup timer once the primary attempt is connecting (`modules/libpref/init/all.js:1205`; `netwerk/protocol/http/DnsAndConnectSocket.cpp:242-265`, `:307-329`); without a learned family the backup resolves IPv4 only (`all.js:1237`; `DnsAndConnectSocket.cpp:179-186`, `:222-225`). An attempt moves to its next address only after a refused, unreachable, or timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`), and a primary attempt that ends before the timer cancels it (`DnsAndConnectSocket.cpp:267-277`). |
 | `chromium::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
 Differences from the browsers:
 
-- Chromium ignores a failure to set either option
-  (`net/socket/tcp_socket_win.cc:70-71`). Phantom fails that connection
-  attempt instead, so no connection proceeds with options the profile did not
-  ask for.
+- Chromium ignores a failure to set any of these options
+  (`net/socket/tcp_socket_win.cc:70-71`, `:1046-1047`). Phantom fails that
+  connection attempt instead, so no connection proceeds with options the
+  profile did not ask for. Chromium's comment expects `SO_RANDOMIZE_PORT` to
+  fail on a socket that is already bound; Phantom sets it before a source
+  binding binds the socket, so a bound connection gets a random port too.
 - Chromium on macOS sets only the keepalive idle time
   (`net/socket/tcp_socket_posix.cc:101-105`), and Android and iOS builds
   enable no keepalive. `chromium::v154_tcp` describes Windows and Linux; a
@@ -1756,13 +1758,16 @@ Differences from the browsers:
   (`netwerk/base/nsSocketTransport2.cpp:3311-3401`); Phantom's schedule sets
   the interval wherever the host can and never a probe count.
 - Brave 1.96.59 builds Chromium tag `154.0.8037.58` and changes none of
-  the values above, so it uses `chromium::v154_tcp`
+  the values above, so it uses `chromium::v154_tcp`. Neither
+  `patches/net-base-features.cc.patch` nor
+  `rewrite/net/base/features.cc.yaml` in `brave-core` at `v1.96.59` changes
+  `kTcpPortRandomizationWin`
   ([Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes)).
 - Edge's and Opera's network-stack source is not public. Their hook logs,
   and Chrome's, show `TCP_NODELAY` and the 45-second keepalive on every
-  socket and a 300 ms IPv4 fallback, so both use `chromium::v154_tcp`. The
-  logs also show `SO_RANDOMIZE_PORT` on every socket and, on Chromium 154,
-  `SIO_TCP_INITIAL_RTO` toward loopback peers; Phantom sets neither
+  socket, `SO_RANDOMIZE_PORT` after them, and a 300 ms IPv4 fallback, so
+  both use `chromium::v154_tcp`. On Chromium 154 the logs also show
+  `SIO_TCP_INITIAL_RTO` toward loopback peers, which Phantom does not set
   ([Socket hook evidence](#socket-hook-evidence)).
 - Chromium races as DNS answers arrive and sorts addresses itself. Phantom
   races the system resolver's complete answer, keeping its order within each
@@ -1793,7 +1798,8 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `tcp::tests::racing_reaches_ipv4_when_nothing_listens_on_ipv6` | Real sockets raced to `[::1]` and `127.0.0.1` at the same port, with a listener only on IPv4, connect over IPv4 |
 | `tcp::tests::host_check_*` | The build-time host check for every combination of platform capabilities. The facade rejects a Windows keepalive without an interval as `BuildErrorKind::InvalidProfile` |
 | `tcp::tests::connected_socket_carries_requested_options` | `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time and interval. Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values |
-| `tcp::tests::paths` | Options on every socket opened by the direct, forward proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths |
+| `tcp::tests::paths` | Options on every socket opened by the direct, forward proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths, `SO_RANDOMIZE_PORT` included on Windows |
+| `tcp::tests::port_randomization` | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_tcp` from build 22621 and not by `firefox::v157_tcp` or a minimum build past the host; a bound socket rejects it with `WSAEINVAL`; eight successive Chromium-profile connections, with and without a source binding, get local ports that are not sequential |
 | `tcp::backup_connection::tests` | With scripted attempt outcomes and a test-controlled delay: no backup for a fast primary, an IPv4-only backup that can win, the next address only after a refused, unreachable, or timed-out connect, no backup after an early primary failure or for an IPv6-only host, and the returned error |
 | `tcp::keepalive_schedule::tests` | The interval from the setup time, the 72 s switch of `firefox::v157_tcp`, and the phases applied for an opened connection, HTTP/2, an upgrade, a reused connection, and, on a four-second schedule, an active against an idle connection and a switch moved later by a second request |
 | `tcp::tests::keepalive_paths` | The phases a Firefox profile's connection goes through, and its idle state after each response, on plaintext HTTP/1.1 requests, a `101` upgrade, HTTP/1.1 or HTTP/2 chosen by ALPN, and an HTTP/2 connection to an HTTPS proxy; a Chromium profile opens no schedule; the send buffer is set before connecting |
@@ -2116,7 +2122,7 @@ them. The calls came from `chrome.dll`, `msedge.dll`, and
 
 | Behavior | Chrome 154 | Edge 154 | Opera 136 | Recipe |
 | --- | --- | --- | --- | --- |
-| Options on every TCP socket to the origin, before `connect` (`single` and `parallel`: 13 sockets per browser) | `TCP_NODELAY` 1; `SIO_KEEPALIVE_VALS` on, 45,000 ms, 45,000 ms; `SO_RANDOMIZE_PORT` 1; to loopback, `SIO_TCP_INITIAL_RTO` with no SYN retransmissions | The same | The same without `SIO_TCP_INITIAL_RTO` | `chromium::v154_tcp`: `TCP_NODELAY`, keepalive 45 s and 45 s; no port randomization or initial RTO |
+| Options on every TCP socket to the origin, before `connect` (`single` and `parallel`: 13 sockets per browser) | `TCP_NODELAY` 1; `SIO_KEEPALIVE_VALS` on, 45,000 ms, 45,000 ms; `SO_RANDOMIZE_PORT` 1; to loopback, `SIO_TCP_INITIAL_RTO` with no SYN retransmissions | The same | The same without `SIO_TCP_INITIAL_RTO` | `chromium::v154_tcp`: `TCP_NODELAY`, keepalive 45 s and 45 s, then `SO_RANDOMIZE_PORT` from build 22621; no initial RTO |
 | Most connections open to one origin for 10 concurrent slow requests (`parallel`) | 6 | 6 | 6 | `chromium::v154_http1`: 6 |
 | IPv4 attempt after a pending `[::1]` attempt to `localhost` (`happy-eyeballs-slow`, two connect jobs) | 304 and 312 ms | 300 and 302 ms | 302 and 315 ms | 300 ms fallback delay |
 | IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 3 ms, after the failure | 3 ms, after the failure | 301 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
@@ -2144,11 +2150,14 @@ is what validates the method on Chrome:
   `SetDefaultOptionsForClient` (`net/socket/tcp_socket_win.cc:50`,
   `:815-818` at `154.0.8037.58`), and the same lines are at
   `152.0.7977.130`, the Chromium version Opera 136 reports.
-- `SO_RANDOMIZE_PORT` comes from `kTcpPortRandomizationWin`, on by default on
-  Windows 11 22H2 and later, and is set right before `connect`
-  (`net/socket/tcp_socket_win.cc:1048-1053`, `net/base/features.cc:308-314`
-  at `154.0.8037.58`; the same `tcp_socket_win.cc` lines and
-  `net/base/features.cc:298-304` at `152.0.7977.130`).
+- `SO_RANDOMIZE_PORT` comes from `kTcpPortRandomizationWin`, enabled by
+  default with a minimum of `WIN11_22H2`, build 22621, and is set right
+  before `connect`, ignoring a failure
+  (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`,
+  `net/base/features.cc:308-314`, `base/win/windows_version.cc:386-404` at
+  `154.0.8037.58`; the same `tcp_socket_win.cc` lines and
+  `net/base/features.cc:298-304` at `152.0.7977.130`). The hook host, build
+  26200, is past that minimum.
 - `SIO_TCP_INITIAL_RTO` comes from `kEnableWindowsTcpLoopbackFastFail`, on by
   default at `154.0.8037.58` (`net/socket/tcp_socket_win.cc:1055-1072`,
   `net/base/features.cc:1058-1059`) and absent at `152.0.7977.130`. It
@@ -2166,12 +2175,19 @@ is what validates the method on Chrome:
 
 Differences from the browsers:
 
-- Phantom sets neither `SO_RANDOMIZE_PORT` nor `SIO_TCP_INITIAL_RTO`. With
-  port randomization, Windows picks each connection's local port at random
-  instead of in sequence, which a server sees in the source ports of
-  successive connections. No recipe models it: `socket2` has no setter for
-  the option, and Phantom sets socket options only through safe APIs
-  ([Roadmap](../roadmap.md#browser-recipes)).
+- Phantom does not set `SIO_TCP_INITIAL_RTO`, which changes only connects
+  to loopback peers.
+- `chromium::v154_tcp` sets `SO_RANDOMIZE_PORT` through `phantom-net`'s
+  Windows FFI module, as the last option before the socket is bound or
+  connects ([Design](design.md#windows-port-randomization-audit)). With it,
+  Windows picks each connection's local port at random instead of in
+  sequence, which a server sees in the source ports of successive
+  connections. Chromium sets it after binding a socket and ignores the
+  failure; Phantom sets it first, so its source-bound connections get random
+  ports where Chromium's would not, and it fails a connection attempt that
+  Windows rejects the option for.
+- The logs show `SO_RANDOMIZE_PORT` on the browsers' UDP sockets too.
+  Phantom's UDP sockets keep the host's port choice.
 - The browsers resolve with their built-in DNS client by default and keep an
   answer for its record TTL. Phantom resolves through the operating system
   and keeps an answer for the 60 s the browsers use on that path.
@@ -2181,7 +2197,7 @@ retained logs of all three browsers:
 
 | Test | What it checks |
 | --- | --- |
-| `chromium_family_sockets_set_the_chromium_tcp_options` | Every origin socket's options, in call order, are the recipe's `TCP_NODELAY` and keepalive, then `SO_RANDOMIZE_PORT`, then, for Chromium 154, `SIO_TCP_INITIAL_RTO` |
+| `chromium_family_sockets_set_the_chromium_tcp_options` | Every origin socket's options, in call order, are the recipe's `TCP_NODELAY`, keepalive, and `SO_RANDOMIZE_PORT`, whose minimum build the log host meets, then, for Chromium 154, `SIO_TCP_INITIAL_RTO` |
 | `chromium_family_opens_the_http1_bound_to_one_origin` | The origin never had more than the recipe's 6 connections open |
 | `chromium_family_starts_ipv4_after_the_racing_delay` | Each IPv4 attempt after a pending IPv6 one starts between 300 and 360 ms later |
 | `chromium_154_tries_ipv4_right_after_a_failed_ipv6_attempt` | Chrome and Edge try IPv4 within 150 ms of a refused `[::1]` attempt |
@@ -2246,7 +2262,7 @@ through `WSOCK32.dll`) and the keepalive calls from `xul.dll`.
 
 | Behavior | Firefox 157.0 | `firefox::v157_tcp` |
 | --- | --- | --- |
-| Options before `connect`, on all 36 sockets to the origin | `TCP_NODELAY` 1; `SO_SNDBUF` 524,288; `SO_LINGER` on, 0 s | `TCP_NODELAY`, `SO_SNDBUF` 524,288; no `SO_LINGER` |
+| Options before `connect`, on all 36 sockets to the origin | `TCP_NODELAY` 1; `SO_SNDBUF` 524,288; `SO_LINGER` on, 0 s; no `SO_RANDOMIZE_PORT` | `TCP_NODELAY`, `SO_SNDBUF` 524,288; no `SO_LINGER` or `SO_RANDOMIZE_PORT` |
 | Keepalive on a connection opened for a request | Within 10 ms of `connect`: `SIO_KEEPALIVE_VALS` off, then on with 10,000 ms and 1,000 ms, then `SO_KEEPALIVE` 1. MOZ_LOG: `idle time[10s] retry interval[1s] packet count[10]` | 10 s idle and a 1 s interval once the socket connects |
 | A response that took 85 s (`http1-long`) | `SIO_KEEPALIVE_VALS` on with 600,000 ms and 1,000 ms, 72.04 s after the first | The switch 72 s after the request |
 | A pooled connection with requests at 0 and 99 s (`http1-idle`) | Stayed at 10 s; the second request made no call (MOZ_LOG: `already 10s`). Firefox closed it 115.5 s after the second response with `shutdown(SD_BOTH)`, and the origin read a FIN | Stays short-lived; Phantom's idle close is not Firefox's |
@@ -2309,7 +2325,7 @@ retained logs:
 
 | Test | What it checks |
 | --- | --- |
-| `firefox_sockets_set_nodelay_and_the_send_buffer_before_connecting` | Every origin socket set the recipe's `TCP_NODELAY` and send buffer, then `SO_LINGER` `{1, 0}`, before connecting |
+| `firefox_sockets_set_nodelay_and_the_send_buffer_before_connecting` | Every origin socket set the recipe's `TCP_NODELAY` and send buffer, then `SO_LINGER` `{1, 0}`, before connecting, and nothing else, so no `SO_RANDOMIZE_PORT`, which the recipe leaves unset |
 | `firefox_starts_short_lived_keepalive_as_a_connection_opens` | Every connection that carried a request got the recipe's short-lived idle time and one-second interval within 50 ms of connecting |
 | `firefox_switches_an_active_connection_to_long_lived_keepalive` | The 85 s response switched to the recipe's long-lived idle time between 72 and 72.5 s after the first keepalive call, the schedule's switch time |
 | `firefox_keeps_an_idle_pooled_connection_short_lived` | The pooled connection carried two requests and never left the short-lived idle time |
