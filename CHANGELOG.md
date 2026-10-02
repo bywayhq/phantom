@@ -1693,6 +1693,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- On macOS, internal deadlines such as the wait for an HTTPS record, the
+  TCP attempt fallback, the TCP keepalive schedule, and HTTP/2 PING timeouts
+  could fire up to about 150 ms late on a loaded host, so a record that
+  arrived after Chromium's 50 ms bound could still be offered as ECH. They
+  now fire on time.
 - The `BuildError` for a `max_http2_proxy_connections_per_route` above the
   ceiling no longer contains a run of spaces left by a broken line
   continuation in its message.

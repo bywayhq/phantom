@@ -30,7 +30,7 @@ phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
 phantom-quic-btls = { version = "=0.1.0", path = "../phantom-quic-btls" }
 quinn.workspace = true
 socket2 = { version = "0.6.5", features = ["all"] }
-tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync"] }
+tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync", "time"] }
 tokio-socks = { version = "=0.5.3", default-features = false, features = ["tokio"] }
 tracing = "0.1.41"
 url = "=2.5.8"
