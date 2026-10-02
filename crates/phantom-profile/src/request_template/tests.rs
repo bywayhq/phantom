@@ -141,7 +141,7 @@ const EDGE_HTTP3: &str = fixture!("http3/edge/154.0.4258.37/windows-11-26200/cli
 const BRAVE_HTTP3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
 const OPERA_HTTP3: &str = fixture!("http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt");
 const CHROME_CLIENT_HINTS: &str =
-    fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
+    fixture!("client-hints/chrome/154.0.8037.97/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
     fixture!("client-hints/edge/154.0.4258.48/windows-11-26200/navigation.txt");
 const BRAVE_CLIENT_HINTS: &str =

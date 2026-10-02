@@ -1,4 +1,11 @@
 //! Wire settings retained from Chromium-family browser observations.
+//!
+//! The Windows capture host updated Chrome from 154.0.8037.58 to
+//! 154.0.8037.97. Fingerprint snapshots of 154.0.8037.97 matched the retained
+//! 154.0.8037.58 TCP and QUIC ClientHellos, H2 startup, first H2 navigation,
+//! and H3 SETTINGS, and differed only in the full version its client hints
+//! report, so only [`v154_windows_client_hints`] comes from 154.0.8037.97
+//! captures. Each other recipe names the build it was captured from.
 
 use std::{num::NonZeroUsize, time::Duration};
 
@@ -84,11 +91,14 @@ const V154_TRUST_ANCHOR_IDS: &[&[u8]] = &[
 /// Returns client-hint fields observed from Chrome 154 on Windows 11 x64.
 ///
 /// Field values, relative order, and delivery come from the retained
-/// fresh-profile navigation capture of Chrome 154.0.8037.58 on Windows 11
+/// fresh-profile navigation capture of Chrome 154.0.8037.97 on Windows 11
 /// (build 26200): fields on the first navigation are sent by default, the rest
 /// only after the origin requests them through `Accept-CH`. Three headless runs
-/// agree, and the headful launch-mode captures carry the same values. The
-/// values carry the exact 154.0.8037.58 build and Windows platform data.
+/// agree. The values carry the exact 154.0.8037.97 build and Windows platform
+/// data. Chrome 154.0.8037.58 sent the same names, order, delivery, and
+/// values, except that `sec-ch-ua-full-version` and the `Chromium` and
+/// `Google Chrome` entries of `sec-ch-ua-full-version-list` reported its own
+/// build; a headful run of that build matched its headless runs.
 ///
 /// Chrome 154 reorders the `sec-ch-ua` brand list and renames its greased
 /// brand: `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`,
@@ -107,7 +117,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.58""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.97""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
@@ -116,7 +126,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Google Chrome";v="154.0.8037.58", "Not A(Brand";v="99.0.0.0""#,
+            r#""Chromium";v="154.0.8037.97", "Google Chrome";v="154.0.8037.97", "Not A(Brand";v="99.0.0.0""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -125,15 +135,16 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 
 /// Returns client-hint fields observed from Chrome 154 on macOS 15.5 arm64.
 ///
-/// Names, order, delivery, and the brand and version values match
+/// Names, order, delivery, and the brand list match
 /// [`v154_windows_client_hints`]; three headless runs of the retained
 /// navigation capture of Chrome 154.0.8037.58 on macOS 15.5 (24F74) on Apple
-/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
+/// silicon agree. The platform data differs: `sec-ch-ua-platform` is
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
-/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
-/// customized before client creation, for example to carry another macOS
-/// version.
+/// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
+/// 154.0.8037.58, one patch release behind the Windows recipe. The returned
+/// value is owned and may be customized before client creation, for example
+/// to carry another macOS version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};

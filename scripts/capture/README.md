@@ -25,7 +25,7 @@ with the browser's retained fixtures:
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   python -m scripts.capture.snapshot --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 154.0.8037.58 \
+  --client-version 154.0.8037.97 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --repeat 3 --output-dir <scratch-directory>/chrome
 uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
@@ -854,10 +854,10 @@ Capture Chrome on Windows:
 uv run --no-project --python 3.10 python -m scripts.capture.client_hints \
   --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
-  --client-version 154.0.8037.58 \
+  --client-version 154.0.8037.97 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --repeat 3 \
-  --output fixtures/client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt
+  --output fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/navigation.txt
 ```
 
 For Edge, use

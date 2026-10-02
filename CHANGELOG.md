@@ -1279,6 +1279,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   hints its response stored. A cookie that another request stores during a
   race, or before such a replay, is sent from the next request on
   ([Fields of a repeated attempt](docs/explanation/design.md#fields-of-a-repeated-attempt)).
+- `chromium::v154_windows_client_hints` reports Chrome 154.0.8037.97, the
+  Windows build after 154.0.8037.58, in `sec-ch-ua-full-version` and the
+  `Chromium` and `Google Chrome` entries of `sec-ch-ua-full-version-list`.
+  Snapshots of 154.0.8037.97 matched every other retained Chrome 154 layer
+  ([evidence](docs/explanation/validation.md#chrome-154-recipes)).
+  `chromium::v154_macos_client_hints` keeps the Mac's 154.0.8037.58.
 - `edge::v154_windows_client_hints` reports Edge 154.0.4258.48, the
   Windows build after 154.0.4258.37, in `sec-ch-ua-full-version` and
   `sec-ch-ua-full-version-list`. Snapshots of 154.0.4258.48 matched every

@@ -91,7 +91,7 @@ own defaults sends its own numbers, whatever its `User-Agent` says.
 HTTP says the order of most header fields does not change their meaning, so
 libraries often sort them, group them, or store them in a hash map. Browsers
 write them in a fixed order. Chrome 154's first navigation over HTTP/1.1,
-from `fixtures/client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt`,
+from `fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/navigation.txt`,
 sent its fields in this order:
 
 ```text
