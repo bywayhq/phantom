@@ -1,6 +1,16 @@
+import asyncio
 import unittest
 
-from scripts.conformance.aioquic_versions import main, version_report
+from scripts.conformance.aioquic_versions import (
+    WSAENOBUFS,
+    main,
+    serve_past_reserved_ports,
+    version_report,
+)
+
+
+class RefusedAtReservedBlock(OSError):
+    winerror = WSAENOBUFS
 
 
 class AioquicVersionsTests(unittest.TestCase):
@@ -24,6 +34,28 @@ class AioquicVersionsTests(unittest.TestCase):
     def test_refuses_a_non_loopback_listener(self) -> None:
         with self.assertRaises(SystemExit):
             main(["--root", "root.der", "--port-file", "port", "--listen", "192.0.2.1"])
+
+    def test_a_refused_bind_to_port_zero_is_retried_three_times(self) -> None:
+        binds = []
+
+        async def serve_at() -> str:
+            binds.append(None)
+            raise RefusedAtReservedBlock() if len(binds) < 4 else OSError("in use")
+
+        with self.assertRaisesRegex(OSError, "in use"):
+            asyncio.run(serve_past_reserved_ports(serve_at))
+        self.assertEqual(len(binds), 4)
+
+    def test_other_bind_errors_are_not_retried(self) -> None:
+        binds = []
+
+        async def serve_at() -> str:
+            binds.append(None)
+            raise OSError("in use")
+
+        with self.assertRaises(OSError):
+            asyncio.run(serve_past_reserved_ports(serve_at))
+        self.assertEqual(len(binds), 1)
 
 
 if __name__ == "__main__":

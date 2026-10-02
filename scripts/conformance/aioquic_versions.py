@@ -33,6 +33,27 @@ except ImportError:  # pragma: no cover - direct script execution
     from loopback_tls import generate_loopback_certificate
 
 REQUEST_TIMEOUT_SECONDS = 60
+# Windows hands out UDP ports for binds to port 0 from one counter for the
+# whole host. When the counter reaches a reserved block (`netsh int ipv4 show
+# excludedportrange protocol=udp`), the bind can fail with WSAENOBUFS (os error
+# 10055) and the counter moves past the block, so the next bind gets a port.
+# scripts/capture/reserved_ports.py has the same rule; this file runs as a
+# script, outside the `scripts` package.
+WSAENOBUFS = 10055
+RESERVED_PORT_RETRIES = 3
+
+
+async def serve_past_reserved_ports(serve_at):
+    """Return `await serve_at()`, retrying a bind to port 0 that Windows refused."""
+    retries = 0
+    while True:
+        try:
+            return await serve_at()
+        except OSError as error:
+            refused = getattr(error, "winerror", None) == WSAENOBUFS
+            if not refused or retries == RESERVED_PORT_RETRIES:
+                raise
+            retries += 1
 
 
 def version_report(
@@ -123,15 +144,17 @@ async def run(args: argparse.Namespace) -> None:
     ReportingProtocol.requests = []
     ReportingProtocol.done = asyncio.Event()
     ReportingProtocol.expected = args.requests
-    server = await serve(
-        args.listen,
-        0,
-        configuration=configuration,
-        create_protocol=ReportingProtocol,
-        session_ticket_fetcher=tickets.pop,
-        session_ticket_handler=lambda ticket: tickets.__setitem__(
-            ticket.ticket, ticket
-        ),
+    server = await serve_past_reserved_ports(
+        lambda: serve(
+            args.listen,
+            0,
+            configuration=configuration,
+            create_protocol=ReportingProtocol,
+            session_ticket_fetcher=tickets.pop,
+            session_ticket_handler=lambda ticket: tickets.__setitem__(
+                ticket.ticket, ticket
+            ),
+        )
     )
     port = server._transport.get_extra_info("sockname")[1]
     args.port_file.write_text(str(port), encoding="utf-8")
