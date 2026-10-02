@@ -206,10 +206,18 @@ fn enqueue_key_log_line(
     }
 }
 
+// A saturating `fetch_add`. Rust 1.99 deprecates `fetch_update` in favor of
+// `try_update`, which the 1.88 MSRV lacks, so the loop is written out.
 fn record_dropped_line(dropped_lines: &AtomicUsize) {
-    let _ = dropped_lines.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-        Some(current.saturating_add(1))
-    });
+    let mut current = dropped_lines.load(Ordering::Relaxed);
+    while let Err(actual) = dropped_lines.compare_exchange_weak(
+        current,
+        current.saturating_add(1),
+        Ordering::Relaxed,
+        Ordering::Relaxed,
+    ) {
+        current = actual;
+    }
 }
 
 fn is_quic_tls13_label(label: &str) -> bool {
