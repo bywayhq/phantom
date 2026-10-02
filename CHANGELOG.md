@@ -495,12 +495,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   by default and change no fingerprint field. `phantom-net` adds
   `SourceBinding` and the connectors' `with_source_binding`.
 - `ClientBuilder::client_certificate` presents a `ClientCertificate`, parsed
-  with `ClientCertificate::from_pem` or `from_der` from a chain and an RSA,
-  ECDSA, or Ed25519 key, when an origin sends a TLS `CertificateRequest`,
-  over TCP and QUIC. The ClientHello does not change, and proxies never
-  receive the certificate. A key that does not match the certificate fails
-  with `ClientCertificateErrorKind::KeyMismatch`, and a key the profile's
-  `signature_schemes` cannot sign with fails `build` with
+  with `ClientCertificate::from_pem` or `from_der` from a chain and an RSA
+  or ECDSA key, when an origin sends a TLS `CertificateRequest`, over TCP
+  and QUIC. An Ed25519 key parses, but `build` rejects it, because no
+  profile has an Ed25519 signature scheme. The ClientHello does not change,
+  and proxies never receive the certificate. A key that does not match the
+  certificate fails with `ClientCertificateErrorKind::KeyMismatch`, and a
+  key the profile's `signature_schemes` cannot sign with fails `build` with
   `BuildErrorKind::InvalidPolicy`. `phantom-quic-btls` adds
   `QuicClientCertificate` and `QuicClientConfig::with_client_certificate`.
 - Brave 154 profiles can take `chromium::v154_tcp`, `chromium::v154_http1`,

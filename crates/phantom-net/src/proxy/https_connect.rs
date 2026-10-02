@@ -205,9 +205,10 @@ impl HttpsProxyConnector {
 
     /// Binds every TCP socket this connector opens as `binding` says.
     ///
-    /// The binding covers every connection to the HTTPS proxy. An invalid binding fails each
-    /// connection attempt with [`std::io::ErrorKind::InvalidInput`] before
-    /// any DNS or socket I/O; see [`SourceBinding::validate`].
+    /// The binding covers every connection to the HTTPS proxy. An invalid
+    /// binding fails each connection attempt with
+    /// [`std::io::ErrorKind::InvalidInput`] before any DNS or socket I/O; see
+    /// [`SourceBinding::validate`].
     #[must_use]
     pub fn with_source_binding(mut self, binding: SourceBinding) -> Self {
         self.source = Some(binding);
