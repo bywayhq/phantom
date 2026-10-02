@@ -312,7 +312,9 @@ digits of the SHA-256 of the job ID. Firefox 157 on Windows does not start
 from a profile path of 209 or more characters: it never loads the page or
 publishes its remote protocol endpoint, so the attempt times out. On Windows
 the runner therefore refuses a work directory deep enough for a profile path
-to pass 208 characters.
+to pass 208 characters when the manifest's jobs, after `--only`, include
+Firefox. The limit was measured only for Firefox, so a work directory for
+other browsers is not checked.
 
 A direct launch shows the limit without the runner. In PowerShell, this
 starts Firefox headless on an empty profile whose path is 208 characters,

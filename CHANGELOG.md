@@ -1685,7 +1685,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Windows does not start from a profile path of 209 or more characters, so
   jobs with the longest IDs, such as `https-proxy-auth-remembered-hostname`
   and `retry-persists-across-reconnect`, timed out in a deep work directory.
-  On Windows the runner now refuses a work directory too deep for a profile.
+  On Windows the runner now refuses a work directory too deep for a Firefox
+  profile when the jobs include Firefox.
   Its log no longer says that Windows refused the job object after every
   attempt: the runner read the flag after closing the job.
 - `scripts/capture/snapshot_compare.py` no longer reports a difference

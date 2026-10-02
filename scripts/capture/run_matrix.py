@@ -665,6 +665,26 @@ def longest_profile_path(work_dir: Path, attempts: int) -> int:
     return len(str(work_dir / "tmp" / name / PROFILE_NAME))
 
 
+def profile_path_problem(
+    jobs: Sequence[Job], work_dir: Path, attempts: int, platform: str
+) -> str | None:
+    """Why `work_dir` is too deep for the Firefox jobs among `jobs`, if it is.
+
+    The limit was measured only for Firefox 157 on Windows, so other
+    browsers and systems are not held to it.
+    """
+    if platform != "win32" or not any(job.browser.name == "firefox" for job in jobs):
+        return None
+    longest = longest_profile_path(work_dir, attempts)
+    if longest <= PROFILE_PATH_LIMIT:
+        return None
+    return (
+        f"the work directory path is too long: a Firefox profile in it could "
+        f"take {longest} characters, and Firefox on Windows does not start "
+        f"past {PROFILE_PATH_LIMIT}"
+    )
+
+
 def end_attempt(container: ProcessContainer, temporary: Path) -> None:
     container.close()
     # A browser outside the container still names the attempt's directory.
@@ -1084,13 +1104,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if "'" in str(work_dir):
         # Stopping a hung attempt names this path in a PowerShell string.
         parser.error("the work directory path cannot contain a single quote")
-    longest = longest_profile_path(work_dir, args.retries + 1)
-    if sys.platform == "win32" and longest > PROFILE_PATH_LIMIT:
-        parser.error(
-            f"the work directory path is too long: a browser profile in it "
-            f"could take {longest} characters, and Firefox on Windows does "
-            f"not start past {PROFILE_PATH_LIMIT}"
-        )
+    problem = profile_path_problem(jobs, work_dir, args.retries + 1, sys.platform)
+    if problem is not None:
+        parser.error(problem)
     print(
         f"{len(jobs)} jobs, concurrency {args.jobs}, work directory {work_dir}",
         file=sys.stderr,

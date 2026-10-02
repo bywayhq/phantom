@@ -32,6 +32,7 @@ from scripts.capture.run_matrix import (
     main,
     order_jobs,
     output_problem,
+    profile_path_problem,
     results_document,
     run_manifest,
     run_with_retry,
@@ -972,7 +973,7 @@ class WorkDirectoryTests(unittest.TestCase):
                     manifest(
                         {
                             "tool": "snapshot",
-                            "browsers": ["chrome"],
+                            "browsers": ["firefox"],
                             "output_dir": "out",
                         }
                     )
@@ -988,6 +989,24 @@ class WorkDirectoryTests(unittest.TestCase):
                 main([str(path), "--work-dir", str(deep)])
 
         self.assertIn("work directory path is too long", errors.getvalue())
+
+    def test_only_firefox_jobs_on_windows_hold_the_work_directory_to_the_limit(
+        self,
+    ) -> None:
+        def jobs(browser: str) -> list[Job]:
+            capture = fake_capture(browsers=[browser])
+            return expand_manifest(manifest(capture), base=Path("."), tools=FAKE_TOOLS)
+
+        deep = Path("C:/") / ("w" * PROFILE_PATH_LIMIT)
+        shallow = Path("C:/") / "work"
+
+        self.assertRegex(
+            profile_path_problem(jobs("firefox"), deep, 2, "win32") or "",
+            "a Firefox profile in it could take",
+        )
+        self.assertIsNone(profile_path_problem(jobs("firefox"), shallow, 2, "win32"))
+        self.assertIsNone(profile_path_problem(jobs("chrome"), deep, 2, "win32"))
+        self.assertIsNone(profile_path_problem(jobs("firefox"), deep, 2, "darwin"))
 
 
 if __name__ == "__main__":
