@@ -30,6 +30,10 @@ use crate::support::{
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+/// The `quic_transport_parameters` extension type (RFC 9001).
+const QUIC_TRANSPORT_PARAMETERS: u16 = 0x0039;
+/// The `encrypted_client_hello` extension type (RFC 9849).
+const ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
 
 /// TLS settings for HTTP/1.1 at `version` that can sign with RSA and P-256.
 fn tls(version: TlsVersion) -> TlsSettings {
@@ -264,22 +268,29 @@ async fn certificate_leaves_the_client_hello_unchanged() -> TestResult<()> {
 }
 
 /// The ClientHello fields that stay fixed across connections of one
-/// profile: GREASE values are dropped and extensions sorted, because the
-/// Chromium recipes draw GREASE and permute extensions per connection.
+/// profile: GREASE values are dropped and extensions sorted by type, because
+/// the Chromium recipes draw GREASE and permute extensions per connection.
+/// Every extension keeps its payload length except those `HelloShape::of`
+/// is told vary per connection.
 #[derive(Debug, Eq, PartialEq)]
 struct HelloShape {
+    legacy_version: u16,
     cipher_suites: Vec<u16>,
-    extensions: Vec<u16>,
+    extension_layout: Vec<(u16, usize)>,
     groups: Vec<u16>,
+    ec_point_formats: Vec<u8>,
     signature_algorithms: Vec<u16>,
     versions: Vec<u16>,
     key_share_groups: Vec<u16>,
     alpn: Vec<Vec<u8>>,
     server_name: Option<Vec<u8>>,
+    requested_trust_anchor_ids: Option<Vec<Vec<u8>>>,
 }
 
 impl HelloShape {
-    fn of(handshake: &[u8]) -> TestResult<Self> {
+    /// Summarizes `handshake`, recording a zero length for each extension
+    /// type in `varying_lengths`.
+    fn of(handshake: &[u8], varying_lengths: &[u16]) -> TestResult<Self> {
         let hello = ClientHelloSummary::from_handshake_bytes(handshake)?;
         let kept = |values: &[u16]| {
             values
@@ -288,17 +299,30 @@ impl HelloShape {
                 .filter(|value| !is_grease(*value))
                 .collect::<Vec<_>>()
         };
-        let mut extensions = kept(hello.extension_types());
-        extensions.sort_unstable();
+        let mut extension_layout = hello
+            .extension_layout()
+            .filter(|(extension, _)| !is_grease(*extension))
+            .map(|(extension, length)| {
+                if varying_lengths.contains(&extension) {
+                    (extension, 0)
+                } else {
+                    (extension, length)
+                }
+            })
+            .collect::<Vec<_>>();
+        extension_layout.sort_unstable();
         Ok(Self {
+            legacy_version: hello.legacy_version(),
             cipher_suites: kept(hello.cipher_suites()),
-            extensions,
+            extension_layout,
             groups: kept(hello.supported_groups()),
+            ec_point_formats: hello.ec_point_formats().to_vec(),
             signature_algorithms: kept(hello.signature_algorithms()),
             versions: kept(hello.supported_versions()),
             key_share_groups: kept(hello.key_share_groups()),
             alpn: hello.alpn_protocols().to_vec(),
             server_name: hello.server_name().map(<[u8]>::to_vec),
+            requested_trust_anchor_ids: hello.requested_trust_anchor_ids().map(<[_]>::to_vec),
         })
     }
 }
@@ -320,7 +344,8 @@ async fn certificate_leaves_the_chromium_client_hello_unchanged() -> TestResult<
                 CaptureLimits::new(64 * 1024, 64 * 1024, 8),
             )
             .await?;
-            HelloShape::of(capture.handshake_bytes())
+            // BoringSSL draws the GREASE ECH payload length per connection.
+            HelloShape::of(capture.handshake_bytes(), &[ENCRYPTED_CLIENT_HELLO])
         };
 
         let (shape, _) = timeout(TEST_TIMEOUT, async {
@@ -368,7 +393,13 @@ async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestRe
                 .await?
                 .downcast::<ServerHandshakeData>()
                 .map_err(|_| "unexpected server handshake data")?;
-            HelloShape::of(data.client_hello())
+            // BoringSSL draws the GREASE ECH payload length per connection,
+            // and Chromium's QUIC transport parameters carry a GREASE
+            // parameter of random length.
+            HelloShape::of(
+                data.client_hello(),
+                &[QUIC_TRANSPORT_PARAMETERS, ENCRYPTED_CLIENT_HELLO],
+            )
         };
         let request = async {
             let _ = client
