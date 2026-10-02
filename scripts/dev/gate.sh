@@ -351,7 +351,7 @@ chain_msrv() {
   run_step msrv-rows - feature_rows msrv msrv
 }
 chain_python() {
-  local ruff=(uvx ruff@0.16.8) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
+  local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   run_step capture-tests - "${python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
