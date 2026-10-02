@@ -1618,12 +1618,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 ### Fixed
 
 - Nightly Rust 2026-09-01 no longer warns with
-  `recursion_depth_exceeding_limit` (rust-lang/rust#159228), which the
-  compiler says will become an error, when it proves that a request or
-  WebSocket future is `Send`: neither when building `phantom-http` nor in a
-  crate that spawns `RequestBuilder::send` or
-  `WebSocketRequestBuilder::connect`. The stable toolchain the gate uses does
-  not report this, so it was measured on that nightly only.
+  `recursion_depth_exceeding_limit` (rust-lang/rust#159228) when it proves
+  that a request or WebSocket future is `Send`. The warning appeared when
+  building `phantom-http` and in a crate that spawns `RequestBuilder::send`
+  or `WebSocketRequestBuilder::connect`. The compiler says it will become an
+  error. The stable toolchain does not report it; the gate checks for it
+  with that nightly when it is installed.
 - `phantom-net` boxes the Basic challenge exchange of an authenticated HTTP
   or HTTPS proxy tunnel. Proving
   `Http1TlsConnector::connect_https_connect_with_basic_auth` `Send` now

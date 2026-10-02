@@ -122,6 +122,14 @@ threads=()
 [[ -z $test_threads ]] || threads=(--test-threads "$test_threads")
 msrv=$(sed -nE 's/^rust-version = "([^"]+)".*/\1/p' Cargo.toml)
 [[ $msrv == *.*.* ]] || msrv="$msrv.0"
+# The nightly that the fuzz and sanitizer workflows pin. The full gate runs
+# the nightly-recursion step only when rustup has it installed.
+nightly=$(tr -d '\r' <.github/workflows/fuzz.yml |
+  sed -nE 's/^ *NIGHTLY_TOOLCHAIN: *([^ ]+) *$/\1/p' | head -n 1)
+nightly_installed=false
+if [[ $quick == false && -n $nightly ]] && rustup toolchain list | grep -q "^$nightly"; then
+  nightly_installed=true
+fi
 
 gate_dir="$root/target/gate"
 logs="$gate_dir/logs"
@@ -198,6 +206,30 @@ feature_rows() {
       cargo ${toolchain:+"$toolchain"} "${args[0]}" -j "$jobs" "${args[@]:1}" || status=1
     done
     exit "$status"' _ "$toolchain" "$jobs" "${rows[@]}"
+}
+
+# nightly_recursion: checks phantom-http, its tests included, with the
+# pinned nightly. Its trait solver reports a Send proof that exceeds the
+# recursion limit (recursion_depth_exceeding_limit, rust-lang/rust#159228),
+# which the stable toolchain accepts silently; the requests tests assert that
+# the public futures are Send, as a caller that spawns them does. Other
+# nightly warnings are not gate failures, so the step log holds only the
+# result, and Cargo's own output goes to nightly-recursion.cargo.log.
+nightly_recursion() {
+  local output="$logs/nightly-recursion.cargo.log" status
+  CARGO_TARGET_DIR="$gate_dir/nightly" "$lock" cargo "+$nightly" check -j "$jobs" \
+    -p phantom-http --all-targets --all-features --locked >"$output" 2>&1
+  status=$?
+  if grep -qE 'recursion_depth_exceeding_limit|overflow evaluating the requirement' "$output"; then
+    grep -E -A 3 '^(warning|error).*overflow evaluating' "$output"
+    echo "error: $nightly reports recursion_depth_exceeding_limit; see $output"
+    return 1
+  fi
+  if ((status != 0)); then
+    echo "error: cargo +$nightly check failed with status $status; see $output"
+    return "$status"
+  fi
+  echo "$nightly reports no recursion_depth_exceeding_limit in phantom-http"
 }
 
 # changed_packages: prints the workspace packages that own a file in
@@ -366,6 +398,9 @@ chain_lint() {
     --all-targets --locked -- -D warnings
   RUSTDOCFLAGS="-D warnings" run_step rustdoc lint \
     cargo doc -j "$jobs" --workspace --all-features --no-deps --locked
+  if [[ $nightly_installed == true ]]; then
+    run_step nightly-recursion - nightly_recursion
+  fi
 }
 chain_msrv() {
   run_step msrv-workspace msrv cargo "+$msrv" check -j "$jobs" --workspace --all-targets --locked
@@ -409,6 +444,11 @@ else
   steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
     docs-check tool-pins unsafe-boundaries)
+  if [[ $nightly_installed == true ]]; then
+    steps+=(nightly-recursion)
+  else
+    echo "gate: ${nightly:-the pinned nightly} is not installed; skipping nightly-recursion" >&2
+  fi
   launch chain_tests
   launch chain_lint
   launch chain_msrv

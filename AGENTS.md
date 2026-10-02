@@ -191,7 +191,11 @@ the separate `cargo test --doc`; without nextest, `cargo test --workspace
 --all-targets --all-features --locked` runs the same tests. The script also
 runs the fuzz crate's Clippy and tests, the optional feature rows of the CI
 Features and MSRV jobs, `scripts/ci/check-tool-pins.sh`, and
-`scripts/ci/check-unsafe-boundaries.sh`.
+`scripts/ci/check-unsafe-boundaries.sh`. When the nightly that
+`.github/workflows/fuzz.yml` pins is installed, it also runs
+`cargo +nightly-2026-09-01 check -p phantom-http --all-targets --all-features
+--locked` and fails on `recursion_depth_exceeding_limit`
+([Nightly recursion check](scripts/dev/README.md#nightly-recursion-check)).
 
 Read the output of every gate command. A command list joined with `;` or
 piped through `tail` or `grep` reports the status of its last command, not of

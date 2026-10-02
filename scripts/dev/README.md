@@ -51,7 +51,7 @@ concurrent chains:
 | Chain | Target directory | Steps |
 | --- | --- | --- |
 | Tests | `target/gate/test` | `cargo nextest run`, `cargo test --doc`, then the tests of the `fuzz/` crate |
-| Lint | `target/gate/lint` | Clippy on the workspace and the `fuzz/` crate, then rustdoc |
+| Lint | `target/gate/lint` | Clippy on the workspace and the `fuzz/` crate, then rustdoc, then the [nightly recursion check](#nightly-recursion-check) in `target/gate/nightly` |
 | MSRV | `target/gate/msrv` | `cargo +1.88.0 check --workspace`, then the MSRV job's feature rows |
 | Features | `target/gate/features` | The Features job's rows, `cargo check` or `cargo clippy` as the job writes them |
 | Python | none | ruff, the four unittest suites, the docs checker, the tool-pin check, and the unsafe-boundary check |
@@ -110,6 +110,29 @@ while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.
 
 A lock whose holder died without releasing it is reclaimed by the next
 waiting command, as [below](#cargo-lock) describes.
+
+### Nightly recursion check
+
+The stable toolchain accepts a `Send` proof that runs past the compiler's
+recursion limit; the pinned nightly reports it as
+`recursion_depth_exceeding_limit` (rust-lang/rust#159228), which the
+compiler says will become an error. A request future's proof nests the
+request path, the pools, and the connector futures, so a new layer can push
+it over the limit, in Phantom and in a caller that spawns the future. The
+full gate's `nightly-recursion` step catches that:
+
+```sh
+cargo +nightly-2026-09-01 check -p phantom-http --all-targets --all-features --locked
+```
+
+The nightly is the one `.github/workflows/fuzz.yml` pins in
+`NIGHTLY_TOOLCHAIN`. The step runs only when rustup has it installed, and the
+gate says so when it skips the step. `--all-targets` includes the `requests`
+test module `send_futures.rs`, which asserts that the request, WebSocket, and
+EventSource futures are `Send`, as a caller's crate does. The step fails when
+the output names the lint or an overflow, or when the check fails. Other
+nightly warnings do not fail it, so its log holds only the result, and
+Cargo's own output is in `target/gate/logs/nightly-recursion.cargo.log`.
 
 ### Linux checks in WSL
 

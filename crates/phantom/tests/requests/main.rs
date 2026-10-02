@@ -24,6 +24,7 @@ mod direct_http;
 mod plaintext_templates;
 mod redirects;
 mod request_templates;
+mod send_futures;
 mod source_binding;
 mod stale_connection_replay;
 mod status_retry;
