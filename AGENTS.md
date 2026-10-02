@@ -120,12 +120,21 @@ Use a sibling worktree only when independent work can proceed concurrently.
     scripts/ci/check-vendor.sh <package>
   ```
 
-- Windows reserves UDP ports 49841 to 50959 on the development host
-  (`netsh int ipv4 show excludedportrange protocol=udp`). Bind port 0 in
-  tests and captures rather than a fixed port. Windows hands out UDP ports
-  in sequence and reserves blocks of TCP ports, so an origin that needs one
-  port for both takes it from `crates/phantom/tests/support/shared_port.rs`
-  instead of binding UDP to port 0 and TCP to the port it got.
+- Windows reserves blocks of UDP and TCP ports, and the blocks can move
+  between boots. List them with `netsh int ipv4 show excludedportrange
+  protocol=udp` (or `protocol=tcp`). Bind port 0 in tests and captures
+  rather than a fixed port.
+- Windows hands out UDP ports for binds to port 0 in sequence, from one
+  counter for the whole host. When the counter reaches a reserved block, the
+  bind fails with `WSAENOBUFS` (os error 10055) and the next bind gets a
+  port. Bind UDP sockets through `source_binding::bind_udp_socket` in
+  `phantom-net` and through `phantom_testkit::udp` in tests, which retry that
+  error. A direct `UdpSocket::bind` or `quinn::Endpoint::server` to port 0
+  can fail in any run.
+- An origin that needs one port for both TCP and UDP takes it from
+  `crates/phantom/tests/support/shared_port.rs` instead of binding UDP to
+  port 0 and TCP to the port it got: the next UDP ports can fall inside a
+  reserved TCP block.
 - Tests bind loopback addresses only, so Windows Defender Firewall does not
   prompt for each rebuilt test binary. A test that binds `0.0.0.0` or `::`,
   directly or through a client socket aimed at a loopback peer, is a bug.
