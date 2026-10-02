@@ -1675,6 +1675,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   block. Windows can refuse that bind to port 0 with os error 10055
   (`WSAENOBUFS`) instead of skipping the block; Phantom now binds again, up
   to three more times. An explicit source binding gets the same retry.
+- `scripts/capture/snapshot_compare.py` no longer reports a difference
+  between two Firefox snapshots for the per-connection shuffle of the QUIC
+  ClientHello extensions before `quic_transport_parameters` and
+  `encrypted_client_hello`, or for the ECH GREASE AEAD Firefox draws per
+  connection. Moving either tail extension is still a difference.
 - `scripts/capture/chrome_http3.py` accepts `--listen 127.0.0.1:0`: it binds
   a port the operating system chooses, reports it on its `listening on`
   line, and writes it into `listen_address` and in place of each `<port>` in

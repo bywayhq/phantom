@@ -19,7 +19,12 @@ connection IDs and reserved versions:
 
 Chromium permutes its TLS extensions and QUIC transport parameters per
 connection, so for Chromium browsers a list that differs only in order is
-not a difference. For Firefox it is.
+not a difference. Firefox shuffles its QUIC ClientHello extensions per
+connection but keeps `quic_transport_parameters`, `encrypted_client_hello`,
+and, when resuming, `pre_shared_key` last in that order, so for Firefox only
+the extensions before that tail may differ in order; its TCP extensions and
+its transport parameters keep one order. Firefox also draws its ECH GREASE
+AEAD per connection, so that AEAD is not compared.
 """
 
 from __future__ import annotations
@@ -27,9 +32,10 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
-from .browser_launch import CHROMIUM_BROWSERS
+from .browser_launch import CHROMIUM_BROWSERS, FIREFOX_BROWSERS
 from .http3_wire import (
     INITIAL_SOURCE_CONNECTION_ID,
     VERSION_INFORMATION,
@@ -54,6 +60,33 @@ PADDING = 0x0015
 TRUST_ANCHORS = 0xCA34
 # Bodies that are length-prefixed lists of u16 code points after `n` bytes.
 U16_LISTS = {0x000A: 2, 0x000D: 2, 0x002B: 1}
+
+
+@dataclass(frozen=True)
+class Variation:
+    """What a browser's ClientHello changes on every connection."""
+
+    # The extension order, except for `fixed_tail`.
+    extension_order: bool = False
+    # Extensions that stay last, in this order, when they are present.
+    fixed_tail: tuple[int, ...] = ()
+    # The order of the QUIC transport parameters and the trust anchor list.
+    body_order: bool = False
+    # The AEADs that an outer ECH cipher suite is drawn from. The snapshot
+    # server publishes no ECH config, so every outer ECH extension is GREASE.
+    ech_aeads: tuple[int, ...] = ()
+
+
+CHROMIUM_VARIATION = Variation(extension_order=True, body_order=True)
+# Firefox draws its ECH GREASE AEAD from AES-128-GCM and ChaCha20-Poly1305.
+FIREFOX_TCP_VARIATION = Variation(ech_aeads=(0x0001, 0x0003))
+# Over QUIC it also shuffles its extensions, but every retained Firefox 157
+# QUIC ClientHello ends with these, and a resumed one with `pre_shared_key`.
+FIREFOX_QUIC_VARIATION = Variation(
+    extension_order=True,
+    fixed_tail=(QUIC_TRANSPORT_PARAMETERS, ECH, PRE_SHARED_KEY),
+    ech_aeads=FIREFOX_TCP_VARIATION.ech_aeads,
+)
 
 
 def fields(text: str, prefix: str = "") -> dict[str, str]:
@@ -92,7 +125,7 @@ def transport_parameters(body: bytes, permuted: bool) -> str:
     return ",".join(sorted(items) if permuted else items)
 
 
-def extension_body(kind: int, body: bytes, permuted: bool) -> str:
+def extension_body(kind: int, body: bytes, variation: Variation) -> str:
     """One extension body with its per-connection randomness replaced."""
     if kind in U16_LISTS:
         start = U16_LISTS[kind]
@@ -114,12 +147,15 @@ def extension_body(kind: int, body: bytes, permuted: bool) -> str:
         # Outer ECH: type, cipher suite, and enc length. The config ID, enc,
         # and payload are random, and Chromium's GREASE payload length varies
         # per connection (144 to 240 bytes in the Windows captures).
-        return f"outer,suite:{body[1:5].hex()},enc:{int.from_bytes(body[6:8], 'big')}"
+        suite = body[1:5].hex()
+        if int.from_bytes(body[3:5], "big") in variation.ech_aeads:
+            suite = f"{body[1:3].hex()}<aead>"
+        return f"outer,suite:{suite},enc:{int.from_bytes(body[6:8], 'big')}"
     if kind == PADDING:
         return f"<{len(body)} bytes>"
     if kind == QUIC_TRANSPORT_PARAMETERS:
-        return transport_parameters(body, permuted)
-    if kind == TRUST_ANCHORS and permuted:
+        return transport_parameters(body, variation.body_order)
+    if kind == TRUST_ANCHORS and variation.body_order:
         items, offset = [], 2
         while offset < len(body):
             items.append(body[offset : offset + 1 + body[offset]].hex())
@@ -128,7 +164,29 @@ def extension_body(kind: int, body: bytes, permuted: bool) -> str:
     return body.hex()
 
 
-def compare_hello(label: str, new: bytes, old: bytes, permuted: bool) -> list[str]:
+def split_tail(types: list[str], tail: set[str]) -> tuple[list[str], list[str]]:
+    """`types` split before its longest suffix made of `tail` extensions."""
+    start = len(types)
+    while start > 0 and types[start - 1] in tail:
+        start -= 1
+    return types[:start], types[start:]
+
+
+def same_order(new: list[str], old: list[str], variation: Variation) -> bool:
+    """Whether two extension type lists match under the browser's shuffle."""
+    if new == old:
+        return True
+    if not variation.extension_order:
+        return False
+    tail = {code(kind) for kind in variation.fixed_tail}
+    new_head, new_tail = split_tail(new, tail)
+    old_head, old_tail = split_tail(old, tail)
+    return new_tail == old_tail and sorted(new_head) == sorted(old_head)
+
+
+def compare_hello(
+    label: str, new: bytes, old: bytes, variation: Variation
+) -> list[str]:
     """Differences between two ClientHello handshake messages."""
     differences = []
     new_shape, old_shape = parse_client_hello(new), parse_client_hello(old)
@@ -144,9 +202,7 @@ def compare_hello(label: str, new: bytes, old: bytes, permuted: bool) -> list[st
         )
     new_types = [code(v) for v in new_shape.extension_types]
     old_types = [code(v) for v in old_shape.extension_types]
-    if new_types != old_types and not (
-        permuted and sorted(new_types) == sorted(old_types)
-    ):
+    if not same_order(new_types, old_types, variation):
         differences.append(
             f"{label}.extension_types: retained {old_types}, snapshot {new_types}"
         )
@@ -154,8 +210,8 @@ def compare_hello(label: str, new: bytes, old: bytes, permuted: bool) -> list[st
     for kind, body in new_shape.extensions:
         if is_tls_grease(kind) or kind == PRE_SHARED_KEY or kind not in old_bodies:
             continue
-        new_body = extension_body(kind, body, permuted)
-        old_body = extension_body(kind, old_bodies[kind], permuted)
+        new_body = extension_body(kind, body, variation)
+        old_body = extension_body(kind, old_bodies[kind], variation)
         if new_body != old_body:
             differences.append(
                 f"{label}.extension 0x{kind:04x}: retained {old_body}, snapshot {new_body}"
@@ -205,7 +261,12 @@ def compare(text: str, root: Path, browser: str) -> list[str]:
     snapshot = fields(text)
     system = snapshot.get("operating_system", "")
     # Opera for Android is Chromium too, though it reads no command-line file.
-    permuted = browser in (*CHROMIUM_BROWSERS, "opera-android")
+    if browser in (*CHROMIUM_BROWSERS, "opera-android"):
+        tcp_variation = quic_variation = CHROMIUM_VARIATION
+    elif browser in FIREFOX_BROWSERS:
+        tcp_variation, quic_variation = FIREFOX_TCP_VARIATION, FIREFOX_QUIC_VARIATION
+    else:
+        tcp_variation = quic_variation = Variation()
     report: list[str] = []
 
     def retained(
@@ -231,7 +292,10 @@ def compare(text: str, root: Path, browser: str) -> list[str]:
     if old is not None:
         differs(
             compare_hello(
-                "tls", tls_message(fields(text, "tls.")), tls_message(old), permuted
+                "tls",
+                tls_message(fields(text, "tls.")),
+                tls_message(old),
+                tcp_variation,
             )
         )
 
@@ -292,7 +356,7 @@ def compare(text: str, root: Path, browser: str) -> list[str]:
                 "quic_tls",
                 bytes.fromhex(snapshot["quic_client_hello.handshake_hex"]),
                 bytes.fromhex(old["handshake_hex"]),
-                permuted,
+                quic_variation,
             )
         )
 

@@ -97,8 +97,14 @@ the browser recorded on the snapshot's operating system, and prints
 GREASE values, key shares, the ECH config ID, enc, and payload, the QUIC
 connection ID, and reserved versions are normalized first. For Chromium
 browsers an extension or transport parameter list that differs only in order
-is not a difference, because Chromium permutes both per connection. A layer
-missing from the snapshot, or with no retained fixture, is a difference. It
+is not a difference, because Chromium permutes both per connection. Firefox
+shuffles its QUIC ClientHello extensions per connection but keeps
+`quic_transport_parameters`, `encrypted_client_hello`, and, when resuming,
+`pre_shared_key` last, so for Firefox only the extensions before that tail
+may change order; its TCP extensions and transport parameters must match in
+order. Firefox also draws its ECH GREASE AEAD per connection, so that AEAD is
+not compared. A layer missing from the snapshot, or with no retained
+fixture, is a difference. It
 does not compare HTTP/3 request fields, HTTP/2 fields other than the first
 navigation's, or HTTP/1.1.
 

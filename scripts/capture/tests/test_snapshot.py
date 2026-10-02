@@ -19,6 +19,7 @@ from scripts.capture.http2_session import (
     ConnectionRecord,
     generate_certificate,
 )
+from scripts.capture.quic_resumption import parse_client_hello
 from scripts.capture.snapshot import (
     FORMAT,
     InitialDatagram,
@@ -35,11 +36,20 @@ from scripts.capture.snapshot import (
     split_snapshot,
     summary_lines,
 )
-from scripts.capture.snapshot_compare import compare, compare_hello, fields
+from scripts.capture.snapshot_compare import (
+    CHROMIUM_VARIATION,
+    FIREFOX_QUIC_VARIATION,
+    FIREFOX_TCP_VARIATION,
+    Variation,
+    compare,
+    compare_hello,
+    fields,
+)
 from scripts.capture.tests.loopback_quic import connect_loopback
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures"
 CHROME = "154.0.8037.58/windows-11-26200"
+FIREFOX = "157.0/windows-11-26200"
 CERTIFICATE = generate_certificate()
 TIMEOUT = 20.0
 METADATA = CaptureMetadata(
@@ -119,23 +129,95 @@ class ClientHelloTests(unittest.TestCase):
 class ComparisonTests(unittest.TestCase):
     ALPS = (0x44CD, bytes.fromhex("0003026832"))
 
+    # quic_transport_parameters, encrypted_client_hello, pre_shared_key.
+    TAIL = ((0x0039, b""), (0xFE0D, b""), (0x0029, b""))
+
     def test_chromium_permutation_is_not_a_difference(self) -> None:
         old = client_hello([(0x0A0A, b""), (0x0017, b""), self.ALPS])
         new = client_hello([(0x3A3A, b""), self.ALPS, (0x0017, b"")])
-        self.assertEqual(compare_hello("tls", new, old, permuted=True), [])
+        self.assertEqual(compare_hello("tls", new, old, CHROMIUM_VARIATION), [])
 
-    def test_firefox_permutation_is_a_difference(self) -> None:
+    def test_firefox_tcp_permutation_is_a_difference(self) -> None:
         old = client_hello([(0x0017, b""), self.ALPS])
         new = client_hello([self.ALPS, (0x0017, b"")])
-        report = compare_hello("tls", new, old, permuted=False)
+        report = compare_hello("tls", new, old, FIREFOX_TCP_VARIATION)
         self.assertEqual(len(report), 1)
         self.assertIn("extension_types", report[0])
+
+    def test_firefox_quic_shuffle_before_the_fixed_tail_is_not_a_difference(
+        self,
+    ) -> None:
+        old = client_hello([(0x0017, b""), self.ALPS, *self.TAIL])
+        new = client_hello([self.ALPS, (0x0017, b""), *self.TAIL])
+        self.assertEqual(
+            compare_hello("quic_tls", new, old, FIREFOX_QUIC_VARIATION), []
+        )
+
+    def test_firefox_quic_extension_moved_out_of_the_tail_is_a_difference(
+        self,
+    ) -> None:
+        transport_parameters, ech, _ = self.TAIL
+        old = client_hello([(0x0017, b""), self.ALPS, transport_parameters, ech])
+        for new in (
+            client_hello([transport_parameters, (0x0017, b""), self.ALPS, ech]),
+            client_hello([(0x0017, b""), self.ALPS, ech, transport_parameters]),
+            client_hello([(0x0017, b""), transport_parameters, ech]),
+        ):
+            report = compare_hello("quic_tls", new, old, FIREFOX_QUIC_VARIATION)
+            self.assertEqual(len(report), 1, report)
+            self.assertIn("quic_tls.extension_types", report[0])
+
+    def test_retained_firefox_quic_client_hellos_match_one_another(self) -> None:
+        directory = FIXTURES / "http3" / "firefox" / FIREFOX
+        hellos = [
+            bytes.fromhex(retained(path.relative_to(FIXTURES))["handshake_hex"])
+            for path in sorted(directory.glob("quic-client-hello-*.txt"))
+        ]
+        self.assertEqual(len(hellos), 3)
+        orders = {tuple(parse_client_hello(h).extension_types) for h in hellos}
+        self.assertEqual(len(orders), 3, "the retained orders should all differ")
+        for hello in hellos[1:]:
+            self.assertEqual(
+                compare_hello("quic_tls", hello, hellos[0], FIREFOX_QUIC_VARIATION),
+                [],
+            )
+            self.assertNotEqual(
+                compare_hello("quic_tls", hello, hellos[0], Variation()), []
+            )
+
+    def test_retained_firefox_snapshots_have_no_client_hello_difference(
+        self,
+    ) -> None:
+        directory = FIXTURES / "http3" / "firefox" / FIREFOX
+        snapshots = sorted(directory.glob("snapshot-*.txt"))
+        self.assertEqual(len(snapshots), 5)
+        for path in snapshots:
+            report = compare(path.read_text(encoding="utf-8"), FIXTURES, "firefox")
+            differences = [
+                line
+                for line in report
+                if line.startswith(("differs tls", "differs quic_tls"))
+            ]
+            self.assertEqual(differences, [], path.name)
+
+    def test_firefox_ech_grease_aead_is_not_a_difference(self) -> None:
+        def hello(aead: int) -> bytes:
+            # Outer ECH: HKDF-SHA256, the AEAD, config ID, and a 32-byte enc.
+            body = b"\x00" + struct.pack(">HHB", 0x0001, aead, 7) + vector(2, bytes(32))
+            return client_hello([(0xFE0D, body + vector(2, bytes(240)))])
+
+        aes, chacha, aes_256 = hello(0x0001), hello(0x0003), hello(0x0002)
+        self.assertEqual(compare_hello("tls", chacha, aes, FIREFOX_TCP_VARIATION), [])
+        self.assertEqual(
+            len(compare_hello("tls", aes_256, aes, FIREFOX_TCP_VARIATION)), 1
+        )
+        self.assertEqual(len(compare_hello("tls", chacha, aes, CHROMIUM_VARIATION)), 1)
 
     def test_a_changed_extension_body_is_a_difference(self) -> None:
         old = client_hello([self.ALPS])
         new = client_hello([(0x44CD, bytes.fromhex("0003026833"))])
         self.assertEqual(
-            compare_hello("tls", new, old, permuted=True),
+            compare_hello("tls", new, old, CHROMIUM_VARIATION),
             ["tls.extension 0x44cd: retained 0003026832, snapshot 0003026833"],
         )
 
@@ -146,7 +228,7 @@ class ComparisonTests(unittest.TestCase):
             return client_hello([(0x000A, groups), (0x0033, share)])
 
         new, old = hello(0x2A2A, bytes(32)), hello(0x8A8A, bytes(range(32)))
-        self.assertEqual(compare_hello("tls", new, old, permuted=False), [])
+        self.assertEqual(compare_hello("tls", new, old, Variation()), [])
 
     def test_a_layer_missing_from_the_snapshot_is_a_difference(self) -> None:
         values = retained(f"tls/chrome/{CHROME}/client-hello.txt")
