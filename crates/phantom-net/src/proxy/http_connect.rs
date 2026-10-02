@@ -215,24 +215,36 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
     headers: &[HttpConnectHeader],
     credentials: &HttpBasicCredentials,
 ) -> Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
-    trace_connect(
-        "http",
-        pin!(async {
-            let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
-            let plan = BasicAuthPlan::new(
-                cache,
-                ProxyScheme::Http,
-                proxy_host,
-                proxy_port,
-                credentials,
-            );
-            basic_auth_exchange(&plan, &requests, || {
-                connect_proxy_tcp(dialer, proxy_host, proxy_port)
-            })
-            .await
-        }),
-    )
-    .await
+    // Boxed as a `Send` trait object, on the authenticated path only, as
+    // `HttpsProxyConnector::connect_tunnel_with_basic_auth` explains.
+    let exchange: Pin<
+        Box<
+            dyn Future<
+                    Output = Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError>,
+                > + Send
+                + '_,
+        >,
+    > = Box::pin(async move {
+        trace_connect(
+            "http",
+            pin!(async {
+                let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+                let plan = BasicAuthPlan::new(
+                    cache,
+                    ProxyScheme::Http,
+                    proxy_host,
+                    proxy_port,
+                    credentials,
+                );
+                basic_auth_exchange(&plan, &requests, || {
+                    connect_proxy_tcp(dialer, proxy_host, proxy_port)
+                })
+                .await
+            }),
+        )
+        .await
+    });
+    exchange.await
 }
 
 /// Runs one challenge-driven CONNECT exchange on connections from `connect`.

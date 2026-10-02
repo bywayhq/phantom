@@ -428,6 +428,34 @@ impl HttpsProxyConnector {
         headers: &[HttpConnectHeader],
         credentials: &HttpBasicCredentials,
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        // Boxed as a `Send` trait object, on the authenticated path only.
+        // The challenge and replay state machines nest deep enough that a
+        // connector future holding them inline needed a recursion limit of
+        // 121 for the compiler to prove it `Send`, against a default of 128
+        // (rust-lang/rust#159228); the trait object ends that proof here.
+        let exchange: Pin<
+            Box<dyn Future<Output = Result<HttpsProxyTunnel, HttpConnectError>> + Send + '_>,
+        > = Box::pin(self.basic_auth_tunnel(
+            proxy_host,
+            proxy_port,
+            proxy_server_name,
+            authority,
+            headers,
+            credentials,
+        ));
+        exchange.await
+    }
+
+    /// The exchange [`Self::connect_tunnel_with_basic_auth`] boxes.
+    async fn basic_auth_tunnel(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: &HttpBasicCredentials,
+    ) -> Result<HttpsProxyTunnel, HttpConnectError> {
         let plan = BasicAuthPlan::new(
             self.proxy_credentials.as_ref(),
             ProxyScheme::Https,

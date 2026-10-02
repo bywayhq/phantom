@@ -1624,6 +1624,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   crate that spawns `RequestBuilder::send` or
   `WebSocketRequestBuilder::connect`. The stable toolchain the gate uses does
   not report this, so it was measured on that nightly only.
+- `phantom-net` boxes the Basic challenge exchange of an authenticated HTTP
+  or HTTPS proxy tunnel. Proving
+  `Http1TlsConnector::connect_https_connect_with_basic_auth` `Send` now
+  takes a recursion depth of 95, where it took 121 of the default 128, and
+  `connect_http_connect_with_basic_auth` 70 instead of 114.
 - Dropping an HTTP/2 tunnel after its connection closed no longer queues a
   `RST_STREAM` that nothing writes, which left the stream in the vendored
   `http2` store and failed its debug assertion in debug builds.
