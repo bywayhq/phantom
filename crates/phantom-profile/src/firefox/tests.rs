@@ -102,6 +102,7 @@ fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
         ]
     );
     assert!(settings.session_tickets);
+    assert!(settings.tcp_early_data);
     assert_eq!(settings.record_size_limit, Some(16_385));
     assert!(settings.requested_trust_anchor_ids.is_none());
     assert!(!settings.grease);
@@ -120,6 +121,7 @@ fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
             ClientHelloExtension::DelegatedCredential,
             ClientHelloExtension::SignedCertificateTimestamp,
             ClientHelloExtension::KeyShare,
+            ClientHelloExtension::EarlyData,
             ClientHelloExtension::SupportedVersions,
             ClientHelloExtension::SignatureAlgorithms,
             ClientHelloExtension::PskKeyExchangeModes,

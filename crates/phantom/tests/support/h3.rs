@@ -34,6 +34,7 @@ fn tls_settings() -> TlsSettings {
         session_tickets: false,
         session_tickets_per_origin: 2,
         session_ticket_extension_when_resuming: true,
+        tcp_early_data: false,
         record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,

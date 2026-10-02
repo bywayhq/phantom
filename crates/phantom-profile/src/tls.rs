@@ -241,6 +241,11 @@ pub enum ClientHelloExtension {
     SignedCertificateTimestamp,
     /// TLS 1.3 key shares.
     KeyShare,
+    /// TLS 1.3 early-data indication.
+    ///
+    /// Sent only by a resumption that offers early data; see
+    /// [`TlsSettings::tcp_early_data`].
+    EarlyData,
     /// Supported TLS versions.
     SupportedVersions,
     /// Handshake signature algorithms.
@@ -367,6 +372,21 @@ pub struct TlsSettings {
     /// is unchanged either way. Chrome keeps it on resumption; Firefox omits
     /// it.
     pub session_ticket_extension_when_resuming: bool,
+    /// Whether a direct TCP connection that resumes with a TLS 1.3 ticket
+    /// permitting early data offers `early_data` and sends replay-safe
+    /// requests in it, as Firefox 156 does.
+    ///
+    /// A replay-safe request has a safe method (`GET`, `HEAD`, `OPTIONS`, or
+    /// `TRACE`), no body, and no trailers. Other requests on the connection
+    /// wait until the server answers the early data. If the server rejects
+    /// it, the connection finishes the handshake and sends the same bytes
+    /// again, unless the server then selects another ALPN protocol, which
+    /// fails the connection. Connections through a proxy, connections that
+    /// offer Encrypted Client Hello from an HTTPS record, and WebSocket
+    /// openings never offer early data. QUIC connections follow
+    /// [`crate::quic::QuicTransportSettings::early_data`] instead. Requires
+    /// [`Self::session_tickets`] and TLS 1.3.
+    pub tcp_early_data: bool,
     /// Maximum protected TLS record plaintext the client accepts.
     ///
     /// `None` omits the RFC 8449 extension. Configured values use the wire
@@ -517,7 +537,19 @@ impl TlsSettings {
                 ));
             }
         }
+        if self.tcp_early_data && !self.session_tickets {
+            return Err(InvalidTlsSettings::new(
+                "tcp_early_data",
+                "early data over TCP requires session tickets",
+            ));
+        }
         if self.max_version < TlsVersion::Tls13 {
+            if self.tcp_early_data {
+                return Err(InvalidTlsSettings::new(
+                    "tcp_early_data",
+                    "early data over TCP requires TLS 1.3 to be enabled",
+                ));
+            }
             if !self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
                     "key_shares",

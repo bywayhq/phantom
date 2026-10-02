@@ -260,6 +260,7 @@ pub fn v154_tls() -> TlsSettings {
         session_tickets: true,
         session_tickets_per_origin: 2,
         session_ticket_extension_when_resuming: true,
+        tcp_early_data: false,
         record_size_limit: None,
         requested_trust_anchor_ids: Some(trust_anchor_ids(V154_TRUST_ANCHOR_IDS)),
         grease: true,

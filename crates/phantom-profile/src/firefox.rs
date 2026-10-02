@@ -79,10 +79,14 @@ pub fn v156_cookie_placement() -> CookiePlacement {
 /// captures. A resumed ClientHello omits the empty `session_ticket`
 /// extension and adds `pre_shared_key` last. Firefox used each of the eight
 /// tickets one connection issued, once, so the recipe keeps up to eight per
-/// origin, the TCP cache's bound. When a ticket permits early data, Firefox
-/// also offers `early_data` and sends safe requests in it; Phantom never
-/// offers early data over TCP, so that resumed ClientHello lacks the
-/// extension.
+/// origin, the TCP cache's bound. When a ticket permits early data, a direct
+/// connection also offers `early_data`, between `key_share` and
+/// `supported_versions`, and sends replay-safe requests in it
+/// ([`TlsSettings::tcp_early_data`]), as Firefox does on every such
+/// resumption in those captures. Firefox disables early data on proxy
+/// connections (`TlsHandshaker::InitSSLParams`,
+/// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
+/// `FIREFOX_156_0_RELEASE`), and so does this recipe.
 ///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
@@ -149,6 +153,7 @@ pub fn v156_tls() -> TlsSettings {
         session_tickets: true,
         session_tickets_per_origin: 8,
         session_ticket_extension_when_resuming: false,
+        tcp_early_data: true,
         record_size_limit: Some(16_385),
         requested_trust_anchor_ids: None,
         grease: false,
@@ -165,6 +170,7 @@ pub fn v156_tls() -> TlsSettings {
             ClientHelloExtension::DelegatedCredential,
             ClientHelloExtension::SignedCertificateTimestamp,
             ClientHelloExtension::KeyShare,
+            ClientHelloExtension::EarlyData,
             ClientHelloExtension::SupportedVersions,
             ClientHelloExtension::SignatureAlgorithms,
             ClientHelloExtension::PskKeyExchangeModes,
@@ -612,6 +618,8 @@ pub fn v156_http3_tls() -> TlsSettings {
     settings.request_signed_certificate_timestamps = false;
     settings.record_size_limit = None;
     settings.extension_order = ClientHelloExtensionOrder::Permuted;
+    // QUIC early data follows `v156_quic`; this field covers TCP only.
+    settings.tcp_early_data = false;
     settings
 }
 

@@ -62,6 +62,7 @@ fn minimal_settings() -> TlsSettings {
         session_tickets: true,
         session_tickets_per_origin: 2,
         session_ticket_extension_when_resuming: true,
+        tcp_early_data: false,
         record_size_limit: None,
         requested_trust_anchor_ids: None,
         grease: false,
@@ -176,6 +177,61 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
     let firefox = crate::firefox::v156_tls();
     assert_eq!(firefox.session_tickets_per_origin, 8);
     assert!(!firefox.session_ticket_extension_when_resuming);
+}
+
+#[test]
+fn only_the_firefox_recipe_sends_early_data_over_tcp() {
+    for settings in [
+        crate::chromium::v154_tls(),
+        crate::chromium::v154_http3_tls(),
+        crate::chrome_android::v154_tls(),
+        crate::chrome_android::v154_http3_tls(),
+        crate::edge::v154_tls(),
+        crate::edge::v154_http3_tls(),
+        crate::edge_android::v153_tls(),
+        crate::edge_android::v153_http3_tls(),
+        crate::brave::v154_tls(),
+        crate::brave::v154_http3_tls(),
+        crate::brave_android::v153_tls(),
+        crate::brave_android::v153_http3_tls(),
+        crate::opera::v135_tls(),
+        crate::opera::v135_http3_tls(),
+        crate::opera_android::v102_tls(),
+    ] {
+        assert!(!settings.tcp_early_data);
+    }
+    assert!(crate::firefox::v156_tls().tcp_early_data);
+    assert!(crate::firefox_android::v156_tls().tcp_early_data);
+}
+
+#[test]
+fn tcp_early_data_requires_session_tickets_and_tls_13() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.tcp_early_data = true;
+    settings.validate()?;
+
+    settings.session_tickets = false;
+    assert_eq!(
+        settings
+            .validate()
+            .err()
+            .as_ref()
+            .map(InvalidTlsSettings::field),
+        Some("tcp_early_data")
+    );
+
+    settings.session_tickets = true;
+    settings.max_version = TlsVersion::Tls12;
+    settings.key_shares.clear();
+    assert_eq!(
+        settings
+            .validate()
+            .err()
+            .as_ref()
+            .map(InvalidTlsSettings::field),
+        Some("tcp_early_data")
+    );
+    Ok(())
 }
 
 #[test]

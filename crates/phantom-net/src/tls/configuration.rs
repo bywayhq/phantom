@@ -245,6 +245,7 @@ fn extension_type(extension: ClientHelloExtension) -> Result<ExtensionType, TlsE
             Some(ExtensionType::CERTIFICATE_TIMESTAMP)
         }
         ClientHelloExtension::KeyShare => Some(ExtensionType::KEY_SHARE),
+        ClientHelloExtension::EarlyData => Some(ExtensionType::EARLY_DATA),
         ClientHelloExtension::SupportedVersions => Some(ExtensionType::SUPPORTED_VERSIONS),
         ClientHelloExtension::SignatureAlgorithms => Some(ExtensionType::SIGNATURE_ALGORITHMS),
         ClientHelloExtension::DelegatedCredential => Some(ExtensionType::DELEGATED_CREDENTIAL),
