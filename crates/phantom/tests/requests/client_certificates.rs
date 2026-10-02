@@ -407,7 +407,7 @@ fn key_of_another_certificate_is_a_key_mismatch() -> TestResult<()> {
 }
 
 #[test]
-fn der_input_is_parsed_and_checked_like_pem() -> TestResult<()> {
+fn der_chain_parses_and_a_foreign_der_key_is_a_key_mismatch() -> TestResult<()> {
     let identity = ClientIdentity::p256()?;
     let key = PKey::private_key_from_pem(identity.key_pem.as_bytes())?;
     let key_der = key.private_key_to_der()?;
