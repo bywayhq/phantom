@@ -118,8 +118,13 @@ async fn tcp_connection_leaves_from_the_bound_address() -> TestResult {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let binding = SourceBinding::new().with_address(IPV4_LOOPBACK);
 
-    let stream =
-        crate::tcp::connect_resolved(vec![listener.local_addr()?], None, Some(&binding)).await?;
+    let stream = crate::tcp::connect_resolved(
+        vec![listener.local_addr()?],
+        None,
+        Some(&binding),
+        std::time::Instant::now(),
+    )
+    .await?;
     let (_, peer) = listener.accept().await?;
 
     assert_eq!(peer.ip(), IPV4_LOOPBACK);
@@ -133,8 +138,13 @@ async fn tcp_bind_to_a_foreign_address_fails_before_connecting() -> TestResult {
     // TEST-NET-1 is assigned to no local interface, so the bind itself fails.
     let binding = SourceBinding::new().with_address(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)));
 
-    let result =
-        crate::tcp::connect_resolved(vec![listener.local_addr()?], None, Some(&binding)).await;
+    let result = crate::tcp::connect_resolved(
+        vec![listener.local_addr()?],
+        None,
+        Some(&binding),
+        std::time::Instant::now(),
+    )
+    .await;
 
     assert_eq!(
         result.map(drop).map_err(|error| error.kind()),
@@ -239,6 +249,7 @@ async fn tcp_connection_binds_to_the_loopback_interface() -> TestResult {
         vec![listener.local_addr()?],
         None,
         Some(&binding),
+        std::time::Instant::now(),
     )
     .await
     {

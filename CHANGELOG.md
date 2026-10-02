@@ -14,6 +14,34 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TcpSettings` replaces `keepalive: Option<TcpKeepalive>` with
+  `keepalive: TcpKeepalivePolicy` and `address_racing:
+  Option<TcpAddressRacing>` with `address_selection: TcpAddressSelection`,
+  gains `send_buffer_size: Option<NonZeroU32>`, and implements `Default`,
+  which asks for nothing. `TcpKeepalivePolicy::Schedule` takes a
+  `TcpKeepaliveSchedule` that changes keepalive over an HTTP connection's
+  life; `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`, the
+  failures that move an attempt to the next address; and
+  `TcpAddressSelection::Backup` takes a `TcpBackupConnection`, an IPv4
+  backup attempt for a slow first one, which closes the slower attempt where
+  Firefox keeps it. `firefox::v157_tcp` now uses the schedule and a
+  524,288-byte `SO_SNDBUF`, so a Firefox profile's connection sends
+  keepalive probes after 10 s idle; after 600 s once a request has run 72 s
+  (with a one-second probe interval) or the connection was upgraded; and
+  none after HTTP/2 is negotiated. Before, it set no keepalive. It still
+  tries the addresses one at a time, but now moves to the next only after a
+  refused, unreachable, or timed-out connect, as Firefox does.
+  `chromium::v154_tcp` keeps its behavior.
+  Migrate: replace `keepalive: Some(keepalive)` with `keepalive:
+  TcpKeepalivePolicy::Fixed(keepalive)` and `keepalive: None` with
+  `TcpKeepalivePolicy::Unchanged`; replace `address_racing: Some(racing)`
+  with `address_selection: TcpAddressSelection::Racing(racing)` and
+  `address_racing: None` with
+  `TcpAddressSelection::Sequential(TcpAddressAdvance::AfterAnyFailure)`; add
+  `send_buffer_size: None`, or end the literal with
+  `..TcpSettings::default()`. To keep the old Firefox behavior, set those
+  three fields of `firefox::v157_tcp()` to `Unchanged`,
+  `TcpAddressSelection::default()`, and `None`.
 - `RequestTemplate` gained the public field
   `restarts_for_connection_accept_ch` (`bool`), so struct literals that name
   every field no longer compile. It says whether a request with the template
@@ -603,6 +631,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `scripts/capture/firefox_socket_hooks.py` and the Frida agent extension
+  `scripts/capture/firefox_socket_hooks.js` record Firefox's socket options,
+  keepalive changes, connection attempts, and host lookups on Windows from
+  its parent process, with Firefox's own MOZ_LOG lines about the measured
+  origin. Logs of Firefox 157.0 on Windows 11 are retained under
+  `fixtures/socket-hooks/firefox/`.
 - `RequestField::RestartClientHints`, the place in a request template's
   list for the client hints an ALPS `ACCEPT_CH` restart adds. The
   Chromium-family navigation templates put it after `Accept`, where a

@@ -1,14 +1,19 @@
 use std::{io, time::Duration};
 
-use phantom_profile::{TcpAddressRacing, TcpKeepalive, TcpSettings};
+use phantom_profile::{
+    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy,
+    TcpSettings, chromium,
+};
 use socket2::SockRef;
 use tokio::net::TcpListener;
 
 use super::{
     KeepaliveSupport, address_racing::race, check_host_support, check_keepalive_support, connect,
-    connect_address,
+    connect_address, connect_sequentially,
 };
 
+mod address_selection;
+mod keepalive_paths;
 mod paths;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -18,11 +23,12 @@ const KEEPALIVE: Duration = Duration::from_secs(45);
 fn chromium_like() -> TcpSettings {
     TcpSettings {
         nodelay: true,
-        keepalive: Some(TcpKeepalive {
+        send_buffer_size: None,
+        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: KEEPALIVE,
             interval: Some(KEEPALIVE),
         }),
-        address_racing: Some(TcpAddressRacing {
+        address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
     }
@@ -80,11 +86,11 @@ async fn connect_races_resolved_names() -> TestResult {
 fn keepalive(interval: Option<Duration>) -> TcpSettings {
     TcpSettings {
         nodelay: true,
-        keepalive: Some(TcpKeepalive {
+        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: KEEPALIVE,
             interval,
         }),
-        address_racing: None,
+        ..TcpSettings::default()
     }
 }
 
@@ -105,7 +111,7 @@ fn host_check_accepts_what_the_platform_can_apply() {
         Ok(())
     );
     let without_keepalive = TcpSettings {
-        keepalive: None,
+        keepalive: TcpKeepalivePolicy::Unchanged,
         ..keepalive(None)
     };
     let nothing = KeepaliveSupport {
@@ -192,11 +198,7 @@ fn this_host_accepts_an_idle_only_keepalive() {
 async fn settings_that_ask_for_nothing_keep_os_defaults() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
-    let settings = TcpSettings {
-        nodelay: false,
-        keepalive: None,
-        address_racing: None,
-    };
+    let settings = TcpSettings::default();
 
     let stream = connect("127.0.0.1", port, Some(settings), None, None).await?;
     let socket = SockRef::from(&stream);
@@ -212,11 +214,11 @@ async fn invalid_settings_fail_before_any_connection() -> TestResult {
     let port = listener.local_addr()?.port();
     let settings = TcpSettings {
         nodelay: true,
-        keepalive: Some(TcpKeepalive {
+        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::ZERO,
             interval: None,
         }),
-        address_racing: None,
+        ..TcpSettings::default()
     };
 
     let error = match connect("127.0.0.1", port, Some(settings), None, None).await {
@@ -237,11 +239,11 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
     let port = listener.local_addr()?.port();
     let settings = TcpSettings {
         nodelay: true,
-        keepalive: Some(TcpKeepalive {
+        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: KEEPALIVE,
             interval: None,
         }),
-        address_racing: None,
+        ..TcpSettings::default()
     };
 
     let error = match connect("127.0.0.1", port, Some(settings), None, None).await {
@@ -250,5 +252,71 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
     };
 
     assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    Ok(())
+}
+
+/// Dials scripted outcomes: `reset` fails with a reset, every other address
+/// connects. Returns the addresses dialed, in order.
+fn scripted_dial(
+    reset: std::net::SocketAddr,
+    dialed: &std::cell::RefCell<Vec<std::net::SocketAddr>>,
+) -> impl FnMut(std::net::SocketAddr) -> std::future::Ready<io::Result<std::net::SocketAddr>> + '_ {
+    move |address| {
+        dialed.borrow_mut().push(address);
+        std::future::ready(if address == reset {
+            Err(io::ErrorKind::ConnectionReset.into())
+        } else {
+            Ok(address)
+        })
+    }
+}
+
+/// A reset connect ends the Firefox recipe's attempt at the first address,
+/// as only a refusal or timeout moves Firefox on, while the Chromium
+/// recipe's racing and the default sequential selection try the next one.
+#[tokio::test(flavor = "current_thread")]
+async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -> TestResult {
+    let first: std::net::SocketAddr = "192.0.2.1:443".parse()?;
+    let second: std::net::SocketAddr = "192.0.2.2:443".parse()?;
+
+    let TcpAddressSelection::Sequential(advance) =
+        phantom_profile::firefox::v157_tcp().address_selection
+    else {
+        return Err("the Firefox recipe is not sequential".into());
+    };
+    let dialed = std::cell::RefCell::new(Vec::new());
+    let error =
+        match connect_sequentially(vec![first, second], advance, scripted_dial(first, &dialed))
+            .await
+        {
+            Ok(address) => return Err(format!("connected to {address}").into()),
+            Err(error) => error,
+        };
+    assert_eq!(error.kind(), io::ErrorKind::ConnectionReset);
+    assert_eq!(*dialed.borrow(), [first]);
+
+    let dialed = std::cell::RefCell::new(Vec::new());
+    let address = connect_sequentially(
+        vec![first, second],
+        TcpAddressAdvance::AfterAnyFailure,
+        scripted_dial(first, &dialed),
+    )
+    .await?;
+    assert_eq!(address, second);
+    assert_eq!(*dialed.borrow(), [first, second]);
+
+    assert!(matches!(
+        chromium::v154_tcp().address_selection,
+        TcpAddressSelection::Racing(_)
+    ));
+    let dialed = std::cell::RefCell::new(Vec::new());
+    let address = race(
+        vec![first, second],
+        std::future::pending::<()>(),
+        scripted_dial(first, &dialed),
+    )
+    .await?;
+    assert_eq!(address, second);
+    assert_eq!(*dialed.borrow(), [first, second]);
     Ok(())
 }

@@ -25,6 +25,7 @@ use crate::{
         http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     source_binding::SourceBinding,
+    tcp::{ForeignStream, TcpKeepaliveSource},
     tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
 };
 
@@ -509,7 +510,7 @@ impl Http1Or2TlsConnector {
     {
         self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = self.tls.connect(server_name, stream).await?;
+            let stream = self.tls.connect(server_name, ForeignStream(stream)).await?;
             select_connection(stream, client).await
         }))
         .await
@@ -805,19 +806,26 @@ impl Http1Or2TlsConnector {
     }
 }
 
+/// Starts the protocol TLS selected and reports it to the connection's
+/// keepalive schedule, when there is one: HTTP/2 turns keepalive off, and
+/// HTTP/1.1 reports each request.
 async fn select_connection<S>(
     stream: crate::tls::TlsStream<S>,
     client: Http2Builder,
 ) -> Result<Http1Or2Connection, Http1Or2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
+    let keepalive = stream.tcp_keepalive();
     let negotiated = stream.negotiated_alpn();
     Span::current().record("negotiated_alpn", trace_alpn(negotiated));
     match negotiated {
         Some(b"h2") => {
             Span::current().record("selected_protocol", "h2");
             debug!("TLS selected HTTP/2");
+            if let Some(keepalive) = &keepalive {
+                keepalive.http2_negotiated();
+            }
             connect_selected(stream, client)
                 .await
                 .map(Http1Or2Connection::Http2)
@@ -827,7 +835,7 @@ where
             Span::current().record("selected_protocol", "http/1.1");
             debug!("TLS selected HTTP/1.1");
             let early_data = stream.early_data_wait();
-            Http1Connection::connect_with_early_data(stream, early_data)
+            Http1Connection::connect_with_early_data(stream, early_data, keepalive)
                 .await
                 .map(Http1Or2Connection::Http1)
                 .map_err(Into::into)

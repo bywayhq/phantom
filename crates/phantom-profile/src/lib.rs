@@ -50,7 +50,10 @@ pub use proxy_connect::{
 pub use request_template::{
     InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
 };
-pub use tcp::{InvalidTcpSettings, TcpAddressRacing, TcpKeepalive, TcpSettings};
+pub use tcp::{
+    InvalidTcpSettings, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
+    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpSettings,
+};
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, EchGreaseAead, InvalidTlsSettings, NamedGroup, SignatureScheme,

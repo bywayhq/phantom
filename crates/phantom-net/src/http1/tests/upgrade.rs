@@ -28,7 +28,7 @@ async fn forward_upgrade_serializes_exact_absolute_form_and_ordered_fields() -> 
                 RequestHeader::new("X-Order", "last"),
             ],
         )?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared));
+        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -69,7 +69,7 @@ async fn upgrade_retains_ordered_head_and_coalesced_protocol_bytes() -> TestResu
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared));
+        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -113,7 +113,7 @@ async fn non_switching_response_remains_streaming_http() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared));
+        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
         read_head(&mut server).await?;
         server
             .write_all(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 6\r\n\r\ndenied")
@@ -153,7 +153,7 @@ async fn cancelling_pending_upgrade_closes_the_stream() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let prepared = PreparedGet::new(target()?, vec![host()])?;
-        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared));
+        let transaction = tokio::spawn(send_prepared_upgrade(client, prepared, None));
         read_head(&mut server).await?;
 
         transaction.abort();

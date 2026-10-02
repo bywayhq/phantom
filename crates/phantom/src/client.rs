@@ -768,7 +768,7 @@ impl ClientBuilder {
     /// is never resolved or cached locally, and neither is a name with an
     /// override from [`resolve`](Self::resolve). Concurrent connections to
     /// one host share one lookup, and the resolver's address order is kept
-    /// for address racing. A system lookup runs on the blocking pool of the
+    /// for address selection. A system lookup runs on the blocking pool of the
     /// runtime that started it, as `tokio::net::lookup_host` does, so the
     /// number in flight is bounded by that pool, and a request on one runtime
     /// never waits on another runtime that has stopped being driven. A
@@ -1928,7 +1928,9 @@ mod tests {
 
     use std::time::Duration;
 
-    use phantom_profile::{ClientProfile, Http3ClientSettings, TcpKeepalive, chromium};
+    use phantom_profile::{
+        ClientProfile, Http3ClientSettings, TcpKeepalive, TcpKeepalivePolicy, chromium,
+    };
 
     use super::{Client, HttpProtocol};
     #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -2099,7 +2101,7 @@ mod tests {
     #[test]
     fn invalid_tcp_profile_has_invalid_profile_category() -> Result<(), &'static str> {
         let mut tcp = chromium::v154_tcp();
-        tcp.keepalive = Some(TcpKeepalive {
+        tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::ZERO,
             interval: None,
         });
@@ -2117,7 +2119,7 @@ mod tests {
     #[test]
     fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str> {
         let mut tcp = chromium::v154_tcp();
-        tcp.keepalive = Some(TcpKeepalive {
+        tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });
@@ -2135,7 +2137,7 @@ mod tests {
     #[test]
     fn idle_only_keepalive_builds_where_the_host_supports_it() -> Result<(), BuildError> {
         let mut tcp = chromium::v154_tcp();
-        tcp.keepalive = Some(TcpKeepalive {
+        tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });

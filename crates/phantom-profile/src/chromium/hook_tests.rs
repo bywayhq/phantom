@@ -6,6 +6,7 @@
 use std::time::Duration;
 
 use super::{v154_dns_cache, v154_http1, v154_tcp};
+use crate::tcp::{TcpAddressRacing, TcpAddressSelection, TcpKeepalivePolicy};
 
 struct HookLogs {
     browser: &'static str,
@@ -52,6 +53,13 @@ macro_rules! hook_log {
             ".txt"
         ))
     };
+}
+
+fn racing() -> Result<TcpAddressRacing, String> {
+    match v154_tcp().address_selection {
+        TcpAddressSelection::Racing(racing) => Ok(racing),
+        _ => Err("recipe does not race".to_owned()),
+    }
 }
 
 const LOGS: [HookLogs; 3] = [
@@ -106,7 +114,9 @@ fn assert_provenance(log: &str, logs: &HookLogs) -> Result<(), String> {
 fn chromium_family_sockets_set_the_chromium_tcp_options() -> Result<(), String> {
     let tcp = v154_tcp();
     assert!(tcp.nodelay);
-    let keepalive = tcp.keepalive.ok_or("recipe has no keepalive")?;
+    let TcpKeepalivePolicy::Fixed(keepalive) = tcp.keepalive else {
+        return Err("recipe has no fixed keepalive".to_owned());
+    };
     let interval = keepalive.interval.ok_or("recipe has no interval")?;
     let recipe = format!(
         "TCP_NODELAY=1,SIO_KEEPALIVE_VALS=1/{}/{}",
@@ -152,7 +162,7 @@ fn chromium_family_opens_the_http1_bound_to_one_origin() -> Result<(), String> {
 /// attempt of its connect job, within scheduling slack.
 #[test]
 fn chromium_family_starts_ipv4_after_the_racing_delay() -> Result<(), String> {
-    let racing = v154_tcp().address_racing.ok_or("recipe does not race")?;
+    let racing = racing()?;
     let slack = Duration::from_millis(60);
     for logs in &LOGS {
         let mut logs_with_pending_ipv6 = vec![logs.happy_eyeballs_slow];
@@ -181,7 +191,7 @@ fn chromium_family_starts_ipv4_after_the_racing_delay() -> Result<(), String> {
 /// fallback delay.
 #[test]
 fn chromium_154_tries_ipv4_right_after_a_failed_ipv6_attempt() -> Result<(), String> {
-    let racing = v154_tcp().address_racing.ok_or("recipe does not race")?;
+    let racing = racing()?;
     for logs in LOGS.iter().filter(|logs| logs.loopback_fast_fail) {
         assert_provenance(logs.happy_eyeballs, logs)?;
         for delay in field(logs.happy_eyeballs, "run_0_origin_ipv4_after_ipv6_ms")?.split(',') {

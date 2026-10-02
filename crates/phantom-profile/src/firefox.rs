@@ -1,6 +1,9 @@
 //! Wire settings retained from Firefox browser observations.
 
-use std::{num::NonZeroUsize, time::Duration};
+use std::{
+    num::{NonZeroU32, NonZeroUsize},
+    time::Duration,
+};
 
 use crate::{
     cookie::CookiePlacement,
@@ -26,7 +29,10 @@ use crate::{
         QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
     },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
-    tcp::TcpSettings,
+    tcp::{
+        TcpAddressAdvance, TcpAddressSelection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+        TcpSettings,
+    },
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
         EchGreaseAead, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
@@ -188,39 +194,84 @@ pub fn v157_tls() -> TlsSettings {
     }
 }
 
-/// Returns the TCP socket options Firefox 157.0 sets on every socket.
+/// Returns the TCP socket options and keepalive of Firefox 157.0 on Windows.
 ///
-/// From Firefox source at tag `FIREFOX_157_0_RELEASE`, not from a capture:
-/// `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on each new
-/// socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`).
+/// From the Firefox 157.0 socket hook logs taken on Windows 11 under
+/// `fixtures/socket-hooks/firefox/157.0/windows-11-26200/`, which the
+/// recipe's hook tests replay, and from source at tag
+/// `FIREFOX_157_0_RELEASE`:
 ///
-/// Firefox's TCP keepalive is not modeled, so this recipe leaves
-/// `SO_KEEPALIVE` untouched. Firefox changes keepalive per HTTP connection
-/// over time: a 10-second idle time for roughly the first 60 seconds of an
-/// HTTP/1 connection, then 600 seconds, with a probe interval derived from the
-/// measured RTT, and none once a connection negotiates HTTP/2
-/// (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`, `:2126-2241`;
-/// `modules/libpref/init/all.js:1262-1270`). One fixed socket option cannot
-/// reproduce that schedule.
+/// - Before it connects, `nsSocketTransport::InitiateSocket` sets
+///   `TCP_NODELAY` and, on Windows only, a 524,288-byte `SO_SNDBUF`
+///   (`netwerk/base/nsSocketTransport2.cpp:1449-1465`,
+///   `netwerk/base/nsSocketTransportService2.cpp:1536-1538`).
+/// - Keepalive follows [`TcpKeepaliveSchedule`] with the
+///   `network.http.tcp_keepalive.*` defaults: 10 seconds idle while
+///   short-lived, 600 seconds once long-lived, and a 60-second short-lived
+///   time (`modules/libpref/init/all.js:1263-1270`). The probe interval is
+///   the connection's setup time in whole seconds, at least one
+///   (`netwerk/protocol/http/nsHttpConnection.cpp:2146`, the time from
+///   `netwerk/protocol/http/DnsAndConnectSocket.cpp:941` to `:1134-1138`),
+///   and Windows' fixed count of 10 probes
+///   (`netwerk/base/nsSocketTransportService2.h:63-70`) puts the switch 72
+///   seconds after a request's dispatch with a one-second interval
+///   (`netwerk/protocol/http/nsHttpConnection.cpp:2167-2190`). Each request
+///   restarts the short-lived period (`:686`), an idle pooled connection
+///   stays short-lived (`:1411-1414`), HTTP/2 disables keepalive
+///   (`:405-406`), and a WebSocket upgrade switches at once (`:1303-1320`).
+/// - The addresses are tried one at a time in resolver order, and an attempt
+///   moves to the next address only after a refused, unreachable, or
+///   timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`,
+///   `:1747-1755`).
 ///
-/// Firefox's address selection is not modeled either, so addresses are tried
-/// one at a time in resolver order. Firefox 157 release builds keep the Happy
-/// Eyeballs implementation behind the nightly-only
-/// `network.http.happy_eyeballs_enabled` pref
-/// (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). The release path
-/// opens a backup connection restricted to IPv4 250 ms after the first
-/// (`modules/libpref/init/all.js:1205`, `:1237`;
-/// `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`), and its primary
-/// connection's address order also depends on per-host family preferences
-/// learned from earlier connections and on the DNS record's failure history
-/// (`netwerk/protocol/http/DnsAndConnectSocket.cpp:170-178`,
-/// `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
+/// Not modeled:
+///
+/// - Release builds keep Happy Eyeballs behind the nightly-only
+///   `network.http.happy_eyeballs_enabled`
+///   (`modules/libpref/init/StaticPrefList.yaml:17153-17156`) and open a
+///   backup attempt 250 ms after a first attempt that has not connected,
+///   restricted to IPv4 while no address family is learned
+///   (`modules/libpref/init/all.js:1205`, `:1237`;
+///   `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`, `:222-225`,
+///   `:242-265`, `:307-329`). Firefox then keeps the slower attempt's
+///   connection, finishes its TLS handshake, and pools it
+///   (`DnsAndConnectSocket.cpp:695-743`).
+///   [`TcpBackupConnection`](crate::tcp::TcpBackupConnection) opens the
+///   backup but closes the slower attempt, which a server sees as a
+///   connection ended without a request, so this recipe does not use it.
+/// - Firefox records the address family of each connection it opens for an
+///   origin and resolves only that family afterwards, while the origin's
+///   connection entry exists
+///   (`netwerk/protocol/http/DnsAndConnectSocket.cpp:167-178`, `:1150-1164`;
+///   `netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). Phantom
+///   tries every address on every connection.
+/// - On Windows Firefox also sets `SO_LINGER` to `{1, 0}`
+///   (`netwerk/base/nsSocketTransport2.cpp:1473-1485`), but it shuts the
+///   socket down with `SD_BOTH` before closing it
+///   (`netwerk/base/nsSocketTransport2.cpp:3407-3413`,
+///   `netwerk/base/ShutdownLayer.cpp:33`), so the peer sees a FIN, as it
+///   does from Phantom.
+/// - Firefox sets `SO_SNDBUF` on Windows only. On Linux a fixed send buffer
+///   turns off the kernel's send buffer autotuning, so clear
+///   [`TcpSettings::send_buffer_size`] for a profile used elsewhere.
+/// - On macOS Firefox sets only the keepalive idle time and assumes 8 probes;
+///   on Linux and Android it also sets `TCP_KEEPCNT` to 4. Phantom sets the
+///   interval wherever it can and never sets a probe count.
 #[must_use]
 pub fn v157_tcp() -> TcpSettings {
     TcpSettings {
         nodelay: true,
-        keepalive: None,
-        address_racing: None,
+        send_buffer_size: NonZeroU32::new(524_288),
+        keepalive: TcpKeepalivePolicy::Schedule(TcpKeepaliveSchedule {
+            short_lived_idle: Duration::from_secs(10),
+            long_lived_idle: Duration::from_secs(600),
+            minimum_interval: Duration::from_secs(1),
+            short_lived_time: Duration::from_secs(60),
+            probe_count: 10,
+        }),
+        address_selection: TcpAddressSelection::Sequential(
+            TcpAddressAdvance::AfterRefusalOrTimeout,
+        ),
     }
 }
 
@@ -237,7 +288,8 @@ pub fn v157_tcp() -> TcpSettings {
 ///
 /// Two parts are not modeled. On Windows `network.dns.get-ttl` is on
 /// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`), so Firefox keeps
-/// an answer for its record TTL; Phantom sees no TTL and keeps each answer
+/// an answer for its record TTL, which the Firefox 157 socket hook logs show
+/// it reading with `DnsQuery_A`; Phantom sees no TTL and keeps each answer
 /// for 60 seconds. Firefox also serves an expired answer for up to
 /// `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
 /// the name again in the background (`:15680-15685`;
@@ -1051,5 +1103,7 @@ fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
     }
 }
 
+#[cfg(test)]
+mod hook_tests;
 #[cfg(test)]
 mod tests;

@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use crate::{
     host_resolver::{HostResolver, resolve},
     source_binding::SourceBinding,
+    tcp::ProfileTcpStream,
 };
 
 const TOKIO_IO_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.";
@@ -42,13 +43,15 @@ pub(crate) async fn connect_tcp(
     host: &str,
     port: u16,
     dialer: Dialer<'_>,
-) -> Result<TcpStream, DirectConnectError> {
+) -> Result<ProfileTcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
     let stream = match (dialer.tcp, dialer.source) {
         (None, None) => {
             poll_tokio_io(|| async {
                 let addresses = resolve(dialer.resolver, host, port).await?;
-                TcpStream::connect(&*addresses).await
+                TcpStream::connect(&*addresses)
+                    .await
+                    .map(ProfileTcpStream::new)
             })
             .await
         }
@@ -59,7 +62,7 @@ pub(crate) async fn connect_tcp(
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;
     #[cfg(test)]
-    crate::tcp::observed::record(&stream);
+    crate::tcp::observed::record(stream.tcp_stream());
     Ok(stream)
 }
 
@@ -107,7 +110,7 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
     port: u16,
     dialer: Dialer<'_>,
     lookup: impl Future<Output = Option<T>>,
-) -> Result<(TcpStream, Option<T>), DirectConnectError> {
+) -> Result<(ProfileTcpStream, Option<T>), DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
     let started = std::time::Instant::now();
     let (addresses, stored) =
@@ -132,7 +135,7 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
             _ = deadline => None,
         }
     };
-    let connect = connect_addresses(addresses, dialer);
+    let connect = connect_addresses(addresses, dialer, started);
     let (stream, result) = tokio::try_join!(connect, async {
         Ok::<_, DirectConnectError>(bounded_lookup.await)
     })?;
@@ -146,9 +149,9 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
 pub(crate) async fn connect_tcp_address(
     address: std::net::SocketAddr,
     dialer: Dialer<'_>,
-) -> Result<TcpStream, DirectConnectError> {
+) -> Result<ProfileTcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    connect_addresses(vec![address], dialer).await
+    connect_addresses(vec![address], dialer, std::time::Instant::now()).await
 }
 
 /// Why a direct TLS connection that could offer Encrypted Client Hello failed.
@@ -184,7 +187,7 @@ pub(crate) async fn connect_tls_with_ech(
     server_name: &str,
     ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
     offer_early_data: bool,
-) -> Result<crate::tls::TlsStream<TcpStream>, DirectTlsError> {
+) -> Result<crate::tls::TlsStream<ProfileTcpStream>, DirectTlsError> {
     use crate::{
         dns::EchConfigList,
         tls::{EchFailure, TlsError},
@@ -229,19 +232,25 @@ pub(crate) async fn connect_tls_with_ech(
 async fn connect_addresses(
     addresses: Vec<std::net::SocketAddr>,
     dialer: Dialer<'_>,
-) -> Result<TcpStream, DirectConnectError> {
+    started: std::time::Instant,
+) -> Result<ProfileTcpStream, DirectConnectError> {
     let stream = match (dialer.tcp, dialer.source) {
         (None, None) => {
-            poll_tokio_io(|| async move { TcpStream::connect(&addresses[..]).await }).await
+            poll_tokio_io(|| async move {
+                TcpStream::connect(&addresses[..])
+                    .await
+                    .map(ProfileTcpStream::new)
+            })
+            .await
         }
         (tcp, source) => {
-            poll_tokio_io(|| crate::tcp::connect_resolved(addresses, tcp, source)).await
+            poll_tokio_io(|| crate::tcp::connect_resolved(addresses, tcp, source, started)).await
         }
     }
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;
     #[cfg(test)]
-    crate::tcp::observed::record(&stream);
+    crate::tcp::observed::record(stream.tcp_stream());
     Ok(stream)
 }
 

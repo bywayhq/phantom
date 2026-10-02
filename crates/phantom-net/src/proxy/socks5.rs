@@ -251,6 +251,7 @@ pub async fn connect_socks5_tunnel_direct_with_auth(
         auth,
     )
     .await
+    .map(crate::tcp::ProfileTcpStream::into_tcp_stream)
 }
 
 /// Opens a SOCKS5 CONNECT tunnel with proxy-owned DNS on a socket from
@@ -262,7 +263,7 @@ pub(crate) async fn socks5_tunnel_remote_dns(
     target_host: &str,
     target_port: u16,
     auth: Socks5Auth<'_>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
+) -> Result<crate::tcp::ProfileTcpStream, Socks5Error> {
     trace_connect(
         "remote",
         pin!(async {
@@ -327,6 +328,7 @@ pub async fn connect_socks5_tunnel_local_with_auth(
         auth,
     )
     .await
+    .map(crate::tcp::ProfileTcpStream::into_tcp_stream)
 }
 
 /// Opens a SOCKS5 CONNECT tunnel with local target DNS on sockets from
@@ -338,7 +340,7 @@ pub(crate) async fn socks5_tunnel_local_dns(
     target_host: &str,
     target_port: u16,
     auth: Socks5Auth<'_>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
+) -> Result<crate::tcp::ProfileTcpStream, Socks5Error> {
     trace_connect(
         "local",
         pin!(async {
@@ -431,7 +433,7 @@ pub(super) async fn connect_local_to_addresses(
     proxy_host: &str,
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
+) -> Result<crate::tcp::ProfileTcpStream, Socks5Error> {
     connect_local_to_addresses_with_auth(
         Dialer::default(),
         proxy_host,
@@ -448,7 +450,7 @@ pub(super) async fn connect_local_to_addresses_with_auth(
     proxy_port: u16,
     targets: impl IntoIterator<Item = SocketAddr>,
     auth: Socks5Auth<'_>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
+) -> Result<crate::tcp::ProfileTcpStream, Socks5Error> {
     let auth = auth.validate()?;
     let mut last_rejection = None;
     for target in targets {
@@ -483,7 +485,7 @@ pub(super) async fn connect_proxy(
     dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
+) -> Result<crate::tcp::ProfileTcpStream, Socks5Error> {
     connect_tcp(proxy_host, proxy_port, dialer)
         .await
         .map_err(|error| match error {

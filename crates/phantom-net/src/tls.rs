@@ -764,6 +764,12 @@ pub(crate) struct TlsStream<S> {
     early_data: Option<EarlyData>,
 }
 
+impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for TlsStream<S> {
+    fn tcp_keepalive(&self) -> Option<crate::tcp::TcpKeepaliveControl> {
+        crate::tcp::TcpKeepaliveSource::tcp_keepalive(self.inner.get_ref())
+    }
+}
+
 impl<S> TlsStream<S> {
     /// Returns a handle that tells when the server answers this stream's early
     /// data, or `None` when the handshake completed without offering any.

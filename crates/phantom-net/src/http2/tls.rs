@@ -27,6 +27,7 @@ use crate::{
         http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     source_binding::SourceBinding,
+    tcp::{ForeignStream, TcpKeepaliveControl, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -291,7 +292,8 @@ impl Http2TlsConnector {
     {
         self.trace_connect(pin!(async {
             let client = translate_settings(&self.http2)?;
-            self.connect_prepared(stream, server_name, client).await
+            self.connect_prepared(ForeignStream(stream), server_name, client)
+                .await
         }))
         .await
     }
@@ -324,7 +326,8 @@ impl Http2TlsConnector {
                 .tls
                 .connect_offering_early_data(server_name, stream)
                 .await?;
-            connect_over_tls(stream, client, false).await
+            let keepalive = stream.tcp_keepalive();
+            connect_over_tls(stream, client, false, keepalive).await
         }))
         .await
     }
@@ -363,7 +366,8 @@ impl Http2TlsConnector {
                 true,
             )
             .await?;
-            connect_over_tls(stream, client, false).await
+            let keepalive = stream.tcp_keepalive();
+            connect_over_tls(stream, client, false, keepalive).await
         }))
         .await
     }
@@ -436,7 +440,8 @@ impl Http2TlsConnector {
             false,
         )
         .await?;
-        let connection = connect_over_tls(stream, client, true).await?;
+        let keepalive = stream.tcp_keepalive();
+        let connection = connect_over_tls(stream, client, true, keepalive).await?;
         connection
             .send_extended_connect_with_settings(&self.http2, authority, target, headers)
             .await
@@ -945,7 +950,7 @@ impl Http2TlsConnector {
             pin!(async {
                 let prepared =
                     PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-                self.send_prepared_request(stream, server_name, prepared)
+                self.send_prepared_request(ForeignStream(stream), server_name, prepared)
                     .await
             }),
         )
@@ -1437,7 +1442,7 @@ impl Http2TlsConnector {
         prepared: PreparedRequest,
     ) -> Result<Response<Http2Body>, Http2TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         debug!("HTTP/2 request prepared");
         let connection = self
@@ -1473,7 +1478,7 @@ impl Http2TlsConnector {
         headers: Vec<RequestHeader>,
     ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         let connection = self
             .connect_prepared_extended(stream, server_name, client)
@@ -1516,7 +1521,7 @@ impl Http2TlsConnector {
         client: Http2Builder,
     ) -> Result<Http2Connection, Http2TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         self.connect_prepared_kind(stream, server_name, client, false)
             .await
@@ -1529,7 +1534,7 @@ impl Http2TlsConnector {
         client: Http2Builder,
     ) -> Result<Http2Connection, Http2TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         self.connect_prepared_kind(stream, server_name, client, true)
             .await
@@ -1543,10 +1548,11 @@ impl Http2TlsConnector {
         extended_connect: bool,
     ) -> Result<Http2Connection, Http2TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         let stream = self.tls.connect(server_name, stream).await?;
-        connect_over_tls(stream, client, extended_connect).await
+        let keepalive = stream.tcp_keepalive();
+        connect_over_tls(stream, client, extended_connect, keepalive).await
     }
 
     /// Runs `operation` in the connection span and records its outcome.
@@ -1716,10 +1722,13 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
 ///
 /// Missing ALPN and every other selected protocol are rejected before the
 /// connection preface is written.
+///
+/// HTTP/2 turns off `keepalive`, when there is one.
 async fn connect_over_tls<S>(
     stream: TlsStream<S>,
     client: Http2Builder,
     extended_connect: bool,
+    keepalive: Option<TcpKeepaliveControl>,
 ) -> Result<Http2Connection, Http2TlsError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -1727,7 +1736,11 @@ where
     let negotiated = stream.negotiated_alpn();
     Span::current().record("negotiated_alpn", trace_alpn(negotiated));
     match negotiated {
-        Some(b"h2") => {}
+        Some(b"h2") => {
+            if let Some(keepalive) = &keepalive {
+                keepalive.http2_negotiated();
+            }
+        }
         None => {
             debug!("TLS completed without the required HTTP/2 ALPN protocol");
             return Err(Http2TlsError::MissingNegotiatedAlpn);

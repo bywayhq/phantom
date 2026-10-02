@@ -145,6 +145,7 @@ pub async fn connect_http_tunnel_direct(
         headers,
     )
     .await
+    .map(|tunnel| tunnel.map_inner(crate::tcp::ProfileTcpStream::into_tcp_stream))
 }
 
 /// Opens a direct HTTP CONNECT tunnel on a proxy socket from `dialer`.
@@ -154,7 +155,7 @@ pub(crate) async fn http_connect_tunnel(
     proxy_port: u16,
     authority: &str,
     headers: &[HttpConnectHeader],
-) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
+) -> Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
     trace_connect(
         "http",
         pin!(async {
@@ -196,6 +197,7 @@ pub async fn connect_http_tunnel_direct_with_basic_auth(
         credentials,
     )
     .await
+    .map(|tunnel| tunnel.map_inner(crate::tcp::ProfileTcpStream::into_tcp_stream))
 }
 
 /// Opens a direct Basic-authenticated CONNECT tunnel on sockets from `dialer`.
@@ -212,7 +214,7 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
     authority: &str,
     headers: &[HttpConnectHeader],
     credentials: &HttpBasicCredentials,
-) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
+) -> Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
     trace_connect(
         "http",
         pin!(async {
@@ -302,7 +304,7 @@ async fn connect_proxy_tcp(
     dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
-) -> Result<tokio::net::TcpStream, HttpConnectError> {
+) -> Result<crate::tcp::ProfileTcpStream, HttpConnectError> {
     connect_tcp(proxy_host, proxy_port, dialer)
         .await
         .map_err(|error| match error {

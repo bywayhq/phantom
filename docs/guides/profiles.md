@@ -24,8 +24,9 @@ use phantom::profile::{
 };
 
 fn profiles() -> [ClientProfile; 5] {
-    // Firefox 157: TLS, HTTP/2, and cookie-field recipes, plus its
-    // source-derived TCP options and HTTP/1.1 connection count.
+    // Firefox 157: TLS, HTTP/2, and cookie-field recipes, its hooked TCP
+    // options and keepalive, and its source-derived HTTP/1.1 connection
+    // count.
     let firefox = ClientProfile::new(firefox::v157_tls())
         .with_tcp(firefox::v157_tcp())
         .with_http1(firefox::v157_http1())
@@ -115,12 +116,12 @@ Start from a recipe, change its public fields, and build the profile from
 the result.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile, CookiePlacement};
+use phantom::profile::{chromium, ClientProfile, CookiePlacement, TcpKeepalivePolicy};
 
 fn chrome_on_macos() -> ClientProfile {
     // Chromium on macOS sets only the keepalive idle time.
     let mut tcp = chromium::v154_tcp();
-    if let Some(keepalive) = tcp.keepalive.as_mut() {
+    if let TcpKeepalivePolicy::Fixed(keepalive) = &mut tcp.keepalive {
         keepalive.interval = None;
     }
 
@@ -145,7 +146,10 @@ fn chrome_on_macos() -> ClientProfile {
   ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
-- Firefox's keepalive schedule and address selection are not modeled
+- `firefox::v157_tcp` tries the addresses one at a time, moving on only
+  after a refused, unreachable, or timed-out connect. Firefox also starts an
+  IPv4 backup attempt after 250 ms, keeps the slower connection, and
+  remembers an origin's address family
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
   Brave, Edge, and Opera use `chromium::v154_tcp`, which leaves out the
   Windows port randomization that the Chrome, Edge, and Opera hook logs

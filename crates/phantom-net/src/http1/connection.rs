@@ -31,6 +31,7 @@ use super::{
 use crate::{
     http1::Http1TlsError,
     request::{RequestBody, RequestBodyError},
+    tcp::TcpKeepaliveControl,
     tls::{EarlyDataFailure, EarlyDataWait, TlsError},
 };
 
@@ -53,7 +54,7 @@ impl Http1Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::connect_with_early_data(stream, None).await
+        Self::connect_with_early_data(stream, None, None).await
     }
 
     /// Establishes HTTP/1.1 over a TLS stream whose server may not have
@@ -65,9 +66,13 @@ impl Http1Connection {
     /// `netwerk/protocol/http/TlsHandshaker.cpp:304-320` at tag
     /// `FIREFOX_157_0_RELEASE`). The idle connection keeps reading, which
     /// completes the handshake.
+    ///
+    /// With `keepalive`, each request and each return to idle is reported to
+    /// the TCP connection's keepalive schedule.
     pub(crate) async fn connect_with_early_data<T>(
         stream: T,
         early_data: Option<EarlyDataWait>,
+        keepalive: Option<TcpKeepaliveControl>,
     ) -> Result<Self, Http1Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -86,6 +91,7 @@ impl Http1Connection {
                 reusable: AtomicBool::new(true),
                 delivered_response: AtomicBool::new(false),
                 early_data,
+                keepalive,
             }),
         })
     }
@@ -313,6 +319,9 @@ impl Http1Connection {
             if !self.is_reusable() {
                 return Err(Http1Error::ConnectionClosed);
             }
+            if let Some(keepalive) = &self.inner.keepalive {
+                keepalive.request_dispatched();
+            }
 
             let mut sender = self.inner.sender.lock().await;
             self.inner.observer.begin();
@@ -428,6 +437,13 @@ impl ConnectionLease {
         if !reusable {
             self.stop(DriverSignal::Complete);
         }
+        if let Some(keepalive) = self
+            .inner
+            .as_ref()
+            .and_then(|inner| inner.keepalive.as_ref())
+        {
+            keepalive.connection_idle();
+        }
         self.permit.take();
         self.inner.take();
     }
@@ -451,6 +467,8 @@ struct ConnectionInner {
     delivered_response: AtomicBool,
     /// Present when the connection was opened with early data.
     early_data: Option<EarlyDataWait>,
+    /// Present when the TCP connection follows a keepalive schedule.
+    keepalive: Option<TcpKeepaliveControl>,
 }
 
 struct InFlightGuard<'a> {

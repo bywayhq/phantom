@@ -32,7 +32,9 @@ use crate::{
     },
 };
 
-use crate::tcp::{TcpAddressRacing, TcpKeepalive, TcpSettings};
+use crate::tcp::{
+    TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpSettings,
+};
 
 use crate::quic::{
     GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
@@ -315,11 +317,12 @@ pub fn v154_tcp() -> TcpSettings {
 
     TcpSettings {
         nodelay: true,
-        keepalive: Some(TcpKeepalive {
+        send_buffer_size: None,
+        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: KEEPALIVE,
             interval: Some(KEEPALIVE),
         }),
-        address_racing: Some(TcpAddressRacing {
+        address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
     }

@@ -300,7 +300,7 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
-    ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
+    ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
         if self.protocol != HttpsProxyProtocol::Http1 {
             return Err(HttpConnectError::ForwardingRequiresHttp1);
         }
@@ -615,7 +615,7 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
-    ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
+    ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
         let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
             .await
             .map_err(|error| match error {
@@ -633,7 +633,7 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
-    ) -> Result<TlsStream<tokio::net::TcpStream>, HttpConnectError> {
+    ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
         let stream = self
             .connect_proxy_tls(proxy_host, proxy_port, proxy_server_name)
             .await?;
@@ -670,6 +670,10 @@ impl HttpsProxyConnector {
             }
             None => return Err(HttpConnectError::MissingNegotiatedAlpn),
         }
+        // The proxy connection carries HTTP/2, which turns its keepalive off.
+        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
+            keepalive.http2_negotiated();
+        }
         connect_selected(stream, client)
             .await
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
@@ -695,6 +699,10 @@ impl HttpsProxyConnector {
                 });
             }
             None => return Err(HttpConnectError::MissingNegotiatedAlpn),
+        }
+        // The proxy connection carries HTTP/2, which turns its keepalive off.
+        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
+            keepalive.http2_negotiated();
         }
         connect_selected_extended(stream, client)
             .await
@@ -788,12 +796,12 @@ pub(crate) struct HttpsProxyTunnel {
 }
 
 enum TunnelInner {
-    Http1(TunnelStream<TlsStream<tokio::net::TcpStream>>),
+    Http1(TunnelStream<TlsStream<crate::tcp::ProfileTcpStream>>),
     Http2(Box<Http2ConnectStream>),
 }
 
 impl HttpsProxyTunnel {
-    pub(super) fn http1(stream: TunnelStream<TlsStream<tokio::net::TcpStream>>) -> Self {
+    pub(super) fn http1(stream: TunnelStream<TlsStream<crate::tcp::ProfileTcpStream>>) -> Self {
         Self {
             inner: TunnelInner::Http1(stream),
         }
@@ -802,6 +810,18 @@ impl HttpsProxyTunnel {
     pub(super) fn http2(stream: Http2ConnectStream) -> Self {
         Self {
             inner: TunnelInner::Http2(Box::new(stream)),
+        }
+    }
+}
+
+/// A tunnel inside an HTTP/2 proxy connection shares that connection's
+/// socket, which keeps HTTP/2's keepalive; only an HTTP/1.1 tunnel owns its
+/// proxy socket.
+impl crate::tcp::TcpKeepaliveSource for HttpsProxyTunnel {
+    fn tcp_keepalive(&self) -> Option<crate::tcp::TcpKeepaliveControl> {
+        match &self.inner {
+            TunnelInner::Http1(stream) => crate::tcp::TcpKeepaliveSource::tcp_keepalive(stream),
+            TunnelInner::Http2(_) => None,
         }
     }
 }

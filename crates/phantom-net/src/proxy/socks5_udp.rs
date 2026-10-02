@@ -190,7 +190,10 @@ async fn establish_udp_association(
     tokio::runtime::Handle::try_current()
         .map_err(|_| Socks5Error::without_source(Socks5ErrorKind::RuntimeUnavailable))?;
 
-    let mut control = connect_proxy(dialer, proxy_host, proxy_port).await?;
+    // The control connection carries no HTTP, so no keepalive schedule.
+    let mut control = connect_proxy(dialer, proxy_host, proxy_port)
+        .await?
+        .into_tcp_stream();
     negotiate_authentication(&mut control, auth).await?;
 
     let control_local = control

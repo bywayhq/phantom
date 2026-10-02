@@ -1,40 +1,250 @@
-//! Host support for profile TCP socket options.
+//! Profile TCP connections: socket options, address selection, and
+//! keepalive.
 //!
 //! Outgoing TCP sockets are opened with a profile's [`TcpSettings`].
 //! [`check_host_support`] reports, before any I/O, whether this host can apply
 //! those settings exactly as written.
 
-use std::{error::Error, fmt, io, net::SocketAddr};
+use std::{
+    error::Error,
+    fmt, io,
+    net::SocketAddr,
+    pin::Pin,
+    task::{Context, Poll},
+    time::{Duration, Instant},
+};
 
-use phantom_profile::{TcpKeepalive, TcpSettings};
+use phantom_profile::{
+    TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpSettings,
+};
 use socket2::SockRef;
-use tokio::net::{TcpSocket, TcpStream};
+use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
+    net::{TcpSocket, TcpStream},
+};
 
 use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
 
 mod address_racing;
+mod backup_connection;
+mod keepalive_schedule;
+
+pub(crate) use keepalive_schedule::TcpKeepaliveControl;
+
+/// A TCP connection opened with a profile's [`TcpSettings`].
+///
+/// With a [`TcpKeepalivePolicy::Schedule`], the HTTP layers report the
+/// connection's life to it, and each read and write first brings the
+/// socket's keepalive up to date, so a change always precedes the bytes
+/// written after it.
+pub(crate) struct ProfileTcpStream {
+    stream: TcpStream,
+    keepalive: Option<TcpKeepaliveControl>,
+}
+
+impl ProfileTcpStream {
+    /// A stream without a keepalive schedule.
+    pub(crate) fn new(stream: TcpStream) -> Self {
+        Self {
+            stream,
+            keepalive: None,
+        }
+    }
+
+    /// Returns the remote address of the connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns the operating system's error when the socket has none.
+    #[cfg(any(test, feature = "https-records"))]
+    pub(crate) fn peer_addr(&self) -> io::Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    /// Returns the local address of the connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns the operating system's error when the socket has none.
+    #[cfg(test)]
+    pub(crate) fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn tcp_stream(&self) -> &TcpStream {
+        &self.stream
+    }
+
+    /// The bare stream, without a keepalive schedule. A connection that
+    /// carries no HTTP, such as a SOCKS5 UDP association's control
+    /// connection, takes it before any I/O, so no keepalive is set on it;
+    /// otherwise its keepalive stays as last applied.
+    pub(crate) fn into_tcp_stream(self) -> TcpStream {
+        self.stream
+    }
+
+    fn apply_keepalive(&self, context: &Context<'_>) -> io::Result<()> {
+        match &self.keepalive {
+            Some(keepalive) => keepalive.apply(&self.stream, context.waker()),
+            None => Ok(()),
+        }
+    }
+}
+
+impl AsyncRead for ProfileTcpStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let this = self.get_mut();
+        this.apply_keepalive(context)?;
+        Pin::new(&mut this.stream).poll_read(context, buffer)
+    }
+}
+
+impl AsyncWrite for ProfileTcpStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let this = self.get_mut();
+        this.apply_keepalive(context)?;
+        Pin::new(&mut this.stream).poll_write(context, buffer)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffers: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let this = self.get_mut();
+        this.apply_keepalive(context)?;
+        Pin::new(&mut this.stream).poll_write_vectored(context, buffers)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.stream.is_write_vectored()
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().stream).poll_flush(context)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().stream).poll_shutdown(context)
+    }
+}
+
+/// A byte stream that may run over a [`ProfileTcpStream`], whose keepalive
+/// schedule the HTTP layers on top of it then report to.
+pub(crate) trait TcpKeepaliveSource {
+    /// The schedule's control, when the TCP connection underneath has one.
+    fn tcp_keepalive(&self) -> Option<TcpKeepaliveControl>;
+}
+
+impl TcpKeepaliveSource for ProfileTcpStream {
+    fn tcp_keepalive(&self) -> Option<TcpKeepaliveControl> {
+        self.keepalive.clone()
+    }
+}
+
+/// A byte stream a caller supplied, which carries no profile keepalive
+/// schedule.
+pub(crate) struct ForeignStream<S>(pub(crate) S);
+
+impl<S> TcpKeepaliveSource for ForeignStream<S> {
+    fn tcp_keepalive(&self) -> Option<TcpKeepaliveControl> {
+        None
+    }
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for ForeignStream<S> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().0).poll_read(context, buffer)
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for ForeignStream<S> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.get_mut().0).poll_write(context, buffer)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffers: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.get_mut().0).poll_write_vectored(context, buffers)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.0.is_write_vectored()
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().0).poll_flush(context)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().0).poll_shutdown(context)
+    }
+}
+
+#[cfg(windows)]
+impl std::os::windows::io::AsSocket for ProfileTcpStream {
+    fn as_socket(&self) -> std::os::windows::io::BorrowedSocket<'_> {
+        self.stream.as_socket()
+    }
+}
+
+#[cfg(unix)]
+impl std::os::fd::AsFd for ProfileTcpStream {
+    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
+        self.stream.as_fd()
+    }
+}
+
+impl fmt::Debug for ProfileTcpStream {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ProfileTcpStream")
+            .field("stream", &self.stream)
+            .field("keepalive_schedule", &self.keepalive.is_some())
+            .finish()
+    }
+}
 
 /// Resolves `host`, through `resolver` when there is one, and connects to one
 /// of its addresses.
 ///
 /// Each attempt opens a fresh socket, applies `settings` when there are any,
 /// and binds it as `source` says before connecting, as a browser applies its
-/// options, so they already cover the TLS handshake. With
-/// [`TcpSettings::address_racing`] the addresses race as
-/// [`address_racing::race`] describes; otherwise they are tried one at a time
-/// in resolver order. Either way, if every attempt fails, the most recent
-/// failure is returned. A source binding with an address for only one family
-/// skips the addresses of the other; see [`SourceBinding`].
+/// options, so they already cover the TLS handshake. The addresses are tried
+/// as [`TcpSettings::address_selection`] says; if every attempt fails, the
+/// most recent failure is returned. A source binding with an address for
+/// only one family skips the addresses of the other; see [`SourceBinding`].
 pub(crate) async fn connect(
     host: &str,
     port: u16,
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
     resolver: Option<&HostResolver>,
-) -> io::Result<TcpStream> {
+) -> io::Result<ProfileTcpStream> {
     check_settings(settings.as_ref(), source)?;
+    let started = Instant::now();
     let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
-    connect_resolved(addresses, settings, source).await
+    connect_resolved(addresses, settings, source, started).await
 }
 
 fn check_settings(
@@ -58,43 +268,116 @@ fn check_settings(
 }
 
 /// Connects to one of `addresses`, already resolved, as [`connect`] does.
+///
+/// `started` is when the host lookup began; a keepalive schedule takes its
+/// probe interval from the time since then.
 pub(crate) async fn connect_resolved(
     addresses: Vec<SocketAddr>,
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
-) -> io::Result<TcpStream> {
+    started: Instant,
+) -> io::Result<ProfileTcpStream> {
     check_settings(settings.as_ref(), source)?;
+    // A schedule that could never switch would silently keep short-lived
+    // keepalive; once the deadline service runs, it stays available.
+    if settings
+        .is_some_and(|settings| matches!(settings.keepalive, TcpKeepalivePolicy::Schedule(_)))
+        && !crate::shutdown_timer::is_available()
+    {
+        return Err(io::Error::other(
+            "could not start the keepalive schedule's timer",
+        ));
+    }
     let addresses = match source {
         Some(source) => source.usable_addresses(addresses)?,
         None => addresses,
     };
-    match settings.and_then(|settings| settings.address_racing) {
-        Some(racing) => {
-            let fallback = crate::shutdown_timer::after(racing.fallback_delay).map_err(|_| {
-                io::Error::other("could not schedule the connection fallback timer")
-            })?;
-            // The deadline service never drops a pending deadline, so a
-            // receive error cannot occur; treating one as expiry still keeps
-            // the second attempt from being lost.
-            let fallback = async {
-                let _ = fallback.await;
-            };
-            address_racing::race(addresses, fallback, |address| {
-                connect_address(address, settings, source)
-            })
-            .await
+    let selection = settings.map_or_else(TcpAddressSelection::default, |settings| {
+        settings.address_selection
+    });
+    let dial = |address| connect_address(address, settings, source);
+    let (stream, attempt_started) = match selection {
+        TcpAddressSelection::Sequential(advance) => (
+            connect_sequentially(addresses, advance, dial).await?,
+            started,
+        ),
+        TcpAddressSelection::Racing(racing) => {
+            let fallback = deadline(racing.fallback_delay)?;
+            let stream = address_racing::race(addresses, fallback, dial).await?;
+            (stream, started)
         }
-        None => {
-            let mut last_error = None;
-            for address in addresses {
-                match connect_address(address, settings, source).await {
-                    Ok(stream) => return Ok(stream),
-                    Err(error) => last_error = Some(error),
+        TcpAddressSelection::Backup(backup) => {
+            let delay = deadline(backup.delay)?;
+            backup_connection::connect(addresses, delay, dial, started).await?
+        }
+    };
+    let keepalive = match settings.map(|settings| settings.keepalive) {
+        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(TcpKeepaliveControl::opened(
+            schedule,
+            attempt_started.elapsed(),
+        )),
+        _ => None,
+    };
+    Ok(ProfileTcpStream { stream, keepalive })
+}
+
+/// Tries `addresses` one at a time in resolver order, moving on after the
+/// failures `advance` names and returning any other failure at once.
+async fn connect_sequentially<Dial, Attempt, Stream>(
+    addresses: Vec<SocketAddr>,
+    advance: TcpAddressAdvance,
+    mut dial: Dial,
+) -> io::Result<Stream>
+where
+    Dial: FnMut(SocketAddr) -> Attempt,
+    Attempt: std::future::Future<Output = io::Result<Stream>>,
+{
+    let mut last_error = None;
+    for address in addresses {
+        match dial(address).await {
+            Ok(stream) => return Ok(stream),
+            Err(error) => {
+                let moves_on = match advance {
+                    TcpAddressAdvance::AfterAnyFailure => true,
+                    TcpAddressAdvance::AfterRefusalOrTimeout => is_refusal_or_timeout(&error),
+                };
+                if !moves_on {
+                    return Err(error);
                 }
+                last_error = Some(error);
             }
-            Err(last_error.unwrap_or_else(no_addresses))
         }
     }
+    Err(last_error.unwrap_or_else(no_addresses))
+}
+
+/// Whether Firefox tries the next address after this failure: a refused
+/// connect, which it also reports for an unreachable network or host, an
+/// unavailable address, and a denied connect, or a timeout
+/// (`netwerk/base/nsSocketTransport2.cpp:169-200` at tag
+/// `FIREFOX_157_0_RELEASE`).
+fn is_refusal_or_timeout(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::ConnectionRefused
+            | io::ErrorKind::NetworkUnreachable
+            | io::ErrorKind::HostUnreachable
+            | io::ErrorKind::AddrNotAvailable
+            | io::ErrorKind::PermissionDenied
+            | io::ErrorKind::TimedOut
+    )
+}
+
+/// A delay from the deadline service.
+fn deadline(delay: Duration) -> io::Result<impl std::future::Future<Output = ()>> {
+    let deadline = crate::shutdown_timer::after(delay)
+        .map_err(|_| io::Error::other("could not schedule the connection fallback timer"))?;
+    // The deadline service never drops a pending deadline, so a receive
+    // error cannot occur; treating one as expiry still keeps the second
+    // attempt from being lost.
+    Ok(async {
+        let _ = deadline.await;
+    })
 }
 
 fn no_addresses() -> io::Error {
@@ -122,12 +405,16 @@ async fn connect_address(
     socket.connect(address).await
 }
 
-/// Applies every option `settings` asks for, failing on the first rejection.
+/// Applies every option `settings` sets before `connect`, failing on the
+/// first rejection.
 ///
 /// Chromium ignores a failure to set these options
-/// (`net/socket/tcp_socket_win.cc:70-71` at tag `154.0.8037.58`). Phantom
-/// fails the attempt instead, so a connection never proceeds with socket
-/// options the profile did not ask for.
+/// (`net/socket/tcp_socket_win.cc:70-71` at tag `154.0.8037.58`), and so does
+/// Firefox (`netwerk/base/nsSocketTransport2.cpp:1449-1465` at tag
+/// `FIREFOX_157_0_RELEASE`). Phantom fails the attempt instead, so a
+/// connection never proceeds with socket options the profile did not ask
+/// for. A keepalive schedule sets nothing here: it starts once the socket
+/// has connected.
 fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
     let socket = SockRef::from(socket);
     if settings.nodelay {
@@ -135,7 +422,14 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
             .set_tcp_nodelay(true)
             .map_err(|error| option_error("TCP_NODELAY", error))?;
     }
-    if let Some(keepalive) = settings.keepalive {
+    if let Some(size) = settings.send_buffer_size {
+        let size = usize::try_from(size.get())
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+        socket
+            .set_send_buffer_size(size)
+            .map_err(|error| option_error("SO_SNDBUF", error))?;
+    }
+    if let TcpKeepalivePolicy::Fixed(keepalive) = settings.keepalive {
         socket
             .set_tcp_keepalive(&keepalive_parameters(keepalive)?)
             .map_err(|error| option_error("TCP keepalive", error))?;
@@ -272,8 +566,25 @@ fn check_keepalive_support(
     settings: &TcpSettings,
     support: KeepaliveSupport,
 ) -> Result<(), UnsupportedTcpSettings> {
-    let Some(keepalive) = settings.keepalive else {
-        return Ok(());
+    let keepalive = match settings.keepalive {
+        TcpKeepalivePolicy::Unchanged => return Ok(()),
+        TcpKeepalivePolicy::Fixed(keepalive) => keepalive,
+        // A schedule always sets an interval, which Windows requires anyway.
+        TcpKeepalivePolicy::Schedule(_) => {
+            if !support.idle {
+                return Err(UnsupportedTcpSettings {
+                    field: "keepalive.short_lived_idle",
+                    message: "this platform cannot set a TCP keepalive idle time",
+                });
+            }
+            if !support.interval {
+                return Err(UnsupportedTcpSettings {
+                    field: "keepalive.minimum_interval",
+                    message: UNSUPPORTED_INTERVAL,
+                });
+            }
+            return Ok(());
+        }
     };
     if !support.idle {
         return Err(UnsupportedTcpSettings {

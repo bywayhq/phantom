@@ -1,6 +1,7 @@
-//! TCP socket options a client applies to its outgoing connections.
+//! TCP socket options and connection behavior a client applies to its
+//! outgoing connections.
 
-use std::{error::Error, fmt, time::Duration};
+use std::{error::Error, fmt, num::NonZeroU32, time::Duration};
 
 /// Largest keepalive idle time or interval, in whole seconds.
 ///
@@ -11,7 +12,21 @@ pub const MAX_TCP_KEEPALIVE_SECONDS: u64 = 32_767;
 /// Largest delay before a second concurrent connection attempt.
 pub const MAX_TCP_FALLBACK_DELAY: Duration = Duration::from_secs(10);
 
-/// TCP keepalive timing applied to each outgoing connection.
+/// Largest [`TcpKeepaliveSchedule::probe_count`].
+///
+/// Firefox clamps its keepalive probe count to `kMaxTCPKeepCount`
+/// (`netwerk/base/nsSocketTransportService2.h:62` at tag
+/// `FIREFOX_157_0_RELEASE`).
+pub const MAX_TCP_KEEPALIVE_PROBES: u32 = 127;
+
+/// Largest [`TcpKeepaliveSchedule::short_lived_time`], in whole seconds.
+///
+/// Firefox clamps `network.http.tcp_keepalive.short_lived_time` to
+/// `1..=300` (`netwerk/protocol/http/nsHttpHandler.cpp:1897-1902` at tag
+/// `FIREFOX_157_0_RELEASE`).
+pub const MAX_TCP_SHORT_LIVED_SECONDS: u64 = 300;
+
+/// TCP keepalive timing applied to a socket.
 ///
 /// Setting a keepalive also enables `SO_KEEPALIVE`. On Windows both values
 /// are applied together through `SIO_KEEPALIVE_VALS`, which has no
@@ -30,6 +45,74 @@ pub struct TcpKeepalive {
     /// `None` leaves the operating-system default where one exists. A value
     /// has the same bounds as [`Self::idle`].
     pub interval: Option<Duration>,
+}
+
+/// Keepalive that follows what an HTTP connection is doing, as Firefox's
+/// `nsHttpConnection` sets it.
+///
+/// Every value is applied to the connected socket, never before `connect`:
+///
+/// - When a connection opens for a request, and again whenever an HTTP/1
+///   request is dispatched on it, keepalive is enabled with
+///   [`Self::short_lived_idle`], and a switch to long-lived keepalive is
+///   scheduled. A connection opened for a TLS origin applies it before the
+///   TLS handshake.
+/// - At the switch the connection gets [`Self::long_lived_idle`], unless it
+///   is idle with no request outstanding; then it keeps the short-lived
+///   values until its next request.
+/// - A connection that negotiates HTTP/2 disables keepalive.
+/// - An HTTP/1 connection upgraded to another protocol, such as WebSocket,
+///   switches to long-lived keepalive at once.
+///
+/// The probe interval is the whole seconds the connection's attempt took to
+/// connect, at least [`Self::minimum_interval`]. An attempt starts when the
+/// host lookup starts, or, for the backup attempt of a
+/// [`TcpBackupConnection`], when that attempt starts. The switch comes [`Self::short_lived_time`]
+/// less its remainder modulo [`Self::short_lived_idle`], plus
+/// [`Self::probe_count`] intervals, plus two seconds, after the request's
+/// dispatch.
+///
+/// Phantom applies the interval wherever the host can set one; see
+/// [`TcpKeepalive`] for how each operating system takes the values. A change
+/// reaches the socket before the connection's next read or write, so a
+/// connection nobody reads or writes takes it late.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TcpKeepaliveSchedule {
+    /// Idle time while a request is outstanding or the connection has not
+    /// yet switched to long-lived keepalive.
+    ///
+    /// It has the bounds of [`TcpKeepalive::idle`].
+    pub short_lived_idle: Duration,
+    /// Idle time after the switch, and from an upgrade on.
+    ///
+    /// It has the bounds of [`TcpKeepalive::idle`].
+    pub long_lived_idle: Duration,
+    /// Smallest probe interval.
+    ///
+    /// It has the bounds of [`TcpKeepalive::idle`].
+    pub minimum_interval: Duration,
+    /// Base time from a request's dispatch until the switch.
+    ///
+    /// It must be a whole number of seconds in
+    /// `1..=`[`MAX_TCP_SHORT_LIVED_SECONDS`].
+    pub short_lived_time: Duration,
+    /// Keepalive probes the switch time leaves room for, in
+    /// `1..=`[`MAX_TCP_KEEPALIVE_PROBES`].
+    ///
+    /// Phantom does not set the operating system's probe count.
+    pub probe_count: u32,
+}
+
+/// When and how a client sets TCP keepalive.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum TcpKeepalivePolicy {
+    /// Leaves `SO_KEEPALIVE` and its timing at the operating-system default.
+    #[default]
+    Unchanged,
+    /// Applies one timing to each socket before it connects.
+    Fixed(TcpKeepalive),
+    /// Changes the timing over each HTTP connection's life.
+    Schedule(TcpKeepaliveSchedule),
 }
 
 /// Concurrent attempts across a host's resolved addresses.
@@ -61,45 +144,144 @@ pub struct TcpAddressRacing {
     pub fallback_delay: Duration,
 }
 
-/// TCP socket options applied to each outgoing connection before it connects.
+/// A backup connection restricted to IPv4, started when the first attempt
+/// is slow, as Firefox's `DnsAndConnectSocket` opens one, except for what
+/// happens to the slower attempt.
+///
+/// - The primary attempt tries the resolved addresses one at a time in
+///   resolver order.
+/// - [`Self::delay`] after the primary attempt starts connecting, while it
+///   has not connected, a backup attempt starts. It tries only the IPv4
+///   addresses, one at a time in resolver order.
+/// - Each attempt moves to its next address only after a connect is refused,
+///   finds the network or host unreachable or the address unavailable, is
+///   denied, or times out; any other failure ends that attempt.
+/// - The first established connection wins and the other attempt is
+///   cancelled. When both attempts fail, the most recent failure is
+///   returned. A primary attempt that fails before the delay ends the
+///   connection without a backup.
+///
+/// Firefox keeps the slower attempt's connection, finishes its TLS
+/// handshake, and pools it. Phantom closes the slower attempt's socket
+/// instead, so a server that already answered its SYN sees the connection
+/// end without a request. No built-in recipe uses this selection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TcpBackupConnection {
+    /// Delay after the primary attempt starts before the backup one begins.
+    ///
+    /// It must be nonzero and at most [`MAX_TCP_FALLBACK_DELAY`].
+    pub delay: Duration,
+}
+
+/// Which connect failures move an attempt to its next address.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum TcpAddressAdvance {
+    /// Every failure.
+    #[default]
+    AfterAnyFailure,
+    /// A refused connect, an unreachable network or host, an unavailable
+    /// address, a denied connect, or a timeout, as Firefox moves on after
+    /// them (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755` at
+    /// tag `FIREFOX_157_0_RELEASE`). Any other failure ends the attempt.
+    AfterRefusalOrTimeout,
+}
+
+/// How a client chooses among a host's resolved addresses.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TcpAddressSelection {
+    /// Tries the addresses one at a time in resolver order, moving on after
+    /// the failures the value names.
+    Sequential(TcpAddressAdvance),
+    /// Races the address families as [`TcpAddressRacing`] describes.
+    Racing(TcpAddressRacing),
+    /// Opens an IPv4 backup connection as [`TcpBackupConnection`] describes.
+    Backup(TcpBackupConnection),
+}
+
+impl Default for TcpAddressSelection {
+    /// One address at a time, moving on after any failure.
+    fn default() -> Self {
+        Self::Sequential(TcpAddressAdvance::AfterAnyFailure)
+    }
+}
+
+/// TCP socket options and address selection applied to each outgoing
+/// connection.
 ///
 /// A value applies to every TCP connection a client opens: to an origin, to an
 /// HTTP, HTTPS, or SOCKS5 proxy, and for a SOCKS5 UDP association's control
 /// connection. A field that asks for nothing leaves the socket at its
-/// operating-system default.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// operating-system default. [`Self::default`] asks for nothing.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TcpSettings {
     /// Whether to disable Nagle's algorithm with `TCP_NODELAY`.
     ///
     /// `false` leaves the option untouched, which keeps Nagle's algorithm
     /// enabled on every supported operating system.
     pub nodelay: bool,
-    /// Keepalive timing, or `None` to leave `SO_KEEPALIVE` untouched.
-    pub keepalive: Option<TcpKeepalive>,
-    /// Concurrent attempts across resolved addresses, or `None` to try the
-    /// addresses one at a time in resolver order.
-    pub address_racing: Option<TcpAddressRacing>,
+    /// Socket send buffer size in bytes, set with `SO_SNDBUF` before the
+    /// socket connects, or `None` to keep the operating-system default.
+    ///
+    /// Linux caps the value at `net.core.wmem_max` and reports twice what it
+    /// keeps.
+    pub send_buffer_size: Option<NonZeroU32>,
+    /// When and how keepalive is set.
+    pub keepalive: TcpKeepalivePolicy,
+    /// How the resolved addresses are tried.
+    pub address_selection: TcpAddressSelection,
 }
 
 impl TcpSettings {
     /// Validates settings that are independent of the host operating system.
     pub fn validate(&self) -> Result<(), InvalidTcpSettings> {
-        if let Some(keepalive) = self.keepalive {
-            validate_keepalive_seconds(keepalive.idle, "keepalive.idle")?;
-            if let Some(interval) = keepalive.interval {
-                validate_keepalive_seconds(interval, "keepalive.interval")?;
-            }
-        }
-        if let Some(racing) = self.address_racing
-            && (racing.fallback_delay.is_zero() || racing.fallback_delay > MAX_TCP_FALLBACK_DELAY)
+        if let Some(size) = self.send_buffer_size
+            && i32::try_from(size.get()).is_err()
         {
             return Err(InvalidTcpSettings::new(
-                "address_racing.fallback_delay",
-                "fallback delay must be nonzero and at most 10 seconds",
+                "send_buffer_size",
+                "send buffer size must fit in a signed 32-bit socket option",
             ));
         }
-        Ok(())
+        match self.keepalive {
+            TcpKeepalivePolicy::Unchanged => {}
+            TcpKeepalivePolicy::Fixed(keepalive) => {
+                validate_keepalive_seconds(keepalive.idle, "keepalive.idle")?;
+                if let Some(interval) = keepalive.interval {
+                    validate_keepalive_seconds(interval, "keepalive.interval")?;
+                }
+            }
+            TcpKeepalivePolicy::Schedule(schedule) => validate_schedule(schedule)?,
+        }
+        match self.address_selection {
+            TcpAddressSelection::Sequential(_) => Ok(()),
+            TcpAddressSelection::Racing(racing) => {
+                validate_delay(racing.fallback_delay, "address_selection.fallback_delay")
+            }
+            TcpAddressSelection::Backup(backup) => {
+                validate_delay(backup.delay, "address_selection.delay")
+            }
+        }
     }
+}
+
+fn validate_schedule(schedule: TcpKeepaliveSchedule) -> Result<(), InvalidTcpSettings> {
+    validate_keepalive_seconds(schedule.short_lived_idle, "keepalive.short_lived_idle")?;
+    validate_keepalive_seconds(schedule.long_lived_idle, "keepalive.long_lived_idle")?;
+    validate_keepalive_seconds(schedule.minimum_interval, "keepalive.minimum_interval")?;
+    let time = schedule.short_lived_time;
+    if time.subsec_nanos() != 0 || !(1..=MAX_TCP_SHORT_LIVED_SECONDS).contains(&time.as_secs()) {
+        return Err(InvalidTcpSettings::new(
+            "keepalive.short_lived_time",
+            "the short-lived time must be whole seconds in 1..=300",
+        ));
+    }
+    if !(1..=MAX_TCP_KEEPALIVE_PROBES).contains(&schedule.probe_count) {
+        return Err(InvalidTcpSettings::new(
+            "keepalive.probe_count",
+            "the probe count must be in 1..=127",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_keepalive_seconds(
@@ -110,6 +292,16 @@ fn validate_keepalive_seconds(
         return Err(InvalidTcpSettings::new(
             field,
             "keepalive times must be whole seconds in 1..=32767",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_delay(delay: Duration, field: &'static str) -> Result<(), InvalidTcpSettings> {
+    if delay.is_zero() || delay > MAX_TCP_FALLBACK_DELAY {
+        return Err(InvalidTcpSettings::new(
+            field,
+            "the delay must be nonzero and at most 10 seconds",
         ));
     }
     Ok(())

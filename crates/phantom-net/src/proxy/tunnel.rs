@@ -13,6 +13,20 @@ impl<S> TunnelStream<S> {
     pub(super) fn new(inner: S, prefix: Bytes) -> Self {
         Self { inner, prefix }
     }
+
+    /// The same tunnel over `map(inner)`, keeping the buffered bytes.
+    pub(super) fn map_inner<T>(self, map: impl FnOnce(S) -> T) -> TunnelStream<T> {
+        TunnelStream {
+            inner: map(self.inner),
+            prefix: self.prefix,
+        }
+    }
+}
+
+impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for TunnelStream<S> {
+    fn tcp_keepalive(&self) -> Option<crate::tcp::TcpKeepaliveControl> {
+        crate::tcp::TcpKeepaliveSource::tcp_keepalive(&self.inner)
+    }
 }
 
 impl<S> fmt::Debug for TunnelStream<S> {

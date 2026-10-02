@@ -243,9 +243,10 @@ pub mod profile {
         InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProxyConnectTemplate,
         InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
         NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate,
-        RequestField, RequestTemplate, SignatureScheme, TcpAddressRacing, TcpKeepalive,
-        TcpSettings, TlsSettings, TlsVersion, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-        WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        RequestField, RequestTemplate, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
+        TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
+        TcpKeepaliveSchedule, TcpSettings, TlsSettings, TlsVersion, WebSocketConnectionPolicy,
+        WebSocketDeflateParameter, WebSocketField, WebSocketNewConnection, WebSocketSettings,
     };
 
     /// Chromium-family recipes implemented by the public facade.

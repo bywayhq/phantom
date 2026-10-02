@@ -16,6 +16,8 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tracing::{Instrument, Span, debug, debug_span, field};
 use wreq_proto::upgrade;
 
+use crate::tcp::TcpKeepaliveControl;
+
 use super::{
     Http1Body, Http1Error, OperationOutcome, PreparedGet,
     driver::{DriverSignal, DriverTask},
@@ -99,9 +101,12 @@ impl AsyncWrite for Http1Upgrade {
     }
 }
 
+/// Sends a prepared Upgrade GET; a switch of protocols moves `keepalive`, when
+/// there is one, to its long-lived values.
 pub(super) async fn send_prepared_upgrade<T>(
     stream: T,
     prepared: PreparedGet,
+    keepalive: Option<TcpKeepaliveControl>,
 ) -> Result<Http1UpgradeOutcome, Http1Error>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -165,6 +170,9 @@ where
         parts.extensions.insert(ordered_headers);
         let upgraded = pending_upgrade.await?;
         driver.finish(DriverSignal::Complete);
+        if let Some(keepalive) = &keepalive {
+            keepalive.upgraded();
+        }
         Ok(Http1UpgradeOutcome::Upgraded(Response::from_parts(
             parts,
             Http1Upgrade { inner: upgraded },

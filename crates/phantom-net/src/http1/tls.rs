@@ -24,6 +24,7 @@ use crate::{
         socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     source_binding::SourceBinding,
+    tcp::{ForeignStream, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -289,7 +290,9 @@ impl Http1TlsConnector {
             body_bytes,
             pin!(async {
                 let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let connection = self.connect_prepared(stream, server_name).await?;
+                let connection = self
+                    .connect_prepared(ForeignStream(stream), server_name)
+                    .await?;
                 self.send_prepared_request(&connection, prepared).await
             }),
         )
@@ -781,8 +784,10 @@ impl Http1TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        self.trace_connect(pin!(self.connect_prepared(stream, server_name)))
-            .await
+        self.trace_connect(pin!(
+            self.connect_prepared(ForeignStream(stream), server_name)
+        ))
+        .await
     }
 
     /// Opens one direct TLS connection for sequential HTTP/1.1 requests.
@@ -879,7 +884,7 @@ impl Http1TlsConnector {
                         DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                         DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
                     })?;
-            Http1Connection::connect(stream).await.map_err(Into::into)
+            connect_plaintext(stream).await.map_err(Into::into)
         }
         .instrument(span.clone())
         .await;
@@ -917,7 +922,7 @@ impl Http1TlsConnector {
                     auth,
                 )
                 .await?;
-                Http1Connection::connect(stream).await.map_err(Into::into)
+                connect_plaintext(stream).await.map_err(Into::into)
             }),
         )
         .await
@@ -954,7 +959,7 @@ impl Http1TlsConnector {
                     auth,
                 )
                 .await?;
-                Http1Connection::connect(stream).await.map_err(Into::into)
+                connect_plaintext(stream).await.map_err(Into::into)
             }),
         )
         .await
@@ -983,7 +988,7 @@ impl Http1TlsConnector {
                     DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                     DirectConnectError::Connect(error) => Http1TlsError::ForwardProxyConnect(error),
                 })?;
-            Http1Connection::connect(stream).await.map_err(Into::into)
+            connect_plaintext(stream).await.map_err(Into::into)
         }
         .instrument(span.clone())
         .await;
@@ -1015,7 +1020,7 @@ impl Http1TlsConnector {
             let stream = proxy_connector
                 .connect_forward(proxy_host, proxy_port, proxy_server_name)
                 .await?;
-            Http1Connection::connect(stream).await.map_err(Into::into)
+            connect_plaintext(stream).await.map_err(Into::into)
         }
         .instrument(span.clone())
         .await;
@@ -1351,7 +1356,7 @@ impl Http1TlsConnector {
                         DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
                     })?;
             debug!("HTTP/1 plaintext Upgrade request prepared");
-            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let outcome = send_profiled_upgrade(stream, prepared).await?;
             let status = match &outcome {
                 Http1UpgradeOutcome::Upgraded(response) => response.status(),
                 Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1396,7 +1401,7 @@ impl Http1TlsConnector {
                     DirectConnectError::Connect(error) => Http1TlsError::ForwardProxyConnect(error),
                 })?;
             debug!("HTTP/1 plaintext forward-proxy Upgrade request prepared");
-            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let outcome = send_profiled_upgrade(stream, prepared).await?;
             let status = match &outcome {
                 Http1UpgradeOutcome::Upgraded(response) => response.status(),
                 Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1440,7 +1445,7 @@ impl Http1TlsConnector {
                 .connect_forward(proxy_host, proxy_port, proxy_server_name)
                 .await?;
             debug!("HTTP/1 HTTPS forward-proxy Upgrade request prepared");
-            let outcome = send_prepared_upgrade(stream, prepared).await?;
+            let outcome = send_profiled_upgrade(stream, prepared).await?;
             let status = match &outcome {
                 Http1UpgradeOutcome::Upgraded(response) => response.status(),
                 Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1785,7 +1790,7 @@ impl Http1TlsConnector {
                 )
                 .await?;
                 debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
-                let outcome = send_prepared_upgrade(stream, prepared).await?;
+                let outcome = send_profiled_upgrade(stream, prepared).await?;
                 let status = match &outcome {
                     Http1UpgradeOutcome::Upgraded(response) => response.status(),
                     Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1852,7 +1857,7 @@ impl Http1TlsConnector {
                 )
                 .await?;
                 debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
-                let outcome = send_prepared_upgrade(stream, prepared).await?;
+                let outcome = send_profiled_upgrade(stream, prepared).await?;
                 let status = match &outcome {
                     Http1UpgradeOutcome::Upgraded(response) => response.status(),
                     Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -1986,7 +1991,7 @@ impl Http1TlsConnector {
         server_name: &str,
     ) -> Result<Http1Connection, Http1TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         let stream = self.tls.connect(server_name, stream).await?;
         connect_over_tls(stream).await
@@ -2037,7 +2042,7 @@ impl Http1TlsConnector {
         prepared: PreparedGet,
     ) -> Result<Http1UpgradeOutcome, Http1TlsError>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
     {
         debug!("HTTP/1 Upgrade request prepared");
 
@@ -2201,10 +2206,10 @@ async fn send_plaintext_tunnel_upgrade<S>(
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     debug!("HTTP/1 plaintext Upgrade request prepared for a CONNECT tunnel");
-    let outcome = send_prepared_upgrade(stream, prepared).await?;
+    let outcome = send_profiled_upgrade(stream, prepared).await?;
     let status = match &outcome {
         Http1UpgradeOutcome::Upgraded(response) => response.status(),
         Http1UpgradeOutcome::Rejected(response) => response.status(),
@@ -2261,16 +2266,39 @@ fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'stat
     }
 }
 
-/// Starts HTTP/1.1 over an established TLS stream.
+/// Starts HTTP/1.1 over an established TLS stream on a profile connection.
 async fn connect_over_tls<S>(stream: TlsStream<S>) -> Result<Http1Connection, Http1TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     require_http1_selected(&stream)?;
+    let keepalive = stream.tcp_keepalive();
     let early_data = stream.early_data_wait();
-    Http1Connection::connect_with_early_data(stream, early_data)
+    Http1Connection::connect_with_early_data(stream, early_data, keepalive)
         .await
         .map_err(Into::into)
+}
+
+/// Starts plaintext HTTP/1.1 on a profile connection.
+async fn connect_plaintext<S>(stream: S) -> Result<Http1Connection, Http1Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+{
+    let keepalive = stream.tcp_keepalive();
+    Http1Connection::connect_with_early_data(stream, None, keepalive).await
+}
+
+/// Sends a prepared Upgrade GET on a profile connection, which switches its
+/// keepalive schedule when the server switches protocols.
+async fn send_profiled_upgrade<S>(
+    stream: S,
+    prepared: PreparedGet,
+) -> Result<Http1UpgradeOutcome, Http1Error>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+{
+    let keepalive = stream.tcp_keepalive();
+    send_prepared_upgrade(stream, prepared, keepalive).await
 }
 
 /// Sends a prepared Upgrade GET over an established TLS stream.
@@ -2279,10 +2307,10 @@ async fn upgrade_over_tls<S>(
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     require_http1_selected(&stream)?;
-    let outcome = send_prepared_upgrade(stream, prepared).await?;
+    let outcome = send_profiled_upgrade(stream, prepared).await?;
     let status = match &outcome {
         Http1UpgradeOutcome::Upgraded(response) => response.status(),
         Http1UpgradeOutcome::Rejected(response) => response.status(),
