@@ -2999,8 +2999,9 @@ impl fmt::Debug for SslSessionScope {
 /// A client session bound to its originating TLS context and application scope.
 ///
 /// Construction removes early-data capability so attaching this session cannot
-/// enable 0-RTT. The scope should represent every peer and policy distinction
-/// relevant to session authentication.
+/// enable 0-RTT, unless the connector opted in with
+/// [`SslConnectorBuilder::enable_scoped_client_sessions_with_early_data`]. The scope should
+/// represent every peer and policy distinction relevant to session authentication.
 pub struct ScopedSslSession {
     session: SslSession,
     context: SslContext,
@@ -3022,9 +3023,15 @@ impl ScopedSslSession {
         hostname: &str,
         ssl: &SslRef,
         session: SslSession,
+        keep_early_data: bool,
     ) -> Result<Self, ErrorStack> {
+        let session = if keep_early_data {
+            session
+        } else {
+            session.copy_without_early_data()?
+        };
         Ok(Self {
-            session: session.copy_without_early_data()?,
+            session,
             context: ssl.ssl_context().to_owned(),
             scope: scope.clone(),
             hostname: hostname.into(),
@@ -3053,6 +3060,14 @@ impl ScopedSslSession {
     #[must_use]
     pub fn protocol_version(&self) -> SslVersion {
         self.session.protocol_version()
+    }
+
+    /// Returns whether a connection that attaches this session and enables early data would offer
+    /// it.
+    #[corresponds(SSL_SESSION_early_data_capable)]
+    #[must_use]
+    pub fn early_data_capable(&self) -> bool {
+        unsafe { ffi::SSL_SESSION_early_data_capable(self.session.as_ptr()) != 0 }
     }
 
     pub(super) fn matches(
@@ -4224,6 +4239,53 @@ impl SslRef {
     #[must_use]
     pub fn is_init_finished(&self) -> bool {
         unsafe { ffi::SSL_is_init_finished(self.as_ptr()) != 0 }
+    }
+
+    /// Sets whether a resumption on this connection may send or accept early data.
+    ///
+    /// A client offers early data only when the attached session permits it. Its handshake then
+    /// returns after the ClientHello, and writes are sent as early data until the server answers.
+    /// Early data can be replayed by a network attacker, so send only data that is safe to process
+    /// twice.
+    #[corresponds(SSL_set_early_data_enabled)]
+    pub fn set_early_data_enabled(&mut self, enabled: bool) {
+        unsafe { ffi::SSL_set_early_data_enabled(self.as_ptr(), c_int::from(enabled)) }
+    }
+
+    /// Returns whether the handshake is pending and has progressed far enough to send early data.
+    #[corresponds(SSL_in_early_data)]
+    #[must_use]
+    pub fn in_early_data(&self) -> bool {
+        unsafe { ffi::SSL_in_early_data(self.as_ptr()) != 0 }
+    }
+
+    /// Returns whether the server accepted the early data of this handshake.
+    #[corresponds(SSL_early_data_accepted)]
+    #[must_use]
+    pub fn early_data_accepted(&self) -> bool {
+        unsafe { ffi::SSL_early_data_accepted(self.as_ptr()) != 0 }
+    }
+
+    /// Resets the connection after the server rejected its early data.
+    ///
+    /// Returns `false` and does nothing unless the last operation on this connection failed with
+    /// [`ErrorCode::EARLY_DATA_REJECTED`]. After a reset the connection behaves as one whose
+    /// handshake has not completed: the next handshake, read, or write completes it, possibly with
+    /// a different ALPN protocol or peer. Nothing written as early data reached the server, so
+    /// data still wanted must be written again.
+    #[corresponds(SSL_reset_early_data_reject)]
+    pub fn reset_early_data_reject(&mut self) -> bool {
+        // SSL_reset_early_data_reject aborts unless the handshake waits on an early-data
+        // rejection. The handshake reports SSL_ERROR_EARLY_DATA_REJECTED only from that wait, and
+        // keeps in_early_data set until the reset clears it, so both together prove the wait.
+        let rejected = unsafe {
+            ffi::SSL_in_early_data(self.as_ptr()) != 0
+                && ffi::SSL_get_error(self.as_ptr(), -1) == ffi::SSL_ERROR_EARLY_DATA_REJECTED
+        };
+        if rejected {
+            unsafe { ffi::SSL_reset_early_data_reject(self.as_ptr()) };
+        }
+        rejected
     }
 
     /// Sets the MTU used for DTLS connections.

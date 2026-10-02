@@ -1,2 +1,3 @@
 standalone-manifest.patch
+early-data-reset.patch
 publish-identity.patch

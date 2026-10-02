@@ -149,13 +149,32 @@ impl SslConnectorBuilder {
     /// New sessions are delivered only to callbacks installed on individual
     /// connections with [`ConnectConfiguration::into_ssl_with_scoped_session`].
     pub fn enable_scoped_client_sessions(&mut self) {
+        self.install_scoped_client_sessions(false);
+    }
+
+    /// Enables externally scoped client-session handling with early data.
+    ///
+    /// This is [`Self::enable_scoped_client_sessions`], except that new sessions keep the early-data
+    /// capability their server granted. Attaching such a session still sends no early data unless
+    /// the connection also calls [`SslRef::set_early_data_enabled`]. Early data can be replayed by
+    /// a network attacker, so send only data that is safe to process twice.
+    pub fn enable_scoped_client_sessions_with_early_data(&mut self) {
+        self.install_scoped_client_sessions(true);
+    }
+
+    fn install_scoped_client_sessions(&mut self, keep_early_data: bool) {
         self.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-        self.set_new_session_callback(|ssl, session| {
+        self.set_new_session_callback(move |ssl, session| {
             let Some(binding) = ssl.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
                 return;
             };
-            let session =
-                ScopedSslSession::from_new_session(&binding.scope, &binding.hostname, ssl, session);
+            let session = ScopedSslSession::from_new_session(
+                &binding.scope,
+                &binding.hostname,
+                ssl,
+                session,
+                keep_early_data,
+            );
             (binding.callback)(session);
         });
     }
@@ -195,7 +214,8 @@ impl ConnectConfiguration {
     /// session is attached. Returns `None` when hostname verification is
     /// disabled or the session belongs to a different domain, application
     /// scope, or TLS context. New sessions have early data disabled before
-    /// they are delivered to `callback`.
+    /// they are delivered to `callback`, unless the connector enabled them
+    /// with [`SslConnectorBuilder::enable_scoped_client_sessions_with_early_data`].
     pub fn into_ssl_with_scoped_session<F>(
         mut self,
         domain: &str,

@@ -1,0 +1,17 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 00032f51..f582e880 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -162,6 +162,12 @@ impl<S> SslStream<S> {
+         self.0.ssl()
+     }
+ 
++    #[inline]
++    /// Returns a mutable reference to the `Ssl` object associated with this stream.
++    pub fn ssl_mut(&mut self) -> &mut SslRef {
++        self.0.ssl_mut()
++    }
++
+     #[inline]
+     /// Returns a shared reference to the underlying stream.
+     pub fn get_ref(&self) -> &S {

@@ -74,6 +74,19 @@ capability, and exposes one safe pre-handshake attachment method that rejects
 any identity mismatch. Session construction remains private to the real
 new-session callback pair.
 
+Firefox 156 sends early data over TCP when it resumes with a ticket that
+permits it. The upstream wrapper exposes none of BoringSSL's client early-data
+calls, and the scoped-session wrapper strips the capability from every
+session. The early-data patch lets a connector opt in to keeping that
+capability, still per connector and scope, and wraps the pinned BoringSSL
+calls a client needs: enabling early data on one connection, observing the
+early-data state and the server's answer, and resetting after a rejection.
+`SSL_reset_early_data_reject` aborts the process when the handshake is not
+waiting on a rejection, so the safe wrapper calls it only when
+`SSL_in_early_data` and `SSL_get_error` together prove that wait, and returns
+`false` otherwise. Native patch 0013, described below, lets a client that
+sends `record_size_limit` offer early data at all.
+
 The upstream ECH GREASE API enables the extension but leaves its payload length
 to BoringSSL's randomized policy. Firefox 154 on macOS 15.5 was captured with a
 239-byte GREASE payload, producing an `encrypted_client_hello` extension body of
@@ -183,6 +196,18 @@ The patches are additive:
   enters an external cache.
 - `src/ssl/test/session_resumption.rs` proves matching scoped resumption,
   mismatch refusal, and early-data stripping.
+- `SslConnectorBuilder::enable_scoped_client_sessions_with_early_data` keeps
+  the early-data capability of new scoped sessions;
+  `ScopedSslSession::early_data_capable`, `SslRef::set_early_data_enabled`,
+  `SslRef::in_early_data`, `SslRef::early_data_accepted`,
+  `SslRef::reset_early_data_reject`, and `ErrorCode::EARLY_DATA_REJECTED`
+  expose the client early-data calls. Sessions of a connector that does not
+  opt in are still stripped, and an attached session sends no early data
+  unless the connection enables it.
+- `src/ssl/test/session_resumption.rs` proves accepted early data, a
+  rejection followed by a reset and a resend on the same connection, a guarded
+  reset that refuses to run twice, and a capable session that offers nothing
+  when its connection does not enable early data.
 
 The canonical machine-applicable wrapper changes are listed in
 `patches/series`; the order is part of the reviewed source transformation.

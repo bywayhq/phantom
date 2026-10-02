@@ -163,6 +163,12 @@ impl<S> SslStream<S> {
     }
 
     #[inline]
+    /// Returns a mutable reference to the `Ssl` object associated with this stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.0.ssl_mut()
+    }
+
+    #[inline]
     /// Returns a shared reference to the underlying stream.
     pub fn get_ref(&self) -> &S {
         &self.0.get_ref().stream

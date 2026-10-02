@@ -48,6 +48,13 @@ impl ErrorCode {
 
     pub const PENDING_TICKET: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_TICKET);
 
+    /// The server rejected the early data this client sent.
+    ///
+    /// The server processed none of it. Call
+    /// [`SslRef::reset_early_data_reject`](crate::ssl::SslRef::reset_early_data_reject), finish the
+    /// handshake, and send the data again if it is still wanted.
+    pub const EARLY_DATA_REJECTED: ErrorCode = ErrorCode(ffi::SSL_ERROR_EARLY_DATA_REJECTED);
+
     /// A non-recoverable IO error occurred.
     pub const SYSCALL: ErrorCode = ErrorCode(ffi::SSL_ERROR_SYSCALL);
 

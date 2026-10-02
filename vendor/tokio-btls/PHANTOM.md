@@ -25,11 +25,16 @@ fork, the same revision that supplies `btls-sys`.
 
 Phantom patches the `btls` wrapper, and `tokio-btls` depends on it. Without a
 fork, `tokio-btls` would resolve the wrapper from the dependency fork instead of
-`vendor/btls`. This fork carries no Rust source change.
+`vendor/btls`.
 
 - `standalone-manifest.patch` materializes the workspace-inherited package and
   dependency fields from the fork's root manifest so the package builds
   outside that workspace.
+- `early-data-reset.patch` adds `SslStream::ssl_mut`, as the synchronous
+  `btls` stream has. Phantom's TCP client needs it to call
+  `SslRef::reset_early_data_reject` after a server rejects its early data; the
+  upstream adapter exposes only a shared reference. It is the one Rust source
+  change.
 - `publish-identity.patch` renames the package to `phantom-tokio-btls` at
   `0.5.6-phantom.4`, keeps the `tokio_btls` library name, points `btls` at
   `phantom-btls` by exact version and path, removes the upstream documentation

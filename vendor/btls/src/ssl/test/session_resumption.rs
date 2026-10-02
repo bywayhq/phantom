@@ -2,6 +2,7 @@ use super::server::Server;
 #[cfg(not(feature = "fips"))]
 use crate::ffi;
 use crate::ssl::test::MessageDigest;
+use crate::ssl::ErrorCode;
 use crate::ssl::HmacCtxRef;
 use crate::ssl::ScopedSslSession;
 use crate::ssl::SslConnector;
@@ -17,8 +18,8 @@ use crate::symm::Cipher;
 use crate::symm::CipherCtxRef;
 #[cfg(not(feature = "fips"))]
 use foreign_types::ForeignTypeRef;
-use std::io::Read;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 
@@ -291,6 +292,120 @@ fn scoped_client_session_strips_early_data() {
         unsafe { ffi::SSL_SESSION_early_data_capable(session.session.as_ref().as_ptr()) },
         0
     );
+}
+
+#[test]
+fn scoped_client_session_with_early_data_sends_accepted_early_data() {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let server = early_data_server(Arc::clone(&received), |_| true);
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = scoped_tls13_client_with_early_data();
+
+    let _ = connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    let session = sessions.lock().unwrap().pop().unwrap();
+    assert!(session.early_data_capable());
+
+    let mut ssl =
+        configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, Some(&session)).unwrap();
+    ssl.set_early_data_enabled(true);
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    assert!(stream.ssl().in_early_data());
+    assert!(!stream.ssl_mut().reset_early_data_reject());
+    stream.write_all(b"early").unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!stream.ssl().in_early_data());
+    assert!(stream.ssl().early_data_accepted());
+    assert!(stream.ssl().session_reused());
+    drop(stream);
+    drop(server);
+    assert_eq!(*received.lock().unwrap(), [b"early".to_vec()]);
+}
+
+#[test]
+fn scoped_client_session_resends_after_rejected_early_data() {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    // The first connection issues tickets that permit early data; the second
+    // declines the early data it is offered.
+    let server = early_data_server(Arc::clone(&received), |connection| connection == 0);
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = scoped_tls13_client_with_early_data();
+
+    let _ = connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    let session = sessions.lock().unwrap().pop().unwrap();
+
+    let mut ssl =
+        configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, Some(&session)).unwrap();
+    ssl.set_early_data_enabled(true);
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    stream.write_all(b"early").unwrap();
+    let error = stream.ssl_read(&mut [0]).unwrap_err();
+    assert_eq!(error.code(), ErrorCode::EARLY_DATA_REJECTED);
+    assert!(stream.ssl_mut().reset_early_data_reject());
+    assert!(!stream.ssl_mut().reset_early_data_reject());
+    stream.write_all(b"again").unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!stream.ssl().early_data_accepted());
+    drop(stream);
+    drop(server);
+    assert_eq!(*received.lock().unwrap(), [b"again".to_vec()]);
+}
+
+#[test]
+fn scoped_client_session_without_early_data_offers_none() {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let server = early_data_server(Arc::clone(&received), |_| true);
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = scoped_tls13_client_with_early_data();
+
+    let _ = connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    let session = sessions.lock().unwrap().pop().unwrap();
+
+    // The session permits early data, but this connection does not enable it.
+    let ssl =
+        configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, Some(&session)).unwrap();
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    assert!(!stream.ssl().in_early_data());
+    assert!(stream.ssl().session_reused());
+    stream.write_all(b"after").unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!stream.ssl().early_data_accepted());
+    drop(stream);
+    drop(server);
+    assert_eq!(*received.lock().unwrap(), [b"after".to_vec()]);
+}
+
+/// Serves two TLS 1.3 connections, enabling early data on each one for which
+/// `accept_early_data` returns true, and records the five bytes read from each
+/// connection that sends them.
+fn early_data_server(
+    received: Arc<Mutex<Vec<Vec<u8>>>>,
+    accept_early_data: impl Fn(usize) -> bool + Send + 'static,
+) -> Server {
+    let mut server = tls13_server(2);
+    let connections = AtomicUsize::new(0);
+    server.ssl_cb(move |ssl| {
+        let connection = connections.fetch_add(1, Ordering::SeqCst);
+        ssl.set_early_data_enabled(accept_early_data(connection));
+    });
+    server.io_cb(move |mut stream| {
+        let mut bytes = [0; 5];
+        if stream.read_exact(&mut bytes).is_ok() {
+            received.lock().unwrap().push(bytes.to_vec());
+        }
+        // Read the client's remaining handshake messages until it closes, so
+        // closing this socket cannot reset the client's unread data.
+        let _ = stream.read_to_end(&mut Vec::new());
+    });
+    server.build()
+}
+
+fn scoped_tls13_client_with_early_data() -> SslConnector {
+    let mut client = tls13_client_builder();
+    client.enable_scoped_client_sessions_with_early_data();
+    client.build()
 }
 
 fn tls13_server(expected_connections: usize) -> super::server::Builder {
