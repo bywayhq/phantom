@@ -1907,8 +1907,10 @@ Differences from the browsers:
   (`net/socket/socket_descriptor.cc:29-35`); Phantom does not. Phantom's
   IPv6 QUIC sockets send only to IPv6 peers, so no packet shows the
   difference.
-- Phantom opens no UDP socket for DNS. Its lookups go through the operating
-  system, whose own sockets take the host's port choice.
+- `UdpSettings` reaches no DNS socket. Address lookups go through the
+  operating system, whose own sockets take the host's port choice. HTTPS
+  record lookups, with the `https-records` feature, go through hickory's
+  UDP sockets, for which hickory picks a random source port itself.
 
 Tests:
 

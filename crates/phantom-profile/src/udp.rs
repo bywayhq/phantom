@@ -1,6 +1,6 @@
 //! UDP socket options a client applies to the sockets that carry QUIC.
 
-/// UDP socket options applied to each UDP socket a client opens.
+/// UDP socket options applied to each UDP socket that carries QUIC.
 ///
 /// A value applies to the socket of every QUIC connection, to an origin or
 /// to a CONNECT-UDP proxy, and to the UDP socket of a SOCKS5 UDP

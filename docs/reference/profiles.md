@@ -234,7 +234,7 @@ SOCKS5 UDP association. It sets its options before the socket binds.
 | None (no `with_udp`) | OS default (sequential) |
 | `chromium::v154_udp` | Random (`SO_RANDOMIZE_PORT`) on every Windows |
 | Brave, Edge, Opera | `chromium::v154_udp` |
-| Firefox | None: Firefox 157 sets no UDP option, so its profiles take no `with_udp` |
+| Firefox | None: Firefox 157 does not set `SO_RANDOMIZE_PORT`, so its profiles take no `with_udp` |
 | Android browsers | Not covered |
 
 - Chromium sets `SO_RANDOMIZE_PORT` on every UDP socket it connects, with
@@ -246,8 +246,9 @@ SOCKS5 UDP association. It sets its options before the socket binds.
   their network code opens in the Windows 11 hook logs; Firefox 157's
   source sets it nowhere
   ([Validation](../explanation/validation.md#udp-socket-option-evidence)).
-- Phantom resolves names through the operating system, which opens its own
-  DNS sockets; `UdpSettings` does not reach them.
+- `UdpSettings` does not reach DNS sockets: the operating system's, which
+  answer address lookups, or hickory's, which answer HTTPS record lookups
+  with the `https-records` feature.
 
 ## HTTP/1.1 connections
 
