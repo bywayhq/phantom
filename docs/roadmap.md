@@ -226,28 +226,6 @@ Each of these needs no capture, because no named recipe may reach it
   again. A negotiated request still builds both its HTTP/1.1 and HTTP/2
   lists on every attempt, because both are checked before any I/O.
 
-#### Publication
-
-- Give each `phantom-testkit` dev-dependency an exact version, as
-  `phantom-profile` already has: `crates/phantom`, `crates/phantom-net`, and
-  `crates/phantom-quic-btls` name it by path alone. A downstream
-  `cargo deny check --all-features` reads a versionless path dependency as a
-  wildcard; Phantom's own `deny.toml` allows wildcards, so only a consumer
-  sees it.
-- Publish to crates.io. Blocker: the `btls-sys` git dependency in the
-  workspace manifest and in the vendored `btls` manifest, which crates.io
-  rejects; the release script refuses to publish while either remains.
-  Upstream already publishes `btls-sys` with the BoringSSL sources and every
-  native patch at about 4.9 MiB, inside the 10 MiB limit.
-  - Keep every native patch. Two have no upstream equivalent, and dropping
-    any changes the wire.
-  - Bundling BoringSSL makes Phantom a redistributor: carry the third-party
-    licenses and declare a license expression that covers Apache-2.0.
-  - Renaming the package does not let Phantom and a stock `boring` or `btls`
-    share a dependency graph outside Linux, because symbol prefixing is
-    skipped elsewhere and both ask for the same static archive names. Do not
-    promise coexistence beyond Linux.
-
 ### Proposed after Phase 1
 
 Each starts from a proposal with acceptance criteria and, where it touches
@@ -313,6 +291,32 @@ the wire, capture evidence.
 Non-goals: middleware that can add a field or change an order, fallback from
 a proxy route to a direct connection, silent protocol fallback, automatic
 `Link` following, base-URL joining, and a blocking API.
+
+## Release to crates.io
+
+Publish once Phase 2 has settled the public API, so the first releases do
+not carry its renames. Until then, depend on a pinned git revision
+([Adding Phantom to a project](guides/downstream.md)).
+
+- Publish `btls-sys` under a Phantom name. Crates.io rejects the git
+  dependency in the workspace manifest and in the vendored `btls` manifest,
+  and the release script refuses to publish while either remains. Upstream
+  already publishes `btls-sys` with the BoringSSL sources and every native
+  patch at about 4.9 MiB, inside the 10 MiB limit.
+  - Keep every native patch. Two have no upstream equivalent, and dropping
+    any changes the wire.
+  - Bundling BoringSSL makes Phantom a redistributor: carry the third-party
+    licenses and declare a license expression that covers Apache-2.0.
+  - Renaming the package does not let Phantom and a stock `boring` or `btls`
+    share a dependency graph outside Linux, because symbol prefixing is
+    skipped elsewhere and both ask for the same static archive names. Do not
+    promise coexistence beyond Linux.
+- Decide how `phantom-testkit` appears in the published manifests.
+  `crates/phantom`, `crates/phantom-net`, and `crates/phantom-quic-btls` name
+  it by path alone, so `cargo publish` drops it, and a downstream
+  `cargo deny check --all-features` reads it as a wildcard. An exact version
+  removes the warning but means publishing `phantom-testkit` too, which the
+  Phase 2 wire-assertion harness may need anyway.
 
 ## Phase 3: Hardening
 
