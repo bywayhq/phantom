@@ -35,24 +35,25 @@ macro_rules! ip_literal_fixture {
 }
 
 /// Firefox 157's TCP ClientHellos to `https://127.0.0.1:<port>/` and
-/// `https://[::1]:<port>/`, with the `security.tls.ech.grease_size` each
-/// run used: 100 by default, and on either side of the size at which one
-/// more byte of padding adds a 32-byte block for that host.
-const IP_LITERAL_CAPTURES: [(&str, &str, usize); 6] = [
-    (ip_literal_fixture!("tcp-ipv4"), "127.0.0.1", 100),
-    (
-        ip_literal_fixture!("tcp-ipv4-grease-size-93"),
-        "127.0.0.1",
-        93,
-    ),
-    (
-        ip_literal_fixture!("tcp-ipv4-grease-size-94"),
-        "127.0.0.1",
-        94,
-    ),
-    (ip_literal_fixture!("tcp-ipv6"), "::1", 100),
-    (ip_literal_fixture!("tcp-ipv6-grease-size-87"), "::1", 87),
-    (ip_literal_fixture!("tcp-ipv6-grease-size-88"), "::1", 88),
+/// `https://[::1]:<port>/` at the default `security.tls.ech.grease_size`, 100,
+/// and at the sizes on either side of the one where one more byte of padding
+/// adds a 32-byte block for that host. Those runs record the size they set.
+const IP_LITERAL_CAPTURES: [(&str, &str); 6] = [
+    (ip_literal_fixture!("tcp-ipv4"), "127.0.0.1"),
+    (ip_literal_fixture!("tcp-ipv4-grease-size-93"), "127.0.0.1"),
+    (ip_literal_fixture!("tcp-ipv4-grease-size-94"), "127.0.0.1"),
+    (ip_literal_fixture!("tcp-ipv6"), "::1"),
+    (ip_literal_fixture!("tcp-ipv6-grease-size-87"), "::1"),
+    (ip_literal_fixture!("tcp-ipv6-grease-size-88"), "::1"),
+];
+/// An earlier sweep of `grease_size` that recorded only a run label, by
+/// host and label. Its first ClientHello carried 208 payload bytes below the
+/// boundary and 240 from it.
+const IP_LITERAL_SWEEPS: [(&str, &str, usize); 4] = [
+    (ip_literal_fixture!("tcp-ipv4-sweep-9"), "127.0.0.1", 9),
+    (ip_literal_fixture!("tcp-ipv4-sweep-10"), "127.0.0.1", 10),
+    (ip_literal_fixture!("tcp-ipv6-sweep-3"), "::1", 3),
+    (ip_literal_fixture!("tcp-ipv6-sweep-4"), "::1", 4),
 ];
 const FIREFOX_SERVER_NAME: &str = "localhost";
 // ECHClientHello type outer (0), HKDF-SHA256 (0x0001), then the AEAD.
@@ -170,13 +171,20 @@ fn firefox_157_captured_ech_grease_payloads_follow_the_nss_rule() -> TestResult<
 }
 
 /// Firefox sends no `server_name` to an IP literal but pads its ECH GREASE
-/// payload by the address text, an IPv6 address without brackets. Each pair
-/// of runs straddles the `grease_size` at which one more byte of padding
-/// adds a 32-byte block, which pins the padded length: padding by no host
-/// would already add that block in the run below the boundary.
+/// payload by the address text, an IPv6 address without brackets. Every
+/// ClientHello of the runs that record their `grease_size` carries the
+/// payload NSS's rule gives for that host, and each pair of runs straddles the
+/// size where one more byte of padding adds a 32-byte block.
 #[test]
 fn firefox_157_ip_literal_captures_pad_ech_grease_by_the_host_text() -> TestResult<()> {
-    for (fixture, host, grease_size) in IP_LITERAL_CAPTURES {
+    for (fixture, host) in IP_LITERAL_CAPTURES {
+        let grease_size = match fixture_value(fixture, "prefs") {
+            Some(prefs) => prefs
+                .strip_prefix("security.tls.ech.grease_size=")
+                .ok_or("the run set another preference")?
+                .parse()?,
+            None => 100,
+        };
         let hellos = fixture_client_hellos(fixture)?;
         // Firefox retries a connection the listener closed, and the later
         // ClientHellos drop `compress_certificate`; the rule covers them too.
@@ -191,16 +199,51 @@ fn firefox_157_ip_literal_captures_pad_ech_grease_by_the_host_text() -> TestResu
         }
         let first = hellos.first().ok_or("the capture holds no ClientHello")?;
         let below_boundary = grease_size == 93 || grease_size == 87;
+        assert_eq!(
+            nss_ech_grease::sent_payload_length(first)?,
+            if below_boundary { 208 } else { 240 }
+        );
+    }
+    Ok(())
+}
+
+/// The earlier sweep moved `grease_size` by one per run label. Its 32-byte
+/// boundary falls at label 10 for `127.0.0.1` and at label 4 for `::1`: six
+/// labels apart, the difference in length between the two host texts.
+/// Padding by no host would put both boundaries at one label, and by
+/// `[::1]` four labels apart. The sizes the later runs recorded put each
+/// boundary at 84 plus its label.
+#[test]
+fn firefox_157_ip_literal_sweep_boundaries_follow_the_host_length() -> TestResult<()> {
+    let mut boundaries = Vec::new();
+    for (fixture, host, label) in IP_LITERAL_SWEEPS {
+        assert_eq!(fixture_value(fixture, "prefs"), None);
+        let hellos = fixture_client_hellos(fixture)?;
+        let first = hellos.first().ok_or("the capture holds no ClientHello")?;
         let sent = nss_ech_grease::sent_payload_length(first)?;
-        assert_eq!(sent, if below_boundary { 208 } else { 240 });
-        if below_boundary {
-            assert_ne!(
-                nss_ech_grease::payload_length(first, grease_size, Some(0))?,
-                sent
+        if sent == 240 {
+            boundaries.push((host, label));
+        } else {
+            assert_eq!(sent, 208);
+        }
+        for hello in &hellos {
+            assert_eq!(
+                nss_ech_grease::sent_payload_length(hello)?,
+                nss_ech_grease::payload_length(hello, 84 + label, Some(host.len()))?,
             );
         }
     }
+    assert_eq!(boundaries, [("127.0.0.1", 10), ("::1", 4)]);
+    assert_eq!(10 - 4, "127.0.0.1".len() - "::1".len());
+    assert_ne!(10 - 4, "127.0.0.1".len() - "[::1]".len());
     Ok(())
+}
+
+/// Returns a fixture's `key=` value.
+fn fixture_value<'a>(fixture: &'a str, key: &str) -> Option<&'a str> {
+    fixture
+        .lines()
+        .find_map(|line| line.strip_prefix(key)?.strip_prefix('='))
 }
 
 /// To an IP literal the recipe sends Firefox's first ClientHello shape: no
