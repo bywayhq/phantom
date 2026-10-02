@@ -121,6 +121,139 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     Ok(())
 }
 
+macro_rules! retained {
+    ($($path:literal),* $(,)?) => {
+        [$(($path, include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/", $path)))),*]
+    };
+}
+
+/// Every fixture `trust-anchor-orders.txt` names as a source.
+const ORDER_SOURCES: [(&str, &str); 35] = retained![
+    "tls/opera/136.0.6008.52/windows-11-26200/client-hello.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-1.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-2.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-4.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-5.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-6.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-7.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-8.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-9.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-10.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-11.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-12.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-13.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-14.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-15.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-16.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-17.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-18.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-19.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/startup-runs/client-hello-20.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-issue-once.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-methods-http1.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-methods.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-no-early-data.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-origins.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-parallel.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-partition.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-sequential-http1.txt",
+    "tls/opera/136.0.6008.52/windows-11-26200/resumption-sequential.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-1.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-2.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-3.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/resumption-accept-delayed.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/resumption-accept.txt",
+    "http3/opera/136.0.6008.52/windows-11-26200/resumption-reject.txt",
+];
+
+type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
+
+fn hex_bytes(hex: &str) -> TestResult<Vec<u8>> {
+    (0..hex.len())
+        .step_by(2)
+        .map(|index| Ok(u8::from_str_radix(&hex[index..index + 2], 16)?))
+        .collect()
+}
+
+/// The trust-anchor IDs, in wire order, of a ClientHello given as a TLS
+/// record or a bare handshake message.
+fn client_hello_trust_anchor_ids(bytes: &[u8]) -> TestResult<Vec<Vec<u8>>> {
+    let take = |offset: &mut usize, length: usize| -> TestResult<&[u8]> {
+        let slice = bytes
+            .get(*offset..*offset + length)
+            .ok_or("ClientHello is truncated")?;
+        *offset += length;
+        Ok(slice)
+    };
+    let u16_at = |slice: &[u8]| usize::from(u16::from_be_bytes([slice[0], slice[1]]));
+    // A record header, then the handshake header, version, and random.
+    let mut offset = if bytes.first() == Some(&0x16) { 5 } else { 0 };
+    take(&mut offset, 4 + 2 + 32)?;
+    let session_id = usize::from(take(&mut offset, 1)?[0]);
+    take(&mut offset, session_id)?;
+    let suites = u16_at(take(&mut offset, 2)?);
+    take(&mut offset, suites)?;
+    let compression = usize::from(take(&mut offset, 1)?[0]);
+    take(&mut offset, compression)?;
+    let extensions = u16_at(take(&mut offset, 2)?);
+    let end = offset + extensions;
+    while offset < end {
+        let header = take(&mut offset, 4)?;
+        let (kind, length) = (u16_at(header), u16_at(&header[2..]));
+        let body = take(&mut offset, length)?;
+        if kind == 0xca34 {
+            let list = body.get(2..2 + u16_at(body)).ok_or("bad ID list")?;
+            let mut ids = Vec::new();
+            let mut at = 0;
+            while at < list.len() {
+                let length = usize::from(list[at]);
+                ids.push(list.get(at + 1..at + 1 + length).ok_or("bad ID")?.to_vec());
+                at += 1 + length;
+            }
+            return Ok(ids);
+        }
+    }
+    Err("ClientHello has no trust-anchor IDs".into())
+}
+
+/// The trust-anchor orders of a retained file's ClientHellos, in connection
+/// order: the startup files hold one, and `#run_0` names every raw
+/// ClientHello of a resumption capture's first run.
+fn retained_orders(source: &str) -> TestResult<Vec<Vec<Vec<u8>>>> {
+    let (path, run) = match source.split_once('#') {
+        Some((path, run)) => (path, Some(run)),
+        None => (source, None),
+    };
+    let text = ORDER_SOURCES
+        .iter()
+        .find_map(|(name, text)| (*name == path).then_some(*text))
+        .ok_or_else(|| format!("{path} is not a retained order source"))?;
+    let mut hellos = Vec::new();
+    for line in text.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let connection = match run {
+            Some(run) => key
+                .strip_prefix(run)
+                .and_then(|rest| rest.strip_prefix("_connection_"))
+                .and_then(|rest| rest.strip_suffix("_client_hello_hex"))
+                .map(str::parse::<usize>)
+                .transpose()?,
+            None if key == "record_0_hex" || key == "handshake_hex" => Some(0),
+            None => None,
+        };
+        if let Some(connection) = connection {
+            hellos.push((
+                connection,
+                client_hello_trust_anchor_ids(&hex_bytes(value)?)?,
+            ));
+        }
+    }
+    hellos.sort();
+    Ok(hellos.into_iter().map(|(_, ids)| ids).collect())
+}
+
 struct TrustAnchorOrders<'a>(std::collections::HashMap<&'a str, &'a str>);
 
 impl<'a> TrustAnchorOrders<'a> {
@@ -154,12 +287,13 @@ fn order_count(value: &str) -> Result<usize, Box<dyn std::error::Error>> {
         .parse()?)
 }
 
-/// The TCP recipe carries the order most of the 29 retained processes used,
-/// and the QUIC recipe the most frequent of the 20 retained QUIC ClientHellos,
-/// which every process varied between its connections.
+/// The tally in `trust-anchor-orders.txt` follows from the retained bytes:
+/// each process's ClientHellos, read again from the fixture the tally names,
+/// carry the orders it records, over TCP one per process and over QUIC one
+/// per connection. The TCP recipe sends the order most processes used, and
+/// the QUIC recipe the order most QUIC ClientHellos used.
 #[test]
-fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones()
--> Result<(), Box<dyn std::error::Error>> {
+fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones() -> TestResult<()> {
     let orders = TrustAnchorOrders(
         TRUST_ANCHOR_ORDERS
             .lines()
@@ -169,37 +303,95 @@ fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones()
     assert_eq!(orders.value("format")?, "phantom-trust-anchor-orders-v1");
     assert_eq!(orders.value("browser")?, "Opera");
     assert_eq!(orders.value("browser_version")?, "136.0.6008.52");
-    assert_eq!(orders.value("process_count")?, "29");
-    let top = orders.value("order_0")?;
-    assert!(order_count(top)? > order_count(orders.value("order_1")?)?);
-    assert_eq!(v136_tls().requested_trust_anchor_ids, Some(order_ids(top)?));
-    // Every TCP process kept one order on all of its connections.
-    let tcp_processes = (0..29)
-        .map(|index| orders.value(&format!("process_{index}")))
-        .collect::<Result<Vec<_>, _>>()?;
+    let field = |value: &'static str, key: &str| -> TestResult<&'static str> {
+        Ok(value
+            .split(',')
+            .find_map(|part| part.strip_prefix(key))
+            .ok_or_else(|| format!("{value} has no {key}"))?)
+    };
+    let order_list = |prefix: &str, count: &str| -> TestResult<Vec<Vec<Vec<u8>>>> {
+        (0..orders.value(count)?.parse::<usize>()?)
+            .map(|index| {
+                Ok(order_ids(orders.value(&format!("{prefix}{index}"))?)?
+                    .into_iter()
+                    .map(Vec::from)
+                    .collect())
+            })
+            .collect()
+    };
+    let mut sources = std::collections::HashSet::new();
+
+    // TCP: every ClientHello of a process carries the process's order.
+    let tcp_orders = order_list("order_", "distinct_order_count")?;
+    let mut tcp_counts = vec![0; tcp_orders.len()];
+    let processes = orders.value("process_count")?.parse::<usize>()?;
+    let mut hellos = 0;
+    for index in 0..processes {
+        let process = orders.value(&format!("process_{index}"))?;
+        let source = field(process, "source:")?;
+        let order = field(process, "order:")?.parse::<usize>()?;
+        let derived = retained_orders(source)?;
+        assert_eq!(derived.len().to_string(), field(process, "client_hellos:")?);
+        assert!(
+            derived.iter().all(|ids| *ids == tcp_orders[order]),
+            "{source}"
+        );
+        tcp_counts[order] += 1;
+        hellos += derived.len();
+        sources.insert(source.split('#').next().unwrap_or(source));
+    }
+    assert_eq!(hellos.to_string(), orders.value("client_hello_count")?);
+    for (index, count) in tcp_counts.iter().enumerate() {
+        let recorded = order_count(orders.value(&format!("order_{index}"))?)?;
+        assert_eq!(*count, recorded, "order_{index}");
+    }
+    assert!(tcp_counts[0] > tcp_counts[1]);
+    let tcp_recipe = v136_tls()
+        .requested_trust_anchor_ids
+        .ok_or("Opera 136 recipe omitted trust-anchor IDs")?;
     assert!(
-        tcp_processes
+        tcp_recipe
             .iter()
-            .all(|process| process.contains(",order:"))
+            .map(|id| id.to_vec())
+            .eq(tcp_orders[0].clone())
     );
 
-    assert_eq!(orders.value("quic_client_hello_count")?, "20");
-    let quic_top = orders.value("quic_order_0")?;
-    assert_eq!(order_count(quic_top)?, 2);
-    assert_eq!(order_count(orders.value("quic_order_1")?)?, 1);
-    assert_eq!(
-        v136_http3_tls().requested_trust_anchor_ids,
-        Some(order_ids(quic_top)?)
-    );
-    // A process that opened several QUIC connections used several orders.
-    for index in 3..6 {
+    // QUIC: each ClientHello carries the order its position names.
+    let quic_orders = order_list("quic_order_", "quic_distinct_order_count")?;
+    let mut quic_counts = vec![0; quic_orders.len()];
+    let quic_processes = orders.value("quic_process_count")?.parse::<usize>()?;
+    for index in 0..quic_processes {
         let process = orders.value(&format!("quic_process_{index}"))?;
-        let (_, sequence) = process.split_once(",orders:").ok_or("no orders")?;
-        let distinct = sequence
+        let source = field(process, "source:")?;
+        let derived = retained_orders(source)?;
+        let recorded = field(process, "orders:")?
             .split(' ')
-            .collect::<std::collections::HashSet<_>>();
-        assert!(distinct.len() > 1, "{process}");
+            .map(str::parse::<usize>)
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(derived.len(), recorded.len(), "{source}");
+        for (ids, order) in derived.iter().zip(&recorded) {
+            assert_eq!(*ids, quic_orders[*order], "{source}");
+            quic_counts[*order] += 1;
+        }
+        sources.insert(source.split('#').next().unwrap_or(source));
     }
+    for (index, count) in quic_counts.iter().enumerate() {
+        let recorded = order_count(orders.value(&format!("quic_order_{index}"))?)?;
+        assert_eq!(*count, recorded, "quic_order_{index}");
+    }
+    assert!(quic_counts[0] > quic_counts[1]);
+    let quic_recipe = v136_http3_tls()
+        .requested_trust_anchor_ids
+        .ok_or("Opera 136 H3 recipe omitted trust-anchor IDs")?;
+    assert!(
+        quic_recipe
+            .iter()
+            .map(|id| id.to_vec())
+            .eq(quic_orders[0].clone())
+    );
+
+    // Every retained source is in the tally, and nothing else is.
+    assert_eq!(sources.len(), ORDER_SOURCES.len());
     Ok(())
 }
 

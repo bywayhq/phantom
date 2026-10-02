@@ -41,8 +41,8 @@ use crate::{
 // Chromium 152 encodes the trust-anchor ID list in the iteration order of a
 // hash set. Over TCP the order is fixed within a browser process and differs
 // between processes: these are the 32 IDs in the most frequent order of the
-// 29 Opera 136.0.6008.52 processes in the retained `trust-anchor-orders.txt`
-// (5 of 29; 16 distinct orders), whose 100 ClientHellos never change order
+// 29 Opera 136.0.6008.52 processes tallied in `trust-anchor-orders.txt` (5 of
+// 29; 16 distinct orders), whose 100 retained ClientHellos never change order
 // within a process. Chrome 154 sorts the list and lacks four of these IDs:
 // `d6790902`, `d6790903`, `d6790909`, and `d679090e`.
 const V136_TRUST_ANCHOR_IDS: &[&[u8]] = &[
@@ -126,14 +126,15 @@ fn trust_anchor_ids(ids: &[&[u8]]) -> Option<Vec<Box<[u8]>>> {
 /// Returns TLS settings captured from Opera 136.0.6008.52 on Windows 11.
 ///
 /// Opera 136.0.6008.52 (Windows 11 build 26200) sends the Chrome 154 TCP
-/// ClientHello, signature-algorithm GREASE included, in all 20 retained fresh
-/// processes, with one difference: its trust-anchor IDs extension carries 32
-/// IDs in a per-process order where Chrome 154 sends 28 in sorted order. This
-/// reuses [`chromium::v154_tls`] with the most frequent order among 29
-/// retained processes, which 5 of them used; a recipe cannot draw a new order
-/// per process. The retained Opera ClientHello, one of those five, is
-/// replayed against the result. It leaves [`TlsSettings::ech_from_https_records`] unset: no capture
-/// shows Opera using an HTTPS record's `ech`.
+/// ClientHello, signature-algorithm GREASE included, in all 29 processes
+/// whose ClientHellos are retained (20 startups and 9 resumption runs), with
+/// one difference: its trust-anchor IDs extension carries 32 IDs in a
+/// per-process order where Chrome 154 sends 28 in sorted order. This reuses
+/// [`chromium::v154_tls`] with the most frequent of those processes' orders,
+/// which 5 of them used; a recipe cannot draw a new order per process. The
+/// retained `client-hello.txt`, one of those five, is replayed against the
+/// result. It leaves [`TlsSettings::ech_from_https_records`] unset: no
+/// capture shows Opera using an HTTPS record's `ech`.
 #[must_use]
 pub fn v136_tls() -> TlsSettings {
     let mut settings = chromium::v154_tls();
