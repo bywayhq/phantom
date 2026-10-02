@@ -252,12 +252,10 @@ async fn socks5_udp_association_sends_from_the_bound_address() -> TestResult<()>
     // A second loopback address shows the binding, since an unbound client
     // would leave from 127.0.0.1. macOS has only 127.0.0.1 by default.
     let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
-    let source = if std::net::UdpSocket::bind((source, 0)).is_ok() {
-        source
-    } else {
-        eprintln!("127.0.0.2 is not available; binding to 127.0.0.1 instead");
-        IPV4_LOOPBACK
-    };
+    if std::net::UdpSocket::bind((source, 0)).is_err() {
+        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+        return Ok(());
+    }
     let identity = TestIdentity::generate()?;
     let (origin, endpoint) = h3_support::server_endpoint(&identity)?;
     let proxy_listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
