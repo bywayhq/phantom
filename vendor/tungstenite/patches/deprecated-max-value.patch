@@ -1,0 +1,28 @@
+diff --git a/src/protocol/frame/mod.rs b/src/protocol/frame/mod.rs
+index b597081..b11f2ca 100644
+--- a/src/protocol/frame/mod.rs
++++ b/src/protocol/frame/mod.rs
+@@ -169,7 +169,7 @@ impl FrameCodec {
+         unmask: bool,
+         accept_unmasked: bool,
+     ) -> Result<Option<Frame>> {
+-        let max_size = max_size.unwrap_or_else(usize::max_value);
++        let max_size = max_size.unwrap_or(usize::MAX);
+ 
+         let mut payload = loop {
+             if self.header.is_none() {
+diff --git a/src/protocol/message.rs b/src/protocol/message.rs
+index 6a07868..7ca2dc7 100644
+--- a/src/protocol/message.rs
++++ b/src/protocol/message.rs
+@@ -119,8 +119,8 @@ impl IncompleteMessage {
+     /// Add more data to an existing message.
+     pub fn extend<T: AsRef<[u8]>>(&mut self, tail: T, size_limit: Option<usize>) -> Result<()> {
+         // Always have a max size. This ensures an error in case of concatenating two buffers
+-        // of more than `usize::max_value()` bytes in total.
+-        let max_size = size_limit.unwrap_or_else(usize::max_value);
++        // of more than `usize::MAX` bytes in total.
++        let max_size = size_limit.unwrap_or(usize::MAX);
+         let my_size = self.len();
+         let portion_size = tail.as_ref().len();
+         // Be careful about integer overflows here.

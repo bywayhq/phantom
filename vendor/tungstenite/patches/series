@@ -2,4 +2,5 @@ permessage-deflate.patch
 redacted-fallible-masking.patch
 phantom-integration.patch
 message-fragment-limit.patch
+deprecated-max-value.patch
 publish-identity.patch

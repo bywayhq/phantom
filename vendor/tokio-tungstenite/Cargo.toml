@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.85"
 name = "phantom-tokio-tungstenite"
-version = "0.30.0-phantom.1"
+version = "0.30.0-phantom.2"
 authors = [
     "Daniel Abramov <dabramov@snapview.de>",
     "Alexey Galakhov <agalakhov@snapview.de>",
@@ -188,7 +188,7 @@ optional = true
 default-features = false
 
 [dependencies.tungstenite]
-version = "=0.30.0-phantom.1"
+version = "=0.30.0-phantom.2"
 package = "phantom-tungstenite"
 path = "../tungstenite"
 default-features = false

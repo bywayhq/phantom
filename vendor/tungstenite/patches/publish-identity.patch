@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 7a0464f..e0c3df8 100644
+index 7a0464f..1db6764 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -12,8 +12,8 @@
@@ -9,7 +9,7 @@ index 7a0464f..e0c3df8 100644
 -name = "tungstenite"
 -version = "0.30.0"
 +name = "phantom-tungstenite"
-+version = "0.30.0-phantom.1"
++version = "0.30.0-phantom.2"
  authors = [
      "Alexey Galakhov",
      "Daniel Abramov",

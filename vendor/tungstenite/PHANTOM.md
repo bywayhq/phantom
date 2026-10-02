@@ -12,7 +12,7 @@ unrecorded edit to the vendored crate.
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`tungstenite` becomes `phantom-tungstenite` at
-`0.30.0-phantom.1`), keeps the upstream library name so source, tests, and
+`0.30.0-phantom.2`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -42,11 +42,15 @@ and errors, makes client masking entropy failure an ordinary result, and
 reports forbidden peer Close codes instead of rewriting them. A small
 integration patch exposes ordered negotiation for Phantom's custom handshake,
 rejects terminal raw-DEFLATE streams, and keeps an 8-bit negotiated window
-within its wire bound. The final default-preserving patch adds an opt-in
-per-message data fragment count, rejects overflow before decompression or
-reassembly, and makes that receive failure terminal. The `deflate` feature
-enables only its codec and HTTP value types; the separate `handshake` feature
-still owns tungstenite's built-in handshake implementation.
+within its wire bound. The default-preserving `message-fragment-limit.patch`
+adds an opt-in per-message data fragment count, rejects overflow before
+decompression or reassembly, and makes that receive failure terminal. The
+`deflate` feature enables only its codec and HTTP value types; the separate
+`handshake` feature still owns tungstenite's built-in handshake implementation.
+
+`deprecated-max-value.patch` replaces the two `usize::max_value` calls, which
+Rust 1.99 deprecates, with `usize::MAX`. It changes no behavior, and upstream
+`master` still has the deprecated calls as of this patch.
 
 ## Required check
 

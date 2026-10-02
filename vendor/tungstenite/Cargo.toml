@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.85"
 name = "phantom-tungstenite"
-version = "0.30.0-phantom.1"
+version = "0.30.0-phantom.2"
 authors = [
     "Alexey Galakhov",
     "Daniel Abramov",
