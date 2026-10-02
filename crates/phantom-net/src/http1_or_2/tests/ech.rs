@@ -6,6 +6,7 @@ use std::{
     io,
     net::SocketAddr,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
     time::{Duration, Instant},
 };
@@ -26,6 +27,7 @@ use phantom_testkit::tls::{
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{TcpListener, TcpStream},
+    sync::Notify,
     task::JoinHandle,
 };
 use tokio_btls::SslStream;
@@ -527,20 +529,37 @@ async fn edge_153_rejection_is_retried_as_edge_retried_it() -> TestResult<()> {
     Ok(())
 }
 
-fn slow_resolver(delay: Duration) -> crate::host_resolver::HostResolver {
+/// A resolver whose address lookup takes at least `delay`, and a notice of
+/// its answer. A blocking sleep on a loaded macOS host can end 150 ms late,
+/// so the tests time the record from the notice, not from the request.
+fn slow_resolver(delay: Duration) -> (crate::host_resolver::HostResolver, Arc<Notify>) {
     let settings = phantom_profile::DnsCacheSettings {
         max_entries: std::num::NonZeroUsize::MIN,
         ttl: Duration::from_secs(60),
         negative_ttl: None,
     };
+    let resolved = Arc::new(Notify::new());
+    let answered = Arc::clone(&resolved);
     let cache = crate::address_cache::AddressCache::with_lookup(settings, move |_| {
+        let answered = Arc::clone(&answered);
         // The lookup runs on a thread of its own without a timer driver.
         Box::pin(async move {
             std::thread::sleep(delay);
+            answered.notify_one();
             Ok(vec![SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0))])
         })
     });
-    crate::host_resolver::HostResolver::new().with_address_cache(cache)
+    let resolver = crate::host_resolver::HostResolver::new().with_address_cache(cache);
+    (resolver, resolved)
+}
+
+/// Publishes the record `delay` after the slow resolver answers.
+fn record_after(resolved: Arc<Notify>, delay: Duration) -> JoinHandle<EchConfigList> {
+    tokio::spawn(async move {
+        resolved.notified().await;
+        tokio::time::sleep(delay).await;
+        published(1, &TEST_ECH_KEYS[0])
+    })
 }
 
 /// A lookup that finishes within the bounded wait after a slow address
@@ -550,16 +569,12 @@ async fn a_resolved_address_waits_for_a_lookup_within_the_bound() -> TestResult<
     let identity = identity()?;
     let key = server_key(1, TEST_ECH_KEYS[0]);
     let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
-    let connector =
-        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
+    let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
+    let connector = connector(&identity)?.with_host_resolver(resolver);
 
     // 250 ms of resolution allows 50 ms more; the record arrives 5 ms after
-    // the addresses. Started now, as the client's lookup starts with the
-    // request.
-    let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(255)).await;
-        published(1, &TEST_ECH_KEYS[0])
-    });
+    // the addresses.
+    let lookup = record_after(resolved, Duration::from_millis(5));
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,
@@ -588,8 +603,8 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
     // cache hit starts the handshake at once, well before the record; a
     // resolution that bypassed the cache would finish after the record and
     // offer it. Both margins hold on a loaded host.
-    let connector =
-        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(1_500)));
+    let (resolver, _) = slow_resolver(Duration::from_millis(1_500));
+    let connector = connector(&identity)?.with_host_resolver(resolver);
 
     tokio::time::timeout(
         TEST_TIMEOUT,
@@ -666,14 +681,13 @@ async fn a_lookup_past_the_bound_leaves_grease() -> TestResult<()> {
     let identity = identity()?;
     let key = server_key(1, TEST_ECH_KEYS[0]);
     let (address, server) = serve(vec![acceptor(&identity, Some(&key))?]).await?;
-    let connector =
-        connector(&identity)?.with_host_resolver(slow_resolver(Duration::from_millis(250)));
+    let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
+    let connector = connector(&identity)?.with_host_resolver(resolver);
 
-    // The wait ends 50 ms after the addresses; the record comes 150 ms later.
-    let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(450)).await;
-        published(1, &TEST_ECH_KEYS[0])
-    });
+    // The wait ends 50 ms after the addresses and the record comes 90 ms after
+    // them, so a wait of more than 90 ms fails. The 40 ms margin covers a
+    // late deadline timer and the hand-off of the addresses to the client.
+    let lookup = record_after(resolved, Duration::from_millis(90));
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,

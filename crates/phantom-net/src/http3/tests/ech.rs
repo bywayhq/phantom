@@ -1,12 +1,7 @@
 //! Real Encrypted Client Hello on direct QUIC connections, against a loopback
 //! BoringSSL QUIC server that decrypts ECH.
 
-use std::{
-    future::Future,
-    net::SocketAddr,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{future::Future, net::SocketAddr, sync::Arc, time::Duration};
 
 use btls::{
     hpke::HpkeKey,
@@ -18,7 +13,7 @@ use phantom_testkit::tls::{
     ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list,
     is_grease,
 };
-use tokio::time::timeout;
+use tokio::{sync::Notify, task::JoinHandle, time::timeout};
 
 use super::super::{Http3Connection, Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
 use super::{TEST_TIMEOUT, TestResult};
@@ -235,20 +230,37 @@ async fn a_malformed_list_fails_before_any_packet() -> TestResult<()> {
     assert_no_other_connection(&endpoint).await
 }
 
-fn slow_resolver(delay: Duration) -> crate::host_resolver::HostResolver {
+/// A resolver whose address lookup takes at least `delay`, and a notice of
+/// its answer. A blocking sleep on a loaded macOS host can end 150 ms late,
+/// so the tests time the record from the notice, not from the request.
+fn slow_resolver(delay: Duration) -> (crate::host_resolver::HostResolver, Arc<Notify>) {
     let settings = phantom_profile::DnsCacheSettings {
         max_entries: std::num::NonZeroUsize::MIN,
         ttl: Duration::from_secs(60),
         negative_ttl: None,
     };
+    let resolved = Arc::new(Notify::new());
+    let answered = Arc::clone(&resolved);
     let cache = crate::address_cache::AddressCache::with_lookup(settings, move |_| {
+        let answered = Arc::clone(&answered);
         // The lookup runs on a thread of its own without a timer driver.
         Box::pin(async move {
             std::thread::sleep(delay);
+            answered.notify_one();
             Ok(vec![SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, 0))])
         })
     });
-    crate::host_resolver::HostResolver::new().with_address_cache(cache)
+    let resolver = crate::host_resolver::HostResolver::new().with_address_cache(cache);
+    (resolver, resolved)
+}
+
+/// Publishes the record `delay` after the slow resolver answers.
+fn record_after(resolved: Arc<Notify>, delay: Duration) -> JoinHandle<EchConfigList> {
+    tokio::spawn(async move {
+        resolved.notified().await;
+        tokio::time::sleep(delay).await;
+        published(1, &TEST_ECH_KEYS[0])
+    })
 }
 
 /// A lookup that finishes within the bounded wait after a slow address
@@ -259,14 +271,11 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
     let (address, endpoint) = server(&identity, Some((1, &TEST_ECH_KEYS[0], PUBLIC_NAME)))?;
 
     // 250 ms of resolution allows 50 ms more; the record arrives 5 ms after
-    // the addresses. Started now, as the client's lookup starts with the
-    // request.
-    let connector = connector_with(&chromium::v154_http3_tls(), &identity)?
-        .with_host_resolver(slow_resolver(Duration::from_millis(250)));
-    let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(255)).await;
-        published(1, &TEST_ECH_KEYS[0])
-    });
+    // the addresses.
+    let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
+    let connector =
+        connector_with(&chromium::v154_http3_tls(), &identity)?.with_host_resolver(resolver);
+    let lookup = record_after(resolved, Duration::from_millis(5));
     let (connection, observed) = tokio::join!(
         connect(&connector, "origin.test", address, INNER_NAME, async {
             lookup.await.ok()
@@ -278,15 +287,14 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
     assert_eq!(observed.outer_server_name()?.as_deref(), Some(PUBLIC_NAME));
     assert!(observed.ech_accepted);
 
-    // The wait ends 50 ms after the addresses; this record comes 150 ms
-    // later, so the ClientHello carries ECH GREASE and the true name.
-    let connector = connector_with(&chromium::v154_http3_tls(), &identity)?
-        .with_host_resolver(slow_resolver(Duration::from_millis(250)));
-    let lookup = tokio::spawn(async {
-        tokio::time::sleep(Duration::from_millis(450)).await;
-        published(1, &TEST_ECH_KEYS[0])
-    });
-    let started = Instant::now();
+    // The wait ends 50 ms after the addresses and this record comes 90 ms
+    // after them, so the ClientHello carries ECH GREASE and the true name,
+    // and a wait of more than 90 ms fails. The 40 ms margin covers a late
+    // deadline timer and the hand-off of the addresses to the client.
+    let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
+    let connector =
+        connector_with(&chromium::v154_http3_tls(), &identity)?.with_host_resolver(resolver);
+    let lookup = record_after(resolved, Duration::from_millis(90));
     let (connection, observed) = tokio::join!(
         connect(&connector, "origin.test", address, INNER_NAME, async {
             lookup.await.ok()
@@ -295,7 +303,6 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
     );
     let _connection = connection??;
     let observed = observed?;
-    assert!(started.elapsed() < Duration::from_millis(450));
     assert_eq!(observed.outer_server_name()?.as_deref(), Some(INNER_NAME));
     assert!(observed.ech()?.is_some());
     assert!(!observed.ech_accepted);
