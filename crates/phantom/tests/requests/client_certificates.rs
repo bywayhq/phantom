@@ -511,8 +511,8 @@ fn profile_that_cannot_sign_with_the_key_is_an_invalid_policy() -> TestResult<()
 #[test]
 fn ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy() -> TestResult<()> {
     let server = TestIdentity::generate()?;
-    // BoringSSL reads a PKCS #8 v1 Ed25519 key, the form it writes, but not
-    // the v2 form, with the public key, that rcgen generates.
+    // This pins the PKCS #8 v1 path, the form BoringSSL writes. A v2 key,
+    // the form rcgen generates, fails earlier, with kind PrivateKey.
     let key = PKey::generate(Id::ED25519)?;
     let key_der = key.private_key_to_der_pkcs8()?;
     let identity = ClientIdentity::issue(KeyPair::from_pem(&String::from_utf8(

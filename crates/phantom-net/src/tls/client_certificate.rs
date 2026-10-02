@@ -16,13 +16,15 @@ use zeroize::Zeroizing;
 /// A certificate chain and the private key of its first certificate, which a
 /// TLS client presents when a server asks for client authentication.
 ///
-/// The key may be RSA, ECDSA (P-256, P-384, or P-521), or Ed25519, the key
-/// types BoringSSL signs a `CertificateVerify` with. The handshake signs with
-/// a scheme that the key, the server's `CertificateRequest`, and the TLS
+/// The key may be RSA or ECDSA (P-256, P-384, or P-521). The handshake signs
+/// with a scheme that the key, the server's `CertificateRequest`, and the TLS
 /// profile's `signature_schemes` all allow, because BoringSSL takes the
 /// client's signing preferences from that list;
-/// [`Self::check_signature_schemes`] tells whether a profile has one. No
-/// profile lists Ed25519, so an Ed25519 key passes no profile today.
+/// [`Self::check_signature_schemes`] tells whether a profile has one.
+/// Ed25519 keys are rejected, because no profile has an Ed25519 signature
+/// scheme: a PKCS #8 v1 key parses and then fails that check, and a v2 key,
+/// which carries its public key, fails to parse with kind
+/// [`PrivateKey`](ClientCertificateErrorKind::PrivateKey).
 /// Cloning is cheap: clones share the parsed certificates and key.
 ///
 /// A connector with a client certificate sends the same ClientHello as one
