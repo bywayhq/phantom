@@ -144,20 +144,36 @@ async fn tcp_bind_to_a_foreign_address_fails_before_connecting() -> TestResult {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn udp_socket_sends_from_the_bound_address() -> TestResult {
+async fn udp_socket_sends_from_the_bound_address_not_the_default() -> TestResult {
+    // The default is the address a caller would bind without the binding,
+    // as a SOCKS5 association passes its control connection's address, so
+    // the bound address must differ from it.
+    let bound = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+    if std::net::UdpSocket::bind((bound, 0)).is_err() {
+        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+        return Ok(());
+    }
     let server = UdpSocket::bind((IPV4_LOOPBACK, 0)).await?;
-    let binding = SourceBinding::new().with_address(IPV4_LOOPBACK);
+    let binding = SourceBinding::new().with_address(bound);
 
-    let socket = binding.bind_udp(
-        server.local_addr()?,
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
-    )?;
+    let socket = binding.bind_udp(server.local_addr()?, SocketAddr::new(IPV4_LOOPBACK, 0))?;
     socket.send_to(b"ping", server.local_addr()?)?;
     let mut buffer = [0_u8; 4];
     let (_, peer) = server.recv_from(&mut buffer).await?;
 
     assert_eq!(peer, socket.local_addr()?);
-    assert_eq!(peer.ip(), IPV4_LOOPBACK);
+    assert_eq!(peer.ip(), bound);
+    Ok(())
+}
+
+#[test]
+fn udp_socket_without_an_address_of_the_family_binds_the_default() -> TestResult {
+    let binding = SourceBinding::new();
+    let default = SocketAddr::new(IPV4_LOOPBACK, 0);
+
+    let socket = binding.bind_udp(SocketAddr::new(IPV4_LOOPBACK, 443), default)?;
+
+    assert_eq!(socket.local_addr()?.ip(), IPV4_LOOPBACK);
     Ok(())
 }
 
