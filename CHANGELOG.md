@@ -14,6 +14,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings` gained the public field `tcp_early_data: bool`, so struct
+  literals that name every field no longer compile. When set, a direct TCP
+  connection that resumes a TLS 1.3 ticket permitting early data offers
+  `early_data` and sends a safe request without a body or trailers as early
+  data; any other request waits for the server's answer. Proxy routes and
+  WebSocket openings never offer it. `firefox::v156_tls`, and so
+  `firefox_android::v156_tls`, sets it, as Firefox 156 offers early data on
+  every such resumption; every other recipe, and `firefox::v156_http3_tls`,
+  leaves it unset. `TlsSettings::validate` rejects it without
+  `session_tickets` or below TLS 1.3
+  ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  Migrate: add `tcp_early_data: false` to a `TlsSettings` literal to keep
+  connections that never offer early data, or set the field to `false` on a
+  Firefox recipe.
 - `Http2HpackSettings` gained the public field
   `sensitive_proxy_authorization` (`Http2SensitiveProxyAuthorization`), so
   struct literals that name every field no longer compile.
@@ -484,6 +498,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientHelloExtension::EarlyData` places the `early_data` extension in a
+  fixed extension order; `firefox::v156_tls` lists it between `KeyShare` and
+  `SupportedVersions`.
+- `Http1Connection::early_data_answered` and `early_data_alpn_changed`, and
+  the same on `Http2Connection`, report a connection's TLS early data.
+  `Http1Or2TlsConnector::offers_early_data` reports whether a connector
+  offers it, and `without_early_data` returns a clone, sharing its ticket
+  cache, that never does.
 - `ClientBuilder::local_address` binds every TCP and QUIC socket a client
   opens, to origins and to proxies, to a local IPv4 or IPv6 address, one per
   family. With an address for one family only, connections skip resolved
@@ -1046,6 +1068,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Firefox recipe over TCP: a resumed direct connection
+  whose ticket permits early data offers `early_data` and sends `GET`,
+  `HEAD`, `OPTIONS`, and `TRACE` requests without a body as early data. After
+  the server rejects the early data, the connection sends the same bytes
+  again once the handshake completes. If the server then selects another ALPN
+  protocol, the connection fails and a negotiated request starts again on a
+  new connection without early data; an exact HTTP/1.1 or HTTP/2 request
+  fails.
+- `btls-sys` moves to `bywayhq/btls` commit `c4596bc5`, whose native patch
+  0013 lets a client that sends `record_size_limit` offer early data and
+  keeps the early-data capability of its tickets, and whose parent `126eca11`
+  keeps the C allocator out of the generated bindings. The `phantom-btls`
+  and `phantom-tokio-btls` forks move to `0.5.6-phantom.4`: `btls` adds
+  `SslConnectorBuilder::enable_scoped_client_sessions_with_early_data`,
+  `ScopedSslSession::early_data_capable`, `SslRef::set_early_data_enabled`,
+  `in_early_data`, `early_data_accepted`, `reset_early_data_reject`, and
+  `ErrorCode::EARLY_DATA_REJECTED`, and `tokio-btls` adds
+  `SslStream::ssl_mut`. A downstream lockfile changes only the `btls-sys`
+  revision and those two versions.
 - `startup_capture.py --layer http3` launches the browser once
   `chrome_http3.py` reports on standard error that it has bound, instead of
   after a fixed `--server-start` wait of 3 seconds. `--server-start` is now

@@ -162,11 +162,19 @@ Supported:
 - Certificate and hostname verification.
 - [ALPN](glossary.md#alpn) and [ALPS](glossary.md#alps).
 - Bounded, client-owned TLS ticket caches for H1 and H2, partitioned by exact
-  [origin](glossary.md#origin) and route, with no early data. Each keeps the
-  recipe's `session_tickets_per_origin` (2 for the Chromium family, 8 for
-  Firefox), presents the newest first, and uses each TLS 1.3 ticket once. A
-  resumed Firefox-profile ClientHello omits `session_ticket`, as Firefox 156
-  does
+  [origin](glossary.md#origin) and route. Each keeps the recipe's
+  `session_tickets_per_origin` (2 for the Chromium family, 8 for Firefox),
+  presents the newest first, and uses each TLS 1.3 ticket once. A resumed
+  Firefox-profile ClientHello omits `session_ticket`, as Firefox 156 does
+  ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
+- Early data over TCP with the Firefox recipe (`TlsSettings::tcp_early_data`).
+  A direct H1 or H2 connection that resumes a ticket permitting it offers
+  `early_data` and sends a safe request without a body or trailers as early
+  data; any other request waits for the server's answer. After a rejection
+  the same bytes go out again on the connection. If the server then picks
+  another ALPN protocol, the connection fails and a negotiated request starts
+  again on a new connection without early data. Proxy routes and WebSocket
+  openings never offer it, and the Chromium-family recipes never do
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 
 Planned:

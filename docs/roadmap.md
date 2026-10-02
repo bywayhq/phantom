@@ -44,6 +44,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - TLS 1.3 session resumption over TCP, with the per-origin ticket count and
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
+- Early data over TCP in the Firefox recipe: a resumed direct connection
+  offers `early_data` where Firefox 156 does, sends replay-safe requests in
+  it, sends them again on the same connection after a rejection, and restarts
+  them without early data when the server then picks another ALPN protocol
+  ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the
   origin, with the Chrome 154, Edge 154, and Brave 154 recipes
@@ -168,18 +173,12 @@ anything does.
 
 #### Wire fidelity
 
-- Early data over TCP for the Firefox recipe. Evidence: the
+- The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
-  where Firefox 156 offers `early_data` on every resumption whose ticket
-  permits it and sends `GET`, `HEAD`, and `OPTIONS` requests in it; Phantom
-  offers no early data over TCP. Blocker: native BoringSSL. The reviewed
-  `btls-sys` fork's record size limit patch (`0005-record-size-limit.patch`)
-  never offers early data from a client that sends `record_size_limit`, and
-  strips the early-data capability from a ticket issued on a connection that
-  negotiated a limit. Firefox sends `record_size_limit` in every ClientHello,
-  so the recipe cannot offer early data until that patch changes. The
-  wrapper changes, an `early_data` position in `ClientHelloExtension`, and
-  the request handling need no native change.
+  where every Firefox 156 resumption sends a 368-byte payload against 240
+  bytes on a fresh connection; the recipe sends 240 bytes on both. Blocker:
+  the captures hold one ticket size only, so how Firefox derives the length
+  is not known.
 - Closing a TLS connection without `close_notify`. Evidence: source only;
   Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),

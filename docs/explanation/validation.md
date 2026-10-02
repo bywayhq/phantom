@@ -3822,11 +3822,12 @@ Limits:
 ### TLS resumption over TCP evidence
 
 What is claimed: over TCP, a resumed Phantom ClientHello has the extension
-set the captures show for its recipe's browser, with `pre_shared_key` last,
-when the server's ticket does not permit early data. With the Chromium-family
-recipes this also holds when the ticket permits early data. Phantom keeps as
-many tickets per origin as the browser did, presents the newest first, and
-uses each once.
+set the captures show for its recipe's browser, with `pre_shared_key` last.
+With a ticket that permits early data, a direct Firefox-profile connection
+offers `early_data` where Firefox does and sends replay-safe requests as early
+data; the Chromium-family recipes never offer it. Phantom keeps as many
+tickets per origin as the browser did, presents the newest first, and uses
+each once.
 
 Evidence: `fixtures/tls/<browser>/<version>/windows-11-26200/` retains nine
 `resumption-<scenario>.txt` fixtures, three runs each, for headless Chrome
@@ -3875,9 +3876,19 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   the same with `firefox::v156_tls` and `resumption-no-early-data.txt`, and
   also requires the exact extension order, which is Firefox's fixed order
   without `session_ticket` and with `pre_shared_key` appended.
-- `firefox_resumed_client_hello_lacks_only_the_early_data_firefox_offers`
-  compares with `resumption-sequential.txt`, whose tickets permit early data:
-  removing `early_data` from Firefox's order gives Phantom's order.
+- `firefox_resumed_client_hello_with_early_data_matches_the_capture`
+  learns a ticket that permits early data and compares the resumed ClientHello
+  with every resumed ClientHello of the Windows and macOS
+  `resumption-sequential.txt`, field by field and byte for byte apart from the
+  random, the session ID, key-share keys, the ECH GREASE AEAD, configuration
+  ID, encapsulated key, and payload, and the PSK identity, ticket age, and
+  binder. The extension order is Firefox's fixed order without
+  `session_ticket`, with an empty `early_data` between `key_share` and
+  `supported_versions`, `record_size_limit` still sent, and `pre_shared_key`
+  last. The ECH GREASE payload is the one difference; see the limits.
+- `chromium_recipes_never_offer_early_data_over_tcp` resumes a ticket that
+  permits early data with the Chrome, Edge, Brave, and Opera recipes; none
+  offers `early_data`.
 - `concurrent_connections_resume_up_to_the_recipes_tickets_per_origin`
   learns two tickets, resumes once (which stores two more), then opens three
   connections at once. With `chromium::v154_tls` two resume and one makes a
@@ -3885,19 +3896,75 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   `firefox::v156_tls` all three resume.
 
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
-(2 for the Chromium family, 8 for Firefox) and the `session_ticket` choice as
-`TlsSettings::session_ticket_extension_when_resuming`.
+(2 for the Chromium family, 8 for Firefox), the `session_ticket` choice as
+`TlsSettings::session_ticket_extension_when_resuming`, and early data as
+`TlsSettings::tcp_early_data` (only `firefox::v156_tls` sets it).
+
+Early data follows Firefox 156's source at tag `FIREFOX_156_0_RELEASE` where
+no capture shows the behavior, since every capture server accepted early
+data:
+
+- Only a direct connection offers it; Firefox disables it on every proxy
+  connection (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`).
+- A request travels as early data when its method is safe and it has no body
+  and no trailers, the rule Phantom's HTTP/3 early data uses. Firefox's
+  `nsHttpRequestHead::IsSafeMethod` (`nsHttpRequestHead.cpp:345-360`) also
+  admits a body and `PROPFIND`, `REPORT`, and `SEARCH`. Any other request
+  waits until the server answers, as Firefox's does
+  (`TlsHandshaker.cpp:304-320`). On HTTP/2 the connection preface and
+  SETTINGS go out as early data whatever the request
+  (`Http2Session.cpp:2683-2707`), as the `methods` captures show.
+- After a rejection with the same ALPN protocol, the connection finishes the
+  handshake and sends the same bytes again: Firefox rewinds an HTTP/1.1
+  request (`nsHttpTransaction.cpp:3363-3373`) and resends HTTP/2 from the
+  preface (`Http2Session.cpp:3384-3393`).
+- After a rejection under another ALPN protocol the connection fails, and a
+  negotiated request is sent again on a new connection that offers no early
+  data, as Firefox restarts its transactions
+  (`nsHttpTransaction.cpp:1546-1579`).
+
+Tests in `crates/phantom-net/src/tls/tests/early_data.rs`,
+`crates/phantom-net/src/http1_or_2/tests/early_data.rs`, and
+`crates/phantom/tests/sessions/session_tcp_early_data.rs` prove this against
+loopback BoringSSL servers that hold their ClientHello answer until the early
+data has arrived:
+
+- `accepted_early_data_carries_the_writes_made_before_the_answer`,
+  `rejected_early_data_is_sent_again_on_the_same_connection`, and
+  `another_alpn_after_a_rejection_fails_the_connection` cover the TLS stream.
+- `http1_sends_a_get_as_early_data_and_holds_a_post_until_the_answer` and
+  `http2_sends_the_preface_and_a_get_as_early_data_and_holds_a_post` show the
+  server reading a `GET` as early data, and a `POST` only after the handshake
+  on a connection whose early data it accepted.
+- `http1_sends_a_rejected_get_once_more_on_the_same_connection` and
+  `http2_sends_a_rejected_get_once_more_on_the_same_connection` show the
+  server reading one copy of the request after a rejection.
+- `a_connection_through_a_proxy_offers_no_early_data` resumes a ticket that
+  permits early data through a CONNECT tunnel without offering it, and
+  `the_plain_handshake_offers_no_early_data` covers the handshake proxy and
+  WebSocket connections use.
+- `a_resumed_negotiated_get_travels_as_early_data` and
+  `an_alpn_change_after_rejected_early_data_restarts_without_early_data` drive
+  the public client.
 
 Limits:
 
-- Firefox 156 offers early data over TCP and sends safe requests in it when
-  its ticket permits early data. Phantom never offers early data over TCP, so
-  against such a server a resumed Firefox-profile ClientHello lacks
-  `early_data`, and its requests arrive after the handshake. The reviewed
-  `btls-sys` fork's record size limit patch disables a client's early data
-  whenever it sends `record_size_limit`, as the Firefox recipe does, so
-  closing this gap needs a native BoringSSL change
+- Every Firefox 156 resumed ClientHello carries a 368-byte ECH GREASE
+  payload, against 240 bytes in a fresh one, with or without early data. The
+  recipe sends 240 bytes on both, so a resumed Firefox-profile ClientHello is
+  128 bytes shorter. The captures show one ticket size only, so the rule
+  behind Firefox's length is not known
   ([roadmap](../roadmap.md)).
+- No capture shows a server rejecting early data; the rejection paths follow
+  Firefox's source. Firefox's other early-data rules are not modeled: it
+  stops offering early data to an origin after certain TLS alerts, and
+  restarts a request without early data after a `425 Too Early` response.
+- Early data is offered on negotiated and exact HTTP/1.1 and HTTP/2
+  connections, not on WebSocket openings or through proxies. An exact
+  request whose server picks another ALPN protocol after a rejection fails
+  instead of restarting, as it would on any connection that negotiates a
+  protocol it cannot use.
+- The early data's record boundaries are BoringSSL's, not NSS's.
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.
 - Firefox's order among the tickets it holds varied between runs; Phantom
