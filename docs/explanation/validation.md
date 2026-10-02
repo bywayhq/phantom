@@ -1443,7 +1443,9 @@ below are read from that version:
   513) and `HeaderTable::lookup` (`neqo-qpack/src/table.rs`, lines 231 to
   261) set the QPACK rules.
 
-The captures agree with each rule.
+The captures agree with each rule they exercise. They ran over IPv4
+loopback, so the 1252-byte Initial datagrams are captured; no capture covers
+IPv6, and its 1232 bytes come from source alone.
 
 Tests replay the captures:
 
