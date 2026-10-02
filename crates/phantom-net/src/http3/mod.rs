@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     future::{Future, poll_fn},
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::{
         Arc, OnceLock,
         atomic::{AtomicBool, Ordering},
@@ -1219,7 +1219,7 @@ fn endpoint_with_socket(
             let default_local = endpoint_bind_address(remote.ip());
             let socket = match &source {
                 Some(source) => source.bind_udp(remote, default_local),
-                None => UdpSocket::bind(default_local),
+                None => crate::source_binding::bind_udp_socket(default_local),
             }
             .map_err(endpoint_error)?;
             socket.set_nonblocking(true).map_err(endpoint_error)?;

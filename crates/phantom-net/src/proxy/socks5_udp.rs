@@ -206,14 +206,13 @@ async fn establish_udp_association(
     // interface. Without one, the socket takes the control connection's
     // local address.
     let udp = match dialer.source {
-        Some(source) => source
-            .bind_udp(control_peer, client_bind)
-            .and_then(|socket| {
-                socket.set_nonblocking(true)?;
-                UdpSocket::from_std(socket)
-            }),
-        None => UdpSocket::bind(client_bind).await,
+        Some(source) => source.bind_udp(control_peer, client_bind),
+        None => crate::source_binding::bind_udp_socket(client_bind),
     }
+    .and_then(|socket| {
+        socket.set_nonblocking(true)?;
+        UdpSocket::from_std(socket)
+    })
     .map_err(|error| Socks5Error::io(Socks5ErrorKind::Connect, error))?;
     let client_udp = udp
         .local_addr()

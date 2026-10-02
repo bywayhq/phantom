@@ -5,7 +5,7 @@ use std::{
 
 use tokio::net::{TcpListener, UdpSocket};
 
-use super::SourceBinding;
+use super::{SourceBinding, WSAENOBUFS, retry_past_reserved_ports};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
@@ -175,6 +175,58 @@ fn udp_socket_without_an_address_of_the_family_binds_the_default() -> TestResult
 
     assert_eq!(socket.local_addr()?.ip(), IPV4_LOOPBACK);
     Ok(())
+}
+
+/// `WSAEADDRINUSE`.
+const WSAEADDRINUSE: i32 = 10_048;
+
+/// Runs the reserved-port retry over `outcomes`, one per bind: `None` binds,
+/// `Some` fails with that OS error. Returns the OS error of the result, if
+/// any, and how many binds were made.
+fn retry_over(windows: bool, port: u16, outcomes: &[Option<i32>]) -> (Option<i32>, usize) {
+    let mut binds = 0;
+    let result = retry_past_reserved_ports(windows, port, || {
+        let outcome = outcomes.get(binds).copied().flatten();
+        binds += 1;
+        outcome.map_or(Ok(()), |code| Err(io::Error::from_raw_os_error(code)))
+    });
+    (result.err().and_then(|error| error.raw_os_error()), binds)
+}
+
+#[test]
+fn windows_retries_a_bind_to_port_zero_refused_at_a_reserved_block() {
+    assert_eq!(retry_over(true, 0, &[Some(WSAENOBUFS), None]), (None, 2));
+}
+
+#[test]
+fn windows_returns_the_error_after_three_retries() {
+    let outcomes = [Some(WSAENOBUFS); 5];
+
+    assert_eq!(retry_over(true, 0, &outcomes), (Some(WSAENOBUFS), 4));
+}
+
+#[test]
+fn other_bind_errors_are_not_retried() {
+    assert_eq!(
+        retry_over(true, 0, &[Some(WSAEADDRINUSE), None]),
+        (Some(WSAEADDRINUSE), 1)
+    );
+}
+
+#[test]
+fn a_bind_to_an_explicit_port_is_not_retried() {
+    assert_eq!(
+        retry_over(true, 443, &[Some(WSAENOBUFS), None]),
+        (Some(WSAENOBUFS), 1)
+    );
+}
+
+#[test]
+fn other_platforms_never_retry() {
+    assert_eq!(
+        retry_over(false, 0, &[Some(WSAENOBUFS), None]),
+        (Some(WSAENOBUFS), 1)
+    );
 }
 
 #[cfg(any(target_os = "android", target_os = "linux"))]
