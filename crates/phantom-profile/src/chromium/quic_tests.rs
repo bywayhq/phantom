@@ -18,9 +18,9 @@ const BRAVE_154_DEVTOOLS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
 ));
-const OPERA_135_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
+const OPERA_136_WINDOWS_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
+    "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt"
 ));
 const CHROME_ANDROID_154_HTTP3_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -64,18 +64,18 @@ client_version=154.1.96.59
 }
 
 #[test]
-fn opera_135_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(OPERA_135_WINDOWS_HTTP3_FIXTURE.contains(
+fn opera_136_quic_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert!(OPERA_136_WINDOWS_HTTP3_FIXTURE.contains(
         "
 client=Opera
 "
     ));
-    assert!(OPERA_135_WINDOWS_HTTP3_FIXTURE.contains(
+    assert!(OPERA_136_WINDOWS_HTTP3_FIXTURE.contains(
         "
-client_version=135.0.5973.92
+client_version=136.0.6008.52
 "
     ));
-    assert_quic_settings_match_startup(OPERA_135_WINDOWS_HTTP3_FIXTURE, &v154_quic())
+    assert_quic_settings_match_startup(OPERA_136_WINDOWS_HTTP3_FIXTURE, &v154_quic())
 }
 
 #[test]
@@ -525,15 +525,15 @@ const RESUMPTION_FIXTURES: [&str; 16] = [
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept.txt"
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-accept.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept-delayed.txt"
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-accept-delayed.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-reject.txt"
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-reject.txt"
     )),
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

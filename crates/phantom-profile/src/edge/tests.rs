@@ -7,7 +7,7 @@ use crate::http2::{
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/edge/154.0.4258.37/windows-11-26200/navigation.txt"
+    "/../../fixtures/client-hints/edge/154.0.4258.48/windows-11-26200/navigation.txt"
 ));
 const MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -25,13 +25,13 @@ fn edge_154_windows_client_hints_match_navigation_capture() -> Result<(), Box<dy
     settings.validate()?;
     let capture = NavigationCapture::parse(CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Microsoft Edge");
-    assert_eq!(capture.value("client_version")?, "154.0.4258.37");
+    assert_eq!(capture.value("client_version")?, "154.0.4258.48");
     assert_eq!(
         capture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"
     );
     assert_eq!(capture.value("launch_mode")?, "headless");
-    assert_eq!(capture.value("repeat_count")?, "1");
+    assert_eq!(capture.value("repeat_count")?, "3");
     capture.assert_runs_agree()?;
     assert_eq!(profile_hints(&settings), capture.hints()?);
     Ok(())
@@ -142,16 +142,22 @@ fn edge_154_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn 
     Ok(())
 }
 
-/// macOS changes only the platform hints.
+/// macOS changes the platform hints; the Mac's build is one patch release
+/// behind the Windows recipe's.
 #[test]
-fn edge_154_macos_client_hints_differ_from_windows_only_in_platform_data() {
+fn edge_154_macos_client_hints_differ_from_windows_in_platform_data_and_build() {
     let changed = changed_hints(&v154_windows_client_hints(), &v154_macos_client_hints());
     assert_eq!(
         changed,
         [
+            ("sec-ch-ua-full-version", r#""154.0.4258.37""#),
             ("sec-ch-ua-arch", r#""arm""#),
             ("sec-ch-ua-platform", r#""macOS""#),
             ("sec-ch-ua-platform-version", r#""15.5.0""#),
+            (
+                "sec-ch-ua-full-version-list",
+                r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0""#,
+            ),
         ]
         .map(|(name, value)| (name.to_owned(), value.to_owned()))
     );

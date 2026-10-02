@@ -33,9 +33,12 @@ fn profiles() -> [ClientProfile; 5] {
         .with_cookie_placement(firefox::v156_cookie_placement());
 
     // Edge 154: its own TLS and client hints; its H2, QUIC, and H3 match the
-    // Chromium recipes. It borrows Chromium's HTTP/1.1 connection bound.
+    // Chromium recipes. Hook logs show its TCP options, HTTP/1.1 connection
+    // bound, and system-resolver cache equal Chromium's.
     let edge = ClientProfile::new(edge::v154_tls())
+        .with_tcp(chromium::v154_tcp())
         .with_http1(chromium::v154_http1())
+        .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
             edge::v154_http3_tls(),
@@ -45,10 +48,11 @@ fn profiles() -> [ClientProfile; 5] {
         ))
         .with_client_hints(edge::v154_windows_client_hints());
 
-    // Brave 154 and Opera 135 follow the same pattern with their own TLS,
+    // Brave 154 and Opera 136 follow the same pattern with their own TLS,
     // H3 TLS, and client hints, and both place cookies as Chromium does.
-    // Brave builds Chrome 154's Chromium tag, so it also takes Chromium's
-    // source-derived TCP options, HTTP/1.1 bound, and address cache.
+    // Brave builds Chrome 154's Chromium tag, and Opera's hook logs match
+    // Chrome's, so both take Chromium's TCP options, HTTP/1.1 bound, and
+    // address cache.
     let brave = ClientProfile::new(brave::v154_tls())
         .with_tcp(chromium::v154_tcp())
         .with_http1(chromium::v154_http1())
@@ -62,15 +66,18 @@ fn profiles() -> [ClientProfile; 5] {
         ))
         .with_client_hints(brave::v154_windows_client_hints())
         .with_cookie_placement(chromium::v154_cookie_placement());
-    let opera = ClientProfile::new(opera::v135_tls())
+    let opera = ClientProfile::new(opera::v136_tls())
+        .with_tcp(chromium::v154_tcp())
+        .with_http1(chromium::v154_http1())
+        .with_dns_cache(chromium::v154_dns_cache())
         .with_http2(chromium::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            opera::v135_http3_tls(),
+            opera::v136_http3_tls(),
             chromium::v154_quic(),
             chromium::v154_http3(),
             chromium::v154_http3_request(),
         ))
-        .with_client_hints(opera::v135_windows_client_hints())
+        .with_client_hints(opera::v136_windows_client_hints())
         .with_cookie_placement(chromium::v154_cookie_placement());
 
     // Chrome 154 for Android: the Chromium TLS recipes without ECH from
@@ -142,13 +149,10 @@ fn chrome_on_macos() -> ClientProfile {
   ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
-- There is no Edge or Opera TCP recipe, and Firefox's keepalive schedule
-  and address selection are not modeled
+- Firefox's keepalive schedule and address selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-  Brave uses `chromium::v154_tcp`.
-- There is no Edge or Opera HTTP/1.1 connection or address cache recipe: no
-  source or capture shows their values
-  ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
+  Brave, Edge, and Opera use `chromium::v154_tcp`, which leaves out the
+  Windows port randomization all three browsers turn on.
 
 ## Next
 

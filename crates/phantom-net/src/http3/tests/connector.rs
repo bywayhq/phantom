@@ -118,17 +118,18 @@ fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
     )
 }
 
-/// Opera 135 offers the Chromium QUIC ClientHello without trust-anchor IDs.
+/// Opera 136 offers the Chromium QUIC ClientHello with the 32 trust-anchor IDs
+/// of its TCP offer; each process orders them its own way.
 #[test]
-fn opera_135_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
+fn opera_136_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &opera::v135_http3_tls(),
+        &opera::v136_http3_tls(),
         &chromium::v154_quic(),
         &chromium::v154_http3(),
         &chromium::v154_http3_request(),
     )?;
-    for client_hello in [OPERA_135_H3_CLIENT_HELLO_1, OPERA_135_H3_CLIENT_HELLO_2] {
-        assert_connector_matches_quic_client_hello(&connector, OPERA_135_H3_STARTUP, client_hello)?;
+    for client_hello in [OPERA_136_H3_CLIENT_HELLO_1, OPERA_136_H3_CLIENT_HELLO_2] {
+        assert_connector_matches_quic_client_hello(&connector, OPERA_136_H3_STARTUP, client_hello)?;
     }
     Ok(())
 }
@@ -726,16 +727,16 @@ const BRAVE_154_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
     "../../../../../fixtures/http3/brave/154.1.96.59/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
-pub(super) const OPERA_135_H3_STARTUP: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/opera/135.0.5973.92/",
+pub(super) const OPERA_136_H3_STARTUP: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/136.0.6008.52/",
     "windows-11-26200/client-startup.txt"
 ));
-const OPERA_135_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/opera/135.0.5973.92/",
+const OPERA_136_H3_CLIENT_HELLO_1: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/136.0.6008.52/",
     "windows-11-26200/quic-client-hello-1.txt"
 ));
-const OPERA_135_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
-    "../../../../../fixtures/http3/opera/135.0.5973.92/",
+const OPERA_136_H3_CLIENT_HELLO_2: &str = include_str!(concat!(
+    "../../../../../fixtures/http3/opera/136.0.6008.52/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 

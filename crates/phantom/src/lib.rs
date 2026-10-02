@@ -283,21 +283,21 @@ pub mod profile {
 
     /// Opera recipes implemented by the public facade.
     ///
-    /// Opera 135 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
-    /// CONNECT recipes; only its TLS ClientHellos, client hints, and request
-    /// identity differ.
+    /// Opera 136 shares the Chromium TCP, HTTP/1.1 connection, address cache, H2,
+    /// QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
+    /// ClientHellos, client hints, and request identity differ.
     pub mod opera {
         pub use phantom_profile::opera::{
-            v135_http3_tls, v135_macos_client_hints, v135_tls, v135_windows_client_hints,
-            v135_windows_fetch_no_store_template, v135_windows_navigation_template,
+            v135_macos_client_hints, v136_http3_tls, v136_tls, v136_windows_client_hints,
+            v136_windows_fetch_no_store_template, v136_windows_navigation_template,
         };
     }
 
     /// Microsoft Edge recipes implemented by the public facade.
     ///
-    /// Edge 154 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
-    /// CONNECT recipes; only its TLS ClientHellos, client hints, and request
-    /// identity differ.
+    /// Edge 154 shares the Chromium TCP, HTTP/1.1 connection, address cache, H2,
+    /// QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
+    /// ClientHellos, client hints, and request identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{
             v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints,

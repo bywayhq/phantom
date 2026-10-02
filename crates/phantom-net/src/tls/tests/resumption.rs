@@ -57,15 +57,13 @@ macro_rules! fixture {
 const CHROME_SEQUENTIAL: &str = fixture!("chrome", "154.0.8037.58", "sequential");
 const EDGE_SEQUENTIAL: &str = fixture!("edge", "154.0.4258.37", "sequential");
 const BRAVE_SEQUENTIAL: &str = fixture!("brave", "154.1.96.59", "sequential");
-const OPERA_SEQUENTIAL: &str = fixture!("opera", "135.0.5973.92", "sequential");
+const OPERA_SEQUENTIAL: &str = fixture!("opera", "136.0.6008.52", "sequential");
 const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0.1", "sequential");
 const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0.1", "no-early-data");
 const CHROME_MACOS_SEQUENTIAL: &str =
     fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
 const EDGE_MACOS_SEQUENTIAL: &str =
     fixture!("edge", "154.0.4258.37", "macos-15.5-arm64", "sequential");
-const OPERA_MACOS_SEQUENTIAL: &str =
-    fixture!("opera", "135.0.5973.92", "macos-15.5-arm64", "sequential");
 const FIREFOX_MACOS_SEQUENTIAL: &str =
     fixture!("firefox", "156.0", "macos-15.5-arm64", "sequential");
 
@@ -75,11 +73,11 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
         (chromium::v154_tls(), CHROME_SEQUENTIAL),
         (edge::v154_tls(), EDGE_SEQUENTIAL),
         (brave::v154_tls(), BRAVE_SEQUENTIAL),
-        (opera::v135_tls(), OPERA_SEQUENTIAL),
-        // One macOS 15.5 arm64 run per browser.
+        (opera::v136_tls(), OPERA_SEQUENTIAL),
+        // One macOS 15.5 arm64 run per browser. The Mac still runs Opera 135,
+        // whose ClientHello no Opera recipe now describes.
         (chromium::v154_tls(), CHROME_MACOS_SEQUENTIAL),
         (edge::v154_tls(), EDGE_MACOS_SEQUENTIAL),
-        (opera::v135_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
         let (fresh, resumed) =
             fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
@@ -108,7 +106,7 @@ async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
         chromium::v154_tls(),
         edge::v154_tls(),
         brave::v154_tls(),
-        opera::v135_tls(),
+        opera::v136_tls(),
     ] {
         assert!(!settings.tcp_early_data);
         let (_, resumed) =
@@ -474,10 +472,16 @@ fn assert_same_resumed_shape(
         actual_summary.alpn_protocols(),
         expected_summary.alpn_protocols()
     );
-    assert_eq!(
-        actual_summary.requested_trust_anchor_ids(),
-        expected_summary.requested_trust_anchor_ids()
-    );
+    // Chrome 154 sorts its trust-anchor IDs; Opera 136 keeps one order per
+    // process, which a recipe cannot follow, so the IDs compare as a set.
+    let sorted_ids = |summary: &ClientHelloSummary| {
+        summary.requested_trust_anchor_ids().map(|ids| {
+            let mut ids = ids.to_vec();
+            ids.sort_unstable();
+            ids
+        })
+    };
+    assert_eq!(sorted_ids(&actual_summary), sorted_ids(&expected_summary));
     assert_eq!(
         actual_summary.extension_types().last(),
         Some(&PRE_SHARED_KEY)

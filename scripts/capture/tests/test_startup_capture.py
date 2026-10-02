@@ -47,7 +47,7 @@ class RecordedArgumentTests(unittest.TestCase):
         for path, layer in (
             ("tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt", "tls"),
             ("tls/brave/154.1.96.59/windows-11-26200/client-hello.txt", "tls"),
-            ("tls/opera/135.0.5973.92/windows-11-26200/client-hello.txt", "tls"),
+            ("tls/opera/136.0.6008.52/windows-11-26200/client-hello.txt", "tls"),
             ("http2/chrome/154.0.8037.58/windows-11-26200/client-startup.txt", "http2"),
             ("http2/brave/154.1.96.59/windows-11-26200/client-startup.txt", "http2"),
         ):
@@ -56,7 +56,7 @@ class RecordedArgumentTests(unittest.TestCase):
                 self.assert_reproduces(path, layer)
 
     def test_devtools_http2_fixture(self) -> None:
-        path = "http2/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
+        path = "http2/opera/136.0.6008.52/windows-11-26200/client-startup.txt"
         self.assertEqual(fixture_field(path, "launch_mode"), "devtools-navigate")
         self.assert_reproduces(path, "http2")
 
@@ -66,8 +66,8 @@ class RecordedArgumentTests(unittest.TestCase):
             "http3/brave/154.1.96.59/windows-11-26200/client-startup.txt",
             "http3/brave/154.1.96.59/windows-11-26200/launch-mode/"
             "client-startup-devtools.txt",
-            "http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt",
-            "http3/opera/135.0.5973.92/windows-11-26200/quic-client-hello-2.txt",
+            "http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt",
+            "http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-2.txt",
         ):
             with self.subTest(path):
                 self.assert_reproduces(path, "http3", port=fixture_port(path))

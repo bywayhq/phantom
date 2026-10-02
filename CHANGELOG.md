@@ -145,6 +145,27 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `v153_windows_fetch_no_store_template` to
   `v154_windows_fetch_no_store_template`. Send an Edge 154 `User-Agent` with
   the new client hints.
+- The Opera recipes move to Opera 136.0.6008.52 on Windows 11:
+  `opera::v135_tls`, `v135_http3_tls`, `v135_windows_client_hints`,
+  `v135_windows_navigation_template`, and
+  `v135_windows_fetch_no_store_template` are removed from `phantom-profile`
+  and the `phantom` facade. Opera 136 is built on Chromium 152.0.7977.130.
+  Its TCP and QUIC ClientHellos now carry a trust-anchor IDs extension with
+  32 IDs, and its TCP ClientHello puts GREASE at the head of
+  `signature_algorithms` again, so `v136_tls` is `chromium::v154_tls` with
+  Opera's ID list and `v136_http3_tls` is `chromium::v154_http3_tls` with
+  the same list. The client hints send
+  `"Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136"` and the
+  matching full version list. The templates are unchanged.
+  `opera::v135_macos_client_hints` stays, because the Mac still runs Opera
+  135 ([evidence](docs/explanation/validation.md#brave-154-and-opera-136-recipes)).
+  Migrate: rename `opera::v135_tls` to `opera::v136_tls`, `v135_http3_tls`
+  to `v136_http3_tls`, `v135_windows_client_hints` to
+  `v136_windows_client_hints`, `v135_windows_navigation_template` to
+  `v136_windows_navigation_template`, and
+  `v135_windows_fetch_no_store_template` to
+  `v136_windows_fetch_no_store_template`. Send an Opera 136 `User-Agent`
+  with the new client hints.
 - `Http2Settings` gained the public field `streams`, of the new type
   `Http2StreamSettings`, so struct literals that name every field no longer
   compile. `first_stream_id` numbers each connection's first request, and
@@ -524,6 +545,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Edge 154 and Opera 136 profiles can take `chromium::v154_tcp`,
+  `chromium::v154_http1`, and `chromium::v154_dns_cache`. Frida hook logs of
+  Chrome 154, Edge 154.0.4258.48, and Opera 136.0.6008.52 on Windows 11 show
+  the same `TCP_NODELAY` and 45-second keepalive, the 300 ms IPv4 fallback,
+  six connections to one origin, and a 60-second system-resolver cache in
+  all three ([evidence](docs/explanation/validation.md#socket-hook-evidence)).
+  The logs also show Windows port randomization (`SO_RANDOMIZE_PORT`) on
+  every socket, which no recipe sets yet.
+- `scripts/capture/socket_hooks.py` and its Frida agent
+  `scripts/capture/socket_hooks.js` record a Chromium browser's socket
+  options, connection attempts, and host lookups on Windows, from inside its
+  network service process, beside a loopback origin's record of the
+  connections it accepted. Frida is pinned in
+  `scripts/capture/hooks-requirements.txt`. The logs live under
+  `fixtures/socket-hooks/`, and each names the agent by its SHA-256.
 - `ClientHelloExtension::EarlyData` places the `early_data` extension in a
   fixed extension order; `firefox::v156_tls` lists it between `KeyShare` and
   `SupportedVersions`.
@@ -1108,6 +1144,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   hints its response stored. A cookie that another request stores during a
   race, or before such a replay, is sent from the next request on
   ([Fields of a repeated attempt](docs/explanation/design.md#fields-of-a-repeated-attempt)).
+- `edge::v154_windows_client_hints` reports Edge 154.0.4258.48, the
+  Windows build after 154.0.4258.37, in `sec-ch-ua-full-version` and
+  `sec-ch-ua-full-version-list`. Snapshots of 154.0.4258.48 matched every
+  other retained Edge 154 layer
+  ([evidence](docs/explanation/validation.md#edge-154-recipes)).
+  `edge::v154_macos_client_hints` keeps the Mac's 154.0.4258.37.
+- `opera_android::v102_tls` is now built from `chromium::v154_tls` without
+  trust-anchor IDs instead of from the desktop Opera recipe, whose Opera 136
+  ClientHello carries them. Its settings are unchanged.
 - Wire change for the Firefox recipe over TCP: a resumed direct connection
   whose ticket permits early data offers `early_data` and sends `GET`,
   `HEAD`, `OPTIONS`, and `TRACE` requests without a body as early data. After

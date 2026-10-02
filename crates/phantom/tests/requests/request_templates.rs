@@ -63,9 +63,9 @@ const EDGE_H3: &str = fixture!("http3/edge/154.0.4258.37/windows-11-26200/client
 const BRAVE_H1: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/h1-accept.txt");
 const BRAVE_H2: &str = fixture!("websocket/brave/154.1.96.59/windows-11-26200/accept.txt");
 const BRAVE_H3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
-const OPERA_H1: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/h1-accept.txt");
-const OPERA_H2: &str = fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt");
-const OPERA_H3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
+const OPERA_H1: &str = fixture!("websocket/opera/136.0.6008.52/windows-11-26200/h1-accept.txt");
+const OPERA_H2: &str = fixture!("websocket/opera/136.0.6008.52/windows-11-26200/accept.txt");
+const OPERA_H3: &str = fixture!("http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt");
 const BRAVE_ANDROID_H1: &str =
     fixture!("websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/h1-accept.txt");
 const BRAVE_ANDROID_H2: &str =
@@ -125,7 +125,7 @@ fn brave() -> Browser {
 fn opera() -> Browser {
     Browser {
         http2: chromium::v154_http2(),
-        hints: Some(opera::v135_windows_client_hints()),
+        hints: Some(opera::v136_windows_client_hints()),
         http1_capture: OPERA_H1,
         http2_capture: OPERA_H2,
         http3_capture: Some(OPERA_H3),
@@ -492,7 +492,7 @@ async fn brave_navigation_sends_the_captured_page_request() -> TestResult<()> {
 async fn opera_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         opera(),
-        opera::v135_windows_navigation_template,
+        opera::v136_windows_navigation_template,
         Kind::Navigation,
         ALL,
     )
@@ -591,7 +591,7 @@ async fn brave_fetch_sends_the_captured_report_request() -> TestResult<()> {
 async fn opera_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         opera(),
-        opera::v135_windows_fetch_no_store_template,
+        opera::v136_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -836,7 +836,7 @@ mod cookie_placement {
     const BRAVE_H1_COOKIES: &str =
         fixture!("cookies/brave/154.1.96.59/windows-11-26200/crumbs-h1.txt");
     const OPERA_H1_COOKIES: &str =
-        fixture!("cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h1.txt");
+        fixture!("cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h1.txt");
 
     /// Returns the lowercase field names of `fields`.
     fn names(fields: &Fields) -> Vec<String> {
@@ -846,7 +846,7 @@ mod cookie_placement {
             .collect()
     }
 
-    /// Brave 154 and Opera 135 send the jar's `Cookie` last on HTTP/1.1 in
+    /// Brave 154 and Opera 136 send the jar's `Cookie` last on HTTP/1.1 in
     /// their cookie captures, on the navigation and on the `fetch()`, and so
     /// do their templates with the Chromium placement. The captured `fetch()`
     /// also has the template's field order. The captured navigation is a
@@ -871,13 +871,13 @@ mod cookie_placement {
             (
                 opera(),
                 OPERA_H1_COOKIES,
-                opera::v135_windows_navigation_template,
+                opera::v136_windows_navigation_template,
                 "page",
             ),
             (
                 opera(),
                 OPERA_H1_COOKIES,
-                opera::v135_windows_fetch_no_store_template,
+                opera::v136_windows_fetch_no_store_template,
                 "done",
             ),
         ];
@@ -1079,10 +1079,10 @@ async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> Tes
             Some("en-US,en;q=0.9"),
         ),
         (
-            opera::v135_windows_client_hints(),
+            opera::v136_windows_client_hints(),
             [
-                opera::v135_windows_navigation_template(),
-                opera::v135_windows_fetch_no_store_template(),
+                opera::v136_windows_navigation_template(),
+                opera::v136_windows_fetch_no_store_template(),
             ],
             None,
         ),

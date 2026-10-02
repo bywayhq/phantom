@@ -168,7 +168,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
 /// H3, `CreateSpdyHeadersFromHttpRequest` copies those fields in order and then
 /// appends `priority` (`net/spdy/spdy_http_utils.cc:32`, `:199-236`), so
 /// `Cookie` precedes a `priority` field. The retained cookie captures of
-/// Chrome 154, Edge 154, Brave 154, and Opera 135 (`fixtures/cookies/`) show
+/// Chrome 154, Edge 154, Brave 154, and Opera 136 (`fixtures/cookies/`) show
 /// both positions on every run: `Cookie` last over HTTP/1.1, and the crumbs
 /// right before `priority` over HTTP/2 and HTTP/3. Edge, Brave, and Opera
 /// use this recipe.
@@ -539,7 +539,7 @@ pub fn v154_http2() -> Http2Settings {
 /// compression offer is `permessage-deflate; client_max_window_bits`; Chrome
 /// always sends it, while Phantom sends it only when the caller enables
 /// compression. Edge 154.0.4258.37, Brave 154.1.96.59, and Opera
-/// 135.0.5973.92 match this recipe on every compared field.
+/// 136.0.6008.52 match this recipe on every compared field.
 ///
 /// `Accept-Encoding` is a [`WebSocketField::ByTrust`] entry, as on
 /// ordinary requests: Chrome offers `br` and `zstd` only to a potentially
@@ -619,7 +619,7 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// `*-secure-hostname` captures show the same fields on the CONNECT for an
 /// `https://` fetch and a `wss://` opening, anonymous, challenged, on the
 /// replay after a `407`, and with remembered credentials. Edge
-/// 154.0.4258.37, Brave 154.1.96.59, and Opera 135.0.5973.92 send the same
+/// 154.0.4258.37, Brave 154.1.96.59, and Opera 136.0.6008.52 send the same
 /// fields in the same order.
 ///
 /// Chrome's `User-Agent` there is its own, which the captures show equal to
@@ -1023,7 +1023,7 @@ pub fn v154_http3_tls() -> TlsSettings {
 ///
 /// Each `cookie` field is split into one field per cookie
 /// ([`Http3CookieCrumbs::Split`]). The retained cookie captures
-/// (`fixtures/cookies/`) show Chrome 154, Edge 154, Brave 154, and Opera 135
+/// (`fixtures/cookies/`) show Chrome 154, Edge 154, Brave 154, and Opera 136
 /// inserting each crumb into the QPACK dynamic table with a static name
 /// reference and sending it as an indexed field line, at the position of the
 /// joined field.
@@ -1143,6 +1143,8 @@ fn trust_anchor_ids(ids: &[&[u8]]) -> Vec<Box<[u8]>> {
     ids.iter().map(|id| Box::from(*id)).collect()
 }
 
+#[cfg(test)]
+mod hook_tests;
 #[cfg(test)]
 mod http3_tests;
 #[cfg(test)]

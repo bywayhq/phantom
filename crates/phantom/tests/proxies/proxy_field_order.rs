@@ -32,7 +32,7 @@ const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
 const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0";
 /// One of the five `Accept-Language` values Brave draws per session.
 const BRAVE_LANGUAGE: &str = "en-US,en;q=0.7";
 const FIREFOX_UA: &str =
@@ -253,28 +253,28 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "opera",
-            tls: opera::v135_tls(),
-            hints: Some(opera::v135_windows_client_hints()),
-            navigation: opera::v135_windows_navigation_template(),
-            fetch: opera::v135_windows_fetch_no_store_template(),
+            tls: opera::v136_tls(),
+            hints: Some(opera::v136_windows_client_hints()),
+            navigation: opera::v136_windows_navigation_template(),
+            fetch: opera::v136_windows_fetch_no_store_template(),
             caller: vec![RequestHeader::new("User-Agent", OPERA_UA)],
             connect: chromium::v154_proxy_connect(),
             user_agent: OPERA_UA,
             authenticated: [
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-auth-hostname"),
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-auth-loopback"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-hostname"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-loopback"),
             ],
             secure: [
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-secure-hostname"),
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-auth-secure-hostname"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-secure-hostname"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-secure-hostname"),
             ],
             remembered: proxy_fixture!(
-                "opera/135.0.5973.92",
+                "opera/136.0.6008.52",
                 "http-proxy-auth-remembered-hostname"
             ),
             nostore: [
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-auth-nostore-hostname"),
-                proxy_fixture!("opera/135.0.5973.92", "http-proxy-auth-nostore-loopback"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-nostore-loopback"),
             ],
         },
         Browser {

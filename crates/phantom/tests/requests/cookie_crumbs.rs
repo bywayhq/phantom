@@ -54,7 +54,7 @@ const BRAVE: &str = include_str!(concat!(
 ));
 const OPERA: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h2.txt"
+    "/../../fixtures/cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h2.txt"
 ));
 const FIREFOX: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -101,7 +101,7 @@ async fn brave_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResul
 
 #[tokio::test]
 async fn opera_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
-    // Opera 135 replays against the Chromium recipes (`phantom::profile::opera`).
+    // Opera 136 replays against the Chromium recipes (`phantom::profile::opera`).
     let capture = Capture::parse(OPERA)?;
     let observed = replay(
         &capture,

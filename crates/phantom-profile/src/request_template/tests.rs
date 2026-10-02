@@ -107,7 +107,7 @@ const BRAVE_PROXY: [&str; 20] = [
     fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-loopback.txt"),
     fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-secure-hostname.txt"),
 ];
-const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/135.0.5973.92");
+const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/136.0.6008.52");
 const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.8037.58");
 const CHROME_MACOS_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt");
@@ -139,15 +139,15 @@ const CHROME_HTTP3: &str =
     fixture!("http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt");
 const EDGE_HTTP3: &str = fixture!("http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt");
 const BRAVE_HTTP3: &str = fixture!("http3/brave/154.1.96.59/windows-11-26200/client-startup.txt");
-const OPERA_HTTP3: &str = fixture!("http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt");
+const OPERA_HTTP3: &str = fixture!("http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt");
 const CHROME_CLIENT_HINTS: &str =
     fixture!("client-hints/chrome/154.0.8037.58/windows-11-26200/navigation.txt");
 const EDGE_CLIENT_HINTS: &str =
-    fixture!("client-hints/edge/154.0.4258.37/windows-11-26200/navigation.txt");
+    fixture!("client-hints/edge/154.0.4258.48/windows-11-26200/navigation.txt");
 const BRAVE_CLIENT_HINTS: &str =
     fixture!("client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt");
 const OPERA_CLIENT_HINTS: &str =
-    fixture!("client-hints/opera/135.0.5973.92/windows-11-26200/navigation.txt");
+    fixture!("client-hints/opera/136.0.6008.52/windows-11-26200/navigation.txt");
 const BRAVE_ANDROID_CLIENT_HINTS: &str =
     fixture!("client-hints/brave-android/153.1.95.104/android-17-pixel7-emulator/navigation.txt");
 const CHROME_ANDROID_CLIENT_HINTS: &str =
@@ -322,8 +322,8 @@ fn every_template_recipe_is_valid() {
         edge::v154_windows_fetch_no_store_template(),
         brave::v154_windows_navigation_template(),
         brave::v154_windows_fetch_no_store_template(),
-        opera::v135_windows_navigation_template(),
-        opera::v135_windows_fetch_no_store_template(),
+        opera::v136_windows_navigation_template(),
+        opera::v136_windows_fetch_no_store_template(),
         firefox::v156_windows_navigation_template(),
         firefox::v156_windows_fetch_no_store_template(),
         firefox::v156_macos_navigation_template(),
@@ -506,9 +506,9 @@ fn brave_154_navigation_matches_every_captured_page_request() -> CaptureResult<(
 }
 
 #[test]
-fn opera_135_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = opera::v135_windows_navigation_template();
-    let hints = opera::v135_windows_client_hints();
+fn opera_136_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = opera::v136_windows_navigation_template();
+    let hints = opera::v136_windows_client_hints();
     let (http1, http2) = observed(&[&OPERA_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -749,8 +749,8 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             "brave",
         ),
         (
-            opera::v135_windows_fetch_no_store_template(),
-            opera::v135_windows_client_hints(),
+            opera::v136_windows_fetch_no_store_template(),
+            opera::v136_windows_client_hints(),
             &OPERA_WEBSOCKET,
             "opera",
         ),
@@ -834,8 +834,8 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
             "edge macos",
         ),
         (
-            opera::v135_windows_navigation_template(),
-            opera::v135_windows_fetch_no_store_template(),
+            opera::v136_windows_navigation_template(),
+            opera::v136_windows_fetch_no_store_template(),
             opera::v135_macos_client_hints(),
             &OPERA_MACOS_WEBSOCKET,
             "opera macos",
@@ -859,7 +859,7 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
             "chrome macos h3",
         ),
         (
-            opera::v135_windows_navigation_template(),
+            opera::v136_windows_navigation_template(),
             opera::v135_macos_client_hints(),
             OPERA_MACOS_HTTP3,
             "opera macos h3",
@@ -961,8 +961,8 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
         (edge::v154_windows_fetch_no_store_template(), false),
         (brave::v154_windows_navigation_template(), true),
         (brave::v154_windows_fetch_no_store_template(), false),
-        (opera::v135_windows_navigation_template(), true),
-        (opera::v135_windows_fetch_no_store_template(), false),
+        (opera::v136_windows_navigation_template(), true),
+        (opera::v136_windows_fetch_no_store_template(), false),
         (chrome_android::v154_android_navigation_template(), true),
         (edge_android::v153_android_navigation_template(), true),
         (brave_android::v153_android_navigation_template(), true),
@@ -1019,13 +1019,13 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             220,
         ),
         (
-            opera::v135_windows_navigation_template(),
+            opera::v136_windows_navigation_template(),
             &OPERA_WEBSOCKET,
             "document",
             256,
         ),
         (
-            opera::v135_windows_fetch_no_store_template(),
+            opera::v136_windows_fetch_no_store_template(),
             &OPERA_WEBSOCKET,
             "empty",
             220,
@@ -1106,8 +1106,8 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
         ),
         (
             OPERA_CLIENT_HINTS,
-            opera::v135_windows_client_hints(),
-            opera::v135_windows_navigation_template(),
+            opera::v136_windows_client_hints(),
+            opera::v136_windows_navigation_template(),
         ),
         (
             CHROME_ANDROID_CLIENT_HINTS,

@@ -169,7 +169,7 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
         crate::chromium::v154_tls(),
         crate::edge::v154_tls(),
         crate::brave::v154_tls(),
-        crate::opera::v135_tls(),
+        crate::opera::v136_tls(),
     ] {
         assert_eq!(settings.session_tickets_per_origin, 2);
         assert!(settings.session_ticket_extension_when_resuming);
@@ -194,8 +194,8 @@ fn only_the_firefox_recipe_sends_early_data_over_tcp() {
         crate::brave::v154_http3_tls(),
         crate::brave_android::v153_tls(),
         crate::brave_android::v153_http3_tls(),
-        crate::opera::v135_tls(),
-        crate::opera::v135_http3_tls(),
+        crate::opera::v136_tls(),
+        crate::opera::v136_http3_tls(),
         crate::opera_android::v102_tls(),
     ] {
         assert!(!settings.tcp_early_data);
@@ -293,8 +293,8 @@ fn only_the_chrome_edge_and_brave_recipes_use_ech_from_https_records() {
     assert!(crate::edge::v154_http3_tls().ech_from_https_records);
     assert!(crate::brave::v154_tls().ech_from_https_records);
     assert!(crate::brave::v154_http3_tls().ech_from_https_records);
-    assert!(!crate::opera::v135_tls().ech_from_https_records);
-    assert!(!crate::opera::v135_http3_tls().ech_from_https_records);
+    assert!(!crate::opera::v136_tls().ech_from_https_records);
+    assert!(!crate::opera::v136_http3_tls().ech_from_https_records);
     assert!(!crate::firefox::v156_tls().ech_from_https_records);
 }
 

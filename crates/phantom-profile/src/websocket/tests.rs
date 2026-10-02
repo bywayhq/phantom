@@ -59,7 +59,7 @@ const CHROME: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "154.0.4258.37");
 const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0.1");
 const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
-const OPERA: [&str; 9] = fixture_set!("opera", "135.0.5973.92");
+const OPERA: [&str; 9] = fixture_set!("opera", "136.0.6008.52");
 const CHROME_ANDROID: [&str; 9] = fixture_set!(
     "chrome-android",
     "154.0.8037.57",
@@ -73,17 +73,15 @@ fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResul
     let recipe = chromium::v154_websocket();
     let http2 = chromium::v154_http2();
     let tls = chromium::v154_tls();
-    // Every `refused-stream` run of Chrome, Edge, and Brave opened over the
-    // page's H2 session, so each carries a refusal to compare. In two Opera
-    // runs Opera had already closed that session, as it closes its early
-    // connections when its certificate verifier changes, so the socket went
-    // over a new HTTP/1.1 Upgrade connection and no stream was refused.
-    for (fixtures, client, reused, http1, refused) in [
-        (CHROME, "Google Chrome", 15, 6, 3),
-        (EDGE, "Microsoft Edge", 15, 6, 3),
-        (BRAVE, "Brave", 15, 6, 3),
-        (OPERA, "Opera", 13, 8, 1),
+    // Every `refused-stream` run opened over the page's H2 session, so each
+    // carries a refusal to compare.
+    for (fixtures, client) in [
+        (CHROME, "Google Chrome"),
+        (EDGE, "Microsoft Edge"),
+        (BRAVE, "Brave"),
+        (OPERA, "Opera"),
     ] {
+        let (reused, http1, refused) = (15, 6, 3);
         let summary = assert_recipe_matches(&fixtures, client, &recipe, &http2, &tls)?;
         assert_eq!(summary.reused_sessions, reused, "{client}");
         assert_eq!(summary.new_http2_connections, 0, "{client}");
@@ -768,7 +766,7 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
             &chromium,
         ),
         (
-            proxy_fixture_set!("opera", "135.0.5973.92"),
+            proxy_fixture_set!("opera", "136.0.6008.52"),
             "Opera",
             &chromium,
         ),

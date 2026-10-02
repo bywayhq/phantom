@@ -27,7 +27,7 @@ const BRAVE: &str = include_str!(
     "../../../../../fixtures/cookies/brave/154.1.96.59/windows-11-26200/crumbs-h3.txt"
 );
 const OPERA: &str = include_str!(
-    "../../../../../fixtures/cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h3.txt"
+    "../../../../../fixtures/cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h3.txt"
 );
 const FIREFOX: &str =
     include_str!("../../../../../fixtures/cookies/firefox/156.0.1/windows-11-26200/crumbs-h3.txt");
@@ -53,7 +53,7 @@ fn brave_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
 
 #[test]
 fn opera_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
-    // Opera 135 replays against the Chromium recipes (`phantom_profile::opera`).
+    // Opera 136 replays against the Chromium recipes (`phantom_profile::opera`).
     assert_replay_matches(&Capture::parse(OPERA)?)
 }
 

@@ -122,7 +122,7 @@ pub enum Http2ProxyConnections {
     /// Forwarded `http://` requests, CONNECT tunnels, and WebSocket tunnels
     /// are streams of one connection.
     ///
-    /// Chrome 154, Edge 154, Brave 154, and Opera 135 send a page's
+    /// Chrome 154, Edge 154, Brave 154, and Opera 136 send a page's
     /// navigation, its `fetch()`, and every CONNECT it opens on one
     /// connection in the `https-proxy-*` captures.
     #[default]

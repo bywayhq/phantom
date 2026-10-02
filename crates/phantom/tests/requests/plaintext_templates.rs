@@ -3,7 +3,7 @@
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. The expected field lists below are the requests
 //! of the proxy route captures of Chrome 154.0.8037.58, Edge 154.0.4258.37,
-//! Brave 154.1.96.59, Opera 135.0.5973.92, and Firefox 156.0.1 on Windows 11
+//! Brave 154.1.96.59, Opera 136.0.6008.52, and Firefox 156.0.1 on Windows 11
 //! build 26200, three agreeing runs each:
 //! `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-loopback.txt`
 //! for `http://127.0.0.1` and `direct-hostname.txt` for
@@ -43,13 +43,13 @@ const CHROME_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/5
 const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
 const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0";
 const FIREFOX_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
 const CHROME_BRANDS: &str = r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#;
 const EDGE_BRANDS: &str = r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#;
 const BRAVE_BRANDS: &str = r#""Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99""#;
-const OPERA_BRANDS: &str = r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#;
+const OPERA_BRANDS: &str = r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#;
 /// Brave's navigation `Accept`: Chrome's without signed exchanges.
 const BRAVE_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
 image/avif,image/webp,image/apng,*/*;q=0.8";
@@ -319,8 +319,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "opera navigation",
             chromium: true,
-            hints: Some(opera::v135_windows_client_hints()),
-            template: opera::v135_windows_navigation_template(),
+            hints: Some(opera::v136_windows_client_hints()),
+            template: opera::v136_windows_navigation_template(),
             caller: vec![opera_ua()],
             loopback: opera.navigation(true),
             named: opera.navigation(false),
@@ -328,8 +328,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "opera fetch",
             chromium: true,
-            hints: Some(opera::v135_windows_client_hints()),
-            template: opera::v135_windows_fetch_no_store_template(),
+            hints: Some(opera::v136_windows_client_hints()),
+            template: opera::v136_windows_fetch_no_store_template(),
             caller: vec![opera_ua(), referer()],
             loopback: opera.fetch(true),
             named: opera.fetch(false),

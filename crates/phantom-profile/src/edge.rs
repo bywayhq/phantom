@@ -12,11 +12,20 @@
 //!
 //! Edge 154 changed only the client hints from Edge 153.0.4234.48: the brand
 //! list, its order, and the versions. The TCP and QUIC ClientHellos, the H2
-//! startup, and the H3 SETTINGS are unchanged, on Windows and on macOS.
+//! startup, and the H3 SETTINGS are unchanged, on Windows and on macOS. The
+//! Windows host then updated to Edge 154.0.4258.48, which differs from
+//! 154.0.4258.37 only in the full version its client hints report, so only
+//! [`v154_windows_client_hints`] comes from 154.0.4258.48 captures.
 //!
-//! There is no Edge TCP recipe. Socket options are not visible in captures,
-//! and Edge's network-stack source is not public, so no retained evidence
-//! shows whether Edge keeps the Chromium options in [`chromium::v154_tcp`].
+//! Edge's network-stack source is not public, and no wire capture shows
+//! socket options or cache lifetimes. Frida hook logs of Edge 154.0.4258.48's
+//! network service, under `fixtures/socket-hooks/`, show the `TCP_NODELAY`
+//! and keepalive of [`chromium::v154_tcp`] on every origin socket, its 300 ms
+//! IPv4 fallback, six connections to one origin as in
+//! [`chromium::v154_http1`], and system-resolver answers kept for the 60 s of
+//! [`chromium::v154_dns_cache`], as Chrome 154's logs do. Edge profiles
+//! therefore use those recipes; Edge has no TCP, HTTP/1.1 connection, or
+//! address cache recipe of its own.
 
 use crate::{
     chromium,
@@ -67,7 +76,7 @@ pub fn v154_http3_tls() -> TlsSettings {
 /// Returns client-hint fields observed from Edge 154 on Windows 11 x64.
 ///
 /// Names, order, and delivery match the Chromium client-hint recipes. The
-/// values carry Edge's brand list, the exact 154.0.4258.37 build, the
+/// values carry Edge's brand list, the exact 154.0.4258.48 build, the
 /// Chromium 154.0.8037.58 base it reports in the full version list, and
 /// Windows platform data. Edge 154 lists `Chromium` first and sends the
 /// `Not A(Brand` GREASE brand at version 99, where Edge 153 listed
@@ -84,7 +93,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.37""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.48""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
@@ -93,7 +102,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0""#,
+            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.48", "Not A(Brand";v="99.0.0.0""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -102,13 +111,14 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 
 /// Returns client-hint fields observed from Edge 154 on macOS 15.5 arm64.
 ///
-/// Names, order, delivery, and the brand and version values match
+/// Names, order, delivery, and the brand list match
 /// [`v154_windows_client_hints`]; three headless runs of the retained
 /// navigation capture of Edge 154.0.4258.37 on macOS 15.5 (24F74) on Apple
-/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
+/// silicon agree. The platform data differs: `sec-ch-ua-platform` is
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
-/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
+/// 154.0.4258.37, one patch release behind the Windows recipe. The returned value is owned and may be
 /// customized before client creation, for example to carry another macOS
 /// version.
 #[must_use]

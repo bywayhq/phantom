@@ -28,8 +28,8 @@ const BRAVE_154_FIXTURE: &str = include_str!(concat!(
     "../../../../../fixtures/tls/brave/154.1.96.59/",
     "windows-11-26200/client-hello.txt"
 ));
-const OPERA_135_FIXTURE: &str = include_str!(concat!(
-    "../../../../../fixtures/tls/opera/135.0.5973.92/",
+const OPERA_136_FIXTURE: &str = include_str!(concat!(
+    "../../../../../fixtures/tls/opera/136.0.6008.52/",
     "windows-11-26200/client-hello.txt"
 ));
 const CHROME_ANDROID_154_FIXTURE: &str = include_str!(concat!(
@@ -151,12 +151,26 @@ async fn brave_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(BRAVE_154_FIXTURE, &brave::v154_tls(), None).await
 }
 
-/// Opera 135 sends the Chrome 154 ClientHello without trust-anchor IDs and
-/// without a GREASE signature algorithm; the replay compares the signature
-/// algorithm list with its GREASE entries in place.
+/// Opera 136 sends the Chrome 154 ClientHello with Chromium 152's 32
+/// trust-anchor IDs. The retained process used the recipe's order, the most
+/// frequent of 20 processes, and the connector emits that order unchanged.
 #[tokio::test]
-async fn opera_135_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(OPERA_135_FIXTURE, &opera::v135_tls(), None).await
+async fn opera_136_tls_recipe_matches_windows_capture() -> TestResult<()> {
+    assert_recipe_matches_fixture(OPERA_136_FIXTURE, &opera::v136_tls(), Some(32)).await?;
+    let expected = client_hello_fixture::capture(OPERA_136_FIXTURE)
+        .await?
+        .summary()?
+        .requested_trust_anchor_ids()
+        .ok_or("Opera 136 capture omitted trust-anchor IDs")?
+        .to_vec();
+    let actual = capture_client_hello_from(&opera::v136_tls())
+        .await?
+        .summary()?
+        .requested_trust_anchor_ids()
+        .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
+        .to_vec();
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
 /// Chromium-family browsers advertise HKDF-SHA256 with AES-128-GCM on every
@@ -168,7 +182,7 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         v154_tls(),
         edge::v154_tls(),
         brave::v154_tls(),
-        opera::v135_tls(),
+        opera::v136_tls(),
         chrome_android::v154_tls(),
         edge_android::v153_tls(),
         brave_android::v153_tls(),

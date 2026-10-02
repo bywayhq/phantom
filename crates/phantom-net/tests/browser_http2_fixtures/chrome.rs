@@ -68,8 +68,8 @@ const BRAVE_154_FIXTURE_TEXT: &str = include_str!(concat!(
     "../../../../fixtures/http2/brave/154.1.96.59/",
     "windows-11-26200/client-startup.txt"
 ));
-const OPERA_135_FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/http2/opera/135.0.5973.92/",
+const OPERA_136_FIXTURE_TEXT: &str = include_str!(concat!(
+    "../../../../fixtures/http2/opera/136.0.6008.52/",
     "windows-11-26200/client-startup.txt"
 ));
 /// Opera abandons the connection its startup preconnect opens, so it was
@@ -89,13 +89,13 @@ async fn chromium_http2_recipe_matches_windows_brave_capture() -> TestResult<()>
     assert_public_startup_matches_fixture(&fixture, v154_http2()).await
 }
 
-/// Opera 135 has no separate HTTP/2 recipe: its startup equals the Chromium
+/// Opera 136 has no separate HTTP/2 recipe: its startup equals the Chromium
 /// recipe's, byte for byte.
 #[tokio::test]
 async fn chromium_http2_recipe_matches_windows_opera_capture() -> TestResult<()> {
-    let fixture = Fixture::parse(OPERA_135_FIXTURE_TEXT)?;
+    let fixture = Fixture::parse(OPERA_136_FIXTURE_TEXT)?;
     assert_eq!(fixture.browser, "Opera");
-    assert_eq!(fixture.browser_version, "135.0.5973.92");
+    assert_eq!(fixture.browser_version, "136.0.6008.52");
     assert_eq!(fixture.launch_mode, "devtools-navigate");
     assert_eq!(fixture.launch_arguments, OPERA_LAUNCH_ARGUMENTS);
     assert_raw_startup(&fixture).await?;

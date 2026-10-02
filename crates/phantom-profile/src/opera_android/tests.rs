@@ -37,20 +37,20 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
     );
 }
 
-/// Opera for Android keeps signature-algorithm GREASE, which desktop Opera
-/// drops, so its ClientHello is Chrome's without trust-anchor IDs.
+/// Opera for Android sends Chrome's ClientHello without trust-anchor IDs,
+/// where desktop Opera 136 sends 32 of them.
 #[test]
-fn opera_android_102_tls_is_desktop_opera_with_signature_algorithm_grease()
+fn opera_android_102_tls_is_chrome_without_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     let settings = v102_tls();
     settings.validate()?;
-    let mut expected = opera::v135_tls();
-    expected.grease_signature_algorithms = true;
-    assert_eq!(settings, expected);
     let mut chrome = chromium::v154_tls();
     chrome.requested_trust_anchor_ids = None;
     chrome.ech_from_https_records = false;
     assert_eq!(settings, chrome);
+    let mut desktop = opera::v136_tls();
+    desktop.requested_trust_anchor_ids = None;
+    assert_eq!(settings, desktop);
     Ok(())
 }
 

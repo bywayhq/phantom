@@ -14,8 +14,8 @@ const BRAVE_154_WINDOWS_FIXTURE: &str = include_str!(
 const BRAVE_154_DEVTOOLS_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
 );
-const OPERA_135_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/client-startup.txt"
+const OPERA_136_WINDOWS_FIXTURE: &str = include_str!(
+    "../../../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt"
 );
 const CHROME_ANDROID_154_FIXTURE: &str = include_str!(
     "../../../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt"
@@ -105,21 +105,21 @@ fn brave_154_devtools_launch_sends_the_command_line_h3_startup()
     Ok(())
 }
 
-/// Opera 135 shares the Chromium H3 control stream and request order; only
+/// Opera 136 shares the Chromium H3 control stream and request order; only
 /// persona values differ.
 #[test]
-fn opera_135_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(fixture_field(OPERA_135_WINDOWS_FIXTURE, "client")?, "Opera");
+fn opera_136_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(fixture_field(OPERA_136_WINDOWS_FIXTURE, "client")?, "Opera");
     assert_eq!(
-        fixture_field(OPERA_135_WINDOWS_FIXTURE, "client_version")?,
-        "135.0.5973.92"
+        fixture_field(OPERA_136_WINDOWS_FIXTURE, "client_version")?,
+        "136.0.6008.52"
     );
     assert_settings_match_control_stream(
-        OPERA_135_WINDOWS_FIXTURE,
+        OPERA_136_WINDOWS_FIXTURE,
         v154_http3(),
         v154_http3_request(),
     )?;
-    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, OPERA_135_WINDOWS_FIXTURE)
+    assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, OPERA_136_WINDOWS_FIXTURE)
 }
 
 /// Brave for Android shares the Chromium control stream and pseudo-header
@@ -370,7 +370,7 @@ fn named_http3_recipes_leave_extended_connect_order_unset() {
     );
 }
 
-const STREAM_FIXTURES: [&str; 4] = [
+const STREAM_FIXTURES: [&str; 7] = [
     include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/resumption-streams-accept.txt"
@@ -387,15 +387,28 @@ const STREAM_FIXTURES: [&str; 4] = [
         env!("CARGO_MANIFEST_DIR"),
         "/../../fixtures/http3/edge/153.0.4234.48/windows-11-26200/resumption-streams-reject.txt"
     )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-accept.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-accept-delayed.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/resumption-reject.txt"
+    )),
 ];
 
-/// In every captured Chrome 154 and Edge 153 connection, fresh or resumed,
-/// the control stream (type 0x00) is client stream 2 and carries the first
-/// unidirectional byte. The QPACK encoder stream (type 0x02) is stream 10, is
-/// written exactly on the connections that carried a request, and its first
-/// STREAM frame holds instructions after the type. The decoder stream (type
-/// 0x03) is stream 6 and, when written at all, comes after the encoder
-/// stream. The recipe opens the decoder stream first and defers both types.
+/// In every captured Chrome 154, Edge 153, and Opera 136 connection, fresh
+/// or resumed, the control stream (type 0x00) is client stream 2 and carries
+/// the first unidirectional byte. The QPACK encoder stream (type 0x02) is
+/// stream 10, is written exactly on the connections that carried a request,
+/// and its first STREAM frame holds instructions after the type. The decoder
+/// stream (type 0x03) is stream 6 and, when written at all, comes after the
+/// encoder stream. The recipe opens the decoder stream first and defers both
+/// types.
 #[test]
 fn chromium_captures_open_qpack_streams_in_the_recipe_order()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -463,20 +476,20 @@ fn chromium_captures_open_qpack_streams_in_the_recipe_order()
             }
         }
     }
-    assert_eq!(connections, 69);
+    assert_eq!(connections, 132);
     Ok(())
 }
 
-/// Brave 154 and Opera 135, which reuse [`v154_http3`], were captured before
-/// the capture tool recorded stream types, so their resumption fixtures keep
-/// only the stream numbers each connection used. Those numbers show the
+/// Brave 154, which reuses [`v154_http3`], was captured before the capture
+/// tool recorded stream types, so its resumption fixtures keep only the
+/// stream numbers each connection used. Those numbers show the
 /// same order: every connection writes client stream 2; a connection that
 /// carried a request also writes stream 10, and stream 6 only with it; an
 /// idle connection writes nothing else.
 #[test]
-fn brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers()
--> Result<(), Box<dyn std::error::Error>> {
-    const FIXTURES: [&str; 6] = [
+fn brave_captures_use_the_recipe_s_qpack_stream_numbers() -> Result<(), Box<dyn std::error::Error>>
+{
+    const FIXTURES: [&str; 3] = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-accept.txt"
@@ -488,18 +501,6 @@ fn brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers()
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../fixtures/http3/brave/154.1.96.59/windows-11-26200/resumption-reject.txt"
-        )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept.txt"
-        )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-accept-delayed.txt"
-        )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/http3/opera/135.0.5973.92/windows-11-26200/resumption-reject.txt"
         )),
     ];
     let mut connections = 0;
@@ -543,7 +544,7 @@ fn brave_and_opera_captures_use_the_recipe_s_qpack_stream_numbers()
             }
         }
     }
-    assert_eq!(connections, 116);
+    assert_eq!(connections, 55);
     Ok(())
 }
 
@@ -571,7 +572,7 @@ fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
         assert_settings_match_control_stream(fixture, v154_http3(), v154_http3_request())?;
     }
     assert_request_fields_match_except_persona(V154_WINDOWS_FIXTURE, CHROME)?;
-    assert_request_fields_match_except_persona(OPERA_135_WINDOWS_FIXTURE, OPERA)?;
+    assert_request_fields_match_except_persona(OPERA_136_WINDOWS_FIXTURE, OPERA)?;
     let names = |fixture| -> Result<Vec<String>, Box<dyn std::error::Error>> {
         Ok(request_fields(fixture)?
             .into_iter()

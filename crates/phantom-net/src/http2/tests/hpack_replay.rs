@@ -94,7 +94,7 @@ const EDGE_COOKIES: (&str, &str) =
 const BRAVE_COOKIES: (&str, &str) =
     fixture!("cookies/brave/154.1.96.59/windows-11-26200/crumbs-h2.txt");
 const OPERA_COOKIES: (&str, &str) =
-    fixture!("cookies/opera/135.0.5973.92/windows-11-26200/crumbs-h2.txt");
+    fixture!("cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h2.txt");
 const FIREFOX_COOKIES: (&str, &str) =
     fixture!("cookies/firefox/156.0.1/windows-11-26200/crumbs-h2.txt");
 
@@ -123,12 +123,12 @@ const BRAVE_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/brave/154.1.96.59/windows-11-26200/reject-403.txt"),
 ];
 const OPERA_WEBSOCKET: &[(&str, &str)] = &[
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept.txt"),
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/accept-deflate.txt"),
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/extension-mismatch.txt"),
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/no-connect-protocol.txt"),
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/refused-stream.txt"),
-    fixture!("websocket/opera/135.0.5973.92/windows-11-26200/reject-403.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/accept.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/accept-deflate.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/extension-mismatch.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/no-connect-protocol.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/refused-stream.txt"),
+    fixture!("websocket/opera/136.0.6008.52/windows-11-26200/reject-403.txt"),
 ];
 const FIREFOX_WEBSOCKET: &[(&str, &str)] = &[
     fixture!("websocket/firefox/156.0.1/windows-11-26200/accept.txt"),
@@ -176,7 +176,7 @@ macro_rules! proxy_fixtures {
 const CHROME_PROXY: &[(&str, &str)] = proxy_fixtures!("chrome/154.0.8037.58/windows-11-26200");
 const EDGE_PROXY: &[(&str, &str)] = proxy_fixtures!("edge/154.0.4258.37/windows-11-26200");
 const BRAVE_PROXY: &[(&str, &str)] = proxy_fixtures!("brave/154.1.96.59/windows-11-26200");
-const OPERA_PROXY: &[(&str, &str)] = proxy_fixtures!("opera/135.0.5973.92/windows-11-26200");
+const OPERA_PROXY: &[(&str, &str)] = proxy_fixtures!("opera/136.0.6008.52/windows-11-26200");
 const FIREFOX_PROXY: &[(&str, &str)] = proxy_fixtures!("firefox/156.0.1/windows-11-26200");
 
 #[tokio::test]
@@ -204,7 +204,7 @@ async fn brave_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> T
 
 #[tokio::test]
 async fn opera_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    // Opera 135 uses the Chromium recipe (`phantom_profile::opera`).
+    // Opera 136 uses the Chromium recipe (`phantom_profile::opera`).
     replay_all(&[OPERA_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
 }
 
@@ -244,7 +244,7 @@ async fn edge_websocket_sessions_match_the_captured_streams_and_hpack_bytes() ->
 #[tokio::test]
 async fn brave_and_opera_websocket_sessions_match_the_chromium_streams_and_hpack_bytes()
 -> TestResult<()> {
-    // Brave 154 and Opera 135 use the Chromium recipe too.
+    // Brave 154 and Opera 136 use the Chromium recipe too.
     replay_all(
         BRAVE_WEBSOCKET,
         chromium::v154_http2(),
@@ -256,7 +256,7 @@ async fn brave_and_opera_websocket_sessions_match_the_chromium_streams_and_hpack
         OPERA_WEBSOCKET,
         chromium::v154_http2(),
         Source::WebSocket,
-        20,
+        18,
     )
     .await
 }
@@ -275,7 +275,7 @@ async fn firefox_websocket_sessions_match_the_captured_streams_and_hpack_bytes()
 #[tokio::test]
 async fn chromium_family_proxy_sessions_match_the_captured_streams_and_hpack_fields()
 -> TestResult<()> {
-    // Edge 154, Brave 154, and Opera 135 use the Chromium recipe. Each file
+    // Edge 154, Brave 154, and Opera 136 use the Chromium recipe. Each file
     // holds three runs with one proxy connection per run that carries only
     // the page's requests; the others carry only background requests.
     for (files, name) in [

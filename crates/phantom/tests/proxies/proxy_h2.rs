@@ -759,7 +759,7 @@ type ForwardingCase = (
 );
 
 /// A navigation challenged by an HTTP/2 proxy and its replay place
-/// `proxy-authorization` where Chrome 154, Edge 154, Brave 154, Opera 135,
+/// `proxy-authorization` where Chrome 154, Edge 154, Brave 154, Opera 136,
 /// and Firefox 156 do in
 /// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
 /// sends remembered credentials first places it where they do in the
@@ -770,7 +770,7 @@ type ForwardingCase = (
 async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> {
     const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0";
     const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
-    const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+    const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0";
     let cases: [ForwardingCase; 5] = [
         (
             "chrome",
@@ -805,10 +805,10 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         (
             "opera",
             chromium::v154_http2(),
-            opera::v135_windows_navigation_template(),
-            opera::v135_windows_fetch_no_store_template(),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-hostname"),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-nostore-hostname"),
+            opera::v136_windows_navigation_template(),
+            opera::v136_windows_fetch_no_store_template(),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-hostname"),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-nostore-hostname"),
             &[("user-agent", OPERA_UA)],
         ),
         (
@@ -903,7 +903,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
 /// tunnel: anonymous, challenged, and on the replay after a `407`, compared
 /// with the `https://` CONNECTs of the `https-proxy-secure-hostname` and
 /// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 154,
-/// Brave 154, Opera 135, and Firefox 156.
+/// Brave 154, Opera 136, and Firefox 156.
 #[tokio::test]
 async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
@@ -932,8 +932,8 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             "opera",
             chromium::v154_proxy_connect(),
             chromium::v154_windows_navigation_template(),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-secure-hostname"),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-secure-hostname"),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-secure-hostname"),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-secure-hostname"),
         ),
         (
             "firefox",
@@ -1096,7 +1096,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
         ),
         (
             chromium::v154_proxy_connect(),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-secure-hostname"),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-secure-hostname"),
         ),
         (
             firefox::v156_proxy_connect(),
@@ -1155,7 +1155,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
     const BRAVE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
     const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-(KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0";
+(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0";
     let cases: [ForwardingCase; 5] = [
         (
             "chrome",
@@ -1193,13 +1193,13 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         (
             "opera",
             chromium::v154_http2(),
-            opera::v135_windows_navigation_template(),
-            opera::v135_windows_fetch_no_store_template(),
+            opera::v136_windows_navigation_template(),
+            opera::v136_windows_fetch_no_store_template(),
             proxy_fixture!(
-                "opera/135.0.5973.92",
+                "opera/136.0.6008.52",
                 "https-proxy-auth-remembered-hostname"
             ),
-            proxy_fixture!("opera/135.0.5973.92", "https-proxy-auth-nostore-hostname"),
+            proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-nostore-hostname"),
             &[("user-agent", OPERA_UA)],
         ),
         (
