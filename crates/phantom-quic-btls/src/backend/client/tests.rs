@@ -174,3 +174,80 @@ fn test_keys(connection_id_byte: u8) -> Keys {
     .unwrap_or_else(|error| panic!("test Initial keys failed: {error}"));
     initial_keys_into_quinn(initial)
 }
+
+type FixtureResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+/// Reads a PEM fixture that ships with the vendored btls crate.
+fn btls_fixture(file: &str) -> FixtureResult<Vec<u8>> {
+    Ok(std::fs::read(format!(
+        "{}/../../vendor/btls/test/{file}",
+        env!("CARGO_MANIFEST_DIR")
+    ))?)
+}
+
+/// The DER certificate and PKCS #8 key of the btls test identity.
+fn client_certificate_der() -> FixtureResult<(Vec<u8>, Vec<u8>)> {
+    let certificate = X509::from_pem(&btls_fixture("cert.pem")?)?.to_der()?;
+    let key = PKey::private_key_from_pem(&btls_fixture("key.pem")?)?.private_key_to_der_pkcs8()?;
+    Ok((certificate, key))
+}
+
+fn assert_invalid_client_certificate(
+    result: Result<QuicClientCertificate, QuicTlsProfileError>,
+) -> FixtureResult {
+    let error = result
+        .err()
+        .ok_or("an invalid client certificate was accepted")?;
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::InvalidProfile);
+    assert_eq!(error.field(), "client_certificate");
+    Ok(())
+}
+
+#[test]
+fn client_certificate_with_its_own_key_is_accepted() -> FixtureResult {
+    let (certificate, key) = client_certificate_der()?;
+
+    QuicClientCertificate::from_der([certificate.as_slice()], &key)?;
+    Ok(())
+}
+
+#[test]
+fn client_certificate_without_a_certificate_is_invalid() -> FixtureResult {
+    let (_, key) = client_certificate_der()?;
+
+    assert_invalid_client_certificate(QuicClientCertificate::from_der([], &key))
+}
+
+#[test]
+fn client_certificate_chain_that_is_not_der_is_invalid() -> FixtureResult {
+    let (certificate, key) = client_certificate_der()?;
+    let pem = btls_fixture("cert.pem")?;
+
+    assert_invalid_client_certificate(QuicClientCertificate::from_der(
+        [certificate.as_slice(), pem.as_slice()],
+        &key,
+    ))
+}
+
+#[test]
+fn client_certificate_key_that_is_not_der_is_invalid() -> FixtureResult {
+    let (certificate, _) = client_certificate_der()?;
+    let pem = btls_fixture("key.pem")?;
+
+    assert_invalid_client_certificate(QuicClientCertificate::from_der(
+        [certificate.as_slice()],
+        &pem,
+    ))
+}
+
+#[test]
+fn client_certificate_with_another_certificate_s_key_is_invalid() -> FixtureResult {
+    let (certificate, _) = client_certificate_der()?;
+    let other_key =
+        PKey::private_key_from_pem(&btls_fixture("ecdsa-key.pem")?)?.private_key_to_der_pkcs8()?;
+
+    assert_invalid_client_certificate(QuicClientCertificate::from_der(
+        [certificate.as_slice()],
+        &other_key,
+    ))
+}
