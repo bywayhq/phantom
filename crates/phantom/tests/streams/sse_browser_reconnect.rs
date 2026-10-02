@@ -24,11 +24,11 @@ use tls_support::{TestResult, read_head, tls_settings};
 
 /// Largest browser timer overshoot accepted above Phantom's exact delay.
 const TIMER_SLACK: Duration = Duration::from_millis(30);
-/// Largest overshoot accepted on the first reconnect. In the Firefox 156.0.1
-/// captures, taken on a loaded host soon after browser startup, the first
-/// reconnect's median came up to 316 ms late while later ones kept within
-/// `TIMER_SLACK`.
-const FIRST_RECONNECT_SLACK: Duration = Duration::from_millis(350);
+/// Largest overshoot accepted on Firefox's first reconnect. The Firefox
+/// 156.0.1 captures were taken on a loaded host, and the first reconnect's
+/// median came up to 316 ms late while later ones kept within `TIMER_SLACK`.
+/// Pending a recapture on a quiet host, which restores `TIMER_SLACK`.
+const FIREFOX_FIRST_RECONNECT_SLACK: Duration = Duration::from_millis(350);
 /// Paused-clock window in which no request may follow a terminal response.
 const OBSERVATION: Duration = Duration::from_secs(10);
 const FAST_RETRY: &str = "retry: 200\n";
@@ -48,6 +48,14 @@ impl Browser {
         match self {
             Self::Chrome => "chrome/154.0.8037.58/windows-11-26200",
             Self::Firefox => "firefox/156.0.1/windows-11-26200",
+        }
+    }
+
+    /// Largest overshoot accepted on this browser's first reconnect.
+    fn first_reconnect_slack(self) -> Duration {
+        match self {
+            Self::Chrome => TIMER_SLACK,
+            Self::Firefox => FIREFOX_FIRST_RECONNECT_SLACK,
         }
     }
 
@@ -279,7 +287,7 @@ async fn retry_delays_match_each_browser_with_its_options() -> TestResult<()> {
             for (index, delay) in delays.iter().enumerate() {
                 let median = fixture.median_after_stimulus(index + 1)?;
                 let slack = match index {
-                    0 => FIRST_RECONNECT_SLACK,
+                    0 => browser.first_reconnect_slack(),
                     _ => TIMER_SLACK,
                 };
                 assert!(

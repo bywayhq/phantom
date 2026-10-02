@@ -2063,7 +2063,8 @@ Observed on both browsers:
   launch on a capture host under load from other builds, came later and
   spread wider: its median was 12 to 316 ms above the delay. The Firefox
   156.0 set, captured on a quieter host, had kept the first reconnect within
-  about 25 ms, so the replay test allows the first reconnect 350 ms.
+  about 25 ms, so the replay test allows Firefox's first reconnect 350 ms
+  until a quiet-host recapture; Chrome's keeps the 30 ms bound.
 - `204`, `404`, `500`, and a `text/plain` response each ended the
   EventSource, with no request during the observation window.
 - A stream with only response headers stayed open for 90 seconds; neither
@@ -2123,7 +2124,8 @@ non-digit retry; and termination on `204`, `404`, `500`, and `text/plain`.
 
 With Firefox options (`initial_retry` 5 s, `min_retry` 500 ms) and Chrome
 defaults, each browser's median delay per attempt must lie between Phantom's
-exact delay and 30 ms above it. This covers `retry-0`, `retry-100`,
+exact delay and 30 ms above it, or 350 ms above it for Firefox's first
+reconnect. This covers `retry-0`, `retry-100`,
 `retry-750`, and the default delay. A template built from each browser's
 captured reconnect fields, with `SseHeader::last_event_id` at the captured
 position, reproduces the browser's field lines except the `Host` port.
