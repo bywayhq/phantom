@@ -12,6 +12,10 @@ and navigates to `/plain` on the plaintext port, whose page fetches `/done`.
 Each run writes one `format=phantom-snapshot-v1` file. The lines under the
 `tls.` and `quic_client_hello.` prefixes are complete `phantom-client-hello-v2`
 and `phantom-quic-client-hello-v1` fixtures; `--split` writes them out.
+
+Version 1 gained the `quic_connection_<i>_initial_datagram_*` lines without a
+new format number: no snapshot had been retained without them, and a snapshot
+that lacks them is still read, by `--split` and by `snapshot_compare`.
 """
 
 from __future__ import annotations
@@ -75,6 +79,8 @@ from .http2_session import (
 from .http3_wire import capture_request_snapshot, first_frame, unidirectional_stream
 from .quic_resumption import QUIC_TRANSPORT_PARAMETERS, parse_client_hello
 
+# The Initial datagram lines were added within version 1; see the module
+# docstring.
 FORMAT = "phantom-snapshot-v1"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.3.0"}
 HOST = "127.0.0.1"

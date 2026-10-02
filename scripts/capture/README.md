@@ -72,7 +72,10 @@ Each QUIC connection also records up to eight of the client's Initial
 datagrams in arrival order, one
 `quic_connection_<i>_initial_datagram_<n>=size:<bytes>,version:<hex>,destination_cid_length:<n>,source_cid_length:<n>`
 line each, after `quic_connection_<i>_initial_datagram_count`. A datagram
-counts when its first packet is a version 1 or version 2 Initial.
+counts when its first packet is a version 1 or version 2 Initial. Version 1
+of the format gained these lines without a new number, because no snapshot
+had been retained without them; `--split` and `snapshot_compare.py` still
+read a snapshot that lacks them.
 
 `--split <snapshot> --output-dir <directory>` writes the two drop-in
 fixtures. The tool exits 1 when a run timed out, did not use HTTP/3, or has
