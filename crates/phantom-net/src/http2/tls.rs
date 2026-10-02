@@ -320,7 +320,11 @@ impl Http2TlsConnector {
                         DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
                         DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
                     })?;
-            self.connect_prepared(stream, server_name, client).await
+            let stream = self
+                .tls
+                .connect_offering_early_data(server_name, stream)
+                .await?;
+            connect_over_tls(stream, client, false).await
         }))
         .await
     }
@@ -356,6 +360,7 @@ impl Http2TlsConnector {
                 port,
                 server_name,
                 ech,
+                true,
             )
             .await?;
             connect_over_tls(stream, client, false).await
@@ -428,6 +433,7 @@ impl Http2TlsConnector {
             port,
             server_name,
             ech,
+            false,
         )
         .await?;
         let connection = connect_over_tls(stream, client, true).await?;
@@ -1664,6 +1670,12 @@ where
     let (initial_settings, accept_ch) = peer_settings.into_parts();
     if let Some(settings) = initial_settings {
         client.client.initial_peer_settings(settings);
+    }
+    let early_data = stream.early_data_wait();
+    if early_data.is_some() {
+        return Http2Connection::connect_with_early_data(stream, client, accept_ch, early_data)
+            .await
+            .map_err(Into::into);
     }
 
     if extended_connect {

@@ -28,7 +28,10 @@ use super::{
     limits::connection_builder,
     response_head::ResponseHeadObserver,
 };
-use crate::request::{RequestBody, RequestBodyError};
+use crate::{
+    request::{RequestBody, RequestBodyError},
+    tls::EarlyDataWait,
+};
 
 /// An established HTTP/1.1 connection that executes requests sequentially.
 ///
@@ -49,6 +52,25 @@ impl Http1Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
+        Self::connect_with_early_data(stream, None).await
+    }
+
+    /// Establishes HTTP/1.1 over a TLS stream whose server may not have
+    /// answered its early data yet.
+    ///
+    /// A request that is not replay safe waits for `early_data` to be answered
+    /// before it is written, as Firefox writes only a safe method's request
+    /// before the handshake completes (`TlsHandshaker::Check0RttEnabled`,
+    /// `netwerk/protocol/http/TlsHandshaker.cpp:304-320` at tag
+    /// `FIREFOX_156_0_RELEASE`). The idle connection keeps reading, which
+    /// completes the handshake.
+    pub(crate) async fn connect_with_early_data<T>(
+        stream: T,
+        early_data: Option<EarlyDataWait>,
+    ) -> Result<Self, Http1Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
         let runtime = super::current_runtime()?;
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = connection_builder()
@@ -62,6 +84,7 @@ impl Http1Connection {
                 driver: DriverTask::spawn(&runtime, connection),
                 reusable: AtomicBool::new(true),
                 delivered_response: AtomicBool::new(false),
+                early_data,
             }),
         })
     }
@@ -184,7 +207,35 @@ impl Http1Connection {
     /// [`Http1Error::ReusedConnectionClosed`] and is not replayed here.
     #[must_use]
     pub fn is_reusable(&self) -> bool {
-        self.inner.reusable.load(Ordering::Acquire) && !self.inner.driver.is_finished()
+        self.inner.reusable.load(Ordering::Acquire)
+            && !self.inner.driver.is_finished()
+            && !self.early_data_alpn_changed()
+    }
+
+    /// Waits until the server answers this connection's TLS early data.
+    ///
+    /// Returns at once for a connection that sent none, or whose early data
+    /// was already answered. A request that is not replay safe already waits
+    /// for this before it is written; a caller that may move such a request
+    /// to another connection waits here first, so its body stays unsent.
+    pub async fn early_data_answered(&self) {
+        if let Some(early_data) = &self.inner.early_data {
+            let _ = early_data.answered().await;
+        }
+    }
+
+    /// Returns whether the server rejected this connection's TLS early data
+    /// and then selected another ALPN protocol.
+    ///
+    /// Such a connection fails: it never changes protocol. The server
+    /// processed none of its requests, so they can be sent again on a
+    /// connection that offers no early data, as Firefox restarts them.
+    #[must_use]
+    pub fn early_data_alpn_changed(&self) -> bool {
+        self.inner
+            .early_data
+            .as_ref()
+            .is_some_and(EarlyDataWait::alpn_changed)
     }
 
     pub(super) async fn send_prepared_request(
@@ -207,8 +258,17 @@ impl Http1Connection {
             span.record("body_bytes", body_bytes);
         }
         let outcome = OperationOutcome::new(&span);
+        let replay_safe = prepared.is_replay_safe();
         let result = async {
             debug!("HTTP/1 transaction started");
+            if let Some(early_data) = &self.inner.early_data
+                && !replay_safe
+            {
+                early_data
+                    .answered()
+                    .await
+                    .map_err(|_| Http1Error::ConnectionClosed)?;
+            }
             let permit = Arc::clone(&self.inner.request_permit)
                 .acquire_owned()
                 .await
@@ -352,6 +412,8 @@ struct ConnectionInner {
     reusable: AtomicBool,
     /// Set once a response head was returned, so later requests are reuses.
     delivered_response: AtomicBool,
+    /// Present when the connection was opened with early data.
+    early_data: Option<EarlyDataWait>,
 }
 
 struct InFlightGuard<'a> {

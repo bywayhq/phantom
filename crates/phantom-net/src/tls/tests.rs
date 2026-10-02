@@ -16,6 +16,7 @@ mod alps;
 mod capabilities;
 mod chrome;
 mod client_hello_fixture;
+mod early_data;
 mod ech;
 mod firefox;
 mod hello_retry;

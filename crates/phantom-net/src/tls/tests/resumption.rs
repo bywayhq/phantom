@@ -1,6 +1,6 @@
 //! TLS 1.3 resumption over TCP, compared with the browser resumption captures.
 
-use std::io;
+use std::{io, time::Duration};
 
 use phantom_profile::{TlsSettings, brave, chromium, edge, firefox, opera};
 use phantom_testkit::tls::{
@@ -16,15 +16,24 @@ use super::client_hello_fixture;
 use crate::tls::{
     TlsConnector,
     test_support::{
-        TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, accept_tls,
-        connect_local, loopback_listener,
+        TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn,
+        accept_tls_with_early_data, connect_local, loopback_listener,
     },
 };
 
 const SESSION_TICKET: u16 = 0x0023;
+const KEY_SHARE: u16 = 0x0033;
 const PRE_SHARED_KEY: u16 = 0x0029;
 const EARLY_DATA: u16 = 0x002a;
 const PSK_KEY_EXCHANGE_MODES: u16 = 0x002d;
+const ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
+
+/// Whether the loopback server's tickets permit early data.
+#[derive(Clone, Copy)]
+enum Tickets {
+    WithoutEarlyData,
+    PermittingEarlyData,
+}
 
 macro_rules! fixture {
     ($browser:literal, $version:literal, $name:literal) => {
@@ -72,7 +81,8 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
         (edge::v154_tls(), EDGE_MACOS_SEQUENTIAL),
         (opera::v135_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
-        let (fresh, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
+        let (fresh, resumed) =
+            fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
         let captured = resumed_client_hellos(fixture)?;
         assert!(!captured.is_empty());
         for expected in &captured {
@@ -90,10 +100,31 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
     Ok(())
 }
 
+/// The Chromium-family browsers never offered early data over TCP, even with
+/// tickets that permit it, and neither do their recipes.
+#[tokio::test]
+async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
+    for settings in [
+        chromium::v154_tls(),
+        edge::v154_tls(),
+        brave::v154_tls(),
+        opera::v135_tls(),
+    ] {
+        assert!(!settings.tcp_early_data);
+        let (_, resumed) =
+            fresh_and_resumed_client_hellos(&settings, Tickets::PermittingEarlyData).await?;
+        let resumed_types = resumed.summary()?.extension_types().to_vec();
+        assert_eq!(resumed_types.last(), Some(&PRE_SHARED_KEY));
+        assert!(!resumed_types.contains(&EARLY_DATA));
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -> TestResult<()> {
     let settings = firefox::v156_tls();
-    let (fresh, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
+    let (fresh, resumed) =
+        fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
     let captured = resumed_client_hellos(FIREFOX_NO_EARLY_DATA)?;
     assert!(!captured.is_empty());
     let resumed_types = resumed.summary()?.extension_types().to_vec();
@@ -112,28 +143,49 @@ async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -
     Ok(())
 }
 
-/// Firefox 156 offers `early_data` over TCP when the ticket permits it;
-/// Phantom never offers early data over TCP. This pins that one difference.
+/// With a ticket that permits early data, the resumed ClientHello equals every
+/// resumed ClientHello of Firefox's `resumption-sequential.txt`, all of which
+/// offer `early_data`, byte for byte apart from per-connection values.
 #[tokio::test]
-async fn firefox_resumed_client_hello_lacks_only_the_early_data_firefox_offers() -> TestResult<()> {
+async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> TestResult<()> {
     let settings = firefox::v156_tls();
-    let (_, resumed) = fresh_and_resumed_client_hellos(&settings).await?;
+    let (fresh, resumed) =
+        fresh_and_resumed_client_hellos(&settings, Tickets::PermittingEarlyData).await?;
     let resumed_types = resumed.summary()?.extension_types().to_vec();
     // The Windows runs and one macOS 15.5 arm64 run.
     let mut captured = resumed_client_hellos(FIREFOX_SEQUENTIAL)?;
     captured.extend(resumed_client_hellos(FIREFOX_MACOS_SEQUENTIAL)?);
     assert!(!captured.is_empty());
+    let actual = normalized_client_hello(resumed.handshake_bytes())?;
     for expected in &captured {
-        let mut expected_types = ClientHelloSummary::from_handshake_bytes(expected)?
-            .extension_types()
-            .to_vec();
-        let early_data = expected_types
-            .iter()
-            .position(|&extension| extension == EARLY_DATA)
-            .ok_or("the Firefox capture did not offer early data")?;
-        expected_types.remove(early_data);
-        assert_eq!(resumed_types, expected_types);
+        assert_same_resumed_shape(resumed.handshake_bytes(), expected, &settings)?;
+        assert_eq!(
+            resumed_types,
+            ClientHelloSummary::from_handshake_bytes(expected)?.extension_types()
+        );
+        assert_eq!(actual, normalized_client_hello(expected)?);
+        assert_eq!(
+            client_hello_fixture::extension_payload(expected, EARLY_DATA)?,
+            b""
+        );
+        // Firefox's resumed ECH GREASE payload is 128 bytes longer than its
+        // fresh one, with or without early data; the recipe keeps the fresh
+        // 240 bytes. This pins that difference.
+        assert_eq!(ech_payload_length(expected)?, 368);
+        assert_eq!(ech_payload_length(resumed.handshake_bytes())?, 240);
     }
+    // Firefox's fixed order, less the empty `session_ticket`, with
+    // `early_data` between `key_share` and `supported_versions` and the PSK
+    // last.
+    let mut expected_types = fresh.summary()?.extension_types().to_vec();
+    expected_types.retain(|&extension| extension != SESSION_TICKET);
+    let key_share = expected_types
+        .iter()
+        .position(|&extension| extension == KEY_SHARE)
+        .ok_or("the fresh ClientHello has no key_share")?;
+    expected_types.insert(key_share + 1, EARLY_DATA);
+    expected_types.push(PRE_SHARED_KEY);
+    assert_eq!(resumed_types, expected_types);
     Ok(())
 }
 
@@ -196,35 +248,43 @@ async fn concurrent_connections_resume_up_to_the_recipes_tickets_per_origin() ->
 }
 
 /// Learns one TLS 1.3 ticket from a loopback server, then captures the fresh
-/// and the resumed ClientHello the same connector sends.
+/// and the resumed ClientHello the same connector sends on a direct
+/// connection, which offers early data when the recipe and ticket allow it.
 async fn fresh_and_resumed_client_hellos(
     settings: &TlsSettings,
+    tickets: Tickets,
 ) -> TestResult<(ClientHelloCapture, ClientHelloCapture)> {
     let identity = TestIdentity::generate()?;
     let connector = TlsConnector::new_with_roots(settings, [identity.root_der()])?
         .with_isolated_session_cache();
-    let fresh = capture_one(&connector).await?;
+    let fresh = capture_offering_early_data(&connector).await?;
 
     let acceptor = identity.acceptor(TestServerAlpn::H2)?;
     let (address, listener) = loopback_listener().await?;
     let server = tokio::spawn(async move {
-        let (mut stream, _) = accept_tls(listener, acceptor).await?;
+        let early_data = matches!(tickets, Tickets::PermittingEarlyData);
+        let mut stream =
+            accept_tls_with_early_data(&listener, &acceptor, early_data, Duration::ZERO).await?;
         stream.write_all(b"x").await?;
         stream.flush().await?;
+        let _ = stream.read_to_end(&mut Vec::new()).await;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     });
     let mut stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     // Reading the server's first byte processes the tickets sent before it.
     let mut byte = [0_u8; 1];
     tokio::time::timeout(TEST_TIMEOUT, stream.read_exact(&mut byte)).await??;
-    tokio::time::timeout(TEST_TIMEOUT, server).await???;
     drop(stream);
+    tokio::time::timeout(TEST_TIMEOUT, server).await???;
 
-    let resumed = capture_one(&connector).await?;
+    let resumed = capture_offering_early_data(&connector).await?;
     Ok((fresh, resumed))
 }
 
-async fn capture_one(connector: &TlsConnector) -> TestResult<ClientHelloCapture> {
+/// Captures the ClientHello of a direct connection. A ClientHello that offers
+/// early data completes the client's side of the handshake at once, so the
+/// connection is kept until the capture ends.
+async fn capture_offering_early_data(connector: &TlsConnector) -> TestResult<ClientHelloCapture> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;
     let capture = tokio::spawn(async move {
@@ -237,11 +297,130 @@ async fn capture_one(connector: &TlsConnector) -> TestResult<ClientHelloCapture>
         .await
         .map_err(io::Error::other)
     });
-    let handshake = connect_local(connector, address, TEST_SERVER_NAME).await?;
-    if handshake.is_ok() {
-        return Err("capture peer unexpectedly completed TLS".into());
+    let tcp = tokio::time::timeout(TEST_TIMEOUT, tokio::net::TcpStream::connect(address)).await??;
+    let (handshake, capture) = tokio::join!(
+        tokio::time::timeout(
+            TEST_TIMEOUT,
+            connector.connect_offering_early_data(TEST_SERVER_NAME, tcp)
+        ),
+        tokio::time::timeout(TEST_TIMEOUT, capture),
+    );
+    let capture = capture???;
+    drop(handshake?);
+    Ok(capture)
+}
+
+/// Returns the ClientHello with its per-connection values cleared: the random,
+/// the session ID, the key-share keys, the ECH GREASE AEAD, configuration ID,
+/// encapsulated key, and payload, and the PSK identities, ticket ages, and
+/// binders, of which only the counts and binder lengths stay. Every other
+/// byte stays, in order, with each extension's type and body.
+fn normalized_client_hello(handshake: &[u8]) -> TestResult<Vec<u8>> {
+    let body = handshake.get(4..).ok_or("truncated ClientHello")?;
+    let mut reader = Reader(body);
+    let mut normalized = Vec::new();
+    normalized.extend_from_slice(reader.take(2)?);
+    reader.take(32)?;
+    normalized.extend_from_slice(&[0; 32]);
+    let session_id = reader.vector8()?;
+    normalized.push(u8::try_from(session_id.len())?);
+    normalized.resize(normalized.len() + session_id.len(), 0);
+    let cipher_suites = reader.vector16()?;
+    normalized.extend_from_slice(&u16::try_from(cipher_suites.len())?.to_be_bytes());
+    normalized.extend_from_slice(cipher_suites);
+    let compression = reader.vector8()?;
+    normalized.push(u8::try_from(compression.len())?);
+    normalized.extend_from_slice(compression);
+    let mut extensions = Reader(reader.vector16()?);
+    if !reader.0.is_empty() {
+        return Err("trailing bytes after the ClientHello extensions".into());
     }
-    Ok(tokio::time::timeout(TEST_TIMEOUT, capture).await???)
+    while !extensions.0.is_empty() {
+        let extension_type = extensions.take(2)?;
+        let extension_type = u16::from_be_bytes([extension_type[0], extension_type[1]]);
+        let body = extensions.vector16()?;
+        let body = match extension_type {
+            KEY_SHARE => normalized_key_share(body)?,
+            ENCRYPTED_CLIENT_HELLO => normalized_ech(body)?,
+            PRE_SHARED_KEY => {
+                let (identities, binders) = psk_shape(body)?;
+                let mut shape = vec![u8::try_from(identities)?];
+                for binder in binders {
+                    shape.push(u8::try_from(binder)?);
+                }
+                shape
+            }
+            _ => body.to_vec(),
+        };
+        normalized.extend_from_slice(&extension_type.to_be_bytes());
+        normalized.extend_from_slice(&u16::try_from(body.len())?.to_be_bytes());
+        normalized.extend_from_slice(&body);
+    }
+    Ok(normalized)
+}
+
+fn normalized_key_share(body: &[u8]) -> TestResult<Vec<u8>> {
+    let mut normalized = body.to_vec();
+    let mut entries = Reader(Reader(body).vector16()?);
+    let mut offset = 2;
+    while !entries.0.is_empty() {
+        entries.take(2)?;
+        let key = entries.vector16()?;
+        offset += 4;
+        normalized[offset..offset + key.len()].fill(0);
+        offset += key.len();
+    }
+    Ok(normalized)
+}
+
+/// Keeps the ECH outer type, KDF, and encapsulated key length. The AEAD and
+/// configuration ID are drawn per connection, the key and payload are random,
+/// and [`ech_payload_length`] compares the payload length on its own.
+fn normalized_ech(body: &[u8]) -> TestResult<Vec<u8>> {
+    let mut reader = Reader(body);
+    let mut normalized = reader.take(3)?.to_vec();
+    reader.take(3)?;
+    normalized.extend_from_slice(&[0; 3]);
+    let encapsulated_key = reader.vector16()?;
+    normalized.extend_from_slice(&u16::try_from(encapsulated_key.len())?.to_be_bytes());
+    normalized.resize(normalized.len() + encapsulated_key.len(), 0);
+    reader.vector16()?;
+    if !reader.0.is_empty() {
+        return Err("trailing bytes in the ECH extension".into());
+    }
+    Ok(normalized)
+}
+
+/// Returns the length of the ECH GREASE payload.
+fn ech_payload_length(handshake: &[u8]) -> TestResult<usize> {
+    let body = client_hello_fixture::extension_payload(handshake, ENCRYPTED_CLIENT_HELLO)?;
+    let mut reader = Reader(body);
+    reader.take(6)?;
+    reader.vector16()?;
+    Ok(reader.vector16()?.len())
+}
+
+struct Reader<'a>(&'a [u8]);
+
+impl<'a> Reader<'a> {
+    fn take(&mut self, count: usize) -> TestResult<&'a [u8]> {
+        let (taken, rest) = self
+            .0
+            .split_at_checked(count)
+            .ok_or("truncated ClientHello field")?;
+        self.0 = rest;
+        Ok(taken)
+    }
+
+    fn vector8(&mut self) -> TestResult<&'a [u8]> {
+        let length = usize::from(self.take(1)?[0]);
+        self.take(length)
+    }
+
+    fn vector16(&mut self) -> TestResult<&'a [u8]> {
+        let length = self.take(2)?;
+        self.take(usize::from(u16::from_be_bytes([length[0], length[1]])))
+    }
 }
 
 /// Returns the fixture's retained ClientHellos that offer a PSK.

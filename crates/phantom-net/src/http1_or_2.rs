@@ -281,6 +281,34 @@ impl Http1Or2TlsConnector {
         })
     }
 
+    /// Returns whether a direct connection offers TLS early data when its
+    /// cached session permits it ([`TlsSettings::tcp_early_data`]).
+    #[must_use]
+    pub const fn offers_early_data(&self) -> bool {
+        self.tls.offers_early_data()
+    }
+
+    /// Returns a clone, sharing this connector's TLS session cache, whose
+    /// connections never offer TLS early data
+    /// ([`TlsSettings::tcp_early_data`]).
+    ///
+    /// Firefox restarts the requests of a connection whose early data the
+    /// server rejected before selecting another ALPN protocol, and they do not
+    /// try early data again (`nsHttpTransaction::Close`,
+    /// `netwerk/protocol/http/nsHttpTransaction.cpp:1546-1579` at tag
+    /// `FIREFOX_156_0_RELEASE`); a connection from this clone carries them.
+    #[must_use]
+    pub fn without_early_data(&self) -> Self {
+        Self {
+            tls: self.tls.without_early_data(),
+            http2: self.http2.clone(),
+            tcp: self.tcp,
+            source: self.source.clone(),
+            host_resolver: self.host_resolver.clone(),
+            proxy_credentials: self.proxy_credentials.clone(),
+        }
+    }
+
     /// Returns a clone with a fresh isolated TLS session cache.
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
@@ -439,6 +467,7 @@ impl Http1Or2TlsConnector {
                 port,
                 server_name,
                 ech,
+                true,
             )
             .await?;
             select_connection(stream, client).await
@@ -491,7 +520,10 @@ impl Http1Or2TlsConnector {
             let stream = connect_tcp(host, port, self.dialer())
                 .await
                 .map_err(Http1Or2TlsError::from_direct)?;
-            let stream = self.tls.connect(server_name, stream).await?;
+            let stream = self
+                .tls
+                .connect_offering_early_data(server_name, stream)
+                .await?;
             select_connection(stream, client).await
         }))
         .await
@@ -780,7 +812,8 @@ where
         Some(b"http/1.1") | None => {
             Span::current().record("selected_protocol", "http/1.1");
             debug!("TLS selected HTTP/1.1");
-            Http1Connection::connect(stream)
+            let early_data = stream.early_data_wait();
+            Http1Connection::connect_with_early_data(stream, early_data)
                 .await
                 .map(Http1Or2Connection::Http1)
                 .map_err(Into::into)

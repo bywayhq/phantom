@@ -33,11 +33,13 @@ pub use self::client_certificate::{
 use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
-use self::session_cache::TlsSessionCache;
+pub(crate) use self::early_data::EarlyDataWait;
+use self::{early_data::EarlyData, session_cache::TlsSessionCache};
 
 mod client_certificate;
 mod compression;
 mod configuration;
+mod early_data;
 #[cfg(feature = "keylog")]
 pub(crate) mod key_log;
 mod session_cache;
@@ -80,6 +82,9 @@ pub(crate) struct TlsConnector {
     scoped_sessions_enabled: bool,
     session_tickets_per_origin: u8,
     session_ticket_extension_when_resuming: bool,
+    /// `TlsSettings::tcp_early_data`, kept only when scoped sessions keep the
+    /// early-data capability their server granted.
+    early_data: bool,
     session_cache: Option<TlsSessionCache>,
     client_certificate: Option<ClientCertificate>,
     #[cfg(feature = "keylog")]
@@ -184,6 +189,20 @@ impl TlsConnector {
     #[cfg(feature = "keylog")]
     pub(crate) fn key_log(&self) -> &key_log::KeyLogSlot {
         &self.key_log
+    }
+
+    /// Returns whether direct connections offer early data when a cached
+    /// session permits it.
+    pub(crate) const fn offers_early_data(&self) -> bool {
+        self.early_data
+    }
+
+    /// Returns a clone, sharing this connector's session cache, whose direct
+    /// connections never offer early data.
+    pub(crate) fn without_early_data(&self) -> Self {
+        let mut connector = self.clone();
+        connector.early_data = false;
+        connector
     }
 
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
@@ -330,9 +349,16 @@ impl TlsConnector {
 
         let tickets_verifiable = settings.session_tickets
             && matches!(server_authentication, ServerAuthentication::WebPki);
+        let early_data = matches!(sessions, ClientSessions::Scoped)
+            && tickets_verifiable
+            && settings.tcp_early_data;
         let scoped_sessions_enabled = match sessions {
             ClientSessions::Scoped if tickets_verifiable => {
-                builder.enable_scoped_client_sessions();
+                if early_data {
+                    builder.enable_scoped_client_sessions_with_early_data();
+                } else {
+                    builder.enable_scoped_client_sessions();
+                }
                 true
             }
             ClientSessions::External(prepare) if tickets_verifiable => {
@@ -364,6 +390,7 @@ impl TlsConnector {
             scoped_sessions_enabled,
             session_tickets_per_origin: settings.session_tickets_per_origin,
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
+            early_data,
             session_cache: None,
             client_certificate: None,
             #[cfg(feature = "keylog")]
@@ -409,9 +436,49 @@ impl TlsConnector {
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        self.handshake(server_name, stream, ech_config_list, false)
+            .await
+    }
+
+    /// Performs a TLS client handshake for a direct connection to an origin,
+    /// offering early data when `TlsSettings::tcp_early_data` allows it.
+    ///
+    /// When the cached session permits early data, the ClientHello offers it
+    /// and this returns as soon as the ClientHello is sent: writes travel as
+    /// early data until the server answers, and [`TlsStream::early_data_wait`]
+    /// lets the protocol layer hold back requests that are not replay safe.
+    /// Firefox disables early data on proxy connections
+    /// (`TlsHandshaker::InitSSLParams`,
+    /// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
+    /// `FIREFOX_156_0_RELEASE`), so only direct routes call this.
+    pub(crate) async fn connect_offering_early_data<S>(
+        &self,
+        server_name: &str,
+        stream: S,
+    ) -> Result<TlsStream<S>, TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        self.handshake(server_name, stream, None, true).await
+    }
+
+    /// Offers early data when `offer_early_data` is set, the connector keeps
+    /// early-data sessions, no ECH configuration is offered, and the cached
+    /// session permits it.
+    async fn handshake<S>(
+        &self,
+        server_name: &str,
+        stream: S,
+        ech_config_list: Option<&[u8]>,
+        offer_early_data: bool,
+    ) -> Result<TlsStream<S>, TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         let span = debug_span!(
             "tls.handshake",
             ech_offered = ech_config_list.is_some(),
+            early_data_offered = field::Empty,
             ech_accepted = field::Empty,
             alpn_protocol_count = count_alpn(&self.alpn_wire),
             negotiated_alpn = field::Empty,
@@ -496,6 +563,12 @@ impl TlsConnector {
                 let reusable = session
                     .as_ref()
                     .is_some_and(|session| !session.should_be_single_use());
+                let offers_early_data = offer_early_data
+                    && self.early_data
+                    && ech_config_list.is_none()
+                    && session
+                        .as_ref()
+                        .is_some_and(btls::ssl::ScopedSslSession::early_data_capable);
                 let capture = cache.begin_handshake(server_name);
                 let callback_capture = capture.clone();
                 let mut ssl = configuration
@@ -518,6 +591,9 @@ impl TlsConnector {
                 session_capture = Some(capture);
                 if omit_session_ticket_extension {
                     ssl.set_options(SslOptions::NO_TICKET);
+                }
+                if offers_early_data {
+                    ssl.set_early_data_enabled(true);
                 }
                 ssl
             } else {
@@ -560,10 +636,17 @@ impl TlsConnector {
                 .and_then(|cipher| cipher.standard_name())
                 .unwrap_or("unknown");
             let session_reused = stream.ssl().session_reused();
+            // A handshake that returned to send early data has not authenticated
+            // the server on this connection yet; its tickets wait until it has.
+            let in_early_data = stream.ssl().in_early_data();
+            span.record("early_data_offered", in_early_data);
+            let early_data = in_early_data
+                .then(|| EarlyData::new(negotiated_alpn.clone(), session_capture.take()));
             let captured_session_count = session_capture
                 .as_ref()
                 .map_or(0, session_cache::TlsSessionCapture::commit_authenticated);
             if session_reused
+                && !in_early_data
                 && captured_session_count == 0
                 && let (Some(cache), Some(session)) =
                     (&self.session_cache, attempted_reusable_session)
@@ -583,6 +666,7 @@ impl TlsConnector {
                 tls_version = stream.ssl().version_str(),
                 cipher_suite = negotiated_cipher_name,
                 session_reused,
+                early_data_offered = in_early_data,
                 "TLS handshake completed"
             );
             Ok(TlsStream {
@@ -593,6 +677,7 @@ impl TlsConnector {
                 negotiated_tls_version,
                 negotiated_cipher_suite,
                 session_reused,
+                early_data,
             })
         }
         .instrument(span.clone())
@@ -656,6 +741,10 @@ impl Drop for HandshakeOutcome {
 }
 
 /// A connected TLS stream that hides its BoringSSL representation.
+///
+/// A stream whose handshake returned to send early data reports the resumed
+/// session's ALPN protocol and parameters until the server answers; see
+/// [`Self::early_data_wait`].
 pub(crate) struct TlsStream<S> {
     inner: BoringStream<S>,
     ech_accepted: bool,
@@ -664,9 +753,31 @@ pub(crate) struct TlsStream<S> {
     negotiated_tls_version: Option<TlsVersion>,
     negotiated_cipher_suite: Option<CipherSuite>,
     session_reused: bool,
+    /// Present while the server has not yet answered the early data.
+    early_data: Option<EarlyData>,
 }
 
 impl<S> TlsStream<S> {
+    /// Returns a handle that tells when the server answers this stream's early
+    /// data, or `None` when the handshake completed without offering any.
+    pub(crate) fn early_data_wait(&self) -> Option<EarlyDataWait> {
+        self.early_data.as_ref().map(EarlyData::wait)
+    }
+
+    /// Rereads the handshake results once the server has answered early data,
+    /// which may differ from the resumed session's after a rejection.
+    fn refresh_negotiated(&mut self) {
+        let ssl = self.inner.ssl();
+        self.ech_accepted = ssl.ech_accepted();
+        self.negotiated_alpn = ssl.selected_alpn_protocol().map(Box::from);
+        self.peer_application_settings = ssl.peer_application_settings().map(Box::from);
+        self.negotiated_tls_version = negotiated_tls_version(ssl.version2());
+        self.negotiated_cipher_suite = ssl
+            .current_cipher()
+            .and_then(|cipher| CipherSuite::from_iana_id(cipher.protocol_id()));
+        self.session_reused = ssl.session_reused();
+    }
+
     /// Returns the ALPN protocol selected by the server, if any.
     pub(crate) fn negotiated_alpn(&self) -> Option<&[u8]> {
         self.negotiated_alpn.as_deref()
@@ -716,6 +827,7 @@ impl<S> fmt::Debug for TlsStream<S> {
             .field("negotiated_cipher_suite", &self.negotiated_cipher_suite())
             .field("session_reused", &self.session_reused())
             .field("ech_accepted", &self.ech_accepted)
+            .field("early_data_unanswered", &self.early_data.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -739,6 +851,9 @@ where
         context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
+        if self.early_data.is_some() {
+            return self.poll_read_early(context, buffer);
+        }
         Pin::new(&mut self.inner).poll_read(context, buffer)
     }
 }
@@ -752,6 +867,9 @@ where
         context: &mut Context<'_>,
         buffer: &[u8],
     ) -> Poll<io::Result<usize>> {
+        if self.early_data.is_some() {
+            return self.poll_write_early(context, buffer);
+        }
         Pin::new(&mut self.inner).poll_write(context, buffer)
     }
 
@@ -760,6 +878,15 @@ where
         context: &mut Context<'_>,
         buffers: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
+        if self.early_data.is_some() {
+            // Each early write is recorded for a resend, so it goes through
+            // the plain write path, as the default vectored write does.
+            let buffer = buffers
+                .iter()
+                .find(|buffer| !buffer.is_empty())
+                .map_or(&[][..], |buffer| &**buffer);
+            return self.poll_write_early(context, buffer);
+        }
         Pin::new(&mut self.inner).poll_write_vectored(context, buffers)
     }
 
@@ -768,6 +895,9 @@ where
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        if self.early_data.is_some() {
+            std::task::ready!(self.poll_restart(context))?;
+        }
         Pin::new(&mut self.inner).poll_flush(context)
     }
 

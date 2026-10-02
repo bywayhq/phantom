@@ -805,7 +805,11 @@ impl Http1TlsConnector {
                         DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                         DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
                     })?;
-            self.connect_prepared(stream, server_name).await
+            let stream = self
+                .tls
+                .connect_offering_early_data(server_name, stream)
+                .await?;
+            connect_over_tls(stream).await
         }))
         .await
     }
@@ -839,6 +843,7 @@ impl Http1TlsConnector {
                 port,
                 server_name,
                 ech,
+                true,
             )
             .await?;
             connect_over_tls(stream).await
@@ -1306,6 +1311,7 @@ impl Http1TlsConnector {
                 port,
                 server_name,
                 ech,
+                false,
             )
             .await?;
             upgrade_over_tls(stream, prepared).await
@@ -2261,7 +2267,10 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     require_http1_selected(&stream)?;
-    Http1Connection::connect(stream).await.map_err(Into::into)
+    let early_data = stream.early_data_wait();
+    Http1Connection::connect_with_early_data(stream, early_data)
+        .await
+        .map_err(Into::into)
 }
 
 /// Sends a prepared Upgrade GET over an established TLS stream.

@@ -34,6 +34,7 @@ pub(super) struct PreparedRequest {
     allows_reuse: bool,
     body_len: Option<u64>,
     has_body: bool,
+    replay_safe: bool,
 }
 
 struct PreparedBody {
@@ -289,6 +290,7 @@ impl PreparedRequest {
         let trailers = ValidatedTrailers::from_sources(trailers, Some(&body))?;
         let headers = ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
         let static_trailer_marker = trailers.as_ref().is_some_and(|trailers| !trailers.dynamic);
+        let replay_safe = crate::request::is_replay_safe(&method, has_body, trailers.is_some());
         let mut request = Request::new(Http1RequestBody::new(body, static_trailer_marker));
         *request.method_mut() = method;
         *request.uri_mut() = target;
@@ -305,6 +307,7 @@ impl PreparedRequest {
             allows_reuse,
             body_len,
             has_body,
+            replay_safe,
         })
     }
 
@@ -326,6 +329,12 @@ impl PreparedRequest {
 
     pub(super) const fn has_body(&self) -> bool {
         self.has_body
+    }
+
+    /// Returns whether the request may travel as early data; see
+    /// [`crate::request::is_replay_safe`].
+    pub(super) const fn is_replay_safe(&self) -> bool {
+        self.replay_safe
     }
 }
 

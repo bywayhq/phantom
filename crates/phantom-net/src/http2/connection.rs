@@ -18,6 +18,7 @@ use tracing::{Instrument, debug, debug_span, field};
 
 use crate::accept_ch::AcceptCh;
 use crate::request::{RequestBody, RequestBodyMetadata};
+use crate::tls::EarlyDataWait;
 
 use super::{
     Http2Body, Http2Builder, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
@@ -384,6 +385,7 @@ impl Http2Connection {
         );
         let outcome = OperationOutcome::new(&span);
         let result = async {
+            self.wait_for_early_data(false).await?;
             let mut sender = self
                 .inner
                 .sender()
@@ -488,6 +490,7 @@ impl Http2Connection {
         );
         let outcome = OperationOutcome::new(&span);
         let result = async {
+            self.wait_for_early_data(false).await?;
             let mut sender = self
                 .inner
                 .sender()
@@ -621,13 +624,39 @@ impl Http2Connection {
         self.inner.driver.is_finished()
     }
 
+    /// Waits until the server answers this connection's TLS early data.
+    ///
+    /// Returns at once for a connection that sent none, or whose early data
+    /// was already answered. A request that is not replay safe already waits
+    /// for this before it is written; a caller that may move such a request
+    /// to another connection waits here first, so its body stays unsent.
+    pub async fn early_data_answered(&self) {
+        if let Some(early_data) = &self.inner.early_data {
+            let _ = early_data.answered().await;
+        }
+    }
+
+    /// Returns whether the server rejected this connection's TLS early data
+    /// and then selected another ALPN protocol.
+    ///
+    /// Such a connection fails: it never changes protocol. The server
+    /// processed none of its requests, so they can be sent again on a
+    /// connection that offers no early data, as Firefox restarts them.
+    #[must_use]
+    pub fn early_data_alpn_changed(&self) -> bool {
+        self.inner
+            .early_data
+            .as_ref()
+            .is_some_and(EarlyDataWait::alpn_changed)
+    }
+
     /// Returns whether this connection is currently eligible for another stream.
     ///
     /// This snapshot observes connection errors such as a received GOAWAY but
     /// does not reserve capacity. A later send can still fail.
     #[must_use]
     pub fn is_reusable(&self) -> bool {
-        if self.is_closed() {
+        if self.is_closed() || self.early_data_alpn_changed() {
             return false;
         }
         let Some(sender) = self.inner.sender() else {
@@ -694,7 +723,29 @@ impl Http2Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, false).await
+        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, false, None).await
+    }
+
+    /// Establishes HTTP/2 over a TLS stream whose server may not have answered
+    /// its early data yet.
+    ///
+    /// The connection preface and SETTINGS go out at once, as early data, as
+    /// Firefox sends them even when no request may (`Http2Session::ReadSegmentsAgain`,
+    /// `netwerk/protocol/http/Http2Session.cpp:2683-2707` at tag
+    /// `FIREFOX_156_0_RELEASE`). A request that is not replay safe waits for
+    /// `early_data` to be answered before its HEADERS are written; the
+    /// connection driver keeps reading, which completes the handshake.
+    pub(super) async fn connect_with_early_data<T>(
+        stream: T,
+        client: Http2Builder,
+        accept_ch: AcceptCh,
+        early_data: Option<EarlyDataWait>,
+    ) -> Result<Self, Http2Error>
+    where
+        T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, false, early_data)
+            .await
     }
 
     pub(super) async fn connect_extended_with_builder_and_accept_ch<T>(
@@ -705,7 +756,7 @@ impl Http2Connection {
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, true).await
+        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, true, None).await
     }
 
     async fn connect_with_builder_kind<T>(
@@ -721,6 +772,7 @@ impl Http2Connection {
             client,
             AcceptCh::default(),
             extended_connect,
+            None,
         )
         .await
     }
@@ -730,6 +782,7 @@ impl Http2Connection {
         client: Http2Builder,
         accept_ch: AcceptCh,
         extended_connect: bool,
+        early_data: Option<EarlyDataWait>,
     ) -> Result<Self, Http2Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
@@ -752,8 +805,21 @@ impl Http2Connection {
                 accept_ch,
                 extended_connect,
                 first_stream_id,
+                early_data,
             }),
         })
+    }
+
+    /// Holds a request that is not replay safe until the server has answered
+    /// this connection's early data.
+    async fn wait_for_early_data(&self, replay_safe: bool) -> Result<(), Http2Error> {
+        match &self.inner.early_data {
+            Some(early_data) if !replay_safe => early_data
+                .answered()
+                .await
+                .map_err(|_| Http2Error::protocol(connection_closed())),
+            _ => Ok(()),
+        }
     }
 
     pub(super) async fn send_prepared_request(
@@ -776,8 +842,11 @@ impl Http2Connection {
             outcome = field::Empty,
         );
         let outcome = OperationOutcome::new(&span);
+        let replay_safe =
+            crate::request::is_replay_safe(&method, body.is_some(), trailers.is_some());
         let result = async {
             debug!("HTTP/2 stream started");
+            self.wait_for_early_data(replay_safe).await?;
             let mut sender = self
                 .inner
                 .sender()
@@ -954,6 +1023,8 @@ struct ConnectionInner {
     /// The profile's first stream ID, against which a per-request priority
     /// dependency is checked.
     first_stream_id: u32,
+    /// Present when the connection was opened with early data.
+    early_data: Option<EarlyDataWait>,
 }
 
 impl ConnectionInner {

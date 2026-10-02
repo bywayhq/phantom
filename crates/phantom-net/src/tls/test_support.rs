@@ -4,7 +4,7 @@ use std::{
     net::SocketAddr,
     pin::Pin,
     sync::{
-        Arc,
+        Arc, Mutex, PoisonError,
         atomic::{AtomicUsize, Ordering},
     },
     task::{Context, Poll},
@@ -141,6 +141,89 @@ pub(crate) async fn accept_tls(
         .servername(NameType::HOST_NAME)
         .map(str::to_owned);
     Ok((stream, sni))
+}
+
+/// One accepted server TLS connection that records the application bytes it
+/// read before its handshake completed, which were early data.
+pub(crate) struct EarlyDataServerStream {
+    inner: BoringStream<TcpStream>,
+    early: Arc<Mutex<Vec<u8>>>,
+}
+
+impl EarlyDataServerStream {
+    /// Returns a handle to the bytes read as early data so far.
+    pub(crate) fn early_bytes(&self) -> Arc<Mutex<Vec<u8>>> {
+        Arc::clone(&self.early)
+    }
+
+    pub(crate) fn early_data_accepted(&self) -> bool {
+        self.inner.ssl().early_data_accepted()
+    }
+
+    pub(crate) fn session_reused(&self) -> bool {
+        self.inner.ssl().session_reused()
+    }
+}
+
+impl AsyncRead for EarlyDataServerStream {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let before = buffer.filled().len();
+        let result = Pin::new(&mut self.inner).poll_read(context, buffer);
+        // Application data read while the handshake is still in progress can
+        // only be early data: 1-RTT data follows the client's Finished.
+        if !self.inner.ssl().is_init_finished() {
+            self.early
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .extend_from_slice(&buffer.filled()[before..]);
+        }
+        result
+    }
+}
+
+impl AsyncWrite for EarlyDataServerStream {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(context, buffer)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(context)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(context)
+    }
+}
+
+/// Accepts one TLS connection that issues tickets permitting early data and
+/// accepts early data when `early_data` is set.
+///
+/// The handshake starts `delay` after the TCP accept, so a client's early
+/// data is already on the wire when the server answers its ClientHello.
+pub(crate) async fn accept_tls_with_early_data(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    early_data: bool,
+    delay: Duration,
+) -> TestResult<EarlyDataServerStream> {
+    let (tcp, _) = listener.accept().await?;
+    tokio::time::sleep(delay).await;
+    let mut ssl = Ssl::new(acceptor.context())?;
+    ssl.set_early_data_enabled(early_data);
+    let mut stream = BoringStream::new(ssl, tcp)?;
+    Pin::new(&mut stream).accept().await?;
+    Ok(EarlyDataServerStream {
+        inner: stream,
+        early: Arc::default(),
+    })
 }
 
 pub(crate) async fn connect_local(

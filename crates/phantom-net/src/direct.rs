@@ -172,6 +172,9 @@ pub(crate) enum DirectTlsError {
 /// none (`SSLConnectJob::DoSSLConnectComplete`,
 /// `net/socket/ssl_connect_job.cc` lines 506-525 at `154.0.8037.58`). A
 /// second rejection fails with [`crate::tls::EchFailure::Rejected`].
+///
+/// With `offer_early_data` set, a connection that offers no ECH configuration
+/// is the one [`crate::tls::TlsConnector::connect_offering_early_data`] makes.
 #[cfg(feature = "https-records")]
 pub(crate) async fn connect_tls_with_ech(
     tls: &crate::tls::TlsConnector,
@@ -180,6 +183,7 @@ pub(crate) async fn connect_tls_with_ech(
     port: u16,
     server_name: &str,
     ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
+    offer_early_data: bool,
 ) -> Result<crate::tls::TlsStream<TcpStream>, DirectTlsError> {
     use crate::{
         dns::EchConfigList,
@@ -198,7 +202,11 @@ pub(crate) async fn connect_tls_with_ech(
         .peer_addr()
         .map_err(|error| DirectTlsError::Direct(DirectConnectError::Connect(error)))?;
     let offered = list.as_ref().map(EchConfigList::as_bytes);
-    match tls.connect_with_ech(server_name, stream, offered).await {
+    let handshake = match offered {
+        None if offer_early_data => tls.connect_offering_early_data(server_name, stream).await,
+        offered => tls.connect_with_ech(server_name, stream, offered).await,
+    };
+    match handshake {
         Ok(stream) => Ok(stream),
         Err(mut error) if error.ech_failure() == Some(EchFailure::Rejected) => {
             let retry_configs = error.take_ech_retry_configs();

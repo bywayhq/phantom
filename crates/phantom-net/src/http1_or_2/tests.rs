@@ -2,6 +2,7 @@ use phantom_profile::chromium::{v154_http2, v154_tls};
 
 use super::{Http1Or2TlsErrorKind, validate_settings};
 
+mod early_data;
 #[cfg(feature = "https-records")]
 mod ech;
 

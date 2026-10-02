@@ -9,7 +9,7 @@ use std::{
 
 use bytes::Bytes;
 use http::{
-    HeaderMap, Uri,
+    HeaderMap, Method, Uri,
     header::HeaderName,
     uri::{Authority, PathAndQuery},
 };
@@ -595,6 +595,22 @@ impl fmt::Debug for RequestHeader {
         }
         debug.field("sensitive", &self.sensitive).finish()
     }
+}
+
+/// Returns whether sending a request twice is harmless, so it may travel as
+/// TLS early data: a safe method (RFC 9110, section 9.2.1) with no body and no
+/// trailers.
+///
+/// Chromium sends an HTTP/3 request as early data on the same condition when
+/// the caller states no idempotency (`HttpUtil::IsMethodSafe` in
+/// `net/http/http_network_transaction.cc` at tag `154.0.8037.58`). Firefox
+/// sends a TCP request as early data when its method is safe
+/// (`nsHttpRequestHead::IsSafeMethod`,
+/// `netwerk/protocol/http/nsHttpRequestHead.cpp:345-360` at tag
+/// `FIREFOX_156_0_RELEASE`), which also admits a body and `PROPFIND`,
+/// `REPORT`, and `SEARCH`; Phantom holds those back.
+pub(crate) fn is_replay_safe(method: &Method, has_body: bool, has_trailers: bool) -> bool {
+    method.is_safe() && !has_body && !has_trailers
 }
 
 #[cfg(test)]
