@@ -128,9 +128,10 @@ Use a sibling worktree only when independent work can proceed concurrently.
   counter for the whole host. When the counter reaches a reserved block, the
   bind can fail with `WSAENOBUFS` (os error 10055) and the next bind gets a
   port. Bind UDP sockets through `source_binding::bind_udp_socket` in
-  `phantom-net` and through `phantom_testkit::udp` in tests, which retry that
-  error. A direct `UdpSocket::bind` or `quinn::Endpoint::server` to port 0
-  can fail in any run.
+  `phantom-net`, through `phantom_testkit::udp` in tests, and through
+  `scripts/capture/reserved_ports.py` in capture servers, which retry that
+  error. A direct `UdpSocket::bind`, `quinn::Endpoint::server`, or aioquic
+  `serve` to port 0 can fail in any run.
 - An origin that needs one port for both TCP and UDP takes it from
   `crates/phantom/tests/support/shared_port.rs` instead of binding UDP to
   port 0 and TCP to the port it got: the next UDP ports can fall inside a
