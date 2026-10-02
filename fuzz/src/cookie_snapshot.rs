@@ -23,7 +23,7 @@ mod tests;
 
 use std::{
     net::Ipv4Addr,
-    sync::OnceLock,
+    sync::{Mutex, OnceLock, PoisonError},
     time::{Duration, SystemTime},
 };
 
@@ -143,7 +143,14 @@ fn export_checked(client: &Client) -> CookieSnapshot {
 }
 
 /// Imports one snapshot into a freshly cleared jar and reports acceptance.
+///
+/// Every call shares one client and its jar, so calls hold a lock for their
+/// whole run: the unit tests call this from parallel threads, and a clear or
+/// import from one would otherwise land between another's import and its
+/// check that a rejected snapshot left the jar empty.
 pub fn drive(encoded: &[u8]) -> bool {
+    static JAR: Mutex<()> = Mutex::new(());
+    let _jar = JAR.lock().unwrap_or_else(PoisonError::into_inner);
     let client = client();
     let jar = client
         .cookie_jar()
