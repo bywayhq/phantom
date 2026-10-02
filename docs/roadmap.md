@@ -185,6 +185,21 @@ anything does.
 
 #### Wire fidelity
 
+- Opera's trust-anchor ID order. Evidence: Opera 136 encodes its 32 IDs in
+  Chromium 152's hash-set order, one order per process over TCP (16 orders
+  in 29 processes) and a new one per connection over QUIC (19 orders in 20
+  ClientHellos); the recipes send one fixed order each
+  ([Brave 154 and Opera 136 recipes](explanation/validation.md#brave-154-and-opera-136-recipes)).
+  Blocker: modelling it needs a `TlsSettings` option that draws an order,
+  per client or per connection, from the observed orders.
+- Chromium's built-in DNS client. Evidence: with their default resolver,
+  Chrome 154, Edge 154, and Opera 136 sent one query for a name in 120 s of
+  fetches, keeping the answer for the record's TTL
+  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
+  `chromium::v154_dns_cache` keeps every answer 60 s, the browsers' rule for
+  the system resolver. Blocker: Phantom resolves through the operating
+  system, which reports no TTL; a resolver that returns record TTLs, and a
+  cache that honors them, are needed.
 - The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where every Firefox 156 resumption sends a 368-byte payload against 240

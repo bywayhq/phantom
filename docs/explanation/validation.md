@@ -677,21 +677,33 @@ Opera 136 sends Chromium 152's trust-anchor IDs: the 28 that Chrome 154
 sends and `d6790902`, `d6790903`, `d6790909`, and `d679090e`, which Chrome
 154 does not send
 ([Chrome 154 trust-anchor ID order](#chrome-154-trust-anchor-id-order)).
-Chromium 152 encodes the list in hash-set order, so Opera's order is fixed
-within a process and differs between processes: 11 distinct orders among the
-20 TLS startups, the most frequent in 5. Every later ClientHello of a process
-in the TLS resumption captures repeats its first one's order, and a
-process's QUIC list has an order of its own. `opera::v136_tls` and
-`opera::v136_http3_tls` send the most frequent order. The retained
-`client-hello.txt` is run 3, the first of the five with that order, so its
-replay also compares the order; the other replays compare the IDs as a set.
+Chromium 152 encodes the list in hash-set order. The retained
+`fixtures/tls/opera/136.0.6008.52/windows-11-26200/trust-anchor-orders.txt`
+tallies the order of every Opera 136 ClientHello the retained captures
+hold, naming the capture each came from:
+
+| Transport | ClientHellos | Processes | Distinct orders | Within one process | Most frequent order |
+| --- | --- | --- | --- | --- | --- |
+| TCP | 100: 20 TLS startups and run 0 of the nine TLS resumption scenarios | 29 | 16 | One order on every connection (0 of 71 later ClientHellos changed) | 5 of 29 processes |
+| QUIC | 20: 3 H3 startups and run 0 of the three QUIC resumption scenarios | 6 | 19 | A new order per connection: every resumption process used 5 or 6 orders | 2 of 20 ClientHellos, both in one process |
+
+Across all runs of the QUIC resumption fixtures, the trust-anchor extension
+of 58 of the 59 later connections differs from the run's first connection.
+`opera::v136_tls` sends the most frequent TCP order, and
+`opera::v136_http3_tls` the one QUIC order seen twice. Neither recipe draws
+a new order: per process over TCP, per connection over QUIC.
+`opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones` checks
+both recipes against the tally. The retained `client-hello.txt` is TLS
+startup run 3, one of the five with the TCP recipe's order, so its replay
+also compares the order; the other TCP replays, and every QUIC replay,
+compare the IDs as a set.
 
 | Browser and layer | Samples | Result against the Chromium recipes |
 | --- | --- | --- |
 | Brave TLS | 20 processes | The Chrome 154 ClientHello without the trust-anchor IDs extension |
 | Opera TLS | 20 processes | The Chrome 154 ClientHello with Chromium 152's 32 trust-anchor IDs in a per-process order |
 | Brave QUIC ClientHello | 3 processes | The Chrome 154 QUIC ClientHello without trust-anchor IDs |
-| Opera QUIC ClientHello | 3 processes | The Chrome 154 QUIC ClientHello with the 32 trust-anchor IDs of the Opera TLS row |
+| Opera QUIC ClientHello | 3 processes | The Chrome 154 QUIC ClientHello with the 32 trust-anchor IDs of the Opera TLS row, in an order drawn per connection |
 | Brave and Opera H2 startup | 3 raw startups each | Byte-identical to the Chrome 154 SETTINGS and WINDOW_UPDATE frames |
 | Brave and Opera H2 request HEADERS, pseudo-header order, priority, HPACK | 3 H2 session runs each | Equal to `chromium::v154_http2` |
 | Brave and Opera QUIC transport parameters, H3 SETTINGS, H3 pseudo-header order | 3 processes each | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request` |
@@ -885,7 +897,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Browser | Area | Files |
 | --- | --- | --- |
 | Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
-| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
 | Brave 154.1.96.59 | `http3` | `launch-mode/client-startup-devtools.txt`, `launch-mode/quic-client-hello-devtools.txt` |
@@ -916,6 +928,9 @@ Limits:
   open, handshake, or resolve again.
 - No SSE or Alt-Svc racing capture exists for either browser.
 - The Opera comparison is with Chrome 154, not with a Chromium 152 build.
+- Opera's trust-anchor order is not modeled: the recipes send one order
+  where Opera draws one per process over TCP and one per connection over
+  QUIC.
 - Opera's H2 and H3 startups were launched through DevTools; its TLS
   ClientHello may be the startup preconnect's.
 
@@ -1964,7 +1979,7 @@ every connection it accepts. Each log names the agent by its SHA-256, and
 `test_socket_hooks.py` fails when the agent in the repository differs.
 
 On 2026-10-02 the three browsers ran all seven scenarios at once, one fresh
-headless profile per scenario, in 14 minutes 45 seconds of wall clock, most
+headless profile per scenario, in 14 minutes 46 seconds of wall clock, most
 of it the 600-second `idle` page. Chrome 154 is the control: its recipes come
 from Chromium source, so the same hooks show whether the method reproduces
 them. The calls came from `chrome.dll`, `msedge.dll`, and
@@ -1974,17 +1989,17 @@ them. The calls came from `chrome.dll`, `msedge.dll`, and
 | --- | --- | --- | --- | --- |
 | Options on every TCP socket to the origin, before `connect` (`single` and `parallel`: 13 sockets per browser) | `TCP_NODELAY` 1; `SIO_KEEPALIVE_VALS` on, 45,000 ms, 45,000 ms; `SO_RANDOMIZE_PORT` 1; to loopback, `SIO_TCP_INITIAL_RTO` with no SYN retransmissions | The same | The same without `SIO_TCP_INITIAL_RTO` | `chromium::v154_tcp`: `TCP_NODELAY`, keepalive 45 s and 45 s; no port randomization or initial RTO |
 | Most connections open to one origin for 10 concurrent slow requests (`parallel`) | 6 | 6 | 6 | `chromium::v154_http1`: 6 |
-| IPv4 attempt after a pending `[::1]` attempt to `localhost` (`happy-eyeballs-slow`, two connect jobs) | 303 and 312 ms | 305 and 301 ms | 300 and 301 ms | 300 ms fallback delay |
-| IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 2 ms, after the failure | 1 ms, after the failure | 300 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
-| System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0 and 70 s | `chromium::v154_dns_cache`: an answer kept 60 s |
+| IPv4 attempt after a pending `[::1]` attempt to `localhost` (`happy-eyeballs-slow`, two connect jobs) | 304 and 312 ms | 300 and 302 ms | 302 and 315 ms | 300 ms fallback delay |
+| IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 3 ms, after the failure | 3 ms, after the failure | 301 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
+| System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0, 60, and 120 s | `chromium::v154_dns_cache`: an answer kept 60 s |
 | Lookups with the default built-in DNS client (`lookups`) | One A and one HTTPS query at 0 s | The same | The same | Not modeled: the record TTL |
 | A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | Not modeled: Phantom keeps it |
 
 Each system-resolver lookup was two `getaddrinfo` calls from the browser
-module at the same moment; the calls those make inside `ws2_32.dll` and
-`dnsapi.dll` are not counted. Opera's second lookup came at 70 s because the
-answer of its first expired 60.3 s in, after that fetch had been served from
-the cache. The `happy-eyeballs` scenarios load the page from `127.0.0.1` and
+module within a few milliseconds; the calls those make inside `ws2_32.dll`
+and `dnsapi.dll` are not counted. A lookup comes at the first fetch after
+the answer expires, so an answer that expires right after a fetch is renewed
+up to 10 s late; the test accepts gaps of 60 to 70 s. The `happy-eyeballs` scenarios load the page from `127.0.0.1` and
 fetch `http://localhost:<port>/done` on a second port where only
 `127.0.0.1` listens, so the browser's startup connections to the page do not
 mix with the attempts measured; each browser ran two connect jobs for that
@@ -2272,6 +2287,7 @@ is a real reduction, not a restatement.
 | Third-party HTTP/2 observations | The Chrome 152 Pingly and Firefox 154 Peet and Pingly fixtures, with `assert_akamai_summary`, compared a recipe's SETTINGS, window increment, and pseudo-header order against an independent observer's summary of the same browser | No current recipe has a second opinion from outside this repository |
 | Raw Firefox HTTP/2 startup bytes | The Firefox 154 `client-startup.txt` replay compared startup frames byte for byte | `firefox::v156_http2`'s SETTINGS and connection window rest on the HTTP/2 session captures of the WebSocket fixture set. No Firefox 156 equivalent exists: the raw startup tool needs WebDriver certificate trust, and geckodriver is not installed on the capture host |
 | Cross-platform transport parity | The Chrome 152 and Firefox 154 macOS and Windows capture pairs showed that those transport layers did not depend on the host platform | No current recipe has a second platform, so platform independence is not claimed for any of them |
+| Opera macOS TLS resumption replay | `chromium_resumed_client_hellos_match_the_tcp_resumption_captures` compared the resumed ClientHello of `opera::v135_tls` with the macOS 15.5 Opera 135 `resumption-sequential.txt` | The fixture stays, but no Opera TLS recipe matches Opera 135, so no test reads it until the Mac's Opera is updated |
 | Chrome for Testing field-trial comparison | The retained `client-hello-field-trial-config.txt` kept the testing configuration's differences visible; it went with the Chrome 152 fixtures | No Chrome for Testing build of 154.0.8037.58 is published, so build flavor is not isolated at the current version |
 
 ## Feature evidence

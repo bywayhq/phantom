@@ -148,7 +148,8 @@ fn chrome_on_macos() -> ClientProfile {
 - Firefox's keepalive schedule and address selection are not modeled
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
   Brave, Edge, and Opera use `chromium::v154_tcp`, which leaves out the
-  Windows port randomization all three browsers turn on.
+  Windows port randomization that the Chrome, Edge, and Opera hook logs
+  show.
 
 ## Next
 

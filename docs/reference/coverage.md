@@ -1018,9 +1018,10 @@ Randomized fields:
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
 - Opera 136, built on Chromium 152, keeps that per-process order for its
-  32 trust-anchor IDs, and orders its QUIC list apart from its TCP list.
-  `opera::v136_tls` and `opera::v136_http3_tls` send one fixed order, the
-  most frequent of 20 processes' TCP orders; the per-process draw is not
+  32 trust-anchor IDs over TCP, and draws a new order for each QUIC
+  connection. `opera::v136_tls` sends the most frequent of 29 processes'
+  TCP orders and `opera::v136_http3_tls` the one QUIC order seen twice in
+  20 ClientHellos; neither the per-process nor the per-connection draw is
   modeled
   ([Brave 154 and Opera 136 recipes](../explanation/validation.md#brave-154-and-opera-136-recipes)).
 - The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
