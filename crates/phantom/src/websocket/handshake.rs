@@ -41,12 +41,6 @@ pub enum WebSocketHeader {
         /// Exact field-name spelling to emit when cookies are available.
         name: Box<str>,
     },
-    /// Compatibility name for [`Self::ClientCookies`].
-    #[doc(hidden)]
-    SessionCookies {
-        /// Exact field-name spelling to emit when cookies are available.
-        name: Box<str>,
-    },
     /// Inserts the generated `permessage-deflate` offer at this position.
     #[cfg(feature = "websocket-deflate")]
     PerMessageDeflate {
@@ -93,13 +87,6 @@ impl WebSocketHeader {
         Self::ClientCookies { name: name.into() }
     }
 
-    /// Compatibility name for [`Self::client_cookies`].
-    #[doc(hidden)]
-    #[must_use]
-    pub fn session_cookies(name: impl Into<Box<str>>) -> Self {
-        Self::client_cookies(name)
-    }
-
     /// Creates a generated compression-offer placeholder.
     #[cfg(feature = "websocket-deflate")]
     #[must_use]
@@ -132,7 +119,6 @@ impl fmt::Debug for WebSocketHeader {
             Self::Authority { name } => ("authority", name.as_ref()),
             Self::Key { name } => ("key", name.as_ref()),
             Self::ClientCookies { name } => ("client_cookies", name.as_ref()),
-            Self::SessionCookies { name } => ("session_cookies", name.as_ref()),
             #[cfg(feature = "websocket-deflate")]
             Self::PerMessageDeflate { name } => ("permessage_deflate", name.as_ref()),
             Self::Field(header) => ("field", header.name()),
@@ -195,7 +181,7 @@ pub(super) fn prepare_http2(
     let mut headers = Vec::with_capacity(templates.len());
     for template in templates {
         match template {
-            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } => {
                 if !validation.has_literal_cookie
                     && let Some(value) = session_cookie.take().and_then(|read| read())
                 {
@@ -250,7 +236,7 @@ pub(super) fn prepare(
             WebSocketHeader::Key { name } => {
                 headers.push(RequestHeader::new(name, &key).sensitive());
             }
-            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } => {
                 if !validation.has_literal_cookie
                     && let Some(value) = session_cookie.take().and_then(|read| read())
                 {
@@ -303,7 +289,7 @@ fn validate_http2_templates(
                     "HTTP/2 WebSocket fields must not contain authority or key placeholders",
                 ));
             }
-            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } => {
                 validate_http2_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
             }
@@ -422,7 +408,7 @@ fn validate_templates(
                 validate_placeholder_name(name, KEY_NAME)?;
                 key_count += 1;
             }
-            WebSocketHeader::ClientCookies { name } | WebSocketHeader::SessionCookies { name } => {
+            WebSocketHeader::ClientCookies { name } => {
                 validate_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
             }
