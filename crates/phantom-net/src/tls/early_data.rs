@@ -96,18 +96,25 @@ impl EarlyDataFailure {
 
 /// One handshake error shared by the stream's caller and every request that
 /// waited on the early data.
+///
+/// Its message is fixed and its source is the error the handshake reported,
+/// the BoringSSL error when there is one, so a printed chain names that error
+/// once.
 #[derive(Debug)]
 struct SharedError(Arc<io::Error>);
 
 impl fmt::Display for SharedError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, formatter)
+        formatter.write_str("the connection's TLS handshake failed")
     }
 }
 
 impl StdError for SharedError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        Some(&*self.0)
+        match self.0.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&*self.0),
+        }
     }
 }
 
@@ -216,6 +223,7 @@ where
         loop {
             ready!(self.poll_restart(context))?;
             let before = buffer.filled().len();
+            let had_room = buffer.remaining() > 0;
             let result = Pin::new(&mut self.inner).poll_read(context, buffer);
             if self.take_rejection(&result) {
                 continue;
@@ -223,6 +231,7 @@ where
             let result = self.observe(result);
             // The peer closed the connection before the handshake completed.
             if matches!(result, Poll::Ready(Ok(())))
+                && had_room
                 && buffer.filled().len() == before
                 && self.early_data.is_some()
             {
