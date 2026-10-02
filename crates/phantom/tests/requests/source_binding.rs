@@ -282,15 +282,20 @@ async fn interface_binding_reaches_a_loopback_origin() -> TestResult<()> {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let address = listener.local_addr()?;
     let client = Client::builder(profile()).interface("lo").build()?;
+    let server =
+        tokio::spawn(async move { answer_one(&listener).await.map_err(|e| e.to_string()) });
 
-    let (peer, sent) = timeout(TEST_TIMEOUT, async {
-        tokio::join!(
-            answer_one(&listener),
-            get(&client, format!("http://{address}/"))
-        )
-    })
-    .await?;
-    sent?;
+    match timeout(TEST_TIMEOUT, get(&client, format!("http://{address}/"))).await? {
+        Ok(()) => {}
+        // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
+        Err(error) if io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) => {
+            eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
+            server.abort();
+            return Ok(());
+        }
+        Err(error) => return Err(error.into()),
+    }
+    let peer = timeout(TEST_TIMEOUT, server).await??;
 
     assert_eq!(peer?.ip(), IPV4_LOOPBACK);
     Ok(())

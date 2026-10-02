@@ -167,8 +167,21 @@ async fn tcp_connection_binds_to_the_loopback_interface() -> TestResult {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let binding = SourceBinding::new().with_interface("lo");
 
-    let stream =
-        crate::tcp::connect_resolved(vec![listener.local_addr()?], None, Some(&binding)).await?;
+    let stream = match crate::tcp::connect_resolved(
+        vec![listener.local_addr()?],
+        None,
+        Some(&binding),
+    )
+    .await
+    {
+        Ok(stream) => stream,
+        // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
+        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
+            eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
+            return Ok(());
+        }
+        Err(error) => return Err(error.into()),
+    };
 
     let device = socket2::SockRef::from(&stream).device()?;
     assert_eq!(device.as_deref(), Some(&b"lo"[..]));

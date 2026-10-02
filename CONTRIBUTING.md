@@ -133,6 +133,10 @@ them, not as a top-level `tests/*.rs` file, which would link a binary of its
 own; see
 [Integration test binaries](scripts/dev/README.md#integration-test-binaries).
 
+On Linux, the interface-binding tests bind a socket to `lo` with
+`SO_BINDTODEVICE`, which an unprivileged process may do from kernel 5.7 on.
+On an older kernel without `CAP_NET_RAW` they print a skip message and pass.
+
 | Change | Minimum proof |
 | --- | --- |
 | Public API or policy | Focused tests, rustdoc, and the relevant guide or coverage update |
