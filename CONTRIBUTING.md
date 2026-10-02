@@ -154,9 +154,11 @@ it from the repository root with `scripts/dev/gate.sh`, which runs
 independent steps in parallel, writes a log per step under `target/gate/logs`,
 and prints a table of results. For a quicker check of one change, run
 `scripts/dev/gate.sh --quick`; [Development
-helpers](scripts/dev/README.md#integration-gate) has the options. The script
-runs these commands, copied here so this page is complete; change both lists
-together:
+helpers](scripts/dev/README.md#integration-gate) has the options. On
+Windows, add `--linux` to check Linux-only code in WSL as well, as
+[Linux checks in WSL](scripts/dev/README.md#linux-checks-in-wsl) describes.
+The script runs these commands, copied here so this page is complete; change
+both lists together:
 
 ```console
 cargo fmt --check

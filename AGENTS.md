@@ -148,6 +148,10 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - A peer that goes away can surface as `ConnectionAborted`, not only
   `ConnectionReset` or `BrokenPipe`. Tests that expect a disconnect accept all
   three.
+- Code under `cfg(target_os = "linux")` or `cfg(not(windows))` never compiles
+  in a Windows gate. After changing it, run the gate with `--linux`, which
+  checks it in WSL
+  ([Linux checks in WSL](scripts/dev/README.md#linux-checks-in-wsl)).
 
 ## Verification and handoff
 

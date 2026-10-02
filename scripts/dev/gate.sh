@@ -22,6 +22,11 @@
 #   --test-threads N  Tests nextest runs at once (default: nextest's).
 #   --slots N         Cargo commands at once across worktrees, when
 #                     PHANTOM_CARGO_SLOTS is unset (default: 4).
+#   --linux           Also build for Linux in WSL, through wsl-cargo.sh:
+#                     Clippy, and in the full gate the MSRV check. Needs a
+#                     Windows host with a WSL distribution that has rustup.
+#   --wsl-distro NAME With --linux, the WSL distribution (default:
+#                     PHANTOM_WSL_DISTRO, else WSL's default).
 #   -h, --help        Show this help.
 set -uo pipefail
 
@@ -36,6 +41,8 @@ usage() {
 }
 
 quick=false
+linux=false
+wsl_distro=""
 packages=()
 base=main
 jobs=""
@@ -49,12 +56,15 @@ while [[ $# -gt 0 ]]; do
     -j | --jobs) jobs=${2:?$1 needs a count}; shift ;;
     --test-threads) test_threads=${2:?$1 needs a count}; shift ;;
     --slots) slots=${2:?$1 needs a count}; shift ;;
+    --linux) linux=true ;;
+    --wsl-distro) wsl_distro=${2:?$1 needs a name}; shift ;;
     -h | --help) usage; exit 0 ;;
     *) echo "gate: unknown option $1" >&2; usage >&2; exit 64 ;;
   esac
   shift
 done
 export PHANTOM_CARGO_SLOTS=${PHANTOM_CARGO_SLOTS:-$slots}
+[[ -z $wsl_distro ]] || export PHANTOM_WSL_DISTRO=$wsl_distro
 for value in "$PHANTOM_CARGO_SLOTS" ${jobs:+"$jobs"} ${test_threads:+"$test_threads"}; do
   if ! [[ $value =~ ^[1-9][0-9]*$ ]]; then
     echo "gate: counts and PHANTOM_CARGO_SLOTS must be positive integers, not '$value'" >&2
@@ -65,10 +75,21 @@ if [[ $quick == false && ${#packages[@]} -gt 0 ]]; then
   echo "gate: --package applies only to --quick" >&2
   exit 64
 fi
+if [[ $linux == false && -n $wsl_distro ]]; then
+  echo "gate: --wsl-distro applies only to --linux" >&2
+  exit 64
+fi
 
 root=$(git rev-parse --show-toplevel) || exit 1
 cd "$root" || exit 1
 lock="$root/scripts/dev/with-cargo-lock.sh"
+wsl_cargo="$root/scripts/dev/wsl-cargo.sh"
+# Stop before any step when WSL cannot run Cargo, rather than after the
+# other chains.
+if [[ $linux == true ]] && ! "$wsl_cargo" --version >/dev/null; then
+  echo "gate: --linux needs WSL with Cargo; wsl-cargo.sh --version failed" >&2
+  exit 69
+fi
 workflow=.github/workflows/ci.yml
 # Plain diagnostics, so the log scan below sees `warning:` at a line start.
 export CARGO_TERM_COLOR=never
@@ -350,6 +371,14 @@ chain_msrv() {
   run_step msrv-workspace msrv cargo "+$msrv" check -j "$jobs" --workspace --all-targets --locked
   run_step msrv-rows - feature_rows msrv msrv
 }
+# Code under cfg(target_os = "linux") or cfg(not(windows)) compiles only
+# here when the gate runs on Windows. The rows run in WSL with their own
+# Linux target directories; each takes one slot like any Cargo command.
+chain_linux() {
+  run_step linux-clippy - "$lock" "$wsl_cargo" --target-name lint     "${clippy[@]:1}"
+  [[ $quick == true ]] && return
+  run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
+}
 chain_python() {
   local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
@@ -372,6 +401,10 @@ if [[ $quick == true ]]; then
   launch chain_tests
   launch chain_lint
   launch run_step docs-check - "${python[@]}" python scripts/docs/check_docs.py
+  if [[ $linux == true ]]; then
+    steps+=(linux-clippy)
+    launch chain_linux
+  fi
 else
   steps+=(nextest doctest fuzz-test clippy fuzz-clippy rustdoc msrv-workspace msrv-rows
     feature-rows ruff-check ruff-format capture-tests conformance-tests docs-tests dev-tests
@@ -381,6 +414,10 @@ else
   launch chain_msrv
   launch run_step feature-rows - feature_rows features features
   launch chain_python
+  if [[ $linux == true ]]; then
+    steps+=(linux-clippy linux-msrv)
+    launch chain_linux
+  fi
 fi
 wait "${pids[@]}"
 

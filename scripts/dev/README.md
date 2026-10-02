@@ -70,6 +70,7 @@ queue behind itself.
 scripts/dev/gate.sh                  # the full gate
 scripts/dev/gate.sh --quick          # a lane: the crates changed since main
 scripts/dev/gate.sh --quick -p phantom-net
+scripts/dev/gate.sh --linux --wsl-distro Ubuntu-24.04
 ```
 
 `--quick` runs formatting, Clippy, the docs checker, and nextest on the
@@ -109,6 +110,42 @@ while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.
 
 A lock whose holder died without releasing it is reclaimed by the next
 waiting command, as [below](#cargo-lock) describes.
+
+### Linux checks in WSL
+
+On a Windows host the gate never compiles code under
+`cfg(target_os = "linux")` or `cfg(not(windows))`, so a change there can
+pass the gate and still break the Linux CI jobs. `--linux` adds a chain that
+builds for Linux in WSL: `linux-clippy` runs the gate's Clippy command, and
+the full gate also runs `linux-msrv`, `cargo +<MSRV> check --workspace
+--all-targets --locked`. Neither runs tests or the feature rows, which stay
+with CI. The option is off by default, because a Windows host can have WSL
+without a distribution that has Rust: `wsl.exe` alone proves nothing, and the
+default distribution can be one without Rust or even `bash`, such as Docker
+Desktop's `docker-desktop`. The gate stops
+before any step when WSL cannot run `cargo --version`.
+
+The distribution needs rustup with the toolchain from `rust-toolchain.toml`
+and Clippy, the MSRV toolchain, a C linker such as `gcc` for build scripts
+and procedural macros, and libclang for bindgen. It does not need CMake,
+because BoringSSL is not compiled. Choose it with `--wsl-distro NAME` or
+`PHANTOM_WSL_DISTRO`; without either, WSL's default distribution runs.
+
+Each step runs `wsl-cargo.sh`, which runs one Cargo command in the
+distribution on the same source tree:
+
+```sh
+scripts/dev/wsl-cargo.sh --distro Ubuntu-24.04 check -p phantom-net --all-targets --locked
+```
+
+It sets `DOCS_RS=1`, so the `btls-sys` build script generates bindings but
+does not compile BoringSSL. A command can therefore check code but not link
+it: use `cargo check` or `cargo clippy`, not `cargo test`. Builds go to
+`$HOME/.cache/phantom-gate/<checkout>/<name>` inside the distribution, one
+directory per checkout and per `--target-name` (default `check`), so they
+never share a target directory with a Windows build or another worktree.
+Delete that directory to reclaim the space. Each step holds one Cargo slot
+while it runs.
 
 ### Shared BoringSSL
 
