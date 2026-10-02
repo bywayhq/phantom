@@ -88,6 +88,31 @@ mod on_windows {
         Ok(())
     }
 
+    /// Whether the Chromium recipe sets the option on this host; prints a
+    /// skip line naming the host's build when it does not.
+    fn chromium_sets_random_port(settings: &TcpSettings) -> bool {
+        if sets_random_port(settings) {
+            return true;
+        }
+        let build = windows_port_randomization::windows_version()
+            .map_or_else(|| "unknown".to_owned(), |version| version.build.to_string());
+        let minimum = settings
+            .port_randomization
+            .map_or(0, |randomization| randomization.minimum_windows_build);
+        eprintln!("skipped: Windows build {build} is below the recipe's minimum build {minimum}");
+        false
+    }
+
+    /// Whether `error` says this Windows lacks the option; prints a skip line
+    /// when it does.
+    fn lacks_the_option(error: &std::io::Error) -> bool {
+        let lacks = error.kind() == std::io::ErrorKind::Unsupported;
+        if lacks {
+            eprintln!("skipped: this Windows does not support SO_RANDOMIZE_PORT");
+        }
+        lacks
+    }
+
     /// Windows takes the option only before a socket is bound, and the
     /// error comes back with its Winsock code.
     #[test]
@@ -98,6 +123,9 @@ mod on_windows {
             Ok(()) => return Err("a bound socket took SO_RANDOMIZE_PORT".into()),
             Err(error) => error,
         };
+        if lacks_the_option(&error) {
+            return Ok(());
+        }
         // WSAEINVAL.
         assert_eq!(error.raw_os_error(), Some(10_022));
         assert!(!windows_port_randomization::is_enabled(socket.as_socket())?);
@@ -107,8 +135,11 @@ mod on_windows {
     #[test]
     fn an_unbound_socket_takes_port_randomization() -> TestResult {
         let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
-        assert!(!windows_port_randomization::is_enabled(socket.as_socket())?);
-        windows_port_randomization::enable(socket.as_socket())?;
+        match windows_port_randomization::enable(socket.as_socket()) {
+            Ok(()) => {}
+            Err(error) if lacks_the_option(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
         assert!(windows_port_randomization::is_enabled(socket.as_socket())?);
         Ok(())
     }
@@ -116,10 +147,13 @@ mod on_windows {
     #[tokio::test(flavor = "current_thread")]
     async fn chromium_connections_take_scattered_local_ports() -> TestResult {
         let settings = chromium::v154_tcp();
-        if !sets_random_port(&settings) {
+        if !chromium_sets_random_port(&settings) {
             return Ok(());
         }
         let streams = connections(settings, None, 8).await?;
+        for stream in &streams {
+            assert!(random_port(stream)?);
+        }
         assert!(scattered(&streams)?);
         Ok(())
     }
@@ -127,7 +161,7 @@ mod on_windows {
     #[tokio::test(flavor = "current_thread")]
     async fn source_bound_chromium_connections_take_scattered_local_ports() -> TestResult {
         let settings = chromium::v154_tcp();
-        if !sets_random_port(&settings) {
+        if !chromium_sets_random_port(&settings) {
             return Ok(());
         }
         let source = SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into());

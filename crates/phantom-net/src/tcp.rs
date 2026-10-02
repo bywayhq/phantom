@@ -478,7 +478,12 @@ fn host_reaches_build(minimum_build: u32) -> io::Result<bool> {
         std::sync::OnceLock::new();
     let version = HOST
         .get_or_init(windows_port_randomization::windows_version)
-        .ok_or_else(|| io::Error::other("could not read the Windows version"))?;
+        .ok_or_else(|| {
+            option_error(
+                "SO_RANDOMIZE_PORT",
+                io::Error::other("could not read the Windows version"),
+            )
+        })?;
     Ok(reaches_build(version.major, version.build, minimum_build))
 }
 

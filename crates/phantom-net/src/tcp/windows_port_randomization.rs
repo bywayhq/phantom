@@ -16,8 +16,7 @@ use windows_sys::{
     Win32::{
         Foundation::STATUS_SUCCESS,
         Networking::WinSock::{
-            SO_RANDOMIZE_PORT, SOCKET, SOCKET_ERROR, SOL_SOCKET, WSAENOPROTOOPT, WSAGetLastError,
-            setsockopt,
+            SO_RANDOMIZE_PORT, SOCKET, SOCKET_ERROR, SOL_SOCKET, WSAENOPROTOOPT, setsockopt,
         },
         System::SystemInformation::OSVERSIONINFOW,
     },
@@ -88,7 +87,7 @@ pub(super) fn is_enabled(socket: BorrowedSocket<'_>) -> io::Result<bool> {
     if result == SOCKET_ERROR {
         return Err(last_socket_error());
     }
-    // Windows reports a one-byte `BOOL` for some sockets. `value` started at
+    // Windows reports a one-byte value for some sockets. `value` started at
     // zero and every Windows target is little-endian, so a shorter write
     // still leaves `value` nonzero exactly when the option is set.
     if !(1..=4).contains(&length) {
@@ -130,17 +129,19 @@ fn option_length() -> io::Result<i32> {
     i32::try_from(size_of::<i32>()).map_err(io::Error::other)
 }
 
-/// The Winsock error of the call that just failed on this thread.
+/// The error of the Winsock call that just failed on this thread.
+///
+/// Winsock keeps its last error in the thread's last-error value, which
+/// `io::Error::last_os_error` reads, as socket2 0.6.5 does for its own
+/// Winsock calls (`src/sys/windows.rs:149-158`). Callers come here straight
+/// from the failed call, before anything else can change that value.
 fn last_socket_error() -> io::Error {
-    // SAFETY: `WSAGetLastError` takes no arguments, has no preconditions,
-    // and only reads the calling thread's last Winsock error. Callers reach
-    // it straight from the failed Winsock call, so the code is that call's.
-    let code = unsafe { WSAGetLastError() };
-    if code == WSAENOPROTOOPT {
+    let error = io::Error::last_os_error();
+    if error.raw_os_error() == Some(WSAENOPROTOOPT) {
         return io::Error::new(
             io::ErrorKind::Unsupported,
             "this Windows does not support SO_RANDOMIZE_PORT",
         );
     }
-    io::Error::from_raw_os_error(code)
+    error
 }

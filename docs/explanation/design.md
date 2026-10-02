@@ -367,7 +367,7 @@ one private module that is the crate's complete FFI boundary:
 | Crate | Module | Foreign calls |
 | --- | --- | --- |
 | `phantom-quic-btls` | `backend` | BoringSSL's QUIC TLS API, for Quinn |
-| `phantom-net` | `tcp::windows_port_randomization`, compiled on Windows only | Winsock `setsockopt`, `getsockopt` (tests only), and `WSAGetLastError`; ntdll `RtlGetVersion` |
+| `phantom-net` | `tcp::windows_port_randomization`, compiled on Windows only | Winsock `setsockopt` and, in tests, `getsockopt`; ntdll `RtlGetVersion` |
 
 Both crates follow the same rules:
 
@@ -377,9 +377,10 @@ Both crates follow the same rules:
 - Every unsafe block there carries a `SAFETY` comment;
   `clippy::undocumented_unsafe_blocks` is denied.
 - No raw pointer or FFI item crosses the module's API. Callers of `backend`
-  supply only the safe `btls` `SslContext` wrapper; callers of
+  supply only the safe `btls` `SslContext` wrapper. Callers of
   `windows_port_randomization` pass a `BorrowedSocket` and get an
-  `io::Result`.
+  `io::Result`, or ask for the Windows version and get an
+  `Option<WindowsVersion>`.
 
 Safe code in either crate cannot add unsafe operations without moving them
 into that module, where review concentrates. A change to it needs the same
@@ -398,15 +399,15 @@ evidence](validation.md#socket-hook-evidence)), and
 `socket2` 0.6.5 has no method for it, and its general `setsockopt` is
 private. The declarations come from `windows-sys` 0.61.2, which `socket2`
 and Tokio already build on Windows, so the boundary added no crate to the
-build.
+build. Winsock errors are read with `io::Error::last_os_error`, as `socket2`
+reads them, so that read needs no unsafe call.
 
-The module has four unsafe blocks, one foreign call each:
+The module has three unsafe blocks, one foreign call each:
 
 | Call | What it relies on | Why that holds |
 | --- | --- | --- |
 | `setsockopt(SOL_SOCKET, SO_RANDOMIZE_PORT)` | An open socket handle, and `optlen` readable bytes at `optval` | The handle comes from a `BorrowedSocket`, whose lifetime keeps the socket open for the call. `optval` points to a local `i32` and `optlen` is 4. |
-| `getsockopt(SOL_SOCKET, SO_RANDOMIZE_PORT)`, in tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `i32` and `optlen` to a local 4. Windows may write a one-byte `BOOL`, so the code accepts a length of 1 to 4 and reads the integer, which is little-endian on every Windows target. |
-| `WSAGetLastError` | Nothing | It takes no arguments and reads the calling thread's last error. |
+| `getsockopt(SOL_SOCKET, SO_RANDOMIZE_PORT)`, in tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `i32` and `optlen` to a local 4. Windows may write a one-byte value, so the code accepts a length of 1 to 4 and reads the integer, which is little-endian on every Windows target. |
 | `RtlGetVersion` | A writable `OSVERSIONINFOW` whose `dwOSVersionInfoSize` is its size | A zero-initialized local with its own size. |
 
 Every pointer is an exclusive borrow of a local that outlives the call, and
@@ -416,18 +417,25 @@ converted to `SOCKET` with `try_from`, not a cast. The module exports no
 
 `RtlGetVersion` reports the real Windows version. `GetVersionExW`, the
 documented alternative, reports Windows 8 to an executable whose manifest
-does not name a later Windows, which a Rust test binary does not.
+does not name a later Windows, which a Rust test binary does not. Microsoft's
+`windows-version` crate wraps the same `RtlGetVersion` call behind a safe
+`OsVersion::current`, but on 2026-10-02 its maintained release, 0.100.0,
+needed Rust 1.95, above Phantom's minimum of 1.88, and the 0.1 series that
+builds on 1.88 had its last release, 0.1.7, on 2025-10-06. The call stays
+here, where its invariant is audited with the others.
 
 Tests in `crates/phantom-net/src/tcp/tests/port_randomization.rs` run on
 Windows. They read the option back with `getsockopt` after a loopback
 connect with the Chromium recipe (set) and the Firefox recipe (not set),
 check that a minimum build past the host leaves it off, that a bound socket
 rejects it with `WSAEINVAL` (the failure path), and that eight successive
-connections, with and without a source binding, get scattered local ports.
-`tcp/tests/paths.rs` reads it back on every TCP connect path. On a Windows
-build below 22621 the scattered-port tests return early, because the
-Chromium recipe does not set the option there. No test reaches
-`WSAENOPROTOOPT`, which a Windows without the option would return.
+connections, with and without a source binding, each have the option set
+and do not all take ports close together. `tcp/tests/paths.rs` reads it
+back on every TCP connect path. On a Windows build below 22621 the
+scattered-port tests print a line naming the host's build and return early,
+because the Chromium recipe does not set the option there; on a Windows
+without the option, which fails with `WSAENOPROTOOPT`, the two direct
+`setsockopt` tests do the same. No test host has reached `WSAENOPROTOOPT`.
 
 Miri does not apply: it cannot execute calls into `ws2_32.dll` or
 `ntdll.dll`, and the module has no unsafe code apart from those calls. The
