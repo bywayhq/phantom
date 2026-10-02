@@ -157,6 +157,9 @@ impl Http1Or2Pool {
         // without trailers may repeat after GOAWAY(NO_ERROR).
         let graceful_goaway_replayable =
             method == Method::GET && body.is_none() && trailers.is_empty();
+        // Only such a request travels as TLS early data; any other waits for
+        // the server's answer before it is written.
+        let replay_safe = method.is_safe() && body.is_none() && trailers.is_empty();
         let request = NegotiatedRequest {
             method,
             authority: endpoint.authority().as_str(),
@@ -172,8 +175,12 @@ impl Http1Or2Pool {
         let retire_unprocessed = retries.replays_unprocessed_requests();
         let mut retried_graceful_goaway = false;
         let mut fresh_http1_connection = fresh_http1_connection;
+        // Set once a connection failed after its early data was rejected
+        // under another ALPN protocol; later connections offer none.
+        let mut restart_connector: Option<Http1Or2TlsConnector> = None;
 
         loop {
+            let connector = restart_connector.as_ref().unwrap_or(connector);
             let (lease, permit) = match leased.take() {
                 Some(leased) => (leased.lease, leased.permit),
                 None => {
@@ -199,10 +206,62 @@ impl Http1Or2Pool {
                         .await?
                 }
             };
+            let early_data = EarlyDataConnection::of(&lease);
+            let restarts_early_data = restart_connector.is_none();
+            if restarts_early_data && !replay_safe {
+                // Waiting here keeps the body unsent if the connection fails.
+                timeout_budget
+                    .run(TimeoutPhase::Connect, None, async {
+                        early_data.answered().await;
+                        Ok(())
+                    })
+                    .await?;
+                if early_data.alpn_changed() {
+                    drop((lease, permit));
+                    restart_connector = Some(restart_without_early_data(connector));
+                    continue;
+                }
+            }
             // Only an HTTP/2 stream can be refused by a graceful GOAWAY.
             let replays_graceful_goaway = graceful_goaway_replayable
                 && !retried_graceful_goaway
                 && matches!(lease, ConnectionLease::Http2(_));
+            // A request that may have gone out as early data keeps a copy, in
+            // case the connection fails after the server rejects that data.
+            if restarts_early_data && replay_safe {
+                let attempt_fields = NegotiatedFields {
+                    http1_wire_headers: fields.http1_wire_headers.clone(),
+                    http2_headers: fields.http2_headers.clone(),
+                };
+                match entry
+                    .dispatch_on_lease(
+                        lease,
+                        permit,
+                        request.clone(),
+                        attempt_fields,
+                        None,
+                        retire_unprocessed,
+                        timeout_budget,
+                    )
+                    .await
+                {
+                    Ok(response) => return Ok(response),
+                    Err(_) if early_data.alpn_changed() => {
+                        restart_connector = Some(restart_without_early_data(connector));
+                        continue;
+                    }
+                    Err(DispatchFailure::GracefulGoaway(_)) if replays_graceful_goaway => {
+                        retried_graceful_goaway = true;
+                        debug!(
+                            retry = 1,
+                            reason = "graceful_goaway",
+                            "retrying negotiated request on a replacement connection"
+                        );
+                        continue;
+                    }
+                    Err(failure) => return Err(RequestError::from(failure)),
+                }
+            }
             if !replays_graceful_goaway {
                 return entry
                     .dispatch_on_lease(
@@ -969,9 +1028,18 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<Http1Or2Connection, RequestError> {
-        let connector = self
+        let cached = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
+        // A restart after an early-data ALPN change keeps this entry's tickets
+        // but offers no early data.
+        let restarted;
+        let connector = if connector.offers_early_data() == cached.offers_early_data() {
+            cached
+        } else {
+            restarted = cached.without_early_data();
+            &restarted
+        };
         let connection = match route {
             Route::Direct => self
                 .connect_direct(connector, endpoint)
@@ -1536,6 +1604,51 @@ pub(crate) fn validate_request(
     )
     .map_err(RequestError::negotiated_http2_validation)?;
     Ok(http1_wire_headers)
+}
+
+/// The connection of a lease, asked whether the server has answered its TLS
+/// early data.
+enum EarlyDataConnection {
+    Http1(Http1Connection),
+    Http2(Http2Connection),
+}
+
+impl EarlyDataConnection {
+    fn of(lease: &ConnectionLease) -> Self {
+        match lease {
+            ConnectionLease::Http1(lease) => Self::Http1(lease.connection.clone()),
+            ConnectionLease::Http2(stream) => Self::Http2(stream.connection.clone()),
+        }
+    }
+
+    async fn answered(&self) {
+        match self {
+            Self::Http1(connection) => connection.early_data_answered().await,
+            Self::Http2(connection) => connection.early_data_answered().await,
+        }
+    }
+
+    fn alpn_changed(&self) -> bool {
+        match self {
+            Self::Http1(connection) => connection.early_data_alpn_changed(),
+            Self::Http2(connection) => connection.early_data_alpn_changed(),
+        }
+    }
+}
+
+/// Returns a connector for the requests of a connection whose early data the
+/// server rejected before selecting another ALPN protocol. The connection
+/// failed, and the server processed none of them; Firefox restarts them
+/// without early data (`nsHttpTransaction::Close`,
+/// `netwerk/protocol/http/nsHttpTransaction.cpp:1546-1579` at tag
+/// `FIREFOX_156_0_RELEASE`).
+fn restart_without_early_data(connector: &Http1Or2TlsConnector) -> Http1Or2TlsConnector {
+    debug!(
+        retry = 1,
+        reason = "early_data_alpn_changed",
+        "retrying negotiated request on a connection without early data"
+    );
+    connector.without_early_data()
 }
 
 /// One negotiated request, without its body or fields, for either protocol.
