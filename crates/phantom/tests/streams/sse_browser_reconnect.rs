@@ -27,7 +27,8 @@ const TIMER_SLACK: Duration = Duration::from_millis(30);
 /// Largest overshoot accepted on Firefox's first reconnect. The Firefox
 /// 156.0.1 captures were taken on a loaded host, and the first reconnect's
 /// median came up to 316 ms late while later ones kept within `TIMER_SLACK`.
-/// Pending a recapture on a quiet host, which restores `TIMER_SLACK`.
+/// Pending a recapture on a quiet host, which restores `TIMER_SLACK`; see
+/// "Firefox EventSource reconnects on a quiet host" in `docs/roadmap.md`.
 const FIREFOX_FIRST_RECONNECT_SLACK: Duration = Duration::from_millis(350);
 /// Paused-clock window in which no request may follow a terminal response.
 const OBSERVATION: Duration = Duration::from_secs(10);

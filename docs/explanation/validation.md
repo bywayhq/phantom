@@ -2066,7 +2066,9 @@ Observed on both browsers:
   spread wider: its median was 12 to 316 ms above the delay. The Firefox
   156.0 set, captured on a quieter host, had kept the first reconnect within
   about 25 ms, so the replay test allows Firefox's first reconnect 350 ms
-  until a quiet-host recapture; Chrome's keeps the 30 ms bound.
+  until a quiet-host recapture, which the
+  [roadmap](../roadmap.md#browser-recipes) tracks; Chrome's keeps the 30 ms
+  bound.
 - `204`, `404`, `500`, and a `text/plain` response each ended the
   EventSource, with no request during the observation window.
 - A stream with only response headers stayed open for 90 seconds; neither
