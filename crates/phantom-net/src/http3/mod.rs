@@ -1159,10 +1159,11 @@ fn endpoint_with_socket(
     server_name: &str,
 ) -> Result<quinn::Endpoint, Http3Error> {
     #[cfg(not(feature = "qlog"))]
-    let ConnectionOptions { source, .. } = options;
+    let ConnectionOptions { source, udp, .. } = options;
     #[cfg(feature = "qlog")]
     let ConnectionOptions {
         source,
+        udp,
         qlog,
         qlog_dir,
         ..
@@ -1217,11 +1218,8 @@ fn endpoint_with_socket(
         }
         None => {
             let default_local = endpoint_bind_address(remote.ip());
-            let socket = match &source {
-                Some(source) => source.bind_udp(remote, default_local),
-                None => crate::source_binding::bind_udp_socket(default_local),
-            }
-            .map_err(endpoint_error)?;
+            let socket = crate::udp::bind_socket(remote, default_local, source.as_ref(), udp)
+                .map_err(endpoint_error)?;
             socket.set_nonblocking(true).map_err(endpoint_error)?;
             quinn::Endpoint::new(endpoint_config, None, socket, runtime).map_err(endpoint_error)?
         }
@@ -1309,6 +1307,8 @@ pub(super) struct ConnectionOptions {
     /// Where the connection's own UDP socket binds; a SOCKS5 or CONNECT-UDP
     /// socket is bound by its proxy leg instead.
     pub(super) source: Option<crate::source_binding::SourceBinding>,
+    /// The options set on the connection's own UDP socket before it binds.
+    pub(super) udp: Option<phantom_profile::UdpSettings>,
     #[cfg(feature = "qlog")]
     qlog: Option<QlogCapture>,
     /// Directory that receives this connection's qlog file.

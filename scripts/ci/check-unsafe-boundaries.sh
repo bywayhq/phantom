@@ -36,7 +36,7 @@ search() {
 # path:count for each audited declaration.
 expected=(
   "crates/phantom-quic-btls/src/lib.rs:1"
-  "crates/phantom-net/src/tcp.rs:1"
+  "crates/phantom-net/src/lib.rs:1"
 )
 
 attributes=$(search -c -E '(allow|expect)\(([^)]*,[[:space:]]*)?unsafe_code' -- '*.rs' ':!vendor')

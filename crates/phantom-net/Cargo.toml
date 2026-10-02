@@ -71,7 +71,7 @@ name = "transport"
 harness = false
 
 # The workspace lints, except that unsafe code is denied rather than forbidden
-# so the private `tcp::windows_port_randomization` FFI module can allow it.
+# so the private `windows_port_randomization` FFI module can allow it.
 [lints.rust]
 missing_docs = "warn"
 unreachable_pub = "warn"

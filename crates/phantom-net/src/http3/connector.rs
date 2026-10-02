@@ -10,7 +10,8 @@ use std::{
 use bytes::Bytes;
 use http::{Method, Response};
 use phantom_profile::{
-    Http3RequestSettings, Http3Settings, TcpSettings, TlsSettings, quic::QuicTransportSettings,
+    Http3RequestSettings, Http3Settings, TcpSettings, TlsSettings, UdpSettings,
+    quic::QuicTransportSettings,
 };
 use tracing::Instrument;
 
@@ -54,6 +55,7 @@ pub struct Http3Connector {
     max_udp_payload_size: u64,
     identity: Arc<()>,
     tcp: Option<TcpSettings>,
+    udp: Option<UdpSettings>,
     source: Option<SourceBinding>,
     host_resolver: Option<HostResolver>,
     #[cfg(feature = "keylog")]
@@ -152,6 +154,7 @@ impl Http3Connector {
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
             tcp: None,
+            udp: None,
             source: None,
             host_resolver: None,
             #[cfg(feature = "keylog")]
@@ -301,6 +304,7 @@ impl Http3Connector {
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
             tcp: self.tcp,
+            udp: self.udp,
             source: self.source.clone(),
             host_resolver: self.host_resolver.clone(),
             #[cfg(feature = "keylog")]
@@ -352,6 +356,26 @@ impl Http3Connector {
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {
         self.tcp.as_ref()
+    }
+
+    /// Applies UDP socket options to every UDP socket this connector opens:
+    /// the socket of a direct QUIC connection and of a SOCKS5 UDP
+    /// association.
+    ///
+    /// A CONNECT-UDP tunnel has no UDP socket of its own; the connector of
+    /// its proxy leg applies its own settings. The options are set before the
+    /// socket binds, and an option the operating system rejects fails the
+    /// connection attempt with an endpoint or proxy error.
+    #[must_use]
+    pub fn with_udp_settings(mut self, settings: &UdpSettings) -> Self {
+        self.udp = Some(*settings);
+        self
+    }
+
+    /// Returns the UDP socket options applied to new UDP sockets.
+    #[must_use]
+    pub fn udp_settings(&self) -> Option<&UdpSettings> {
+        self.udp.as_ref()
     }
 
     /// Returns a clone that resolves host names through `resolver` instead of
@@ -424,6 +448,7 @@ impl Http3Connector {
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
+            udp: self.udp,
             source: self.source.as_ref(),
             resolver: self.host_resolver.as_ref(),
         }
@@ -456,6 +481,7 @@ impl Http3Connector {
     fn connection_options(&self) -> super::ConnectionOptions {
         super::ConnectionOptions {
             source: self.source.clone(),
+            udp: self.udp,
             #[cfg(feature = "qlog")]
             qlog_dir: self.qlog_dir.clone(),
             #[cfg(test)]

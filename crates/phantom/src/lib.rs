@@ -246,7 +246,7 @@ pub mod profile {
         RequestField, RequestTemplate, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
         TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
         TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        UdpSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
         WebSocketNewConnection, WebSocketSettings,
     };
 
@@ -256,7 +256,7 @@ pub mod profile {
             v154_cookie_placement, v154_dns_cache, v154_http1, v154_http2, v154_http3,
             v154_http3_request, v154_http3_tls, v154_macos_client_hints,
             v154_macos_fetch_no_store_template, v154_macos_navigation_template, v154_proxy_connect,
-            v154_quic, v154_tcp, v154_tls, v154_websocket, v154_windows_client_hints,
+            v154_quic, v154_tcp, v154_tls, v154_udp, v154_websocket, v154_windows_client_hints,
             v154_windows_fetch_no_store_template, v154_windows_navigation_template,
         };
     }
@@ -285,8 +285,8 @@ pub mod profile {
 
     /// Opera recipes implemented by the public facade.
     ///
-    /// Opera 136 shares the Chromium TCP, HTTP/1.1 connection, address cache, H2,
-    /// QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
+    /// Opera 136 shares the Chromium TCP, UDP, HTTP/1.1 connection, address cache,
+    /// H2, QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
     /// ClientHellos, client hints, and request identity differ.
     pub mod opera {
         pub use phantom_profile::opera::{
@@ -297,8 +297,8 @@ pub mod profile {
 
     /// Microsoft Edge recipes implemented by the public facade.
     ///
-    /// Edge 154 shares the Chromium TCP, HTTP/1.1 connection, address cache, H2,
-    /// QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
+    /// Edge 154 shares the Chromium TCP, UDP, HTTP/1.1 connection, address cache,
+    /// H2, QUIC, H3, WebSocket, and proxy CONNECT recipes; only its TLS
     /// ClientHellos, client hints, and request identity differ.
     pub mod edge {
         pub use phantom_profile::edge::{

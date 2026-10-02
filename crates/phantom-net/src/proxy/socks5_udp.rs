@@ -207,16 +207,13 @@ async fn establish_udp_association(
     // A source binding gives the UDP socket its address for the proxy's
     // family, which the control connection already left from, and its
     // interface. Without one, the socket takes the control connection's
-    // local address.
-    let udp = match dialer.source {
-        Some(source) => source.bind_udp(control_peer, client_bind),
-        None => crate::source_binding::bind_udp_socket(client_bind),
-    }
-    .and_then(|socket| {
-        socket.set_nonblocking(true)?;
-        UdpSocket::from_std(socket)
-    })
-    .map_err(|error| Socks5Error::io(Socks5ErrorKind::Connect, error))?;
+    // local address. The profile's UDP options are set before the bind.
+    let udp = crate::udp::bind_socket(control_peer, client_bind, dialer.source, dialer.udp)
+        .and_then(|socket| {
+            socket.set_nonblocking(true)?;
+            UdpSocket::from_std(socket)
+        })
+        .map_err(|error| Socks5Error::io(Socks5ErrorKind::Connect, error))?;
     let client_udp = udp
         .local_addr()
         .map_err(|error| Socks5Error::io(Socks5ErrorKind::Negotiation, error))?;

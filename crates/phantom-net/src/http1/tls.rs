@@ -218,6 +218,7 @@ impl Http1TlsConnector {
     fn dialer(&self) -> Dialer<'_> {
         Dialer {
             tcp: self.tcp,
+            udp: None,
             source: self.source.as_ref(),
             resolver: self.host_resolver.as_ref(),
         }

@@ -17,7 +17,7 @@ use phantom_profile::WebSocketSettings;
 use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
 use phantom_profile::{
     ClientHintSettings, ClientProfile, DnsCacheSettings, Http2ProxyConnections,
-    ProxyConnectTemplate, TcpSettings,
+    ProxyConnectTemplate, TcpSettings, UdpSettings,
 };
 
 use crate::{
@@ -1623,6 +1623,7 @@ impl ClientBuilder {
                     roots(),
                 )
                 .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
+                .map(|connector| with_udp(connector, self.profile.udp()))
                 .map(|connector| self.with_qlog(connector))
                 .map(|connector| {
                     let connector = self.bind_http3(connector);
@@ -1652,6 +1653,7 @@ impl ClientBuilder {
                     settings.request(),
                     self.proxy_additional_roots.iter().map(AsRef::as_ref),
                 )
+                .map(|connector| with_udp(connector, self.profile.udp()))
                 .map(|connector| self.with_qlog(connector))
                 .map(|connector| self.bind_http3(connector))
             })
@@ -1880,6 +1882,15 @@ fn with_tcp<C>(connector: C, tcp: Option<&TcpSettings>, apply: fn(C, &TcpSetting
     }
 }
 
+/// Applies the profile's UDP socket options, when it has them, to the UDP
+/// sockets of an HTTP/3 connector.
+fn with_udp(connector: Http3Connector, udp: Option<&UdpSettings>) -> Http3Connector {
+    match udp {
+        Some(settings) => connector.with_udp_settings(settings),
+        None => connector,
+    }
+}
+
 /// Rejects a WebSocket policy that its HTTP/2 profile cannot carry out.
 #[cfg(feature = "websocket")]
 fn validate_websocket_policy(
@@ -2010,6 +2021,46 @@ mod tests {
                 .as_ref()
                 .and_then(|c| c.tcp_settings()),
             expected
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn profile_udp_settings_reach_every_http3_connector() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let udp = chromium::v154_udp();
+        let http3 = Http3ClientSettings::new(
+            chromium::v154_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
+        );
+        let profile = ClientProfile::new(chromium::v154_tls())
+            .with_udp(udp)
+            .with_http3(http3.clone());
+        let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
+        let client = Client::builder(profile).route(route).build()?;
+        let inner = &client.inner;
+
+        let expected = Some(&udp);
+        assert_eq!(
+            inner.http3.as_ref().and_then(|c| c.udp_settings()),
+            expected
+        );
+        let connect_udp = inner
+            .connect_udp_proxy
+            .as_ref()
+            .ok_or("no CONNECT-UDP connectors")?;
+        assert_eq!(
+            connect_udp.http3.as_ref().and_then(|c| c.udp_settings()),
+            expected
+        );
+
+        let without = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
+        let client = Client::builder(without).build()?;
+        assert_eq!(
+            client.inner.http3.as_ref().and_then(|c| c.udp_settings()),
+            None
         );
         Ok(())
     }

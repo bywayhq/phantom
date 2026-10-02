@@ -23,7 +23,7 @@ correctness, the brief, or a stated rule:
    ordering; configuration exposed without being applied and tested.
 3. Safety: new `unsafe` outside the two audited FFI modules (the
    `phantom-quic-btls` backend and `phantom-net`'s
-   `tcp::windows_port_randomization`), or an unsafe block there without a
+   `windows_port_randomization`), or an unsafe block there without a
    `SAFETY` comment;
    panics on recoverable input or network failures.
 4. Vendor: edits under `vendor/` that are not reflected in `patches/series`,

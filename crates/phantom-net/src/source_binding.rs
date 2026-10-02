@@ -10,7 +10,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
-use socket2::{Domain, Protocol, SockRef, Socket, Type};
+use socket2::SockRef;
 use tokio::net::TcpSocket;
 
 /// The longest interface name the platform accepts, without its terminating
@@ -194,30 +194,24 @@ impl SourceBinding {
         }
     }
 
-    /// Opens a UDP socket that sends to `remote`, bound to this binding's
-    /// address for its family, or to `default_local` when it has none.
-    pub(crate) fn bind_udp(
+    /// Returns the local address of a UDP socket that sends to `remote`: this
+    /// binding's address for its family, or `default_local` when it has none.
+    pub(crate) fn udp_local_address(
         &self,
         remote: SocketAddr,
         default_local: SocketAddr,
-    ) -> io::Result<std::net::UdpSocket> {
+    ) -> io::Result<SocketAddr> {
         if !self.permits(&remote) {
             return Err(no_bound_family());
         }
-        let local = self
+        Ok(self
             .address_for(&remote)
-            .map_or(default_local, |address| SocketAddr::new(address, 0));
-        let socket = Socket::new(Domain::for_address(local), Type::DGRAM, Some(Protocol::UDP))?;
-        self.bind_interface(&SockRef::from(&socket))?;
-        // A socket whose bind failed is still unbound, so the retry binds it
-        // again rather than opening another.
-        retry_past_reserved_ports(cfg!(windows), local.port(), || socket.bind(&local.into()))
-            .map_err(|error| bind_error("UDP", local.ip(), error))?;
-        Ok(socket.into())
+            .map_or(default_local, |address| SocketAddr::new(address, 0)))
     }
 
+    /// Binds `socket` to this binding's interface, if it names one.
     #[cfg(any(target_os = "android", target_os = "linux"))]
-    fn bind_interface(&self, socket: &SockRef<'_>) -> io::Result<()> {
+    pub(crate) fn bind_interface(&self, socket: &SockRef<'_>) -> io::Result<()> {
         let Some(name) = &self.interface else {
             return Ok(());
         };
@@ -229,59 +223,15 @@ impl SourceBinding {
         })
     }
 
+    /// Binds `socket` to this binding's interface, if it names one.
     #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    fn bind_interface(&self, _socket: &SockRef<'_>) -> io::Result<()> {
+    pub(crate) fn bind_interface(&self, _socket: &SockRef<'_>) -> io::Result<()> {
         match &self.interface {
             None => Ok(()),
             Some(_) => Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "this platform cannot bind a socket to an interface by name",
             )),
-        }
-    }
-}
-
-/// Binds a UDP socket to `local`, as [`std::net::UdpSocket::bind`] does, and
-/// retries a bind to port 0 that Windows refuses at a reserved port block.
-pub(crate) fn bind_udp_socket(local: SocketAddr) -> io::Result<std::net::UdpSocket> {
-    retry_past_reserved_ports(cfg!(windows), local.port(), || {
-        std::net::UdpSocket::bind(local)
-    })
-}
-
-/// `WSAENOBUFS`, Windows' "no buffer space available".
-const WSAENOBUFS: i32 = 10_055;
-
-/// How many times a refused bind to port 0 is retried.
-const RESERVED_PORT_RETRIES: usize = 3;
-
-/// Runs `bind`, and when `windows` is set and `port` is 0, runs it again
-/// after each `WSAENOBUFS`, at most [`RESERVED_PORT_RETRIES`] times.
-///
-/// Windows hands out UDP ephemeral ports from one counter for the whole host.
-/// When the counter reaches a block of reserved ports (`netsh int ipv4 show
-/// excludedportrange protocol=udp`), the bind to port 0 can fail with
-/// `WSAENOBUFS` (os error 10055, logged as Tcpip event 4266) instead of
-/// skipping the block, and the counter moves past it, so the next bind gets
-/// a port. Any other error, an explicit port, or another platform returns the
-/// first result.
-fn retry_past_reserved_ports<T>(
-    windows: bool,
-    port: u16,
-    mut bind: impl FnMut() -> io::Result<T>,
-) -> io::Result<T> {
-    let mut retries = 0;
-    loop {
-        match bind() {
-            Err(error)
-                if windows
-                    && port == 0
-                    && retries < RESERVED_PORT_RETRIES
-                    && error.raw_os_error() == Some(WSAENOBUFS) =>
-            {
-                retries += 1;
-            }
-            result => return result,
         }
     }
 }
@@ -293,7 +243,7 @@ fn no_bound_family() -> io::Error {
     )
 }
 
-fn bind_error(protocol: &str, address: IpAddr, error: io::Error) -> io::Error {
+pub(crate) fn bind_error(protocol: &str, address: IpAddr, error: io::Error) -> io::Error {
     io::Error::new(
         error.kind(),
         format!("failed to bind a {protocol} socket to source address {address}: {error}"),

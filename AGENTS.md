@@ -71,8 +71,8 @@ Use a sibling worktree only when independent work can proceed concurrently.
   panic for them.
 - Unsafe code is forbidden. The two exceptions are the private `backend` FFI
   module of `phantom-quic-btls` and the Windows-only
-  `tcp::windows_port_randomization` FFI module of `phantom-net`, each of
-  which documents every unsafe block; see
+  `windows_port_randomization` FFI module of `phantom-net`, each of which
+  documents every unsafe block; see
   [Design](docs/explanation/design.md#unsafe-code), which also holds the
   `phantom-net` module's audit. `scripts/ci/check-unsafe-boundaries.sh`
   fails when unsafe code is allowed anywhere else. Adding unsafe code
@@ -131,8 +131,8 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Windows hands out UDP ports for binds to port 0 in sequence, from one
   counter for the whole host. When the counter reaches a reserved block, the
   bind can fail with `WSAENOBUFS` (os error 10055) and the next bind gets a
-  port. Bind UDP sockets through `source_binding::bind_udp_socket` in
-  `phantom-net`, through `phantom_testkit::udp` in tests, and through
+  port. Bind UDP sockets through `udp::bind_socket` in `phantom-net`,
+  through `phantom_testkit::udp` in tests, and through
   `scripts/capture/reserved_ports.py` in capture servers, which retry that
   error. A direct `UdpSocket::bind`, `quinn::Endpoint::server`, or aioquic
   `serve` to port 0 can fail in any run.

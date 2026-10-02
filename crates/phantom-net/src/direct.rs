@@ -5,7 +5,7 @@ use std::{
     task::Poll,
 };
 
-use phantom_profile::TcpSettings;
+use phantom_profile::{TcpSettings, UdpSettings};
 use tokio::net::TcpStream;
 
 use crate::{
@@ -24,11 +24,14 @@ pub(crate) enum DirectConnectError {
     Connect(std::io::Error),
 }
 
-/// How a connector opens its TCP connections: the profile's socket options,
-/// the caller's source binding, and the client's host resolver.
+/// How a connector opens its sockets: the profile's TCP and UDP socket
+/// options, the caller's source binding, and the client's host resolver.
+///
+/// Only a SOCKS5 UDP association opens a UDP socket through a dialer.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Dialer<'a> {
     pub(crate) tcp: Option<TcpSettings>,
+    pub(crate) udp: Option<UdpSettings>,
     pub(crate) source: Option<&'a SourceBinding>,
     pub(crate) resolver: Option<&'a HostResolver>,
 }

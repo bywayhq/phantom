@@ -25,7 +25,8 @@ mod on_windows {
     use super::super::{TestResult, sets_random_port};
     use crate::{
         SourceBinding,
-        tcp::{ProfileTcpStream, connect, windows_port_randomization},
+        tcp::{ProfileTcpStream, connect},
+        windows_port_randomization,
     };
 
     /// Opens `count` connections to a loopback listener one after another and

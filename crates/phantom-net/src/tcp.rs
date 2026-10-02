@@ -29,11 +29,6 @@ use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
 mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
-// Raw Winsock and ntdll access is isolated here so safe code cannot grow new
-// unsafe operations without crossing an explicit, reviewable module boundary.
-#[cfg(windows)]
-#[allow(unsafe_code, reason = "private Windows socket FFI boundary")]
-mod windows_port_randomization;
 
 pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 
@@ -457,7 +452,7 @@ fn randomize_port(socket: &socket2::Socket, randomization: TcpPortRandomization)
     if !host_reaches_build(randomization.minimum_windows_build)? {
         return Ok(());
     }
-    windows_port_randomization::enable(socket.as_socket())
+    crate::windows_port_randomization::enable(socket.as_socket())
         .map_err(|error| option_error("SO_RANDOMIZE_PORT", error))
 }
 
@@ -474,10 +469,10 @@ fn randomize_port(
 /// or a later major version. The version is read once.
 #[cfg(windows)]
 fn host_reaches_build(minimum_build: u32) -> io::Result<bool> {
-    static HOST: std::sync::OnceLock<Option<windows_port_randomization::WindowsVersion>> =
+    static HOST: std::sync::OnceLock<Option<crate::windows_port_randomization::WindowsVersion>> =
         std::sync::OnceLock::new();
     let version = HOST
-        .get_or_init(windows_port_randomization::windows_version)
+        .get_or_init(crate::windows_port_randomization::windows_version)
         .ok_or_else(|| {
             option_error(
                 "SO_RANDOMIZE_PORT",
@@ -729,7 +724,7 @@ pub(crate) mod observed {
     fn random_port(stream: &TcpStream) -> bool {
         use std::os::windows::io::AsSocket;
 
-        super::windows_port_randomization::is_enabled(stream.as_socket()).unwrap_or(false)
+        crate::windows_port_randomization::is_enabled(stream.as_socket()).unwrap_or(false)
     }
 
     #[cfg(not(windows))]

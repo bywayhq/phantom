@@ -14,9 +14,9 @@
 //! `https-records` feature adds [`dns`], HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
-//! All `unsafe` code is confined to the private
-//! `tcp::windows_port_randomization` module, a Windows-only FFI boundary that
-//! sets Winsock's `SO_RANDOMIZE_PORT`. The rest of the crate denies
+//! All `unsafe` code is confined to the private `windows_port_randomization`
+//! module, a Windows-only FFI boundary that sets Winsock's
+//! `SO_RANDOMIZE_PORT` on TCP and UDP sockets. The rest of the crate denies
 //! `unsafe_code`, and every unsafe block in that module carries a `SAFETY`
 //! comment required by `clippy::undocumented_unsafe_blocks`.
 
@@ -43,6 +43,12 @@ mod shutdown_timer;
 pub mod source_binding;
 pub mod tcp;
 pub(crate) mod tls;
+mod udp;
+// Raw Winsock and ntdll access is isolated here so safe code cannot grow new
+// unsafe operations without crossing an explicit, reviewable module boundary.
+#[cfg(windows)]
+#[allow(unsafe_code, reason = "private Windows socket FFI boundary")]
+mod windows_port_randomization;
 
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};

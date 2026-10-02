@@ -24,9 +24,9 @@ use windows_sys::{
 
 /// The Windows version that [`RtlGetVersion`] reports.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct WindowsVersion {
-    pub(super) major: u32,
-    pub(super) build: u32,
+pub(crate) struct WindowsVersion {
+    pub(crate) major: u32,
+    pub(crate) build: u32,
 }
 
 /// Asks Windows to choose `socket`'s local port at random when the socket is
@@ -35,7 +35,7 @@ pub(super) struct WindowsVersion {
 /// Windows rejects the option with `WSAEINVAL` once the socket is bound.
 /// A Windows that does not know the option fails with `WSAENOPROTOOPT`,
 /// which this returns as [`io::ErrorKind::Unsupported`].
-pub(super) fn enable(socket: BorrowedSocket<'_>) -> io::Result<()> {
+pub(crate) fn enable(socket: BorrowedSocket<'_>) -> io::Result<()> {
     let socket = raw_socket(socket)?;
     // A Winsock `BOOL`: a 32-bit integer, nonzero for true.
     let enabled: i32 = 1;
@@ -63,7 +63,7 @@ pub(super) fn enable(socket: BorrowedSocket<'_>) -> io::Result<()> {
 
 /// Reads whether `SO_RANDOMIZE_PORT` is set on `socket`.
 #[cfg(test)]
-pub(super) fn is_enabled(socket: BorrowedSocket<'_>) -> io::Result<bool> {
+pub(crate) fn is_enabled(socket: BorrowedSocket<'_>) -> io::Result<bool> {
     use windows_sys::Win32::Networking::WinSock::getsockopt;
 
     let socket = raw_socket(socket)?;
@@ -104,7 +104,7 @@ pub(super) fn is_enabled(socket: BorrowedSocket<'_>) -> io::Result<bool> {
 /// `RtlGetVersion` reports the real version. `GetVersionExW` does not: it
 /// reports Windows 8 to an executable whose manifest does not declare a later
 /// Windows, which no Rust test binary or typical application declares.
-pub(super) fn windows_version() -> Option<WindowsVersion> {
+pub(crate) fn windows_version() -> Option<WindowsVersion> {
     let mut info = OSVERSIONINFOW {
         dwOSVersionInfoSize: u32::try_from(size_of::<OSVERSIONINFOW>()).ok()?,
         ..OSVERSIONINFOW::default()
