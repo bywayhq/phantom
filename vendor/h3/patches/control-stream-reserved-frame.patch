@@ -244,8 +244,8 @@ index f024295..9230f07 100644
      }
  }
 +
-+/// Firefox 156.0.1's SETTINGS frame, from the retained capture's
-+/// `h3.settings_frame_hex`.
++/// Firefox 157.0's SETTINGS frame, from `h3.settings_frame_hex` in
++/// `fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt`.
 +const FIREFOX_SETTINGS: &[(u64, u64)] = &[
 +    (0x01, 65_536),
 +    (0x07, 20),

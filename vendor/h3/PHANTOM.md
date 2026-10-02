@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.5`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.5`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.5`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.6`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.6`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.6`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -253,9 +253,10 @@ bytes `grease`.
 drawn as neqo draws it, in the same write as the control stream type and
 SETTINGS. It changes nothing else, and it is off by default. The fixed-size
 write buffer grows by the frame's largest encoding, 16 bytes, to hold it.
-Tests check the encoded prefix over many draws, the captured Firefox
-156.0.1 control stream (type, the six ordered settings byte for byte, then
-the reserved frame) over QUIC, and a request to an h3 server that ignores
+Tests check the encoded prefix over many draws, the Firefox 157.0 control
+stream retained in `fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt`
+in the Phantom repository (type, the six ordered settings byte for byte,
+then the reserved frame) over QUIC, and a request to an h3 server that ignores
 the frame. `patches/control-stream-reserved-frame.patch` contains this
 delta.
 
@@ -285,8 +286,8 @@ Both apply only with `enable_dynamic_qpack`; field lines in HEADERS stay
 Huffman-coded as before. Sensitive fields keep their never-indexed
 literals under either policy.
 
-A unit test encodes the two HTTP/3 requests of the retained Firefox 156.0.1
-snapshot, `fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt`
+A unit test encodes the two HTTP/3 requests of the retained Firefox 157.0
+snapshot, `fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt`
 in the Phantom repository, against a 4096-byte table and 16 blocked streams
 with no feedback between them. The encoder stream bytes (capacity and four
 inserts) and both field sections equal the capture byte for byte. Other

@@ -880,18 +880,18 @@ mod tests {
         assert_eq!(read_block.get_ref().len() as u64, read_block.position());
     }
 
-    /// The two HTTP/3 requests of the retained Firefox 156.0.1 snapshot
-    /// (`fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt`),
+    /// The two HTTP/3 requests of the retained Firefox 157.0 snapshot
+    /// (`fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt`),
     /// encoded against aioquic's advertised capacity of 4096 and 16 blocked
     /// streams with no decoder feedback in between.
     const FIREFOX_NAVIGATION: &[(&str, &str)] = &[
         (":method", "GET"),
         (":scheme", "https"),
-        (":authority", "server.phantom.test:55589"),
-        (":path", "/next?run=fe915979825822d9"),
+        (":authority", "server.phantom.test:51539"),
+        (":path", "/next?run=af0bf7224f8bdc54"),
         (
             "user-agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0",
         ),
         (
             "accept",
@@ -901,7 +901,7 @@ mod tests {
         ("accept-encoding", "gzip, deflate, br, zstd"),
         (
             "referer",
-            "https://server.phantom.test:55589/?run=fe915979825822d9",
+            "https://server.phantom.test:51539/?run=af0bf7224f8bdc54",
         ),
         ("upgrade-insecure-requests", "1"),
         ("sec-fetch-dest", "document"),
@@ -912,20 +912,20 @@ mod tests {
     const FIREFOX_FETCH: &[(&str, &str)] = &[
         (":method", "GET"),
         (":scheme", "https"),
-        (":authority", "server.phantom.test:55589"),
-        (":path", "/fetch?run=fe915979825822d9"),
+        (":authority", "server.phantom.test:51539"),
+        (":path", "/fetch?run=af0bf7224f8bdc54"),
         (
             "user-agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0",
         ),
         ("accept", "*/*"),
         ("accept-language", "en-US,en;q=0.9"),
         ("accept-encoding", "gzip, deflate, br, zstd"),
         (
             "referer",
-            "https://server.phantom.test:55589/next?run=fe915979825822d9",
+            "https://server.phantom.test:51539/next?run=af0bf7224f8bdc54",
         ),
-        ("alt-used", "server.phantom.test:55589"),
+        ("alt-used", "server.phantom.test:51539"),
         ("sec-fetch-dest", "empty"),
         ("sec-fetch-mode", "cors"),
         ("sec-fetch-site", "same-origin"),
@@ -939,18 +939,18 @@ mod tests {
         "023fe11f6a4148b4a549275a42a13f8690e4b692d49f6a4148b4a54927\
         5a93c85f86a87dcd30d25f6a4148b4a549275906497f8840e92ac7b0d31aaf66aec31ec327d785b6007d286f";
     const FIREFOX_NAVIGATION_BLOCK: &str =
-        "0583d1d75092416cee5b17ae71d493d2ba4a84dc6db6de7f519462a2\
-        f94ff965b541295f0b6fbafbc26de10a47ff5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391\
-        aa71afb53cb8d7da9677b816dc5c1fda988a4ea76040080010054c26b0b29fcb016dc5c15f0eb0497ca589d34d\
+        "0583d1d75092416cee5b17ae71d493d2ba4a84dc6c2db2ff519462a2\
+        f94ff965b54039411cae884d4af47211b6bf5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391\
+        aa71afb53cb8d7da9677b816dd5c1fda988a4ea76040080010054c26b0b29fcb016dd5c15f0eb0497ca589d34d\
         1f43aeba0c41a4c7a98f33a69a3fdf9a68fa1d75d0620d263d4c79a68fbed00177febe58f9fbed00177b5f398b\
         2d4b70ddf45abefb4005df5f10929bd9abfa5242cb40d25fa523b3e94f684c9f5da89d29ad17186105b3b96c5e\
-        b9c7524f4ae92a1371b6db79f63fcb2daa094af85b7dd7de136f08523fff1f10111213";
+        b9c7524f4ae92a1371b0b6cbec7f965b54039411cae884d4af47211b6bff1f10111213";
     const FIREFOX_FETCH_BLOCK: &str =
-        "0781d1d75092416cee5b17ae71d493d2ba4a84dc6db6de7f51946252a493\
-        ff965b541295f0b6fbafbc26de10a47f5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391aa71\
-        afb53cb8d7da9677b816dc5c1fda988a4ea76040080010054c26b0b29fcb016dc5c1dd5f398b2d4b70ddf45abe\
+        "0781d1d75092416cee5b17ae71d493d2ba4a84dc6c2db2ff51946252a493\
+        ff965b54039411cae884d4af47211b6b5f50bcd07f66a281b0dae053fae46aa43f8429a77a8102e0fb5391aa71\
+        afb53cb8d7da9677b816dd5c1fda988a4ea76040080010054c26b0b29fcb016dd5c1dd5f398b2d4b70ddf45abe\
         fb4005df5f10929bd9abfa5242cb40d25fa523b3e94f684c9f5dab9d29ad17186105b3b96c5eb9c7524f4ae92a\
-        1371b6db79f62a2f94ff965b541295f0b6fbafbc26de10a47f1043842d35a7d7428321ec47814083b606bf11e7";
+        1371b0b6cbec545f29ff2cb6a807282395d109a95e8e4236d71043842d35a7d7428321ec47814083b606bf11e7";
 
     fn hex(encoded: &str) -> Vec<u8> {
         let compact: String = encoded.split_whitespace().collect();
@@ -979,7 +979,7 @@ mod tests {
     }
 
     #[test]
-    fn unmatched_names_policy_reproduces_firefox_156_sections() {
+    fn unmatched_names_policy_reproduces_firefox_157_sections() {
         let (mut encoder, mut encoder_stream) = neqo_encoder(4096, 16);
         encoder_stream.insert(0, 0x02);
 
@@ -1015,7 +1015,7 @@ mod tests {
             InsertWithoutNameRef::decode(&mut read),
             Ok(Some(InsertWithoutNameRef::new(
                 "alt-used",
-                "server.phantom.test:55589"
+                "server.phantom.test:51539"
             )))
         );
         assert_eq!(
@@ -1024,7 +1024,7 @@ mod tests {
         );
         assert_eq!(read.position() as usize, fetch_instructions.len());
         let mut always_huffman = Vec::new();
-        InsertWithoutNameRef::new("alt-used", "server.phantom.test:55589")
+        InsertWithoutNameRef::new("alt-used", "server.phantom.test:51539")
             .encode_with(&mut always_huffman, true)
             .unwrap();
         InsertWithoutNameRef::new("pragma", "no-cache")
