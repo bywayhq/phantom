@@ -2164,6 +2164,11 @@ impl SslContextBuilder {
     /// A value of `0` disables [RFC 8449]. Other values must be in
     /// `64..=16385`. DTLS, QUIC, and handoff connections are not supported.
     ///
+    /// A TLS 1.3 client sends early data before it learns the server's
+    /// limit, so records in the whole 0-RTT epoch may use the protocol
+    /// maximum. A server that negotiates a limit below `16385` issues no
+    /// early-data tickets and declines early data.
+    ///
     /// [RFC 8449]: https://www.rfc-editor.org/rfc/rfc8449.html
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_record_size_limit)]

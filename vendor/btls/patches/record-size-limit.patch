@@ -2,7 +2,7 @@ diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
 index fac878e6..ddf9b314 100644
 --- a/src/ssl/mod.rs
 +++ b/src/ssl/mod.rs
-@@ -2102,11 +2102,22 @@ impl SslContextBuilder {
+@@ -2102,11 +2102,27 @@ impl SslContextBuilder {
          unsafe { ffi::SSL_CTX_set_grease_sigalgs_enabled(self.as_ptr(), enabled as _) }
      }
  
@@ -11,6 +11,11 @@ index fac878e6..ddf9b314 100644
 +    ///
 +    /// A value of `0` disables [RFC 8449]. Other values must be in
 +    /// `64..=16385`. DTLS, QUIC, and handoff connections are not supported.
++    ///
++    /// A TLS 1.3 client sends early data before it learns the server's
++    /// limit, so records in the whole 0-RTT epoch may use the protocol
++    /// maximum. A server that negotiates a limit below `16385` issues no
++    /// early-data tickets and declines early data.
 +    ///
 +    /// [RFC 8449]: https://www.rfc-editor.org/rfc/rfc8449.html
      #[cfg(not(feature = "fips"))]
@@ -28,7 +33,7 @@ index fac878e6..ddf9b314 100644
      }
  
      /// Sets whether the context should enable delegated credentials.
-@@ -3339,6 +3350,14 @@ impl SslRef {
+@@ -3339,6 +3355,14 @@ impl SslRef {
          unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
      }
  

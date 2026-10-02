@@ -14,11 +14,11 @@ This directory is the `tokio-btls` package from the reviewed btls dependency
 fork, the same revision that supplies `btls-sys`.
 
 - Reviewed dependency fork: <https://github.com/bywayhq/btls>
-- Reviewed dependency commit: `c48fddb13539e06fadedfac6039570598ff89864`
+- Reviewed dependency commit: `c4596bc5ee7facb860ef91c184ac50b5b863b733`
 - Source archive:
-  <https://codeload.github.com/bywayhq/btls/tar.gz/c48fddb13539e06fadedfac6039570598ff89864>
+  <https://codeload.github.com/bywayhq/btls/tar.gz/c4596bc5ee7facb860ef91c184ac50b5b863b733>
 - Complete source archive SHA-256:
-  `22ceaf98b569628ae51ffc13509d96e33f1318a4ade3f99a393db102d4ff33ff`
+  `b81f35227ad4e407baab66b7db17603d2b01acec681242f939380bb98737b63a`
 - Upstream licenses remain in `LICENSE-APACHE` and `LICENSE-MIT`.
 
 ## Why this fork exists
@@ -31,7 +31,7 @@ fork, `tokio-btls` would resolve the wrapper from the dependency fork instead of
   dependency fields from the fork's root manifest so the package builds
   outside that workspace.
 - `publish-identity.patch` renames the package to `phantom-tokio-btls` at
-  `0.5.6-phantom.3`, keeps the `tokio_btls` library name, points `btls` at
+  `0.5.6-phantom.4`, keeps the `tokio_btls` library name, points `btls` at
   `phantom-btls` by exact version and path, removes the upstream documentation
   link, keeps Cargo's reserved archive files out of the packaged crate, and
   records the upstream source under `[package.metadata.phantom]`.

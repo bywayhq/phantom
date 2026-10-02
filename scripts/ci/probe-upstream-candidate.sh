@@ -250,7 +250,7 @@ case "$dependency" in
     [[ "$listed_patches" == "$stored_patches" ]] \
       || die "btls patch series does not list every canonical patch exactly once"
     btls_sys_repository=${PHANTOM_BTLS_SYS_REPOSITORY:-https://github.com/bywayhq/btls}
-    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-c48fddb13539e06fadedfac6039570598ff89864}
+    btls_sys_revision=${PHANTOM_BTLS_SYS_REVISION:-c4596bc5ee7facb860ef91c184ac50b5b863b733}
     [[ "$btls_sys_revision" =~ ^[0-9a-f]{40}$ ]] \
       || die "PHANTOM_BTLS_SYS_REVISION must be an exact git revision"
 

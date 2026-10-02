@@ -21,14 +21,20 @@ size limit, and delegated-credential patches.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/bywayhq/btls>
-- Reviewed dependency commit: `c48fddb13539e06fadedfac6039570598ff89864`
+- Reviewed dependency commit: `c4596bc5ee7facb860ef91c184ac50b5b863b733`
+  (`feat(boringssl): allow early data with record size limits`, which adds
+  native patch 0013). Its parent, `126eca11538e79814ffef527a68080fe6dbbb21b`
+  (`fix(btls-sys): leave the C allocator out of the bindings`), keeps
+  `malloc`, `calloc`, `realloc`, and `free` out of the generated bindings,
+  whose `extern` declarations of them Rust 1.99.0 denies, and is itself
+  one commit on the earlier reviewed commit `c48fddb13539e06fadedfac6039570598ff89864`.
 - BoringSSL submodule commit: `f1f2556a5dfa59e147d9d47279cc3f7f8a18b433`
 - Upstream package license remains in `LICENSE`.
 
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.3`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.4`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -94,6 +100,19 @@ key epoch that produced each protected record, fragments outgoing handshake and
 application data, and rejects oversized incoming records. TLS 1.3 first-flight
 handling defers the decision until EncryptedExtensions establishes whether the
 extension was negotiated, preserving the legal non-echo path.
+
+Patch 0005 also disabled TLS 1.3 early data whenever a limit was configured
+or negotiated, which kept the Firefox recipe, whose ClientHello always
+carries `record_size_limit`, from ever offering it. RFC 8449 section 4
+subjects records to the limits of the handshake that produced their keys,
+and a client writes 0-RTT records before EncryptedExtensions carries the
+server's limit. Patch 0013 therefore lets such a client offer early data and
+keeps the early-data capability of tickets from connections that negotiated
+a limit. As in NSS, the whole 0-RTT write epoch, `EndOfEarlyData` included,
+uses the protocol maximum of 2^14+1 bytes of TLSInnerPlaintext; the server's
+limit applies from the handshake write keys. A server that negotiated a
+limit below 16385 cannot accept such records, so it issues no early-data
+tickets and declines early data; a server at the maximum accepts it.
 
 The upstream delegated-credential patch advertised extension 34 but could not
 accept a credential. BoringSSL's `tls13_process_certificate` rejects the
@@ -171,10 +190,12 @@ They contain only wrapper APIs, documentation, and upstream-style tests;
 packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
 implements RFC 8449, patch 0006 implements RFC 9345 client verification,
-patch 0011 controls the ECH GREASE payload length, and patch 0012 selects the
-ECH GREASE AEAD from a configured list. Patch 0012 carries BoringSSL
-`ssl_test` coverage for the selection, the rejected inputs, and reuse of the
-choice across a HelloRetryRequest. Every native patch owns the
+patch 0011 controls the ECH GREASE payload length, patch 0012 selects the
+ECH GREASE AEAD from a configured list, and patch 0013 allows early data
+beside RFC 8449 limits. Patch 0012 carries BoringSSL `ssl_test` coverage for
+the selection, the rejected inputs, and reuse of the choice across a
+HelloRetryRequest; patch 0013 carries coverage for 0-RTT with configured and
+negotiated limits on both sides. Every native patch owns the
 generated prefix-symbol entries for the APIs it introduces. The dependency CI
 replays the complete patch order and rejects stale BoringSSL pregenerated files.
 

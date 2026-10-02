@@ -74,7 +74,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/bywayhq/btls?rev=c48fddb13539e06fadedfac6039570598ff89864#c48fddb13539e06fadedfac6039570598ff89864"
+source = "git+https://github.com/bywayhq/btls?rev=c4596bc5ee7facb860ef91c184ac50b5b863b733#c4596bc5ee7facb860ef91c184ac50b5b863b733"
 dependencies = [
  "bindgen",
  "cmake",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.3"
+version = "0.5.6-phantom.4"
 dependencies = [
  "bitflags",
  "brotli",
