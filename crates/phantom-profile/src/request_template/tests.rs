@@ -1,7 +1,7 @@
 use super::{
     RequestField, RequestTemplate,
     capture::{Capture, CaptureResult, Fields},
-    client_hint_placement,
+    client_hint_placement, restart_client_hint_placement,
 };
 use crate::{
     ClientHintSettings, brave, brave_android, chrome_android, chromium,
@@ -290,6 +290,8 @@ fn assert_matches(
                     assert_eq!(Some(value.clone()), hint_value(name), "{label}: {name}");
                 }
             }
+            // No capture read here restarted for a connection's ACCEPT_CH.
+            RequestField::RestartClientHints => {}
         }
     }
     assert_eq!(observed.next(), None, "{label}: unexpected trailing field");
@@ -1010,6 +1012,79 @@ fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
     ] {
         assert_eq!(template.restarts_for_connection_accept_ch, restarts);
     }
+}
+
+/// The hints a restarted navigation lacked follow the browser's own fields,
+/// through `Accept`, and precede the `Sec-Fetch-*` fields the network
+/// service adds, on every protocol.
+#[test]
+fn chromium_navigation_lists_place_restart_hints_before_sec_fetch_site() {
+    for (template, brave_family) in [
+        (chromium::v154_windows_navigation_template(), false),
+        (chromium::v154_macos_navigation_template(), false),
+        (edge::v154_windows_navigation_template(), false),
+        (brave::v154_windows_navigation_template(), true),
+        (opera::v136_windows_navigation_template(), false),
+        (chrome_android::v154_android_navigation_template(), false),
+        (edge_android::v153_android_navigation_template(), false),
+        (brave_android::v153_android_navigation_template(), true),
+    ] {
+        let lists = [
+            Some(&template.http1_fields),
+            Some(&template.http2_fields),
+            template.http3_fields.as_ref(),
+        ];
+        for fields in lists.into_iter().flatten() {
+            let slot = fields
+                .iter()
+                .position(|field| *field == RequestField::RestartClientHints)
+                .unwrap_or_else(|| panic!("{fields:?}"));
+            assert_eq!(
+                fields[slot - 1]
+                    .name()
+                    .map(str::to_ascii_lowercase)
+                    .as_deref(),
+                Some("accept")
+            );
+            // Brave sets `Sec-GPC` after the restart's hints are in place.
+            let followed_by =
+                restart_client_hint_placement(fields).unwrap_or_else(|| panic!("{fields:?}"));
+            let expected = if brave_family {
+                &["sec-gpc", "sec-fetch-site"][..]
+            } else {
+                &["sec-fetch-site"][..]
+            };
+            let followed: Vec<&str> = followed_by.iter().map(|name| &**name).collect();
+            assert_eq!(followed[..expected.len()], *expected);
+        }
+        assert!(template.validate().is_ok());
+    }
+    for template in [
+        chromium::v154_windows_fetch_no_store_template(),
+        firefox::v157_windows_navigation_template(),
+    ] {
+        assert_eq!(restart_client_hint_placement(&template.http2_fields), None);
+    }
+}
+
+#[test]
+fn restart_hint_slots_must_be_single_and_agree_across_protocols() {
+    let mut twice = chromium::v154_windows_navigation_template();
+    twice.http2_fields.push(RequestField::RestartClientHints);
+    assert!(twice.validate().is_err());
+
+    let mut moved = chromium::v154_windows_navigation_template();
+    moved
+        .http1_fields
+        .retain(|field| *field != RequestField::RestartClientHints);
+    moved.http1_fields.push(RequestField::RestartClientHints);
+    assert!(moved.validate().is_err());
+
+    let mut missing = chromium::v154_windows_navigation_template();
+    missing
+        .http2_fields
+        .retain(|field| *field != RequestField::RestartClientHints);
+    assert!(missing.validate().is_err());
 }
 
 #[test]

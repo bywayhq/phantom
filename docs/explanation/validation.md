@@ -2414,9 +2414,9 @@ What is claimed: the Chromium-family recipes fix a request's client hints
 when its field lists are built, on HTTP/1.1, HTTP/2, and HTTP/3 alike. On
 HTTP/2 and HTTP/3, when the connection's ALPS `ACCEPT_CH` entry for the
 origin names a hint a navigation lacks and the origin has not requested, the
-request is not written; it starts again with the hint appended after its
-other fields, as Chromium 154 restarts a navigation. A `fetch` goes out as
-built.
+request is not written; it starts again with the hints it lacked after
+`Accept` and before `Sec-Fetch-Site`, as Chromium 154 restarts a navigation.
+A `fetch` goes out as built.
 
 Evidence: Chromium source at tag `154.0.8037.58`; no capture shows a
 restart.
@@ -2428,8 +2428,10 @@ restart.
 | Only navigations restart | The network service takes the observer only from a request's trusted parameters (`services/network/url_loader_factory.cc` lines 341-371), which only `NavigationURLLoaderImpl` sets (`content/browser/loader/navigation_url_loader_impl.cc` lines 256-277, 2160-2181) and a renderer's factory refuses (`services/network/cors/cors_url_loader_factory.cc` lines 657-662). Without it no interceptor exists (`accept_ch_frame_interceptor.cc` lines 57-68), and the loader continues (`url_loader.cc` lines 933-937) |
 | Only hints the request lacks count | `ComputeAcceptCHFrameHints` drops each hint already among the request's fields, and the width hints (`accept_ch_frame_interceptor.cc` lines 26-52) |
 | Only hints the origin has not enabled restart | `NeedsObserverCheck` skips the browser when every missing hint is enabled (`accept_ch_frame_interceptor.cc` lines 159-200), and the browser restarts only when one is not (`GetCriticalHintsMissingStatus`, `content/browser/client_hints/client_hints.cc` lines 1074-1098) |
-| A hint the restart adds follows the request's fields | `MergeFrom` sets each field with `SetHeaderInternal`, which appends a name the request lacks (`net/http/http_request_headers.cc` lines 191-195, 303-310) |
+| The restart appends the hints the navigation lacked to its own fields | `OnAcceptCHFrameReceived` builds the fields with every enabled hint and merges them (`navigation_url_loader_impl.cc` lines 1838-1846, 1904); `MergeFrom` sets each with `SetHeaderInternal`, which appends a name the fields lack (`net/http/http_request_headers.cc` lines 191-195, 303-310) |
+| The network stack adds its fields after them | The network service copies the navigation's fields first (`services/network/url_loader_util.cc` lines 550-555), then adds `Sec-Fetch-*` (lines 579-583; `services/network/sec_header_helpers.cc` lines 163-192); the request job adds `Accept-Encoding` and `Accept-Language` (`net/url_request/url_request_http_job.cc` lines 781-794); the transaction keeps that order after `Host` and `Connection` on every protocol (`net/http/http_network_transaction.cc` lines 1381-1429). So the hints go after `Accept` and before `Sec-Fetch-Site` |
 | The restart carries the hints and nothing is stored | `OnAcceptCHFrameReceived` computes the fields with the entry's hints added and cleared again, merges them into the request, and restarts it (`navigation_url_loader_impl.cc` lines 1838-1846, 1904, 1922) |
+| Brave adds `Sec-GPC` after the restart's hints | `BraveProxyingURLLoaderFactory` wraps the navigation's loader factory (brave-core `browser/brave_content_browser_client.cc` lines 1227-1255 at tag `v1.96.59`), copies the request (`browser/net/brave_proxying_url_loader_factory.cc` line 119), runs its start-transaction callbacks on the copy's fields (lines 496-497), and passes the copy on (lines 539-545); the Global Privacy Control callback (`browser/net/brave_request_handler_impl.cc` lines 99-103) appends `Sec-GPC` with `SetHeader` (`browser/net/global_privacy_control_network_delegate_helper.cc` line 30). So Brave's templates put `Sec-GPC` after the restart slot: `accept, <hints>, sec-gpc, sec-fetch-site` |
 | Restarts are bounded | `accept_ch_restart_limit_ = kMaxRedirects`, 20, per navigation (`navigation_url_loader_impl.h` line 315, `navigation_url_loader_impl.cc` line 1873) |
 
 Differences from Chromium:
@@ -2457,13 +2459,15 @@ Tests:
 | --- | --- |
 | `client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe` | An H2 server whose ALPS names two hints sees one request, carrying both and the caller's value |
 | `client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built` | A request with the Chrome `fetch` template is sent once, without the hint the entry names, and succeeds |
-| `client_hints::http2_navigation_template_restart_appends_the_hint_after_its_fields` | A request with the Chrome navigation template restarts, and the added hint is its last field |
+| `client_hints::http2_navigation_template_restart_places_the_hint_after_accept` | A request with the Chrome navigation template restarts over HTTP/2, and the added hint comes right after `accept` and before `sec-fetch-site` |
+| `client_hints::http3_navigation_template_restart_places_the_hint_after_accept` | The same over HTTP/3, against a BoringSSL QUIC server |
 | `client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once` | A POST with a one-shot streaming body restarts, and the server receives the hint and the body once |
 | `client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for` | After a graceful `GOAWAY`, the replacement connection's entry restarts the request again, which keeps the first connection's hint |
 | `client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request` | A hint an `Accept-CH` response teaches while a built request waits for admission is absent from that request and present on the next |
 | `client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint` | A BoringSSL QUIC server whose ALPS names a hint sees one H3 request, carrying it |
 | `field_lists::tests::an_accept_ch_restart_builds_the_lists_again_with_the_hint` | A negotiated restart builds and checks its HTTP/1.1 and HTTP/2 lists a second time, and the server sees one request |
-| `session::client_hints::tests::*` | Which entries ask for a restart: a missing requested hint does; a present, default, caller-supplied, unknown, width, already restarted, or since-stored one, an empty or malformed entry, and a `fetch` template do not; a restart-added hint follows every other field while a stored one keeps its slot |
+| `session::client_hints::tests::*` | Which entries ask for a restart: a missing requested hint does; a present, default, caller-supplied, unknown, width, already restarted, or since-stored one, an empty or malformed entry, and a `fetch` template do not; `template_slots::restart_added_hints_follow_accept_on_every_protocol` puts every hint a navigation lacked at a restart, one stored since included, right after `Accept` on the HTTP/1.1, HTTP/2, and HTTP/3 lists, while a hint stored before the build keeps the block |
+| `request_template::tests::chromium_navigation_lists_place_restart_hints_before_sec_fetch_site`, `restart_hint_slots_must_be_single_and_agree_across_protocols` | Every Chromium-family navigation list has the restart slot right after `Accept`, followed by `Sec-GPC` on Brave's lists and `Sec-Fetch-Site` on the others, and validation rejects a second or misplaced one |
 | `request_template::tests::only_chromium_navigation_templates_restart_for_connection_accept_ch` | Which built-in templates restart |
 
 The first five are in `crates/phantom/tests/requests/client_hints.rs`, the
@@ -2476,9 +2480,7 @@ tests.
 Limits:
 
 - No capture of Chrome restarting a request exists, so which fields the
-  restarted navigation rebuilds, and where the network stack puts the
-  appended hint among the fields it adds itself, such as `Cookie`, rest on
-  source.
+  restarted navigation rebuilds, and where its hints go, rest on source.
 - The test servers send `ACCEPT_CH` only through ALPS; frames sent after the
   handshake are not supported.
 

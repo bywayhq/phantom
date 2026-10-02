@@ -258,8 +258,7 @@ anything does.
   source ([Design](explanation/design.md#fields-of-a-repeated-attempt)).
   Blocker: a capture of a Chrome navigation whose connection's `ACCEPT_CH`
   adds a hint, to confirm which fields the restarted request rebuilds and
-  where the appended hint lands among the fields the network stack adds,
-  such as `Cookie`.
+  where its hints go, which Chromium source places after `Accept`.
 
 #### Discovery, DNS, and ECH
 

@@ -296,12 +296,21 @@ lacks and the origin has not enabled, `NavigationURLLoaderImpl::OnAcceptCHFrameR
 aborts the loader, merges the hints into the request's fields, and starts
 the navigation again (`navigation_url_loader_impl.cc` lines 1757-1923),
 computing them with the entry's hints added only for that call (lines
-1838-1846). The merge appends a name the fields lack after them
-(`net/http/http_request_headers.cc` lines 191-195 and 303-310), so Phantom
-puts a hint that only a restart added after every other field of the list,
-while a hint the origin requested through `Accept-CH` keeps the template's
-client-hint slot. Where the network stack then puts that appended field
-among the fields it adds itself, such as `Cookie`, no capture shows.
+1838-1846). The merge appends each name the navigation's own fields lack
+after them (line 1904; `net/http/http_request_headers.cc` lines 191-195 and
+303-310). Those fields run through `Accept`: the network service copies them
+first (`services/network/url_loader_util.cc` lines 550-555), then adds the
+`Sec-Fetch-*` fields (lines 579-583, `services/network/sec_header_helpers.cc`
+lines 163-192), and the request job adds `Accept-Encoding` and
+`Accept-Language` (`net/url_request/url_request_http_job.cc` lines 781-794).
+Every protocol keeps that order (`net/http/http_network_transaction.cc` lines
+1381-1429). A restarted Chrome navigation therefore sends
+`… user-agent, accept, <the hints it lacked>, sec-fetch-site …`. The
+Chromium navigation templates mark that place with a restart client-hints
+slot, after `Accept`; every hint the request lacked at a restart goes there,
+even one the origin has stored since, while a hint stored before the build
+keeps the template's client-hint block. A request without a template puts
+them after every other field.
 
 A restart writes nothing, so any method and any body may restart, a
 streaming body included. The hints a request restarted for stay for the rest

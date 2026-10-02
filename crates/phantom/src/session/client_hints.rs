@@ -379,9 +379,13 @@ fn prepare_fields(
     caller: Vec<RequestHeader>,
     template: Option<&PreparedRequestTemplate>,
 ) -> Vec<RequestHeader> {
+    let restart = restart.unwrap_or_default();
+    // A hint a restart added is not part of the fields the request was
+    // first built with, whether or not the origin stored it since.
     let enabled = |index: usize| {
-        settings.hints()[index].delivery() == ClientHintDelivery::Default
-            || stored.is_some_and(|indices| indices.binary_search(&index).is_ok())
+        !restart.contains(&index)
+            && (settings.hints()[index].delivery() == ClientHintDelivery::Default
+                || stored.is_some_and(|indices| indices.binary_search(&index).is_ok()))
     };
     let slots = template.map_or(&[][..], PreparedRequestTemplate::client_hint_slots);
     let mut prepared = if slots.is_empty() {
@@ -389,14 +393,26 @@ fn prepare_fields(
     } else {
         place_in_slots(settings, slots, enabled, caller)
     };
-    // A hint only a restart added follows every other field, where
-    // Chromium's merge appends a new name; a stored one keeps its slot.
-    for index in restart.unwrap_or_default() {
-        let hint = &settings.hints()[*index];
-        if !enabled(*index) && !contains_field(&prepared, hint.name()) {
-            prepared.push(RequestHeader::new(hint.name(), hint.value()));
-        }
-    }
+    let added: Vec<RequestHeader> = restart
+        .iter()
+        .map(|index| &settings.hints()[*index])
+        .filter(|hint| !contains_field(&prepared, hint.name()))
+        .map(|hint| RequestHeader::new(hint.name(), hint.value()))
+        .collect();
+    // Chromium's merge appends the hints after the navigation's own fields,
+    // which the template's restart slot marks; without one they follow every
+    // field.
+    let position = template
+        .and_then(PreparedRequestTemplate::restart_client_hint_slot)
+        .and_then(|followed_by| {
+            followed_by.iter().find_map(|next| {
+                prepared
+                    .iter()
+                    .position(|header| header.name().eq_ignore_ascii_case(next))
+            })
+        })
+        .unwrap_or(prepared.len());
+    prepared.splice(position..position, added);
     prepared
 }
 

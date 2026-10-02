@@ -553,11 +553,13 @@ mod template_slots {
         );
     }
 
-    /// A hint only a restart added follows every template field, as
-    /// Chromium's header merge appends a new name; a stored hint keeps the
-    /// template's slot.
+    /// The hints a navigation lacked at a restart go after `accept` and
+    /// before `sec-fetch-site` on every protocol, where Chromium's merge
+    /// appends them to the navigation's own fields, even one the origin has
+    /// stored since; a hint stored before the build keeps the block.
     #[test]
-    fn a_restart_added_hint_follows_the_navigation_fields() -> Result<(), crate::RequestError> {
+    fn restart_added_hints_follow_accept_on_every_protocol()
+    -> Result<(), Box<dyn std::error::Error>> {
         use std::num::NonZeroUsize;
 
         use http::{HeaderMap, HeaderValue};
@@ -567,24 +569,62 @@ mod template_slots {
         let hints = chromium::v154_windows_client_hints();
         let endpoint = super::endpoint("example.test");
         let store = ClientHintStore::new(NonZeroUsize::MIN);
+        // `sec-ch-ua-model` was stored before the build; the restart added
+        // `sec-ch-ua-arch` (index 3) and `sec-ch-ua-platform-version`
+        // (index 5), and the origin has stored the latter since.
         let mut learned = HeaderMap::new();
-        learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Model"));
+        learned.insert(
+            "accept-ch",
+            HeaderValue::from_static("Sec-CH-UA-Model, Sec-CH-UA-Platform-Version"),
+        );
         store.learn_and_should_retry(&endpoint, true, &hints, &learned, &[]);
         let template = chromium::v154_windows_navigation_template();
         let navigation = prepare(&template);
         let mut restart = RestartHints::default();
-        restart.add(&[3]);
-        let fields = expand(&template.http2_fields, &[], Some(&hints), true);
-        let prepared =
-            ClientHintContext::new(&endpoint, "https://example.test", &hints, Some(&store))
-                .with_template(Some(&navigation))
-                .with_restart_hints(&restart)
-                .prepare(fields)?;
-        let names: Vec<&str> = prepared.iter().map(RequestHeader::name).collect();
-        assert_eq!(names.last(), Some(&"sec-ch-ua-arch"));
-        let model = names.iter().position(|name| *name == "sec-ch-ua-model");
-        let user_agent = names.iter().position(|name| *name == "user-agent");
-        assert!(model < user_agent, "{names:?}");
+        restart.add(&[3, 5]);
+        let lists = [
+            (
+                "HTTP/1.1",
+                &template.http1_fields,
+                "Accept",
+                "Sec-Fetch-Site",
+            ),
+            ("HTTP/2", &template.http2_fields, "accept", "sec-fetch-site"),
+            (
+                "HTTP/3",
+                template
+                    .http3_fields
+                    .as_ref()
+                    .unwrap_or(&template.http2_fields),
+                "accept",
+                "sec-fetch-site",
+            ),
+        ];
+        for (protocol, fields, accept, fetch_site) in lists {
+            let fields = expand(fields, &[], Some(&hints), true);
+            let prepared =
+                ClientHintContext::new(&endpoint, "https://example.test", &hints, Some(&store))
+                    .with_template(Some(&navigation))
+                    .with_restart_hints(&restart)
+                    .prepare(fields)?;
+            let names: Vec<&str> = prepared.iter().map(RequestHeader::name).collect();
+            let at = |name: &str| names.iter().position(|seen| *seen == name);
+            let accept = at(accept).ok_or("no accept")?;
+            assert_eq!(
+                names[accept + 1..accept + 4],
+                ["sec-ch-ua-arch", "sec-ch-ua-platform-version", fetch_site],
+                "{protocol}: {names:?}"
+            );
+            assert!(
+                at("sec-ch-ua-model")
+                    < at(if protocol == "HTTP/1.1" {
+                        "Upgrade-Insecure-Requests"
+                    } else {
+                        "upgrade-insecure-requests"
+                    }),
+                "{protocol}: {names:?}"
+            );
+        }
         Ok(())
     }
 

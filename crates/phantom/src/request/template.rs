@@ -6,7 +6,7 @@ use phantom_net::request::RequestHeader;
 use phantom_profile::{
     ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate,
     ProxyAuthorizationAttempt, RequestField, RequestTemplate,
-    request_template::{ClientHintSlot, client_hint_placement},
+    request_template::{ClientHintSlot, client_hint_placement, restart_client_hint_placement},
 };
 
 use crate::{HttpProtocol, RequestError};
@@ -24,6 +24,9 @@ struct Prepared {
     template: RequestTemplate,
     /// Client-hint placement, the same on every protocol list.
     client_hint_slots: Vec<ClientHintSlot>,
+    /// The fields that follow the restart client-hints slot, the same on
+    /// every protocol list, or `None` without one.
+    restart_client_hint_slot: Option<Vec<Box<str>>>,
     /// The HTTP/1.1 list's `Accept-Encoding` value for a URL that is not
     /// potentially trustworthy, then for one that is.
     accept_encoding: [Option<Box<str>>; 2],
@@ -44,6 +47,7 @@ impl PreparedRequestTemplate {
     pub fn new(template: RequestTemplate) -> Result<Self, InvalidRequestTemplate> {
         template.validate()?;
         let client_hint_slots = client_hint_placement(&template.http2_fields);
+        let restart_client_hint_slot = restart_client_hint_placement(&template.http2_fields);
         let mut accept_encoding: [Option<Box<str>>; 2] = [None, None];
         let mut accept_encoding_agrees = true;
         for trustworthy in [false, true] {
@@ -69,6 +73,7 @@ impl PreparedRequestTemplate {
         Ok(Self(Arc::new(Prepared {
             template,
             client_hint_slots,
+            restart_client_hint_slot,
             accept_encoding,
             accept_encoding_agrees,
             required_fields,
@@ -88,6 +93,12 @@ impl PreparedRequestTemplate {
     /// Returns each client-hint slot with the fields that follow it.
     pub(crate) fn client_hint_slots(&self) -> &[ClientHintSlot] {
         &self.0.client_hint_slots
+    }
+
+    /// Returns the fields that follow the slot where hints added by an
+    /// `ACCEPT_CH` restart go, if the template has one.
+    pub(crate) fn restart_client_hint_slot(&self) -> Option<&[Box<str>]> {
+        self.0.restart_client_hint_slot.as_deref()
     }
 
     pub(crate) fn requested_client_hint_placement(&self) -> bool {

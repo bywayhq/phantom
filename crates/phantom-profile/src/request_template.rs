@@ -102,6 +102,15 @@ pub enum RequestField {
         /// Which forwarded attempts place the field here.
         attempt: ProxyAuthorizationAttempt,
     },
+    /// The position of the client hints a request lacked when its
+    /// connection's ALPS `ACCEPT_CH` restarted it; see
+    /// [`RequestTemplate::restarts_for_connection_accept_ch`].
+    ///
+    /// The restart adds these hints to the fields the browser built, after
+    /// them, and the browser's network stack adds later fields of its own
+    /// after that, so the slot marks where the browser's own fields end. A
+    /// list without this slot puts them after every other field.
+    RestartClientHints,
 }
 
 /// Forwarded attempts that carry generated proxy credentials.
@@ -222,7 +231,8 @@ impl RequestField {
         }
     }
 
-    /// Returns the field name of every entry except the client-hints slot.
+    /// Returns the field name of every entry except the client-hints and
+    /// restart client-hints slots.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
@@ -232,7 +242,7 @@ impl RequestField {
             | Self::ByTrust { name, .. }
             | Self::ByForwarding { name, .. }
             | Self::ProxyAuthorization { name, .. } => Some(name),
-            Self::ClientHints => None,
+            Self::ClientHints | Self::RestartClientHints => None,
         }
     }
 
@@ -253,6 +263,7 @@ impl RequestField {
             Self::Caller { .. }
             | Self::ClientHint { .. }
             | Self::ClientHints
+            | Self::RestartClientHints
             | Self::ProxyAuthorization { .. } => None,
         }
     }
@@ -350,7 +361,10 @@ impl RequestTemplate {
         validate_fields(&self.http1_fields, "http1_fields", false)?;
         validate_fields(&self.http2_fields, "http2_fields", true)?;
         let placement = client_hint_placement(&self.http2_fields);
-        if client_hint_placement(&self.http1_fields) != placement {
+        let restart = restart_slot_signature(&self.http2_fields);
+        if client_hint_placement(&self.http1_fields) != placement
+            || !restart_slots_agree(restart_slot_signature(&self.http1_fields), &restart)
+        {
             return Err(InvalidRequestTemplate::new(
                 "http1_fields",
                 "client hints must have the same slots and following fields on every protocol",
@@ -358,7 +372,9 @@ impl RequestTemplate {
         }
         if let Some(fields) = &self.http3_fields {
             validate_fields(fields, "http3_fields", true)?;
-            if client_hint_placement(fields) != placement {
+            if client_hint_placement(fields) != placement
+                || !restart_slots_agree(restart_slot_signature(fields), &restart)
+            {
                 return Err(InvalidRequestTemplate::new(
                     "http3_fields",
                     "client hints must have the same slots and following fields on every protocol",
@@ -422,6 +438,63 @@ pub fn client_hint_placement(fields: &[RequestField]) -> Vec<ClientHintSlot> {
         .collect()
 }
 
+/// Returns the lowercase names of the fields that follow the
+/// [`RequestField::RestartClientHints`] slot of `fields`, or `None` when the
+/// list has no such slot.
+///
+/// The hints go before the first of these fields a request sends, or after
+/// every field when it sends none of them.
+///
+/// A validated template has the same placement on every protocol. Like
+/// [`ClientHintSlot`], this is client plumbing, not supported API.
+#[doc(hidden)]
+#[must_use]
+pub fn restart_client_hint_placement(fields: &[RequestField]) -> Option<Vec<Box<str>>> {
+    let index = fields
+        .iter()
+        .position(|field| matches!(field, RequestField::RestartClientHints))?;
+    Some(
+        fields[index + 1..]
+            .iter()
+            .filter_map(RequestField::name)
+            .map(|name| name.to_ascii_lowercase().into_boxed_str())
+            .collect(),
+    )
+}
+
+/// Returns the names that follow the restart client-hints slot of `fields`
+/// up to and including the first literal field, which a request always
+/// sends, or every following name when no literal follows.
+fn restart_slot_signature(fields: &[RequestField]) -> Option<Vec<Box<str>>> {
+    let index = fields
+        .iter()
+        .position(|field| matches!(field, RequestField::RestartClientHints))?;
+    let mut followed_by = Vec::new();
+    for next in &fields[index + 1..] {
+        if let Some(name) = next.name() {
+            followed_by.push(name.to_ascii_lowercase().into_boxed_str());
+        }
+        if matches!(next, RequestField::Literal { .. }) {
+            break;
+        }
+    }
+    Some(followed_by)
+}
+
+/// Whether two lists put the restart client-hints slot in the same place:
+/// both lack it, both end with it, or the fields that follow it agree as far
+/// as the shorter list goes.
+fn restart_slots_agree(left: Option<Vec<Box<str>>>, right: &Option<Vec<Box<str>>>) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(left), Some(right)) => {
+            left.is_empty() == right.is_empty()
+                && left.iter().zip(right).all(|(left, right)| left == right)
+        }
+        _ => false,
+    }
+}
+
 /// Error returned when request-template data is inconsistent.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidRequestTemplate {
@@ -482,6 +555,7 @@ fn validate_fields(
     let mut names = HashSet::with_capacity(fields.len());
     let mut hint_blocks = 0_usize;
     let mut single_hints = 0_usize;
+    let mut restart_slots = 0_usize;
     let mut authorization_slots: Vec<ProxyAuthorizationAttempt> = Vec::new();
     for (index, template) in fields.iter().enumerate() {
         match template {
@@ -511,6 +585,7 @@ fn validate_fields(
                 authorization_slots.push(*attempt);
             }
             RequestField::ClientHints => hint_blocks += 1,
+            RequestField::RestartClientHints => restart_slots += 1,
             RequestField::ClientHint { name } => {
                 single_hints += 1;
                 if name.bytes().any(|byte| byte.is_ascii_uppercase()) {
@@ -627,6 +702,12 @@ fn validate_fields(
         return Err(InvalidRequestTemplate::new(
             field,
             "a list has at most one client-hints slot, required when it has single-hint slots",
+        ));
+    }
+    if restart_slots > 1 {
+        return Err(InvalidRequestTemplate::new(
+            field,
+            "a list has at most one restart client-hints slot",
         ));
     }
     Ok(())

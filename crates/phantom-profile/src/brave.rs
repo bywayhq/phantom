@@ -165,13 +165,33 @@ pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
 /// Applies Brave's request-field differences to a Chromium template: an
 /// optional replacement `Accept` value, `Sec-GPC: 1` after `Accept`, and a
 /// required caller `Accept-Language`.
+///
+/// On a navigation, `Sec-GPC` also follows the hints an ALPS `ACCEPT_CH`
+/// restart adds after `Accept` ([`RequestField::RestartClientHints`]).
+/// Brave sets it on a copy of the request after the browser's own fields,
+/// those hints included, are in place: `BraveProxyingURLLoaderFactory` wraps
+/// the navigation's loader factory
+/// (`browser/brave_content_browser_client.cc` lines 1227-1255 at brave-core
+/// tag `v1.96.59`), copies the request
+/// (`browser/net/brave_proxying_url_loader_factory.cc` line 119), runs its
+/// start-transaction callbacks on the copy's fields (lines 496-497), and
+/// passes the copy on (lines 539-545). The Global Privacy Control callback
+/// (`browser/net/brave_request_handler_impl.cc` lines 99-103) appends
+/// `Sec-GPC` with `SetHeader`
+/// (`browser/net/global_privacy_control_network_delegate_helper.cc` line
+/// 30).
 pub(crate) fn with_brave_fields(
     mut template: RequestTemplate,
     accept: Option<&str>,
 ) -> RequestTemplate {
     let apply = |fields: Vec<RequestField>, gpc: &str| {
         let mut output = Vec::with_capacity(fields.len() + 1);
+        let mut gpc_due = false;
         for field in fields {
+            if gpc_due && field != RequestField::RestartClientHints {
+                output.push(RequestField::literal(gpc, "1"));
+                gpc_due = false;
+            }
             match field.name() {
                 Some(name) if name.eq_ignore_ascii_case("accept") => {
                     let field = match accept {
@@ -179,13 +199,16 @@ pub(crate) fn with_brave_fields(
                         None => field,
                     };
                     output.push(field);
-                    output.push(RequestField::literal(gpc, "1"));
+                    gpc_due = true;
                 }
                 Some(name) if name.eq_ignore_ascii_case("accept-language") => {
                     output.push(RequestField::required_caller(name));
                 }
                 _ => output.push(field),
             }
+        }
+        if gpc_due {
+            output.push(RequestField::literal(gpc, "1"));
         }
         output
     };

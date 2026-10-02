@@ -741,6 +741,22 @@ fn websocket_accept_encoding(name: &str) -> WebSocketField {
 /// entries. The retained `http-proxy-*` proxy route captures show this on
 /// every forwarded page request and `fetch()`, with the other fields
 /// unchanged.
+///
+/// A navigation restarts when its connection's ALPS `ACCEPT_CH` names a hint
+/// it lacks ([`RequestTemplate::restarts_for_connection_accept_ch`]), and the
+/// hints it lacked go after `Accept`, at [`RequestField::RestartClientHints`].
+/// The restart merges them into the navigation's own fields, the block
+/// through `Accept`, appending each name those lack
+/// (`content/browser/loader/navigation_url_loader_impl.cc` line 1904;
+/// `net/http/http_request_headers.cc` lines 191-195, 303-310). The network
+/// service copies those fields first (`services/network/url_loader_util.cc`
+/// lines 550-555) and then adds the `Sec-Fetch-*` fields (lines 579-583,
+/// `services/network/sec_header_helpers.cc` lines 163-192); the request job
+/// adds `Accept-Encoding` and `Accept-Language` after them
+/// (`net/url_request/url_request_http_job.cc` lines 781-794). Every protocol
+/// keeps that order, because the transaction merges the fields after `Host`
+/// and `Connection` (`net/http/http_network_transaction.cc` lines
+/// 1381-1429).
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     v154_navigation_template(Some(V154_WINDOWS_USER_AGENT))
@@ -842,6 +858,7 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
         RequestField::literal("upgrade-insecure-requests", "1"),
         user_agent("user-agent"),
         RequestField::literal("accept", V154_NAVIGATION_ACCEPT),
+        RequestField::RestartClientHints,
         RequestField::trustworthy_only("sec-fetch-site", "none"),
         RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
         RequestField::trustworthy_only("sec-fetch-user", "?1"),
@@ -859,6 +876,7 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
             RequestField::literal("Upgrade-Insecure-Requests", "1"),
             user_agent("User-Agent"),
             RequestField::literal("Accept", V154_NAVIGATION_ACCEPT),
+            RequestField::RestartClientHints,
             RequestField::trustworthy_only("Sec-Fetch-Site", "none"),
             RequestField::trustworthy_only("Sec-Fetch-Mode", "navigate"),
             RequestField::trustworthy_only("Sec-Fetch-User", "?1"),

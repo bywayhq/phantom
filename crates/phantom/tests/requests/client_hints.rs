@@ -477,10 +477,11 @@ async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built()
     .await
 }
 
-/// A navigation template restarts, and the hint the restart added follows
-/// every template field, where Chromium's header merge appends a new name.
+/// A navigation template restarts, and the hint the restart added goes
+/// after `accept` and before `sec-fetch-site`, where Chromium's header merge
+/// appends it to the navigation's own fields.
 #[tokio::test]
-async fn http2_navigation_template_restart_appends_the_hint_after_its_fields() -> TestResult<()> {
+async fn http2_navigation_template_restart_places_the_hint_after_accept() -> TestResult<()> {
     bounded(async {
         let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
         let template = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
@@ -492,9 +493,13 @@ async fn http2_navigation_template_restart_appends_the_hint_after_its_fields() -
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         response.into_body().collect().await?;
         let names = server.await??;
+        let accept = names
+            .iter()
+            .position(|name| name == "accept")
+            .ok_or("no accept field")?;
         assert_eq!(
-            names.last().map(String::as_str),
-            Some("sec-ch-ua-arch"),
+            names[accept + 1..accept + 3],
+            ["sec-ch-ua-arch", "sec-fetch-site"],
             "{names:?}"
         );
         assert_eq!(
@@ -701,6 +706,84 @@ async fn http3_alps_accept_ch_restarts_the_request_with_the_missing_hint() -> Te
         response.into_body().collect().await?;
         let _ = client_done.send(());
         server.await??;
+        Ok(())
+    })
+    .await
+}
+
+/// A navigation template's HTTP/3 request restarts, and the hint it lacked
+/// goes after `accept` and before `sec-fetch-site`, as on HTTP/2.
+#[tokio::test]
+async fn http3_navigation_template_restart_places_the_hint_after_accept() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let alps_origin = Arc::new(OnceLock::new());
+        let endpoint = quic_server(
+            ::quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::new(
+                http3_alps_context(&identity, Arc::clone(&alps_origin))?,
+            ))),
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let origin = format!("https://{}", endpoint.local_addr()?);
+        alps_origin
+            .set(origin.clone())
+            .map_err(|_| "ALPS origin set twice")?;
+        let (client_done, wait_for_client) = oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+            let names = request
+                .headers()
+                .keys()
+                .map(|name| name.as_str().to_owned())
+                .collect::<Vec<_>>();
+            stream
+                .send_response(
+                    Response::builder()
+                        .status(StatusCode::NO_CONTENT)
+                        .body(())?,
+                )
+                .await?;
+            stream.finish().await?;
+            let _ = wait_for_client.await;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(names)
+        });
+
+        let mut tls = h3_support::client_tls_settings();
+        tls.alps = Some(AlpsSettings {
+            protocol: Box::from(&b"h3"[..]),
+            settings: Box::default(),
+            use_new_codepoint: true,
+        });
+        let profile = ClientProfile::new(tls_settings())
+            .with_http3(Http3ClientSettings::new(
+                tls,
+                chromium::v154_quic(),
+                chromium::v154_http3(),
+                chromium::v154_http3_request(),
+            ))
+            .with_client_hints(chromium::v154_windows_client_hints());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let template = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+        let response = client
+            .get(HttpProtocol::Http3, &format!("{origin}/"))?
+            .template(&template)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        let names = server.await??;
+        let accept = names
+            .iter()
+            .position(|name| name == "accept")
+            .ok_or("no accept field")?;
+        assert_eq!(
+            names[accept + 1..accept + 3],
+            ["sec-ch-ua-platform-version", "sec-fetch-site"],
+            "{names:?}"
+        );
         Ok(())
     })
     .await

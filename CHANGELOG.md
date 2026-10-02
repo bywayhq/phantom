@@ -21,9 +21,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   client hint it lacks. Every Chromium-family navigation template sets it to
   `true`, as Chromium restarts only navigations; every `fetch` template and
   every Firefox template leaves it `false`, so such a request goes out as
-  built.
-  A Chrome `fetch` template on such a connection is now sent where it failed
-  with `RequestErrorKind::RequestTemplate`
+  built. A Chrome `fetch` template on such a connection is now sent where it
+  failed with `RequestErrorKind::RequestTemplate`
   ([evidence](docs/explanation/validation.md#alps-accept_ch-restart-evidence)).
   Migrate: add `restarts_for_connection_accept_ch: true` to a navigation
   `RequestTemplate` literal and `false` to any other, or build the template
@@ -604,6 +603,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestField::RestartClientHints`, the place in a request template's
+  list for the client hints an ALPS `ACCEPT_CH` restart adds. The
+  Chromium-family navigation templates put it after `Accept`, where a
+  restarted Chrome navigation sends them, before `Sec-Fetch-Site`; a list
+  without it puts them after every other field
+  ([evidence](docs/explanation/validation.md#alps-accept_ch-restart-evidence)).
 - Edge 154 and Opera 136 profiles can take `chromium::v154_tcp`,
   `chromium::v154_http1`, and `chromium::v154_dns_cache`. Frida hook logs of
   Chrome 154, Edge 154.0.4258.48, and Opera 136.0.6008.52 on Windows 11 show
@@ -1200,9 +1205,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   not that one. A connection's ALPS `ACCEPT_CH` no longer adds a field at
   dispatch: when it names a hint a navigation, or a request without a
   template, lacks and the origin has not requested, the request stops
-  before anything of it is written and starts again with the hint appended
-  after its other fields, building them again, as Chromium 154 restarts a
-  navigation. A `fetch` goes out as built. Any method and body may restart,
+  before anything of it is written and starts again with the hints it
+  lacked after `Accept` and before `Sec-Fetch-Site`, building its fields
+  again, as Chromium 154 restarts a navigation; without a template they
+  follow every other field. A `fetch` goes out as built. Any method and body may restart,
   a streaming body included, and a request restarts at most once per hint
   the profile sends on request. The hint stays with the request for its
   redirect hop, so a replacement connection after a graceful `GOAWAY` sends

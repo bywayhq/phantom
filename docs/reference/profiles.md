@@ -555,8 +555,17 @@ never adds a field to a request about to be sent. When the entry names a
 hint a navigation lacks and the origin has not requested through
 `Accept-CH`, the request stops before anything of it is written and starts
 again with the hint, on the same connection when it is still pooled, as
-Chromium 154 restarts a navigation. The added hint follows every other field,
-where Chromium's header merge appends it.
+Chromium 154 restarts a navigation. Every hint the navigation lacked goes
+after `Accept` and before `Sec-Fetch-Site`, where Chromium's header merge
+appends it to the navigation's own fields before the network stack adds the
+`Sec-Fetch-*`, `Accept-Encoding`, and `Accept-Language` fields
+([evidence](../explanation/validation.md#alps-accept_ch-restart-evidence)).
+The Chromium navigation templates mark that place with
+`RequestField::RestartClientHints`; without a template the hints follow
+every other field. Brave sets `Sec-GPC` after the browser's fields, restart
+hints included, so a restarted Brave navigation sends
+`accept, <hints>, sec-gpc, sec-fetch-site`
+([evidence](../explanation/validation.md#alps-accept_ch-restart-evidence)).
 
 - `RequestTemplate::restarts_for_connection_accept_ch` decides which
   requests restart. The Chromium-family navigation templates set it; the
