@@ -399,9 +399,11 @@ a port-qualified `--host-resolver-rules`, and
 WebSocket, SSE, and Alt-Svc tools launch through `browser_launch.py`, whose
 longer flag list each of those fixtures records.
 
-`chrome_http3.py` takes a fixed listen address, so its port came from a
-loopback UDP socket bound to port 0 and then released; every other listener
-bound port 0 itself. Fixture `listen_address` lines therefore hold the chosen
+The retained `chrome_http3.py` fixtures were taken with a fixed listen
+address, whose port came from a loopback UDP socket bound to port 0 and then
+released; every other listener bound port 0 itself. `startup_capture.py`
+now passes `--listen 127.0.0.1:0`, and `chrome_http3.py` records the port
+it bound. Fixture `listen_address` lines therefore hold the chosen
 ephemeral port, and `trust-anchor-orders.txt`, which aggregates 60 separate
 listeners, records `127.0.0.1:0`.
 

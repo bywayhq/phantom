@@ -23,7 +23,6 @@ import os
 import platform
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -61,8 +60,6 @@ PROFILE_PLACEHOLDERS = {
 }
 SPKI_PLACEHOLDER = "<certificate-spki>"
 EXAMPLES = {"tls": "capture_client_hello", "http2": "capture_http2_tls"}
-# Windows reserves these UDP ports on the capture host.
-RESERVED_UDP = range(49841, 50960)
 # The line a capture listener writes to standard error once it has bound.
 LISTENING_LINE = re.compile(rb"^listening on [^\n]*\n", re.MULTILINE)
 
@@ -71,7 +68,7 @@ def launch_arguments(
     layer: str,
     profile: str,
     *,
-    port: int = 0,
+    port: int | str = 0,
     spki: str = "",
     devtools: bool,
     platform: str = sys.platform,
@@ -110,7 +107,7 @@ def launch_arguments(
 
 
 def recorded_arguments(
-    layer: str, *, port: int = 0, devtools: bool, platform: str = sys.platform
+    layer: str, *, port: int | str = 0, devtools: bool, platform: str = sys.platform
 ) -> str:
     """The `launch_arguments` fixture value: space-joined, placeholders kept."""
     return " ".join(
@@ -127,16 +124,6 @@ def recorded_arguments(
 
 def launch_mode(devtools: bool) -> str:
     return "devtools-navigate" if devtools else "command-line"
-
-
-def free_udp_port() -> int:
-    """A loopback UDP port outside the host's reserved range, then released."""
-    while True:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-            probe.bind(("127.0.0.1", 0))
-            port = probe.getsockname()[1]
-        if port not in RESERVED_UDP:
-            return port
 
 
 class Browser:
@@ -291,6 +278,7 @@ def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Liste
 def quic_run(
     args: argparse.Namespace, startup: Path, client_hello: Path, timeout: float
 ) -> bool:
+    from .chrome_http3 import PORT_PLACEHOLDER
     from .http2_session import generate_certificate
 
     devtools = args.navigate == "devtools"
@@ -298,7 +286,6 @@ def quic_run(
     material = Path(tempfile.mkdtemp(prefix="phantom-h3-certificate-"))
     (material / "certificate.pem").write_bytes(certificate.certificate_pem)
     (material / "key.pem").write_bytes(certificate.private_key_pem)
-    port = free_udp_port()
     server = subprocess.Popen(
         [
             sys.executable,
@@ -309,7 +296,7 @@ def quic_run(
             "--private-key",
             str(material / "key.pem"),
             "--listen",
-            f"127.0.0.1:{port}",
+            "127.0.0.1:0",
             "--client",
             args.client,
             "--client-version",
@@ -319,7 +306,7 @@ def quic_run(
             "--launch-mode",
             launch_mode(devtools),
             "--launch-arguments",
-            recorded_arguments("http3", port=port, devtools=devtools),
+            recorded_arguments("http3", port=PORT_PLACEHOLDER, devtools=devtools),
             "--client-hello",
             str(client_hello),
             "--output",
@@ -331,13 +318,15 @@ def quic_run(
         stderr=subprocess.PIPE,
     )
     listening = wait_until_listening(server, args.server_start)
-    if not listening.reported:
+    match = re.search(rb"listening on 127\.0\.0\.1:(\d+)", listening.line)
+    if match is None:
         server.kill()
         _, stderr = server.communicate()
         shutil.rmtree(material, ignore_errors=True)
         stderr = listening.stderr + stderr
         print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
         return False
+    port = int(match.group(1))
     browser = Browser(
         args.browser_path,
         launch_arguments(

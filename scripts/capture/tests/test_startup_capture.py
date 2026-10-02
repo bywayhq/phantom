@@ -8,9 +8,7 @@ from pathlib import Path
 
 from scripts.capture.startup_capture import (
     REMOTE_FLAG,
-    RESERVED_UDP,
     START_URL,
-    free_udp_port,
     launch_arguments,
     launch_mode,
     main,
@@ -109,9 +107,6 @@ class LaunchArgumentTests(unittest.TestCase):
         self.assertIn("--use-mock-keychain", macos)
         self.assertNotIn("--use-mock-keychain", windows)
         self.assertEqual([a for a in macos if a != "--use-mock-keychain"], windows)
-
-    def test_http3_port_is_outside_the_reserved_range(self) -> None:
-        self.assertNotIn(free_udp_port(), RESERVED_UDP)
 
 
 if __name__ == "__main__":

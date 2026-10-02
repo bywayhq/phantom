@@ -871,6 +871,12 @@ lists its retained fixtures and launch commands, and
 what it retains. Pass `--client-hello <path>` to also write the QUIC
 ClientHello.
 
+With `--listen 127.0.0.1:0` the server binds a port the operating system
+chooses, reports it on its `listening on` line, and records it in
+`listen_address` and in place of each `<port>` in `--launch-arguments`.
+On Windows it retries a bind that fails with os error 10055 at a reserved
+port block.
+
 Pass `--output <path>` to write the startup fixture; the tool then writes it
 with LF line endings. Without `--output` the fixture goes to standard output,
 which Python opens in text mode, so on Windows it carries CRLF.
