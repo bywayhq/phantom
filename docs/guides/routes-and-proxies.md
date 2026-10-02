@@ -133,8 +133,8 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
   `ClientBuilder::max_http2_proxy_connections_per_route`.
 - The profile's CONNECT recipe decides what else shares that connection:
   with `chromium::v154_proxy_connect`, forwarded `http://` requests and
-  WebSocket tunnels do too; with `firefox::v156_proxy_connect`, each of the
-  three gets its own connection, as Firefox 156 does. A profile without a
+  WebSocket tunnels do too; with `firefox::v157_proxy_connect`, each of the
+  three gets its own connection, as Firefox 157 does. A profile without a
   recipe shares one connection.
 - Each [session](connections-and-state.md) opens its own proxy connections.
   Routes with other Basic credentials never share one.

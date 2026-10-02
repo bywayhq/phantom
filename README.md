@@ -41,7 +41,7 @@ reproduce the browser's:
 Exceptions to that list:
 
 - Firefox sends no client hints, and its QUIC and HTTP/3 recipes have
-  [known differences](docs/explanation/validation.md#firefox-156-http3-recipe).
+  [known differences](docs/explanation/validation.md#firefox-157-http3-recipe).
 - Edge for Android has no WebSocket opening recipe.
 - Opera for Android has only TLS and client-hint recipes, and Firefox for
   Android only a TLS recipe.

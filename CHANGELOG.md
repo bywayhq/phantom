@@ -41,9 +41,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   connection that resumes a TLS 1.3 ticket permitting early data offers
   `early_data` and sends a safe request without a body or trailers as early
   data; any other request waits for the server's answer. Proxy routes and
-  WebSocket openings never offer it. `firefox::v156_tls`, and so
+  WebSocket openings never offer it. `firefox::v157_tls`, and so
   `firefox_android::v156_tls`, sets it, as Firefox 156 offers early data on
-  every such resumption; every other recipe, and `firefox::v156_http3_tls`,
+  every such resumption; every other recipe, and `firefox::v157_http3_tls`,
   leaves it unset. `TlsSettings::validate` rejects it without
   `session_tickets` or below TLS 1.3
   ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
@@ -53,7 +53,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `Http2HpackSettings` gained the public field
   `sensitive_proxy_authorization` (`Http2SensitiveProxyAuthorization`), so
   struct literals that name every field no longer compile.
-  `chromium::v154_http2` and `firefox::v156_http2` set `FieldIndexing`: on
+  `chromium::v154_http2` and `firefox::v157_http2` set `FieldIndexing`: on
   an HTTP/2 connection to a proxy, a sensitive `proxy-authorization` is now
   a literal with incremental indexing on first use and an index after that,
   as Chrome, Edge, Brave, Opera, and Firefox send it
@@ -68,7 +68,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   literals that name every field no longer compile. `chromium::v154_websocket`
   sets 240 seconds, Chromium's `kHandshakeTimeoutIntervalInSeconds`, and so
   do `chrome_android::v154_websocket` and `brave_android::v153_websocket`,
-  which return it. `firefox::v156_websocket` sets 20 seconds, Firefox's
+  which return it. `firefox::v157_websocket` sets 20 seconds, Firefox's
   `network.websocket.timeout.open` default. `WebSocketSettings::validate`
   rejects `Some(Duration::ZERO)` and a timeout the clock cannot represent.
   A WebSocket opened by a client whose profile has one of these recipes now
@@ -93,7 +93,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `RetryPolicy::with_reused_connection_replay` replays it on a fresh
   connection when the method is idempotent.
   `chromium::v154_http2`, and so every Chromium-family recipe,
-  sets 10 seconds, Chromium's `kHungIntervalSeconds`; `firefox::v156_http2`
+  sets 10 seconds, Chromium's `kHungIntervalSeconds`; `firefox::v157_http2`
   sets `None`. `Http2Settings::validate` rejects a zero timeout, one the
   clock cannot represent, and a timeout without `preface_ping_after`, so
   setting `preface_ping_after` to `None` on a Chromium recipe now also needs
@@ -116,7 +116,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   10 idle seconds now sends that PING. A retained loopback capture of Chrome
   154 shows the PING right after the request HEADERS, before the request's
   DATA, and `scripts/capture/http2_preface_ping.py` records it.
-  `firefox::v156_http2` sets `None`.
+  `firefox::v157_http2` sets `None`.
   Migrate: add `preface_ping_after: None` to an `Http2Settings` literal to
   keep sending no such PING, or copy the field from `chromium::v154_http2`.
 - `Http2StreamSettings` gained the public field `max_concurrent_streams_cap:
@@ -127,7 +127,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `kMaxConcurrentStreamLimit`, so a Chromium-family connection to a peer
   that states more opens at most 256 streams at once;
   `Http2Connection::peer_max_concurrent_streams` reports the capped value.
-  `firefox::v156_http2` sets `None`, as Firefox's `Http2Session` applies the
+  `firefox::v157_http2` sets `None`, as Firefox's `Http2Session` applies the
   stated value unchanged.
   Migrate: add `max_concurrent_streams_cap: None` to an
   `Http2StreamSettings` literal to apply every stated limit unchanged, or
@@ -199,10 +199,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   compile. `first_stream_id` numbers each connection's first request, and
   `assumed_max_concurrent_streams` bounds the streams open before the peer
   states `SETTINGS_MAX_CONCURRENT_STREAMS`, including after SETTINGS that
-  omit it. The recipes change the wire. `firefox::v156_http2` sends each
+  omit it. The recipes change the wire. `firefox::v157_http2` sends each
   connection's first request on stream 3, as every HTTP/2 connection in the
   retained Firefox 156 cookie, WebSocket, and proxy captures does, where
-  Phantom used stream 1. Both `firefox::v156_http2` and
+  Phantom used stream 1. Both `firefox::v157_http2` and
   `chromium::v154_http2` open at most 100 streams until the peer states a
   limit, where Phantom opened any number.
   `Http2Connection::peer_max_concurrent_streams` reports the assumed limit
@@ -210,14 +210,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `streams: Http2StreamSettings::default()` to an
   `Http2Settings` literal to keep stream 1 and no limit before the peer's
   SETTINGS, or copy `streams` from `chromium::v154_http2` or
-  `firefox::v156_http2`.
+  `firefox::v157_http2`.
 - `Http2HpackSettings` gained the public fields `field_indexing`
   (`Http2FieldIndexing`), `name_reference` (`Http2NameReference`),
   `unindexed_match` (`Http2UnindexedMatch`), `indexing_limit`
   (`Http2IndexingLimit`), and `table_size_updates`
   (`Http2TableSizeUpdates`), and `Http2HuffmanCoding` gained
   `AlwaysIncludingEmpty`, so struct literals that name every field no longer
-  compile. The recipes change the wire. `firefox::v156_http2` now answers
+  compile. The recipes change the wire. `firefox::v157_http2` now answers
   every `SETTINGS_HEADER_TABLE_SIZE` with a size update, names a literal
   with the oldest dynamic entry that has its name, sends `:path: /` as a
   literal, never indexes `authorization`, stops indexing above half the
@@ -238,7 +238,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `session_tickets_per_origin: 8` and
   `session_ticket_extension_when_resuming: true` to a `TlsSettings` literal
   to keep the previous behavior, or copy both from `chromium::v154_tls` or
-  `firefox::v156_tls`.
+  `firefox::v157_tls`.
 - `phantom-net` connectors resolve names through a
   `phantom_net::host_resolver::HostResolver`, which holds host overrides, an
   optional `AddressResolver`, and the optional `AddressCache`. On
@@ -257,7 +257,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   type `Http2RejectedConnect`, so struct literals that name every field no
   longer compile. It sets what an HTTP/2 CONNECT sends on a stream the proxy
   rejected: `chromium::v154_proxy_connect` uses `EndStream`, and
-  `firefox::v156_proxy_connect` uses `LeaveOpen`. `HttpsProxyConnector`
+  `firefox::v157_proxy_connect` uses `LeaveOpen`. `HttpsProxyConnector`
   gained `with_http2_rejected_connect` to apply it. (`8627ac1`)
   Migrate: add `http2_rejected: Http2RejectedConnect::EndStream` to a
   `ProxyConnectTemplate` literal to keep the Chromium behavior, or
@@ -267,7 +267,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   field no longer compile. It sets which requests share an HTTP/2
   connection to an HTTPS proxy: `chromium::v154_proxy_connect` uses
   `Shared` (forwarded `http://` requests, CONNECT tunnels, and WebSocket
-  tunnels on one connection), and `firefox::v156_proxy_connect` uses
+  tunnels on one connection), and `firefox::v157_proxy_connect` uses
   `ByPurpose` (a connection for each of the three), as the `https-proxy-*`
   captures show.
   Migrate: add `http2_connections: Http2ProxyConnections::Shared` to a
@@ -284,7 +284,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   (`Http2CookieCrumbs`) and `Http3RequestSettings` gained `cookie_crumbs`
   (`Http3CookieCrumbs`), so struct literals that name every field no longer
   compile. The recipes change the wire: `chromium::v154_http2`,
-  `firefox::v156_http2`, and `chromium::v154_http3_request` send one `cookie`
+  `firefox::v157_http2`, and `chromium::v154_http3_request` send one `cookie`
   field per cookie, at the joined field's position, instead of one joined
   field. Chromium indexes every crumb on HTTP/2 and inserts each into the
   QPACK table on HTTP/3; Firefox sends a crumb under 20 bytes as a
@@ -297,7 +297,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   field, or fill the rest from a recipe with struct update syntax. To keep
   one never-indexed field with a recipe, set `settings.hpack.cookie_crumbs =
   Http2CookieCrumbs::Whole` on the value `chromium::v154_http2` or
-  `firefox::v156_http2` returns, and `cookie_crumbs =
+  `firefox::v157_http2` returns, and `cookie_crumbs =
   Http3CookieCrumbs::Whole` on `chromium::v154_http3_request`.
 - `TlsSettings` gained the public field `ech_from_https_records`, so struct
   literals that name every field no longer compile. `chromium::v154_tls`
@@ -589,7 +589,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `scripts/capture/hooks-requirements.txt`. The logs live under
   `fixtures/socket-hooks/`, and each names the agent by its SHA-256.
 - `ClientHelloExtension::EarlyData` places the `early_data` extension in a
-  fixed extension order; `firefox::v156_tls` lists it between `KeyShare` and
+  fixed extension order; `firefox::v157_tls` lists it between `KeyShare` and
   `SupportedVersions`.
 - `Http1Connection::early_data_pending`, `early_data_answered`,
   `early_data_alpn_changed`, and `early_data_failure`, and the same on
@@ -655,12 +655,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and any answer from the server, `101` and `2xx` included, are returned at
   once. It is off by default; browsers do not retry an opening.
 - Firefox 156 HTTP/3 recipes from Firefox 156.0.1 captures on Windows 11:
-  `firefox::v156_http3_tls`, `v156_quic`, `v156_http3`, and
-  `v156_http3_request`, and an HTTP/3 list in the Firefox navigation and
+  `firefox::v157_http3_tls`, `v157_quic`, `v157_http3`, and
+  `v157_http3_request`, and an HTTP/3 list in the Firefox navigation and
   `fetch` templates. The QUIC transport parameters, their order and
   encodings, the SETTINGS frame and the reserved frame after it, the QPACK
   stream order and encoding, and the request field order match the captures;
-  [Validation](docs/explanation/validation.md#firefox-156-http3-recipe)
+  [Validation](docs/explanation/validation.md#firefox-157-http3-recipe)
   lists the remaining differences.
 - QUIC version 2 (RFC 9369). A profile whose `version_information` lists two
   available versions offers v2 and v1, follows a server that moves the
@@ -836,7 +836,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   is no Android TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
   cookie-placement recipe.
 - `firefox_android::v156_tls`, from Firefox 156.0.1 on the same emulator. It
-  returns `firefox::v156_tls`, which its ClientHellos equal.
+  returns `firefox::v157_tls`, which its ClientHellos equal.
 - Opera for Android recipes in `opera_android`, from Opera 102.1.5206.90382
   (Chromium 152) on the same emulator: `v102_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, and `v102_android_client_hints(model)`. Opera for
@@ -908,7 +908,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `phantom_profile::DnsCacheSettings` (`max_entries`, `ttl`, `negative_ttl`),
   `ClientProfile::with_dns_cache` and `ClientProfile::dns_cache`, the recipes
   `chromium::v154_dns_cache` (1,000 names, answers for 60 seconds, failures
-  not kept) and `firefox::v156_dns_cache` (1,600 names, answers and failures
+  not kept) and `firefox::v157_dns_cache` (1,600 names, answers and failures
   for 60 seconds) from browser source, `ClientBuilder::dns_cache`,
   `ClientBuilder::no_dns_cache`, and `Client::clear_dns_cache`. Concurrent
   connections to one host share one lookup, run on the starting runtime's
@@ -934,7 +934,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `InvalidProxyConnectTemplate`: the ordered fields of the CONNECT request
   that opens an HTTP proxy tunnel, per proxy transport, for a route that sets
   none of its own. `chromium::v154_proxy_connect` (Chrome 154 and Edge 153)
-  and `firefox::v156_proxy_connect` carry the captured fields, with the
+  and `firefox::v157_proxy_connect` carry the captured fields, with the
   tunnelled request's `User-Agent`. A `ProxyConnectField::FromRequest`
   entry keeps the copied field's sensitive marking and cannot name
   `Authorization`, `Cookie`, `Cookie2`, or `Proxy-Authorization`.
@@ -1049,7 +1049,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Parallel HTTP/1.1 connections: `Http1Settings`, set through
   `ClientProfile::with_http1`, bounds the HTTP/1.1 connections to each
   origin and route, idle ones included. `chromium::v154_http1` and
-  `firefox::v156_http1` allow 6, from browser source, and
+  `firefox::v157_http1` allow 6, from browser source, and
   `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
   profile's value. A profile without `Http1Settings` keeps one connection,
   as before. (`8f012ec`, `b23067e`)
@@ -1241,7 +1241,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   154, and Opera 135 recipes keep at most two tickets per origin, the newest
   two, instead of eight, as the browsers did in the resumption captures; a
   client whose server issues many tickets resumes fewer connections before a
-  full handshake. A resumed ClientHello from `firefox::v156_tls` omits the
+  full handshake. A resumed ClientHello from `firefox::v157_tls` omits the
   empty `session_ticket` extension, as Firefox 156 does, and the recipe
   keeps up to eight tickets per origin. Fresh ClientHellos are unchanged.
 - Wire and performance: through an HTTP/2 proxy, the client opens CONNECT
@@ -1353,7 +1353,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Wire and performance change for negotiated requests (`get_negotiated`,
   `request_negotiated`) from a profile with `Http1Settings`, such as
-  `chromium::v154_http1` or `firefox::v156_http1`. When ALPN selects
+  `chromium::v154_http1` or `firefox::v157_http1`. When ALPN selects
   HTTP/1.1, concurrent requests to one origin and route now open up to the
   profile's bound of connections, each with its own TLS handshake (and its
   own CONNECT tunnel on an HTTP proxy route), instead of waiting for one
@@ -1416,7 +1416,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   them. Content decoding follows the `Accept-Encoding` of the final redirect
   hop.
 - Wire change for WebSocket openings from `chromium::v154_websocket` and
-  `firefox::v156_websocket`. The recipes now send `Accept-Encoding`
+  `firefox::v157_websocket`. The recipes now send `Accept-Encoding`
   themselves: `gzip, deflate, br, zstd` to a `wss://` or loopback `ws://`
   URL, and `gzip, deflate` to any other `ws://` URL, where before the field
   was left to the caller. Firefox's recipe sends `Sec-Fetch-Dest`,
@@ -1458,7 +1458,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   ceiling when the profile advertises none, and HTTP/3 caps decoded field
   sections at 256 KiB. The SETTINGS the client sends are unchanged.
   (`e51b9cc`, `f56d3a3`, `0b0367e`, `bf61599`, `e2d1778`)
-- `chromium::v154_http2` and `firefox::v156_http2` set their browser's HPACK
+- `chromium::v154_http2` and `firefox::v157_http2` set their browser's HPACK
   encoder choices, so WebSocket CONNECT matches the captures' HPACK
   representations. The choices apply to every request on the connection, not
   only CONNECT, so ordinary requests can encode differently too; on Firefox

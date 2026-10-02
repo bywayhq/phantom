@@ -24,13 +24,13 @@ use phantom::profile::{
 };
 
 fn profiles() -> [ClientProfile; 5] {
-    // Firefox 156: TLS, HTTP/2, and cookie-field recipes, plus its
+    // Firefox 157: TLS, HTTP/2, and cookie-field recipes, plus its
     // source-derived TCP options and HTTP/1.1 connection count.
-    let firefox = ClientProfile::new(firefox::v156_tls())
-        .with_tcp(firefox::v156_tcp())
-        .with_http1(firefox::v156_http1())
-        .with_http2(firefox::v156_http2())
-        .with_cookie_placement(firefox::v156_cookie_placement());
+    let firefox = ClientProfile::new(firefox::v157_tls())
+        .with_tcp(firefox::v157_tcp())
+        .with_http1(firefox::v157_http1())
+        .with_http2(firefox::v157_http2())
+        .with_cookie_placement(firefox::v157_cookie_placement());
 
     // Edge 154: its own TLS and client hints; Chromium TCP, HTTP/1.1,
     // address cache, H2, QUIC, and H3 recipes.
@@ -101,7 +101,7 @@ fn profiles() -> [ClientProfile; 5] {
 - A request fails before any network I/O if the profile lacks a component it
   needs, such as HTTP/3 settings for an H3 request.
 - `with_http1` sets how many H1 connections the client keeps to each origin
-  and route. `chromium::v154_http1` and `firefox::v156_http1` allow 6, from
+  and route. `chromium::v154_http1` and `firefox::v157_http1` allow 6, from
   browser source, and the Chromium one also serves Brave; without
   `with_http1` the client keeps one
   ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).

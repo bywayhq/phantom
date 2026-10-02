@@ -20,7 +20,7 @@ to your code.
 | `max_retained_http{1,2,3}_connections` | Reuse across many origins | Fewer new handshakes | 32 pool entries |
 | `max_http2_connections_per_origin` | H2 past the peer's stream limit | Several H2 connections to one origin | 1, as browsers |
 | `max_http3_connections_per_origin` | H3 past the server's stream limit | Several QUIC connections to one origin | 1, as browsers |
-| `negotiated_setup_wait_limit` | Requests behind a stalled handshake | A second TLS handshake to an H2 origin | No limit, as Firefox 156 |
+| `negotiated_setup_wait_limit` | Requests behind a stalled handshake | A second TLS handshake to an H2 origin | No limit, as Firefox 157 |
 | `alt_svc_policy` race, `with_alternative_setup_limit` | First request to an H3 origin | Parallel QUIC and TCP setup; when QUIC setup stops | Sequential; 4 s limit, as Chrome 153 |
 | `http3_early_data` | First request on a resumed H3 connection | 0-RTT data | The profile's QUIC `early_data` |
 | `https_record_discovery` | H3 without a prior Alt-Svc response | HTTPS queries to your DNS resolver | Off |
@@ -107,7 +107,7 @@ use phantom::Client;
 fn bounded_wait_client() -> Result<Client, Box<dyn std::error::Error>> {
     let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
     Ok(Client::builder(profile)
-        // Chromium 154's value; Firefox 156 waits without a limit.
+        // Chromium 154's value; Firefox 157 waits without a limit.
         .negotiated_setup_wait_limit(Duration::from_millis(300))
         .build()?)
 }

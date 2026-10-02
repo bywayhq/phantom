@@ -239,10 +239,10 @@ delta and its regression tests.
 ## Reserved frame after SETTINGS
 
 Firefox's HTTP/3 stack, neqo, writes one reserved frame on its control
-stream directly after SETTINGS. Firefox 156.0.1 vendors neqo 0.30.1, where
+stream directly after SETTINGS. Firefox 157.0 vendors neqo 0.31.1, where
 `Http3Connection::send_settings` queues it (`neqo-http3/src/connection.rs`,
-lines 365 to 371) and `HFrame::Grease` encodes it
-(`neqo-http3/src/frames/hframe.rs`, lines 101 to 105 and 146 to 150). Its type is `0x1f * N + 0x21` with `N` a
+lines 366 to 372) and `HFrame::Grease` encodes it
+(`neqo-http3/src/frames/hframe.rs`, lines 97 to 101 and 124 to 128). Its type is `0x1f * N + 0x21` with `N` a
 random 64-bit value shifted right by 7, and its payload is zero to seven
 random bytes. Upstream h3 can send a reserved frame only as part of
 `send_grease`, which also adds a reserved setting, a reserved stream, and
@@ -263,8 +263,8 @@ delta.
 
 The stateful request encoder inserts every field without an exact static
 match, with a name reference when one exists, and chooses Huffman coding on
-the encoder stream only when it is shorter. neqo 0.30.1, the version
-Firefox 156.0.1 vendors, encodes differently (`Encoder::encode_header_block`
+the encoder stream only when it is shorter. neqo 0.31.1, the version
+Firefox 157.0 vendors, encodes differently (`Encoder::encode_header_block`
 in `neqo-qpack/src/encoder.rs`, lines 404 to 513, and `HeaderTable::lookup`
 in `neqo-qpack/src/table.rs`, lines 231 to 261).
 In one pass over the fields it uses, in this order, an exact static match,

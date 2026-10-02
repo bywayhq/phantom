@@ -70,7 +70,7 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
   frames never are.
 - Empty messages are compressed with RSV1 set by default, as Chrome 154 and
   Edge 154 do. `compress_empty_messages(false)` sends them uncompressed, as
-  Firefox 156 does. `PerMessageDeflate::from_profile` takes the offer and
+  Firefox 157 does. `PerMessageDeflate::from_profile` takes the offer and
   this rule from a recipe.
 
 ## Limits

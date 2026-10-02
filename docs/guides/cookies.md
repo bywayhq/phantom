@@ -96,9 +96,9 @@ the field among your fields or a
 | Recipe | Goes before |
 | --- | --- |
 | `chromium::v154_cookie_placement` | `priority` |
-| `firefox::v156_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` |
+| `firefox::v157_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` |
 
-- These positions match Chrome 154, Edge 153, and Firefox 156 captures of a
+- These positions match Chrome 154, Edge 153, and Firefox 157 captures of a
   navigation and a `fetch()` with cookies over H1, H2, and H3
   ([Coverage](../reference/coverage.md#browser-profiles)).
 - On H2 and H3 the recipes split the field into one field per cookie at that

@@ -16,7 +16,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 
 - One-line git or path dependency with no `[patch]` table
   ([Adding Phantom to a project](guides/downstream.md)).
-- Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 156 recipes from
+- Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 recipes from
   retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
@@ -49,7 +49,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Early data over TCP in the Firefox recipe: a resumed direct connection
-  offers `early_data` where Firefox 156 does, sends replay-safe requests in
+  offers `early_data` where Firefox 157 does, sends replay-safe requests in
   it, sends them again on the same connection after a rejection, and restarts
   them without early data when the server then picks another ALPN protocol
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
@@ -108,7 +108,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   recipe's byte for byte
   ([HPACK encoder evidence](explanation/validation.md#hpack-encoder-evidence)).
 - Per-browser HTTP/2 stream numbering and the stream limit before SETTINGS:
-  Firefox 156 starts each connection at stream 3 and Chromium at 1, and both
+  Firefox 157 starts each connection at stream 3 and Chromium at 1, and both
   open at most 100 streams until the peer states a limit
   ([HTTP/2 stream numbering evidence](explanation/validation.md#http2-stream-numbering-evidence)).
 - Chrome 154's trust-anchor ID order: one ascending list in every browser
@@ -125,10 +125,10 @@ anything does.
 
 #### Browser recipes
 
-- Firefox HTTP/3 beyond the recipe. Delivered: `firefox::v156_http3_tls`,
-  `v156_quic`, `v156_http3`, and `v156_http3_request` from Firefox 156.0.1
+- Firefox HTTP/3 beyond the recipe. Delivered: `firefox::v157_http3_tls`,
+  `v157_quic`, `v157_http3`, and `v157_http3_request` from Firefox 157.0
   captures, with QUIC v2 and compatible version negotiation
-  ([Validation](explanation/validation.md#firefox-156-http3-recipe)).
+  ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
   Remaining: the QUIC ClientHello's fixed tail of `quic_transport_parameters`
   and `encrypted_client_hello`, and its `record_size_limit`,
   `extended_master_secret`, and `renegotiation_info` extensions; the
@@ -145,15 +145,17 @@ anything does.
   idle-only TCP keepalive, known from Chromium source but not captured; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
-- macOS Firefox at 156.0.1. Evidence: the macOS Firefox fixtures and the
-  `v156_macos_*` templates come from Firefox 156.0, while every Windows
-  Firefox capture is from 156.0.1. Blocker: none; update the Mac's Firefox
+- macOS Firefox at 157.0. Evidence: the macOS Firefox fixtures and the
+  `v156_macos_*` templates come from Firefox 156.0, while the Windows
+  Firefox captures are from 157.0. Blocker: none; update the Mac's Firefox
   and capture the navigation, TLS, and WebSocket sets under
   `fixtures/*/firefox/156.0/macos-15.5-arm64` again.
-- Firefox EventSource reconnects on a quiet host. Evidence: in the 17
-  Firefox 156.0.1 scenarios under `fixtures/sse/`, captured while builds
-  loaded the host, the first reconnect's median came up to 316 ms late, so
-  the replay test allows Firefox's first reconnect 350 ms instead of 30 ms
+- Firefox EventSource reconnects at 157.0 on a quiet host. Evidence: the 17
+  Firefox scenarios under `fixtures/sse/` are still Firefox 156.0.1's, the
+  one Windows Firefox layer not yet recaptured at 157.0. They were captured
+  while builds loaded the host, and the first reconnect's median came up to
+  316 ms late, so the replay test allows Firefox's first reconnect 350 ms
+  instead of 30 ms
   ([SSE browser reconnect evidence](explanation/validation.md#sse-browser-reconnect-evidence)).
   Blocker: a capture run with no builds loading the machine.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
@@ -202,18 +204,18 @@ anything does.
   cache that honors them, are needed.
 - The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
-  where every Firefox 156 resumption sends a 368-byte payload against 240
+  where every Firefox 156.0.1 and 157.0 resumption sends a 368-byte payload against 240
   bytes on a fresh connection; the recipe sends 240 bytes on both. NSS sizes
   the GREASE payload from the ClientHello it has built, `pre_shared_key`
   included: `tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`,
-  called from `ssl3con.c:5890` at tag `FIREFOX_156_0_RELEASE`) encodes an
+  called from `ssl3con.c:5889` at tag `FIREFOX_157_0_RELEASE`) encodes an
   inner ClientHello from the outer extensions and pads it with
   `tls13_PadChInner` to the `security.tls.ech.grease_size` name target
   (100) and a multiple of 32 bytes. Blocker: a fixed recipe length cannot
   follow a ticket's size; modelling that rule needs a ClientHello-dependent
   length in the TLS backend.
 - Early data on Firefox-profile WebSocket openings and on connections that
-  offer ECH from HTTPS records. Evidence: Firefox 156 disables TCP early data
+  offer ECH from HTTPS records. Evidence: Firefox 157 disables TCP early data
   only on proxy connections and origins that failed before
   (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`); no capture resumed a
   WebSocket opening. Phantom offers no early data on either.
@@ -232,7 +234,7 @@ anything does.
   unprocessed, which the unprocessed-replay policy does not cover.
 - Firefox's read-timeout `PING`. Evidence: source only; `Http2Session`
   sends a `PING` after `network.http.http2.ping-threshold`, 58 seconds,
-  without a read (`Http2Session.cpp:436-503` at `FIREFOX_156_0_RELEASE`).
+  without a read (`Http2Session.cpp:436-503` at `FIREFOX_157_0_RELEASE`).
   Blocker: a capture showing whether an idle pooled Firefox connection
   receives the timer tick.
 - Revalidation with `If-None-Match` or `If-Modified-Since` and `304`

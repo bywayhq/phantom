@@ -54,7 +54,7 @@ async fn open_h2(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 - H2 accepts `wss://` only.
 - The HTTP/2 settings must set `extended_connect_pseudo_header_order`, as
-  `chromium::v154_http2` and `firefox::v156_http2` do.
+  `chromium::v154_http2` and `firefox::v157_http2` do.
 - If the server does not enable `SETTINGS_ENABLE_CONNECT_PROTOCOL`, `connect`
   fails with a typed H2 error before sending CONNECT. There is no H1 retry.
 
@@ -126,7 +126,7 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
 ```
 
 - A WebSocket recipe carries its browser's own timer: 240 seconds in
-  `chromium::v154_websocket` and 20 seconds in `firefox::v156_websocket`
+  `chromium::v154_websocket` and 20 seconds in `firefox::v157_websocket`
   ([evidence](../explanation/validation.md#websocket-handshake-timer-evidence)).
   It applies to every connect unless you set another value;
   `handshake_timeout(None)` removes it. Without a recipe there is no limit.

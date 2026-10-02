@@ -70,10 +70,10 @@ Here are the first two frames Chrome 154 sent on Windows 11, from
   00ef0001                increment              = 15663105
 ```
 
-Firefox 156 on the same machine sent a different set of settings and values
-(from `fixtures/websocket/firefox/156.0.1/windows-11-26200/accept.txt`):
+Firefox 157 on the same machine sent a different set of settings and values
+(from `fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt`):
 
-| | Chrome 154 | Firefox 156 |
+| | Chrome 154 | Firefox 157 |
 | --- | --- | --- |
 | Settings sent, in order | 1, 2, 4, 6 | 1, 2, 4, 5 |
 | `INITIAL_WINDOW_SIZE` | 6291456 | 131072 |
@@ -103,7 +103,7 @@ Accept-Language
 
 HTTP/2 and HTTP/3 add pseudo-header fields (`:method`, `:authority`,
 `:scheme`, `:path`) before the others, and their order differs too. Chrome
-sends `:method`, `:authority`, `:scheme`, `:path`; Firefox 156 sends
+sends `:method`, `:authority`, `:scheme`, `:path`; Firefox 157 sends
 `:method`, `:path`, `:authority`, `:scheme`.
 
 This is why copying a browser's headers into another client is not enough.

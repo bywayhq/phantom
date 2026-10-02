@@ -77,7 +77,7 @@ error names `TimeoutPhase::WebSocketHandshake`
 - An H1 connection carries one request at a time, so an H1 entry keeps up to
   its active bound of connections, idle ones included. A request reuses the
   most recently used idle connection before it opens another. The
-  `chromium::v154_http1` and `firefox::v156_http1` recipes set 6, the
+  `chromium::v154_http1` and `firefox::v157_http1` recipes set 6, the
   browsers' per-host limit; a profile without `Http1Settings` keeps one
   connection.
 - The negotiated H1/H2 pool applies the same bound to each pool key.
@@ -133,9 +133,9 @@ closes, or sends; the last column says which.
 | Request phase and total timeouts | None | Phantom | `RequestTimeouts` | Yes: reset or closed connection |
 | Connection-setup retry delay | No retries | Phantom | `RetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Status retry delay, `Retry-After` cap | No retries | Phantom | `StatusRetry` | Yes: timing of the repeat |
-| WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 156 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection, or a stream reset on a pooled H2 session |
+| WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 157 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection, or a stream reset on a pooled H2 session |
 | WebSocket setup retry delay | No retries | Phantom | `WebSocketRetryPolicy::connection_failures` | Yes: timing of the new connection |
-| Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 156; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
+| Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 157; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
 | Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
 | Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
 | Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
@@ -176,13 +176,13 @@ order and the differences from Chromium.
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
 | Origins with a cached HTTPS DNS record result, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
 | Lifetime of an HTTPS DNS record result | Lowest answer TTL, at most 1 day; a negative answer's SOA TTL; 60 seconds with no TTL or after a failed lookup |
-| TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets_per_origin`: 2 in the Chromium-family recipes, 8 in `firefox::v156_tls`; at most 8; oldest evicted |
+| TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets_per_origin`: 2 in the Chromium-family recipes, 8 in `firefox::v157_tls`; at most 8; oldest evicted |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
-| Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v156_dns_cache`; an expired name, then the one that expires soonest, evicted |
+| Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
 | Lifetime of cached addresses | `DnsCacheSettings::ttl`: 60 seconds in both recipes |
-| Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v156_dns_cache` |
+| Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
@@ -234,7 +234,7 @@ value, and applies to every profile.
 | Outbound write buffer | Message limit plus 128 KiB plus 14 bytes | Follows the message limit |
 | `permessage-deflate` client window | 15 bits | `PerMessageDeflate::client_max_window_bits` |
 | `permessage-deflate` compression level | 6 | `PerMessageDeflate::compression_level` |
-| Opening handshake time | 240 seconds in `chromium::v154_websocket`, 20 seconds in `firefox::v156_websocket`, none without a recipe | `WebSocketRequestBuilder::handshake_timeout` |
+| Opening handshake time | 240 seconds in `chromium::v154_websocket`, 20 seconds in `firefox::v157_websocket`, none without a recipe | `WebSocketRequestBuilder::handshake_timeout` |
 | Setup retries per connect | None | `WebSocketRetryPolicy::connection_failures` |
 
 - The frame count includes the first text or binary frame and every

@@ -74,7 +74,7 @@ capability, and exposes one safe pre-handshake attachment method that rejects
 any identity mismatch. Session construction remains private to the real
 new-session callback pair.
 
-Firefox 156 sends early data over TCP when it resumes with a ticket that
+Firefox 157 sends early data over TCP when it resumes with a ticket that
 permits it. The upstream wrapper exposes none of BoringSSL's client early-data
 calls, and the scoped-session wrapper strips the capability from every
 session. The early-data patch lets a connector opt in to keeping that

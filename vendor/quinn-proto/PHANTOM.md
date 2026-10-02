@@ -179,7 +179,7 @@ a rustls session that handshakes in v2 and protects its first flight with
 v1 Initial keys, because a rustls session cannot change version; the test
 re-protects that flight as v2 for a v2-only server. Phantom's BoringSSL
 provider, which can switch, is checked in the workspace test
-`firefox_156_client_follows_a_server_to_version_2` of `phantom-net`, where
+`firefox_157_client_follows_a_server_to_version_2` of `phantom-net`, where
 a relay re-protects its v1 Initials for a v2-only Quinn server, and against
 aioquic on loopback.
 

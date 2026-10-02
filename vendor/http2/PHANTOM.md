@@ -325,7 +325,7 @@ way but that are visible on the wire, and the retained WebSocket captures under
 
 - Whether a field is inserted into the dynamic table. Chrome 154 and Edge 153
   send `:method: CONNECT` and `:protocol: websocket` as literals without
-  indexing on every run; Firefox 156 indexes both incrementally.
+  indexing on every run; Firefox 157 indexes both incrementally.
 - Which entry names a field whose name appears twice in the static table.
   Chrome and Edge name `:method` with entry 2 and `:path` with entry 4;
   Firefox names them with entries 3 and 5, on every request rather than only
@@ -376,7 +376,7 @@ encoders splitting it, with different rules:
   is quiche `HpackEncoder::CookieToCrumbs`, which trims spaces and tabs at
   both ends, splits at every `;`, and skips one space after it, followed by
   its default indexing policy, which indexes every ordinary field.
-- Firefox 156 sends a crumb shorter than 20 bytes as a never-indexed literal
+- Firefox 157 sends a crumb shorter than 20 bytes as a never-indexed literal
   and indexes a longer one; the captures straddle the boundary with crumbs
   of 19 and 20 bytes. `Http2Compressor::EncodeHeaderBlock` splits at every
   `"; "` and passes `neverIndex` for a crumb shorter than 20 bytes.
@@ -421,7 +421,7 @@ those rules rest on source.
 
 The rules come from the browsers' encoders:
 
-- Firefox 156 (`Http2Compressor::ProcessHeader` and `EncodeHeaderBlock`,
+- Firefox 157 (`Http2Compressor::ProcessHeader` and `EncodeHeaderBlock`,
   mozilla-central `4d5216592535`) scans the static table and then the dynamic
   table from newest to oldest. The first entry that matches name and value is
   sent as an index; otherwise a literal names the last entry with the name,
@@ -507,7 +507,7 @@ A caller marks a credential sensitive so that the encoder sends it as a
 never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
 `Debug` output hides it. Neither browser treats `proxy-authorization` that
 way. The retained `https-proxy-auth-*` captures under `fixtures/proxy/` show
-Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 sending it on an
+Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 157 sending it on an
 HTTP/2 proxy connection as a literal with incremental indexing on static name
 49 the first time, and as the dynamic entry's index after that, on CONNECT
 and forwarded requests alike.
@@ -521,13 +521,13 @@ and forwarded requests alike.
   `authorization` and for a cookie crumb under 20 bytes, and CONNECT
   requests take the same path.
 
-Sources, at quiche `80bf9559d3a4` and tag `FIREFOX_156_0_RELEASE`:
+Sources, at quiche `80bf9559d3a4` and tag `FIREFOX_157_0_RELEASE`:
 
 - <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L72-L83>
 - <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L140-L160>
 - <https://github.com/google/quiche/blob/80bf9559d3a4c08dde4b85abc46d190a88ffef64/quiche/http2/hpack/hpack_encoder.cc#L181-L195>
-- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1066-L1070>
-- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1157-L1161>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1066-L1070>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Compression.cpp#L1157-L1161>
 
 `sensitive-proxy-authorization.patch` adds
 `http2::ext::SensitiveProxyAuthorization` and
@@ -559,7 +559,7 @@ proxy sessions through the browser recipes, which set `FieldRule`.
 Upstream's client builder already sets the first stream ID
 (`Builder::initial_stream_id`, under the `unstable` feature) and the number
 of streams opened before the peer's SETTINGS arrive
-(`Builder::initial_max_send_streams`). Phantom uses both: Firefox 156 starts
+(`Builder::initial_max_send_streams`). Phantom uses both: Firefox 157 starts
 each connection at stream 3, and both Chromium and Firefox open at most 100
 streams until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS`.
 
@@ -605,8 +605,8 @@ capped, and nothing on the wire changes. The default, `usize::MAX`, applies
 every stated value unchanged, and servers never set it.
 Firefox's `Http2Session` has no such cap: it applies the stated value as is
 (`netwerk/protocol/http/Http2Session.cpp:1877-1878` at tag
-`FIREFOX_156_0_RELEASE`,
-<https://github.com/mozilla-firefox/firefox/blob/FIREFOX_156_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L1877-L1878>).
+`FIREFOX_157_0_RELEASE`,
+<https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L1877-L1878>).
 The patch changes `src/client.rs`, `src/server.rs`, `src/proto/connection.rs`,
 and `src/proto/streams/{counts,mod}.rs`. Its regressions in
 `src/client/tests.rs` cap at 2 a peer that states 1,000: two requests open,

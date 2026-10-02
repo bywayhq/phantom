@@ -20,7 +20,7 @@ presented as a complete client match.
 | Edge 154 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 136 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Firefox 156 | Browser source, partial | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Not sent by Firefox | Captured, 156.0.1 | Captured, 156.0.1 |
+| Firefox 157 | Browser source, partial | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Not sent by Firefox | Captured, 157.0 | Captured, 157.0 |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
@@ -37,7 +37,7 @@ presented as a complete client match.
   the Chromium recipe, so the browser uses `chromium::v154_tcp` (see
   [Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
 - **Not covered**: no recipe exists, and none is claimed.
-- **Captured, 156.0.1**: the build of Firefox's Windows captures. Its macOS
+- **Captured, 157.0**: the build of Firefox's Windows captures. Its macOS
   captures, which also back the TLS, H2, request template, and WebSocket
   cells, are from 156.0.
 
@@ -133,7 +133,7 @@ Supported:
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
 - The recipes `chromium::v154_tcp` (Windows and Linux) and
-  `firefox::v156_tcp` (`TCP_NODELAY` only, attempts in resolver order), both
+  `firefox::v157_tcp` (`TCP_NODELAY` only, attempts in resolver order), both
   taken from browser source. See
   [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
 
@@ -169,7 +169,7 @@ Supported:
   [origin](glossary.md#origin) and route. Each keeps the recipe's
   `session_tickets_per_origin` (2 for the Chromium family, 8 for Firefox),
   presents the newest first, and uses each TLS 1.3 ticket once. A resumed
-  Firefox-profile ClientHello omits `session_ticket`, as Firefox 156 does
+  Firefox-profile ClientHello omits `session_ticket`, as Firefox 157 does
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Early data over TCP with the Firefox recipe (`TlsSettings::tcp_early_data`).
   A direct H1 or H2 connection that resumes a ticket permitting it offers
@@ -202,7 +202,7 @@ Supported:
   ones included, and runs one request on each. A request reuses the most
   recently used idle connection before it opens another, and waits in
   arrival order, up to a bounded number of waiters, once the bound is
-  reached. The Chrome 154 and Firefox 156 recipes set the browsers'
+  reached. The Chrome 154 and Firefox 157 recipes set the browsers'
   per-host limit of 6, from browser source; Edge and Opera use the Chromium
   one, which their hook logs show. A profile without
   `Http1Settings` keeps one connection. Negotiated requests that select H1
@@ -363,8 +363,6 @@ Known gaps:
   SETTINGS. Phantom's new session encodes from the server's SETTINGS, and
   keeps a connection open whose server lowered a remembered limit, which
   Chromium closes.
-- No H3 recipe exists for Firefox, whose resumed connections switch to QUIC
-  v2, which Phantom does not implement.
 
 Planned:
 
@@ -577,7 +575,7 @@ Supported:
   `socks5://` targets. It is bounded, keeps each answer for a fixed time and
   failures optionally, shares one lookup between concurrent connections, and
   keeps the resolver's address order. The recipes `chromium::v154_dns_cache`
-  and `firefox::v156_dns_cache` come from browser source. Proxy-resolved
+  and `firefox::v157_dns_cache` come from browser source. Proxy-resolved
   targets never reach it. See
   [Address cache evidence](../explanation/validation.md#address-cache-evidence).
 - Caller host-to-address overrides and a caller-supplied async address
@@ -611,7 +609,7 @@ Supported:
     origin or an `http://` loopback, `localhost`, or `.localhost`
     origin;
   - places the `Cookie` field where the profile's `CookiePlacement` puts it,
-    with Chrome 154 and Firefox 156 recipes; and
+    with Chrome 154 and Firefox 157 recipes; and
   - export and import of snapshots by the caller (every attribute, the
     partition key, the setting scheme, and expiry in whole seconds; session
     cookies included). Import revalidates each entry as the `Set-Cookie`
@@ -686,21 +684,21 @@ Supported WebSocket (`websocket` feature):
   The peer capability gate applies, with no route or H1 fallback.
 - `ws://` through an HTTP proxy as a CONNECT tunnel (HTTP/1.1 transport) or
   CONNECT stream (HTTP/2 transport) with the direct Upgrade inside, as Chrome
-  154, Edge 154, and Firefox 156 send it.
+  154, Edge 154, and Firefox 157 send it.
 - Ordered, customizable handshakes, and Basic authentication to an HTTP
   proxy when it sends a challenge to the CONNECT.
 - Typed opt-in `permessage-deflate` (`websocket-deflate` feature), including
   the per-profile empty-message rule: Chrome 154 and Edge 154 compress a
-  zero-length message and set RSV1, Firefox 156 sends it with RSV1 clear.
+  zero-length message and set RSV1, Firefox 157 sends it with RSV1 clear.
 - Client cookies, bounded messages, `Stream`/`Sink`, and strict response
   validation for each protocol.
 - A profile WebSocket connection policy with Chrome 154/Edge 154 and Firefox
-  156 recipes. Depending on the recipe, it reuses a capable H2 session or
+  157 recipes. Depending on the recipe, it reuses a capable H2 session or
   opens either an `http/1.1`-only Upgrade connection or a new H2 connection.
   It uses the captured CONNECT pseudo-header order, priority, field templates,
   and deflate offers. A recipe also carries what its client does when the peer
   refuses the CONNECT stream: Chrome 154 and Edge 154 reopen once on the same
-  session, Firefox 156 reopens nothing. See
+  session, Firefox 157 reopens nothing. See
   [Profile connection policy](websocket.md#profile-connection-policy).
 
 Planned or not captured:
@@ -755,12 +753,12 @@ Supported HTTP proxies:
   their own trust settings, including one bounded Basic retry after a challenge
   and credentials on the first CONNECT once the proxy has accepted them.
 - CONNECT fields from the profile, on both proxy transports, in the order
-  Chrome 154, Edge 154, and Firefox 156 send them, with the tunnelled
+  Chrome 154, Edge 154, and Firefox 157 send them, with the tunnelled
   request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
   (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
   proxy connection per session, proxy, and set of credentials, as Chrome
-  154, Edge 154, and Firefox 156 open them. A tunnel past the proxy's
+  154, Edge 154, and Firefox 157 open them. A tunnel past the proxy's
   `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection, as in the
   browsers; after the proxy's `GOAWAY` or close, the next tunnel opens a new
   one. `ClientBuilder::max_http2_proxy_connections_per_route` opts into
@@ -768,10 +766,10 @@ Supported HTTP proxies:
   ALPN is offered unchanged, and a selection mismatch is a typed error with
   no fallback. A Basic `407` is answered with one replay on a new
   stream of the challenged connection, as Chrome 154, Edge 154, and Firefox
-  156 do.
+  157 do.
 - `http://` requests forwarded over such an HTTP/2 proxy with `:scheme`
   `http`, in the profile's pseudo-header order, as Chrome 154, Edge 154, and
-  Firefox 156 send them. Forwarded requests share one proxy connection; with
+  Firefox 157 send them. Forwarded requests share one proxy connection; with
   the Chromium recipe, CONNECT and WebSocket tunnels share it too, and with
   the Firefox recipe each of the three has its own, as in the captures.
   Exact H2 and negotiated requests use it, and a Basic `407` is answered with
@@ -879,7 +877,7 @@ shares component data with a capture from another platform:
 
 - Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37, and 154.0.4258.48
   for client hints), Brave 154 (154.1.96.59), Opera 136 (136.0.6008.52), and
-  Firefox 156 (156.0.1) recipes come from Windows 11 captures. The `macos`
+  Firefox 157 (157.0) recipes come from Windows 11 captures. The `macos`
   client-hint and template recipes of Chrome, Edge, Opera, and Firefox come
   from macOS 15.5 captures on Apple silicon, at the Windows builds except
   Edge (154.0.4258.37), Opera (135.0.5973.92), and Firefox (156.0). Single
@@ -932,7 +930,7 @@ How the recipes differ:
   `v136_windows_client_hints`, `v135_macos_client_hints` from the Mac's
   Opera 135, and its request templates, which equal the Chromium templates
   apart from `User-Agent`.
-- `firefox_android::v156_tls` returns `firefox::v156_tls`, which the Android
+- `firefox_android::v156_tls` returns `firefox::v157_tls`, which the Android
   ClientHellos equal. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.
 - `opera_android::v102_*` carries only `v102_tls`, Chrome 154's ClientHello
@@ -958,9 +956,9 @@ How the recipes differ:
   `"Pixel 7"` model, `v153_android_client_hints_for_model`,
   and navigation and fetch templates with Edge for Android's `User-Agent`.
   It has no WebSocket recipe.
-- `firefox::v156_*` covers TLS, TCP, H2, WebSocket, cookie placement, and the
-  request templates. Firefox sends no user-agent client hints, so it has no
-  client-hint recipe, and no Firefox QUIC or H3 capture exists.
+- `firefox::v157_*` covers TLS, TCP, H1, H2, QUIC, H3, WebSocket, cookie
+  placement, and the request templates. Firefox sends no user-agent client
+  hints, so it has no client-hint recipe.
 
 Request templates:
 
@@ -971,7 +969,7 @@ Request templates:
     and H3;
   - Chrome 154 and Edge 153 for Android over H1 and H2 (the WebSocket
     captures); and
-  - Firefox 156 over H1 and H2.
+  - Firefox 157 over H1 and H2.
 
   The fetch templates match every retained no-store report `fetch` in the
   WebSocket captures, over H1 and H2.
@@ -994,7 +992,7 @@ Request templates:
   fetch templates refuse to send them. Where navigation templates place requested hints is
   captured on H1 only and inferred for H2 and H3.
 - The profile's `CookiePlacement` decides where the jar's `Cookie` field goes
-  in the expanded template. With the Chrome 154 and Firefox 156 presets, the
+  in the expanded template. With the Chrome 154 and Firefox 157 presets, the
   H1 fields on each side of it agree with the `set-cookie-then-close`
   EventSource reconnect captures: last for the Chrome templates, and after
   `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch` template.
@@ -1031,7 +1029,7 @@ Randomized fields:
 - Chrome 154 for Android sorts its trust-anchor IDs as desktop Chrome 154
   does, over TCP and QUIC, so `chrome_android::v154_tls` and
   `v154_http3_tls` send the Chromium order.
-- Firefox 156 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
+- Firefox 157 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
   and ChaCha20-Poly1305. The recipe lists both, and the backend draws one
   uniformly for each connection. A 200-connection distribution test bounds
   the split.

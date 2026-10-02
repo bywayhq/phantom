@@ -31,7 +31,7 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
   capture emulator. A new version replaces the old one. A macOS capture uses
   the same build as the Windows one, so update the Mac's browser first. One
   exception stands: the macOS Firefox captures are from 156.0, while the
-  Windows ones are from 156.0.1; the
+  Windows ones are from 157.0; the
   [roadmap](../roadmap.md#browser-recipes) tracks the recapture.
 - Captures come from the Windows 11 development host, Android captures from
   the emulator on it, and macOS captures from one macOS 15.5 Mac on Apple
@@ -150,7 +150,7 @@ module needs a `pub mod` line in `crates/phantom-profile/src/lib.rs`.
 - The rustdoc of each function names the exact build and host it was captured
   on, and states what it shares with another recipe and why.
 - A complete recipe set is self-contained, as `chromium::v154_*` and
-  `firefox::v156_*` are. A fork may build on the current Chromium recipes and
+  `firefox::v157_*` are. A fork may build on the current Chromium recipes and
   change only what its captures show. `edge::v154_tls` is
   `chromium::v154_tls()` with `requested_trust_anchor_ids` set to `None`.
 - Leave `User-Agent` in a request template as a required caller slot
@@ -186,7 +186,7 @@ the recipe through the same public path users take. Name tests
   capture against the Chromium recipe, as the `edge_153_*_matches_the_chromium_recipe`
   tests do.
 - Where a value varies per connection, test the distribution, not one
-  sample. `firefox_156_recipe_draws_either_ech_grease_aead_per_connection`
+  sample. `firefox_157_recipe_draws_either_ech_grease_aead_per_connection`
   is the model.
 - When you retire the previous build, repoint or remove every test that read
   its fixtures, and record any coverage you lose.
