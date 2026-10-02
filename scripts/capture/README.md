@@ -1501,7 +1501,7 @@ evidence beside the hook evidence. It writes one
 Capture Opera on Windows:
 
 ```sh
-uv run --no-project --python 3.10 --with frida==17.9.10   --with-requirements scripts/requirements.txt   python -m scripts.capture.socket_hooks --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/136.0.6008.52/opera.exe"   --client-version 136.0.6008.52   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --output-dir fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt   --with-requirements scripts/capture/hooks-requirements.txt   python -m scripts.capture.socket_hooks --browser opera   --browser-path "$LOCALAPPDATA/Programs/Opera/136.0.6008.52/opera.exe"   --client-version 136.0.6008.52   --operating-system "Windows 11 Home 10.0.26200 x64"   --scenario all --output-dir fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200
 ```
 
 Frida is pinned in `scripts/capture/hooks-requirements.txt` rather than in
