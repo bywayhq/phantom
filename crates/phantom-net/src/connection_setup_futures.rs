@@ -13,7 +13,7 @@ use crate::{
 /// see `phantom_testkit::future_size`.
 ///
 /// With all features, the largest, `Http3Connector::connect_connect_udp`, is
-/// 8,992 bytes on Windows (x86-64, Rust 1.98.1), the only platform
+/// 9,248 bytes on Windows (x86-64, Rust 1.99.0), the only platform
 /// measured. When this fails, for
 /// example after a toolchain upgrade, run it with `--nocapture` to see every
 /// size, then pin a by-value wrapper's operation or box the largest cold
