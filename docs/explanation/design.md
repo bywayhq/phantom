@@ -399,17 +399,17 @@ of its failure paths have tests.
 
 Chromium asks Windows for a random local port with `SO_RANDOMIZE_PORT` on
 every TCP socket from Windows 11 22H2, and on every UDP socket it connects
-([Socket hook evidence](validation.md#socket-hook-evidence),
-[UDP socket option evidence](validation.md#udp-socket-option-evidence)).
+([Socket hook evidence](validation.md#socket-hook-evidence), [UDP socket
+option evidence](validation.md#udp-socket-option-evidence)).
 `TcpPortRandomization` and `UdpSettings::port_randomization` reproduce it.
 `tcp.rs` and `udp.rs` each call the module before their socket binds or
 connects; the module sits at the crate root, not under either transport,
-because it serves both. No safe Rust API sets the option:
-`socket2` 0.6.5 has no method for it, and its general `setsockopt` is
-private. The declarations come from `windows-sys` 0.61.2, which `socket2`
-and Tokio already build on Windows, so the boundary added no crate to the
-build. Winsock errors are read with `io::Error::last_os_error`, as `socket2`
-reads them, so that read needs no unsafe call.
+because it serves both. No safe Rust API sets the option: `socket2` 0.6.5
+has no method for it, and its general `setsockopt` is private. The
+declarations come from `windows-sys` 0.61.2, which `socket2` and Tokio
+already build on Windows, so the boundary added no crate to the build.
+Winsock errors are read with `io::Error::last_os_error`, as `socket2` reads
+them, so that read needs no unsafe call.
 
 The module has three unsafe blocks, one foreign call each:
 
@@ -439,18 +439,19 @@ They read the option back with `getsockopt`: after a loopback connect with
 the Chromium TCP recipe (set) and the Firefox one (not set), and on a UDP
 socket bound with `chromium::v154_udp` (set) and without UDP settings (not
 set). They check that a minimum build past the host leaves the TCP option
-off, that a bound TCP or UDP socket rejects it with `WSAEINVAL` (the
-failure path), and that eight successive sockets of each transport, with
-and without a source binding, each have the option set and do not all take
-ports close together. `tcp/tests/paths.rs` reads it back on every TCP
-connect path, and `udp/tests/paths.rs` on the UDP socket of a direct HTTP/3
-connection and of a SOCKS5 UDP association. On a Windows build below 22621 the TCP scattered-port tests
-print a line naming the host's build and return early, because the Chromium
-TCP recipe does not set the option there; the UDP recipe has no minimum
-build. On a Windows without the option, which fails with `WSAENOPROTOOPT`,
-the four direct `setsockopt` tests do the same. No test host has reached
-`WSAENOPROTOOPT`, and the Windows SDK declares the option for every Windows
-from Vista on.
+off, that a bound TCP or UDP socket rejects it with `WSAEINVAL` (the failure
+path), and that eight successive sockets of each transport, with and without
+a source binding, each have the option set and do not all take ports close
+together, and that UDP sockets without the option take ports in sequence.
+`tcp/tests/paths.rs` reads it back on every TCP connect path, and
+`udp/tests/paths.rs` on the UDP socket of a direct HTTP/3 connection and of
+a SOCKS5 UDP association. On a Windows build below 22621 the TCP
+scattered-port tests print a line naming the host's build and return early,
+because the Chromium TCP recipe does not set the option there; the UDP
+recipe has no minimum build. On a Windows without the option, which fails
+with `WSAENOPROTOOPT`, the four direct `setsockopt` tests do the same. No
+test host has reached `WSAENOPROTOOPT`, and the Windows SDK declares the
+option for every Windows from Vista on.
 
 Miri does not apply: it cannot execute calls into `ws2_32.dll` or
 `ntdll.dll`, and the module has no unsafe code apart from those calls. The

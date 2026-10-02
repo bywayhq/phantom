@@ -19,16 +19,15 @@
 //! cache are not visible in a capture. Brave 1.96.59 builds Chromium tag
 //! `154.0.8037.58` (`package.json` in `brave-core` at tag `v1.96.59`), the tag
 //! behind [`chromium::v154_tcp`], [`chromium::v154_udp`],
-//! [`chromium::v154_http1`], and [`chromium::v154_dns_cache`], and none of
-//! its patches or overrides changes a value those recipes cite, so they serve
-//! Brave unchanged. The one Brave
-//! change that reaches these layers enables
+//! [`chromium::v154_http1`], and [`chromium::v154_dns_cache`], and none of its
+//! patches or overrides changes a value those recipes cite, so they serve Brave
+//! unchanged. The one Brave change that reaches these layers enables
 //! `kPartitionConnectionsByNetworkIsolationKey`
 //! (`patches/net-base-features.cc.patch` in `brave-core`), which keys
-//! Chromium's socket groups, TLS session cache, HTTP/2 and QUIC sessions,
-//! host cache, and learned server properties by top-level site as well. A
-//! Phantom client shares each of these across all its requests, as Brave
-//! does within one top-level site.
+//! Chromium's socket groups, TLS session cache, HTTP/2 and QUIC sessions, host
+//! cache, and learned server properties by top-level site as well. A Phantom
+//! client shares each of these across all its requests, as Brave does within
+//! one top-level site.
 
 use crate::{
     chromium,

@@ -693,11 +693,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   their network code opens, and Firefox 157 sets it on none. Brave, Edge,
   and Opera profiles take `chromium::v154_udp`; a Firefox profile takes no
   UDP settings
-  ([evidence](docs/explanation/validation.md#socket-hook-evidence)). The
-  Windows FFI module of `phantom-net` moved from
-  `tcp::windows_port_randomization` to `windows_port_randomization`, since it
-  now serves both transports
-  ([audit](docs/explanation/design.md#windows-port-randomization-audit)).
+  ([evidence](docs/explanation/validation.md#udp-socket-option-evidence)).
+  `phantom-net`'s `Http3Connector::with_udp_settings` applies the settings
+  to a connector's sockets, and `Http3Connector::udp_settings` returns them.
 - `scripts/capture/firefox_socket_hooks.py` and the Frida agent extension
   `scripts/capture/firefox_socket_hooks.js` record Firefox's socket options,
   keepalive changes, connection attempts, and host lookups on Windows from

@@ -179,6 +179,11 @@ Not modeled:
   (`SIO_TCP_INITIAL_RTO`), which the Chrome 154 and Edge 154 hook logs show.
   It applies only to loopback peers, and `chromium::v154_tcp` leaves it out.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
+- `SO_RANDOMIZE_PORT` on DNS sockets. Chromium's built-in DNS client
+  connects its UDP sockets as QUIC does, so they carry the option
+  (`net/dns/dns_transaction.cc:696-700`). The hickory sockets of Phantom's
+  HTTPS-record lookups bind an explicit port that hickory picks at random,
+  and do not get the option; only the resolver sees them.
 
 ## TLS over TCP
 
