@@ -332,7 +332,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             .add_root_certificate_der(identity.root_der.clone())
             .alt_svc(NonZeroUsize::MIN.saturating_add(7))
             .https_record_discovery(resolver)
-            .route(Route::http_connect(HttpProxy::new(&format!(
+            .route(Route::http_proxy(HttpProxy::new(&format!(
                 "http://{proxy_address}"
             ))?))
             .build()?;

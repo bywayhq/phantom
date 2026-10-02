@@ -1095,7 +1095,7 @@ mod tests {
     #[test]
     fn http_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>
     {
-        let routes = [Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?)];
+        let routes = [Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?)];
         let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
 
         for route in routes {

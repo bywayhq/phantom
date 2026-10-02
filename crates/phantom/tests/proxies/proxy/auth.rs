@@ -37,7 +37,7 @@ async fn basic_challenge_retries_plaintext_proxy_with_ordered_credentials() -> T
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(challenge_then_forward(proxy_listener, origin_address));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .connect_headers(vec![
                     HttpConnectHeader::field(RequestHeader::new("X-Before", "one")),
@@ -98,7 +98,7 @@ async fn second_basic_challenge_is_bounded_and_redacted() -> TestResult<()> {
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(reject_credentials_twice(proxy_listener));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("marker-user", "marker-password")?,
         );
@@ -166,7 +166,7 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
             second_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );

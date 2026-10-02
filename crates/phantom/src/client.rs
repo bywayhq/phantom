@@ -1604,7 +1604,7 @@ mod tests {
             let builder = Client::builder(
                 ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2()),
             )
-            .route(Route::http_connect(HttpProxy::new("http://proxy.example")?))
+            .route(Route::http_proxy(HttpProxy::new("http://proxy.example")?))
             .preemptive_proxy_authentication(false)
             .dns_cache(phantom_profile::firefox::v156_dns_cache());
             #[cfg(feature = "diagnostics")]
@@ -1675,7 +1675,7 @@ mod tests {
             .with_http3(http3);
         #[cfg(feature = "websocket")]
         let profile = profile.with_websocket(chromium::v154_websocket());
-        let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
+        let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
         let client = Client::builder(profile).route(route).build()?;
         let inner = &client.inner;
 
@@ -1726,7 +1726,7 @@ mod tests {
             .with_http3(http3);
         #[cfg(feature = "websocket")]
         let profile = profile.with_websocket(chromium::v154_websocket());
-        let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
+        let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
         let address = IpAddr::V4(Ipv4Addr::LOCALHOST);
         let client = Client::builder(profile)
             .route(route)
@@ -1875,7 +1875,7 @@ mod tests {
         let mut tls = chromium::v154_tls();
         tls.alpn_protocols = vec![Box::from(&b"h2"[..])];
         let profile = ClientProfile::new(tls).with_http2(chromium::v154_http2());
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new("https://proxy.example")
                 .map_err(|_| "valid HTTPS proxy route was rejected")?,
         );

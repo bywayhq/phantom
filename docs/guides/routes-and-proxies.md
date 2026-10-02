@@ -187,7 +187,6 @@ fn private_roots(
   supported.
 - Configuration errors have stable kinds (`ProxyConfigErrorKind`).
 - Credentials are validated before I/O and kept out of diagnostics.
-- `Route::http_connect` is an older name for `Route::http_proxy`.
 
 ## Next
 

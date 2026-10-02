@@ -244,7 +244,7 @@ async fn idna_equivalent_origins_reuse_one_plaintext_connect_tunnel() -> TestRes
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let session = test_client(&identity, true)?.session();
         for (host, path) in [
             (UNICODE_ORIGIN_NAME, "/first"),
@@ -302,7 +302,7 @@ async fn idna_equivalent_origins_reuse_one_https_connect_tunnel() -> TestResult<
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let session = client_builder(&identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .build()?

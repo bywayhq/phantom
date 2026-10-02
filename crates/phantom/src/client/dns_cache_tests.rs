@@ -206,7 +206,7 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
         .with_http3(http3);
     #[cfg(feature = "websocket")]
     let profile = profile.with_websocket(chromium::v154_websocket());
-    let route = Route::http_connect(HttpProxy::new("https://proxy.example")?);
+    let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
     let client = Client::builder(profile).route(route).build()?;
     let inner = &client.inner;
     let expected = Some(chromium::v154_dns_cache());

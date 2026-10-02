@@ -311,7 +311,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
             proxy_listener,
             origin.address(),
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = discovering_client(&identity, &dns, Opening::profile(true), Some(route))?;
 
         opening.send(&client, origin.port, "/").await?;

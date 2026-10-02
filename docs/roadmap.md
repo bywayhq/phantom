@@ -304,8 +304,7 @@ the wire, capture evidence.
 - A tracing span and field contract, then one narrow request hook that may
   fill a declared slot but never add a field.
 - A per-request timeout that layers onto the client's, and a retry budget.
-- One naming convention across the ordered-field types and request builders;
-  retire `Route::http_connect`.
+- One naming convention across the ordered-field types and request builders.
 - Query construction that never sorts, authorization value constructors, and
   `Link` parsing as data.
 - JSON, form, and multipart bodies, after a POST capture shows where a

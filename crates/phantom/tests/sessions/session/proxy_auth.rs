@@ -27,7 +27,7 @@ async fn authenticated_connect_tunnel_is_reused_by_http1_session() -> TestResult
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(challenge_then_forward(proxy_listener, origin_address));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );

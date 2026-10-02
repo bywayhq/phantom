@@ -56,7 +56,7 @@ async fn streams_http1_upload_through_ordered_connect_route() -> TestResult<()> 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(vec![
                 HttpConnectHeader::field(RequestHeader::new("User-Agent", "phantom-test")),
                 HttpConnectHeader::authority("host"),
@@ -125,7 +125,7 @@ async fn streams_http1_through_verified_https_proxy() -> TestResult<()> {
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?.connect_headers(vec![
                 HttpConnectHeader::field(RequestHeader::new("X-First", "one")),
                 HttpConnectHeader::authority("host"),
@@ -189,7 +189,7 @@ async fn disabled_proxy_authentication_still_verifies_the_origin() -> TestResult
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&origin_identity, false)
             .proxy_server_authentication(ServerAuthentication::Disabled)
             .route(route)
@@ -237,7 +237,7 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .proxy_server_authentication(ServerAuthentication::Disabled)
             .route(route)
@@ -284,7 +284,7 @@ async fn https_proxy_and_origin_trust_are_independent() -> TestResult<()> {
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .route(route)
@@ -326,7 +326,7 @@ async fn untrusted_https_proxy_fails_without_direct_fallback() -> TestResult<()>
             let (tcp, _) = proxy_listener.accept().await?;
             Ok::<_, io::Error>(accept_tls_stream(tcp, proxy_acceptor).await.is_err())
         });
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&origin_identity, false)
             .route(route)
             .build()?;
@@ -370,7 +370,7 @@ async fn unicode_origin_uses_one_canonical_connect_and_host_authority() -> TestR
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
         let origin_uri = format!(
             "https://{UNICODE_ORIGIN_NAME}:{}/resource",
@@ -427,7 +427,7 @@ async fn plaintext_proxy_route_override_canonicalizes_http2_authority_and_stream
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, true).build()?;
 
         let response = client
@@ -505,7 +505,7 @@ async fn https_proxy_route_override_canonicalizes_http2_authority_and_streams_tr
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .build()?;
@@ -566,7 +566,7 @@ async fn proxy_rejection_never_connects_direct() -> TestResult<()> {
                 .await?;
             Ok::<_, io::Error>(request)
         });
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
 
         let error = match client
@@ -600,7 +600,7 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
     let proxy_address = proxy.local_addr()?;
     let origin = "https://origin.invalid/";
 
-    let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+    let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
     let client = client_builder(&identity, false)
         .route(route.clone())
         .build()?;
@@ -635,7 +635,7 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
         Err(error) if error.kind() == io::ErrorKind::WouldBlock
     ));
 
-    let route = Route::http_connect(
+    let route = Route::http_proxy(
         HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(Vec::new()),
     );
     let client = client_builder(&identity, false).route(route).build()?;
@@ -654,7 +654,7 @@ async fn invalid_origin_and_connect_fields_fail_before_proxy_io() -> TestResult<
 #[test]
 fn polling_proxy_request_without_tokio_returns_runtime_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let route = Route::http_connect(HttpProxy::new("http://127.0.0.1:9")?);
+    let route = Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?);
     let client = client_builder(&identity, false).route(route).build()?;
     let request = client.get(HttpProtocol::Http1, "https://127.0.0.1:9/")?;
     let mut future = std::pin::pin!(request.send());

@@ -102,7 +102,7 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     let client = Client::builder(ClientProfile::new(tls13_http1_settings()))
         .add_root_certificate_der(origin_identity.root_der.clone())
         .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-        .route(Route::http_connect(HttpProxy::new(&format!(
+        .route(Route::http_proxy(HttpProxy::new(&format!(
             "https://{proxy_address}"
         ))?))
         .key_log(NonZeroUsize::new(16).ok_or("16 is nonzero")?)

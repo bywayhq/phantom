@@ -73,16 +73,6 @@ impl Route {
         Self::Direct
     }
 
-    /// Returns an HTTP proxy route; an older name for [`Self::http_proxy`].
-    ///
-    /// Both constructors return the same route, which uses CONNECT for HTTPS
-    /// and WebSocket origins and forwarding for plaintext requests. Prefer
-    /// [`Self::http_proxy`].
-    #[must_use]
-    pub fn http_connect(proxy: HttpProxy) -> Self {
-        Self::HttpProxy(proxy)
-    }
-
     /// Returns an HTTP proxy route.
     ///
     /// Plaintext `http://` requests are forwarded: as HTTP/1.1 absolute-form
@@ -813,14 +803,8 @@ mod tests {
     }
 
     #[test]
-    fn connect_constructor_maps_to_the_generic_proxy_route()
+    fn plaintext_requests_on_a_proxy_route_trace_as_forwarding()
     -> Result<(), Box<dyn std::error::Error>> {
-        let proxy = HttpProxy::new("http://proxy.example:8080")?;
-
-        assert_eq!(
-            Route::http_proxy(proxy.clone()),
-            Route::http_connect(proxy.clone())
-        );
         assert_eq!(
             Route::http_proxy(HttpProxy::new("http://proxy.example")?)
                 .request_trace_name(Some("http")),

@@ -178,7 +178,7 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
     let client = Client::builder(ClientProfile::new(tls(TlsVersion::Tls13)))
         .add_root_certificate_der(origin.root_der.clone())
         .add_proxy_root_certificate_der(proxy.root_der.clone())
-        .route(Route::http_connect(HttpProxy::new(&format!(
+        .route(Route::http_proxy(HttpProxy::new(&format!(
             "https://{proxy_address}"
         ))?))
         .client_certificate(identity.certificate()?)

@@ -822,7 +822,7 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
         let mut socket = client
             .websocket(&format!("wss://{origin_address}/through-proxy"))?
@@ -868,7 +868,7 @@ async fn basic_proxy_challenge_reconnects_before_websocket_upgrade() -> TestResu
             proxy_listener,
             origin_address,
         ));
-        let route = Route::http_connect(
+        let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .connect_headers(vec![
                     phantom::HttpConnectHeader::authority("Host"),
@@ -933,7 +933,7 @@ async fn connects_through_verified_https_proxy() -> TestResult<()> {
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_connect(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&origin_identity, false)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .route(route)
@@ -979,7 +979,7 @@ async fn rejected_connect_never_opens_a_direct_websocket_connection() -> TestRes
                 .await?;
             Ok::<_, io::Error>(request)
         });
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
         let error = match client
             .websocket(&format!("wss://{origin_address}/"))?

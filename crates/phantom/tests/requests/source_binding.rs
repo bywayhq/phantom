@@ -152,7 +152,7 @@ async fn proxy_connections_use_the_binding() -> TestResult<()> {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let proxy = listener.local_addr()?;
     let routes = [
-        Route::http_connect(HttpProxy::new(&format!("http://{proxy}"))?),
+        Route::http_proxy(HttpProxy::new(&format!("http://{proxy}"))?),
         Route::http_proxy(HttpProxy::new(&format!("http://{proxy}"))?),
         Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy}"))?),
     ];

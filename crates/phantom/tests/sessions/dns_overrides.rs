@@ -128,7 +128,7 @@ async fn an_http_proxy_route_overrides_the_proxy_host_but_not_the_target() -> Te
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy_listener.local_addr()?.port();
         let proxy = tokio::spawn(tunnel_proxy::http1_connect(proxy_listener, origin.address));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{PROXY}:{proxy_port}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{PROXY}:{proxy_port}"))?);
         let client = client_builder(&identity, false)
             .route(route)
             .resolve(PROXY, [LOOPBACK])
@@ -339,7 +339,7 @@ async fn resolver_errors_for_proxy_hosts_and_http3_origins_keep_their_path_kinds
     bounded(async {
         let calls = Arc::new(AtomicUsize::new(0));
         let identity = TestIdentity::generate_for_dns(ORIGIN)?;
-        let proxy = Route::http_connect(HttpProxy::new("http://missing.phantom.test:8080")?);
+        let proxy = Route::http_proxy(HttpProxy::new("http://missing.phantom.test:8080")?);
         let http_proxy = client_builder(&identity, false)
             .route(proxy)
             .dns_resolver(counting_resolver(&calls))

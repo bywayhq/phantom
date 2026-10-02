@@ -442,7 +442,7 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_connects(proxy_listener, address, 2));
-        let route = Route::http_connect(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let mut tls = tls_settings();
         tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
         let client = Client::builder(ClientProfile::new(tls))
