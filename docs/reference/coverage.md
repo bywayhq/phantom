@@ -155,11 +155,10 @@ Supported:
 
 - Typed, ordered profiles.
 - Recipes backed by retained captures for every build in
-  [At a glance](#at-a-glance). Phantom carries one version per browser. For a desktop
-  browser it is the current stable build on the capture host. For an Android
-  browser it is the build the Play Store served to the emulator, which can
-  trail stable. See
-  [Browser profiles](#browser-profiles).
+  [At a glance](#at-a-glance). Phantom carries one version per browser. For
+  a desktop browser it is the current stable build on the capture host. For
+  an Android browser it is the build the Play Store served to the emulator,
+  which can trail stable. See [Browser profiles](#browser-profiles).
 - Certificate and hostname verification.
 - [ALPN](glossary.md#alpn) and [ALPS](glossary.md#alps).
 - Bounded, client-owned TLS ticket caches for H1 and H2, partitioned by exact
