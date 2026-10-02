@@ -12,6 +12,9 @@ pub mod future_size;
 /// Helpers for capturing an HTTP/2 client connection preface and initial frames.
 pub mod http2;
 
+/// A loopback TCP port that refuses connections until a test listens on it.
+pub mod tcp;
+
 /// Helpers for capturing TLS wire data.
 pub mod tls;
 

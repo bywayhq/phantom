@@ -1,7 +1,6 @@
 //! Public HTTP/1.1 forward-proxy integration tests.
 
 use crate::support::h3 as h3_support;
-use crate::support::reserved_port;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 
@@ -20,6 +19,7 @@ use phantom::{
     TimeoutPhase,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile},
 };
+use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -29,7 +29,6 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h3_support::client_settings;
-use reserved_port::ReservedPort;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
     read_head, tls_settings,

@@ -1,7 +1,6 @@
 //! Public exact-HTTP/3 connection-setup retries over direct and SOCKS5 routes.
 
 use crate::support::h3 as h3_support;
-use crate::support::reserved_port;
 use crate::support::socks5_udp as socks5_udp_support;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
@@ -20,6 +19,7 @@ use phantom::{
     Client, HttpProtocol, RequestErrorKind, ResponseInfo, RetryPolicy, Route, Socks5Proxy,
     profile::ClientProfile,
 };
+use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     net::TcpListener,
     sync::oneshot,
@@ -28,7 +28,6 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use h3_support::{client_settings, server_endpoint};
-use reserved_port::ReservedPort;
 use socks5_udp_support::{ObservedSocks5UdpRelay, forward_one_socks5_udp_associate};
 use tls_support::{TestIdentity, TestResult, tls_settings};
 use tracing_support::OutcomeSubscriber;

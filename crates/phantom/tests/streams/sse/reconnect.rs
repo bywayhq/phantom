@@ -6,6 +6,7 @@ use phantom::{
     HttpProtocol, OrderedResponseHeaders, RequestHeader, ResponseInfo, Route, SseErrorKind,
     SseHeader,
 };
+use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
@@ -16,7 +17,6 @@ use tokio_btls::SslStream;
 
 use super::{
     TestResult,
-    reserved_port::ReservedPort,
     tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
 };
 

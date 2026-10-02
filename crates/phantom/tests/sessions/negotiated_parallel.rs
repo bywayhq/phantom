@@ -4,7 +4,6 @@
 //! open connections up to the profile's HTTP/1.1 bound, each with its own TLS
 //! handshake. When it selects HTTP/2, the requests share one connection.
 
-use crate::support::reserved_port;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 
@@ -27,6 +26,7 @@ use phantom::{
     RetryPolicy, Route,
     profile::{ClientProfile, chromium, firefox},
 };
+use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
@@ -38,7 +38,6 @@ use tokio::{
 use btls::ssl::SslAcceptor;
 use tracing::instrument::WithSubscriber;
 
-use reserved_port::ReservedPort;
 use tracing_support::OutcomeSubscriber;
 
 use tls_support::{

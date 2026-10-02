@@ -1,6 +1,5 @@
 //! Public connection retry and negotiated pre-selection admission behavior.
 
-use crate::support::reserved_port;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 
@@ -26,6 +25,7 @@ use phantom::{
     Client, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
     RetryPolicy, profile::ClientProfile,
 };
+use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -34,7 +34,6 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
-use reserved_port::ReservedPort;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };

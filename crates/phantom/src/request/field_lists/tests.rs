@@ -21,6 +21,7 @@ use btls::{
 use bytes::Bytes;
 use http::StatusCode;
 use phantom_profile::{ClientProfile, Http3ClientSettings, chromium};
+use phantom_testkit::tcp::ReservedPort;
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose, SanType,
@@ -28,7 +29,7 @@ use rcgen::{
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    net::{TcpListener, TcpSocket, TcpStream},
+    net::{TcpListener, TcpStream},
     sync::oneshot,
     time::timeout,
 };
@@ -129,13 +130,12 @@ async fn a_race_won_by_the_alternative_builds_each_list_once() -> TestResult {
 async fn a_negotiated_setup_retry_builds_each_list_once() -> TestResult {
     timeout(TEST_TIMEOUT, async {
         let identity = Identity::generate()?;
-        // Bound but not listening, so the first connect is refused; the
-        // retry's lookup starts the listener before it connects.
-        let socket = TcpSocket::new_v4()?;
-        socket.bind((Ipv4Addr::LOCALHOST, 0).into())?;
-        let port = socket.local_addr()?.port();
+        // The first connect is refused; the retry's lookup starts the
+        // listener before it connects.
+        let reserved = ReservedPort::bind()?;
+        let port = reserved.address().port();
         let (listening, listener) = oneshot::channel();
-        let resolver = listening_on_second_lookup(socket, listening);
+        let resolver = listening_on_second_lookup(reserved, listening);
         let acceptor = identity.acceptor(H1_ALPN)?;
         let server = tokio::spawn(async move {
             let listener = listener.await??;
@@ -579,21 +579,21 @@ fn import_alternative(client: &Client, origin: SocketAddr, port: u16) -> TestRes
 }
 
 /// Resolves every name to the loopback address, and on the second lookup
-/// first starts `socket` listening and sends its listener.
+/// first starts `reserved` listening and sends its listener.
 fn listening_on_second_lookup(
-    socket: TcpSocket,
+    reserved: ReservedPort,
     listening: oneshot::Sender<std::io::Result<TcpListener>>,
 ) -> AddressResolver {
-    let pending = Mutex::new(Some((socket, listening)));
+    let pending = Mutex::new(Some((reserved, listening)));
     let lookups = AtomicUsize::new(0);
     AddressResolver::from_fn(move |_| {
         if lookups.fetch_add(1, Ordering::SeqCst) == 1
-            && let Some((socket, listening)) = pending
+            && let Some((reserved, listening)) = pending
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .take()
         {
-            let _ = listening.send(socket.listen(16));
+            let _ = listening.send(reserved.listen());
         }
         async { Ok(vec![IpAddr::V4(Ipv4Addr::LOCALHOST)]) }
     })

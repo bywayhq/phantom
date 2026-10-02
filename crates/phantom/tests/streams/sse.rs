@@ -7,7 +7,6 @@ mod idle;
 mod reconnect;
 #[path = "sse/request.rs"]
 mod request;
-use crate::support::reserved_port;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 
