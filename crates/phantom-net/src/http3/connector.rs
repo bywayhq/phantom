@@ -390,11 +390,13 @@ impl Http3Connector {
     /// for are skipped. An invalid binding fails each connection attempt with
     /// an endpoint error before any socket I/O; see
     /// [`SourceBinding::validate`]. The clone shares this connector's ticket
-    /// cache and identity, as [`Self::with_host_resolver`] does.
+    /// cache but gets an identity of its own, so it never sends a request on
+    /// a connection whose socket the binding did not cover.
     #[must_use]
     pub fn with_source_binding(&self, binding: SourceBinding) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
         connector.source = Some(binding);
+        connector.identity = Arc::new(());
         connector
     }
 

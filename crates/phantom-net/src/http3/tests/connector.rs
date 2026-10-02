@@ -438,6 +438,47 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn bound_clone_does_not_reuse_a_connection_opened_without_the_binding() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let unbound = trusting_connector(&identity)?;
+    let bound = unbound
+        .with_source_binding(crate::SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into()));
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+        let connection = incoming.await?;
+        let _connection: h3::server::Connection<_, bytes::Bytes> =
+            h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+        let _ = done_received.await;
+        Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let host = address.ip().to_string();
+    let connection = unbound
+        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .await?;
+
+    assert!(unbound.can_reuse(&connection).await);
+    assert!(!bound.can_reuse(&connection).await);
+    let error = bound
+        .send_get_on(
+            &connection,
+            TEST_SERVER_NAME,
+            OriginForm::parse("/")?,
+            Vec::new(),
+        )
+        .await
+        .err()
+        .ok_or("a connection from an unbound socket carried a request for the bound clone")?;
+    assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+
+    drop(connection);
+    let _ = client_done.send(());
+    server.await??;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn certificate_clone_does_not_reuse_a_connection_opened_without_the_certificate()
 -> TestResult<()> {
     let identity = TestIdentity::generate()?;
