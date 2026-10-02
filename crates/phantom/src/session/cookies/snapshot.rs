@@ -422,8 +422,7 @@ impl CookieSnapshotErrorKind {
             CookieErrorKind::UnsupportedPolicy => Self::UnsupportedPolicy,
             CookieErrorKind::InvalidUrl
             | CookieErrorKind::InvalidSetCookie
-            | CookieErrorKind::SecureOverlay
-            | CookieErrorKind::Capacity => Self::InvalidCookie,
+            | CookieErrorKind::SecureOverlay => Self::InvalidCookie,
         }
     }
 }

@@ -94,9 +94,6 @@ pub enum CookieErrorKind {
     SecureOverlay,
     /// The cookie used a policy this client cannot model.
     UnsupportedPolicy,
-    /// Retained for compatibility; count bounds now evict instead of
-    /// rejecting, so the jar no longer returns this kind.
-    Capacity,
 }
 
 /// Error returned by explicit cookie-jar operations.

@@ -500,6 +500,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: use `WebSocketHeader::ClientCookies` and
   `WebSocketHeader::client_cookies`, which place the jar's cookies the same
   way.
+- `CookieErrorKind::Capacity` is removed. No jar operation returned it: the
+  count bounds evict a cookie instead of rejecting one.
+  Migrate: delete match arms on `CookieErrorKind::Capacity`.
 - `Route::http_connect` is removed.
   Migrate: replace `Route::http_connect(proxy)` with
   `Route::http_proxy(proxy)`, which returns the same route.
