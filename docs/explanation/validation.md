@@ -2405,9 +2405,9 @@ Observed on both browsers:
   `sec-ch-ua-mobile`; Firefox places it after `Accept-Encoding`.
 - A valid `retry` value persists across later connections, and a non-digit
   value is ignored.
-- The delay spread across ten runs stayed within about 50 ms, apart from one
-  Firefox run whose third `invalid-retry-ignored` reconnect came 71 ms late,
-  and did not grow between attempts: neither browser showed jitter or
+- The delay spread across ten runs stayed within about 50 ms, apart from
+  run 2 of Firefox's `invalid-retry-ignored`, whose first reconnect came
+  67 ms and third 71 ms late, and did not grow between attempts: neither browser showed jitter or
   backoff. Firefox 157.0's median overshoot was 12 to 19 ms on the first
   reconnect and 3 to 13 ms on later ones. The first reconnect comes about a
   second after launch, and it is the one host load delays: in the Firefox

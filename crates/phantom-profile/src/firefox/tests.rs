@@ -40,7 +40,7 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
             CipherSuite::RsaAes256CbcSha,
         ]
     );
-    // Firefox 157 no longer offers FFDHE-2048 or FFDHE-3072.
+    // Firefox 157, like 156, offers no FFDHE group.
     assert_eq!(
         settings.groups,
         [

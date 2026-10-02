@@ -41,10 +41,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   connection that resumes a TLS 1.3 ticket permitting early data offers
   `early_data` and sends a safe request without a body or trailers as early
   data; any other request waits for the server's answer. Proxy routes and
-  WebSocket openings never offer it. `firefox::v157_tls`, and so
-  `firefox_android::v156_tls`, sets it, as Firefox 156 offers early data on
-  every such resumption; every other recipe, and `firefox::v157_http3_tls`,
-  leaves it unset. `TlsSettings::validate` rejects it without
+  WebSocket openings never offer it. `firefox::v156_tls` (now named
+  `v157_tls`), and so `firefox_android::v156_tls`, sets it, as Firefox 156
+  offers early data on every such resumption; every other recipe, and
+  `firefox::v156_http3_tls` (now `v157_http3_tls`), leaves it unset. `TlsSettings::validate` rejects it without
   `session_tickets` or below TLS 1.3
   ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
   Migrate: add `tcp_early_data: false` to a `TlsSettings` literal to keep
@@ -199,10 +199,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   compile. `first_stream_id` numbers each connection's first request, and
   `assumed_max_concurrent_streams` bounds the streams open before the peer
   states `SETTINGS_MAX_CONCURRENT_STREAMS`, including after SETTINGS that
-  omit it. The recipes change the wire. `firefox::v157_http2` sends each
-  connection's first request on stream 3, as every HTTP/2 connection in the
-  retained Firefox 156 cookie, WebSocket, and proxy captures does, where
-  Phantom used stream 1. Both `firefox::v157_http2` and
+  omit it. The recipes change the wire. `firefox::v156_http2` (now named
+  `v157_http2`) sends each connection's first request on stream 3, as every
+  HTTP/2 connection in the retained Firefox 156 cookie, WebSocket, and proxy
+  captures does, where Phantom used stream 1. Both `firefox::v156_http2` and
   `chromium::v154_http2` open at most 100 streams until the peer states a
   limit, where Phantom opened any number.
   `Http2Connection::peer_max_concurrent_streams` reports the assumed limit
@@ -655,8 +655,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and any answer from the server, `101` and `2xx` included, are returned at
   once. It is off by default; browsers do not retry an opening.
 - Firefox 156 HTTP/3 recipes from Firefox 156.0.1 captures on Windows 11:
-  `firefox::v157_http3_tls`, `v157_quic`, `v157_http3`, and
-  `v157_http3_request`, and an HTTP/3 list in the Firefox navigation and
+  `firefox::v156_http3_tls`, `v156_quic`, `v156_http3`, and
+  `v156_http3_request`, now named `v157_*`, and an HTTP/3 list in the Firefox navigation and
   `fetch` templates. The QUIC transport parameters, their order and
   encodings, the SETTINGS frame and the reserved frame after it, the QPACK
   stream order and encoding, and the request field order match the captures;
@@ -1241,9 +1241,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   154, and Opera 135 recipes keep at most two tickets per origin, the newest
   two, instead of eight, as the browsers did in the resumption captures; a
   client whose server issues many tickets resumes fewer connections before a
-  full handshake. A resumed ClientHello from `firefox::v157_tls` omits the
-  empty `session_ticket` extension, as Firefox 156 does, and the recipe
-  keeps up to eight tickets per origin. Fresh ClientHellos are unchanged.
+  full handshake. A resumed ClientHello from `firefox::v156_tls` (now named
+  `v157_tls`) omits the empty `session_ticket` extension, as Firefox 156
+  does, and the recipe keeps up to eight tickets per origin. Fresh
+  ClientHellos are unchanged.
 - Wire and performance: through an HTTP/2 proxy, the client opens CONNECT
   tunnels to different origins as streams of one proxy connection per
   session, proxy, and set of Basic credentials, as Chrome 154, Edge 153,
