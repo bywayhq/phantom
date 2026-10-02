@@ -130,7 +130,7 @@ impl PerMessageDeflate {
     /// With this on, the default, an empty message is deflated like any other
     /// and carries RSV1, as Chrome 154 and Edge 154 do. With it off, an empty
     /// message is sent with a zero-length payload and RSV1 clear, as Firefox
-    /// 156 does; every non-empty message is still compressed. The setting has
+    /// 157 does; every non-empty message is still compressed. The setting has
     /// no effect until the server accepts the offer.
     #[must_use]
     pub const fn compress_empty_messages(mut self, enabled: bool) -> Self {
@@ -406,7 +406,7 @@ mod tests {
 
     /// Guards the direction of the profile mapping: the retained
     /// `accept-deflate` captures show Chrome 154 and Edge 154 compressing a
-    /// zero-length message and Firefox 156 sending it uncompressed, so
+    /// zero-length message and Firefox 157 sending it uncompressed, so
     /// swapping the two arms must fail here.
     #[test]
     fn profile_offer_and_empty_message_rule_follow_the_recipe() -> Result<(), crate::WebSocketError>
@@ -420,7 +420,7 @@ mod tests {
             &[PerMessageDeflateOfferParameter::ClientMaxWindowBits(None)]
         );
 
-        let firefox = PerMessageDeflate::from_profile(&firefox::v156_websocket())?;
+        let firefox = PerMessageDeflate::from_profile(&firefox::v157_websocket())?;
         assert!(!firefox.compresses_empty_messages());
         assert_eq!(firefox.parameters(), &[]);
         Ok(())

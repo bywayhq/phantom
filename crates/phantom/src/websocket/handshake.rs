@@ -858,7 +858,7 @@ mod tests {
     #[test]
     fn trust_dependent_profile_fields_follow_the_url_and_yield_to_the_caller()
     -> Result<(), super::WebSocketError> {
-        let fields = firefox::v156_websocket().http1_fields;
+        let fields = firefox::v157_websocket().http1_fields;
         assert_eq!(
             trust_fields(&fields, true, &[])?,
             pairs(&[

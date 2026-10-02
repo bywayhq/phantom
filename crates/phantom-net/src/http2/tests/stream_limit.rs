@@ -35,11 +35,11 @@ async fn chromium_recipe_opens_100_streams_from_1_before_settings() -> TestResul
     bounded_peer_test(expect_assumed_limit(chromium::v154_http2(), 1, 100)).await
 }
 
-/// Firefox 156 opens at most 100 streams before the peer states a limit,
+/// Firefox 157 opens at most 100 streams before the peer states a limit,
 /// numbered from 3.
 #[tokio::test]
 async fn firefox_recipe_opens_100_streams_from_3_before_settings() -> TestResult<()> {
-    bounded_peer_test(expect_assumed_limit(firefox::v156_http2(), 3, 100)).await
+    bounded_peer_test(expect_assumed_limit(firefox::v157_http2(), 3, 100)).await
 }
 
 /// Chrome 154 lowers a stated limit of 1,000 to 256: of 257 requests, the
@@ -49,10 +49,10 @@ async fn chromium_recipe_caps_a_stated_limit_of_1000_at_256() -> TestResult<()> 
     bounded_peer_test(expect_stated_limit(chromium::v154_http2(), 1, 256)).await
 }
 
-/// Firefox 156 applies a stated limit of 1,000 as it is: 257 requests open.
+/// Firefox 157 applies a stated limit of 1,000 as it is: 257 requests open.
 #[tokio::test]
 async fn firefox_recipe_applies_a_stated_limit_of_1000() -> TestResult<()> {
-    bounded_peer_test(expect_stated_limit(firefox::v156_http2(), 3, 1_000)).await
+    bounded_peer_test(expect_stated_limit(firefox::v157_http2(), 3, 1_000)).await
 }
 
 /// Without an assumed limit, every request opens before the peer's SETTINGS.
@@ -76,7 +76,7 @@ async fn settings_without_an_assumed_limit_open_every_request_at_once() -> TestR
 /// settings were validated, instead of reaching the backend's assertion.
 #[tokio::test]
 async fn an_even_first_stream_id_is_refused() -> TestResult<()> {
-    let mut settings = firefox::v156_http2();
+    let mut settings = firefox::v157_http2();
     settings.streams.first_stream_id = 2;
     assert!(matches!(
         translate_settings(&settings),
@@ -96,7 +96,7 @@ async fn an_even_first_stream_id_is_refused() -> TestResult<()> {
 async fn a_request_priority_on_the_first_stream_is_refused() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, _peer) = tokio::io::duplex(64 * 1024);
-        let connection = Http2Connection::connect(client, &firefox::v156_http2()).await?;
+        let connection = Http2Connection::connect(client, &firefox::v157_http2()).await?;
         let result = connection
             .send_request_body_with_trailers_and_priority(
                 Method::GET,

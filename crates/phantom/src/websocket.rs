@@ -282,7 +282,7 @@ impl WebSocketRequestBuilder {
     /// The default is the profile recipe's
     /// [`handshake_timeout`](phantom_profile::WebSocketSettings::handshake_timeout),
     /// the browser's own timer: 240 seconds in `chromium::v154_websocket` and
-    /// 20 seconds in `firefox::v156_websocket`. A profile without a
+    /// 20 seconds in `firefox::v157_websocket`. A profile without a
     /// WebSocket recipe has none. The deadline starts when [`Self::connect`]
     /// is first polled and ends when the accepting response is validated, so
     /// it covers pooled-session admission, name resolution, proxy setup, TLS,

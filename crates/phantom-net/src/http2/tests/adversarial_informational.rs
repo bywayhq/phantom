@@ -1,4 +1,4 @@
-use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v156_http2};
+use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v157_http2};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{establish_baseline, read_frame, write_frame};
@@ -50,7 +50,7 @@ async fn ninth_informational_response_is_rejected_with_chrome_profile() -> TestR
 
 #[tokio::test]
 async fn ninth_informational_response_is_rejected_with_firefox_profile() -> TestResult<()> {
-    bounded_peer_test(run_excess(v156_http2(), MAX_INFORMATIONAL + 1)).await
+    bounded_peer_test(run_excess(v157_http2(), MAX_INFORMATIONAL + 1)).await
 }
 
 #[tokio::test]

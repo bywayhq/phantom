@@ -7,7 +7,7 @@ use crate::{chromium, firefox};
 fn every_connect_recipe_is_valid() {
     for template in [
         chromium::v154_proxy_connect(),
-        firefox::v156_proxy_connect(),
+        firefox::v157_proxy_connect(),
     ] {
         assert_eq!(template.validate(), Ok(()));
     }
@@ -17,7 +17,7 @@ fn every_connect_recipe_is_valid() {
 // `fixtures/proxy/<browser>/<version>/windows-11-26200/`: the
 // `http-proxy-auth-*` HTTP/1.1 CONNECTs and the `https-proxy-auth-*` HTTP/2
 // CONNECTs, three agreeing runs each, from Chrome 154.0.8037.58, Edge
-// 154.0.4258.37, and Firefox 156.0. Without credentials the same lists end
+// 154.0.4258.37, and Firefox 157.0. Without credentials the same lists end
 // before `Proxy-Authorization`.
 #[test]
 fn connect_recipes_name_the_captured_fields_in_order() {
@@ -34,7 +34,7 @@ fn connect_recipes_name_the_captured_fields_in_order() {
             "Proxy-Authorization"
         ]
     );
-    let firefox = firefox::v156_proxy_connect();
+    let firefox = firefox::v157_proxy_connect();
     assert_eq!(
         names(&firefox.http1_fields),
         [
@@ -228,7 +228,7 @@ fn captured_connections(capture: &str) -> Vec<Vec<(String, Purpose)>> {
 
 // In every run of every `https-proxy-*` capture, Chrome 154, Edge 154, Brave
 // 154, and Opera 136 send all of a page's requests on one HTTP/2 proxy
-// connection, and Firefox 156 gives forwarded requests, `https://` CONNECTs,
+// connection, and Firefox 157 gives forwarded requests, `https://` CONNECTs,
 // and WebSocket CONNECTs a connection each.
 #[test]
 fn connection_sharing_follows_the_captured_proxy_connections()
@@ -240,7 +240,7 @@ fn connection_sharing_follows_the_captured_proxy_connections()
         ("edge/154.0.4258.37", chromium::v154_proxy_connect()),
         ("brave/154.1.96.59", chromium::v154_proxy_connect()),
         ("opera/136.0.6008.52", chromium::v154_proxy_connect()),
-        ("firefox/156.0.1", firefox::v156_proxy_connect()),
+        ("firefox/157.0", firefox::v157_proxy_connect()),
     ] {
         let directory = root.join(browser).join("windows-11-26200");
         for entry in std::fs::read_dir(&directory)? {

@@ -235,10 +235,10 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
             Ok::<_, Box<dyn Error + Send + Sync>>((request, early))
         });
 
-        let mut http1 = firefox::v156_http1();
+        let mut http1 = firefox::v157_http1();
         http1.max_connections_per_origin = std::num::NonZeroUsize::MIN;
-        let profile = ClientProfile::new(firefox::v156_tls())
-            .with_http2(firefox::v156_http2())
+        let profile = ClientProfile::new(firefox::v157_tls())
+            .with_http2(firefox::v157_http2())
             .with_http1(http1);
         let session = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
@@ -399,7 +399,7 @@ async fn failure_after_early_data(
 }
 
 fn client(identity: &TestIdentity) -> TestResult<Client> {
-    let profile = ClientProfile::new(firefox::v156_tls()).with_http2(firefox::v156_http2());
+    let profile = ClientProfile::new(firefox::v157_tls()).with_http2(firefox::v157_http2());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)

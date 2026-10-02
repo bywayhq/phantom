@@ -14,7 +14,7 @@ use std::{
 };
 
 use btls::ssl::SslAcceptor;
-use phantom_profile::{chromium::v154_http2, firefox::v156_http2};
+use phantom_profile::{chromium::v154_http2, firefox::v157_http2};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -206,12 +206,12 @@ async fn ping(tunnel: &mut HttpsProxyTunnel) -> TestResult<()> {
 
 /// Tunnels to three origins become streams 1, 3, and 5 of one proxy
 /// connection, as Chrome 154 numbers a page's CONNECTs in the
-/// `https-proxy-secure-hostname` captures; Firefox 156 shares its
+/// `https-proxy-secure-hostname` captures; Firefox 157 shares its
 /// connection the same way but starts at stream 3, and so does its recipe.
 #[tokio::test]
 async fn tunnels_to_different_origins_share_one_connection() -> TestResult<()> {
     bounded(async {
-        for (settings, expected) in [(v154_http2(), [1, 3, 5]), (v156_http2(), [3, 5, 7])] {
+        for (settings, expected) in [(v154_http2(), [1, 3, 5]), (v157_http2(), [3, 5, 7])] {
             let proxy = Proxy::bind()?;
             let connector = proxy
                 .connector()?
@@ -654,7 +654,7 @@ async fn other_credentials_or_settings_never_share_a_connection() -> TestResult<
         let connector = proxy.connector()?.with_http2_proxy_pool(pool.clone());
         let firefox = proxy
             .connector()?
-            .with_http2_settings(&v156_http2())
+            .with_http2_settings(&v157_http2())
             .with_http2_proxy_pool(pool.clone());
         let port = proxy.port;
         let server = tokio::spawn(async move {

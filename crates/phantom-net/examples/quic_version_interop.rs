@@ -1,4 +1,4 @@
-//! Sends Firefox 156 HTTP/3 requests on fresh connections to a loopback server.
+//! Sends Firefox 157 HTTP/3 requests on fresh connections to a loopback server.
 //!
 //! Pair it with `scripts/conformance/aioquic_versions.py`, which reports the
 //! QUIC version of each connection. The first connection starts in QUIC v1 and
@@ -26,10 +26,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let requests: usize = args.next().map_or(Ok(3), |value| value.parse())?;
 
     let connector = Http3Connector::new_with_additional_roots(
-        &firefox::v156_http3_tls(),
-        &firefox::v156_quic(),
-        &firefox::v156_http3(),
-        &firefox::v156_http3_request(),
+        &firefox::v157_http3_tls(),
+        &firefox::v157_quic(),
+        &firefox::v157_http3(),
+        &firefox::v157_http3_request(),
         std::iter::once(root.as_slice()),
     )?
     .with_isolated_session_cache();

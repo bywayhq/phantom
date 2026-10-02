@@ -1,4 +1,4 @@
-//! The Firefox 156 HTTP/3 recipe against the retained Firefox 156.0.1 captures.
+//! The Firefox 157 HTTP/3 recipe against the retained Firefox 157.0 captures.
 
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -26,19 +26,19 @@ use crate::request::{OriginForm, RequestHeader};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 
 const SNAPSHOTS: [&str; 3] = [
-    include_str!("../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-1.txt"),
-    include_str!("../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-2.txt"),
-    include_str!("../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/snapshot-3.txt"),
+    include_str!("../../../../../fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt"),
+    include_str!("../../../../../fixtures/http3/firefox/157.0/windows-11-26200/snapshot-2.txt"),
+    include_str!("../../../../../fixtures/http3/firefox/157.0/windows-11-26200/snapshot-3.txt"),
 ];
 const CLIENT_HELLOS: [&str; 3] = [
     include_str!(
-        "../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/quic-client-hello-1.txt"
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt"
     ),
     include_str!(
-        "../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/quic-client-hello-2.txt"
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-2.txt"
     ),
     include_str!(
-        "../../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/quic-client-hello-3.txt"
+        "../../../../../fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-3.txt"
     ),
 ];
 const H3_ALPN_WIRE: &[u8] = b"\x02h3";
@@ -50,10 +50,10 @@ const QUIC_V2: u32 = 0x6b33_43cf;
 
 fn connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
-        &firefox::v156_http3_tls(),
-        &firefox::v156_quic(),
-        &firefox::v156_http3(),
-        &firefox::v156_http3_request(),
+        &firefox::v157_http3_tls(),
+        &firefox::v157_quic(),
+        &firefox::v157_http3(),
+        &firefox::v157_http3_request(),
         [identity.root_der()],
     )?)
 }
@@ -145,7 +145,7 @@ fn extension_set(summary: &ClientHelloSummary) -> Vec<u16> {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_quic_offer_and_streams_match_windows_capture() -> TestResult<()> {
+async fn firefox_157_quic_offer_and_streams_match_windows_capture() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = connector(&identity)?;
     let (address, endpoint) = server(&identity)?;
@@ -327,7 +327,7 @@ async fn first_flight_of(
 /// (`ConnectionId::generate_initial`, `neqo-transport/src/cid.rs` lines 54 to
 /// 59 in neqo 0.30.1), so only that range is compared.
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_initial_datagrams_match_the_capture() -> TestResult<()> {
+async fn firefox_157_initial_datagrams_match_the_capture() -> TestResult<()> {
     let actual = first_flight((Ipv4Addr::LOCALHOST, 0).into()).await?;
     assert_eq!(actual[0].2, actual[1].2);
     for snapshot in SNAPSHOTS {
@@ -349,7 +349,7 @@ async fn firefox_156_initial_datagrams_match_the_capture() -> TestResult<()> {
 /// (`neqo-transport/src/pmtud.rs` lines 76 to 81 in neqo 0.30.1). No capture
 /// covers IPv6.
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_initial_datagrams_leave_room_for_ipv6_headers() -> TestResult<()> {
+async fn firefox_157_initial_datagrams_leave_room_for_ipv6_headers() -> TestResult<()> {
     let actual = first_flight((Ipv6Addr::LOCALHOST, 0).into()).await?;
     assert!(
         actual.iter().all(|datagram| datagram.0 == 1_232),
@@ -359,7 +359,7 @@ async fn firefox_156_initial_datagrams_leave_room_for_ipv6_headers() -> TestResu
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_recipe_completes_a_request() -> TestResult<()> {
+async fn firefox_157_recipe_completes_a_request() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = connector(&identity)?;
     let (address, endpoint) = server_endpoint(&identity)?;
@@ -381,7 +381,7 @@ async fn firefox_156_recipe_completes_a_request() -> TestResult<()> {
         TestResult::Ok((probe, connection))
     };
     let request = super::super::prepare_traced_request(
-        &firefox::v156_http3_request(),
+        &firefox::v157_http3_request(),
         http::Method::GET,
         TEST_SERVER_NAME,
         OriginForm::parse("/firefox")?,
@@ -522,7 +522,7 @@ async fn v2_relay(
 /// version 2-only server answers its first flight in version 2 (RFC 9368
 /// section 2.3), and the request completes in version 2.
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_client_follows_a_server_to_version_2() -> TestResult<()> {
+async fn firefox_157_client_follows_a_server_to_version_2() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     follow_a_server_to_version_2(&identity, connector(&identity)?).await
 }
@@ -530,7 +530,7 @@ async fn firefox_156_client_follows_a_server_to_version_2() -> TestResult<()> {
 /// A connector bound to a source address and holding a client certificate
 /// keeps the recipe's QUIC v2 offer and Initial datagram size.
 #[tokio::test(flavor = "current_thread")]
-async fn firefox_156_bound_certificate_connector_keeps_initials_and_version_2() -> TestResult<()> {
+async fn firefox_157_bound_certificate_connector_keeps_initials_and_version_2() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let bound = |connector: Http3Connector| -> TestResult<Http3Connector> {
         let key = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
@@ -588,7 +588,7 @@ async fn follow_a_server_to_version_2(
         TestResult::Ok(connection)
     };
     let request = super::super::prepare_traced_request(
-        &firefox::v156_http3_request(),
+        &firefox::v157_http3_request(),
         http::Method::GET,
         TEST_SERVER_NAME,
         OriginForm::parse("/")?,

@@ -345,7 +345,7 @@ async fn cookie_placement_presets_reproduce_each_browser_reconnect() -> TestResu
 
     for (browser, placement, expected_index, field_count) in [
         (Browser::Chrome, chromium::v154_cookie_placement(), 15, 16),
-        (Browser::Firefox, firefox::v156_cookie_placement(), 7, 14),
+        (Browser::Firefox, firefox::v157_cookie_placement(), 7, 14),
     ] {
         let fixture = Fixture::load(browser, "set-cookie-then-close")?;
         let reconnect = fixture

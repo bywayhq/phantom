@@ -57,7 +57,7 @@ macro_rules! fixture_set {
 
 const CHROME: [&str; 9] = fixture_set!("chrome", "154.0.8037.58");
 const EDGE: [&str; 9] = fixture_set!("edge", "154.0.4258.37");
-const FIREFOX: [&str; 9] = fixture_set!("firefox", "156.0.1");
+const FIREFOX: [&str; 9] = fixture_set!("firefox", "157.0");
 const BRAVE: [&str; 9] = fixture_set!("brave", "154.1.96.59");
 const OPERA: [&str; 9] = fixture_set!("opera", "136.0.6008.52");
 const CHROME_ANDROID: [&str; 9] = fixture_set!(
@@ -127,13 +127,13 @@ fn brave_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResu
 }
 
 #[test]
-fn firefox_156_websocket_recipe_matches_captures() -> TestResult {
+fn firefox_157_websocket_recipe_matches_captures() -> TestResult {
     let summary = assert_recipe_matches(
         &FIREFOX,
         "Mozilla Firefox",
-        &firefox::v156_websocket(),
-        &firefox::v156_http2(),
-        &firefox::v156_tls(),
+        &firefox::v157_websocket(),
+        &firefox::v157_http2(),
+        &firefox::v157_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 3);
@@ -167,7 +167,7 @@ fn http1_upgrade_tls_settings_replace_only_alpn_and_unoffered_alps() {
 
 #[test]
 fn validation_rejects_alpn_that_cannot_carry_an_upgrade() {
-    let mut settings = firefox::v156_websocket();
+    let mut settings = firefox::v157_websocket();
     settings.connection.http1_alpn_protocols = vec![Box::from(*b"h2"), Box::from(*b"http/1.1")];
     assert_eq!(
         settings.validate().map_err(|error| error.field()),
@@ -212,7 +212,7 @@ fn validation_rejects_templates_unusable_by_their_protocol() {
 
 #[test]
 fn validation_rejects_invalid_deflate_offers() {
-    let mut settings = firefox::v156_websocket();
+    let mut settings = firefox::v157_websocket();
     settings.permessage_deflate_offer = vec![
         WebSocketDeflateParameter::ClientMaxWindowBits(None),
         WebSocketDeflateParameter::ClientMaxWindowBits(Some(10)),
@@ -234,7 +234,7 @@ fn recipes_carry_the_browser_handshake_timers() {
         Some(Duration::from_secs(240))
     );
     assert_eq!(
-        firefox::v156_websocket().handshake_timeout,
+        firefox::v157_websocket().handshake_timeout,
         Some(Duration::from_secs(20))
     );
 }
@@ -748,7 +748,7 @@ macro_rules! proxy_fixture_set {
 #[test]
 fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestResult {
     let chromium = chromium::v154_websocket();
-    let firefox = firefox::v156_websocket();
+    let firefox = firefox::v157_websocket();
     for (fixtures, client, recipe) in [
         (
             proxy_fixture_set!("chrome", "154.0.8037.58"),
@@ -771,7 +771,7 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
             &chromium,
         ),
         (
-            proxy_fixture_set!("firefox", "156.0.1"),
+            proxy_fixture_set!("firefox", "157.0"),
             "Mozilla Firefox",
             &firefox,
         ),
@@ -895,5 +895,5 @@ fn policy_type_is_plain_profile_data() {
         http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
         refused_stream_retry: WebSocketRefusedStreamRetry::None,
     };
-    assert_eq!(policy, firefox::v156_websocket().connection);
+    assert_eq!(policy, firefox::v157_websocket().connection);
 }

@@ -57,7 +57,7 @@ where
     }
 }
 
-/// The Chrome 154 recipe waits 10 seconds without a read; Firefox 156 sends
+/// The Chrome 154 recipe waits 10 seconds without a read; Firefox 157 sends
 /// no such PING.
 #[test]
 fn recipes_state_the_preface_ping_idle_time() {
@@ -65,18 +65,18 @@ fn recipes_state_the_preface_ping_idle_time() {
         chromium::v154_http2().preface_ping_after,
         Some(Duration::from_secs(10))
     );
-    assert_eq!(firefox::v156_http2().preface_ping_after, None);
+    assert_eq!(firefox::v157_http2().preface_ping_after, None);
 }
 
 /// The Chrome 154 recipe closes a connection whose PING goes unanswered for
-/// 10 seconds without a read; Firefox 156 sends no such PING to time.
+/// 10 seconds without a read; Firefox 157 sends no such PING to time.
 #[test]
 fn recipes_state_the_ping_timeout() {
     assert_eq!(
         chromium::v154_http2().ping_timeout,
         Some(Duration::from_secs(10))
     );
-    assert_eq!(firefox::v156_http2().ping_timeout, None);
+    assert_eq!(firefox::v157_http2().ping_timeout, None);
 }
 
 /// A PING the peer never answers closes the connection once nothing has been

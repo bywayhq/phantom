@@ -1210,7 +1210,7 @@ impl ClientBuilder {
     /// handshake to an origin that selected HTTP/2 before.
     ///
     /// By default the request waits until that handshake finishes, as
-    /// Firefox 156 does, so a stalled handshake stalls every request queued
+    /// Firefox 157 does, so a stalled handshake stalls every request queued
     /// behind it. Chromium 154 waits at most 300 ms. After `limit`, the
     /// request opens a connection of its own; if both select HTTP/2, the one
     /// that finishes second closes and its requests join the first, unless

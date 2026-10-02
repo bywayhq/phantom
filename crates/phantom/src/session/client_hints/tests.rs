@@ -404,7 +404,7 @@ mod template_slots {
 
         // A template without client-hint slots places no hint, whatever its
         // requested-hint flag claims.
-        let mut slotless = crate::profile::firefox::v156_windows_navigation_template();
+        let mut slotless = crate::profile::firefox::v157_windows_navigation_template();
         slotless.requested_client_hint_placement = true;
         let slotless_fields = expand(&slotless.http2_fields, &[], None, true);
         assert_eq!(

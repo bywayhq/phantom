@@ -15,7 +15,7 @@ use url::{Host, Url};
 /// `154.0.8037.58`), whose loopback and `localhost` step is `net::IsLocalhost`
 /// (`net/base/url_util.cc` lines 468-477 and 582-589); its remaining steps
 /// cover `file`, other authenticated schemes, and a command-line allowlist
-/// that a request URL cannot reach. Firefox 156 answers the same in
+/// that a request URL cannot reach. Firefox 157 answers the same in
 /// `nsMixedContentBlocker::IsPotentiallyTrustworthyOrigin`
 /// (`dom/security/nsMixedContentBlocker.cpp` lines 221-248 and 294-362 at
 /// `FIREFOX_156_0_RELEASE`), apart from its off-by-default `.onion` and
@@ -36,7 +36,7 @@ pub(crate) fn is_potentially_trustworthy(url: &Url) -> bool {
 /// [`is_potentially_trustworthy`].
 ///
 /// A `ws://` WebSocket URL follows these rules too: the retained proxy route
-/// captures show Chrome 154, Edge 154, and Firefox 156 sending a `ws://`
+/// captures show Chrome 154, Edge 154, and Firefox 157 sending a `ws://`
 /// opening to `127.0.0.1` the fields they send only to a trustworthy origin,
 /// and withholding them from `origin.phantom.test`.
 pub(crate) fn is_potentially_trustworthy_host(host: &Host<&str>) -> bool {

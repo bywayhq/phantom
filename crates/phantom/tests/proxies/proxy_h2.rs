@@ -178,7 +178,7 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
 /// A challenged CONNECT is replayed once, as stream 3 of the proxy
 /// connection that carried the `407` on stream 1, as Chrome 154, Edge 154,
-/// and Firefox 156 do in the `https-proxy-auth-secure-hostname` captures.
+/// and Firefox 157 do in the `https-proxy-auth-secure-hostname` captures.
 #[tokio::test]
 async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() -> TestResult<()> {
     bounded(async {
@@ -617,9 +617,9 @@ async fn chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -
 
 #[tokio::test]
 async fn firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -> TestResult<()> {
-    // fixtures/proxy/firefox/156.0.1/*/https-proxy-*.txt.
+    // fixtures/proxy/firefox/157.0/*/https-proxy-*.txt.
     assert_h2_forwarding(
-        firefox::v156_http2(),
+        firefox::v157_http2(),
         &[":method", ":path", ":authority", ":scheme"],
     )
     .await
@@ -760,7 +760,7 @@ type ForwardingCase = (
 
 /// A navigation challenged by an HTTP/2 proxy and its replay place
 /// `proxy-authorization` where Chrome 154, Edge 154, Brave 154, Opera 136,
-/// and Firefox 156 do in
+/// and Firefox 157 do in
 /// the `https-proxy-auth-hostname` captures, and a no-store `fetch()` that
 /// sends remembered credentials first places it where they do in the
 /// `https-proxy-auth-nostore-hostname` captures. Every run of each agrees.
@@ -813,11 +813,11 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         ),
         (
             "firefox",
-            firefox::v156_http2(),
-            firefox::v156_windows_navigation_template(),
-            firefox::v156_windows_fetch_no_store_template(),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-hostname"),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-nostore-hostname"),
+            firefox::v157_http2(),
+            firefox::v157_windows_navigation_template(),
+            firefox::v157_windows_fetch_no_store_template(),
+            proxy_fixture!("firefox/157.0", "https-proxy-auth-hostname"),
+            proxy_fixture!("firefox/157.0", "https-proxy-auth-nostore-hostname"),
             &[],
         ),
     ];
@@ -903,7 +903,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
 /// tunnel: anonymous, challenged, and on the replay after a `407`, compared
 /// with the `https://` CONNECTs of the `https-proxy-secure-hostname` and
 /// `https-proxy-auth-secure-hostname` captures of Chrome 154, Edge 154,
-/// Brave 154, Opera 136, and Firefox 156.
+/// Brave 154, Opera 136, and Firefox 157.
 #[tokio::test]
 async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
@@ -937,10 +937,10 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
         ),
         (
             "firefox",
-            firefox::v156_proxy_connect(),
-            firefox::v156_windows_navigation_template(),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-secure-hostname"),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-secure-hostname"),
+            firefox::v157_proxy_connect(),
+            firefox::v157_windows_navigation_template(),
+            proxy_fixture!("firefox/157.0", "https-proxy-secure-hostname"),
+            proxy_fixture!("firefox/157.0", "https-proxy-auth-secure-hostname"),
         ),
     ];
     for (label, connect, navigation, anonymous, authenticated) in cases {
@@ -977,7 +977,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 let client = Client::builder(
                     ClientProfile::new(tls_settings())
                         .with_http2(if label == "firefox" {
-                            firefox::v156_http2()
+                            firefox::v157_http2()
                         } else {
                             chromium::v154_http2()
                         })
@@ -1019,7 +1019,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
 
 /// The profile's CONNECT recipe decides what the client sends on the
 /// challenged stream before the replay: Chrome 154 and Edge 154 end it, and
-/// Firefox 156 leaves it open, as in the `https-proxy-auth-secure-hostname`
+/// Firefox 157 leaves it open, as in the `https-proxy-auth-secure-hostname`
 /// captures, where Firefox numbers the two streams 3 and 5.
 #[tokio::test]
 async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestResult<()> {
@@ -1033,8 +1033,8 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
         ),
         (
             "firefox",
-            firefox::v156_proxy_connect(),
-            firefox::v156_http2(),
+            firefox::v157_proxy_connect(),
+            firefox::v157_http2(),
             false,
             [3, 5],
         ),
@@ -1099,8 +1099,8 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             proxy_fixture!("opera/136.0.6008.52", "https-proxy-secure-hostname"),
         ),
         (
-            firefox::v156_proxy_connect(),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-secure-hostname"),
+            firefox::v157_proxy_connect(),
+            proxy_fixture!("firefox/157.0", "https-proxy-secure-hostname"),
         ),
     ];
     for (connect, fixture) in cases {
@@ -1204,11 +1204,11 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         ),
         (
             "firefox",
-            firefox::v156_http2(),
-            firefox::v156_windows_navigation_template(),
-            firefox::v156_windows_fetch_no_store_template(),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-remembered-hostname"),
-            proxy_fixture!("firefox/156.0.1", "https-proxy-auth-nostore-hostname"),
+            firefox::v157_http2(),
+            firefox::v157_windows_navigation_template(),
+            firefox::v157_windows_fetch_no_store_template(),
+            proxy_fixture!("firefox/157.0", "https-proxy-auth-remembered-hostname"),
+            proxy_fixture!("firefox/157.0", "https-proxy-auth-nostore-hostname"),
             &[],
         ),
     ];

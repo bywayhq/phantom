@@ -709,7 +709,7 @@ fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2(
     let profiled = test_ok(
         QuicClientConfig::with_transport_profile(
             resumption_client_context().0,
-            phantom_profile::firefox::v156_quic(),
+            phantom_profile::firefox::v157_quic(),
         ),
         "Firefox transport profile",
     );

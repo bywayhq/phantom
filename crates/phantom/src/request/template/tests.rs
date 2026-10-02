@@ -135,9 +135,9 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
             Some(edge::v154_windows_client_hints()),
             &edge_user_agent[..],
         ),
-        (firefox::v156_windows_navigation_template(), None, &[][..]),
+        (firefox::v157_windows_navigation_template(), None, &[][..]),
         (
-            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v157_windows_fetch_no_store_template(),
             None,
             &[][..],
         ),
@@ -211,11 +211,11 @@ fn a_referer_on_a_navigation_template_goes_after_every_template_field() {
             "priority",
         ),
         (
-            firefox::v156_windows_navigation_template().http1_fields,
+            firefox::v157_windows_navigation_template().http1_fields,
             "Priority",
         ),
         (
-            firefox::v156_windows_navigation_template().http2_fields,
+            firefox::v157_windows_navigation_template().http2_fields,
             "te",
         ),
     ] {
@@ -239,7 +239,7 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
         "\"x86\"",
         ClientHintDelivery::AcceptCh,
     )]);
-    let firefox = firefox::v156_windows_navigation_template();
+    let firefox = firefox::v157_windows_navigation_template();
     assert_eq!(
         kind(
             &firefox,
@@ -341,7 +341,7 @@ fn a_request_that_may_use_http3_needs_an_http3_list() {
 
 #[test]
 fn invalid_templates_fail_to_prepare_and_disagreeing_accept_encoding_is_rejected() {
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http2_fields.push(RequestField::caller("cookie"));
     assert_eq!(
         PreparedRequestTemplate::new(template)
@@ -350,7 +350,7 @@ fn invalid_templates_fail_to_prepare_and_disagreeing_accept_encoding_is_rejected
         Some("http2_fields")
     );
 
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http2_fields[3] = RequestField::literal("accept-encoding", "gzip");
     let decoding = ProtocolScope {
         content_decoding: true,
@@ -365,7 +365,7 @@ fn invalid_templates_fail_to_prepare_and_disagreeing_accept_encoding_is_rejected
 
 #[test]
 fn an_untrustworthy_url_drops_fetch_metadata_and_advanced_codings() {
-    let template = firefox::v156_windows_navigation_template();
+    let template = firefox::v157_windows_navigation_template();
     let plaintext = expand(&template.http1_fields, &[], None, false);
     assert_eq!(
         names(&plaintext),
@@ -424,8 +424,8 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
         chromium::v154_windows_fetch_no_store_template(),
         edge::v154_windows_navigation_template(),
         edge::v154_windows_fetch_no_store_template(),
-        firefox::v156_windows_navigation_template(),
-        firefox::v156_windows_fetch_no_store_template(),
+        firefox::v157_windows_navigation_template(),
+        firefox::v157_windows_fetch_no_store_template(),
     ] {
         let prepared = PreparedRequestTemplate::new(template)
             .unwrap_or_else(|error| panic!("template is invalid: {error}"));
@@ -453,7 +453,7 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
     }
 
     // The lists must agree for each kind of URL, not only for one.
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http2_fields[3] =
         RequestField::by_trust("accept-encoding", "gzip, deflate, br, zstd", "gzip");
     let decoding = ProtocolScope {
@@ -483,7 +483,7 @@ fn a_forwarded_caller_proxy_authorization_takes_the_preemptive_slot() {
             chromium::v154_windows_navigation_template(),
             "Upgrade-Insecure-Requests",
         ),
-        (firefox::v156_windows_navigation_template(), "Connection"),
+        (firefox::v157_windows_navigation_template(), "Connection"),
     ] {
         let (expanded, placed) =
             expand_on_route(&template.http1_fields, &caller, None, false, forwarded);

@@ -1,4 +1,4 @@
-use super::{v156_http2, v156_http3, v156_http3_request, v156_http3_tls, v156_quic, v156_tls};
+use super::{v157_http2, v157_http3, v157_http3_request, v157_http3_tls, v157_quic, v157_tls};
 use crate::http2::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
     Http2StreamSettings, session_capture::SessionCapture,
@@ -8,14 +8,14 @@ use crate::tls::{
     EchGreaseAead, NamedGroup, SignatureScheme, TlsVersion,
 };
 
-const V156_SESSION_FIXTURE: &str = include_str!(concat!(
+const V157_SESSION_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/websocket/firefox/156.0.1/windows-11-26200/accept.txt"
+    "/../../fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt"
 ));
 
 #[test]
-fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v156_tls();
+fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>> {
+    let settings = v157_tls();
     settings.validate()?;
 
     assert_eq!(settings.min_version, TlsVersion::Tls12);
@@ -40,7 +40,7 @@ fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
             CipherSuite::RsaAes256CbcSha,
         ]
     );
-    // Firefox 156 no longer offers FFDHE-2048 or FFDHE-3072.
+    // Firefox 157 no longer offers FFDHE-2048 or FFDHE-3072.
     assert_eq!(
         settings.groups,
         [
@@ -144,18 +144,18 @@ fn firefox_156_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
 }
 
 #[test]
-fn firefox_156_http2_recipe_matches_windows_session_capture()
+fn firefox_157_http2_recipe_matches_windows_session_capture()
 -> Result<(), Box<dyn std::error::Error>> {
-    let capture = SessionCapture::parse(V156_SESSION_FIXTURE)?;
+    let capture = SessionCapture::parse(V157_SESSION_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Mozilla Firefox");
-    assert_eq!(capture.value("client_version")?, "156.0.1");
+    assert_eq!(capture.value("client_version")?, "157.0");
     assert_eq!(
         capture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"
     );
     assert_eq!(capture.value("scenario")?, "accept");
 
-    let settings = v156_http2();
+    let settings = v157_http2();
     settings.validate()?;
     assert_eq!(
         settings.initial_settings,
@@ -233,7 +233,7 @@ fn firefox_156_macos_http2_session_capture_matches_the_recipe()
         "macOS 15.5 (24F74) arm64"
     );
     assert_eq!(capture.value("scenario")?, "accept");
-    let settings = v156_http2();
+    let settings = v157_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
@@ -258,8 +258,8 @@ fn firefox_156_macos_http2_session_capture_matches_the_recipe()
 
 #[test]
 fn http3_recipes_are_valid_profile_data() {
-    assert_eq!(v156_http3_tls().validate(), Ok(()));
-    assert_eq!(v156_quic().validate(), Ok(()));
-    assert_eq!(v156_http3().validate(), Ok(()));
-    assert_eq!(v156_http3_request().validate(), Ok(()));
+    assert_eq!(v157_http3_tls().validate(), Ok(()));
+    assert_eq!(v157_quic().validate(), Ok(()));
+    assert_eq!(v157_http3().validate(), Ok(()));
+    assert_eq!(v157_http3_request().validate(), Ok(()));
 }

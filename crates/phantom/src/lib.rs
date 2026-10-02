@@ -262,10 +262,10 @@ pub mod profile {
     /// Firefox recipes implemented by the public facade.
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v156_cookie_placement, v156_dns_cache, v156_http1, v156_http2,
-            v156_macos_fetch_no_store_template, v156_macos_navigation_template, v156_proxy_connect,
-            v156_tcp, v156_tls, v156_websocket, v156_windows_fetch_no_store_template,
-            v156_windows_navigation_template,
+            v156_macos_fetch_no_store_template, v156_macos_navigation_template,
+            v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_proxy_connect,
+            v157_tcp, v157_tls, v157_websocket, v157_windows_fetch_no_store_template,
+            v157_windows_navigation_template,
         };
     }
 
@@ -332,7 +332,8 @@ pub mod profile {
     /// Firefox for Android recipes implemented by the public facade.
     ///
     /// Captured from Firefox 156.0.1 on an Android 15 emulator. Only the TLS
-    /// ClientHello is captured; it equals desktop Firefox 156's.
+    /// ClientHello is captured; it equals the desktop ClientHello that
+    /// Firefox 156.0.1 and 157.0 send.
     pub mod firefox_android {
         pub use phantom_profile::firefox_android::v156_tls;
     }

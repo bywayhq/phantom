@@ -14,6 +14,28 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- The Windows Firefox recipes move to Firefox 157.0 on Windows 11: every
+  `firefox::v156_*` function except the two macOS templates is removed from
+  `phantom-profile` and the `phantom` facade and replaced by its `v157_*`
+  counterpart. Two things change on the wire. The Windows templates send
+  `Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101
+  Firefox/157.0`, and `firefox::v157_http3_tls` no longer offers ML-DSA-44,
+  ML-DSA-65, or ML-DSA-87 in `signature_algorithms` or
+  `delegated_credentials`, as Firefox 157's QUIC ClientHello no longer does.
+  Every other setting is unchanged
+  ([evidence](docs/explanation/validation.md#firefox-157-against-firefox-15601)).
+  `firefox::v156_macos_navigation_template` and
+  `v156_macos_fetch_no_store_template` stay, because the retained Mac
+  captures are from Firefox 156.0, and `firefox_android::v156_tls` keeps its
+  Firefox 156.0.1 for Android evidence and now returns `firefox::v157_tls`,
+  whose TCP ClientHello Firefox 157 left unchanged.
+  Migrate: rename `firefox::v156_tls` to `firefox::v157_tls`, and likewise
+  `v156_tcp`, `v156_dns_cache`, `v156_http1`, `v156_http2`,
+  `v156_websocket`, `v156_proxy_connect`, `v156_cookie_placement`,
+  `v156_http3_tls`, `v156_quic`, `v156_http3`, `v156_http3_request`,
+  `v156_windows_navigation_template`, and
+  `v156_windows_fetch_no_store_template` to their `v157_` names. Send a
+  Firefox 157 `User-Agent` with a template you build yourself.
 - `TlsSettings` gained the public field `tcp_early_data: bool`, so struct
   literals that name every field no longer compile. When set, a direct TCP
   connection that resumes a TLS 1.3 ticket permitting early data offers

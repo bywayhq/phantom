@@ -1,4 +1,4 @@
-use phantom_profile::{Http2Setting, Http2Settings, chromium::v154_http2, firefox::v156_http2};
+use phantom_profile::{Http2Setting, Http2Settings, chromium::v154_http2, firefox::v157_http2};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{
@@ -22,7 +22,7 @@ const FRAGMENT_LEN: usize = 16_384;
 
 #[tokio::test]
 async fn oversized_header_list_is_a_typed_stream_error_with_firefox_profile() -> TestResult<()> {
-    bounded_peer_test(run_oversized(v156_http2(), FIREFOX_LIMIT)).await
+    bounded_peer_test(run_oversized(v157_http2(), FIREFOX_LIMIT)).await
 }
 
 #[tokio::test]
@@ -36,12 +36,12 @@ async fn header_list_below_firefox_ceiling_is_accepted() -> TestResult<()> {
         let (client, server) = duplex(64 * 1024);
         let peer = tokio::spawn(async move {
             let mut stream = server;
-            let first = v156_http2().streams.first_stream_id;
+            let first = v157_http2().streams.first_stream_id;
             establish_baseline(&mut stream, first).await?;
             write_header_block(&mut stream, first, &header_block(FIREFOX_LIMIT - 64), true).await?;
             drain_without_error(&mut stream).await
         });
-        let connection = Http2Connection::connect(client, &v156_http2()).await?;
+        let connection = Http2Connection::connect(client, &v157_http2()).await?;
         let response = connection
             .send_get("example.test", target()?, Vec::new())
             .await?;
@@ -183,7 +183,7 @@ async fn run_connection_abuse(abuse: Abuse) -> TestResult<()> {
     let (client, server) = duplex(64 * 1024);
     let peer = tokio::spawn(async move {
         let mut stream = server;
-        let first = v156_http2().streams.first_stream_id;
+        let first = v157_http2().streams.first_stream_id;
         establish_baseline(&mut stream, first).await?;
         abuse.write(&mut stream, first).await?;
         stream.flush().await?;
@@ -195,7 +195,7 @@ async fn run_connection_abuse(abuse: Abuse) -> TestResult<()> {
         )
         .await
     });
-    let connection = Http2Connection::connect(client, &v156_http2()).await?;
+    let connection = Http2Connection::connect(client, &v157_http2()).await?;
     if connection
         .send_get("example.test", target()?, Vec::new())
         .await

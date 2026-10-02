@@ -11,7 +11,7 @@ use super::WebSocketError;
 /// Rewrites an empty data message so it is sent with RSV1 clear.
 ///
 /// `permessage-deflate` otherwise deflates every text and binary message,
-/// which turns an empty payload into a one-byte compressed frame. Firefox 156
+/// which turns an empty payload into a one-byte compressed frame. Firefox 157
 /// instead sends the empty payload as it is, so this hands the engine a ready
 /// frame with RSV1 clear rather than a message for it to compress. Only an
 /// empty payload is rewritten, so no encoder history is skipped: the peer's

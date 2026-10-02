@@ -103,7 +103,7 @@ pub enum Http2RejectedConnect {
     EndStream,
     /// Nothing while the connection carries the tunnel that follows.
     ///
-    /// Firefox 156 does this in the `https-proxy-auth-secure-hostname`
+    /// Firefox 157 does this in the `https-proxy-auth-secure-hostname`
     /// captures. The stream stays open on the client side, so it holds one of
     /// the proxy's concurrent streams. When the proxy allows only one
     /// stream, the client ends the stream as in [`Self::EndStream`] instead.
@@ -131,7 +131,7 @@ pub enum Http2ProxyConnections {
     /// CONNECT tunnels for WebSocket openings each share a connection only
     /// among themselves.
     ///
-    /// Firefox 156 opens three connections for one page in the
+    /// Firefox 157 opens three connections for one page in the
     /// `https-proxy-*` captures: one for the navigation and `fetch()`, one
     /// for the `https://` CONNECTs, and one for the `ws://` and `wss://`
     /// CONNECTs.

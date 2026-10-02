@@ -433,7 +433,7 @@ async fn fewer_requests_than_the_bound_open_one_connection_each() -> TestResult 
 async fn named_recipe_opens_six_negotiated_http1_connections() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        for recipe in [chromium::v154_http1(), firefox::v156_http1()] {
+        for recipe in [chromium::v154_http1(), firefox::v157_http1()] {
             let mut origin = Origin::start(&identity, Alpn::Http1, 0).await?;
             let profile = ClientProfile::new(tls_settings())
                 .with_http2(chromium::v154_http2())

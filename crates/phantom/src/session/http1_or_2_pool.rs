@@ -806,7 +806,7 @@ impl PoolEntry {
     /// wait limit, for a setup in flight to a key that selected H2 before.
     ///
     /// Returns `false` when the limit passed first. Chromium 154 bounds this
-    /// wait by 300 ms; Firefox 156 does not bound it (see
+    /// wait by 300 ms; Firefox 157 does not bound it (see
     /// [`ConnectionState::awaits_setup`]).
     async fn await_http2_setup(
         &self,
@@ -1263,7 +1263,7 @@ impl ConnectionState {
     /// select it again and then carry every request. Chromium 154 holds new
     /// connection attempts to such a server until the first one finishes, for
     /// at most 300 ms (`net/http/http_stream_factory_job.cc:749-775`,
-    /// `:1417-1429`), and Firefox 156 holds them until the attempt reports
+    /// `:1417-1429`), and Firefox 157 holds them until the attempt reports
     /// its protocol (`netwerk/protocol/http/ConnectionEntry.cpp:225-248`,
     /// `nsHttpConnectionMgr.cpp:1399-1409`). Phantom waits as Firefox does,
     /// unless the caller sets a limit

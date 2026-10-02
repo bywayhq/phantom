@@ -267,7 +267,7 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
     let caching = || profile().with_dns_cache(chromium::v154_dns_cache());
 
     let replaced = Client::builder(caching())
-        .dns_cache(firefox::v156_dns_cache())
+        .dns_cache(firefox::v157_dns_cache())
         .build()?;
     let disabled = Client::builder(caching()).no_dns_cache().build()?;
     let without = Client::builder(profile()).build()?;
@@ -279,7 +279,7 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
             .as_ref()
             .and_then(HostResolver::cache)
             .map(|cache| *cache.settings()),
-        Some(firefox::v156_dns_cache())
+        Some(firefox::v157_dns_cache())
     );
     assert!(disabled.inner.host_resolver.is_none());
     assert!(

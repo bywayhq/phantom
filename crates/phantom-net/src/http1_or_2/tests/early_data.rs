@@ -159,8 +159,8 @@ async fn http2_sends_a_rejected_get_once_more_on_the_same_connection() -> TestRe
 async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v156_tls(),
-        &firefox::v156_http2(),
+        &firefox::v157_tls(),
+        &firefox::v157_http2(),
         [identity.root_der()],
     )?
     .with_isolated_session_cache();
@@ -264,8 +264,8 @@ async fn start<const N: usize>(
 ) -> TestResult<Started<N>> {
     let identity = TestIdentity::generate()?;
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v156_tls(),
-        &firefox::v156_http2(),
+        &firefox::v157_tls(),
+        &firefox::v157_http2(),
         [identity.root_der()],
     )?
     .with_isolated_session_cache();

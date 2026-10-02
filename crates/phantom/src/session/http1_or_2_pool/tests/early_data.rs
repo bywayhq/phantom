@@ -65,8 +65,8 @@ async fn a_lease_whose_alpn_change_settled_before_dispatch_restarts() -> TestRes
         });
 
         let connector = Http1Or2TlsConnector::new_with_additional_roots(
-            &firefox::v156_tls(),
-            &firefox::v156_http2(),
+            &firefox::v157_tls(),
+            &firefox::v157_http2(),
             [root.as_slice()],
         )?;
         let pool = Http1Or2Pool::new(

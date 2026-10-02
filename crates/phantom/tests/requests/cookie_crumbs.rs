@@ -58,7 +58,7 @@ const OPERA: &str = include_str!(concat!(
 ));
 const FIREFOX: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/cookies/firefox/156.0.1/windows-11-26200/crumbs-h2.txt"
+    "/../../fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h2.txt"
 ));
 
 #[tokio::test]
@@ -117,8 +117,8 @@ async fn firefox_never_indexes_short_jar_cookies_as_captured() -> TestResult<()>
     let capture = Capture::parse(FIREFOX)?;
     let observed = replay(
         &capture,
-        firefox::v156_http2(),
-        firefox::v156_cookie_placement(),
+        firefox::v157_http2(),
+        firefox::v157_cookie_placement(),
     )
     .await?;
     // Firefox names a literal with the highest-numbered matching table entry,

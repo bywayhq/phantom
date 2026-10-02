@@ -17,7 +17,8 @@ use crate::{firefox, tls::TlsSettings};
 /// Returns TLS settings captured from Firefox 156.0.1 for Android.
 ///
 /// Twelve fresh-profile ClientHellos of the retained capture equal the
-/// desktop [`firefox::v156_tls`] ClientHello: the same fixed extension order,
+/// desktop Firefox 156.0.1 ClientHello, which desktop Firefox 157.0 still
+/// sends and [`firefox::v157_tls`] reproduces: the same fixed extension order,
 /// cipher suites, groups, key shares, signature algorithms, record size
 /// limit, delegated-credential schemes, and a 240-byte ECH GREASE payload.
 /// Firefox for Android also draws its ECH GREASE AEAD per connection: 5 of
@@ -33,5 +34,5 @@ use crate::{firefox, tls::TlsSettings};
 /// (`mobile/android/app/geckoview-prefs.js`) override neither.
 #[must_use]
 pub fn v156_tls() -> TlsSettings {
-    firefox::v156_tls()
+    firefox::v157_tls()
 }

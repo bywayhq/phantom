@@ -5,7 +5,7 @@
 //! data until the server answers. If the server accepts, nothing changes. If it
 //! rejects, it processed none of them; the stream finishes the handshake and
 //! writes the same bytes again before anything else, so the protocol layer
-//! never sees the rejection. Firefox 156 does the same on the same connection:
+//! never sees the rejection. Firefox 157 does the same on the same connection:
 //! HTTP/1.1 rewinds its request stream (`nsHttpTransaction::Finish0RTT`,
 //! `netwerk/protocol/http/nsHttpTransaction.cpp:3363-3373` at tag
 //! `FIREFOX_156_0_RELEASE`) and HTTP/2 resends its output queue from the

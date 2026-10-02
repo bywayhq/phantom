@@ -210,8 +210,8 @@ fn chromium_profile() -> ClientProfile {
 
 fn firefox_profile() -> ClientProfile {
     ClientProfile::new(tls_settings())
-        .with_http2(firefox::v156_http2())
-        .with_proxy_connect(firefox::v156_proxy_connect())
+        .with_http2(firefox::v157_http2())
+        .with_proxy_connect(firefox::v157_proxy_connect())
 }
 
 async fn get_https(client: &Client, origin: SocketAddr) -> TestResult<()> {
@@ -279,7 +279,7 @@ async fn tunnels_to_different_origins_share_one_proxy_connection() -> TestResult
 /// tunnels are streams of one proxy connection, as Chrome 154 sends a page's
 /// navigation, `fetch()`, and CONNECTs in the `https-proxy-*` captures.
 /// With the Firefox recipe, forwarded requests and tunnels use separate
-/// connections, each numbered from stream 3, as Firefox 156 does in the same
+/// connections, each numbered from stream 3, as Firefox 157 does in the same
 /// captures.
 #[tokio::test]
 async fn forwarded_requests_join_the_tunnel_connection_as_the_profile_says() -> TestResult<()> {
@@ -384,7 +384,7 @@ async fn separately_built_clients_never_share_a_proxy_connection() -> TestResult
 }
 
 /// A `ws://` opening joins the tunnel connection with the Chromium recipe
-/// and opens its own with the Firefox recipe, as Chrome 154 and Firefox 156
+/// and opens its own with the Firefox recipe, as Chrome 154 and Firefox 157
 /// do in the `https-proxy-hostname` captures, where each Firefox connection
 /// starts at stream 3.
 #[cfg(feature = "websocket")]

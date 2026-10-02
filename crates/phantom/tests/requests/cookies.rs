@@ -488,7 +488,7 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
                 RequestHeader::new("Priority", "u=4"),
             ]
         };
-        for placement in [firefox::v156_cookie_placement(), CookiePlacement::last()] {
+        for placement in [firefox::v157_cookie_placement(), CookiePlacement::last()] {
             let profile = ClientProfile::new(tls_settings()).with_cookie_placement(placement);
             let session = Client::builder(profile)
                 .add_root_certificate_der(identity.root_der.clone())

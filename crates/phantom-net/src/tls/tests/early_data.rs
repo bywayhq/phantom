@@ -157,7 +157,7 @@ async fn the_plain_handshake_offers_no_early_data() -> TestResult<()> {
 
 fn firefox_connector(identity: &TestIdentity) -> TestResult<TlsConnector> {
     Ok(
-        TlsConnector::new_with_roots(&firefox::v156_tls(), [identity.root_der()])?
+        TlsConnector::new_with_roots(&firefox::v157_tls(), [identity.root_der()])?
             .with_isolated_session_cache(),
     )
 }

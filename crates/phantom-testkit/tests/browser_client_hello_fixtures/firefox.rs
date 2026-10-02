@@ -3,23 +3,23 @@ use phantom_testkit::tls::is_grease;
 use super::{TestResult, fixture::Fixture, redecode};
 
 const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/firefox/156.0.1/",
+    "../../../../fixtures/tls/firefox/157.0/",
     "windows-11-26200/client-hello.txt"
 ));
 
 #[tokio::test]
-async fn firefox_156_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
+async fn firefox_157_fixture_retains_exact_metadata_and_client_hello() -> TestResult<()> {
     let fixture = Fixture::parse(FIXTURE_TEXT)?;
     assert_eq!(fixture.value("format")?, "phantom-client-hello-v2");
-    assert_eq!(fixture.value("captured_at_unix")?, "1790426576");
+    assert_eq!(fixture.value("captured_at_unix")?, "1790926040");
     assert_eq!(fixture.value("browser")?, "Mozilla Firefox");
-    assert_eq!(fixture.value("browser_version")?, "156.0.1");
+    assert_eq!(fixture.value("browser_version")?, "157.0");
     assert_eq!(
         fixture.value("operating_system")?,
         "Windows 11 Home 10.0.26200 x64"
     );
     assert_eq!(fixture.value("hostname")?, "server.phantom.test");
-    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:59108");
+    assert_eq!(fixture.value("listen_address")?, "127.0.0.1:51578");
     assert_eq!(fixture.value("launch_mode")?, "headless");
     assert_eq!(
         fixture.value("launch_arguments")?,

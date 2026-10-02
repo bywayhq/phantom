@@ -3,7 +3,7 @@
 //! Browsers treat a loopback origin as potentially trustworthy and a named
 //! plaintext origin as not. The expected field lists below are the requests
 //! of the proxy route captures of Chrome 154.0.8037.58, Edge 154.0.4258.37,
-//! Brave 154.1.96.59, Opera 136.0.6008.52, and Firefox 156.0.1 on Windows 11
+//! Brave 154.1.96.59, Opera 136.0.6008.52, and Firefox 157.0 on Windows 11
 //! build 26200, three agreeing runs each:
 //! `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-loopback.txt`
 //! for `http://127.0.0.1` and `direct-hostname.txt` for
@@ -45,7 +45,7 @@ const EDGE_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537
 const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0";
 const FIREFOX_UA: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
 const CHROME_BRANDS: &str = r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#;
 const EDGE_BRANDS: &str = r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#;
 const BRAVE_BRANDS: &str = r#""Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99""#;
@@ -338,7 +338,7 @@ fn cases() -> Vec<Case> {
             label: "firefox navigation",
             chromium: false,
             hints: None,
-            template: firefox::v156_windows_navigation_template(),
+            template: firefox::v157_windows_navigation_template(),
             caller: Vec::new(),
             loopback: firefox_navigation(true),
             named: firefox_navigation(false),
@@ -347,7 +347,7 @@ fn cases() -> Vec<Case> {
             label: "firefox fetch",
             chromium: false,
             hints: None,
-            template: firefox::v156_windows_fetch_no_store_template(),
+            template: firefox::v157_windows_fetch_no_store_template(),
             caller: vec![referer()],
             loopback: firefox_fetch(true),
             named: firefox_fetch(false),
@@ -630,7 +630,7 @@ async fn decoding_follows_the_codings_the_final_hop_advertised() -> TestResult<(
         let redirect = b"HTTP/1.1 302 Found\r\nLocation: http://origin.phantom.test/next\r\n\
 Connection: close\r\nContent-Length: 0\r\n\r\n"
             .to_vec();
-        let template = PreparedRequestTemplate::new(firefox::v156_windows_navigation_template())?;
+        let template = PreparedRequestTemplate::new(firefox::v157_windows_navigation_template())?;
         for (coding, body, decodes) in [("br", brotli(BODY)?, false), ("gzip", gzip(BODY)?, true)] {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?;
@@ -638,7 +638,7 @@ Connection: close\r\nContent-Length: 0\r\n\r\n"
                 listener,
                 vec![redirect.clone(), coded_response(coding, &body)],
             ));
-            let client = Client::builder(ClientProfile::new(firefox::v156_tls()))
+            let client = Client::builder(ClientProfile::new(firefox::v157_tls()))
                 .route(Route::http_proxy(proxy))
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;

@@ -2,7 +2,7 @@
 //!
 //! Each test drives `Client::websocket_with_profile_policy` against a loopback
 //! origin and compares what the origin observed with a retained Chrome 154,
-//! Edge 154, or Firefox 156 capture from `fixtures/websocket/`.
+//! Edge 154, or Firefox 157 capture from `fixtures/websocket/`.
 
 #[path = "websocket_profile/fixture.rs"]
 pub(crate) mod fixture;
@@ -48,7 +48,7 @@ const CHROME_FRESH: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/fresh
 const CHROME_NO_CONNECT: &str =
     fixture!("chrome/154.0.8037.58/windows-11-26200/no-connect-protocol.txt");
 const CHROME_H1: &str = fixture!("chrome/154.0.8037.58/windows-11-26200/h1-accept.txt");
-const FIREFOX_H1: &str = fixture!("firefox/156.0.1/windows-11-26200/h1-accept.txt");
+const FIREFOX_H1: &str = fixture!("firefox/157.0/windows-11-26200/h1-accept.txt");
 const EDGE_ACCEPT: &str = fixture!("edge/154.0.4258.37/windows-11-26200/accept.txt");
 const EDGE_FRESH: &str = fixture!("edge/154.0.4258.37/windows-11-26200/fresh-origin.txt");
 const CHROME_ANDROID_ACCEPT: &str =
@@ -59,10 +59,9 @@ const BRAVE_ANDROID_ACCEPT: &str =
     fixture!("brave-android/153.1.95.104/android-35-emulator/accept.txt");
 const BRAVE_ANDROID_FRESH: &str =
     fixture!("brave-android/153.1.95.104/android-35-emulator/fresh-origin.txt");
-const FIREFOX_ACCEPT: &str = fixture!("firefox/156.0.1/windows-11-26200/accept.txt");
-const FIREFOX_FRESH: &str = fixture!("firefox/156.0.1/windows-11-26200/fresh-origin.txt");
-const FIREFOX_NO_CONNECT: &str =
-    fixture!("firefox/156.0.1/windows-11-26200/no-connect-protocol.txt");
+const FIREFOX_ACCEPT: &str = fixture!("firefox/157.0/windows-11-26200/accept.txt");
+const FIREFOX_FRESH: &str = fixture!("firefox/157.0/windows-11-26200/fresh-origin.txt");
+const FIREFOX_NO_CONNECT: &str = fixture!("firefox/157.0/windows-11-26200/no-connect-protocol.txt");
 
 macro_rules! proxy_fixture {
     ($path:literal) => {
@@ -82,7 +81,7 @@ const CHROME_PROXY: &str =
 const EDGE_PROXY: &str =
     proxy_fixture!("edge/154.0.4258.37/windows-11-26200/http-proxy-loopback.txt");
 const FIREFOX_PROXY: &str =
-    proxy_fixture!("firefox/156.0.1/windows-11-26200/http-proxy-loopback.txt");
+    proxy_fixture!("firefox/157.0/windows-11-26200/http-proxy-loopback.txt");
 
 #[tokio::test]
 async fn chromium_reuses_a_capable_pooled_session_with_the_captured_connect_shape() -> TestResult<()>
@@ -105,8 +104,8 @@ async fn firefox_reuses_a_capable_pooled_session_with_the_captured_connect_shape
 {
     assert_reuses_session(
         &Capture::parse(FIREFOX_ACCEPT)?,
-        firefox::v156_http2(),
-        firefox::v156_websocket(),
+        firefox::v157_http2(),
+        firefox::v157_websocket(),
     )
     .await
 }
@@ -130,7 +129,7 @@ async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> Test
         name_huffman: None,
         value_huffman: Some(false),
     };
-    // Firefox 156: incremental indexing against static entry 3
+    // Firefox 157: incremental indexing against static entry 3
     // (`:method: POST`), Huffman-coded.
     let firefox_method = Representation {
         kind: "incremental".to_owned(),
@@ -154,7 +153,7 @@ async fn hpack_shapes_of_extended_connect_separate_the_client_families() -> Test
     let chromium_emitted =
         emitted_connect_pseudo(chromium::v154_http2(), chromium::v154_websocket()).await?;
     let firefox_emitted =
-        emitted_connect_pseudo(firefox::v156_http2(), firefox::v156_websocket()).await?;
+        emitted_connect_pseudo(firefox::v157_http2(), firefox::v157_websocket()).await?;
 
     assert_eq!(pseudo(&chromium_emitted, ":method")?, &chromium_method);
     assert_eq!(pseudo(&firefox_emitted, ":method")?, &firefox_method);
@@ -215,7 +214,7 @@ async fn chromium_with_an_incapable_session_upgrades_on_a_new_http1_only_connect
 async fn firefox_with_an_incapable_session_upgrades_on_a_new_http1_only_connection()
 -> TestResult<()> {
     let capture = Capture::parse(FIREFOX_NO_CONNECT)?;
-    assert_incapable_session_upgrades(&capture, firefox::v156_http2(), firefox::v156_websocket())
+    assert_incapable_session_upgrades(&capture, firefox::v157_http2(), firefox::v157_websocket())
         .await
 }
 
@@ -226,8 +225,8 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
     bounded(async {
         let identity = Arc::new(TestIdentity::generate()?);
         let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
-        let settings = firefox::v156_websocket();
-        let client = profile_client(&identity, firefox::v156_http2(), settings.clone())?;
+        let settings = firefox::v157_websocket();
+        let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
         let connect = capture.connect()?;
 
         let socket = connect_like(&client, &server, &connect, &settings).await?;
@@ -258,7 +257,7 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
             chromium::v154_http2(),
             chromium::v154_websocket(),
         ),
-        (FIREFOX_H1, firefox::v156_http2(), firefox::v156_websocket()),
+        (FIREFOX_H1, firefox::v157_http2(), firefox::v157_websocket()),
     ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("socket_scheme")?, "ws");
@@ -318,9 +317,9 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
         (
             FIREFOX_H1,
             FIREFOX_PROXY,
-            firefox::v156_http2(),
-            firefox::v156_websocket(),
-            firefox::v156_proxy_connect(),
+            firefox::v157_http2(),
+            firefox::v157_websocket(),
+            firefox::v157_proxy_connect(),
         ),
     ] {
         let direct = Capture::parse(direct)?;
@@ -656,7 +655,7 @@ async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResu
     Ok(())
 }
 
-/// Firefox 156 fails the WebSocket with close code 1006 on every refused run
+/// Firefox 157 fails the WebSocket with close code 1006 on every refused run
 /// in the retained captures, so its recipe reopens nothing.
 #[tokio::test]
 async fn refused_connect_stream_is_not_retried_without_the_profile_rule() -> TestResult<()> {
@@ -667,7 +666,7 @@ async fn refused_connect_stream_is_not_retried_without_the_profile_rule() -> Tes
             ..Behavior::ACCEPT
         };
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
-        let client = profile_client(&identity, firefox::v156_http2(), firefox::v156_websocket())?;
+        let client = profile_client(&identity, firefox::v157_http2(), firefox::v157_websocket())?;
         ordinary_get(&client, &server).await?;
 
         let error = match websocket(&client, &server)?.connect().await {
@@ -694,7 +693,7 @@ async fn new_http2_connection_without_the_peer_setting_fails_without_http1_fallb
             ..Behavior::ACCEPT
         };
         let server = TestServer::start(Arc::clone(&identity), behavior).await?;
-        let client = profile_client(&identity, firefox::v156_http2(), firefox::v156_websocket())?;
+        let client = profile_client(&identity, firefox::v157_http2(), firefox::v157_websocket())?;
 
         let error = match websocket(&client, &server)?.connect().await {
             Ok(_) => return Err("peer without extended CONNECT opened a WebSocket".into()),
@@ -747,8 +746,8 @@ async fn exact_http2_uses_the_profile_template_and_connect_priority() -> TestRes
     bounded(async {
         let identity = Arc::new(TestIdentity::generate()?);
         let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
-        let settings = firefox::v156_websocket();
-        let client = profile_client(&identity, firefox::v156_http2(), settings.clone())?;
+        let settings = firefox::v157_websocket();
+        let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
         let connect = capture.connect()?;
         let path = pseudo_value(&connect.pseudo, ":path")?;
         let builder = client.websocket_with_protocol(
@@ -1363,7 +1362,7 @@ fn pseudo_order(headers: &H2Headers) -> Vec<&str> {
 
 /// The recipe's empty-message rule must reach the wire, not just the policy
 /// object: Chrome 154 compresses a zero-length message and sets RSV1, while
-/// Firefox 156 sends it with RSV1 clear and an empty payload.
+/// Firefox 157 sends it with RSV1 clear and an empty payload.
 #[cfg(feature = "websocket-deflate")]
 #[tokio::test]
 async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
@@ -1378,8 +1377,8 @@ async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
             },
         ),
         (
-            firefox::v156_http2(),
-            firefox::v156_websocket(),
+            firefox::v157_http2(),
+            firefox::v157_websocket(),
             ClientDataFrame {
                 rsv1: false,
                 opcode: 0x1,

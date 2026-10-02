@@ -58,8 +58,8 @@ const CHROME_SEQUENTIAL: &str = fixture!("chrome", "154.0.8037.58", "sequential"
 const EDGE_SEQUENTIAL: &str = fixture!("edge", "154.0.4258.37", "sequential");
 const BRAVE_SEQUENTIAL: &str = fixture!("brave", "154.1.96.59", "sequential");
 const OPERA_SEQUENTIAL: &str = fixture!("opera", "136.0.6008.52", "sequential");
-const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "156.0.1", "sequential");
-const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "156.0.1", "no-early-data");
+const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "157.0", "sequential");
+const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "157.0", "no-early-data");
 const CHROME_MACOS_SEQUENTIAL: &str =
     fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
 const EDGE_MACOS_SEQUENTIAL: &str =
@@ -120,7 +120,7 @@ async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
 
 #[tokio::test]
 async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -> TestResult<()> {
-    let settings = firefox::v156_tls();
+    let settings = firefox::v157_tls();
     let (fresh, resumed) =
         fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
     let captured = resumed_client_hellos(FIREFOX_NO_EARLY_DATA)?;
@@ -147,7 +147,7 @@ async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -
 /// ECH GREASE payload length, pinned below.
 #[tokio::test]
 async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> TestResult<()> {
-    let settings = firefox::v156_tls();
+    let settings = firefox::v157_tls();
     let (fresh, resumed) =
         fresh_and_resumed_client_hellos(&settings, Tickets::PermittingEarlyData).await?;
     let resumed_types = resumed.summary()?.extension_types().to_vec();
@@ -195,7 +195,7 @@ async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> T
 async fn concurrent_connections_resume_up_to_the_recipes_tickets_per_origin() -> TestResult<()> {
     for (settings, expected) in [
         (chromium::v154_tls(), [true, true, false]),
-        (firefox::v156_tls(), [true, true, true]),
+        (firefox::v157_tls(), [true, true, true]),
     ] {
         let identity = TestIdentity::generate()?;
         let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?

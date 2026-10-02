@@ -15,12 +15,12 @@ fn chromium_154_keeps_1000_answers_for_60_seconds_and_no_failures() {
 }
 
 #[test]
-fn firefox_156_keeps_1600_answers_and_failures_for_60_seconds() {
+fn firefox_157_keeps_1600_answers_and_failures_for_60_seconds() {
     // `network.dnsCacheEntries` and `network.dnsCacheExpiration`,
     // `modules/libpref/init/StaticPrefList.yaml:15552-15565`, and
     // `NEGATIVE_RECORD_LIFETIME`, `netwerk/dns/nsHostResolver.cpp:67`, at
     // `FIREFOX_156_0_RELEASE`.
-    let settings = firefox::v156_dns_cache();
+    let settings = firefox::v157_dns_cache();
 
     assert_eq!(settings.max_entries.get(), 1600);
     assert_eq!(settings.ttl, Duration::from_secs(60));

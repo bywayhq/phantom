@@ -30,7 +30,7 @@ const OPERA: &str = include_str!(
     "../../../../../fixtures/cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h3.txt"
 );
 const FIREFOX: &str =
-    include_str!("../../../../../fixtures/cookies/firefox/156.0.1/windows-11-26200/crumbs-h3.txt");
+    include_str!("../../../../../fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h3.txt");
 /// The capture server's `SETTINGS_QPACK_BLOCKED_STREAMS` (aioquic 1.3.0).
 const CAPTURE_BLOCKED_STREAMS: usize = 16;
 
@@ -65,7 +65,7 @@ fn firefox_cookie_fields_match_the_captured_qpack_bytes() -> TestResult<()> {
         h3::client::QpackInsertPolicy::UnmatchedNames,
         h3::client::QpackHuffman::Always,
     );
-    assert_replay_matches_with(&capture, &firefox::v156_http3_request(), encoder)
+    assert_replay_matches_with(&capture, &firefox::v157_http3_request(), encoder)
 }
 
 #[test]

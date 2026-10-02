@@ -1,7 +1,7 @@
 //! Reuse of an HTTP/1.1 proxy connection after a `407` challenge.
 //!
 //! Chromium 154 (`HttpProxyClientSocket::PrepareForAuthRestart`) and Firefox
-//! 156 send the credentialed CONNECT on the connection that carried the
+//! 157 send the credentialed CONNECT on the connection that carried the
 //! challenge when the `407` leaves it open: the response keeps the connection
 //! alive, delimits its body, and the body can be read to its end.
 

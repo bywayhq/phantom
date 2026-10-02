@@ -1,5 +1,5 @@
 use http_body_util::BodyExt;
-use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v156_http2};
+use phantom_profile::{Http2Settings, chromium::v154_http2, firefox::v157_http2};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{
@@ -27,7 +27,7 @@ async fn empty_data_flood_emits_one_calm_error_with_chrome_profile() -> TestResu
 
 #[tokio::test]
 async fn empty_data_flood_emits_one_calm_error_with_firefox_profile() -> TestResult<()> {
-    bounded_peer_test(run_flood(v156_http2(), DataFlood::Empty)).await
+    bounded_peer_test(run_flood(v157_http2(), DataFlood::Empty)).await
 }
 
 #[tokio::test]

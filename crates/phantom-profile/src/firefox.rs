@@ -37,7 +37,7 @@ use crate::{
     },
 };
 
-/// Returns the automatic `Cookie` field position for Firefox 156.
+/// Returns the automatic `Cookie` field position for Firefox 157.
 ///
 /// Firefox adds `Cookie` in `nsHttpChannel::PrepareToConnect`, then
 /// `Upgrade-Insecure-Requests` and the `Sec-Fetch-*` fields in
@@ -47,7 +47,7 @@ use crate::{
 /// after `Referer` and before `Sec-Fetch-Dest`. The other neighbors come from
 /// Firefox source, not from a capture.
 #[must_use]
-pub fn v156_cookie_placement() -> CookiePlacement {
+pub fn v157_cookie_placement() -> CookiePlacement {
     CookiePlacement::before_fields([
         "upgrade-insecure-requests",
         "sec-fetch-dest",
@@ -61,11 +61,11 @@ pub fn v156_cookie_placement() -> CookiePlacement {
     ])
 }
 
-/// Returns TLS settings captured from Firefox 156.0.1 on Windows 11.
+/// Returns TLS settings captured from Firefox 157.0 on Windows 11.
 ///
-/// Captured from five fresh Firefox 156.0.1 processes (Windows 11 build
-/// 26200), the fingerprint snapshots under `fixtures/http3/firefox/156.0.1/`;
-/// `fixtures/tls/firefox/156.0.1/` keeps two of their ClientHellos, one for
+/// Captured from five fresh Firefox 157.0 processes (Windows 11 build
+/// 26200), the fingerprint snapshots under `fixtures/http3/firefox/157.0/`;
+/// `fixtures/tls/firefox/157.0/` keeps two of their ClientHellos, one for
 /// each ECH GREASE AEAD. The fixed extension order and the exact ECH GREASE
 /// payload length retain the stable wire shape observed across those
 /// captures.
@@ -91,7 +91,7 @@ pub fn v156_cookie_placement() -> CookiePlacement {
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
-pub fn v156_tls() -> TlsSettings {
+pub fn v157_tls() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -188,7 +188,7 @@ pub fn v156_tls() -> TlsSettings {
     }
 }
 
-/// Returns the TCP socket options Firefox 156.0 sets on every socket.
+/// Returns the TCP socket options Firefox 157.0 sets on every socket.
 ///
 /// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
 /// `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on each new
@@ -204,7 +204,7 @@ pub fn v156_tls() -> TlsSettings {
 /// reproduce that schedule.
 ///
 /// Firefox's address selection is not modeled either, so addresses are tried
-/// one at a time in resolver order. Firefox 156 release builds keep the Happy
+/// one at a time in resolver order. Firefox 157 release builds keep the Happy
 /// Eyeballs implementation behind the nightly-only
 /// `network.http.happy_eyeballs_enabled` pref
 /// (`modules/libpref/init/StaticPrefList.yaml:17057-17060`). The release path
@@ -216,7 +216,7 @@ pub fn v156_tls() -> TlsSettings {
 /// (`netwerk/protocol/http/DnsAndConnectSocket.cpp:170-178`,
 /// `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
 #[must_use]
-pub fn v156_tcp() -> TcpSettings {
+pub fn v157_tcp() -> TcpSettings {
     TcpSettings {
         nodelay: true,
         keepalive: None,
@@ -224,7 +224,7 @@ pub fn v156_tcp() -> TcpSettings {
     }
 }
 
-/// Returns the address cache of Firefox 156.0 release builds.
+/// Returns the address cache of Firefox 157.0 release builds.
 ///
 /// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture.
 /// `network.dnsCacheEntries` is 1600 outside nightly builds
@@ -244,7 +244,7 @@ pub fn v156_tcp() -> TcpSettings {
 /// `netwerk/dns/nsHostResolver.cpp:1265-1283`); Phantom resolves an expired
 /// name before it connects.
 #[must_use]
-pub fn v156_dns_cache() -> DnsCacheSettings {
+pub fn v157_dns_cache() -> DnsCacheSettings {
     DnsCacheSettings {
         max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
@@ -252,7 +252,7 @@ pub fn v156_dns_cache() -> DnsCacheSettings {
     }
 }
 
-/// Returns the HTTP/1.1 connection policy of Firefox 156.0.
+/// Returns the HTTP/1.1 connection policy of Firefox 157.0.
 ///
 /// From Firefox source at tag `FIREFOX_156_0_RELEASE`, not from a capture:
 /// `network.http.max-persistent-connections-per-server` is 6
@@ -270,18 +270,18 @@ pub fn v156_dns_cache() -> DnsCacheSettings {
 /// by `network.http.max-urgent-start-excessive-connections-per-host`, 3
 /// (`modules/libpref/init/all.js:1163-1165`).
 #[must_use]
-pub fn v156_http1() -> Http1Settings {
+pub fn v157_http1() -> Http1Settings {
     Http1Settings {
         max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
     }
 }
 
-/// Returns HTTP/2 settings observed from Firefox 156.0.1 on Windows 11.
+/// Returns HTTP/2 settings observed from Firefox 157.0 on Windows 11.
 ///
 /// The initial SETTINGS, connection window, request pseudo-header order, and
 /// navigation HEADERS priority come from the retained local H2 session
-/// captures of the Firefox 156 WebSocket fixture set, three fresh-profile runs
-/// over six connections. No raw Firefox 156 startup-frame fixture exists: the
+/// captures of the Firefox 157 WebSocket fixture set, three fresh-profile runs
+/// over six connections. No raw Firefox 157 startup-frame fixture exists: the
 /// raw startup tool needs WebDriver certificate trust for Firefox, and
 /// geckodriver is not installed on the capture host.
 ///
@@ -339,7 +339,7 @@ pub fn v156_http1() -> Http1Settings {
 /// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_156_0_RELEASE`),
 /// which Phantom does not model.
 #[must_use]
-pub fn v156_http2() -> Http2Settings {
+pub fn v157_http2() -> Http2Settings {
     Http2Settings {
         initial_settings: vec![
             Http2Setting::HeaderTableSize(65_536),
@@ -393,7 +393,7 @@ pub fn v156_http2() -> Http2Settings {
     }
 }
 
-/// Returns WebSocket settings observed from Firefox 156.0.1 on Windows 11.
+/// Returns WebSocket settings observed from Firefox 157.0 on Windows 11.
 ///
 /// From the retained Windows 11 (build 26200) WebSocket captures. A `wss://`
 /// WebSocket uses a pooled H2 session to the origin when its peer enabled
@@ -444,7 +444,7 @@ pub fn v156_http2() -> Http2Settings {
 /// its per-host admission queue before that timer starts; Phantom's deadline
 /// includes that lookup.
 #[must_use]
-pub fn v156_websocket() -> WebSocketSettings {
+pub fn v157_websocket() -> WebSocketSettings {
     WebSocketSettings {
         connection: WebSocketConnectionPolicy {
             without_http2_session: WebSocketNewConnection::Http2ExtendedConnect,
@@ -493,7 +493,7 @@ pub fn v156_websocket() -> WebSocketSettings {
     }
 }
 
-/// Returns the CONNECT request fields observed from Firefox 156.0.1 on Windows 11.
+/// Returns the CONNECT request fields observed from Firefox 157.0 on Windows 11.
 ///
 /// From the retained proxy route captures, three runs of each scenario.
 /// Every HTTP/1.1 CONNECT for the page's `ws://` origin sends `User-Agent`,
@@ -519,7 +519,7 @@ pub fn v156_websocket() -> WebSocketSettings {
 /// the `https://` CONNECTs, and one for the `ws://` and `wss://` CONNECTs,
 /// so the recipe keeps the three apart ([`Http2ProxyConnections::ByPurpose`]).
 #[must_use]
-pub fn v156_proxy_connect() -> ProxyConnectTemplate {
+pub fn v157_proxy_connect() -> ProxyConnectTemplate {
     ProxyConnectTemplate {
         http1_fields: vec![
             ProxyConnectField::from_request("User-Agent"),
@@ -537,20 +537,19 @@ pub fn v156_proxy_connect() -> ProxyConnectTemplate {
     }
 }
 
-/// Returns TLS settings for the Firefox 156 HTTP/3 offer on Windows 11.
+/// Returns TLS settings for the Firefox 157 HTTP/3 offer on Windows 11.
 ///
 /// Firefox's QUIC stack, neqo, runs its handshake on NSS with a configuration
-/// of its own, so the QUIC ClientHello differs from [`v156_tls`]. The retained
-/// Firefox 156.0.1 QUIC ClientHellos (`fixtures/http3/firefox/156.0.1/`, three
+/// of its own, so the QUIC ClientHello differs from [`v157_tls`]. The retained
+/// Firefox 157.0 QUIC ClientHellos (`fixtures/http3/firefox/157.0/`, three
 /// fresh processes and the first connection of each resumption run) offer TLS
 /// 1.3 alone, the three TLS 1.3 cipher suites in the TCP order, the `h3` ALPN
 /// protocol, and the TCP groups, key shares, status request, and ECH GREASE
-/// (with a 240-byte payload and one of the two AEADs). They differ from the
-/// TCP offer in these fields:
+/// (with a 240-byte payload and one of the two AEADs), and the TCP
+/// `delegated_credentials` schemes. They differ from the TCP offer in these
+/// fields:
 ///
-/// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes
-///   and adds ML-DSA-44, ML-DSA-65, and ML-DSA-87 after the RSA-PSS schemes;
-/// - `delegated_credentials` adds the three ML-DSA schemes after ECDSA-SHA1;
+/// - `signature_algorithms` moves ECDSA-SHA1 after the other ECDSA schemes;
 /// - `compress_certificate` lists zlib, zstd, then brotli;
 /// - no `ec_point_formats`, `session_ticket`, or `signed_certificate_timestamp`;
 /// - the extension order changes on every connection
@@ -573,10 +572,10 @@ pub fn v156_proxy_connect() -> ProxyConnectTemplate {
 ///
 /// `session_tickets` is enabled because Firefox resumes QUIC sessions: in the
 /// retained resumption captures a resumed ClientHello adds `early_data` and,
-/// last, `pre_shared_key`, as [`v156_quic`] allows.
+/// last, `pre_shared_key`, as [`v157_quic`] allows.
 #[must_use]
-pub fn v156_http3_tls() -> TlsSettings {
-    let mut settings = v156_tls();
+pub fn v157_http3_tls() -> TlsSettings {
+    let mut settings = v157_tls();
     settings.min_version = TlsVersion::Tls13;
     settings.max_version = TlsVersion::Tls13;
     settings.cipher_suites = vec![
@@ -592,22 +591,10 @@ pub fn v156_http3_tls() -> TlsSettings {
         SignatureScheme::RsaPssRsaeSha256,
         SignatureScheme::RsaPssRsaeSha384,
         SignatureScheme::RsaPssRsaeSha512,
-        SignatureScheme::MlDsa44,
-        SignatureScheme::MlDsa65,
-        SignatureScheme::MlDsa87,
         SignatureScheme::RsaPkcs1Sha256,
         SignatureScheme::RsaPkcs1Sha384,
         SignatureScheme::RsaPkcs1Sha512,
         SignatureScheme::RsaPkcs1Sha1,
-    ];
-    settings.delegated_credential_schemes = vec![
-        SignatureScheme::EcdsaSecp256r1Sha256,
-        SignatureScheme::EcdsaSecp384r1Sha384,
-        SignatureScheme::EcdsaSecp521r1Sha512,
-        SignatureScheme::EcdsaSha1,
-        SignatureScheme::MlDsa44,
-        SignatureScheme::MlDsa65,
-        SignatureScheme::MlDsa87,
     ];
     settings.certificate_compression = vec![
         CertificateCompression::Zlib,
@@ -618,15 +605,15 @@ pub fn v156_http3_tls() -> TlsSettings {
     settings.request_signed_certificate_timestamps = false;
     settings.record_size_limit = None;
     settings.extension_order = ClientHelloExtensionOrder::Permuted;
-    // QUIC early data follows `v156_quic`; this field covers TCP only.
+    // QUIC early data follows `v157_quic`; this field covers TCP only.
     settings.tcp_early_data = false;
     settings
 }
 
-/// Returns QUIC transport settings observed from Firefox 156.0.1 on Windows 11.
+/// Returns QUIC transport settings observed from Firefox 157.0 on Windows 11.
 ///
 /// Every parameter, its identifier and length widths, its value width, and
-/// the fixed order come from the retained Firefox 156.0.1 QUIC ClientHellos:
+/// the fixed order come from the retained Firefox 157.0 QUIC ClientHellos:
 /// three fresh processes and, in the resumption capture, fifteen more
 /// connections, all with the same layout. The order is neqo's
 /// transport-parameter table order.
@@ -659,9 +646,9 @@ pub fn v156_http3_tls() -> TlsSettings {
 ///
 /// A resumed Firefox connection offers early data, so `early_data` is set;
 /// it takes effect with TLS settings that enable session tickets, such as
-/// [`v156_http3_tls`]. No resumed connection sent `initial_rtt_us`.
+/// [`v157_http3_tls`]. No resumed connection sent `initial_rtt_us`.
 #[must_use]
-pub fn v156_quic() -> QuicTransportSettings {
+pub fn v157_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
     use QuicVarIntWidth::{Eight, Four, One, Two};
 
@@ -729,9 +716,9 @@ pub fn v156_quic() -> QuicTransportSettings {
     }
 }
 
-/// Returns HTTP/3 settings observed from Firefox 156.0.1 on Windows 11.
+/// Returns HTTP/3 settings observed from Firefox 157.0 on Windows 11.
 ///
-/// The six settings and their order come from the retained Firefox 156.0.1
+/// The six settings and their order come from the retained Firefox 157.0
 /// control streams: a 64 KiB QPACK table, 20 blocked streams, draft 02's
 /// `SETTINGS_ENABLE_WEBTRANSPORT` set to 0, the draft (`0xffd277`) and final
 /// `SETTINGS_H3_DATAGRAM` set to 1, and `SETTINGS_ENABLE_CONNECT_PROTOCOL`
@@ -748,7 +735,7 @@ pub fn v156_quic() -> QuicTransportSettings {
 /// encoding follows neqo: see [`Http3QpackEncoding::DynamicUnmatchedNames`],
 /// whose unit test reproduces the captured encoder stream and field sections.
 #[must_use]
-pub fn v156_http3() -> Http3Settings {
+pub fn v157_http3() -> Http3Settings {
     Http3Settings {
         initial_settings: vec![
             Http3Setting::QpackMaxTableCapacity(65_536),
@@ -767,7 +754,7 @@ pub fn v156_http3() -> Http3Settings {
     }
 }
 
-/// Returns HTTP/3 request ordering observed from Firefox 156.0.1 on Windows 11.
+/// Returns HTTP/3 request ordering observed from Firefox 157.0 on Windows 11.
 ///
 /// Every captured HTTP/3 request sends `:method`, `:scheme`, `:authority`,
 /// and `:path` in that order. No capture backs an HTTP/3 extended CONNECT,
@@ -775,7 +762,7 @@ pub fn v156_http3() -> Http3Settings {
 /// `None`. The retained cookie captures (`fixtures/cookies/firefox/`) show
 /// one joined `cookie` field over HTTP/3 ([`Http3CookieCrumbs::Whole`]).
 #[must_use]
-pub fn v156_http3_request() -> Http3RequestSettings {
+pub fn v157_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {
         pseudo_header_order: vec![
             Http3PseudoHeader::Method,
@@ -788,17 +775,17 @@ pub fn v156_http3_request() -> Http3RequestSettings {
     }
 }
 
-const V156_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
-const V156_PLAINTEXT_ACCEPT_ENCODING: &str = "gzip, deflate";
-const V156_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
-const V156_NAVIGATION_ACCEPT: &str =
+const V157_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";
+const V157_PLAINTEXT_ACCEPT_ENCODING: &str = "gzip, deflate";
+const V157_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+const V157_NAVIGATION_ACCEPT: &str =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-const V156_WINDOWS_USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+const V157_WINDOWS_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
 const V156_MACOS_USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0";
 
-/// Returns Firefox 156's `Accept-Encoding` entry: `br` and `zstd` are offered
+/// Returns Firefox 157's `Accept-Encoding` entry: `br` and `zstd` are offered
 /// only to a potentially trustworthy URL.
 ///
 /// `HttpBaseChannel::Init` passes `isSecureOrTrustworthyURL` (an `https`
@@ -809,15 +796,15 @@ const V156_MACOS_USER_AGENT: &str =
 /// lines 325-329 and 351, `nsHttpHandler.cpp` lines 806-812, and
 /// `modules/libpref/init/all.js` lines 1187-1188 at `FIREFOX_156_0_RELEASE`).
 fn accept_encoding(name: &str) -> RequestField {
-    RequestField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
+    RequestField::by_trust(name, V157_ACCEPT_ENCODING, V157_PLAINTEXT_ACCEPT_ENCODING)
 }
 
 /// Returns [`accept_encoding`] for a WebSocket opening template.
 fn websocket_accept_encoding(name: &str) -> WebSocketField {
-    WebSocketField::by_trust(name, V156_ACCEPT_ENCODING, V156_PLAINTEXT_ACCEPT_ENCODING)
+    WebSocketField::by_trust(name, V157_ACCEPT_ENCODING, V157_PLAINTEXT_ACCEPT_ENCODING)
 }
 
-/// Returns Firefox 156's position of forwarded proxy credentials it
+/// Returns Firefox 157's position of forwarded proxy credentials it
 /// remembers from an earlier challenge: before `Connection` on HTTP/1.1, and
 /// where `Connection` would be on HTTP/2.
 ///
@@ -830,7 +817,7 @@ fn preemptive_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Preemptive)
 }
 
-/// Returns Firefox 156's position of forwarded proxy credentials on the
+/// Returns Firefox 157's position of forwarded proxy credentials on the
 /// replay after a `407`: after every template field on HTTP/1.1, and before
 /// `te` on HTTP/2.
 ///
@@ -843,7 +830,7 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Replay)
 }
 
-/// Returns navigation request fields observed from Firefox 156.0.1 on Windows 11.
+/// Returns navigation request fields observed from Firefox 157.0 on Windows 11.
 ///
 /// A top-level navigation the user starts from the address bar: an HTML
 /// document request with `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
@@ -852,14 +839,14 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// requests of the WebSocket captures; every run agrees. Firefox sends
 /// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
 /// The HTTP/3 list is the HTTP/2 order without `te`. The retained Firefox
-/// 156.0.1 HTTP/3 snapshots and cookie captures show a script navigation,
+/// 157.0 HTTP/3 snapshots and cookie captures show a script navigation,
 /// which adds `referer` after `accept-encoding` and has no `Sec-Fetch-User`;
 /// the fields it shares with this list come in the same order. On requests
 /// to an origin it reached through Alt-Svc, Firefox sends `Alt-Used` after
 /// `accept-encoding`, or after `referer` when there is one. Phantom
 /// generates that field and appends it last. Each captured HTTP/2 page
 /// request carries HEADERS priority weight 42, not exclusive, on stream 0,
-/// which is also [`v156_http2`]'s connection priority.
+/// which is also [`v157_http2`]'s connection priority.
 ///
 /// The `User-Agent` value is the one Firefox sent in those headless
 /// captures. `Accept-Language` is the capture machine's `en-US` locale. A
@@ -877,15 +864,15 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// `origin.phantom.test` without them, with `Accept-Encoding: gzip, deflate`,
 /// and with the remaining fields in the same order on HTTP/1.1 and HTTP/2.
 #[must_use]
-pub fn v156_windows_navigation_template() -> RequestTemplate {
-    navigation_template(V156_WINDOWS_USER_AGENT)
+pub fn v157_windows_navigation_template() -> RequestTemplate {
+    navigation_template(V157_WINDOWS_USER_AGENT)
 }
 
 /// Returns navigation request fields observed from Firefox 156.0 on macOS
 /// 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
-/// [`v156_windows_navigation_template`], except `User-Agent`, which is the
+/// [`v157_windows_navigation_template`], except `User-Agent`, which is the
 /// value Firefox 156.0 sent in the headless WebSocket and client-hint
 /// captures on macOS 15.5 (24F74) on Apple silicon:
 /// `Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101
@@ -897,13 +884,13 @@ pub fn v156_macos_navigation_template() -> RequestTemplate {
     navigation_template(V156_MACOS_USER_AGENT)
 }
 
-/// Builds the Firefox 156 navigation lists with a literal `User-Agent`.
+/// Builds the Firefox navigation lists with a literal `User-Agent`.
 fn navigation_template(user_agent: &str) -> RequestTemplate {
     RequestTemplate {
         http1_fields: vec![
             RequestField::literal("User-Agent", user_agent),
-            RequestField::literal("Accept", V156_NAVIGATION_ACCEPT),
-            RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("Accept", V157_NAVIGATION_ACCEPT),
+            RequestField::literal("Accept-Language", V157_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
             preemptive_proxy_authorization("Proxy-Authorization"),
             RequestField::literal("Connection", "keep-alive"),
@@ -917,8 +904,8 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
         ],
         http2_fields: vec![
             RequestField::literal("user-agent", user_agent),
-            RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
-            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept", V157_NAVIGATION_ACCEPT),
+            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
             preemptive_proxy_authorization("proxy-authorization"),
             RequestField::literal("upgrade-insecure-requests", "1"),
@@ -932,8 +919,8 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
         ],
         http3_fields: Some(vec![
             RequestField::literal("user-agent", user_agent),
-            RequestField::literal("accept", V156_NAVIGATION_ACCEPT),
-            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept", V157_NAVIGATION_ACCEPT),
+            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
             RequestField::literal("upgrade-insecure-requests", "1"),
             RequestField::trustworthy_only("sec-fetch-dest", "document"),
@@ -951,18 +938,18 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
     }
 }
 
-/// Returns same-origin `fetch` request fields observed from Firefox 156.0.1 on Windows 11.
+/// Returns same-origin `fetch` request fields observed from Firefox 157.0 on Windows 11.
 ///
 /// A script `fetch(url, {cache: "no-store"})` GET to the page's own origin;
 /// the cache mode adds `Pragma` and `Cache-Control`, which Firefox sends
 /// last on HTTP/1.1 and before `te: trailers` on HTTP/2. The orders come from
 /// the final report request of the WebSocket captures, and every run agrees.
 /// Each captured HTTP/2 fetch carries HEADERS priority weight 22, not
-/// exclusive, on stream 0, unlike the navigation's 42 in [`v156_http2`];
+/// exclusive, on stream 0, unlike the navigation's 42 in [`v157_http2`];
 /// [`RequestTemplate::http2_priority`] records it so the fetch does not go
 /// out with the connection's navigation weight.
 /// `Referer` is a caller slot because its value is the page URL. The
-/// `User-Agent` value matches [`v156_windows_navigation_template`]. Like it,
+/// `User-Agent` value matches [`v157_windows_navigation_template`]. Like it,
 /// this template has no client-hint slot, and the `phantom` client refuses
 /// it with a profile that sends default client hints.
 ///
@@ -972,28 +959,28 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
 /// mode, and the `*-auth-nostore-*` captures with a no-store `fetch()` through
 /// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included.
 #[must_use]
-pub fn v156_windows_fetch_no_store_template() -> RequestTemplate {
-    fetch_no_store_template(V156_WINDOWS_USER_AGENT)
+pub fn v157_windows_fetch_no_store_template() -> RequestTemplate {
+    fetch_no_store_template(V157_WINDOWS_USER_AGENT)
 }
 
 /// Returns same-origin `fetch` request fields observed from Firefox 156.0 on
 /// macOS 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
-/// [`v156_windows_fetch_no_store_template`], except `User-Agent`, which
+/// [`v157_windows_fetch_no_store_template`], except `User-Agent`, which
 /// matches [`v156_macos_navigation_template`].
 #[must_use]
 pub fn v156_macos_fetch_no_store_template() -> RequestTemplate {
     fetch_no_store_template(V156_MACOS_USER_AGENT)
 }
 
-/// Builds the Firefox 156 no-store `fetch` lists with a literal `User-Agent`.
+/// Builds the Firefox no-store `fetch` lists with a literal `User-Agent`.
 fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
     RequestTemplate {
         http1_fields: vec![
             RequestField::literal("User-Agent", user_agent),
             RequestField::literal("Accept", "*/*"),
-            RequestField::literal("Accept-Language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("Accept-Language", V157_ACCEPT_LANGUAGE),
             accept_encoding("Accept-Encoding"),
             RequestField::caller("Referer"),
             preemptive_proxy_authorization("Proxy-Authorization"),
@@ -1009,7 +996,7 @@ fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
         http2_fields: vec![
             RequestField::literal("user-agent", user_agent),
             RequestField::literal("accept", "*/*"),
-            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
             RequestField::caller("referer"),
             preemptive_proxy_authorization("proxy-authorization"),
@@ -1025,7 +1012,7 @@ fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
         http3_fields: Some(vec![
             RequestField::literal("user-agent", user_agent),
             RequestField::literal("accept", "*/*"),
-            RequestField::literal("accept-language", V156_ACCEPT_LANGUAGE),
+            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
             RequestField::caller("referer"),
             RequestField::trustworthy_only("sec-fetch-dest", "empty"),

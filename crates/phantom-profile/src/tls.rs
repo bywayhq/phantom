@@ -374,7 +374,7 @@ pub struct TlsSettings {
     pub session_ticket_extension_when_resuming: bool,
     /// Whether a direct TCP connection that resumes with a TLS 1.3 ticket
     /// permitting early data offers `early_data` and sends replay-safe
-    /// requests in it, as Firefox 156 does.
+    /// requests in it, as Firefox 157 does.
     ///
     /// A replay-safe request has a safe method (`GET`, `HEAD`, `OPTIONS`, or
     /// `TRACE`), no body, and no trailers. Other requests on the connection

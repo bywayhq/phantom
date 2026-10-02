@@ -159,7 +159,7 @@ async fn preserves_custom_offer_parameter_order_and_values() -> TestResult<()> {
 
 /// The retained `accept-deflate` and `h1-accept-deflate` captures disagree on
 /// one message only: Chrome 154 and Edge 154 deflate a zero-length text
-/// message into a one-byte frame with RSV1 set, while Firefox 156 sends it
+/// message into a one-byte frame with RSV1 set, while Firefox 157 sends it
 /// with RSV1 clear and an empty payload. Every non-empty message stays
 /// compressed in both.
 #[tokio::test]

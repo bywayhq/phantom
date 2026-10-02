@@ -79,10 +79,9 @@ macro_rules! macos_websocket_set {
 }
 
 const CHROME_SSE: [&str; 17] = sse_set!("chrome/154.0.8037.58");
-const FIREFOX_SSE: [&str; 17] = sse_set!("firefox/156.0.1");
 const CHROME_WEBSOCKET: [&str; 9] = websocket_set!("chrome/154.0.8037.58");
 const EDGE_WEBSOCKET: [&str; 9] = websocket_set!("edge/154.0.4258.37");
-const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/156.0.1");
+const FIREFOX_WEBSOCKET: [&str; 9] = websocket_set!("firefox/157.0");
 const BRAVE_WEBSOCKET: [&str; 9] = websocket_set!("brave/154.1.96.59");
 /// Every Brave proxy route scenario, three runs each.
 const BRAVE_PROXY: [&str; 20] = [
@@ -324,8 +323,8 @@ fn every_template_recipe_is_valid() {
         brave::v154_windows_fetch_no_store_template(),
         opera::v136_windows_navigation_template(),
         opera::v136_windows_fetch_no_store_template(),
-        firefox::v156_windows_navigation_template(),
-        firefox::v156_windows_fetch_no_store_template(),
+        firefox::v157_windows_navigation_template(),
+        firefox::v157_windows_fetch_no_store_template(),
         firefox::v156_macos_navigation_template(),
         firefox::v156_macos_fetch_no_store_template(),
         chromium::v154_macos_navigation_template(),
@@ -661,20 +660,20 @@ fn brave_android_153_navigation_matches_every_captured_page_request() -> Capture
 }
 
 #[test]
-fn firefox_156_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = firefox::v156_windows_navigation_template();
-    let (http1, http2) = observed(&[&FIREFOX_SSE, &FIREFOX_WEBSOCKET], "page", "document")?;
-    assert_all_match(&template, Protocol::Http1, None, &http1, 170, "firefox h1");
+fn firefox_157_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
+    let template = firefox::v157_windows_navigation_template();
+    let (http1, http2) = observed(&[&FIREFOX_WEBSOCKET], "page", "document")?;
+    assert_all_match(&template, Protocol::Http1, None, &http1, 9, "firefox h1");
     assert_all_match(&template, Protocol::Http2, None, &http2, 18, "firefox h2");
     Ok(())
 }
 
-const FIREFOX_156_H3_COOKIES: &str = include_str!(concat!(
-    "../../../../fixtures/cookies/firefox/156.0.1/windows-11-26200/",
+const FIREFOX_157_H3_COOKIES: &str = include_str!(concat!(
+    "../../../../fixtures/cookies/firefox/157.0/windows-11-26200/",
     "crumbs-h3.txt"
 ));
-const FIREFOX_156_H3_SNAPSHOT: &str = include_str!(concat!(
-    "../../../../fixtures/http3/firefox/156.0.1/windows-11-26200/",
+const FIREFOX_157_H3_SNAPSHOT: &str = include_str!(concat!(
+    "../../../../fixtures/http3/firefox/157.0/windows-11-26200/",
     "snapshot-1.txt"
 ));
 
@@ -705,24 +704,24 @@ fn http3_names(template: &RequestTemplate, omit: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn firefox_156_http3_templates_follow_the_captured_field_order() {
-    let navigation = firefox::v156_windows_navigation_template();
+fn firefox_157_http3_templates_follow_the_captured_field_order() {
+    let navigation = firefox::v157_windows_navigation_template();
     // Run 0's first request is a typed navigation with no referrer.
     for run in 0..3 {
         assert_eq!(
-            captured_http3_order(FIREFOX_156_H3_COOKIES, &format!("run_{run}_request_0")),
+            captured_http3_order(FIREFOX_157_H3_COOKIES, &format!("run_{run}_request_0")),
             http3_names(&navigation, &["referer"]),
         );
     }
-    let fetch = firefox::v156_windows_fetch_no_store_template();
+    let fetch = firefox::v157_windows_fetch_no_store_template();
     for run in 0..3 {
         assert_eq!(
-            captured_http3_order(FIREFOX_156_H3_COOKIES, &format!("run_{run}_request_2")),
+            captured_http3_order(FIREFOX_157_H3_COOKIES, &format!("run_{run}_request_2")),
             http3_names(&fetch, &[]),
         );
     }
     assert_eq!(
-        captured_http3_order(FIREFOX_156_H3_SNAPSHOT, "request_3"),
+        captured_http3_order(FIREFOX_157_H3_SNAPSHOT, "request_3"),
         http3_names(&fetch, &[]),
     );
 }
@@ -806,8 +805,8 @@ fn assert_fetches_carry_referer(http1: &[Fields], http2: &[Fields]) {
 }
 
 #[test]
-fn firefox_156_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
-    let template = firefox::v156_windows_fetch_no_store_template();
+fn firefox_157_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
+    let template = firefox::v157_windows_fetch_no_store_template();
     let (http1, http2) = observed(&[&FIREFOX_WEBSOCKET], "done", "empty")?;
     assert_all_match(&template, Protocol::Http1, None, &http1, 6, "firefox h1");
     assert_all_match(&template, Protocol::Http2, None, &http2, 18, "firefox h2");
@@ -903,11 +902,11 @@ fn firefox_156_macos_templates_match_every_captured_request() -> CaptureResult<(
 fn firefox_156_macos_templates_change_only_the_user_agent() {
     for (windows, macos) in [
         (
-            firefox::v156_windows_navigation_template(),
+            firefox::v157_windows_navigation_template(),
             firefox::v156_macos_navigation_template(),
         ),
         (
-            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v157_windows_fetch_no_store_template(),
             firefox::v156_macos_fetch_no_store_template(),
         ),
     ] {
@@ -972,8 +971,8 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
             false,
         ),
         (edge_android::v153_android_fetch_no_store_template(), false),
-        (firefox::v156_windows_navigation_template(), false),
-        (firefox::v156_windows_fetch_no_store_template(), false),
+        (firefox::v157_windows_navigation_template(), false),
+        (firefox::v157_windows_fetch_no_store_template(), false),
     ] {
         assert_eq!(template.requested_client_hint_placement, placed);
     }
@@ -1031,13 +1030,13 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             220,
         ),
         (
-            firefox::v156_windows_navigation_template(),
+            firefox::v157_windows_navigation_template(),
             &FIREFOX_WEBSOCKET,
             "document",
             42,
         ),
         (
-            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v157_windows_fetch_no_store_template(),
             &FIREFOX_WEBSOCKET,
             "empty",
             22,
@@ -1078,8 +1077,8 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
         chromium::v154_http2().headers_priority
     );
     assert_ne!(
-        firefox::v156_windows_fetch_no_store_template().http2_priority,
-        firefox::v156_http2().headers_priority
+        firefox::v157_windows_fetch_no_store_template().http2_priority,
+        firefox::v157_http2().headers_priority
     );
     Ok(())
 }
@@ -1183,7 +1182,7 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     );
 
     for name in ["Host", "Cookie", "Content-Length", "Alt-Used"] {
-        let mut template = firefox::v156_windows_navigation_template();
+        let mut template = firefox::v157_windows_navigation_template();
         template.http1_fields.push(RequestField::caller(name));
         assert!(template.validate().is_err(), "{name}");
     }
@@ -1212,13 +1211,13 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         );
     }
 
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template
         .http1_fields
         .push(RequestField::literal("accept", "*/*"));
     assert!(template.validate().is_err());
 
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http1_fields.push(RequestField::ClientHints);
     assert!(template.validate().is_err(), "hint slot at the end");
 
@@ -1269,14 +1268,14 @@ fn cookie_placement_presets_find_their_neighbours_in_every_template_list() {
 
     // Firefox: before the first `Upgrade-Insecure-Requests` or `Sec-Fetch-*`
     // field, which follows `Referer` on the fetch as in the SSE capture.
-    let placement = firefox::v156_cookie_placement();
+    let placement = firefox::v157_cookie_placement();
     for (template, expected) in [
         (
-            firefox::v156_windows_navigation_template(),
+            firefox::v157_windows_navigation_template(),
             "upgrade-insecure-requests",
         ),
         (
-            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v157_windows_fetch_no_store_template(),
             "sec-fetch-dest",
         ),
     ] {
@@ -1312,7 +1311,7 @@ fn cookie_placement_presets_find_their_neighbours_in_every_template_list() {
 #[test]
 fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
     for name in ["connection", "keep-alive", "proxy-connection", "upgrade"] {
-        let mut template = firefox::v156_windows_navigation_template();
+        let mut template = firefox::v157_windows_navigation_template();
         template
             .http2_fields
             .push(RequestField::literal(name, "value"));
@@ -1334,7 +1333,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
     }
 
     // Firefox's captured `te: trailers` is the one allowed `te` value.
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     assert_eq!(template.validate(), Ok(()));
     if let Some(te) = template.http2_fields.last_mut() {
         *te = RequestField::literal("te", "gzip");
@@ -1357,7 +1356,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
         "keep-alive"
     )));
     assert!(
-        firefox::v156_windows_navigation_template()
+        firefox::v157_windows_navigation_template()
             .http1_fields
             .contains(&RequestField::literal("Connection", "keep-alive"))
     );
@@ -1435,7 +1434,7 @@ fn value<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
 
 // Field names, after `Host` and the pseudo-header fields, of the page and
 // `fetch()` requests in the proxy route captures of Chrome 154.0.8037.58,
-// Edge 154.0.4258.37, and Firefox 156.0.1 on Windows 11 build 26200:
+// Edge 154.0.4258.37, and Firefox 157.0 on Windows 11 build 26200:
 // `fixtures/proxy/<browser>/<version>/windows-11-26200/direct-hostname.txt`
 // for HTTP/1.1 and `https-proxy-hostname.txt` for HTTP/2, each three runs
 // that agree, to the plaintext origin `origin.phantom.test`. Chrome and Edge
@@ -1551,13 +1550,13 @@ fn templates_send_the_captured_plaintext_named_origin_fields() {
         ),
         (
             "firefox navigation",
-            firefox::v156_windows_navigation_template(),
+            firefox::v157_windows_navigation_template(),
             FIREFOX_NAMED_NAVIGATION_H1.to_vec(),
             FIREFOX_NAMED_NAVIGATION_H2.to_vec(),
         ),
         (
             "firefox fetch",
-            firefox::v156_windows_fetch_no_store_template(),
+            firefox::v157_windows_fetch_no_store_template(),
             FIREFOX_NAMED_FETCH_H1.to_vec(),
             FIREFOX_NAMED_FETCH_H2.to_vec(),
         ),
@@ -1597,7 +1596,7 @@ fn templates_send_the_captured_plaintext_named_origin_fields() {
 
 #[test]
 fn validation_rejects_a_trust_dependent_field_without_values() {
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http1_fields.push(RequestField::ByTrust {
         name: "X-Probe".into(),
         trustworthy: None,
@@ -1608,14 +1607,14 @@ fn validation_rejects_a_trust_dependent_field_without_values() {
         Err("http1_fields")
     );
 
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template
         .http1_fields
         .push(RequestField::by_trust("X-Probe", "a", "b\r\n"));
     assert!(template.validate().is_err());
 
     // A trust-dependent entry does not end a client-hint slot's neighbours.
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http1_fields.push(RequestField::ClientHints);
     template
         .http1_fields
@@ -1703,8 +1702,8 @@ fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded()
         );
     }
     for template in [
-        firefox::v156_windows_navigation_template(),
-        firefox::v156_windows_fetch_no_store_template(),
+        firefox::v157_windows_navigation_template(),
+        firefox::v157_windows_fetch_no_store_template(),
     ] {
         assert_eq!(
             forwarded(&template.http1_fields),
@@ -1718,7 +1717,7 @@ fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
     use super::ProxyAuthorizationAttempt::{Every, Preemptive, Replay};
 
     let with = |slots: &[(&str, super::ProxyAuthorizationAttempt)]| {
-        let mut template = firefox::v156_windows_navigation_template();
+        let mut template = firefox::v157_windows_navigation_template();
         template
             .http1_fields
             .retain(|field| !matches!(field, RequestField::ProxyAuthorization { .. }));
@@ -1779,7 +1778,7 @@ fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
 fn validation_checks_the_spelling_of_every_credentials_slot() {
     use super::ProxyAuthorizationAttempt::Replay;
 
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     let replay = template
         .http2_fields
         .iter()

@@ -169,7 +169,7 @@ fn strict_parser_rejects_truncation_and_duplicates() {
 
 #[test]
 fn constructor_accepts_a_window_per_stream_class() -> Result<(), Box<dyn Error>> {
-    let settings = firefox::v156_quic();
+    let settings = firefox::v157_quic();
     assert_ne!(
         settings.initial_max_stream_data_bidi_local,
         settings.initial_max_stream_data_bidi_remote
@@ -180,7 +180,7 @@ fn constructor_accepts_a_window_per_stream_class() -> Result<(), Box<dyn Error>>
 
 #[test]
 fn constructor_rejects_a_min_ack_delay_the_runtime_cannot_honor() {
-    let mut settings = firefox::v156_quic();
+    let mut settings = firefox::v157_quic();
     settings.min_ack_delay_us = Some(2_000);
 
     let error = match TransportParameterProfile::new(settings) {
@@ -194,7 +194,7 @@ fn constructor_rejects_a_min_ack_delay_the_runtime_cannot_honor() {
 #[test]
 fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
 -> Result<(), Box<dyn Error>> {
-    let profile = TransportParameterProfile::new(firefox::v156_quic())?;
+    let profile = TransportParameterProfile::new(firefox::v157_quic())?;
     for (version, chosen) in [(QuicVersion::V1, 1_u32), (QuicVersion::V2, 0x6b33_43cf)] {
         let mut entropy = fixture_entropy();
         let value = profile.version_information(
@@ -232,7 +232,7 @@ fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
 
 #[test]
 fn masked_random_destination_ids_favor_the_minimum_length() -> Result<(), Box<dyn Error>> {
-    let profile = TransportParameterProfile::new(firefox::v156_quic())?;
+    let profile = TransportParameterProfile::new(firefox::v157_quic())?;
     let provider = profile
         .initial_destination_connection_id()
         .ok_or("the Firefox recipe sets the Initial Destination Connection ID length")?;
@@ -245,7 +245,7 @@ fn masked_random_destination_ids_favor_the_minimum_length() -> Result<(), Box<dy
     // The length is 8 when bits 2 and 3 of `b & (b >> 4)` are clear: (3/4)^2 = 0.5625.
     assert!(shortest > 1_000, "{shortest} of 2000 IDs had 8 bytes");
 
-    let mut settings = firefox::v156_quic();
+    let mut settings = firefox::v157_quic();
     settings.initial_destination_connection_id = Some(QuicConnectionIdLength::Fixed(12));
     let provider = TransportParameterProfile::new(settings)?
         .initial_destination_connection_id()

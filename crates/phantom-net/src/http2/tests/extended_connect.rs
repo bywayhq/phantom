@@ -4,7 +4,7 @@ use ::http2::{
 };
 use http::{Method, Version, header::CONNECTION};
 use phantom_profile::{
-    Http2Priority, Http2PseudoHeader, chromium::v154_http2, firefox::v156_http2,
+    Http2Priority, Http2PseudoHeader, chromium::v154_http2, firefox::v157_http2,
 };
 
 use super::super::{
@@ -111,7 +111,7 @@ fn extended_connect_overrides_carry_the_profile_order_and_priority()
             )
             .stream_dependency(StreamDependency::new(StreamId::zero(), 146, true))
     );
-    let firefox = extended_connect_overrides(&v156_http2())?;
+    let firefox = extended_connect_overrides(&v157_http2())?;
     assert_eq!(
         firefox,
         HeadersFrameOverrides::new()

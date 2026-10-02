@@ -2,7 +2,7 @@
 //!
 //! Each test sends a templated request to a loopback origin over HTTP/1.1,
 //! HTTP/2, or HTTP/3 and compares the ordered fields the origin received with
-//! the same request kind in a retained Chrome 154, Edge 154, or Firefox 156
+//! the same request kind in a retained Chrome 154, Edge 154, or Firefox 157
 //! capture, and on HTTP/2 also the HEADERS priority. The captures ran
 //! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
 //! uses the headful `Chrome` product.
@@ -80,8 +80,8 @@ const EDGE_ANDROID_H1: &str =
     fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt");
 const EDGE_ANDROID_H2: &str =
     fixture!("websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt");
-const FIREFOX_H1: &str = fixture!("websocket/firefox/156.0.1/windows-11-26200/h1-accept.txt");
-const FIREFOX_H2: &str = fixture!("websocket/firefox/156.0.1/windows-11-26200/accept.txt");
+const FIREFOX_H1: &str = fixture!("websocket/firefox/157.0/windows-11-26200/h1-accept.txt");
+const FIREFOX_H2: &str = fixture!("websocket/firefox/157.0/windows-11-26200/accept.txt");
 
 /// One browser's recipes and the capture each protocol is compared with.
 struct Browser {
@@ -166,7 +166,7 @@ fn edge_android() -> Browser {
 
 fn firefox() -> Browser {
     Browser {
-        http2: firefox::v156_http2(),
+        http2: firefox::v157_http2(),
         hints: None,
         http1_capture: FIREFOX_H1,
         http2_capture: FIREFOX_H2,
@@ -547,7 +547,7 @@ async fn edge_android_navigation_sends_the_captured_page_request() -> TestResult
 async fn firefox_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         firefox(),
-        firefox::v156_windows_navigation_template,
+        firefox::v157_windows_navigation_template,
         Kind::Navigation,
         TCP,
     )
@@ -624,7 +624,7 @@ async fn edge_android_fetch_sends_the_captured_report_request() -> TestResult<()
 async fn firefox_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         firefox(),
-        firefox::v156_windows_fetch_no_store_template,
+        firefox::v157_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -792,12 +792,12 @@ mod cookie_placement {
         let captured = captured_cookie_request(FIREFOX_SSE_COOKIE)?;
         for (template, caller, next) in [
             (
-                firefox::v156_windows_fetch_no_store_template(),
+                firefox::v157_windows_fetch_no_store_template(),
                 referer(),
                 "sec-fetch-dest",
             ),
             (
-                firefox::v156_windows_navigation_template(),
+                firefox::v157_windows_navigation_template(),
                 Vec::new(),
                 "upgrade-insecure-requests",
             ),
@@ -805,7 +805,7 @@ mod cookie_placement {
             let http1 = send_with_jar_cookie(
                 &browser,
                 template.clone(),
-                firefox::v156_cookie_placement(),
+                firefox::v157_cookie_placement(),
                 HttpProtocol::Http1,
                 caller.clone(),
             )
@@ -818,7 +818,7 @@ mod cookie_placement {
             let http2 = send_with_jar_cookie(
                 &browser,
                 template,
-                firefox::v156_cookie_placement(),
+                firefox::v157_cookie_placement(),
                 HttpProtocol::Http2,
                 caller,
             )
@@ -1279,7 +1279,7 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
 async fn template_without_http3_order_rejects_http3_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
     let client = Client::builder(profile).build()?;
-    let mut template = firefox::v156_windows_fetch_no_store_template();
+    let mut template = firefox::v157_windows_fetch_no_store_template();
     template.http3_fields = None;
     let error = client
         .get(HttpProtocol::Http3, "https://127.0.0.1:9/")?
@@ -1296,12 +1296,12 @@ async fn template_without_http3_order_rejects_http3_before_any_connection() -> T
 async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes() -> TestResult<()>
 {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(firefox::v156_http2())
+        .with_http2(firefox::v157_http2())
         .with_http3(client_settings());
     let client = Client::builder(profile)
         .alt_svc(NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?)
         .build()?;
-    let mut template = firefox::v156_windows_navigation_template();
+    let mut template = firefox::v157_windows_navigation_template();
     template.http3_fields = None;
     let template = PreparedRequestTemplate::new(template)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

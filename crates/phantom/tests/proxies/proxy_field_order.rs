@@ -36,7 +36,7 @@ const OPERA_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/53
 /// One of the five `Accept-Language` values Brave draws per session.
 const BRAVE_LANGUAGE: &str = "en-US,en;q=0.7";
 const FIREFOX_UA: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0";
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
 const CREDENTIALS: &str = "Basic dXNlcjpzZWNyZXQ=";
 
 macro_rules! proxy_fixture {
@@ -279,25 +279,25 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "firefox",
-            tls: firefox::v156_tls(),
+            tls: firefox::v157_tls(),
             hints: None,
-            navigation: firefox::v156_windows_navigation_template(),
-            fetch: firefox::v156_windows_fetch_no_store_template(),
+            navigation: firefox::v157_windows_navigation_template(),
+            fetch: firefox::v157_windows_fetch_no_store_template(),
             caller: Vec::new(),
-            connect: firefox::v156_proxy_connect(),
+            connect: firefox::v157_proxy_connect(),
             user_agent: FIREFOX_UA,
             authenticated: [
-                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-hostname"),
-                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-loopback"),
+                proxy_fixture!("firefox/157.0", "http-proxy-auth-hostname"),
+                proxy_fixture!("firefox/157.0", "http-proxy-auth-loopback"),
             ],
             secure: [
-                proxy_fixture!("firefox/156.0.1", "http-proxy-secure-hostname"),
-                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-secure-hostname"),
+                proxy_fixture!("firefox/157.0", "http-proxy-secure-hostname"),
+                proxy_fixture!("firefox/157.0", "http-proxy-auth-secure-hostname"),
             ],
-            remembered: proxy_fixture!("firefox/156.0.1", "http-proxy-auth-remembered-hostname"),
+            remembered: proxy_fixture!("firefox/157.0", "http-proxy-auth-remembered-hostname"),
             nostore: [
-                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-nostore-hostname"),
-                proxy_fixture!("firefox/156.0.1", "http-proxy-auth-nostore-loopback"),
+                proxy_fixture!("firefox/157.0", "http-proxy-auth-nostore-hostname"),
+                proxy_fixture!("firefox/157.0", "http-proxy-auth-nostore-loopback"),
             ],
         },
     ]

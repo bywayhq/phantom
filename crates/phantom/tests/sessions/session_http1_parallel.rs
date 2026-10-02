@@ -296,7 +296,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
 #[tokio::test]
 async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
     bounded(async {
-        for recipe in [chromium::v154_http1(), firefox::v156_http1()] {
+        for recipe in [chromium::v154_http1(), firefox::v157_http1()] {
             assert_eq!(recipe.max_connections_per_origin.get(), 6);
             let mut server = Server::start().await?;
             let client = builder(profile().with_http1(recipe)).build()?;
