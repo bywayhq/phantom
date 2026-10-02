@@ -9,7 +9,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use crate::tls::{
-    TlsConnector, TlsErrorKind,
+    ClientCertificate, TlsConnector, TlsErrorKind,
     test_support::{
         TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, connect_local,
     },
@@ -225,6 +225,62 @@ async fn alternating_hosts_resume_their_own_sessions_on_one_isolated_connector()
     assert_eq!(client_resumed, [false, false, true, true]);
     assert_eq!(server_resumed, client_resumed);
     Ok(())
+}
+
+/// A connector that presents a client certificate never offers a session
+/// that a connector without it learned, while that connector still resumes.
+#[tokio::test]
+async fn client_certificate_connector_does_not_offer_sessions_learned_without_it() -> TestResult<()>
+{
+    let identity = TestIdentity::generate()?;
+    let acceptor = tls12_acceptor(&identity)?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let server = tokio::spawn(async move {
+        let mut resumed = Vec::new();
+        for _ in 0..3 {
+            let stream = accept_tls_from(&listener, &acceptor).await?;
+            resumed.push(stream.ssl().session_reused());
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(resumed)
+    });
+
+    let connector = TlsConnector::new_with_roots(&tls12_settings(), [identity.root_der()])?
+        .with_isolated_session_cache();
+    drop(connect_local(&connector, address, TEST_SERVER_NAME).await??);
+    assert_eq!(
+        connector.session_cache.as_ref().map(|cache| cache.len()),
+        Some(1)
+    );
+
+    let with_certificate = connector.with_client_certificate(&client_certificate()?);
+    assert_eq!(
+        with_certificate
+            .session_cache
+            .as_ref()
+            .map(|cache| cache.len()),
+        Some(0)
+    );
+    let fresh = connect_local(&with_certificate, address, TEST_SERVER_NAME).await??;
+    assert!(!fresh.session_reused());
+    drop(fresh);
+    let resumed = connect_local(&connector, address, TEST_SERVER_NAME).await??;
+    assert!(resumed.session_reused());
+    drop(resumed);
+
+    let server_resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+    assert_eq!(server_resumed, [false, false, true]);
+    Ok(())
+}
+
+/// A self-signed P-256 client certificate and its key.
+fn client_certificate() -> TestResult<ClientCertificate> {
+    let key = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
+    let certificate = rcgen::CertificateParams::new(Vec::<String>::new())?.self_signed(&key)?;
+    Ok(ClientCertificate::from_der(
+        [certificate.der().as_ref()],
+        &key.serialize_der(),
+    )?)
 }
 
 fn tls12_settings() -> TlsSettings {
