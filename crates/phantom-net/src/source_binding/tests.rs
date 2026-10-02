@@ -68,11 +68,7 @@ fn validate_rejects_malformed_interface_names() {
 fn interface_binding_is_accepted_only_where_the_platform_has_it() {
     let result = SourceBinding::new().with_interface("lo").validate();
 
-    if cfg!(any(
-        target_os = "android",
-        target_os = "fuchsia",
-        target_os = "linux"
-    )) {
+    if cfg!(any(target_os = "android", target_os = "linux")) {
         assert_eq!(result, Ok(()));
     } else {
         assert_eq!(result.map_err(|error| error.field()), Err("interface"));
@@ -165,7 +161,7 @@ async fn udp_socket_sends_from_the_bound_address() -> TestResult {
     Ok(())
 }
 
-#[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+#[cfg(any(target_os = "android", target_os = "linux"))]
 #[tokio::test(flavor = "current_thread")]
 async fn tcp_connection_binds_to_the_loopback_interface() -> TestResult {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;

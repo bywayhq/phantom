@@ -14,15 +14,11 @@ use socket2::{Domain, Protocol, SockRef, Socket, Type};
 use tokio::net::TcpSocket;
 
 /// The longest interface name the platform accepts, without its terminating
-/// NUL (`IFNAMSIZ` is 16 on Linux, Android, and Fuchsia).
+/// NUL (`IFNAMSIZ` is 16 on Linux and Android).
 const MAX_INTERFACE_NAME_BYTES: usize = 15;
 
 /// Whether this platform can bind a socket to an interface by name.
-const INTERFACE_BINDING: bool = cfg!(any(
-    target_os = "android",
-    target_os = "fuchsia",
-    target_os = "linux"
-));
+const INTERFACE_BINDING: bool = cfg!(any(target_os = "android", target_os = "linux"));
 
 /// The local address, per address family, and the network interface that
 /// outgoing TCP and UDP sockets bind to before they connect or send.
@@ -37,7 +33,7 @@ const INTERFACE_BINDING: bool = cfg!(any(
 /// address to the operating system.
 ///
 /// An interface name binds each socket to that interface with
-/// `SO_BINDTODEVICE`, on Linux, Android, and Fuchsia only; elsewhere
+/// `SO_BINDTODEVICE`, on Linux and Android only; elsewhere
 /// [`Self::validate`] rejects it. Name resolution is not bound.
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct SourceBinding {
@@ -219,7 +215,7 @@ impl SourceBinding {
         Ok(socket.into())
     }
 
-    #[cfg(any(target_os = "android", target_os = "fuchsia", target_os = "linux"))]
+    #[cfg(any(target_os = "android", target_os = "linux"))]
     fn bind_interface(&self, socket: &SockRef<'_>) -> io::Result<()> {
         let Some(name) = &self.interface else {
             return Ok(());
@@ -232,7 +228,7 @@ impl SourceBinding {
         })
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "fuchsia", target_os = "linux")))]
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     fn bind_interface(&self, _socket: &SockRef<'_>) -> io::Result<()> {
         match &self.interface {
             None => Ok(()),
