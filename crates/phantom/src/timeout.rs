@@ -77,6 +77,16 @@ impl RequestTimeouts {
 
     /// Limits connection establishment, including DNS, proxy, TLS, and protocol setup.
     ///
+    /// A TCP connection that offers TLS early data
+    /// ([`TlsSettings::tcp_early_data`](crate::profile::TlsSettings::tcp_early_data))
+    /// is ready once its ClientHello is sent, and the server's answer
+    /// completes the handshake later. A request sent as early data waits for
+    /// that answer within its [`response_head`](Self::response_head) limit. A
+    /// negotiated request that is not replay safe waits for it within this
+    /// limit, counted from when the request was admitted, so opening the
+    /// connection and finishing its handshake share one connect limit; an
+    /// exact HTTP/1.1 or HTTP/2 request waits within its response-head limit.
+    ///
     /// Default: no limit.
     #[must_use]
     pub const fn connect(mut self, timeout: Duration) -> Self {

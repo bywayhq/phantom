@@ -7,19 +7,16 @@ use std::{
     future::{Future, poll_fn},
     net::Ipv4Addr,
     pin::Pin,
-    sync::{
-        Arc, Mutex, PoisonError,
-        atomic::{AtomicUsize, Ordering},
-    },
+    sync::{Arc, Mutex, PoisonError},
     task::{Context, Poll},
     time::Duration,
 };
 
 use btls::ssl::{AlpnError, ExtensionType, SelectCertError, Ssl, SslAcceptor, select_next_proto};
-use http::{Response, StatusCode};
+use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client,
+    Client, HttpProtocol, RequestErrorKind,
     profile::{ClientProfile, firefox},
 };
 use tokio::{
@@ -30,22 +27,39 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use tls_support::TestIdentity;
+use tls_support::{H1_ALPN, H2_ALPN, TestIdentity};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// Long enough that the client's early data is on the wire before the server
 /// answers its ClientHello.
 const SERVER_DELAY: Duration = Duration::from_millis(200);
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+const H2_HEADERS: u8 = 0x1;
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+/// What one ClientHello offered.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Offer {
+    early_data: bool,
+    pre_shared_key: bool,
+}
+
+const FRESH: Offer = Offer {
+    early_data: false,
+    pre_shared_key: false,
+};
+const EARLY: Offer = Offer {
+    early_data: true,
+    pre_shared_key: true,
+};
 
 #[tokio::test]
 async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let offers = Arc::new(Mutex::new(Vec::new()));
-        let acceptor = acceptor(&identity, Arc::clone(&offers), |_| tls_support::H2_ALPN)?;
+        let offers = Offers::default();
+        let acceptor = acceptor(&identity, &offers, [H2_ALPN, H2_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
@@ -66,22 +80,18 @@ async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
         });
 
         let session = client(&identity)?.session();
-        get(&session, &format!("https://{address}/")).await?;
+        send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
         if wait_for_first_close.await.is_err() {
             server.await??;
             return Err("server stopped before closing the first connection".into());
         }
-        get(&session, &format!("https://{address}/early")).await?;
+        send_negotiated(&session, Method::GET, &format!("https://{address}/early")).await?;
 
         let early = server.await??;
         // The preface, SETTINGS, and the request HEADERS went out before the
         // server answered.
-        assert!(early.starts_with(H2_PREFACE));
-        assert!(early.len() > H2_PREFACE.len() + 50);
-        assert_eq!(
-            *offers.lock().unwrap_or_else(PoisonError::into_inner),
-            [false, true]
-        );
+        assert!(h2_frame_types(&early)?.contains(&H2_HEADERS));
+        assert_eq!(offers.take(), [FRESH, EARLY]);
         Ok(())
     })
     .await
@@ -89,21 +99,87 @@ async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
 
 /// The second connection resumes a ticket issued under `h2`, but the server
 /// rejects its early data and selects `http/1.1`. The connection fails, and
-/// the request goes out again on a third connection that offers no early
-/// data, as Firefox restarts it.
+/// the GET goes out again on a third connection that offers neither early
+/// data nor a ticket, as Firefox restarts it after removing the peer's
+/// resumption tokens.
 #[tokio::test]
-async fn an_alpn_change_after_rejected_early_data_restarts_without_early_data() -> TestResult<()> {
+async fn an_alpn_change_restarts_a_get_on_a_full_handshake() -> TestResult<()> {
+    let restarted = alpn_change_restart(Method::GET).await?;
+    assert!(restarted.starts_with(b"GET /restarted HTTP/1.1\r\n"));
+    Ok(())
+}
+
+/// A POST waits for the server's answer, so after the ALPN change its body
+/// reaches only the restarted connection.
+#[tokio::test]
+async fn an_alpn_change_restarts_a_post_without_sending_its_body_early() -> TestResult<()> {
+    let restarted = alpn_change_restart(Method::POST).await?;
+    assert!(restarted.starts_with(b"POST /restarted HTTP/1.1\r\n"));
+    assert!(restarted.ends_with(b"\r\n\r\npayload"));
+    Ok(())
+}
+
+/// An exact HTTP/2 request whose resumed connection's early data is rejected
+/// under `http/1.1` fails as a fresh connection that selects `http/1.1` does.
+#[tokio::test]
+async fn exact_http2_reports_an_alpn_change_after_early_data() -> TestResult<()> {
+    let error = exact_failure(HttpProtocol::Http2, [H2_ALPN, H1_ALPN], false).await?;
+    assert_eq!(error.kind(), RequestErrorKind::Http2);
+    let chain = source_chain(&error);
+    assert!(
+        chain.contains("TLS selected http/1.1 ALPN, which is unsupported by the HTTP/2 transport"),
+        "{chain}"
+    );
+    Ok(())
+}
+
+/// An exact HTTP/1.1 request whose resumed connection's early data is
+/// rejected under `h2` fails as a fresh connection that selects `h2` does.
+#[tokio::test]
+async fn exact_http1_reports_an_alpn_change_after_early_data() -> TestResult<()> {
+    let error = exact_failure(HttpProtocol::Http1, [H1_ALPN, H2_ALPN], false).await?;
+    assert_eq!(error.kind(), RequestErrorKind::Http1);
+    let chain = source_chain(&error);
+    assert!(
+        chain.contains("TLS selected h2 ALPN, which is unsupported by the HTTP/1 transport"),
+        "{chain}"
+    );
+    Ok(())
+}
+
+/// The second server cannot resume the ticket and presents an untrusted
+/// certificate: the handshake that completes after the rejected early data
+/// fails as a fresh connection's would.
+#[tokio::test]
+async fn exact_http2_reports_a_handshake_failure_after_early_data() -> TestResult<()> {
+    let error = exact_failure(HttpProtocol::Http2, [H2_ALPN, H2_ALPN], true).await?;
+    assert_eq!(error.kind(), RequestErrorKind::Tls);
+    assert!(
+        source_chain(&error).contains("TLS handshake failed after early data"),
+        "{error}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn exact_http1_reports_a_handshake_failure_after_early_data() -> TestResult<()> {
+    let error = exact_failure(HttpProtocol::Http1, [H1_ALPN, H1_ALPN], true).await?;
+    assert_eq!(error.kind(), RequestErrorKind::Tls);
+    assert!(
+        source_chain(&error).contains("TLS handshake failed after early data"),
+        "{error}"
+    );
+    Ok(())
+}
+
+/// Learns an `h2` ticket, then sends `method` to `/restarted` while the
+/// server rejects the resumed connection's early data and selects
+/// `http/1.1`. Returns what the third connection received.
+async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let offers = Arc::new(Mutex::new(Vec::new()));
-        let handshakes = AtomicUsize::new(0);
-        let acceptor = acceptor(&identity, Arc::clone(&offers), move |_| {
-            if handshakes.fetch_add(1, Ordering::SeqCst) == 0 {
-                tls_support::H2_ALPN
-            } else {
-                tls_support::H1_ALPN
-            }
-        })?;
+        let offers = Offers::default();
+        let acceptor = acceptor(&identity, &offers, [H2_ALPN, H1_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
@@ -114,37 +190,105 @@ async fn an_alpn_change_after_rejected_early_data_restarts_without_early_data() 
                 .send(())
                 .map_err(|_| "client stopped before the first connection closed")?;
 
-            // The client drops this connection without a request.
+            // The client drops this connection without sending a request.
             let mut rejected = accept(&listener, &acceptor, SERVER_DELAY).await?;
             assert!(!rejected.stream.ssl().early_data_accepted());
             let mut unprocessed = Vec::new();
             let _ = rejected.read_to_end(&mut unprocessed).await;
+            assert!(unprocessed.is_empty(), "{unprocessed:?}");
 
             let mut restarted = accept(&listener, &acceptor, Duration::ZERO).await?;
-            let head = tls_support::read_head(&mut restarted).await?;
-            assert!(head.starts_with(b"GET /restarted HTTP/1.1\r\n"));
+            assert!(!restarted.stream.ssl().session_reused());
+            let mut request = tls_support::read_head(&mut restarted).await?;
+            if request.starts_with(b"POST ") {
+                let mut body = [0_u8; 7];
+                restarted.read_exact(&mut body).await?;
+                request.extend_from_slice(&body);
+            }
             restarted
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                 .await?;
             restarted.shutdown().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(unprocessed)
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
 
         let session = client(&identity)?.session();
-        get(&session, &format!("https://{address}/")).await?;
+        send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
         if wait_for_first_close.await.is_err() {
             server.await??;
             return Err("server stopped before closing the first connection".into());
         }
-        get(&session, &format!("https://{address}/restarted")).await?;
+        send_negotiated(&session, method, &format!("https://{address}/restarted")).await?;
 
-        let unprocessed = server.await??;
-        assert!(unprocessed.is_empty());
-        assert_eq!(
-            *offers.lock().unwrap_or_else(PoisonError::into_inner),
-            [false, true, false]
-        );
-        Ok(())
+        let restarted = server.await??;
+        assert_eq!(offers.take(), [FRESH, EARLY, FRESH]);
+        Ok(restarted)
+    })
+    .await
+}
+
+/// Learns a ticket over `protocol`, then sends a GET while the second
+/// connection selects `alpn[1]` or, with `untrusted`, presents an untrusted
+/// certificate. Returns the request's error.
+async fn exact_failure(
+    protocol: HttpProtocol,
+    alpn: [&'static [u8]; 2],
+    untrusted: bool,
+) -> TestResult<phantom::RequestError> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let offers = Offers::default();
+        let acceptor = acceptor(&identity, &offers, alpn)?;
+        let second = if untrusted {
+            acceptor_for(&TestIdentity::generate()?, &offers, alpn[1])?
+        } else {
+            acceptor.clone()
+        };
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let (first_closed, wait_for_first_close) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let first = accept(&listener, &acceptor, Duration::ZERO).await?;
+            if protocol == HttpProtocol::Http2 {
+                serve_http2(first, "/").await?;
+            } else {
+                serve_http1(first).await?;
+            }
+            first_closed
+                .send(())
+                .map_err(|_| "client stopped before the first connection closed")?;
+            // The handshake fails on the client, or the client drops the
+            // connection after the ALPN change; either way it sends nothing
+            // the server processes.
+            if let Ok(mut rejected) = accept(&listener, &second, SERVER_DELAY).await {
+                assert!(!rejected.stream.ssl().early_data_accepted());
+                let mut unprocessed = Vec::new();
+                let _ = rejected.read_to_end(&mut unprocessed).await;
+                assert!(unprocessed.is_empty(), "{unprocessed:?}");
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let session = client(&identity)?.session();
+        send(
+            &session,
+            protocol,
+            Method::GET,
+            &format!("https://{address}/"),
+        )
+        .await?;
+        if wait_for_first_close.await.is_err() {
+            server.await??;
+            return Err("server stopped before closing the first connection".into());
+        }
+        let uri = format!("https://{address}/failed");
+        let error = match session.get(protocol, &uri)?.send().await {
+            Ok(_) => return Err("the request succeeded after the handshake failed".into()),
+            Err(error) => error,
+        };
+        server.await??;
+        assert_eq!(offers.take()[1], EARLY);
+        Ok(error)
     })
     .await
 }
@@ -156,23 +300,61 @@ fn client(identity: &TestIdentity) -> TestResult<Client> {
         .build()?)
 }
 
-/// Builds an acceptor that records whether each ClientHello offered early
-/// data and selects the ALPN protocol `alpn` returns for it.
-fn acceptor(
-    identity: &TestIdentity,
-    offers: Arc<Mutex<Vec<bool>>>,
-    alpn: impl Fn(&[u8]) -> &'static [u8] + Send + Sync + 'static,
-) -> TestResult<SslAcceptor> {
-    let mut acceptor = identity.acceptor_builder(tls_support::H2_ALPN)?;
-    acceptor.set_select_certificate_callback(move |hello| {
-        offers
+/// The ClientHello offers the server saw, in order.
+#[derive(Clone, Default)]
+struct Offers(Arc<Mutex<Vec<Offer>>>);
+
+impl Offers {
+    fn record(&self, offer: Offer) {
+        self.0
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .push(hello.get_extension(ExtensionType::EARLY_DATA).is_some());
+            .push(offer);
+    }
+
+    fn take(&self) -> Vec<Offer> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+}
+
+/// Builds an acceptor that records each ClientHello's offer and selects the
+/// ALPN protocol at the handshake's index in `alpn`, and the last one after.
+fn acceptor(
+    identity: &TestIdentity,
+    offers: &Offers,
+    alpn: [&'static [u8]; 2],
+) -> TestResult<SslAcceptor> {
+    let handshakes = std::sync::atomic::AtomicUsize::new(0);
+    build_acceptor(identity, offers, move || {
+        let handshake = handshakes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        alpn[handshake.min(1)]
+    })
+}
+
+fn acceptor_for(
+    identity: &TestIdentity,
+    offers: &Offers,
+    alpn: &'static [u8],
+) -> TestResult<SslAcceptor> {
+    build_acceptor(identity, offers, move || alpn)
+}
+
+fn build_acceptor(
+    identity: &TestIdentity,
+    offers: &Offers,
+    alpn: impl Fn() -> &'static [u8] + Send + Sync + 'static,
+) -> TestResult<SslAcceptor> {
+    let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+    let offers = offers.clone();
+    acceptor.set_select_certificate_callback(move |hello| {
+        offers.record(Offer {
+            early_data: hello.get_extension(ExtensionType::EARLY_DATA).is_some(),
+            pre_shared_key: hello.get_extension(ExtensionType::PRE_SHARED_KEY).is_some(),
+        });
         Ok::<_, SelectCertError>(())
     });
     acceptor.set_alpn_select_callback(move |_, offered| {
-        select_next_proto(alpn(offered), offered).ok_or(AlpnError::NOACK)
+        select_next_proto(alpn(), offered).ok_or(AlpnError::NOACK)
     });
     Ok(acceptor.build())
 }
@@ -267,11 +449,62 @@ async fn serve_http2(stream: Server, expected_path: &str) -> TestResult<()> {
     }
 }
 
-async fn get(session: &phantom::Session, uri: &str) -> TestResult<()> {
-    let response = session.get_negotiated(uri)?.send().await?;
+async fn serve_http1(mut stream: Server) -> TestResult<()> {
+    tls_support::read_head(&mut stream).await?;
+    stream
+        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        .await?;
+    stream.shutdown().await?;
+    Ok(())
+}
+
+async fn send_negotiated(session: &phantom::Session, method: Method, uri: &str) -> TestResult<()> {
+    let mut request = session.request_negotiated(method.clone(), uri)?;
+    if method == Method::POST {
+        request = request.body("payload");
+    }
+    let response = request.send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     response.into_body().collect().await?;
     Ok(())
+}
+
+async fn send(
+    session: &phantom::Session,
+    protocol: HttpProtocol,
+    method: Method,
+    uri: &str,
+) -> TestResult<()> {
+    let response = session.request(protocol, method, uri)?.send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    response.into_body().collect().await?;
+    Ok(())
+}
+
+/// Returns the type of every frame after the client preface.
+fn h2_frame_types(bytes: &[u8]) -> TestResult<Vec<u8>> {
+    let mut frames = bytes
+        .strip_prefix(H2_PREFACE)
+        .ok_or("the early data does not start with the HTTP/2 preface")?;
+    let mut types = Vec::new();
+    while let Some(header) = frames.first_chunk::<9>() {
+        let length =
+            usize::from(header[0]) << 16 | usize::from(header[1]) << 8 | usize::from(header[2]);
+        types.push(header[3]);
+        frames = frames.get(9 + length..).unwrap_or_default();
+    }
+    Ok(types)
+}
+
+/// Joins the messages of `error` and its sources.
+fn source_chain(error: &(dyn Error + 'static)) -> String {
+    let mut messages = vec![error.to_string()];
+    let mut source = error.source();
+    while let Some(error) = source {
+        messages.push(error.to_string());
+        source = error.source();
+    }
+    messages.join(": ")
 }
 
 async fn bounded<T, F>(future: F) -> TestResult<T>

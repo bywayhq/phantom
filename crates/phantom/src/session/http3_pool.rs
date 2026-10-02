@@ -1269,7 +1269,7 @@ async fn dispatch(
 /// Phantom applies to critical client-hint replays, and the rule Chromium
 /// applies to early data for a request of default idempotency.
 fn is_replay_safe(method: &Method, body: Option<&RequestBody>, trailers: &[RequestHeader]) -> bool {
-    method.is_safe() && body.is_none() && trailers.is_empty()
+    phantom_net::request::is_replay_safe(method, body.is_some(), !trailers.is_empty())
 }
 
 /// Expands the CONNECT-UDP path for the transport target before I/O.

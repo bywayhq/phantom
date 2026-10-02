@@ -37,6 +37,25 @@ mod retry_after;
 /// The replay and status-retry classes never resend a one-shot streaming
 /// body; such a request returns the original error or response.
 ///
+/// A few replays are browser behavior rather than caller policy, so they run
+/// whatever the policy is and no policy budget counts them. Each repeats a
+/// request the server did not process, once:
+///
+/// - The negotiated and exact HTTP/2 pools send a bodyless GET refused by
+///   `GOAWAY(NO_ERROR)` once more on a replacement connection.
+/// - When a server rejects TLS early data, the connection that sent it sends
+///   the same bytes again once its handshake completes, as Chrome does over
+///   HTTP/3 and Firefox over TCP. The TCP stream or the HTTP/3 pool owns the
+///   resend; a handshake answers early data once, so it happens at most once
+///   per connection.
+/// - When a server rejects a negotiated request's early data over TCP and
+///   then selects another ALPN protocol, the connection fails before the
+///   server processes anything. The negotiated pool removes the origin's TLS
+///   tickets and sends the request once on a new connection that offers no
+///   early data, as Firefox restarts it. A request that is not replay safe
+///   waits for the server's answer before its body is used, so its body is
+///   sent only on that new connection.
+///
 /// A delay or `Retry-After` limit must be small enough to add to the runtime
 /// clock. A client policy that exceeds it makes
 /// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
@@ -153,9 +172,9 @@ impl RetryPolicy {
     /// and any failure after a response head may have been processed and
     /// return the original error.
     ///
-    /// Without this policy, the one built-in replay remains: a bodyless
-    /// HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is retried once on a
-    /// replacement connection.
+    /// Without this policy, only the built-in replays listed on
+    /// [`RetryPolicy`] remain, such as a bodyless HTTP/2 GET refused by
+    /// `GOAWAY(NO_ERROR)`, retried once on a replacement connection.
     ///
     /// # Examples
     ///

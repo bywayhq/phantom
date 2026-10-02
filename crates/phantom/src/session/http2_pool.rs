@@ -261,10 +261,16 @@ impl Http2Pool {
                         );
                         continue;
                     }
+                    // A handshake that failed after early data reports what a
+                    // fresh connection's handshake would.
+                    let early_data_failure = lease.connection.early_data_failure();
                     // The stream count drops before the permit, as on success.
                     drop(lease);
                     drop(permit);
-                    return Err(RequestError::http2_stream(error));
+                    return Err(match early_data_failure {
+                        Some(failure) => RequestError::http2_connection_setup(failure),
+                        None => RequestError::http2_stream(error),
+                    });
                 }
                 Err(error) => {
                     drop(lease);

@@ -287,11 +287,17 @@ impl Http1Pool {
                 ))
             }
             Ok(Err(error)) => {
+                // A handshake that failed after early data reports what a
+                // fresh connection's handshake would.
+                let early_data_failure = lease.connection.early_data_failure();
                 // The lease drops before the permit, so the next admitted
                 // request finds a reusable connection idle.
                 drop(lease);
                 drop(permit);
-                Err(RequestError::http1(error.into()))
+                Err(match early_data_failure {
+                    Some(failure) => RequestError::http1_connection_setup(failure),
+                    None => RequestError::http1(error.into()),
+                })
             }
             Err(error) => {
                 lease.retire();
