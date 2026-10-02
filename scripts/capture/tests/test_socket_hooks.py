@@ -331,7 +331,12 @@ class OriginTests(unittest.TestCase):
 
 class RetainedFixtureTests(unittest.TestCase):
     def test_retained_logs_name_the_agent_they_were_taken_with(self) -> None:
-        paths = sorted(FIXTURES.glob("*/*/*/hooks-*.txt"))
+        # Firefox logs come from firefox_socket_hooks.py; its tests check them.
+        paths = sorted(
+            path
+            for path in FIXTURES.glob("*/*/*/hooks-*.txt")
+            if path.relative_to(FIXTURES).parts[0] != "firefox"
+        )
         self.assertTrue(paths)
         digests = set()
         for path in paths:
