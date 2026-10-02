@@ -61,11 +61,14 @@ pub fn v156_cookie_placement() -> CookiePlacement {
     ])
 }
 
-/// Returns TLS settings captured from Firefox 156.0 on Windows 11.
+/// Returns TLS settings captured from Firefox 156.0.1 on Windows 11.
 ///
-/// Captured from Firefox 156.0 (Windows 11 build 26200) in twelve fresh
-/// processes. The fixed extension order and the exact ECH GREASE payload
-/// length retain the stable wire shape observed across those captures.
+/// Captured from five fresh Firefox 156.0.1 processes (Windows 11 build
+/// 26200), the fingerprint snapshots under `fixtures/http3/firefox/156.0.1/`;
+/// `fixtures/tls/firefox/156.0.1/` keeps two of their ClientHellos, one for
+/// each ECH GREASE AEAD. The fixed extension order and the exact ECH GREASE
+/// payload length retain the stable wire shape observed across those
+/// captures.
 /// Firefox picks its ECH GREASE AEAD per connection from AES-128-GCM and
 /// ChaCha20-Poly1305 with equal probability; this recipe lists both, so each
 /// connection draws one the same way. The delegated-credential vector includes
