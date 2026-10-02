@@ -381,11 +381,12 @@ pub struct TlsSettings {
     /// wait until the server answers the early data. If the server rejects
     /// it, the connection finishes the handshake and sends the same bytes
     /// again, unless the server then selects another ALPN protocol, which
-    /// fails the connection. Connections through a proxy, connections that
-    /// offer Encrypted Client Hello from an HTTPS record, and WebSocket
-    /// openings never offer early data. QUIC connections follow
-    /// [`crate::quic::QuicTransportSettings::early_data`] instead. Requires
-    /// [`Self::session_tickets`] and TLS 1.3.
+    /// fails the connection. Connections through a proxy never offer early
+    /// data, as Firefox's never do. Phantom also never offers it on
+    /// connections that offer Encrypted Client Hello from an HTTPS record or
+    /// open a WebSocket, which Firefox does not exclude. QUIC connections
+    /// follow [`crate::quic::QuicTransportSettings::early_data`] instead.
+    /// Requires [`Self::session_tickets`] and TLS 1.3.
     pub tcp_early_data: bool,
     /// Maximum protected TLS record plaintext the client accepts.
     ///

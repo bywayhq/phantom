@@ -145,7 +145,8 @@ async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -
 
 /// With a ticket that permits early data, the resumed ClientHello equals every
 /// resumed ClientHello of Firefox's `resumption-sequential.txt`, all of which
-/// offer `early_data`, byte for byte apart from per-connection values.
+/// offer `early_data`, byte for byte apart from per-connection values and the
+/// ECH GREASE payload length, pinned below.
 #[tokio::test]
 async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> TestResult<()> {
     let settings = firefox::v156_tls();

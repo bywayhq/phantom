@@ -176,9 +176,20 @@ anything does.
 - The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
   [TLS resumption captures](explanation/validation.md#tls-resumption-over-tcp-evidence),
   where every Firefox 156 resumption sends a 368-byte payload against 240
-  bytes on a fresh connection; the recipe sends 240 bytes on both. Blocker:
-  the captures hold one ticket size only, so how Firefox derives the length
-  is not known.
+  bytes on a fresh connection; the recipe sends 240 bytes on both. NSS sizes
+  the GREASE payload from the ClientHello it has built, `pre_shared_key`
+  included: `tls13_MaybeGreaseEch` (`security/nss/lib/ssl/tls13ech.c:2143`,
+  called from `ssl3con.c:5890` at tag `FIREFOX_156_0_RELEASE`) encodes an
+  inner ClientHello from the outer extensions and pads it with
+  `tls13_PadChInner` to the `security.tls.ech.grease_size` name target
+  (100) and a multiple of 32 bytes. Blocker: a fixed recipe length cannot
+  follow a ticket's size; modelling that rule needs a ClientHello-dependent
+  length in the TLS backend.
+- Early data on Firefox-profile WebSocket openings and on connections that
+  offer ECH from HTTPS records. Evidence: Firefox 156 disables TCP early data
+  only on proxy connections and origins that failed before
+  (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`); no capture resumed a
+  WebSocket opening. Phantom offers no early data on either.
 - Closing a TLS connection without `close_notify`. Evidence: source only;
   Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),

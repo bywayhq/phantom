@@ -22,6 +22,15 @@ use crate::{firefox, tls::TlsSettings};
 /// limit, delegated-credential schemes, and a 240-byte ECH GREASE payload.
 /// Firefox for Android also draws its ECH GREASE AEAD per connection: 5 of
 /// the 12 used AES-128-GCM and 7 ChaCha20-Poly1305. This returns that recipe.
+///
+/// It keeps the desktop recipe's early data over TCP
+/// ([`TlsSettings::tcp_early_data`]) from source, not from a capture: no
+/// Android capture resumed a session. At tag `FIREFOX_156_0_RELEASE`,
+/// `security.tls.enable_0rtt_data` and
+/// `network.http.remove_resumption_token_when_early_data_failed` default to
+/// true on every platform (`modules/libpref/init/StaticPrefList.yaml:19097-19100`
+/// and `:17033-17037`), and GeckoView's Android preferences
+/// (`mobile/android/app/geckoview-prefs.js`) override neither.
 #[must_use]
 pub fn v156_tls() -> TlsSettings {
     firefox::v156_tls()

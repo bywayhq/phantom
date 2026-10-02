@@ -1357,9 +1357,17 @@ Retained fixtures, under
 `fixtures/tls/firefox-android/156.0.1/android-35-emulator/`:
 `client-hello.txt` (AES-128-GCM) and `client-hello-chacha20-ech.txt`.
 
+`firefox_android::v156_tls` also keeps the desktop recipe's TCP early data,
+from source only, since no Android capture could resume a session: at tag
+`FIREFOX_156_0_RELEASE`, `security.tls.enable_0rtt_data` and
+`network.http.remove_resumption_token_when_early_data_failed` default to
+true on every platform (`modules/libpref/init/StaticPrefList.yaml:19097-19100`
+and `:17033-17037`), and `mobile/android/app/geckoview-prefs.js`, GeckoView's
+Android preference file, overrides neither.
+
 Limits: those of Chrome for Android, on the Android 15 emulator, and no
-HTTP/2, WebSocket, request-field, or proxy capture, because none can load a
-TLS page. Firefox for Android sends no user-agent client hints; a plaintext
+HTTP/2, WebSocket, request-field, proxy, or resumption capture, because none
+can load a TLS page. Firefox for Android sends no user-agent client hints; a plaintext
 probe request carried none. No client-hint capture ran on Android 17: the
 launcher's typed entry opens `about:blank` by `VIEW` intent, which Firefox
 does not resolve.
@@ -3898,7 +3906,9 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
 (2 for the Chromium family, 8 for Firefox), the `session_ticket` choice as
 `TlsSettings::session_ticket_extension_when_resuming`, and early data as
-`TlsSettings::tcp_early_data` (only `firefox::v156_tls` sets it).
+`TlsSettings::tcp_early_data`, set by `firefox::v156_tls` and, from source,
+by `firefox_android::v156_tls`
+([Firefox for Android](#firefox-for-android-156-recipe)).
 
 Early data follows Firefox 156's source at tag `FIREFOX_156_0_RELEASE` where
 no capture shows the behavior, since every capture server accepted early
@@ -3919,9 +3929,22 @@ data:
   request (`nsHttpTransaction.cpp:3363-3373`) and resends HTTP/2 from the
   preface (`Http2Session.cpp:3384-3393`).
 - After a rejection under another ALPN protocol the connection fails, and a
-  negotiated request is sent again on a new connection that offers no early
-  data, as Firefox restarts its transactions
-  (`nsHttpTransaction.cpp:1546-1579`).
+  negotiated request is sent again once on a new connection, as Firefox
+  restarts its transactions without early data
+  (`nsHttpTransaction.cpp:1546-1579`). Before that, the pool removes the
+  origin's tickets, as Firefox removes every resumption token for the peer
+  on that restart (`nsHttpTransaction::Restart`,
+  `nsHttpTransaction.cpp:1993-1999`, under
+  `network.http.remove_resumption_token_when_early_data_failed`), so the new
+  connection makes a full handshake. A rejection under the same ALPN
+  protocol removes no tickets: Firefox resends on the same connection
+  without a restart (`nsHttpConnection.cpp:2606-2645`), and each token is
+  used once anyway (`NSSSocketControl.cpp:708-726`).
+- A handshake that fails after early data, a certificate failure after a
+  rejected ticket for instance, fails the request with the TLS error a fresh
+  connection's handshake reports; an exact request whose server selects an
+  ALPN protocol its transport cannot use fails as a fresh connection that
+  selects it does.
 
 Tests in `crates/phantom-net/src/tls/tests/early_data.rs`,
 `crates/phantom-net/src/http1_or_2/tests/early_data.rs`, and
@@ -3943,9 +3966,16 @@ data has arrived:
   permits early data through a CONNECT tunnel without offering it, and
   `the_plain_handshake_offers_no_early_data` covers the handshake proxy and
   WebSocket connections use.
-- `a_resumed_negotiated_get_travels_as_early_data` and
-  `an_alpn_change_after_rejected_early_data_restarts_without_early_data` drive
-  the public client.
+- `a_resumed_negotiated_get_travels_as_early_data`,
+  `an_alpn_change_restarts_a_get_on_a_full_handshake`, and
+  `an_alpn_change_restarts_a_post_without_sending_its_body_early` drive the
+  negotiated public client; the last shows the rejected connection received
+  nothing and the POST and its body reached only the new connection.
+- `exact_http1_reports_an_alpn_change_after_early_data`,
+  `exact_http2_reports_an_alpn_change_after_early_data`,
+  `exact_http1_reports_a_handshake_failure_after_early_data`, and
+  `exact_http2_reports_a_handshake_failure_after_early_data` check the
+  errors of exact requests.
 
 Limits:
 
@@ -3960,10 +3990,10 @@ Limits:
   stops offering early data to an origin after certain TLS alerts, and
   restarts a request without early data after a `425 Too Early` response.
 - Early data is offered on negotiated and exact HTTP/1.1 and HTTP/2
-  connections, not on WebSocket openings or through proxies. An exact
-  request whose server picks another ALPN protocol after a rejection fails
-  instead of restarting, as it would on any connection that negotiates a
-  protocol it cannot use.
+  connections. Phantom offers none on WebSocket openings or on connections
+  that offer ECH from an HTTPS record, which Firefox does not exclude
+  ([roadmap](../roadmap.md)). An exact request whose server picks another
+  ALPN protocol after a rejection fails instead of restarting.
 - The early data's record boundaries are BoringSSL's, not NSS's.
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.

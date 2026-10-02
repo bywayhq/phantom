@@ -19,6 +19,11 @@ fork, the same revision that supplies `btls-sys`.
   <https://codeload.github.com/bywayhq/btls/tar.gz/c4596bc5ee7facb860ef91c184ac50b5b863b733>
 - Complete source archive SHA-256:
   `b81f35227ad4e407baab66b7db17603d2b01acec681242f939380bb98737b63a`
+- The `tokio-btls` tree is identical in this archive and in the earlier
+  reviewed commit `c48fddb13539e06fadedfac6039570598ff89864`: the commits
+  between them change only `btls-sys`, its native patches, the fork's CI, and
+  one wrapper doc comment. Only the archive and its checksum moved with the
+  `btls-sys` pin; the patches are unchanged.
 - Upstream licenses remain in `LICENSE-APACHE` and `LICENSE-MIT`.
 
 ## Why this fork exists

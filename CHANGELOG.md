@@ -501,11 +501,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `ClientHelloExtension::EarlyData` places the `early_data` extension in a
   fixed extension order; `firefox::v156_tls` lists it between `KeyShare` and
   `SupportedVersions`.
-- `Http1Connection::early_data_answered` and `early_data_alpn_changed`, and
-  the same on `Http2Connection`, report a connection's TLS early data.
+- `Http1Connection::early_data_pending`, `early_data_answered`,
+  `early_data_alpn_changed`, and `early_data_failure`, and the same on
+  `Http2Connection`, report a connection's TLS early data and, when its
+  handshake failed after it, the error a fresh connection reports.
   `Http1Or2TlsConnector::offers_early_data` reports whether a connector
-  offers it, and `without_early_data` returns a clone, sharing its ticket
-  cache, that never does.
+  offers it, `without_early_data` returns a clone, sharing its ticket cache,
+  that never does, and `forget_session_tickets` removes the cached tickets
+  for one server name. `phantom_net::request::is_replay_safe` states the rule
+  for requests that may travel as early data.
 - `ClientBuilder::local_address` binds every TCP and QUIC socket a client
   opens, to origins and to proxies, to a local IPv4 or IPv6 address, one per
   family. With an address for one family only, connections skip resolved
@@ -1073,9 +1077,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HEAD`, `OPTIONS`, and `TRACE` requests without a body as early data. After
   the server rejects the early data, the connection sends the same bytes
   again once the handshake completes. If the server then selects another ALPN
-  protocol, the connection fails and a negotiated request starts again on a
-  new connection without early data; an exact HTTP/1.1 or HTTP/2 request
-  fails.
+  protocol, the connection fails and a negotiated request starts again once,
+  after the origin's tickets are removed, on a new connection that makes a
+  full handshake, as Firefox restarts it; an exact HTTP/1.1 or HTTP/2
+  request fails with the ALPN error a fresh connection reports. A handshake
+  that fails after early data fails the request with
+  `RequestErrorKind::Tls`, as a fresh connection's would. A negotiated
+  request that is not replay safe waits for the server's answer within the
+  connect timeout counted from its admission, and a request sent as early
+  data within its response-head timeout (`RequestTimeouts::connect`).
 - `btls-sys` moves to `bywayhq/btls` commit `c4596bc5`, whose native patch
   0013 lets a client that sends `record_size_limit` offer early data and
   keeps the early-data capability of its tickets, and whose parent `126eca11`
