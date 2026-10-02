@@ -11,6 +11,7 @@ use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use btls::x509::X509;
 use phantom_profile::{
     AlpsSettings, CipherSuite, EchGreasePayloadLength, NamedGroup, TlsSettings, TlsVersion,
+    TrustAnchorIds,
 };
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
@@ -72,6 +73,7 @@ impl QuicClientConfig {
                 ech_grease: false,
                 ech_grease_payload: EchGreasePayload::BackendDefault,
                 ech_grease_aeads: Vec::new(),
+                per_connection_trust_anchors: None,
                 alps: None,
                 session_tickets: false,
                 client_certificate: None,
@@ -140,6 +142,11 @@ impl QuicClientConfig {
     /// [`Self::with_isolated_session_cache`]. Without `session_tickets` no
     /// connection resumes, so this also clears the early-data offer that a
     /// transport profile's `early_data` set.
+    ///
+    /// A `requested_trust_anchor_ids` list drawn per connection gets a new
+    /// order, drawn uniformly from its orders, in every session's
+    /// ClientHello. A fixed or per-client list is a context setting, which
+    /// this method leaves to the context.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         let profile = ClientTlsProfile::new(settings)?;
         if profile.session_tickets {
@@ -667,6 +674,9 @@ pub(super) struct ClientTlsProfile {
     ech_grease: bool,
     ech_grease_payload: EchGreasePayload,
     ech_grease_aeads: Vec<u16>,
+    /// A trust anchor ID list whose order each session draws; fixed and
+    /// per-client lists belong to the context.
+    per_connection_trust_anchors: Option<Arc<TrustAnchorIds>>,
     alps: Option<AlpsSettings>,
     session_tickets: bool,
     client_certificate: Option<Arc<ClientCertificate>>,
@@ -752,6 +762,10 @@ impl fmt::Debug for ClientTlsProfile {
             .field("ech_grease_payload", &self.ech_grease_payload)
             .field("ech_grease_aeads", &self.ech_grease_aeads)
             .field(
+                "per_connection_trust_anchors",
+                &self.per_connection_trust_anchors.is_some(),
+            )
+            .field(
                 "alps",
                 &self.alps.as_ref().map(|value| value.settings.len()),
             )
@@ -821,6 +835,16 @@ impl ClientTlsProfile {
                 ));
             }
         };
+        let per_connection_trust_anchors = match &settings.requested_trust_anchor_ids {
+            None | Some(TrustAnchorIds::Fixed(_) | TrustAnchorIds::PerClient(_)) => None,
+            Some(ids @ TrustAnchorIds::PerConnection(_)) => Some(Arc::new(ids.clone())),
+            Some(_) => {
+                return Err(QuicTlsProfileError::unsupported(
+                    "requested_trust_anchor_ids",
+                    "this trust anchor ID order policy is not supported",
+                ));
+            }
+        };
         Ok(Self {
             key_shares: Some(key_shares),
             ech_grease: settings.ech_grease,
@@ -830,6 +854,7 @@ impl ClientTlsProfile {
                 .iter()
                 .map(|aead| aead.hpke_id())
                 .collect(),
+            per_connection_trust_anchors,
             alps: settings.alps.clone(),
             session_tickets: settings.session_tickets,
             client_certificate: None,
@@ -854,6 +879,10 @@ impl ClientTlsProfile {
 
     pub(super) fn ech_grease_aeads(&self) -> &[u16] {
         &self.ech_grease_aeads
+    }
+
+    pub(super) fn per_connection_trust_anchors(&self) -> Option<&TrustAnchorIds> {
+        self.per_connection_trust_anchors.as_deref()
     }
 
     pub(super) const fn alps(&self) -> Option<&AlpsSettings> {

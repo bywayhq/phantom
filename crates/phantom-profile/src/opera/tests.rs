@@ -1,9 +1,9 @@
 use super::{v135_macos_client_hints, v136_http3_tls, v136_tls, v136_windows_client_hints};
-use crate::chromium;
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
+use crate::{TrustAnchorIds, chromium};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -65,6 +65,14 @@ fn opera_136_recipes_keep_the_backend_ech_grease_aead_policy() {
     }
 }
 
+/// The IDs every order of `ids` lists, sorted; the drawn variants require
+/// each order to list the same IDs.
+fn id_set(ids: &TrustAnchorIds) -> Vec<Box<[u8]>> {
+    let mut set = ids.orders().first().cloned().unwrap_or_default();
+    set.sort_unstable();
+    set
+}
+
 /// Opera 136 sends the Chromium offers with its own 32 trust-anchor IDs: the
 /// TCP offer in one order per process, the QUIC offer in one per connection.
 #[test]
@@ -72,23 +80,22 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     let opera = v136_tls();
     opera.validate()?;
-    let ids = opera
-        .requested_trust_anchor_ids
-        .clone()
-        .ok_or("Opera 136 recipe omitted trust-anchor IDs")?;
-    assert_eq!(ids.len(), 32);
+    let Some(ids @ TrustAnchorIds::PerClient(orders)) = &opera.requested_trust_anchor_ids else {
+        return Err("Opera 136 recipe does not draw its trust-anchor order per client".into());
+    };
+    assert_eq!(orders.len(), 29);
+    let ids_listed = id_set(ids);
+    assert_eq!(ids_listed.len(), 32);
     let mut expected = chromium::v154_tls();
-    let chrome_ids = expected
-        .requested_trust_anchor_ids
-        .clone()
-        .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?;
-    assert!(chrome_ids.iter().all(|id| ids.contains(id)));
-    let mut added = ids
+    let Some(TrustAnchorIds::Fixed(chrome_ids)) = &expected.requested_trust_anchor_ids else {
+        return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
+    };
+    assert!(chrome_ids.iter().all(|id| ids_listed.contains(id)));
+    let added = ids_listed
         .iter()
         .filter(|id| !chrome_ids.contains(id))
         .map(|id| id.as_ref())
         .collect::<Vec<_>>();
-    added.sort_unstable();
     assert_eq!(
         added,
         [
@@ -98,24 +105,23 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
             &[0xd6, 0x79, 0x09, 0x0e],
         ]
     );
-    expected.requested_trust_anchor_ids = Some(ids.clone());
+    expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
     expected.ech_from_https_records = false;
     assert_eq!(opera, expected);
 
     let opera = v136_http3_tls();
     opera.validate()?;
-    let quic_ids = opera
-        .requested_trust_anchor_ids
-        .clone()
-        .ok_or("Opera 136 H3 recipe omitted trust-anchor IDs")?;
-    let sorted = |ids: &[Box<[u8]>]| {
-        let mut ids = ids.to_vec();
-        ids.sort_unstable();
-        ids
+    let Some(quic_ids @ TrustAnchorIds::PerConnection(quic_orders)) =
+        &opera.requested_trust_anchor_ids
+    else {
+        return Err(
+            "Opera 136 H3 recipe does not draw its trust-anchor order per connection".into(),
+        );
     };
-    assert_eq!(sorted(&quic_ids), sorted(&ids));
+    assert_eq!(quic_orders.len(), 20);
+    assert_eq!(id_set(quic_ids), ids_listed);
     let mut expected = chromium::v154_http3_tls();
-    expected.requested_trust_anchor_ids = Some(quic_ids);
+    expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
     expected.ech_from_https_records = false;
     assert_eq!(opera, expected);
     Ok(())
@@ -287,13 +293,37 @@ fn order_count(value: &str) -> Result<usize, Box<dyn std::error::Error>> {
         .parse()?)
 }
 
+/// Each order of `orders` repeated `counts` times, sorted.
+fn observed(orders: &[Vec<Vec<u8>>], counts: &[usize]) -> Vec<Vec<Vec<u8>>> {
+    let mut observed = orders
+        .iter()
+        .zip(counts)
+        .flat_map(|(order, count)| std::iter::repeat_n(order.clone(), *count))
+        .collect::<Vec<_>>();
+    observed.sort_unstable();
+    observed
+}
+
+/// The orders a recipe draws from, sorted.
+fn recipe_orders(ids: Option<TrustAnchorIds>) -> TestResult<Vec<Vec<Vec<u8>>>> {
+    let ids = ids.ok_or("Opera 136 recipe omitted trust-anchor IDs")?;
+    let mut orders = ids
+        .orders()
+        .iter()
+        .map(|order| order.iter().map(|id| id.to_vec()).collect())
+        .collect::<Vec<_>>();
+    orders.sort_unstable();
+    Ok(orders)
+}
+
 /// The tally in `trust-anchor-orders.txt` follows from the retained bytes:
 /// each process's ClientHellos, read again from the fixture the tally names,
 /// carry the orders it records, over TCP one per process and over QUIC one
-/// per connection. The TCP recipe sends the order most processes used, and
-/// the QUIC recipe the order most QUIC ClientHellos used.
+/// per connection. The TCP recipe draws from the tallied processes' orders,
+/// each listed once per process that sent it, and the QUIC recipe from the
+/// tallied QUIC ClientHellos' orders, each once per ClientHello.
 #[test]
-fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones() -> TestResult<()> {
+fn opera_136_trust_anchor_recipes_draw_from_the_retained_orders() -> TestResult<()> {
     let orders = TrustAnchorOrders(
         TRUST_ANCHOR_ORDERS
             .lines()
@@ -345,15 +375,9 @@ fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones() -> TestRe
         let recorded = order_count(orders.value(&format!("order_{index}"))?)?;
         assert_eq!(*count, recorded, "order_{index}");
     }
-    assert!(tcp_counts[0] > tcp_counts[1]);
-    let tcp_recipe = v136_tls()
-        .requested_trust_anchor_ids
-        .ok_or("Opera 136 recipe omitted trust-anchor IDs")?;
-    assert!(
-        tcp_recipe
-            .iter()
-            .map(|id| id.to_vec())
-            .eq(tcp_orders[0].clone())
+    assert_eq!(
+        recipe_orders(v136_tls().requested_trust_anchor_ids)?,
+        observed(&tcp_orders, &tcp_counts)
     );
 
     // QUIC: each ClientHello carries the order its position names.
@@ -379,15 +403,9 @@ fn opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones() -> TestRe
         let recorded = order_count(orders.value(&format!("quic_order_{index}"))?)?;
         assert_eq!(*count, recorded, "quic_order_{index}");
     }
-    assert!(quic_counts[0] > quic_counts[1]);
-    let quic_recipe = v136_http3_tls()
-        .requested_trust_anchor_ids
-        .ok_or("Opera 136 H3 recipe omitted trust-anchor IDs")?;
-    assert!(
-        quic_recipe
-            .iter()
-            .map(|id| id.to_vec())
-            .eq(quic_orders[0].clone())
+    assert_eq!(
+        recipe_orders(v136_http3_tls().requested_trust_anchor_ids)?,
+        observed(&quic_orders, &quic_counts)
     );
 
     // Every retained source is in the tally, and nothing else is.

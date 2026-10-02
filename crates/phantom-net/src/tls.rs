@@ -8,6 +8,7 @@ use std::{
     error::Error as StdError,
     fmt, io,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -20,8 +21,8 @@ use btls::{
     x509::{X509, store::X509StoreBuilder},
 };
 use phantom_profile::{
-    AlpsSettings, CipherSuite, EchGreaseAead, EchGreasePayloadLength, InvalidTlsSettings,
-    NamedGroup, TlsSettings, TlsVersion,
+    AlpsSettings, CipherSuite, ClientProfile, EchGreaseAead, EchGreasePayloadLength,
+    InvalidTlsSettings, NamedGroup, TlsSettings, TlsVersion, TrustAnchorIds,
 };
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_btls::SslStream as BoringStream;
@@ -78,6 +79,9 @@ pub(crate) struct TlsConnector {
     ech_grease: bool,
     ech_grease_payload_length: EchGreasePayloadLength,
     ech_grease_aeads: Box<[EchGreaseAead]>,
+    /// A trust anchor ID list whose order each connection draws; fixed and
+    /// per-client lists are set on the context instead.
+    per_connection_trust_anchors: Option<Arc<TrustAnchorIds>>,
     ech_from_https_records: bool,
     scoped_sessions_enabled: bool,
     session_tickets_per_origin: u8,
@@ -349,11 +353,27 @@ impl TlsConnector {
         });
         configuration::apply(&mut builder, settings)?;
 
-        if let Some(ids) = &settings.requested_trust_anchor_ids {
+        let context_trust_anchors = match &settings.requested_trust_anchor_ids {
+            None | Some(TrustAnchorIds::PerConnection(_)) => None,
+            Some(TrustAnchorIds::Fixed(ids)) => Some(ids.as_slice()),
+            // Without a client to share it, a connector draws its own order.
+            Some(ids @ TrustAnchorIds::PerClient(_)) => Some(draw_trust_anchor_order(ids)?),
+            Some(_) => {
+                return Err(TlsError::configuration(
+                    "requested_trust_anchor_ids",
+                    "this trust anchor ID order policy is not supported",
+                ));
+            }
+        };
+        if let Some(ids) = context_trust_anchors {
             builder
                 .set_requested_trust_anchors(&encode_trust_anchor_ids(ids))
                 .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
         }
+        let per_connection_trust_anchors = match &settings.requested_trust_anchor_ids {
+            Some(ids @ TrustAnchorIds::PerConnection(_)) => Some(Arc::new(ids.clone())),
+            _ => None,
+        };
 
         let tickets_verifiable = settings.session_tickets
             && matches!(server_authentication, ServerAuthentication::WebPki);
@@ -394,6 +414,7 @@ impl TlsConnector {
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
             ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
+            per_connection_trust_anchors,
             ech_from_https_records: settings.ech_from_https_records,
             scoped_sessions_enabled,
             session_tickets_per_origin: settings.session_tickets_per_origin,
@@ -538,6 +559,13 @@ impl TlsConnector {
             configuration
                 .set_alpn_protos(&self.alpn_wire)
                 .map_err(|error| TlsError::backend("alpn_protocols", error))?;
+            if let Some(ids) = &self.per_connection_trust_anchors {
+                configuration
+                    .set_requested_trust_anchors(&encode_trust_anchor_ids(draw_trust_anchor_order(
+                        ids,
+                    )?))
+                    .map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
+            }
 
             if let Some(alps) = &self.alps {
                 configuration
@@ -1167,6 +1195,45 @@ fn encode_alpn(protocols: &[Box<[u8]>]) -> Result<Box<[u8]>, TlsError> {
         encoded.extend_from_slice(protocol);
     }
     Ok(encoded.into_boxed_slice())
+}
+
+/// Makes a client's per-client draws, such as Opera's TCP trust anchor ID
+/// order, so that every connector later built from `profile` shares them.
+///
+/// [`ClientProfile::draw_per_client`] describes which settings change. It
+/// leaves a per-client list that validation rejects in place, so the
+/// connector built from those settings rejects it. Draws use BoringSSL's
+/// random number generator, which also draws the TLS GREASE values. A
+/// connector built from settings that still hold a per-client list draws
+/// its own order when it is built.
+///
+/// # Errors
+///
+/// Returns an error of kind [`io::ErrorKind::Other`] when BoringSSL cannot
+/// generate random bytes.
+pub fn draw_per_client(profile: &mut ClientProfile) -> io::Result<()> {
+    profile.draw_per_client(|| random_u64().map_err(io::Error::other))
+}
+
+/// Returns a number drawn uniformly from `u64` with BoringSSL's random number
+/// generator.
+fn random_u64() -> Result<u64, ErrorStack> {
+    let mut random = [0; size_of::<u64>()];
+    btls::rand::rand_bytes(&mut random)?;
+    Ok(u64::from_ne_bytes(random))
+}
+
+/// Draws one of the orders `ids` lists, uniformly, with BoringSSL's random
+/// number generator, which also draws the TLS GREASE values.
+fn draw_trust_anchor_order(ids: &TrustAnchorIds) -> Result<&[Box<[u8]>], TlsError> {
+    let random =
+        random_u64().map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
+    ids.select(random).ok_or_else(|| {
+        TlsError::configuration(
+            "requested_trust_anchor_ids",
+            "a drawn trust anchor ID order needs at least one order to draw from",
+        )
+    })
 }
 
 fn encode_trust_anchor_ids(ids: &[Box<[u8]>]) -> Box<[u8]> {

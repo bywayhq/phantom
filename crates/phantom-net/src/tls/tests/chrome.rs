@@ -1,8 +1,8 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
 use phantom_profile::{
-    TlsSettings, brave, brave_android, chrome_android, chromium::v154_tls, edge, edge_android,
-    opera, opera_android,
+    TlsSettings, TrustAnchorIds, brave, brave_android, chrome_android, chromium::v154_tls, edge,
+    edge_android, opera, opera_android,
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
@@ -152,25 +152,107 @@ async fn brave_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
 }
 
 /// Opera 136 sends the Chrome 154 ClientHello with Chromium 152's 32
-/// trust-anchor IDs. The retained process used the recipe's order, the most
-/// frequent of 20 processes, and the connector emits that order unchanged.
+/// trust-anchor IDs, in an order drawn per process. The retained process's
+/// order is one the recipe draws from, and so is the order the connector
+/// emits.
 #[tokio::test]
 async fn opera_136_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(OPERA_136_FIXTURE, &opera::v136_tls(), Some(32)).await?;
+    let settings = opera::v136_tls();
+    assert_recipe_matches_fixture(OPERA_136_FIXTURE, &settings, Some(32)).await?;
+    let orders = recipe_trust_anchor_orders(&settings)?;
     let expected = client_hello_fixture::capture(OPERA_136_FIXTURE)
         .await?
         .summary()?
         .requested_trust_anchor_ids()
         .ok_or("Opera 136 capture omitted trust-anchor IDs")?
         .to_vec();
-    let actual = capture_client_hello_from(&opera::v136_tls())
+    assert!(orders.contains(&expected));
+    let actual = capture_client_hello_from(&settings)
         .await?
         .summary()?
         .requested_trust_anchor_ids()
         .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
         .to_vec();
-    assert_eq!(actual, expected);
+    assert!(orders.contains(&actual));
     Ok(())
+}
+
+/// Opera 136 keeps one trust-anchor order for every TCP connection of a
+/// process and draws another in the next process. A connector stands for
+/// the process: each sends one of the recipe's retained orders on all of its
+/// connections, and separate connectors draw different ones.
+#[tokio::test]
+async fn opera_136_tcp_trust_anchor_order_is_drawn_once_per_connector() -> TestResult<()> {
+    let settings = opera::v136_tls();
+    let orders = recipe_trust_anchor_orders(&settings)?;
+    let mut drawn = Vec::new();
+    for _ in 0..12 {
+        let mut connector_orders = Vec::new();
+        for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 3).await? {
+            connector_orders.push(
+                capture
+                    .summary()?
+                    .requested_trust_anchor_ids()
+                    .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
+                    .to_vec(),
+            );
+        }
+        connector_orders.dedup();
+        let [order] = connector_orders.as_slice() else {
+            return Err("one connector sent more than one trust-anchor order".into());
+        };
+        assert!(orders.contains(order));
+        drawn.push(order.clone());
+    }
+    // The most frequent of the 29 listed orders appears 5 times, so twelve
+    // alike draws have a probability below 10^-9.
+    drawn.sort_unstable();
+    drawn.dedup();
+    assert!(drawn.len() > 1);
+    Ok(())
+}
+
+/// A list drawn per connection gets a new draw on each connection of one
+/// connector: every connection sends one of the listed orders, and the
+/// connections do not all send the same one.
+#[tokio::test]
+async fn per_connection_trust_anchor_order_is_drawn_for_each_tcp_connection() -> TestResult<()> {
+    let mut settings = opera::v136_tls();
+    let listed = settings
+        .requested_trust_anchor_ids
+        .take()
+        .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
+        .orders()
+        .to_vec();
+    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerConnection(listed));
+    let orders = recipe_trust_anchor_orders(&settings)?;
+    let mut emitted = Vec::new();
+    for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 16).await? {
+        let order = capture
+            .summary()?
+            .requested_trust_anchor_ids()
+            .ok_or("per-connection list omitted trust-anchor IDs")?
+            .to_vec();
+        assert!(orders.contains(&order));
+        emitted.push(order);
+    }
+    // The most frequent of the 29 listed orders appears 5 times, so sixteen
+    // alike draws have a probability below (5/29)^15, about 4 * 10^-12.
+    emitted.sort_unstable();
+    emitted.dedup();
+    assert!(emitted.len() > 1);
+    Ok(())
+}
+
+fn recipe_trust_anchor_orders(settings: &TlsSettings) -> TestResult<Vec<Vec<Vec<u8>>>> {
+    Ok(settings
+        .requested_trust_anchor_ids
+        .as_ref()
+        .ok_or("recipe omitted trust-anchor IDs")?
+        .orders()
+        .iter()
+        .map(|order| order.iter().map(|id| id.to_vec()).collect())
+        .collect())
 }
 
 /// Chromium-family browsers advertise HKDF-SHA256 with AES-128-GCM on every

@@ -1488,10 +1488,14 @@ impl ClientBuilder {
     ///   origin or proxy root cannot be loaded;
     /// - [`ProtocolConfiguration`](crate::BuildErrorKind::ProtocolConfiguration)
     ///   when a protocol connector cannot represent the profile, such as an
-    ///   HTTPS proxy route whose TLS ALPN list lacks `http/1.1`; or
+    ///   HTTPS proxy route whose TLS ALPN list lacks `http/1.1`, or when
+    ///   BoringSSL's random number generator fails while drawing the order
+    ///   of a
+    ///   [`TrustAnchorIds::PerClient`](crate::profile::TrustAnchorIds::PerClient)
+    ///   list; or
     /// - [`NoSupportedProtocol`](crate::BuildErrorKind::NoSupportedProtocol)
     ///   when the profile enables no HTTP protocol Phantom implements.
-    pub fn build(self) -> Result<Client, BuildError> {
+    pub fn build(mut self) -> Result<Client, BuildError> {
         if self.http2_proxy_connections_per_route.get()
             > phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
         {
@@ -1560,6 +1564,9 @@ impl ClientBuilder {
             ));
         }
 
+        // One draw for the client, before any connector is built, so that
+        // all of its connectors share it.
+        phantom_net::draw_per_client(&mut self.profile).map_err(BuildError::per_client_draw)?;
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
         let tcp = self.profile.tcp();
         let supports_http1 = self

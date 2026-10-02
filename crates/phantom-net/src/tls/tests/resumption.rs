@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_profile::{TlsSettings, brave, chromium, edge, firefox, opera};
+use phantom_profile::{TlsSettings, TrustAnchorIds, brave, chromium, edge, firefox, opera};
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloCapture, ClientHelloSummary, capture_client_hello,
 };
@@ -636,27 +636,34 @@ fn assert_same_resumed_shape(
         actual_summary.alpn_protocols(),
         expected_summary.alpn_protocols()
     );
-    // Chrome 154 sends its trust-anchor IDs sorted, so a sorted recipe list
-    // compares in order. Opera 136 keeps one order per process, which a
-    // recipe cannot follow, so its unsorted list compares as a set.
-    let recipe_sorted = settings
-        .requested_trust_anchor_ids
-        .as_ref()
-        .is_none_or(|ids| ids.is_sorted());
-    if recipe_sorted {
-        assert_eq!(
+    // Chrome 154 sends one sorted trust-anchor list, so a fixed recipe list
+    // compares in order. Opera 136 draws an order per process, so its
+    // emitted order must be one the recipe draws from, and the captured
+    // order, from a process the recipe may not list, compares as a set.
+    match &settings.requested_trust_anchor_ids {
+        None | Some(TrustAnchorIds::Fixed(_)) => assert_eq!(
             actual_summary.requested_trust_anchor_ids(),
             expected_summary.requested_trust_anchor_ids()
-        );
-    } else {
-        let sorted_ids = |summary: &ClientHelloSummary| {
-            summary.requested_trust_anchor_ids().map(|ids| {
-                let mut ids = ids.to_vec();
-                ids.sort_unstable();
-                ids
-            })
-        };
-        assert_eq!(sorted_ids(&actual_summary), sorted_ids(&expected_summary));
+        ),
+        Some(ids) => {
+            let emitted = actual_summary
+                .requested_trust_anchor_ids()
+                .ok_or("recipe omitted trust-anchor IDs")?;
+            assert!(ids.orders().iter().any(|order| {
+                order
+                    .iter()
+                    .map(AsRef::as_ref)
+                    .eq(emitted.iter().map(Vec::as_slice))
+            }));
+            let sorted_ids = |summary: &ClientHelloSummary| {
+                summary.requested_trust_anchor_ids().map(|ids| {
+                    let mut ids = ids.to_vec();
+                    ids.sort_unstable();
+                    ids
+                })
+            };
+            assert_eq!(sorted_ids(&actual_summary), sorted_ids(&expected_summary));
+        }
     }
     assert_eq!(
         actual_summary.extension_types().last(),

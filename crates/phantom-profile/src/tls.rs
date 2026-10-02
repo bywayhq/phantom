@@ -378,6 +378,57 @@ impl EchGreaseAead {
     }
 }
 
+/// The trust anchor IDs a ClientHello requests, and when their order is
+/// chosen.
+///
+/// Every variant sends the same IDs on every connection; only the order can
+/// change. Each ID is an opaque, non-empty byte string. In a drawn variant,
+/// each listed order is equally likely, so listing an order twice makes it
+/// twice as likely, and every order must list the same IDs.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum TrustAnchorIds {
+    /// Sends these IDs in this order on every connection. An empty list
+    /// sends the extension with no IDs.
+    Fixed(Vec<Box<[u8]>>),
+    /// Draws one of these orders for each client and sends it on every
+    /// connection that client opens.
+    ///
+    /// A `phantom` client draws once when it is built, for every connection
+    /// it opens with these settings. A connector built from these settings
+    /// without a client draws once when it is built.
+    PerClient(Vec<Vec<Box<[u8]>>>),
+    /// Draws one of these orders for each connection.
+    PerConnection(Vec<Vec<Box<[u8]>>>),
+}
+
+impl TrustAnchorIds {
+    /// Returns every order these settings can send: the one list of
+    /// [`Self::Fixed`], or each listed order of a drawn variant.
+    #[must_use]
+    pub fn orders(&self) -> &[Vec<Box<[u8]>>] {
+        match self {
+            Self::Fixed(ids) => std::slice::from_ref(ids),
+            Self::PerClient(orders) | Self::PerConnection(orders) => orders,
+        }
+    }
+
+    /// Returns the order a draw of `random` selects, or `None` when no order
+    /// is listed.
+    ///
+    /// `random` should be uniformly distributed over `u64`; the order at
+    /// `random * count / 2^64` is selected, so each of `count` orders is
+    /// chosen with probability `1 / count`, off by less than `count / 2^64`.
+    /// [`Self::Fixed`] ignores `random`.
+    #[must_use]
+    pub fn select(&self, random: u64) -> Option<&[Box<[u8]>]> {
+        let orders = self.orders();
+        let count = u128::try_from(orders.len()).ok()?;
+        let index = usize::try_from((u128::from(random) * count) >> u64::BITS).ok()?;
+        orders.get(index).map(Vec::as_slice)
+    }
+}
+
 /// Ordered TLS settings independent of the concrete TLS backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TlsSettings {
@@ -464,13 +515,14 @@ pub struct TlsSettings {
     /// 1.3-only offer, such as every QUIC ClientHello. With real ECH, only
     /// the outer ClientHello carries them.
     pub tls12_extensions_in_tls13_client_hello: bool,
-    /// Optional trust anchor IDs advertised to guide server certificate selection.
+    /// Optional trust anchor IDs advertised to guide server certificate
+    /// selection, in a fixed order or in one drawn per client or per
+    /// connection.
     ///
-    /// Each ID is an opaque, non-empty byte string. `None` omits the TLS
-    /// `trust_anchors` extension, while `Some(Vec::new())` emits the extension
-    /// with an empty ID list. This setting does not change certificate
-    /// verification.
-    pub requested_trust_anchor_ids: Option<Vec<Box<[u8]>>>,
+    /// `None` omits the TLS `trust_anchors` extension, while
+    /// `Some(TrustAnchorIds::Fixed(Vec::new()))` emits the extension with an
+    /// empty ID list. This setting does not change certificate verification.
+    pub requested_trust_anchor_ids: Option<TrustAnchorIds>,
     /// Whether ordinary TLS GREASE is enabled.
     pub grease: bool,
     /// Whether signature-algorithm GREASE is enabled.
@@ -743,9 +795,36 @@ impl TlsSettings {
         }
 
         if let Some(ids) = &self.requested_trust_anchor_ids {
-            validate_trust_anchor_ids(ids)?;
+            validate_requested_trust_anchors(ids)?;
         }
 
+        Ok(())
+    }
+
+    /// Makes the draws these settings take once per client: a
+    /// [`TrustAnchorIds::PerClient`] list becomes the
+    /// [`TrustAnchorIds::Fixed`] order that the number from `random`
+    /// selects, as [`TrustAnchorIds::select`] describes.
+    ///
+    /// `random` is called once for each draw and not at all when there is
+    /// nothing to draw. Other settings and lists drawn per connection are
+    /// unchanged. So is a per-client list that [`Self::validate`] rejects,
+    /// such as one whose orders list different IDs, so that validation and
+    /// every connector still reject it after the draw.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error from `random` and leaves the settings unchanged.
+    pub fn draw_per_client<E>(&mut self, random: impl FnOnce() -> Result<u64, E>) -> Result<(), E> {
+        let Some(ids @ TrustAnchorIds::PerClient(_)) = &self.requested_trust_anchor_ids else {
+            return Ok(());
+        };
+        if validate_requested_trust_anchors(ids).is_err() {
+            return Ok(());
+        }
+        if let Some(order) = ids.select(random()?) {
+            self.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(order.to_vec()));
+        }
         Ok(())
     }
 }
@@ -819,6 +898,35 @@ fn validate_alpn(protocols: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
         ));
     }
 
+    Ok(())
+}
+
+fn validate_requested_trust_anchors(ids: &TrustAnchorIds) -> Result<(), InvalidTlsSettings> {
+    let orders = match ids {
+        TrustAnchorIds::Fixed(ids) => return validate_trust_anchor_ids(ids),
+        TrustAnchorIds::PerClient(orders) | TrustAnchorIds::PerConnection(orders) => orders,
+    };
+    let Some((first, rest)) = orders.split_first() else {
+        return Err(InvalidTlsSettings::new(
+            "requested_trust_anchor_ids",
+            "a drawn trust anchor ID order needs at least one order to draw from",
+        ));
+    };
+    validate_trust_anchor_ids(first)?;
+    let sorted = |ids: &[Box<[u8]>]| {
+        let mut ids = ids.to_vec();
+        ids.sort_unstable();
+        ids
+    };
+    let expected = sorted(first);
+    for order in rest {
+        if sorted(order) != expected {
+            return Err(InvalidTlsSettings::new(
+                "requested_trust_anchor_ids",
+                "every drawn trust anchor ID order must list the same IDs",
+            ));
+        }
+    }
     Ok(())
 }
 

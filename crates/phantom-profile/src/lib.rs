@@ -59,7 +59,7 @@ pub use tcp::{
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, EchGreaseAead, EchGreasePayloadLength, InvalidTlsSettings,
-    NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+    NamedGroup, SignatureScheme, TlsSettings, TlsVersion, TrustAnchorIds,
 };
 pub use udp::UdpSettings;
 pub use websocket::{

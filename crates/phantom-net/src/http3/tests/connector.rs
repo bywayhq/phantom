@@ -135,6 +135,58 @@ fn opera_136_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
     Ok(())
 }
 
+/// Opera 136 draws a QUIC trust-anchor order for each connection, so one
+/// connector's ClientHellos carry several of the recipe's retained orders and
+/// never an order outside them.
+#[test]
+fn opera_136_quic_trust_anchor_order_is_drawn_per_connection() -> TestResult<()> {
+    let settings = opera::v136_http3_tls();
+    let recipe_orders = settings
+        .requested_trust_anchor_ids
+        .as_ref()
+        .ok_or("Opera 136 H3 recipe omitted trust-anchor IDs")?
+        .orders()
+        .iter()
+        .map(|order| order.iter().map(|id| id.to_vec()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    let connector = Http3Connector::new(
+        &settings,
+        &chromium::v154_quic(),
+        &chromium::v154_http3(),
+        &chromium::v154_http3_request(),
+    )?;
+    let parameters = TransportParameters::read(
+        Side::Server,
+        &mut Cursor::new(fixture_hex(
+            OPERA_136_H3_STARTUP,
+            "transport_parameters_hex",
+        )?),
+    )?;
+    let mut emitted = Vec::new();
+    for _ in 0..16 {
+        let mut session = crypto::ClientConfig::start_session(
+            connector.test_crypto(),
+            1,
+            "server.phantom.test",
+            &parameters,
+        )?;
+        let mut handshake = Vec::new();
+        assert!(session.write_handshake(&mut handshake).is_none());
+        let order = ClientHelloSummary::from_handshake_bytes(&handshake)?
+            .requested_trust_anchor_ids()
+            .ok_or("Opera 136 QUIC ClientHello omitted trust-anchor IDs")?
+            .to_vec();
+        assert!(recipe_orders.contains(&order));
+        emitted.push(order);
+    }
+    // The recipe lists 20 observed orders, one of them twice, so sixteen
+    // alike draws have a probability of about 10^-16.
+    emitted.sort_unstable();
+    emitted.dedup();
+    assert!(emitted.len() > 1);
+    Ok(())
+}
+
 /// Chrome 154 for Android offers the desktop Chromium QUIC ClientHello.
 #[test]
 fn chrome_android_154_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {

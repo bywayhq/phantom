@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use super::{
     v154_http2, v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints,
 };
+use crate::TrustAnchorIds;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
@@ -142,12 +143,10 @@ fn chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process()
         .map(decode_hex)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let recipe = v154_tls()
-        .requested_trust_anchor_ids
-        .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?
-        .iter()
-        .map(|id| id.to_vec())
-        .collect::<Vec<_>>();
+    let Some(TrustAnchorIds::Fixed(recipe)) = v154_tls().requested_trust_anchor_ids else {
+        return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
+    };
+    let recipe = recipe.iter().map(|id| id.to_vec()).collect::<Vec<_>>();
     assert_eq!(recipe.len(), 28);
     assert_eq!(recipe, observed);
     assert!(
@@ -330,9 +329,9 @@ const V154_CLIENT_HELLO_CAPTURES: &[(&str, &str)] = &[
 #[test]
 fn chrome_154_trust_anchor_ids_match_every_retained_client_hello_in_every_process()
 -> Result<(), Box<dyn std::error::Error>> {
-    let ids = v154_tls()
-        .requested_trust_anchor_ids
-        .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?;
+    let Some(TrustAnchorIds::Fixed(ids)) = v154_tls().requested_trust_anchor_ids else {
+        return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
+    };
     let mut list = Vec::new();
     for id in &ids {
         list.push(u8::try_from(id.len())?);

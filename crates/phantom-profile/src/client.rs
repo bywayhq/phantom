@@ -177,6 +177,27 @@ impl ClientProfile {
         self
     }
 
+    /// Makes the draws the profile takes once per client, as
+    /// [`TlsSettings::draw_per_client`] describes, for the TLS settings and
+    /// then the HTTP/3 TLS settings, calling `random` once for each draw.
+    ///
+    /// A `phantom` client makes these draws when it is built, so that all of
+    /// its connectors share them.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error from `random`. A draw made before it is kept.
+    pub fn draw_per_client<E>(
+        &mut self,
+        mut random: impl FnMut() -> Result<u64, E>,
+    ) -> Result<(), E> {
+        self.tls.draw_per_client(&mut random)?;
+        if let Some(http3) = &mut self.http3 {
+            http3.tls.draw_per_client(&mut random)?;
+        }
+        Ok(())
+    }
+
     /// Returns the profile's TCP socket options when configured.
     #[must_use]
     pub fn tcp(&self) -> Option<&TcpSettings> {
@@ -248,7 +269,7 @@ impl ClientProfile {
 mod tests {
     use crate::{
         CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile,
-        Http3ClientSettings, TlsVersion, chromium,
+        Http3ClientSettings, TlsVersion, TrustAnchorIds, chromium, opera,
     };
 
     #[test]
@@ -370,5 +391,35 @@ mod tests {
             profile.http3().map(Http3ClientSettings::tls),
             Some(&http3_tls)
         );
+    }
+
+    /// Opera draws its TCP order once per process and its QUIC order per
+    /// connection, so a client's draw fixes only the TCP order.
+    #[test]
+    fn per_client_draw_fixes_the_tcp_trust_anchor_order_only() {
+        let http3 = Http3ClientSettings::new(
+            opera::v136_http3_tls(),
+            chromium::v154_quic(),
+            chromium::v154_http3(),
+            chromium::v154_http3_request(),
+        );
+        let mut profile = ClientProfile::new(opera::v136_tls()).with_http3(http3.clone());
+        let mut draws = 0;
+        let drawn = profile.draw_per_client(|| {
+            draws += 1;
+            Ok::<_, ()>(u64::MAX)
+        });
+
+        assert_eq!(drawn, Ok(()));
+        assert_eq!(draws, 1);
+        let tcp_orders = opera::v136_tls()
+            .requested_trust_anchor_ids
+            .map(|ids| ids.orders().to_vec());
+        let last = tcp_orders.and_then(|orders| orders.last().cloned());
+        assert_eq!(
+            profile.tls().requested_trust_anchor_ids,
+            last.map(TrustAnchorIds::Fixed)
+        );
+        assert_eq!(profile.http3(), Some(&http3));
     }
 }

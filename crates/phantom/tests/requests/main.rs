@@ -29,4 +29,5 @@ mod source_binding;
 mod stale_connection_replay;
 mod status_retry;
 mod timeouts;
+mod trust_anchor_orders;
 mod unprocessed_replay;

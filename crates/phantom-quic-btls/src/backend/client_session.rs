@@ -9,7 +9,7 @@ use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef};
 use btls::x509::verify::X509CheckFlags;
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use phantom_profile::EchGreasePayloadLength;
+use phantom_profile::{EchGreasePayloadLength, TrustAnchorIds};
 
 use super::drain_error_queue;
 use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
@@ -699,6 +699,10 @@ fn apply_tls_profile(
         ssl.set_ech_grease_aeads(profile.ech_grease_aeads())
             .map_err(|_| backend_failure("ECH GREASE AEADs"))?;
     }
+    if let Some(ids) = profile.per_connection_trust_anchors() {
+        ssl.set_requested_trust_anchors(&draw_trust_anchor_order(ids)?)
+            .map_err(|_| backend_failure("requested trust anchors"))?;
+    }
     if let Some(alps) = profile.alps() {
         ssl.add_application_settings_with_payload(&alps.protocol, &alps.settings)
             .map_err(|_| backend_failure("ALPS configuration"))?;
@@ -715,6 +719,27 @@ fn apply_tls_profile(
         }
     }
     Ok(())
+}
+
+/// Draws one of the orders `ids` lists, uniformly, with BoringSSL's random
+/// number generator, and encodes it as BoringSSL's requested trust anchor
+/// list: each ID after a one-byte length.
+fn draw_trust_anchor_order(ids: &TrustAnchorIds) -> Result<Vec<u8>, ClientSessionError> {
+    let mut random = [0; size_of::<u64>()];
+    btls::rand::rand_bytes(&mut random).map_err(|_| backend_failure("trust anchor order draw"))?;
+    let order =
+        ids.select(u64::from_ne_bytes(random))
+            .ok_or(ClientSessionError::BackendFailure(
+                "trust anchor order draw",
+            ))?;
+    let mut encoded = Vec::with_capacity(order.iter().map(|id| 1 + id.len()).sum());
+    for id in order {
+        let length = u8::try_from(id.len())
+            .map_err(|_| ClientSessionError::BackendFailure("trust anchor ID length"))?;
+        encoded.push(length);
+        encoded.extend_from_slice(id);
+    }
+    Ok(encoded)
 }
 
 fn apply_ech_config_list(ssl: &mut OwnedSsl, list: &[u8]) -> Result<(), ClientSessionError> {

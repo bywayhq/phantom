@@ -122,6 +122,16 @@ impl BuildError {
         )
     }
 
+    /// A failed `phantom_net::draw_per_client`, whose only failure is the
+    /// random number generator's.
+    pub(crate) fn per_client_draw(source: std::io::Error) -> Self {
+        Self::with_source(
+            BuildErrorKind::ProtocolConfiguration,
+            "failed to draw the profile's per-client choices",
+            source,
+        )
+    }
+
     pub(crate) fn http1(source: Http1TlsError) -> Self {
         let kind = classify_http1_build_error(&source);
         Self::with_source(kind, "failed to configure HTTP/1", source)

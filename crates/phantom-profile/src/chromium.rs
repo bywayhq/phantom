@@ -32,6 +32,7 @@ use crate::{
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder,
         EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+        TrustAnchorIds,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -1239,8 +1240,8 @@ pub fn v154_quic() -> QuicTransportSettings {
     }
 }
 
-fn trust_anchor_ids(ids: &[&[u8]]) -> Vec<Box<[u8]>> {
-    ids.iter().map(|id| Box::from(*id)).collect()
+fn trust_anchor_ids(ids: &[&[u8]]) -> TrustAnchorIds {
+    TrustAnchorIds::Fixed(ids.iter().map(|id| Box::from(*id)).collect())
 }
 
 #[cfg(test)]

@@ -56,6 +56,7 @@ pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, ServerAuthentication,
+    draw_per_client,
 };
 
 #[cfg(all(test, debug_assertions))]
