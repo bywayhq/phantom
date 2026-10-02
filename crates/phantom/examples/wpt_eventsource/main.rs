@@ -17,7 +17,22 @@ type BoxError = Box<dyn Error + Send + Sync>;
 
 struct Context {
     client: Client,
+    root: Vec<u8>,
     base_url: Url,
+}
+
+impl Context {
+    /// Builds a client that shares no pool, ticket, or cookie with
+    /// [`Context::client`] or another case.
+    fn isolated_client(&self) -> Result<Client, BoxError> {
+        Ok(Client::builder(profile())
+            .add_root_certificate_der(self.root.clone())
+            .build()?)
+    }
+}
+
+fn profile() -> ClientProfile {
+    ClientProfile::new(chromium::v154_tls())
 }
 
 #[derive(Debug)]
@@ -31,11 +46,11 @@ struct Config {
 async fn main() -> Result<(), BoxError> {
     let config = Config::parse(env::args().skip(1))?;
     let root = std::fs::read(&config.ca_der)?;
-    let profile = ClientProfile::new(chromium::v154_tls());
     let context = Context {
-        client: Client::builder(profile)
-            .add_root_certificate_der(root)
+        client: Client::builder(profile())
+            .add_root_certificate_der(root.clone())
             .build()?,
+        root,
         base_url: config.base_url,
     };
 

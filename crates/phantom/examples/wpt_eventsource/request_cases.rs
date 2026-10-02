@@ -6,7 +6,7 @@ use super::{BoxError, Context, endpoint, invalid_data};
 
 pub(super) async fn accept_header(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client,
+        &context.isolated_client()?,
         context,
         "/eventsource/resources/accept.event_stream",
         &[("pipe", "sub")],
@@ -19,9 +19,10 @@ pub(super) async fn accept_header(context: &Context) -> Result<(), BoxError> {
 }
 
 pub(super) async fn cache_control(context: &Context) -> Result<(), BoxError> {
+    let client = context.isolated_client()?;
     for _ in 0..2 {
         let mut source = connect(
-            &context.client,
+            &client,
             context,
             "/eventsource/resources/cache-control.event_stream",
             &[("pipe", "sub")],
@@ -36,7 +37,7 @@ pub(super) async fn cache_control(context: &Context) -> Result<(), BoxError> {
 
 pub(super) async fn last_event_id(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client,
+        &context.isolated_client()?,
         context,
         "/eventsource/resources/last-event-id.py",
         &[],
@@ -54,7 +55,7 @@ pub(super) async fn last_event_id(context: &Context) -> Result<(), BoxError> {
 
 pub(super) async fn nul_id(context: &Context, value: &str) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client,
+        &context.isolated_client()?,
         context,
         "/eventsource/resources/last-event-id.py",
         &[("idvalue", value)],
@@ -73,7 +74,7 @@ pub(super) async fn nul_id(context: &Context, value: &str) -> Result<(), BoxErro
 pub(super) async fn unterminated_event(context: &Context) -> Result<(), BoxError> {
     let message = "retry:1000\ndata:test1\n\nid:test\ndata:test2";
     let mut source = connect(
-        &context.client,
+        &context.isolated_client()?,
         context,
         "/eventsource/resources/message.py",
         &[("newline", "none"), ("message", message)],
@@ -91,7 +92,7 @@ pub(super) async fn unterminated_event(context: &Context) -> Result<(), BoxError
 
 pub(super) async fn bogus_retry(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client,
+        &context.isolated_client()?,
         context,
         "/eventsource/resources/message.py",
         &[("message", "retry:3000\nretry:1000x\ndata:x")],
@@ -127,7 +128,7 @@ pub(super) async fn status(context: &Context, status: u16) -> Result<(), BoxErro
         &[("status", &status.to_string())],
     )?;
     let result = context
-        .client
+        .isolated_client()?
         .event_source(HttpProtocol::Http1, url.as_str())?
         .max_reconnects(0)
         .connect()
