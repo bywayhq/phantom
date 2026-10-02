@@ -907,12 +907,13 @@ the naming rules.
 Each recipe records the platform its captures came from, and no recipe
 shares component data with a capture from another platform:
 
-- Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37, and 154.0.4258.48
-  for client hints), Brave 154 (154.1.96.59), Opera 136 (136.0.6008.52), and
-  Firefox 157 (157.0) recipes come from Windows 11 captures. The `macos`
-  client-hint and template recipes of Chrome, Edge, Opera, and Firefox come
-  from macOS 15.5 captures on Apple silicon, at the Windows builds except
-  Edge (154.0.4258.37), Opera (135.0.5973.92), and Firefox (156.0). Single
+- Chrome 154 (154.0.8037.58, and 154.0.8037.97 for client hints), Edge 154
+  (154.0.4258.37, and 154.0.4258.48 for client hints), Brave 154
+  (154.1.96.59), Opera 136 (136.0.6008.52), and Firefox 157 (157.0) recipes
+  come from Windows 11 captures. The `macos` client-hint and template recipes
+  of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures on Apple
+  silicon of Chrome 154.0.8037.58, Edge 154.0.4258.37, Opera 135.0.5973.92,
+  and Firefox 156.0. Single
   retained macOS runs of the TCP ClientHello and resumption for Chrome,
   Edge, and Firefox, of the H2 session for all four, of the QUIC
   ClientHello and H3 startup for Chrome and Edge, and of Opera's QUIC

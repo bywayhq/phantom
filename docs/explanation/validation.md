@@ -27,7 +27,7 @@ Phantom's claims rest on five kinds of evidence:
 
 | Area | Strongest evidence | Main limits |
 | --- | --- | --- |
-| [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests | One Windows build; macOS only for client hints and request fields; no Linux; no Chrome for Testing build exists at this version |
+| [Chrome 154 recipes](#chrome-154-recipes) | Windows captures of every Chrome layer, replayed by recipe tests; fingerprint snapshots and client-hint captures of 154.0.8037.97 | Per-layer captures of one Windows build, 154.0.8037.58; macOS only for client hints and request fields; no Linux; no Chrome for Testing build exists at this version |
 | [Edge 153 and Firefox 157 recipes](#edge-153-and-firefox-157-recipes) | Windows browser captures, replayed by recipe tests | One Windows build per browser; macOS only for client hints and request fields |
 | [Edge 154 recipes](#edge-154-recipes) | Fingerprint snapshots against Edge 153 and 154.0.4258.37, Windows and macOS captures of every scenario whose request fields carry the brand list, and hook logs for TCP, the HTTP/1.1 bound, and the address cache | One run of each QUIC resumption scenario and two H3 startups on Windows; ECH and the raw H2 startup rest on Edge 153 |
 | [Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes) | Windows browser captures, replayed by recipe tests; Brave source at its release tag, and Opera hook logs, for TCP, the HTTP/1.1 bound, and the address cache | One Windows build per browser; no SSE or Alt-Svc capture; Opera's H2 and H3 startups launched through DevTools |
@@ -187,7 +187,7 @@ Limits:
 
 What is claimed: the `chromium::v154_*` recipes, a complete Chromium set
 (listed in [Coverage](../reference/coverage.md#browser-profiles)), reproduce
-Google Chrome 154.0.8037.58 on Windows 11.
+Google Chrome 154.0.8037.58 and 154.0.8037.97 on Windows 11.
 
 Evidence: Chrome 154.0.8037.58, the stable build installed on the Windows 11
 capture host (build 26200, x64), was captured in every area that holds a
@@ -217,6 +217,28 @@ position in the list all differ. `sec-ch-ua-full-version`,
 `sec-ch-ua-full-version-list`, and the `user-agent` build number follow the new
 version. Every other hint value, and every hint name and position, is
 unchanged.
+
+On 2026-10-02 the Windows host updated Chrome to 154.0.8037.97; the file
+version of `chrome.exe` read 154.0.8037.97 before and after the captures.
+One `run_matrix.py` manifest ran `snapshot` and `client_hints`, three runs
+each, side by side in 56 seconds of wall clock. The client-hint job's first
+attempt timed out after an accept on its loopback listener failed with
+`WinError 64`; its retry passed. `snapshot_compare.py` compared each
+snapshot with the fixtures retained before the update. All three matched
+the 154.0.8037.58 TCP and QUIC ClientHellos, H2 startup, first H2
+navigation, and H3 SETTINGS, and differed only in `sec-ch-ua-full-version`
+and the `Chromium` and `Google Chrome` entries of
+`sec-ch-ua-full-version-list`, which report the new build. The three
+`client_hints.py` runs agree, and their `navigation.txt` differs from the
+154.0.8037.58 one only in those values and in the capture time and port.
+`chromium::v154_windows_client_hints` carries the new values, and the
+154.0.8037.58 Windows `navigation.txt` was removed. The three snapshots are
+retained beside the new `navigation.txt` as `snapshot-1.txt` to
+`snapshot-3.txt`, and each now compares equal to the retained fixtures.
+The other 154.0.8037.58 Windows fixtures stay, because 154.0.8037.97 sends
+their layers unchanged as far as the snapshots compare; none of them
+carries a full version. The macOS captures are of 154.0.8037.58, so
+`chromium::v154_macos_client_hints` reports that build.
 
 #### Chrome 154 trust-anchor ID order
 
@@ -424,7 +446,7 @@ Retained fixtures, each under `fixtures/<area>/chrome/154.0.8037.58/windows-11-2
 | `tls` | `client-hello.txt`, `trust-anchor-orders.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | `http2` | `client-startup.txt` |
 | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt` |
-| `client-hints` | `navigation.txt` |
+| `client-hints` | None; `navigation.txt` and `snapshot-{1,2,3}.txt` are under `154.0.8037.97` |
 | `websocket` | Nine scenarios |
 | `sse` | Seventeen scenarios and `launch-mode/` |
 | `alt-svc` | Seven scenarios |
@@ -449,6 +471,10 @@ Limits:
   [Capture tools](../../scripts/capture/README.md#http3-startup).
 - The comparison with Chrome 153 is recorded, not reproducible; see
   [Comparison with Chrome 153](#comparison-with-chrome-153).
+- The 154.0.8037.97 evidence for every layer but the client hints is the
+  snapshot comparison, which leaves out HTTP/1.1 and HTTP/3 request fields,
+  ALPS, and behavior across connections; the per-layer captures are of
+  154.0.8037.58.
 - Launches are headless, except one headful client-hint run and five headful
   `retry-750` SSE runs.
 
@@ -1041,7 +1067,7 @@ on 127.0.0.1. Chromium launches on macOS add `--use-mock-keychain`
 
 | Browser and layer | Samples | Result |
 | --- | --- | --- |
-| Chrome, Edge, Opera client hints | 3 runs each | Windows names, order, and delivery, and the brand values of the same build on Windows (Opera 135, Edge 154.0.4258.37); `sec-ch-ua-platform` `"macOS"`, `sec-ch-ua-platform-version` `"15.5.0"`, `sec-ch-ua-arch` `"arm"`; `sec-ch-ua-bitness` `"64"` and `sec-ch-ua-wow64` `?0` as on Windows |
+| Chrome, Edge, Opera client hints | 3 runs each | Windows names, order, and delivery, and the brand values of the same build on Windows (Chrome 154.0.8037.58, Opera 135, Edge 154.0.4258.37); `sec-ch-ua-platform` `"macOS"`, `sec-ch-ua-platform-version` `"15.5.0"`, `sec-ch-ua-arch` `"arm"`; `sec-ch-ua-bitness` `"64"` and `sec-ch-ua-wow64` `?0` as on Windows |
 | Chrome, Edge, Opera page loads and no-store `fetch()` over H1 and H2 | 3 runs each | The Windows template fields and values. `User-Agent` is a caller slot in every macOS Chromium-family template, and the headless value names `Macintosh; Intel Mac OS X 10_15_7` |
 | Chrome, Opera H3 page request | 1 startup each | The Windows template's H3 fields |
 | Firefox page loads and no-store `fetch()` over H1 and H2 | 3 runs | The Windows template, with `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0` |
@@ -2506,6 +2532,14 @@ differed from the retained Opera 135 fixtures in its trust-anchor IDs,
 signature-algorithm GREASE, and client hints; see
 [Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes) and
 [Edge 154 recipes](#edge-154-recipes) for what each update changed.
+
+After the host updated Chrome to 154.0.8037.97 the same day, a `snapshot`
+capture of it, `repeat` 3, ran beside its client-hint capture in one
+manifest. Each run took 1.5 to 9.9 seconds, used HTTP/3, and differed from
+the 154.0.8037.58 fixtures only in the full version its client hints report;
+see [Chrome 154 recipes](#chrome-154-recipes). These are the only retained
+Chromium snapshots, under
+`fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/`.
 
 Reproduce with the commands in the capture README, once per browser.
 
