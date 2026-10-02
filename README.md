@@ -9,8 +9,9 @@ Chrome, Firefox, curl, and a typical Rust library. Copying Chrome's headers
 changes none of them. [How servers recognize a client](docs/fingerprinting.md)
 explains each signal in a few minutes of reading.
 
-Phantom reproduces those layers from recordings of real browsers, and tests
-compare its output with the recordings. It never falls back to another
+Phantom reproduces those layers from
+[captures](docs/reference/glossary.md#capture) of real browsers, and tests
+compare its output with the captures. It never falls back to another
 protocol or route. Phantom is maintained by
 [Byway](https://github.com/bywayhq).
 
@@ -45,14 +46,13 @@ Exceptions to that list:
 - Opera for Android has only TLS and client-hint recipes, and Firefox for
   Android only a TLS recipe.
 - Only desktop Chrome, Brave, and Firefox have TCP socket options, taken from
-  browser source, and Firefox's set only `TCP_NODELAY`.
+  browser source, and Firefox's recipe sets only `TCP_NODELAY`.
 
-Most recipes come from [captures](docs/reference/glossary.md#capture) of real
-browsers: on Windows 11 for the desktop builds, with some client-hint and
-request-template recipes also from macOS, and on Android emulators, not
-phones, for the Android builds. Tests compare Phantom's output with the
-captures, and [Validation](docs/explanation/validation.md) lists the evidence
-for each layer.
+Most recipes come from captures on Windows 11 for the desktop builds, with
+some client-hint and request-template recipes also from macOS, and on Android
+emulators, not phones, for the Android builds.
+[Validation](docs/explanation/validation.md) lists the evidence for each
+layer.
 
 Beyond the browser layers, the client supports:
 
