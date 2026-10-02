@@ -41,11 +41,12 @@ is a better choice in these cases:
 - You need JavaScript to run. Phantom is not a browser (see
   [Coverage](reference/coverage.md#at-a-glance)); use a browser automation
   tool such as Playwright.
-- You need a browser Phantom has no recipe for. Phantom ships Chrome 154,
-  Edge 154, Brave 154, Opera 135, and Firefox 156, one build each, captured
-  on Windows 11, with some layers from macOS 15.5 and Android emulators. It
-  has no Safari, iOS, or Linux captures and no captures on a physical phone.
-  [Coverage](reference/coverage.md#browser-profiles) has the details.
+- You need a browser Phantom has no recipe for. Phantom ships one desktop
+  build and one Android build each of Chrome, Edge, Brave, Opera, and
+  Firefox, captured on Windows 11, Android emulators, and, for some layers,
+  macOS. It has no Safari, iOS, or Linux captures and none from a physical
+  phone. [Coverage](reference/coverage.md#at-a-glance) lists each build and
+  the layers it covers.
 - You need many browser versions or operating systems. Phantom retires a
   browser version when it adds the next one. Tools that ship more targets
   are listed [below](#compared-with-other-clients).
@@ -65,7 +66,7 @@ The table records what each project's own documentation states, as of
 
 | Project | Language | Layers its documentation names | Browser targets its documentation lists |
 | --- | --- | --- | --- |
-| Phantom | Rust | TCP socket options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, request templates, WebSocket openings | 5 builds: Chrome 154, Edge 154, Brave 154, Opera 135, Firefox 156 |
+| Phantom | Rust | TCP socket options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, request templates, WebSocket openings | Chrome, Edge, Brave, Opera, and Firefox, one desktop and one Android build each |
 | [curl-impersonate](https://github.com/lexiforest/curl-impersonate) | C (a curl fork) | TLS, HTTP/2, HTTP/3 | Chrome, Edge, Safari, Firefox, and Tor targets |
 | [curl_cffi](https://github.com/lexiforest/curl_cffi) | Python (bindings to curl-impersonate) | TLS, HTTP/2, HTTP/3 | Preset fingerprints in the open-source release |
 | [wreq](https://github.com/0x676e67/wreq) | Rust | TLS, HTTP/2 | Emulation profiles, kept in the separate `wreq-util` crate |
