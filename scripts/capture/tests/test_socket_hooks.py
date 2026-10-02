@@ -2,6 +2,7 @@ import asyncio
 import unittest
 from pathlib import Path
 
+from scripts.capture import socket_hooks
 from scripts.capture.socket_hooks import (
     AGENT,
     FORMAT,
@@ -344,9 +345,13 @@ class RetainedFixtureTests(unittest.TestCase):
                 self.assertEqual(fields["hook_agent"], f"scripts/capture/{AGENT.name}")
                 self.assertEqual(fields["run_0_timed_out"], "false")
                 self.assertEqual(fields["run_0_hook_error_count"], "0")
-                digests.add(fields["hook_agent_sha256"])
-        # A retained log is evidence for the agent in the repository only.
-        self.assertEqual(digests, {file_digest(AGENT)})
+                digests.add(
+                    (fields["hook_agent_sha256"], fields["capture_tool_sha256"])
+                )
+        # A retained log is evidence for the agent and tool in the repository
+        # only: the tool writes the summary lines the recipe tests read.
+        tool = Path(socket_hooks.__file__)
+        self.assertEqual(digests, {(file_digest(AGENT), file_digest(tool))})
 
 
 if __name__ == "__main__":
