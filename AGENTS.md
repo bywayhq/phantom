@@ -126,7 +126,7 @@ Use a sibling worktree only when independent work can proceed concurrently.
   rather than a fixed port.
 - Windows hands out UDP ports for binds to port 0 in sequence, from one
   counter for the whole host. When the counter reaches a reserved block, the
-  bind fails with `WSAENOBUFS` (os error 10055) and the next bind gets a
+  bind can fail with `WSAENOBUFS` (os error 10055) and the next bind gets a
   port. Bind UDP sockets through `source_binding::bind_udp_socket` in
   `phantom-net` and through `phantom_testkit::udp` in tests, which retry that
   error. A direct `UdpSocket::bind` or `quinn::Endpoint::server` to port 0

@@ -1396,7 +1396,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   outside Windows.
 - On Windows, an HTTP/3 connection or a SOCKS5 UDP association no longer
   fails to open when the host's UDP port counter reaches a reserved port
-  block. Windows refuses that bind to port 0 with os error 10055
+  block. Windows can refuse that bind to port 0 with os error 10055
   (`WSAENOBUFS`) instead of skipping the block; Phantom now binds again, up
   to three more times. An explicit source binding gets the same retry.
 - `scripts/capture/chrome_http3.py` accepts `--listen 127.0.0.1:0`: it binds

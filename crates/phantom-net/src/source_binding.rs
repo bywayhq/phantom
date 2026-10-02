@@ -260,7 +260,7 @@ const RESERVED_PORT_RETRIES: usize = 3;
 ///
 /// Windows hands out UDP ephemeral ports from one counter for the whole host.
 /// When the counter reaches a block of reserved ports (`netsh int ipv4 show
-/// excludedportrange protocol=udp`), the bind to port 0 fails with
+/// excludedportrange protocol=udp`), the bind to port 0 can fail with
 /// `WSAENOBUFS` (os error 10055, logged as Tcpip event 4266) instead of
 /// skipping the block, and the counter moves past it, so the next bind gets
 /// a port. Any other error, an explicit port, or another platform returns the

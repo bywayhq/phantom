@@ -3,12 +3,12 @@
 //!
 //! Windows hands out UDP ephemeral ports from one counter for the whole host.
 //! When the counter reaches a block of reserved ports (`netsh int ipv4 show
-//! excludedportrange protocol=udp`), a bind to port 0 fails with `WSAENOBUFS`
-//! (os error 10055, logged as Tcpip event 4266) instead of skipping the
-//! block, and the counter moves past it, so the next bind gets a port. These
-//! functions retry that bind as `phantom-net` does for its own sockets; they
-//! repeat its rule here because `phantom-net` depends on this crate for its
-//! tests.
+//! excludedportrange protocol=udp`), a bind to port 0 can fail with
+//! `WSAENOBUFS` (os error 10055, logged as Tcpip event 4266) instead of
+//! skipping the block, and the counter moves past it, so the next bind gets a
+//! port. These functions retry that bind as `phantom-net` does for its own
+//! sockets; they repeat its rule here because `phantom-net` depends on this
+//! crate for its tests.
 
 use std::{io, net::SocketAddr};
 

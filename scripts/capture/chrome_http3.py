@@ -54,7 +54,7 @@ MAX_STREAM_CAPTURE = 256 * 1024
 PORT_PLACEHOLDER = "<port>"
 # Windows hands out UDP ports for binds to port 0 from one counter for the
 # whole host. When the counter reaches a reserved block (`netsh int ipv4 show
-# excludedportrange protocol=udp`), the bind fails with WSAENOBUFS and the
+# excludedportrange protocol=udp`), the bind can fail with WSAENOBUFS and the
 # counter moves past the block, so the next bind gets a port.
 WSAENOBUFS = 10055
 RESERVED_PORT_RETRIES = 3
