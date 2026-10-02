@@ -1,6 +1,6 @@
 //! A client certificate answers a server's request for client authentication.
 
-use std::{net::Ipv4Addr, time::Duration};
+use std::{net::Ipv4Addr, sync::Arc, time::Duration};
 
 use btls::{
     pkey::PKey,
@@ -12,9 +12,13 @@ use http::{Response, StatusCode};
 use phantom::{
     BuildErrorKind, Client, ClientCertificate, ClientCertificateErrorKind, HttpProtocol, HttpProxy,
     RequestError, RequestErrorKind, Route,
-    profile::{CipherSuite, ClientProfile, NamedGroup, SignatureScheme, TlsSettings, TlsVersion},
+    profile::{
+        CipherSuite, ClientProfile, Http3ClientSettings, NamedGroup, SignatureScheme, TlsSettings,
+        TlsVersion, chromium,
+    },
 };
-use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello};
+use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
+use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello, is_grease};
 use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
@@ -256,6 +260,135 @@ async fn certificate_leaves_the_client_hello_unchanged() -> TestResult<()> {
     }
 
     assert_eq!(summaries[0], summaries[1]);
+    Ok(())
+}
+
+/// The ClientHello fields that stay fixed across connections of one
+/// profile: GREASE values are dropped and extensions sorted, because the
+/// Chromium recipes draw GREASE and permute extensions per connection.
+#[derive(Debug, Eq, PartialEq)]
+struct HelloShape {
+    cipher_suites: Vec<u16>,
+    extensions: Vec<u16>,
+    groups: Vec<u16>,
+    signature_algorithms: Vec<u16>,
+    versions: Vec<u16>,
+    key_share_groups: Vec<u16>,
+    alpn: Vec<Vec<u8>>,
+    server_name: Option<Vec<u8>>,
+}
+
+impl HelloShape {
+    fn of(handshake: &[u8]) -> TestResult<Self> {
+        let hello = ClientHelloSummary::from_handshake_bytes(handshake)?;
+        let kept = |values: &[u16]| {
+            values
+                .iter()
+                .copied()
+                .filter(|value| !is_grease(*value))
+                .collect::<Vec<_>>()
+        };
+        let mut extensions = kept(hello.extension_types());
+        extensions.sort_unstable();
+        Ok(Self {
+            cipher_suites: kept(hello.cipher_suites()),
+            extensions,
+            groups: kept(hello.supported_groups()),
+            signature_algorithms: kept(hello.signature_algorithms()),
+            versions: kept(hello.supported_versions()),
+            key_share_groups: kept(hello.key_share_groups()),
+            alpn: hello.alpn_protocols().to_vec(),
+            server_name: hello.server_name().map(<[u8]>::to_vec),
+        })
+    }
+}
+
+#[tokio::test]
+async fn certificate_leaves_the_chromium_client_hello_unchanged() -> TestResult<()> {
+    let server = TestIdentity::generate()?;
+    let identity = ClientIdentity::p256()?;
+    let mut shapes = Vec::new();
+    for certificate in [None, Some(identity.certificate()?)] {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let client = client(&server, chromium::v154_tls(), certificate)?;
+        let capture = async {
+            let (mut stream, _) = listener.accept().await?;
+            let capture = capture_client_hello(
+                &mut stream,
+                tokio::time::Instant::now() + TEST_TIMEOUT,
+                CaptureLimits::new(64 * 1024, 64 * 1024, 8),
+            )
+            .await?;
+            HelloShape::of(capture.handshake_bytes())
+        };
+
+        let (shape, _) = timeout(TEST_TIMEOUT, async {
+            tokio::join!(capture, get(&client, format!("https://{address}/")))
+        })
+        .await?;
+        shapes.push(shape?);
+    }
+
+    assert_eq!(shapes[0], shapes[1]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestResult<()> {
+    let server = TestIdentity::generate()?;
+    let identity = ClientIdentity::p256()?;
+    let context = server.acceptor(b"\x02h3")?.context().to_owned();
+    let mut shapes = Vec::new();
+    for certificate in [None, Some(identity.certificate()?)] {
+        let endpoint = quinn::Endpoint::server(
+            quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::new(context.clone()))),
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let address = endpoint.local_addr()?;
+        let builder = Client::builder(ClientProfile::new(chromium::v154_tls()).with_http3(
+            Http3ClientSettings::new(
+                chromium::v154_http3_tls(),
+                chromium::v154_quic(),
+                chromium::v154_http3(),
+                chromium::v154_http3_request(),
+            ),
+        ))
+        .add_root_certificate_der(server.root_der.clone());
+        let client = match certificate {
+            Some(certificate) => builder.client_certificate(certificate),
+            None => builder,
+        }
+        .build()?;
+        let capture = async {
+            let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
+            let mut connecting = incoming.accept()?;
+            let data = connecting
+                .handshake_data()
+                .await?
+                .downcast::<ServerHandshakeData>()
+                .map_err(|_| "unexpected server handshake data")?;
+            HelloShape::of(data.client_hello())
+        };
+        let request = async {
+            let _ = client
+                .get(HttpProtocol::Http3, &format!("https://{address}/"))?
+                .send()
+                .await;
+            Ok::<_, RequestError>(())
+        };
+
+        let (shape, _) = timeout(TEST_TIMEOUT, async {
+            tokio::select! {
+                shape = capture => (shape, Ok(())),
+                sent = request => (Err("the request ended before the capture".into()), sent),
+            }
+        })
+        .await?;
+        shapes.push(shape?);
+    }
+
+    assert_eq!(shapes[0], shapes[1]);
     Ok(())
 }
 
