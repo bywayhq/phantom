@@ -155,17 +155,6 @@ impl HostResolver {
         self
     }
 
-    /// Returns a clone with the same overrides and resolver and an empty
-    /// cache of its own, or no cache when this one has none.
-    #[must_use]
-    pub fn with_empty_cache(&self) -> Self {
-        Self {
-            overrides: Arc::clone(&self.overrides),
-            resolver: self.resolver.clone(),
-            cache: self.cache.as_ref().map(AddressCache::emptied),
-        }
-    }
-
     /// Returns the address cache, if any.
     #[must_use]
     pub fn cache(&self) -> Option<&AddressCache> {

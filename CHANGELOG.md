@@ -517,6 +517,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - `Route::http_connect` is removed.
   Migrate: replace `Route::http_connect(proxy)` with
   `Route::http_proxy(proxy)`, which returns the same route.
+- `phantom_net::HostResolver::with_empty_cache` is removed. Phantom no
+  longer calls it.
+  Migrate: rebuild with
+  `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
 ### Added
 

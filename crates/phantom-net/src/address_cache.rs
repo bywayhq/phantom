@@ -199,12 +199,6 @@ impl AddressCache {
         }
     }
 
-    /// Returns an empty cache with the same settings and resolver that
-    /// shares nothing with this one.
-    pub(crate) fn emptied(&self) -> Self {
-        Self::with(self.inner.settings, self.inner.lookup.clone())
-    }
-
     /// Returns the settings the cache was created with.
     #[must_use]
     pub fn settings(&self) -> &DnsCacheSettings {

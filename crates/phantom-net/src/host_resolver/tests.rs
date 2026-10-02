@@ -192,23 +192,3 @@ async fn a_resolver_set_after_the_cache_answers_through_it() -> TestResult {
     assert_eq!(resolver.cache().map(super::AddressCache::len), Some(1));
     Ok(())
 }
-
-#[tokio::test(flavor = "current_thread")]
-async fn an_emptied_copy_keeps_the_overrides_and_resolver_but_not_the_answers() -> TestResult {
-    let counting = Counting::default();
-    let resolver = HostResolver::new()
-        .with_resolver(counting.resolver(resolved))
-        .with_cache(settings(Duration::from_secs(600)))
-        .with_override("pinned.phantom.test", [OVERRIDE_V4]);
-    let _ = resolve(Some(&resolver), "origin.phantom.test", 443).await?;
-
-    let emptied = resolver.with_empty_cache();
-    let pinned = resolve(Some(&emptied), "pinned.phantom.test", 443).await?;
-    let _ = resolve(Some(&emptied), "origin.phantom.test", 443).await?;
-
-    assert_eq!(pinned, [SocketAddr::new(OVERRIDE_V4, 443)]);
-    assert_eq!(counting.calls(), 2);
-    assert_eq!(resolver.cache().map(super::AddressCache::len), Some(1));
-    assert_eq!(emptied.cache().map(super::AddressCache::len), Some(1));
-    Ok(())
-}
