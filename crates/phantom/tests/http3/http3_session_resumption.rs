@@ -210,7 +210,7 @@ fn server_endpoint(
     identity: &TestIdentity,
     store: Arc<CountingStore>,
 ) -> TestResult<(SocketAddr, quinn::Endpoint)> {
-    let endpoint = quinn::Endpoint::server(
+    let endpoint = crate::support::h3::quic_server(
         server_config(identity, store, b"h3")?,
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?;
@@ -577,7 +577,9 @@ struct HelloSniffer {
 
 impl HelloSniffer {
     async fn spawn(server: SocketAddr) -> TestResult<Self> {
-        let front = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
+        let front = Arc::new(phantom_testkit::udp::bind_tokio(
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?);
         let address = front.local_addr()?;
         let hellos = Arc::new(Mutex::new(Vec::new()));
         let task_hellos = Arc::clone(&hellos);
@@ -599,7 +601,9 @@ impl HelloSniffer {
                 let back = match clients.get(&from) {
                     Some(back) => Arc::clone(back),
                     None => {
-                        let Ok(back) = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await else {
+                        let Ok(back) =
+                            phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
+                        else {
                             return;
                         };
                         if back.connect(server).await.is_err() {

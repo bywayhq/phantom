@@ -6,7 +6,7 @@ use crate::support::tunnel_proxy;
 
 use std::{
     collections::BTreeMap,
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -176,7 +176,7 @@ async fn qlog_dir_that_does_not_exist_fails_the_connection_before_its_handshake(
     ));
     assert!(!dir.exists());
     // A bound socket that no handshake packet may reach.
-    let peer = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let peer = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
     peer.set_nonblocking(true)?;
     let address = peer.local_addr()?;
 

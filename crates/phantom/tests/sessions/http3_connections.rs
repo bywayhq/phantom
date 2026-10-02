@@ -111,7 +111,7 @@ impl Origin {
             inner: ServerSessionMemoryCache::new(64),
             accepted: AtomicUsize::new(0),
         });
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(identity, Arc::clone(&tickets))?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;

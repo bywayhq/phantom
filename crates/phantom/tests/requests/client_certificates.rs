@@ -446,7 +446,7 @@ async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestRe
     let context = server.acceptor(b"\x02h3")?.context().to_owned();
     let mut shapes = Vec::new();
     for certificate in [None, Some(identity.certificate()?)] {
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::new(context.clone()))),
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;

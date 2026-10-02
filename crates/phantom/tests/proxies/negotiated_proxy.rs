@@ -12,7 +12,7 @@ use crate::support::tunnel_proxy;
 use std::{
     future::Future,
     io,
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     time::Duration,
 };
@@ -197,7 +197,7 @@ async fn alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned() -> TestResult<
 async fn connect_udp_route_still_refuses_a_negotiated_request() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let proxy = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+        let proxy = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
         proxy.set_nonblocking(true)?;
         let proxy_address = proxy.local_addr()?;
         let client = alt_svc_client(&identity)?.build()?;

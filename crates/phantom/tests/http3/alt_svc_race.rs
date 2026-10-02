@@ -29,11 +29,7 @@ use phantom::{
     ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
     profile::{ClientProfile, chromium},
 };
-use tokio::{
-    net::{TcpListener, UdpSocket},
-    task::JoinHandle,
-    time::timeout,
-};
+use tokio::{net::TcpListener, task::JoinHandle, time::timeout};
 
 use h3_support::client_settings;
 use http3_upgrade_support::{
@@ -948,7 +944,7 @@ struct Blackhole {
 
 impl Blackhole {
     async fn bind() -> TestResult<Self> {
-        let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let socket = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let port = socket.local_addr()?.port();
         let datagrams = Arc::new(AtomicUsize::new(0));
         let peers = Arc::new(Mutex::new(HashSet::new()));

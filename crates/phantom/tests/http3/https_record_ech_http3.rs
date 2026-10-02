@@ -138,7 +138,7 @@ impl QuicOrigin {
 
     fn endpoint(context: &SslContext, port: u16) -> TestResult<quinn::Endpoint> {
         let crypto = QuicServerConfig::new(context.clone());
-        Ok(quinn::Endpoint::server(
+        Ok(crate::support::h3::quic_server(
             quinn::ServerConfig::with_crypto(Arc::new(crypto)),
             (Ipv4Addr::LOCALHOST, port).into(),
         )?)

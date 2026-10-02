@@ -52,7 +52,7 @@ const RELAY_DELAY: Duration = Duration::from_millis(150);
 async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -171,7 +171,9 @@ fn server_config(identity: &TestIdentity, early_data: bool) -> TestResult<quinn:
 /// Forwards each client socket's datagrams to `server` at once and the
 /// server's replies after [`RELAY_DELAY`], one upstream socket per client.
 async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
-    let front = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
+    let front = Arc::new(phantom_testkit::udp::bind_tokio(
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
@@ -181,7 +183,9 @@ async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandl
             let upstream = match upstreams.get(&client) {
                 Some(upstream) => Arc::clone(upstream),
                 None => {
-                    let Ok(upstream) = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await else {
+                    let Ok(upstream) =
+                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
+                    else {
                         return;
                     };
                     if upstream.connect(server).await.is_err() {
@@ -248,7 +252,7 @@ fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
 async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -362,7 +366,7 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
     bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -487,7 +491,7 @@ async fn a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origi
             ),
         )
         .await?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -593,7 +597,7 @@ async fn a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origi
 async fn a_caller_can_turn_off_the_recipe_early_data() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -672,7 +676,9 @@ async fn gated_relay(
     server: SocketAddr,
     open: tokio::sync::watch::Receiver<bool>,
 ) -> TestResult<(SocketAddr, JoinHandle<()>)> {
-    let front = Arc::new(UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?);
+    let front = Arc::new(phantom_testkit::udp::bind_tokio(
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
@@ -681,7 +687,9 @@ async fn gated_relay(
             let upstream = match upstreams.get(&client) {
                 Some(upstream) => Arc::clone(upstream),
                 None => {
-                    let Ok(upstream) = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await else {
+                    let Ok(upstream) =
+                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
+                    else {
                         return;
                     };
                     if upstream.connect(server).await.is_err() {
@@ -739,7 +747,7 @@ async fn forward_gated(
 async fn rejected_early_data_resends_a_post_with_its_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -798,7 +806,7 @@ async fn failed_early_data_handshake_is_an_error_without_a_second_connection() -
     bounded(async {
         let identity = TestIdentity::generate()?;
         let untrusted = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -859,7 +867,7 @@ async fn failed_early_data_handshake_is_an_error_without_a_second_connection() -
 async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
@@ -919,7 +927,7 @@ async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
 async fn concurrent_requests_share_one_resumed_connection() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let endpoint = quinn::Endpoint::server(
+        let endpoint = crate::support::h3::quic_server(
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;

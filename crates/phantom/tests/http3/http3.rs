@@ -370,7 +370,7 @@ async fn public_client_streams_unknown_length_http3_request_body() -> TestResult
 fn unavailable_http3_fails_before_network_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = tls_support::test_client(&identity, false)?;
-    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
     origin.set_nonblocking(true)?;
     let address = origin.local_addr()?;
 
@@ -388,7 +388,7 @@ fn unavailable_http3_fails_before_network_io() -> TestResult<()> {
 async fn invalid_http3_field_fails_before_udp_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = test_client(&identity)?;
-    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
     origin.set_nonblocking(true)?;
     let address = origin.local_addr()?;
 
@@ -755,7 +755,7 @@ async fn failed_socks5_udp_association_has_proxy_category_without_direct_fallbac
             Socks5UdpAssociateReply::Malformed,
         ] {
             let identity = TestIdentity::generate()?;
-            let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+            let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
             origin.set_nonblocking(true)?;
             let origin_address = origin.local_addr()?;
             let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -801,7 +801,7 @@ async fn failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io() -
             Socks5UdpAssociateReply::Malformed,
         ] {
             let identity = TestIdentity::generate_for_dns(REMOTE_ORIGIN)?;
-            let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+            let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
             origin.set_nonblocking(true)?;
             let origin_address = origin.local_addr()?;
             let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -848,7 +848,7 @@ async fn failed_remote_dns_socks5_udp_association_has_no_origin_or_direct_io() -
 async fn invalid_http3_field_fails_before_socks5_proxy_io() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+        let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
         origin.set_nonblocking(true)?;
         let origin_address = origin.local_addr()?;
         let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -886,7 +886,7 @@ async fn tcp_proxy_routes_fail_before_proxy_or_origin_io() -> TestResult<()> {
     let proxy = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     proxy.set_nonblocking(true)?;
     let proxy_address = proxy.local_addr()?;
-    let origin = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let origin = phantom_testkit::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
     origin.set_nonblocking(true)?;
     let origin_address = origin.local_addr()?;
     let routes = [
