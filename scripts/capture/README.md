@@ -167,6 +167,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | Any of those three, with the browser launched for you | [`startup_capture.py`](#connection-startup-launches) | `fixtures/tls/`, `fixtures/http2/`, `fixtures/http3/` |
 | QUIC session resumption and 0-RTT requests | [`quic_resumption.py`](#quic-resumption-and-0-rtt) | `fixtures/http3/` |
 | TLS 1.3 session resumption over TCP, and TCP early data | [`tls_resumption.py`](#tls-resumption-over-tcp) | `fixtures/tls/` |
+| Firefox's TCP or QUIC ClientHellos to `127.0.0.1` or `[::1]`, with an optional ECH GREASE size | [`ip_literal_client_hello.py`](#clienthellos-to-ip-literals) | `fixtures/tls/firefox/` |
 | Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
 | EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
@@ -1117,6 +1118,47 @@ diagnosis; NetLogs are not fixture inputs. Firefox receives
 `network.dns.localDomains` naming both hosts, `network.dns.disableIPv6=true`,
 `network.http.http3.enable=false`, and a `cert_override.txt` covering both
 names on both ports.
+
+## ClientHellos to IP literals
+
+`ip_literal_client_hello.py` records the ClientHellos headless Firefox sends to
+`https://127.0.0.1:<port>/` or `https://[::1]:<port>/`, which carry no
+`server_name`. `--grease-size` sets `security.tls.ech.grease_size`, the
+`maximum_name_length` Firefox pads its TCP ECH GREASE payload for, so a sweep
+of sizes shows which host length Firefox pads by.
+
+Capture one TCP run and one QUIC run on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+  python -m scripts.capture.ip_literal_client_hello \
+  --firefox-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
+  --transport tcp --family ipv4 --grease-size 93 \
+  --output fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/tcp-ipv4-grease-size-93.txt
+uv run --no-project --python 3.10 --with aioquic==1.3.0 \
+  python -m scripts.capture.ip_literal_client_hello \
+  --firefox-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
+  --transport quic --family ipv4 \
+  --output fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/quic-ipv4.txt
+```
+
+For a sweep, repeat the TCP command with `--family ipv4` and `--family ipv6`
+and each `--grease-size` in a range, such as 85 to 94.
+
+Over TCP a listener reads each ClientHello and closes the connection; Firefox
+retries, so one run keeps several ClientHellos, and the later ones drop
+`compress_certificate`. Over QUIC, `network.http.http3.alt-svc-mapping-for-testing`
+points Firefox at `h3` on the page's port, where UDP and TCP share one port
+chosen from 20000 to 32767. A UDP socket keeps the client's datagrams, and the
+first connection's ClientHello is read from its Initial packets with the
+Initial keys. Nothing answers a handshake. On Windows, Firefox 157.0 sent no
+QUIC datagram to `[::1]`.
+
+The fixture keeps `client_version`, `url`, a `prefs=` line naming every
+preference the run set, `datagrams=` for QUIC, and `client_hello_<n>_hex`
+lines. The `tcp-*-sweep-<label>.txt` fixtures come from an earlier version of
+the script that recorded neither the preference nor its value; see
+[Validation](../../docs/explanation/validation.md#firefox-ech-grease-payload-evidence).
 
 ## Alt-Svc racing
 
