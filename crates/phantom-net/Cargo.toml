@@ -36,6 +36,7 @@ tracing = "0.1.41"
 url = "=2.5.8"
 webpki-root-certs = "1.0.9"
 wreq-proto.workspace = true
+zeroize.workspace = true
 zstd.workspace = true
 
 # This btls revision skips archive rewriting on Apple/Windows but still rewrites

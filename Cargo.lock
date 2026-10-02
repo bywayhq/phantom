@@ -1459,6 +1459,7 @@ dependencies = [
  "tracing",
  "url",
  "webpki-root-certs",
+ "zeroize",
  "zstd",
 ]
 

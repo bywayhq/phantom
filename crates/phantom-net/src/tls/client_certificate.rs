@@ -11,6 +11,7 @@ use btls::{
 };
 use phantom_profile::SignatureScheme;
 use phantom_quic_btls::QuicClientCertificate;
+use zeroize::Zeroizing;
 
 /// A certificate chain and the private key of its first certificate, which a
 /// TLS client presents when a server asks for client authentication.
@@ -227,19 +228,26 @@ fn quic_certificate(
     chain: &[X509],
     private_key: &PKey<Private>,
 ) -> Result<QuicClientCertificate, ClientCertificateError> {
-    let encode = |error: ErrorStack| {
-        ClientCertificateError::with_source(
-            ClientCertificateErrorKind::Certificate,
-            "the certificate chain cannot be encoded for QUIC",
-            error,
-        )
-    };
     let certificates = std::iter::once(certificate)
         .chain(chain)
         .map(|certificate| certificate.to_der())
         .collect::<Result<Vec<_>, _>>()
-        .map_err(encode)?;
-    let key = private_key.private_key_to_der().map_err(encode)?;
+        .map_err(|error| {
+            ClientCertificateError::with_source(
+                ClientCertificateErrorKind::Certificate,
+                "the certificate chain cannot be encoded for QUIC",
+                error,
+            )
+        })?;
+    // PKCS #8 is the one DER form that holds every supported key type,
+    // Ed25519 included.
+    let key = Zeroizing::new(private_key.private_key_to_der_pkcs8().map_err(|error| {
+        ClientCertificateError::with_source(
+            ClientCertificateErrorKind::PrivateKey,
+            "the private key cannot be encoded for QUIC",
+            error,
+        )
+    })?);
     QuicClientCertificate::from_der(certificates.iter().map(Vec::as_slice), &key).map_err(|error| {
         ClientCertificateError::with_source(
             ClientCertificateErrorKind::Certificate,

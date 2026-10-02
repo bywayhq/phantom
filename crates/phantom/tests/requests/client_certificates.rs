@@ -3,7 +3,7 @@
 use std::{net::Ipv4Addr, sync::Arc, time::Duration};
 
 use btls::{
-    pkey::PKey,
+    pkey::{Id, PKey},
     ssl::{SslAcceptor, SslVerifyMode},
     x509::X509,
 };
@@ -474,6 +474,33 @@ fn profile_that_cannot_sign_with_the_key_is_an_invalid_policy() -> TestResult<()
             .ok_or("the client failed with another error")?;
         assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
     }
+    Ok(())
+}
+
+#[test]
+fn ed25519_key_parses_but_build_rejects_it_as_an_invalid_policy() -> TestResult<()> {
+    let server = TestIdentity::generate()?;
+    // BoringSSL reads a PKCS #8 v1 Ed25519 key, the form it writes, but not
+    // the v2 form, with the public key, that rcgen generates.
+    let key = PKey::generate(Id::ED25519)?;
+    let key_der = key.private_key_to_der_pkcs8()?;
+    let identity = ClientIdentity::issue(KeyPair::from_pem(&String::from_utf8(
+        key.private_key_to_pem_pkcs8()?,
+    )?)?)?;
+
+    ClientCertificate::from_der([identity.leaf_der.as_slice()], &key_der)?;
+    let error = client(
+        &server,
+        tls(TlsVersion::Tls13),
+        Some(identity.certificate()?),
+    )
+    .err()
+    .ok_or("a profile without an Ed25519 signature scheme was accepted")?;
+    let error = error
+        .downcast_ref::<phantom::BuildError>()
+        .ok_or("the client failed with another error")?;
+
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
     Ok(())
 }
 
