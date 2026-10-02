@@ -16,7 +16,7 @@ use btls::ssl::{AlpnError, ExtensionType, SelectCertError, Ssl, SslAcceptor, sel
 use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind,
+    Client, HttpProtocol, RequestErrorKind, RequestTimeouts,
     profile::{ClientProfile, firefox},
 };
 use tokio::{
@@ -123,7 +123,8 @@ async fn an_alpn_change_restarts_a_post_without_sending_its_body_early() -> Test
 /// under `http/1.1` fails as a fresh connection that selects `http/1.1` does.
 #[tokio::test]
 async fn exact_http2_reports_an_alpn_change_after_early_data() -> TestResult<()> {
-    let error = exact_failure(HttpProtocol::Http2, [H2_ALPN, H1_ALPN], false).await?;
+    let error =
+        failure_after_early_data(Some(HttpProtocol::Http2), [H2_ALPN, H1_ALPN], false).await?;
     assert_eq!(error.kind(), RequestErrorKind::Http2);
     let chain = source_chain(&error);
     assert!(
@@ -137,7 +138,8 @@ async fn exact_http2_reports_an_alpn_change_after_early_data() -> TestResult<()>
 /// rejected under `h2` fails as a fresh connection that selects `h2` does.
 #[tokio::test]
 async fn exact_http1_reports_an_alpn_change_after_early_data() -> TestResult<()> {
-    let error = exact_failure(HttpProtocol::Http1, [H1_ALPN, H2_ALPN], false).await?;
+    let error =
+        failure_after_early_data(Some(HttpProtocol::Http1), [H1_ALPN, H2_ALPN], false).await?;
     assert_eq!(error.kind(), RequestErrorKind::Http1);
     let chain = source_chain(&error);
     assert!(
@@ -152,7 +154,8 @@ async fn exact_http1_reports_an_alpn_change_after_early_data() -> TestResult<()>
 /// fails as a fresh connection's would.
 #[tokio::test]
 async fn exact_http2_reports_a_handshake_failure_after_early_data() -> TestResult<()> {
-    let error = exact_failure(HttpProtocol::Http2, [H2_ALPN, H2_ALPN], true).await?;
+    let error =
+        failure_after_early_data(Some(HttpProtocol::Http2), [H2_ALPN, H2_ALPN], true).await?;
     assert_eq!(error.kind(), RequestErrorKind::Tls);
     assert!(
         source_chain(&error).contains("TLS handshake failed after early data"),
@@ -163,13 +166,101 @@ async fn exact_http2_reports_a_handshake_failure_after_early_data() -> TestResul
 
 #[tokio::test]
 async fn exact_http1_reports_a_handshake_failure_after_early_data() -> TestResult<()> {
-    let error = exact_failure(HttpProtocol::Http1, [H1_ALPN, H1_ALPN], true).await?;
+    let error =
+        failure_after_early_data(Some(HttpProtocol::Http1), [H1_ALPN, H1_ALPN], true).await?;
     assert_eq!(error.kind(), RequestErrorKind::Tls);
     assert!(
         source_chain(&error).contains("TLS handshake failed after early data"),
         "{error}"
     );
     Ok(())
+}
+
+/// A negotiated request on a connection whose handshake fails after a
+/// rejected ticket fails with the TLS error, not a connection error, and is
+/// not restarted.
+#[tokio::test]
+async fn negotiated_request_reports_a_handshake_failure_after_early_data() -> TestResult<()> {
+    let error = failure_after_early_data(None, [H2_ALPN, H2_ALPN], true).await?;
+    assert_eq!(error.kind(), RequestErrorKind::Tls);
+    assert!(
+        source_chain(&error).contains("TLS handshake failed after early data"),
+        "{error}"
+    );
+    Ok(())
+}
+
+/// The POST waits in pool admission longer than its connect limit, behind a
+/// slow request on the origin's only HTTP/1.1 connection. Its own connection
+/// then offers early data, and its wait for the server's delayed answer
+/// counts against the connect phase of that connection attempt only.
+#[tokio::test]
+async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let offers = Offers::default();
+        let acceptor = acceptor(&identity, &offers, [H1_ALPN, H1_ALPN])?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let mut slow = accept(&listener, &acceptor, Duration::ZERO).await?;
+            tls_support::read_head(&mut slow).await?;
+            tokio::time::sleep(Duration::from_millis(600)).await;
+            slow.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .await?;
+            slow.shutdown().await?;
+
+            let mut resumed = accept(&listener, &acceptor, SERVER_DELAY).await?;
+            assert!(resumed.stream.ssl().early_data_accepted());
+            let early = resumed.early_bytes();
+            let mut request = tls_support::read_head(&mut resumed).await?;
+            let mut body = [0_u8; 7];
+            resumed.read_exact(&mut body).await?;
+            request.extend_from_slice(&body);
+            resumed
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .await?;
+            resumed.shutdown().await?;
+            let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
+            Ok::<_, Box<dyn Error + Send + Sync>>((request, early))
+        });
+
+        let mut http1 = firefox::v156_http1();
+        http1.max_connections_per_origin = std::num::NonZeroUsize::MIN;
+        let profile = ClientProfile::new(firefox::v156_tls())
+            .with_http2(firefox::v156_http2())
+            .with_http1(http1);
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let session = client.session();
+        let slow_uri = format!("https://{address}/slow");
+        let slow = send_negotiated(&session, Method::GET, &slow_uri);
+        let post = async {
+            // Queue behind the slow request once it holds the connection.
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let response = session
+                .request_negotiated(Method::POST, &format!("https://{address}/post"))?
+                .body("payload")
+                .timeouts(RequestTimeouts::new().connect(Duration::from_millis(400)))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        };
+        let (slow, post) = tokio::join!(slow, post);
+        slow?;
+        post?;
+
+        let (request, early) = server.await??;
+        assert!(request.starts_with(b"POST /post HTTP/1.1\r\n"));
+        assert!(request.ends_with(b"\r\n\r\npayload"));
+        assert!(early.is_empty());
+        assert_eq!(offers.take(), [FRESH, EARLY]);
+        Ok(())
+    })
+    .await
 }
 
 /// Learns an `h2` ticket, then sends `method` to `/restarted` while the
@@ -227,11 +318,12 @@ async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
     .await
 }
 
-/// Learns a ticket over `protocol`, then sends a GET while the second
-/// connection selects `alpn[1]` or, with `untrusted`, presents an untrusted
-/// certificate. Returns the request's error.
-async fn exact_failure(
-    protocol: HttpProtocol,
+/// Learns a ticket over `protocol`, or a negotiated `h2` with `None`, then
+/// sends a GET while the second connection selects `alpn[1]` or, with
+/// `untrusted`, presents an untrusted certificate. Returns the request's
+/// error.
+async fn failure_after_early_data(
+    protocol: Option<HttpProtocol>,
     alpn: [&'static [u8]; 2],
     untrusted: bool,
 ) -> TestResult<phantom::RequestError> {
@@ -249,10 +341,10 @@ async fn exact_failure(
         let (first_closed, wait_for_first_close) = oneshot::channel();
         let server = tokio::spawn(async move {
             let first = accept(&listener, &acceptor, Duration::ZERO).await?;
-            if protocol == HttpProtocol::Http2 {
-                serve_http2(first, "/").await?;
-            } else {
+            if protocol == Some(HttpProtocol::Http1) {
                 serve_http1(first).await?;
+            } else {
+                serve_http2(first, "/").await?;
             }
             first_closed
                 .send(())
@@ -270,19 +362,21 @@ async fn exact_failure(
         });
 
         let session = client(&identity)?.session();
-        send(
-            &session,
-            protocol,
-            Method::GET,
-            &format!("https://{address}/"),
-        )
-        .await?;
+        let first = format!("https://{address}/");
+        match protocol {
+            Some(protocol) => send(&session, protocol, Method::GET, &first).await?,
+            None => send_negotiated(&session, Method::GET, &first).await?,
+        }
         if wait_for_first_close.await.is_err() {
             server.await??;
             return Err("server stopped before closing the first connection".into());
         }
         let uri = format!("https://{address}/failed");
-        let error = match session.get(protocol, &uri)?.send().await {
+        let failed = match protocol {
+            Some(protocol) => session.get(protocol, &uri)?,
+            None => session.get_negotiated(&uri)?,
+        };
+        let error = match failed.send().await {
             Ok(_) => return Err("the request succeeded after the handshake failed".into()),
             Err(error) => error,
         };

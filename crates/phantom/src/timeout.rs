@@ -82,10 +82,14 @@ impl RequestTimeouts {
     /// is ready once its ClientHello is sent, and the server's answer
     /// completes the handshake later. A request sent as early data waits for
     /// that answer within its [`response_head`](Self::response_head) limit. A
-    /// negotiated request that is not replay safe waits for it within this
-    /// limit, counted from when the request was admitted, so opening the
-    /// connection and finishing its handshake share one connect limit; an
-    /// exact HTTP/1.1 or HTTP/2 request waits within its response-head limit.
+    /// negotiated request that is not replay safe waits for it within the
+    /// connect limit of the attempt that opened its connection, or that
+    /// waited for another request's setup of it, so opening the connection
+    /// and finishing its handshake share that one limit; pool admission and
+    /// earlier attempts do not count against it. On a connection it reused or
+    /// was handed by an Alt-Svc race, the wait starts a connect limit of its
+    /// own. An exact HTTP/1.1 or HTTP/2 request waits within its
+    /// response-head limit.
     ///
     /// Default: no limit.
     #[must_use]

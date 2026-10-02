@@ -1084,8 +1084,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   that fails after early data fails the request with
   `RequestErrorKind::Tls`, as a fresh connection's would. A negotiated
   request that is not replay safe waits for the server's answer within the
-  connect timeout counted from its admission, and a request sent as early
-  data within its response-head timeout (`RequestTimeouts::connect`).
+  connect timeout of the attempt that opened its connection, and a request
+  sent as early data within its response-head timeout
+  (`RequestTimeouts::connect`).
 - `btls-sys` moves to `bywayhq/btls` commit `c4596bc5`, whose native patch
   0013 lets a client that sends `record_size_limit` offer early data and
   keeps the early-data capability of its tickets, and whose parent `126eca11`

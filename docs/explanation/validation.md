@@ -1361,16 +1361,17 @@ Retained fixtures, under
 from source only, since no Android capture could resume a session: at tag
 `FIREFOX_156_0_RELEASE`, `security.tls.enable_0rtt_data` and
 `network.http.remove_resumption_token_when_early_data_failed` default to
-true on every platform (`modules/libpref/init/StaticPrefList.yaml:19097-19100`
-and `:17033-17037`), and `mobile/android/app/geckoview-prefs.js`, GeckoView's
-Android preference file, overrides neither.
+true on every platform
+(`modules/libpref/init/StaticPrefList.yaml:19097-19100` and `:17033-17037`),
+and `mobile/android/app/geckoview-prefs.js`, GeckoView's Android preference
+file, overrides neither.
 
 Limits: those of Chrome for Android, on the Android 15 emulator, and no
 HTTP/2, WebSocket, request-field, proxy, or resumption capture, because none
-can load a TLS page. Firefox for Android sends no user-agent client hints; a plaintext
-probe request carried none. No client-hint capture ran on Android 17: the
-launcher's typed entry opens `about:blank` by `VIEW` intent, which Firefox
-does not resolve.
+can load a TLS page. Firefox for Android sends no user-agent client hints; a
+plaintext probe request carried none. No client-hint capture ran on Android
+17: the launcher's typed entry opens `about:blank` by `VIEW` intent, which
+Firefox does not resolve.
 
 ### Firefox 156 HTTP/3 recipe
 
@@ -3975,7 +3976,17 @@ data has arrived:
   `exact_http2_reports_an_alpn_change_after_early_data`,
   `exact_http1_reports_a_handshake_failure_after_early_data`, and
   `exact_http2_reports_a_handshake_failure_after_early_data` check the
-  errors of exact requests.
+  errors of exact requests, and
+  `negotiated_request_reports_a_handshake_failure_after_early_data` the
+  error of a negotiated one.
+- `a_lease_whose_alpn_change_settled_before_dispatch_restarts`, in
+  `crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs`, hands
+  the negotiated pool a connection whose rejection and ALPN change were
+  already processed, and the request still restarts on a full handshake.
+- `a_post_waits_for_early_data_within_its_own_connect_attempt` holds a POST
+  in pool admission longer than its connect limit; its wait for the early
+  data answer still fits that limit, which counts from its own connection
+  attempt.
 
 Limits:
 

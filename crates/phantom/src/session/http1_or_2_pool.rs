@@ -182,14 +182,19 @@ impl Http1Or2Pool {
 
         loop {
             let connector = restart_connector.as_ref().unwrap_or(connector);
-            // The connect phase starts once the request is admitted; finishing
-            // a TLS handshake that returned early for early data belongs to it.
-            let connect_deadline;
-            let (lease, permit) = match leased.take() {
-                Some(leased) => {
-                    connect_deadline = timeout_budget.phase(TimeoutPhase::Connect, None)?;
-                    (leased.lease, leased.permit)
-                }
+            // Finishing a TLS handshake that returned early for early data
+            // belongs to the connect phase of the attempt that opened the
+            // connection; a raced or reused lease starts a fresh one.
+            let Selected {
+                lease,
+                permit,
+                connect,
+            } = match leased.take() {
+                Some(leased) => Selected {
+                    lease: leased.lease,
+                    permit: leased.permit,
+                    connect: None,
+                },
                 None => {
                     let selection = timeout_budget
                         .run(
@@ -198,7 +203,6 @@ impl Http1Or2Pool {
                             entry.admit_before_selection(),
                         )
                         .await?;
-                    connect_deadline = timeout_budget.phase(TimeoutPhase::Connect, None)?;
                     entry
                         .acquire_selected(
                             connector,
@@ -217,23 +221,28 @@ impl Http1Or2Pool {
             let early_data = EarlyDataConnection::of(&lease);
             let restarts_early_data = restart_connector.is_none();
             if early_data.pending() && !replay_safe {
-                // Waiting here keeps the body unsent if the connection fails,
-                // within the deadline of the connect phase.
-                connect_deadline
+                // Waiting here keeps the body unsent if the connection fails.
+                let connect = match connect {
+                    Some(connect) => connect,
+                    None => timeout_budget.phase(TimeoutPhase::Connect, None)?,
+                };
+                connect
                     .run(async {
                         early_data.answered().await;
                         Ok(())
                     })
                     .await?;
-                if restarts_early_data && early_data.alpn_changed() {
-                    drop((lease, permit));
-                    restart_connector =
-                        Some(restart_without_early_data(&entry, connector, endpoint));
-                    continue;
-                }
-                if let Some(error) = early_data.failure() {
-                    return Err(error);
-                }
+            }
+            // The server may already have rejected the early data and picked
+            // another ALPN protocol, or failed the handshake, before this
+            // request was dispatched.
+            if restarts_early_data && early_data.alpn_changed() {
+                drop((lease, permit));
+                restart_connector = Some(restart_without_early_data(&entry, connector, endpoint));
+                continue;
+            }
+            if let Some(error) = early_data.failure() {
+                return Err(error);
             }
             // Only an HTTP/2 stream can be refused by a graceful GOAWAY.
             let replays_graceful_goaway = graceful_goaway_replayable
@@ -353,7 +362,7 @@ impl Http1Or2Pool {
                 entry.admit_before_selection(),
             )
             .await?;
-        let (lease, permit) = entry
+        let Selected { lease, permit, .. } = entry
             .acquire_selected(
                 connector,
                 https_proxy,
@@ -691,7 +700,7 @@ impl PoolEntry {
         fresh_http1: bool,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
-    ) -> Result<(ConnectionLease, AdmissionPermit), RequestError> {
+    ) -> Result<Selected, RequestError> {
         let mut force_new_connection = fresh_http1;
         // One connect deadline covers each setup attempt: waiting for another
         // request's setup and this request's own. A setup retry starts anew.
@@ -702,11 +711,15 @@ impl PoolEntry {
         loop {
             let slot = match self.connections.before_admission(setup_wait_expired) {
                 BeforeAdmission::Http2 => {
-                    if let Some(admitted) =
+                    if let Some((lease, permit)) =
                         self.try_admit_http2(request_span, timeout_budget).await?
                     {
                         drop(selection);
-                        return Ok(admitted);
+                        return Ok(Selected {
+                            lease,
+                            permit,
+                            connect,
+                        });
                     }
                     continue;
                 }
@@ -775,17 +788,25 @@ impl PoolEntry {
                 Acquired::Http1(lease) => {
                     request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
                     drop(selection);
-                    return Ok((ConnectionLease::Http1(lease), slot));
+                    return Ok(Selected {
+                        lease: ConnectionLease::Http1(lease),
+                        permit: slot,
+                        connect,
+                    });
                 }
                 // An H2 request holds H2 admission, not a slot.
                 Acquired::Http2 => {
                     drop(slot);
                     force_new_connection = false;
-                    if let Some(admitted) =
+                    if let Some((lease, permit)) =
                         self.try_admit_http2(request_span, timeout_budget).await?
                     {
                         drop(selection);
-                        return Ok(admitted);
+                        return Ok(Selected {
+                            lease,
+                            permit,
+                            connect,
+                        });
                     }
                 }
             }
@@ -1706,6 +1727,14 @@ fn restart_without_early_data(
         cached.forget_session_tickets(endpoint.host());
     }
     connector.without_early_data()
+}
+
+/// A connection leased for one request, with the connect phase of the
+/// attempt that opened or awaited it, when there was one.
+struct Selected {
+    lease: ConnectionLease,
+    permit: AdmissionPermit,
+    connect: Option<PhaseTimeout>,
 }
 
 /// One negotiated request, without its body or fields, for either protocol.

@@ -16,6 +16,8 @@ use crate::{
     timeout::TimeoutBudget,
 };
 
+mod early_data;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 fn bound(value: usize) -> Result<NonZeroUsize, Box<dyn std::error::Error>> {
