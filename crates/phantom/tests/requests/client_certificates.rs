@@ -271,7 +271,10 @@ async fn certificate_leaves_the_client_hello_unchanged() -> TestResult<()> {
 /// profile: GREASE values are dropped and extensions sorted by type, because
 /// the Chromium recipes draw GREASE and permute extensions per connection.
 /// Every extension keeps its payload length except those `HelloShape::of`
-/// is told vary per connection.
+/// is told vary per connection. The QUIC transport parameters are decoded
+/// and sorted by identifier, because the Chromium recipe permutes them per
+/// connection, less GREASE parameters, GREASE versions, and the random
+/// `initial_source_connection_id`.
 #[derive(Debug, Eq, PartialEq)]
 struct HelloShape {
     legacy_version: u16,
@@ -285,6 +288,7 @@ struct HelloShape {
     alpn: Vec<Vec<u8>>,
     server_name: Option<Vec<u8>>,
     requested_trust_anchor_ids: Option<Vec<Vec<u8>>>,
+    transport_parameters: Option<Vec<(u64, Vec<u8>)>>,
 }
 
 impl HelloShape {
@@ -323,8 +327,84 @@ impl HelloShape {
             alpn: hello.alpn_protocols().to_vec(),
             server_name: hello.server_name().map(<[u8]>::to_vec),
             requested_trust_anchor_ids: hello.requested_trust_anchor_ids().map(<[_]>::to_vec),
+            transport_parameters: extension_payload(handshake, QUIC_TRANSPORT_PARAMETERS)
+                .map(fixed_transport_parameters)
+                .transpose()?,
         })
     }
+}
+
+/// Returns the payload of the first `extension` in a ClientHello handshake
+/// message.
+fn extension_payload(handshake: &[u8], extension: u16) -> Option<&[u8]> {
+    let u16_at = |offset: usize| -> Option<usize> {
+        Some(usize::from(u16::from_be_bytes([
+            *handshake.get(offset)?,
+            *handshake.get(offset + 1)?,
+        ])))
+    };
+    // Message type and length, legacy_version, and random.
+    let mut offset = 4 + 2 + 32;
+    offset += 1 + usize::from(*handshake.get(offset)?);
+    offset += 2 + u16_at(offset)?;
+    offset += 1 + usize::from(*handshake.get(offset)?);
+    let end = offset + 2 + u16_at(offset)?;
+    offset += 2;
+    while offset < end {
+        let kind = u16::try_from(u16_at(offset)?).ok()?;
+        let length = u16_at(offset + 2)?;
+        let payload = handshake.get(offset + 4..offset + 4 + length)?;
+        if kind == extension {
+            return Some(payload);
+        }
+        offset += 4 + length;
+    }
+    None
+}
+
+/// Decodes QUIC transport parameters (RFC 9000, section 18) and sorts them
+/// by identifier, dropping reserved (GREASE) identifiers,
+/// `initial_source_connection_id`, and the reserved versions in
+/// `version_information` (RFC 9368), all of which are random per connection.
+fn fixed_transport_parameters(mut encoded: &[u8]) -> TestResult<Vec<(u64, Vec<u8>)>> {
+    const INITIAL_SOURCE_CONNECTION_ID: u64 = 0x0f;
+    const VERSION_INFORMATION: u64 = 0x11;
+    let mut parameters = Vec::new();
+    while !encoded.is_empty() {
+        let (id, id_length) = decode_varint(encoded).ok_or("truncated parameter id")?;
+        encoded = &encoded[id_length..];
+        let (length, length_length) = decode_varint(encoded).ok_or("truncated parameter length")?;
+        encoded = &encoded[length_length..];
+        let length = usize::try_from(length)?;
+        let value = encoded.get(..length).ok_or("truncated parameter value")?;
+        let reserved = id >= 27 && (id - 27).is_multiple_of(31);
+        if id == VERSION_INFORMATION {
+            let versions = value
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .filter(|version| u32::from_be_bytes(**version) & 0x0f0f_0f0f != 0x0a0a_0a0a)
+                .flatten()
+                .copied()
+                .collect();
+            parameters.push((id, versions));
+        } else if !reserved && id != INITIAL_SOURCE_CONNECTION_ID {
+            parameters.push((id, value.to_vec()));
+        }
+        encoded = &encoded[length..];
+    }
+    parameters.sort_unstable();
+    Ok(parameters)
+}
+
+fn decode_varint(encoded: &[u8]) -> Option<(u64, usize)> {
+    let first = *encoded.first()?;
+    let length = 1_usize << (first >> 6);
+    let rest = encoded.get(1..length)?;
+    let value = rest.iter().fold(u64::from(first & 0x3f), |value, byte| {
+        (value << 8) | u64::from(*byte)
+    });
+    Some((value, length))
 }
 
 #[tokio::test]
@@ -395,7 +475,8 @@ async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestRe
                 .map_err(|_| "unexpected server handshake data")?;
             // BoringSSL draws the GREASE ECH payload length per connection,
             // and Chromium's QUIC transport parameters carry a GREASE
-            // parameter of random length.
+            // parameter of random length, so the extension's length varies;
+            // its decoded parameters are compared instead.
             HelloShape::of(
                 data.client_hello(),
                 &[QUIC_TRANSPORT_PARAMETERS, ENCRYPTED_CLIENT_HELLO],
