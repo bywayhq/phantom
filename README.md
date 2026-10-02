@@ -45,8 +45,11 @@ Exceptions to that list:
 - Edge for Android has no WebSocket opening recipe.
 - Opera for Android has only TLS and client-hint recipes, and Firefox for
   Android only a TLS recipe.
-- Only desktop Chrome, Brave, and Firefox have TCP socket options, taken from
-  browser source, and Firefox's recipe sets only `TCP_NODELAY`.
+- Only the desktop browsers have TCP socket options: Chrome and Brave from
+  browser source, Edge, Opera, and Firefox from hook logs of their own
+  socket calls. Firefox's recipe leaves out its IPv4 backup connection, the
+  slower connection it keeps, and the address family it remembers per
+  origin.
 
 Most recipes come from captures on Windows 11 for the desktop builds, with
 some client-hint and request-template recipes also from macOS, and on Android

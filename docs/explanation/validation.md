@@ -39,6 +39,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests | As for Chrome for Android; no WebSocket opening recipe, and no resumption or proxy capture |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, Brave's included, plus socket read-back tests | No wire capture confirms the options; field trials cannot be ruled out |
 | [Socket hooks](#socket-hook-evidence) | Hook logs of Chrome 154, Edge 154, and Opera 136 on Windows: socket options, address racing, connections per origin, idle reuse, and lookups, replayed against the Chromium recipes | One run per scenario on one Windows host; loopback origins only |
+| [Firefox socket hooks](#firefox-socket-hook-evidence) | Hook logs and MOZ_LOG lines of Firefox 157.0 on Windows: socket options, keepalive over each connection's life, the IPv4 backup connection the recipe leaves out, and lookups, replayed against `firefox::v157_tcp` | One to five runs per scenario on one Windows host; loopback origins only |
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
@@ -1715,10 +1716,12 @@ Limits:
 ### TCP socket option evidence
 
 What is claimed: `chromium::v154_tcp` and `firefox::v157_tcp` set the socket
-options, and `chromium::v154_tcp` races addresses, as those browsers do at the
-profiled release tags. `chromium::v154_tcp` does the same for Brave 154, and
-for Edge 154 and Opera 136, whose hook logs match Chrome 154's
-([Socket hook evidence](#socket-hook-evidence)).
+options and keepalive, and `chromium::v154_tcp` races addresses, as those
+browsers do at the profiled release tags. `chromium::v154_tcp` does the same
+for Brave 154, and for Edge 154 and Opera 136, whose hook logs match Chrome
+154's ([Socket hook evidence](#socket-hook-evidence)). Firefox 157's own hook
+logs confirm `firefox::v157_tcp` on Windows
+([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
 
 Evidence: a capture cannot show socket options, so the TCP recipes rest on
 browser source. The socket-option and Happy Eyeballs default citations are to
@@ -1731,7 +1734,8 @@ encode were.
 | Recipe | Source behavior |
 | --- | --- |
 | `chromium::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). |
-| `firefox::v157_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1454`). |
+| `firefox::v157_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` and, on Windows, a 524,288-byte send buffer on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1465`, `netwerk/base/nsSocketTransportService2.cpp:1536-1538`). Each HTTP/1 transaction starts short-lived keepalive (10 s idle, `network.http.tcp_keepalive.short_lived_idle_time`) with an interval of the connection's setup time in whole seconds, at least one, and arms a switch to the long-lived 600 s (`netwerk/protocol/http/nsHttpConnection.cpp:686`, `:2126-2241`; `modules/libpref/init/all.js:1263-1270`). The switch comes 60 s, less the remainder modulo the idle time, plus 10 probe intervals and 2 s later on Windows (`nsHttpConnection.cpp:2167-2190`, `netwerk/base/nsSocketTransportService2.h:63-70`), and is skipped for an idle pooled connection (`:1411-1414`). HTTP/2 disables keepalive (`:405-406`, `:2243-2262`), and taking the transport for an upgrade switches at once (`:1303-1320`). |
+| Firefox address selection, not in `firefox::v157_tcp` | Release builds keep Happy Eyeballs behind the nightly-only `network.http.happy_eyeballs_enabled` (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). `DnsAndConnectSocket` arms a 250 ms backup timer once the primary attempt is connecting (`modules/libpref/init/all.js:1205`; `netwerk/protocol/http/DnsAndConnectSocket.cpp:242-265`, `:307-329`); without a learned family the backup resolves IPv4 only (`all.js:1237`; `DnsAndConnectSocket.cpp:179-186`, `:222-225`). An attempt moves to its next address only after a refused, unreachable, or timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`), and a primary attempt that ends before the timer cancels it (`DnsAndConnectSocket.cpp:267-277`). |
 | `chromium::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
 Differences from the browsers:
@@ -1743,13 +1747,14 @@ Differences from the browsers:
 - Chromium on macOS sets only the keepalive idle time
   (`net/socket/tcp_socket_posix.cc:101-105`), and Android and iOS builds
   enable no keepalive. `chromium::v154_tcp` describes Windows and Linux; a
-  macOS profile sets `TcpKeepalive::interval` to `None`.
-- Firefox's keepalive is not modeled. It changes per HTTP connection: a
-  10-second idle time for about the first 60 seconds of an HTTP/1 connection,
-  then 600 seconds, with an RTT-derived probe interval, and none after HTTP/2
-  negotiation (`netwerk/protocol/http/nsHttpConnection.cpp:405-406`,
-  `:2126-2241`; `modules/libpref/init/all.js:1262-1270`).
-  `firefox::v157_tcp` leaves `SO_KEEPALIVE` at the operating-system default.
+  macOS profile sets the interval of its `TcpKeepalivePolicy::Fixed` to
+  `None`.
+- Firefox applies keepalive after connecting, where Phantom's fixed
+  keepalive and Chromium apply it before; no packet shows the difference.
+  On macOS Firefox sets only the idle time and assumes 8 probes, and on
+  Linux and Android it also sets `TCP_KEEPCNT` to 4
+  (`netwerk/base/nsSocketTransport2.cpp:3311-3401`); Phantom's schedule sets
+  the interval wherever the host can and never a probe count.
 - Brave 1.96.59 builds Chromium tag `154.0.8037.58` and changes none of
   the values above, so it uses `chromium::v154_tcp`
   ([Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes)).
@@ -1765,15 +1770,19 @@ Differences from the browsers:
   (`net/quic/quic_session_pool_direct_job.cc:219-221`), so racing is not
   applied to HTTP/3, and Phantom's H3 connector keeps trying later addresses
   after a connection failure.
-- Firefox's address selection is not modeled. Release builds keep its Happy
-  Eyeballs implementation behind a nightly-only pref
-  (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). The release path
-  opens an IPv4-only backup connection after 250 ms
-  (`modules/libpref/init/all.js:1205`, `:1237`;
-  `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`) and orders the
-  primary connection's addresses using per-host family preferences and DNS
-  failure history (`DnsAndConnectSocket.cpp:170-178`,
-  `netwerk/base/nsSocketTransport2.cpp:1742-1745`, `:1785-1787`).
+- Firefox's address selection is not modeled. It keeps the slower of its
+  two attempts' connections and pools it
+  (`netwerk/protocol/http/DnsAndConnectSocket.cpp:695-743`), records the
+  address family of each connection to an origin and resolves only that
+  family afterwards (`:167-178`, `:1150-1164`), and skips addresses that
+  failed before on the same DNS record
+  (`netwerk/base/nsSocketTransport2.cpp:1742-1745`). `TcpBackupConnection`
+  opens the backup but closes the slower attempt, so `firefox::v157_tcp`
+  tries the addresses one at a time. It does move to the next address only
+  after a refused, unreachable, or timed-out connect, with
+  `TcpAddressAdvance::AfterRefusalOrTimeout`
+  (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`)
+  ([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:
@@ -1785,6 +1794,11 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `tcp::tests::host_check_*` | The build-time host check for every combination of platform capabilities. The facade rejects a Windows keepalive without an interval as `BuildErrorKind::InvalidProfile` |
 | `tcp::tests::connected_socket_carries_requested_options` | `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time and interval. Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values |
 | `tcp::tests::paths` | Options on every socket opened by the direct, forward proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths |
+| `tcp::backup_connection::tests` | With scripted attempt outcomes and a test-controlled delay: no backup for a fast primary, an IPv4-only backup that can win, the next address only after a refused, unreachable, or timed-out connect, no backup after an early primary failure or for an IPv6-only host, and the returned error |
+| `tcp::keepalive_schedule::tests` | The interval from the setup time, the 72 s switch of `firefox::v157_tcp`, and the phases applied for an opened connection, HTTP/2, an upgrade, a reused connection, and, on a four-second schedule, an active against an idle connection and a switch moved later by a second request |
+| `tcp::tests::keepalive_paths` | The phases a Firefox profile's connection goes through, and its idle state after each response, on plaintext HTTP/1.1 requests, a `101` upgrade, HTTP/1.1 or HTTP/2 chosen by ALPN, and an HTTP/2 connection to an HTTPS proxy; a Chromium profile opens no schedule; the send buffer is set before connecting |
+| `tcp::tests::a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium` | With scripted outcomes: a reset connect ends the Firefox recipe's sequential attempt at the first address, while the default sequential selection and the Chromium recipe's racing try the next |
+| `tcp::tests::address_selection` | Over loopback, with `[::1]` refused: every selection reaches IPv4; on Windows, where the refusal takes about two seconds, a 250 ms backup connects after 250 ms and the Chromium profile's second attempt after 300 ms, and with two IPv6 addresses only racing takes the second early |
 | `profile_tcp_settings_reach_every_tcp_connector` (facade) | A profile's settings reach each TCP connector the client builds, including the WebSocket HTTP/1.1 connector |
 
 How to reproduce: read the cited files at the tags above, and run the listed
@@ -2001,7 +2015,10 @@ Differences from the browsers:
   (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`), and a negative
   answer for its SOA TTL (`:907-908`). Firefox asks Windows for the record
   TTL (`network.dns.get-ttl`,
-  `modules/libpref/init/StaticPrefList.yaml:15663-15671`). Phantom resolves
+  `modules/libpref/init/StaticPrefList.yaml:15663-15671`), and its hook logs
+  show it kept a 1,757-second TTL, so connections opened 33, 68, and 98 s
+  after the first needed no lookup
+  ([Firefox socket hook evidence](#firefox-socket-hook-evidence)). Phantom resolves
   through the operating system, which reports no TTL, so it follows the
   browsers' rule for an answer without one.
 - Firefox serves an expired answer for up to
@@ -2193,6 +2210,136 @@ Limits:
 - Field trials can change these values for some users of branded builds;
   the captures ran with each browser's default configuration on a fresh
   profile.
+
+### Firefox socket hook evidence
+
+What is claimed: on Windows 11, Firefox 157.0 sets `TCP_NODELAY` and a
+524,288-byte `SO_SNDBUF` before it connects, changes keepalive over each
+connection's life as `firefox::v157_tcp`'s `TcpKeepaliveSchedule` does, and
+opens an IPv4 backup attempt 250 ms after a first attempt that has not
+connected, whose slower connection it keeps; the recipe leaves the backup
+out.
+
+Evidence: hook logs, the evidence class of
+[Socket hook evidence](#socket-hook-evidence), retained under
+[`fixtures/socket-hooks/firefox/`](../../fixtures/socket-hooks/firefox/) and
+written by
+[`firefox_socket_hooks.py`](../../scripts/capture/README.md#firefox-socket-hooks).
+Firefox opens its HTTP connections in its parent process, so the tool loads
+`socket_hooks.js`, unchanged, and the extension
+`scripts/capture/firefox_socket_hooks.js` into that process. It attaches after
+the first page request rather than at spawn: Firefox's launcher process marks
+itself failed when it starts under Frida, and Firefox then runs without it.
+The page waits until the hooks report ready before it reaches the measured
+origin, `127.0.0.1.nip.io` on a second loopback port. Firefox's own MOZ_LOG
+(`nsSocketTransport`, `nsHttp`, `nsHostResolver`, `GetAddrInfo`) ran beside
+the hooks, and each log keeps the lines about the measured origin as a
+cross-check. Each log names the agent, the extension, the tool, and the
+decoders it reuses by their SHA-256, and `test_firefox_socket_hooks.py` fails
+when any differs.
+
+On 2026-10-02 Firefox 157.0 (build 20260924084938) ran each scenario on a
+fresh headless profile with Frida 17.9.10: `h2` and `websocket` twice,
+`backup` five times, and `http1-long`, `http1-idle`, and `dns-cache` once,
+in 10 minutes of wall clock. The socket options came from `nss3.dll` (NSPR,
+through `WSOCK32.dll`) and the keepalive calls from `xul.dll`.
+
+| Behavior | Firefox 157.0 | `firefox::v157_tcp` |
+| --- | --- | --- |
+| Options before `connect`, on all 36 sockets to the origin | `TCP_NODELAY` 1; `SO_SNDBUF` 524,288; `SO_LINGER` on, 0 s | `TCP_NODELAY`, `SO_SNDBUF` 524,288; no `SO_LINGER` |
+| Keepalive on a connection opened for a request | Within 10 ms of `connect`: `SIO_KEEPALIVE_VALS` off, then on with 10,000 ms and 1,000 ms, then `SO_KEEPALIVE` 1. MOZ_LOG: `idle time[10s] retry interval[1s] packet count[10]` | 10 s idle and a 1 s interval once the socket connects |
+| A response that took 85 s (`http1-long`) | `SIO_KEEPALIVE_VALS` on with 600,000 ms and 1,000 ms, 72.04 s after the first | The switch 72 s after the request |
+| A pooled connection with requests at 0 and 99 s (`http1-idle`) | Stayed at 10 s; the second request made no call (MOZ_LOG: `already 10s`). Firefox closed it 115.5 s after the second response with `shutdown(SD_BOTH)`, and the origin read a FIN | Stays short-lived; Phantom's idle close is not Firefox's |
+| HTTP/2 (`h2`) | 2 to 7 ms after keepalive went on: `SIO_KEEPALIVE_VALS` off and `SO_KEEPALIVE` 0 | Off once ALPN selects `h2` |
+| WebSocket (`websocket`) | 600,000 ms 2 and 7 ms after `connect`, as the 101 arrived | Long-lived at the upgrade |
+| `[::1]` refused slowly, `127.0.0.1` listening (`backup`, five runs) | `127.0.0.1` attempt 254 to 260 ms after the `[::1]` one; `[::1]` refused (10061) 2,040 to 2,046 ms in, then the first attempt tried `127.0.0.1` | Addresses in order, the next after a refusal; the backup is not modeled |
+| The first attempt's `127.0.0.1` connection | Kept, carried a request 2.9 s later, and got a 2,000 ms interval, its setup time | Not modeled: dropped |
+| Later connections to the origin, also after it closed them all | `127.0.0.1` alone; MOZ_LOG `SetupDnsFlags flags=8224` (IPv6 disabled) | Not modeled: both families |
+| `getaddrinfo` hints | `AI_CANONNAME`, `AF_UNSPEC` or `AF_INET`, no `AI_ADDRCONFIG` | The operating system's resolver, without `AI_ADDRCONFIG` |
+| Lookups for connections opened 0, 33, 68, and 98 s in (`dns-cache`) | Lookups in the first 31 ms only; `DnsQuery_A` read a TTL of 1,757 s and MOZ_LOG cached the answer that long | Not modeled: 60 s |
+
+The `backup` scenario makes `getaddrinfo` resolve `localhost`, which Windows
+answers with `[::1]` then `127.0.0.1`, in place of `127.0.0.1.nip.io`; the
+log names the change in `hook_intervention`. Without the rewrite the name
+has only an IPv4 address. A refused loopback connect takes about two seconds
+on Windows, so the `[::1]` attempt stays pending past the backup timer
+without any further change. The scenario's later steps fetch three `/slow`
+requests at once while the origin still had both connections, then one more
+after the origin closed every connection.
+
+These results reproduce Firefox source at `FIREFOX_157_0_RELEASE`, cited in
+[TCP socket option evidence](#tcp-socket-option-evidence). The switch time
+is the source's `60 + 10 × 1 - 60 % 10 + 2` seconds for Windows' fixed
+count of 10 probes and a one-second interval, and the kept connection's
+two-second interval is its setup time in whole seconds
+(`netwerk/protocol/http/nsHttpConnection.cpp:2146`,
+`netwerk/protocol/http/DnsAndConnectSocket.cpp:941`, `:1134-1138`).
+
+Differences from the browser:
+
+- Firefox opens the IPv4 backup and keeps the slower attempt's connection,
+  finishes its TLS handshake, and pools it. `TcpBackupConnection` would
+  close that attempt mid-connect, which a server sees as a connection ended
+  without a request, so `firefox::v157_tcp` tries the addresses one at a
+  time.
+- Firefox remembers the address family of an origin's connections and
+  resolves only that family for later ones, until its connection entry is
+  removed, which happens at a prune after the origin has no connection
+  (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). A trial run
+  before the retained ones, with the later request 2 s after the origin
+  closed every connection, tried `[::1]` again. Phantom tries both families
+  on every connection.
+- `SO_LINGER` `{1, 0}` makes a bare `closesocket` abortive, but Firefox
+  shuts the socket down with `SD_BOTH` first
+  (`netwerk/base/ShutdownLayer.cpp:33`). The one close Firefox made while
+  the origin listened, in `http1-idle`, reached the origin as a FIN, as a
+  close from Phantom does; every other close in the logs was the origin's
+  own or the end of the run. A loopback check on the capture host, which is
+  not retained, gave the same FIN for a client that shuts down and closes
+  with `{1, 0}`.
+- Firefox closed the idle `http1-idle` connection 115.5 s after its last
+  response, its `network.http.keep-alive.timeout` of 115 s;
+  `firefox::v157_http1` sets no idle limit
+  ([HTTP/1.1 connection bound evidence](#http11-connection-bound-evidence)).
+- Firefox keeps an answer for its record TTL on Windows; see
+  [Address cache evidence](#address-cache-evidence).
+
+Tests in `crates/phantom-profile/src/firefox/hook_tests.rs` read the
+retained logs:
+
+| Test | What it checks |
+| --- | --- |
+| `firefox_sockets_set_nodelay_and_the_send_buffer_before_connecting` | Every origin socket set the recipe's `TCP_NODELAY` and send buffer, then `SO_LINGER` `{1, 0}`, before connecting |
+| `firefox_starts_short_lived_keepalive_as_a_connection_opens` | Every connection that carried a request got the recipe's short-lived idle time and one-second interval within 50 ms of connecting |
+| `firefox_switches_an_active_connection_to_long_lived_keepalive` | The 85 s response switched to the recipe's long-lived idle time between 72 and 72.5 s after the first keepalive call, the schedule's switch time |
+| `firefox_keeps_an_idle_pooled_connection_short_lived` | The pooled connection carried two requests and never left the short-lived idle time |
+| `firefox_turns_keepalive_off_after_http2` | Each HTTP/2 connection turned keepalive off within 100 ms and never on again |
+| `firefox_switches_a_websocket_connection_to_long_lived_at_once` | Each WebSocket connection got the long-lived idle time within 100 ms |
+| `firefox_starts_an_ipv4_backup_250_ms_after_a_slow_first_attempt` | Not modeled: in all five runs the IPv4 attempt started 250 to 310 ms after the `[::1]` one, and the first attempt moved to `127.0.0.1` when `[::1]` was refused; the recipe tries addresses in order |
+| `firefox_keeps_the_slower_connection_with_its_setup_time_interval` | Not modeled: the slower connection carried a later request with a two-second interval |
+| `firefox_remembers_the_address_family_of_an_origin` | Not modeled: every later connection went to `127.0.0.1` alone |
+| `firefox_resolves_without_ai_addrconfig` | Every `getaddrinfo` call passed `AI_CANONNAME` alone |
+| `firefox_keeps_an_answer_for_its_record_ttl` | Not modeled: no lookup after the first second, and a TTL longer than the 95 s of fetches |
+
+How to reproduce: run `firefox_socket_hooks.py` with the command in the
+[capture README](../../scripts/capture/README.md#firefox-socket-hooks) for
+each scenario, then the tests above.
+
+Limits:
+
+- One Windows 11 host and one to five runs per scenario. No macOS or Linux
+  log exists; there Firefox sets keepalive differently
+  ([TCP socket option evidence](#tcp-socket-option-evidence)).
+- The hooks attach after Firefox has started, so they miss the sockets of
+  its first page load; every measured connection opened after they attached.
+- The `backup` timing rests on a rewritten lookup answer and on Windows'
+  slow refusal of a loopback connect; no remote dual-stack host was used.
+- No packet capture shows the keepalive probes themselves; the logs show the
+  values Firefox gave Windows.
+- Phantom applies a keepalive change before the connection's next read or
+  write. Firefox applies it when the event happens, so a Phantom
+  connection that nobody reads or writes, such as an upgraded stream before
+  its first frame, takes it later.
 
 ### Plaintext origin trust evidence
 

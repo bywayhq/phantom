@@ -61,9 +61,9 @@ recaptured and reverified.
   [Coverage](coverage.md#browser-profiles) gives the exact builds and how the
   recipes differ.
 - TCP recipes are not in the table, because socket options do not appear in
-  a capture. `chromium::v154_tcp` and `firefox::v157_tcp` come from the
-  browsers' source code at the profiled release tags, and the Chromium one
-  also serves Brave ([TCP socket options](#tcp-socket-options)).
+  a capture. `chromium::v154_tcp` comes from Chromium source and
+  `firefox::v157_tcp` from Firefox 157 socket hook logs and source; the
+  Chromium one also serves Brave ([TCP socket options](#tcp-socket-options)).
 - HTTP/1.1 connection recipes are not in the table either, for the same
   reason. `chromium::v154_http1` and `firefox::v157_http1` come from browser
   source ([HTTP/1.1 connections](#http11-connections)).
@@ -109,32 +109,63 @@ with `opera::v136_tls` it presents a mixed identity.
 
 ## TCP socket options
 
-`TcpSettings` applies before connect to every TCP socket the client opens: to
-origins, to HTTP, HTTPS, and SOCKS5 proxies, and for the control connection
-of a SOCKS5 UDP association. It also decides how the client tries a host's
+`TcpSettings` applies to every TCP socket the client opens: to origins, to
+HTTP, HTTPS, and SOCKS5 proxies, and for the control connection of a SOCKS5
+UDP association. It sets socket options before connecting, keepalive before
+connecting or over the connection's life, and how the client tries a host's
 resolved addresses.
 
-| Recipe | `TCP_NODELAY` | Keepalive idle and interval | Address order |
-| --- | --- | --- | --- |
-| None (no `with_tcp`) | OS default | OS default | One at a time, resolver order |
-| `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
-| `firefox::v157_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
-| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
-| Android browsers | Not covered | Not covered | Not covered |
+| Recipe | `TCP_NODELAY` | `SO_SNDBUF` | Keepalive | Address order |
+| --- | --- | --- | --- | --- |
+| None (no `with_tcp`) | OS default | OS default | OS default | One at a time, resolver order |
+| `chromium::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
+| `firefox::v157_tcp` | Set (Nagle off) | 524,288 bytes, as Firefox on Windows | Scheduled: 10 s idle, then 600 s; off for HTTP/2 | One at a time, resolver order; the next only after a refused, unreachable, or timed-out connect |
+| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
+| Android browsers | Not covered | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
   second one starts, so one attempt prefers each family. `TcpAddressRacing`
   documents the full behavior.
-- Chromium on macOS sets only the idle time; for that platform, set
-  `TcpKeepalive::interval` to `None`.
-- Firefox's keepalive schedule and address selection are not modeled.
+- Chromium on macOS sets only the idle time; for that platform, set the
+  interval of `TcpKeepalivePolicy::Fixed` to `None`.
+- Firefox's schedule (`TcpKeepalivePolicy::Schedule`): a connection gets a
+  10-second idle time and a probe interval of its setup time in whole
+  seconds, at least one, once it connects and again with each HTTP/1
+  request. A request still running 72 s later (with a one-second interval)
+  moves the connection to 600 s; a connection idle in the pool keeps 10 s.
+  HTTP/2 turns keepalive off, and an upgrade, such as WebSocket, moves to
+  600 s at once. `TcpKeepaliveSchedule` documents the rule.
+- `TcpAddressSelection::Backup` (`TcpBackupConnection`): the first attempt
+  tries every address in resolver order and moves on only after a refused,
+  unreachable, or timed-out connect; after the delay, while it has not
+  connected, a backup attempt tries the IPv4 addresses. The first
+  connection wins and the slower attempt's socket is closed, so a server
+  that already answered its SYN sees a connection end without a request.
+  Firefox opens that backup 250 ms in but keeps the slower connection and
+  pools it, so `firefox::v157_tcp` does not use it.
+- `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
+  `AfterAnyFailure`, the default, moves to the next address after any
+  failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
+  only after a refused, unreachable, or timed-out connect, as Firefox does;
+  any other failure, such as a reset, ends the connect.
+- Firefox sets `SO_SNDBUF` on Windows only. On Linux a fixed send buffer
+  turns off the kernel's send buffer autotuning, so clear
+  `send_buffer_size` for a profile used off Windows.
+- Not modeled for Firefox: its IPv4 backup connection and the slower
+  connection it keeps, the address family it remembers for an origin, its
+  `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is), and
+  the probe counts of macOS and Linux.
 - Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
 - Edge's and Opera's network source is not public. Frida hook logs of Edge
   154.0.4258.48 and Opera 136.0.6008.52 on Windows 11 show the options and
   the 300 ms fallback of `chromium::v154_tcp`, as Chrome 154's do
   ([Validation](../explanation/validation.md#socket-hook-evidence)).
+- Frida hook logs of Firefox 157.0 on Windows 11 show the options and the
+  keepalive changes of `firefox::v157_tcp`, and the backup connection it
+  leaves out
+  ([Validation](../explanation/validation.md#firefox-socket-hook-evidence)).
 - Chrome, Edge, and Opera on Windows 11 also set `SO_RANDOMIZE_PORT` on
   each TCP socket before connecting, and Chrome and Edge fail a refused
   loopback connect at once with `SIO_TCP_INITIAL_RTO`. No recipe sets either
@@ -145,7 +176,10 @@ resolved addresses.
 | Rule | Value or outcome |
 | --- | --- |
 | Keepalive idle time and interval | Whole seconds, 1 to 32,767 |
-| Racing fallback delay | Nonzero, at most 10 seconds |
+| Schedule short-lived time | Whole seconds, 1 to 300 |
+| Schedule probe count | 1 to 127 |
+| Send buffer size | 1 to 2,147,483,647 bytes |
+| Racing fallback delay, backup delay | Nonzero, at most 10 seconds |
 | Setting the host cannot apply | `ClientBuilder::build` fails with `BuildErrorKind::InvalidProfile` |
 | Windows | Sets idle and interval together, so requires an interval |
 | OpenBSD, Haiku, Vita | Cannot set an idle time; some other platforms cannot set an interval |

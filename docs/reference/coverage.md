@@ -20,7 +20,7 @@ presented as a complete client match.
 | Edge 154 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 136 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Firefox 157 | Browser source, partial | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Not sent by Firefox | Captured, 157.0 | Captured, 157.0 |
+| Firefox 157 | Hook logs, partial | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Not sent by Firefox | Captured, 157.0 | Captured, 157.0 |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
@@ -31,11 +31,14 @@ presented as a complete client match.
   [request template](glossary.md#request-template) is compared in tests with
   retained [captures](glossary.md#capture) of that browser build.
 - **Browser source**: taken from the browser's source code at the release tag,
-  because a capture cannot show it. Firefox's recipe sets `TCP_NODELAY` only.
+  because a capture cannot show it.
 - **Hook logs**: the browser's own Winsock and resolver calls, recorded as a
-  [hook log](glossary.md#hook-log) inside its network service process, match
-  the Chromium recipe, so the browser uses `chromium::v154_tcp` (see
-  [Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
+  [hook log](glossary.md#hook-log) inside the process that opens its
+  connections, match the recipe: `chromium::v154_tcp` for Edge and Opera
+  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)),
+  `firefox::v157_tcp` for Firefox
+  ([Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
+  "Partial" means the logs show behavior the recipe leaves out.
 - **Not covered**: no recipe exists, and none is claimed.
 - **Captured, 157.0**: the build of Firefox's Windows captures. Its macOS
   captures, which also back the TLS, H2, request template, and WebSocket
@@ -106,7 +109,7 @@ connection is not enough.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, keepalive, and Chromium Happy Eyeballs from browser source, on every TCP path | Firefox keepalive and address selection |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, and Chromium Happy Eyeballs, on every TCP path | Firefox's backup connection, kept slower connection, and per-origin address family |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
@@ -125,21 +128,39 @@ glossary.
 
 Supported:
 
-- Profile TCP socket options (`ClientProfile::with_tcp`): `TCP_NODELAY`, and
-  keepalive idle time and interval. Phantom applies them before connecting, on
-  every TCP connection, including proxy connections and SOCKS5 UDP control
-  connections. If the OS rejects an option, that connection attempt fails.
+- Profile TCP socket options (`ClientProfile::with_tcp`): `TCP_NODELAY`,
+  `SO_SNDBUF`, and a fixed keepalive idle time and interval. Phantom applies
+  them before connecting, on every TCP connection, including proxy
+  connections and SOCKS5 UDP control connections. If the OS rejects an
+  option, that connection attempt fails.
+- A keepalive schedule (`TcpKeepaliveSchedule`), applied after connecting:
+  short-lived keepalive from each HTTP/1 request, long-lived once a request
+  outlasts the short-lived period or the connection is upgraded, and none
+  once HTTP/2 is negotiated, as Firefox sets it.
 - Profile address racing (`TcpAddressRacing`): Chromium's Happy Eyeballs v2
   over the complete resolver result. At most two attempts run at once, the
   losing attempt is cancelled, and the most recent failure is returned.
-- The recipes `chromium::v154_tcp` (Windows and Linux) and
-  `firefox::v157_tcp` (`TCP_NODELAY` only, attempts in resolver order), both
-  taken from browser source. See
-  [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+- A backup connection (`TcpBackupConnection`) for custom profiles: an IPv4
+  attempt that starts while a first attempt in resolver order has not
+  connected. The losing attempt is closed, which Firefox does not do, so no
+  recipe uses it.
+- The recipes `chromium::v154_tcp` (Windows and Linux), taken from browser
+  source, and `firefox::v157_tcp` (Windows), taken from hook logs and source.
+  See
+  [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence)
+  and
+  [Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence).
 
 Not modeled:
 
-- Firefox's per-connection keepalive schedule and its address selection.
+- Firefox's address selection: an IPv4 backup attempt 250 ms after a slow
+  first one, whose slower connection Firefox keeps, finishes its TLS
+  handshake, and pools, and the address family that worked for an origin,
+  which it resolves alone for later connections while the origin's
+  connection entry lasts. `firefox::v157_tcp` tries the addresses one at a
+  time.
+- Firefox's keepalive on macOS (idle time only) and on Linux and Android
+  (`TCP_KEEPCNT` of 4) as named recipes.
 - Chromium's macOS idle-only keepalive as a named recipe.
 - Chromium's resolver behavior before racing: its own address sorting, IPv6
   reachability probe, partial DNS results, and HTTPS records fetched with the

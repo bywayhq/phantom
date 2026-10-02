@@ -149,8 +149,10 @@ HTTP/1.1, HTTP/2, and HTTP/3.
 ## Happy Eyeballs
 
 Connecting to IPv6 and IPv4 addresses in a staggered race. Phantom's
-`TcpAddressRacing` reproduces Chromium's Happy Eyeballs v2. See
-[TCP](coverage.md#tcp).
+`TcpAddressRacing` reproduces Chromium's Happy Eyeballs v2.
+`TcpBackupConnection` opens the IPv4 backup attempt of Firefox's release
+builds but closes the slower attempt, which Firefox keeps.
+See [TCP](coverage.md#tcp).
 
 ## Headless
 
@@ -160,8 +162,9 @@ runs marked headful used a visible window.
 ## Hook log
 
 A record of the calls a named browser build made into the operating
-system's socket and resolver interfaces, taken from inside its network
-service process with Frida. It shows socket options, failed connection
+system's socket and resolver interfaces, taken with Frida from inside the
+process that opens its connections: a Chromium browser's network service,
+or Firefox's parent process. It shows socket options, failed connection
 attempts, and lookups answered from a cache, which a
 [capture](#capture) cannot. See
 [Socket hook evidence](../explanation/validation.md#socket-hook-evidence).

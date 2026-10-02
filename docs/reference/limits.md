@@ -143,8 +143,8 @@ closes, or sends; the last column says which.
 | HTTPS record result lifetime | Answer TTL, at most 1 day; 60 seconds without one | Phantom | Not configurable | Resolver only |
 | HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
-| TCP address-racing fallback delay | 300 ms in `chromium::v154_tcp`; Firefox recipe tries addresses in order | Chromium 154 source | `TcpSettings::address_racing` | Yes |
-| TCP keepalive idle and interval | 45 seconds in `chromium::v154_tcp`; unset for Firefox | Chromium 154 source | `TcpSettings::keepalive` | Yes |
+| TCP second-attempt delay | 300 ms racing in `chromium::v154_tcp`; none in `firefox::v157_tcp`, which tries addresses in order | Chromium 154 source | `TcpSettings::address_selection` | Yes |
+| TCP keepalive idle and interval | 45 seconds and 45 seconds in `chromium::v154_tcp`; 10 seconds, then 600 seconds, with the setup time as interval, in `firefox::v157_tcp` | Chromium 154 source; Firefox 157 hook logs | `TcpSettings::keepalive` | Yes |
 | Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`; no limit for Firefox or without a recipe | Chromium 154 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
 | HTTP/2 idle PING | None sent | Phantom | Not configurable | No |
@@ -194,8 +194,11 @@ order and the differences from Chromium.
 | zstd window | 8 MiB |
 | Decoded data frame size | 16 KiB |
 | TCP keepalive idle time and interval | Whole seconds, 1 to 32,767 |
-| TCP address-racing fallback delay | Nonzero, at most 10 seconds |
-| Concurrent TCP attempts per connection with address racing | 2 |
+| TCP keepalive schedule short-lived time | Whole seconds, 1 to 300 |
+| TCP keepalive schedule probe count | 1 to 127 |
+| TCP send buffer size | 1 to 2,147,483,647 bytes |
+| TCP racing fallback delay and backup delay | Nonzero, at most 10 seconds |
+| Concurrent TCP attempts per connection with address racing or a backup | 2 |
 | Pool keys remembered as having selected HTTP/2 through negotiation, per client | 500, least recently used evicted |
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each

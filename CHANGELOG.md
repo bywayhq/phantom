@@ -30,7 +30,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   (with a one-second probe interval) or the connection was upgraded; and
   none after HTTP/2 is negotiated. Before, it set no keepalive. It still
   tries the addresses one at a time, but now moves to the next only after a
-  refused, unreachable, or timed-out connect, as Firefox does.
+  refused, unreachable, or timed-out connect, as Firefox does
+  ([evidence](docs/explanation/validation.md#firefox-socket-hook-evidence)).
   `chromium::v154_tcp` keeps its behavior.
   Migrate: replace `keepalive: Some(keepalive)` with `keepalive:
   TcpKeepalivePolicy::Fixed(keepalive)` and `keepalive: None` with

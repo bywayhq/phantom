@@ -183,8 +183,8 @@ fn wide_window_profile() -> ClientProfile {
 
 The window is part of the H2 fingerprint
 ([How servers recognize a client](../fingerprinting.md#http2)): the preface's
-WINDOW_UPDATE no longer matches Chrome. TCP address racing and keepalive are
-fields of `TcpSettings` in the same way.
+WINDOW_UPDATE no longer matches Chrome. TCP address selection and keepalive
+are fields of `TcpSettings` in the same way.
 
 ## Limits
 

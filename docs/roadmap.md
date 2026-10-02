@@ -188,9 +188,22 @@ anything does.
 - Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
   query with the capture tool's preferences, and `opera::v136_tls` keeps
   GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.
-- Firefox keepalive schedule and address selection. Evidence: not yet
-  gathered. Today every TCP path applies Chromium's keepalive and Happy Eyeballs v2, so
-  a Firefox profile connects with Chromium's transport behavior.
+- Firefox's address selection. Evidence: in five Firefox 157 runs on
+  Windows 11, an IPv4 backup attempt started 254 to 260 ms after a slow
+  first attempt, the first attempt's slower connection stayed open and
+  carried a later request, and every later connection to the origin tried
+  IPv4 alone, also after the origin had closed every connection
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
+  `TcpBackupConnection` opens the backup but closes the slower attempt, a
+  connection a server sees end without a request, so `firefox::v157_tcp`
+  tries the addresses one at a time. Blocker: the HTTP/1.1 and negotiated
+  pools must accept a connection opened for no request, finish its TLS
+  handshake, and count it against the origin's bound, and a second HTTP/2
+  connection needs Firefox's handling checked
+  (`netwerk/protocol/http/DnsAndConnectSocket.cpp:695-743`,
+  `nsHttpConnectionMgr.cpp`); the family memory must last as long as
+  Firefox's connection entry, which it drops at the next prune once the
+  origin has no connection.
 
 #### Wire fidelity
 
@@ -206,7 +219,10 @@ anything does.
   fetches, keeping the answer for the record's TTL
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
   `chromium::v154_dns_cache` keeps every answer 60 s, the browsers' rule for
-  the system resolver. Blocker: Phantom resolves through the operating
+  the system resolver. Firefox 157 on Windows also keeps an answer for its
+  record TTL, which it reads with `DnsQuery_A` after each lookup
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)),
+  where `firefox::v157_dns_cache` keeps it 60 s. Blocker: Phantom resolves through the operating
   system, which reports no TTL; a resolver that returns record TTLs, and a
   cache that honors them, are needed.
 - The ECH GREASE payload of a resumed Firefox ClientHello. Evidence: the
