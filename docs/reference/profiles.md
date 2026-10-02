@@ -134,6 +134,36 @@ values: `extension_order`, `ech_grease_payload_length`, and
   ClientHello that offers only TLS 1.3, as every Firefox QUIC ClientHello
   does.
 
+## Trust anchor ID order
+
+`TlsSettings::requested_trust_anchor_ids` holds a `TrustAnchorIds`, which
+sets the [trust anchor IDs](glossary.md#trust-anchor-ids) and when their
+order is chosen. Every variant sends the same IDs; only the order changes.
+
+| Variant | Order | Recipes |
+| --- | --- | --- |
+| `Fixed(ids)` | The listed order on every connection | Chrome 154 and Chrome 154 for Android, TCP and QUIC: 28 IDs in ascending byte order |
+| `PerClient(orders)` | One listed order, drawn when a client is built, on every connection of that client | `opera::v136_tls`: 29 entries, one per captured process, holding 16 orders |
+| `PerConnection(orders)` | One listed order, drawn for each connection | `opera::v136_http3_tls`: 20 entries, one per captured QUIC ClientHello, holding 19 orders |
+| `None` (no `TrustAnchorIds`) | No extension | Edge, Brave, Firefox, and the other Android recipes |
+
+- Each entry of a drawn variant is equally likely, so an order listed
+  twice is twice as likely. The Opera recipes list each order once for
+  every capture that sent it.
+- `Client::build` draws each `PerClient` list, in the TLS and the HTTP/3
+  TLS settings, before it builds any connector. The client's HTTP/1.1,
+  HTTP/2, and WebSocket connections, its connections to an HTTPS proxy,
+  and its TLS connections through a proxy tunnel all send that one order.
+  A connector built from `phantom-net` without a client draws `PerClient`
+  once when it is built.
+- `Client::build` fails with `BuildErrorKind::InvalidProfile` when the
+  orders of a `PerClient` list do not all list the same IDs, and with
+  `ProtocolConfiguration` when the random number generator fails.
+- The draws use BoringSSL's random number generator. Opera derives each
+  order from a Chromium 152 hash-table seed; the recipes send only the
+  orders the captures hold
+  ([Validation](../explanation/validation.md#opera-136-trust-anchor-id-order)).
+
 ## TCP socket options
 
 `TcpSettings` applies to every TCP socket the client opens: to origins, to

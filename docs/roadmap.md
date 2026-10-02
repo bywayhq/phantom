@@ -132,6 +132,13 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   carries the compiled-in set of 28 identifiers, not a set from
   component-updated PKI metadata
   ([Chrome 154 trust-anchor ID order](explanation/validation.md#chrome-154-trust-anchor-id-order)).
+- Opera 136's trust-anchor ID order: `TrustAnchorIds::PerClient` and
+  `PerConnection` draw an order per client or per connection, and the Opera
+  recipes draw from the 16 TCP orders of 29 processes, per client, and the
+  19 QUIC orders of 20 ClientHellos, per connection, at their observed
+  frequencies. A test fits every retained order to Chromium 152's hash-set
+  layout
+  ([Opera 136 trust-anchor ID order](explanation/validation.md#opera-136-trust-anchor-id-order)).
 - Windows TCP port randomization: `chromium::v154_tcp`, and so the Brave,
   Edge, and Opera profiles, set `SO_RANDOMIZE_PORT` on every TCP socket from
   Windows 11 22H2 (build 22621), as the Chrome 154, Edge 154, and Opera 136
@@ -214,13 +221,15 @@ anything does.
 
 #### Wire fidelity
 
-- Opera's trust-anchor ID order. Evidence: Opera 136 encodes its 32 IDs in
-  Chromium 152's hash-set order, one order per process over TCP (16 orders
-  in 29 processes) and a new one per connection over QUIC (19 orders in 20
-  ClientHellos); the recipes send one fixed order each
-  ([Brave 154 and Opera 136 recipes](explanation/validation.md#brave-154-and-opera-136-recipes)).
-  Blocker: modelling it needs a `TlsSettings` option that draws an order,
-  per client or per connection, from the observed orders.
+- Opera's unobserved trust-anchor ID orders. Evidence: each Opera 136
+  order is the iteration order of a hash-set copy, set by an 8-bit seed and
+  the order of the set it copies; the recipes draw only the 35 retained
+  orders, and draw a client's TCP and QUIC orders independently, where one
+  Opera process derives them all from one source set
+  ([Opera 136 trust-anchor ID order](explanation/validation.md#opera-136-trust-anchor-id-order)).
+  Blocker: generating new orders needs the source set's order and the seed
+  distribution, which no capture shows; the seed comes from a thread-local
+  counter, and one seed served 5 of 29 processes.
 - Chromium's built-in DNS client. Evidence: with their default resolver,
   Chrome 154, Edge 154, and Opera 136 sent one query for a name in 120 s of
   fetches, keeping the answer for the record's TTL

@@ -287,7 +287,7 @@ process as well as between processes.
 in that ascending order, which is how a `TlsSettings` expresses trust-anchor
 order: the wire order is the vector order. Because Chrome's order is fixed,
 the recipe has no per-client draw to model; a caller who wants another order
-sets `requested_trust_anchor_ids` to it.
+sets `requested_trust_anchor_ids` to `TrustAnchorIds::Fixed` with it.
 `chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process`
 requires the aggregate fixture to hold one order, the recipe to equal it, and
 the recipe list to be sorted;
@@ -790,15 +790,9 @@ third H3 startup as `quic-client-hello-3.txt`:
 
 Across all runs of the QUIC resumption fixtures, the trust-anchor extension
 of 58 of the 59 later connections differs from the run's first connection.
-`opera::v136_tls` sends the most frequent TCP order, and
-`opera::v136_http3_tls` the one QUIC order seen twice. Neither recipe draws
-a new order: per process over TCP, per connection over QUIC.
-`opera_136_trust_anchor_orders_are_the_most_frequent_retained_ones` reads
-each ClientHello's order again from those fixtures, checks it against the
-tally, and checks both recipes against the most frequent orders. The
-retained `client-hello.txt` is TLS startup run 3, one of the five with the
-TCP recipe's order, so its replay also compares the order; the other TCP
-replays, and every QUIC replay, compare the IDs as a set.
+[Opera 136 trust-anchor ID order](#opera-136-trust-anchor-id-order) traces
+the orders to Chromium 152's hash set and describes how the recipes draw
+them.
 
 | Browser and layer | Samples | Result against the Chromium recipes |
 | --- | --- | --- |
@@ -823,7 +817,8 @@ The recipes follow from those results. `brave::v154_tls` and
 `brave::v154_http3_tls` remove the trust-anchor IDs from the Chromium
 recipes, and both keep `ech_from_https_records`.
 `opera::v136_tls` and `opera::v136_http3_tls` replace the Chromium ID list
-with Opera's 32 IDs. Neither browser has an H2, QUIC, H3,
+with Opera's 32 IDs, in an order drawn per client over TCP and per
+connection over QUIC. Neither browser has an H2, QUIC, H3,
 WebSocket, proxy CONNECT, or cookie placement recipe of its own, because
 those layers equal the Chromium recipes on every compared field. The
 client-hint recipes and request templates carry the brand lists and the
@@ -1031,11 +1026,103 @@ Limits:
   open, handshake, or resolve again.
 - No SSE or Alt-Svc racing capture exists for either browser.
 - The Opera comparison is with Chrome 154, not with a Chromium 152 build.
-- Opera's trust-anchor order is not modeled: the recipes send one order
-  where Opera draws one per process over TCP and one per connection over
-  QUIC.
+- The Opera recipes draw only the 16 TCP and 19 QUIC trust-anchor orders
+  retained, at their observed frequencies; Opera can send orders no capture
+  holds ([Opera 136 trust-anchor ID order](#opera-136-trust-anchor-id-order)).
 - Opera's H2 and H3 startups were launched through DevTools; its TLS
   ClientHello may be the startup preconnect's.
+
+#### Opera 136 trust-anchor ID order
+
+Opera 136 lists its trust-anchor IDs in the iteration order of a Chromium
+152 hash set, which takes a new order each time the set is copied. Over TCP
+a process keeps one copy, so one order; over QUIC each connection makes its
+own copy.
+
+At Chromium tag `152.0.7977.130`, `SSLContextConfig` keeps the IDs in an
+`absl::flat_hash_set` (`net/ssl/ssl_config_service.h:100`), and
+`SelectAllTrustAnchorIDs` encodes them in the set's iteration order
+(`net/ssl/ssl_config_service.cc:101-123`). Chrome 154 sorts them instead
+([Chrome 154 trust-anchor ID order](#chrome-154-trust-anchor-id-order)).
+The network service hands out its configuration by value
+(`services/network/ssl_config_service_mojo.cc:77-79`), and two callers keep
+the copy for different spans:
+
+| Transport | Copy | Encoding | One order per |
+| --- | --- | --- | --- |
+| TCP | `SSLClientContext` copies the configuration when it is created and when the configuration changes (`net/socket/ssl_client_socket.cc:233`, `:301`) | Every connection encodes that copy (`net/socket/tls_stream_attempt.cc:205-210`, `net/socket/ssl_connect_job.cc:416-418`) | Process |
+| QUIC | `QuicChromiumClientSession::GetSSLConfig` copies it for each session (`net/quic/quic_chromium_client_session.cc:1750-1751`) | The session encodes its own copy (`:1768-1771`) | Connection |
+
+Abseil, at the same tag under `third_party/abseil-cpp/absl/`, gives each
+copy its own order. The copy constructor allocates a table for the source's
+size and inserts every element again
+(`container/internal/raw_hash_set.h:2624-2636`,
+`container/internal/raw_hash_set.cc:2283-2339`). The allocation draws a new
+per-table seed (`raw_hash_set.cc:1133`), 8 bits wide unless a build defines
+`ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE`
+(`raw_hash_set.h:633-634`, `:768-772`). The seed comes from a thread-local
+counter that advances by `0xad53` for each table, XORed with the counter's
+address (`raw_hash_set.cc:81-92`, `:144-147`). Each ID's hash starts from
+that seed (`container/internal/container_memory.h:494-503`,
+`hash/internal/hash.h:1460-1463`). A table for 32 IDs has 63 slots, the
+last 5 blocked (`raw_hash_set.cc:2024-2035`), and iterates its slots in
+index order.
+
+`opera_136_trust_anchor_orders_are_chromium_152_hash_set_orders` checks the
+retained orders against that layout. It hashes each ID as an x86-64 build
+without SSE4.2 does and asks, for each of the 256 seeds, whether some
+insertion order leaves the IDs in the retained order. Each of the 16 TCP
+and 19 QUIC orders fits exactly one seed. The 32 IDs in ascending or in
+descending order fit none.
+
+`hash_set_fit_rejects_random_orders_but_not_neighbour_swaps` tests the fit
+itself. None of 64 fixed pseudo-random permutations of the IDs fits a seed,
+so an arbitrary order fails it. Swapping two neighbouring IDs in a retained
+TCP order leaves an order that fits some seed in 130 of the 496 swaps, so
+the fit does not tell a retained order from a nearby one. It shows that
+Opera's orders follow the hash layout, not that the retained orders are
+the only ones Opera sends.
+
+The seed does not settle the order, and its distribution is not uniform.
+Two QUIC orders from different processes share seed 94, because each copy
+inserts the IDs in its source table's order, and that order differs between
+processes. Over TCP, one seed served 5 of the 29 processes, where 29 draws
+from 256 equally likely seeds would give no seed more than 2 or 3. The
+counter makes the seed depend on how many tables the thread built before
+the copy. Neither the source order nor the seed shows on the wire, so the
+recipes draw from the retained orders instead of computing them:
+
+- `opera::v136_tls` sets `TrustAnchorIds::PerClient` with one entry per
+  tallied process: 29 entries holding 16 orders, so a client takes a
+  process's order at its observed frequency and keeps it. A `phantom`
+  client draws once when it is built, before it builds its HTTP/1.1,
+  HTTP/2, HTTPS proxy, and WebSocket connectors, so they all send that
+  order.
+- `opera::v136_http3_tls` sets `TrustAnchorIds::PerConnection` with one
+  entry per tallied QUIC ClientHello, 20 entries holding 19 orders, and
+  each QUIC connection draws again.
+
+Both draws use BoringSSL's random number generator, which also draws the
+GREASE values. The tests:
+
+| Test | Checks |
+| --- | --- |
+| `opera_136_trust_anchor_recipes_draw_from_the_retained_orders` | Each ClientHello's order, read again from the fixtures the tally names, matches the tally, and each recipe lists exactly the tallied observations |
+| `opera_136_tcp_trust_anchor_order_is_drawn_once_per_connector` | Twelve TLS connectors, three connections each: every connector sends one of the recipe's orders on all of its connections, and the connectors send more than one order |
+| `opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors` | Twelve clients: each sends one of the recipe's orders on its HTTP/1.1 and HTTP/2 connections, to an HTTPS proxy, through a plaintext proxy's tunnel, and, with the `websocket` feature, on a WebSocket connection; the clients send more than one order |
+| `per_connection_trust_anchor_order_is_drawn_for_each_tcp_connection` | Sixteen TCP connections from one TLS connector, with the 29 TCP entries drawn per connection: each carries a listed order, and they carry more than one |
+| `http3_per_client_orders_with_different_ids_fail_the_build` | A `PerClient` list in the HTTP/3 TLS settings whose orders hold different IDs fails `Client::build` with `InvalidProfile` |
+| `opera_136_quic_trust_anchor_order_is_drawn_per_connection` | Sixteen QUIC ClientHellos from one connector each carry one of the recipe's orders, and they carry more than one |
+| `opera_136_tls_recipe_matches_windows_capture` | The emitted IDs equal the capture's as a set, and the emitted and captured orders are both among the recipe's |
+| `opera_136_quic_client_hello_recipe_matches_windows_capture` and the TCP and QUIC resumption replays | The emitted IDs equal the capture's as a set; the TCP replays also require the emitted order to be among the recipe's. The captured order is checked against the recipe only in `opera_136_tls_recipe_matches_windows_capture` |
+
+Limits:
+
+- Phantom sends only the 35 retained orders. Opera can send any order its
+  seeds and source tables produce.
+- One Opera process derives its TCP order and all of its QUIC orders from
+  one source table. A Phantom client draws its TCP order and each QUIC order
+  independently, from orders of 29 and 6 different processes.
 
 ### macOS recipes
 

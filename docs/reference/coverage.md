@@ -970,7 +970,7 @@ How the recipes differ:
   navigation `Accept`, add `Sec-GPC: 1`, and leave `Accept-Language` to the
   caller, because Brave draws its `q` value per session.
 - Opera 136 matches the same Chromium recipes and sends Chromium 152's 32
-  trust-anchor IDs, in an order fixed per process, where Chrome 154 sends 28
+  trust-anchor IDs, in an order drawn per process, where Chrome 154 sends 28
   sorted. `opera::` carries `v136_tls`, `v136_http3_tls`,
   `v136_windows_client_hints`, `v135_macos_client_hints` from the Mac's
   Opera 135, and its request templates, which equal the Chromium templates
@@ -1062,11 +1062,11 @@ Randomized fields:
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
 - Opera 136, built on Chromium 152, keeps that per-process order for its
   32 trust-anchor IDs over TCP, and draws a new order for each QUIC
-  connection. `opera::v136_tls` sends the most frequent of 29 processes'
-  TCP orders and `opera::v136_http3_tls` the one QUIC order seen twice in
-  20 ClientHellos; neither the per-process nor the per-connection draw is
-  modeled
-  ([Brave 154 and Opera 136 recipes](../explanation/validation.md#brave-154-and-opera-136-recipes)).
+  connection. `opera::v136_tls` draws one of 29 processes' TCP orders for
+  each client and keeps it on all of the client's connections, and
+  `opera::v136_http3_tls` draws one of 20 QUIC ClientHellos' orders for
+  each connection. Both draw only orders a capture holds
+  ([Opera 136 trust-anchor ID order](../explanation/validation.md#opera-136-trust-anchor-id-order)).
 - The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those

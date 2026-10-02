@@ -14,6 +14,29 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings::requested_trust_anchor_ids` is an `Option<TrustAnchorIds>`
+  instead of an `Option<Vec<Box<[u8]>>>`. `TrustAnchorIds::Fixed(ids)` sends
+  one order on every connection, as before. `PerClient(orders)` draws one of
+  the listed orders for each client and keeps it on all of the client's
+  connections, and `PerConnection(orders)` draws one for each connection;
+  each listed order is equally likely, and every order must list the same
+  IDs. `Client::build` draws each `PerClient` list before it builds any
+  connector, so the client's HTTP/1.1, HTTP/2, and WebSocket connections,
+  its connections to an HTTPS proxy, and its TLS connections through a
+  proxy tunnel send one order; it fails with `InvalidProfile` when the
+  orders of a `PerClient` list hold different IDs, in the TLS or the HTTP/3
+  TLS settings. `ClientProfile::draw_per_client` and
+  `TlsSettings::draw_per_client` make that draw with a caller's fallible
+  random source, and the new `phantom_net::draw_per_client` makes it with
+  BoringSSL's random number generator. `opera::v136_tls` now draws from
+  the 29 Opera 136 processes' TCP orders, per client, and
+  `opera::v136_http3_tls` from the 20 QUIC ClientHellos' orders, per
+  connection, where each sent one fixed order
+  ([evidence](docs/explanation/validation.md#opera-136-trust-anchor-id-order)).
+  The Chrome and Chrome for Android recipes keep their one sorted list.
+  Migrate: replace `requested_trust_anchor_ids: Some(ids)` with
+  `Some(TrustAnchorIds::Fixed(ids))`, and match `TrustAnchorIds::Fixed` or
+  call `TrustAnchorIds::orders` where code read the list.
 - `TlsSettings::ech_grease_payload_length` is an `EchGreasePayloadLength`
   instead of an `Option<u16>`. `BackendDefault` keeps the TLS backend's
   length, drawn per connection; `Exact(n)` sends `n` payload bytes; and
