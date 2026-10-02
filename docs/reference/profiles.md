@@ -39,7 +39,7 @@ recaptured and reverified.
 | Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
-| Firefox 156 | `firefox::v156_*` | Yes | Yes | Yes, from 156.0.1 | No | `v156_websocket` | Windows; macOS for templates |
+| Firefox 156 | `firefox::v156_*` | Yes | Yes | Yes | No | `v156_websocket` | Windows (156.0.1); macOS for templates (156.0) |
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
@@ -414,10 +414,10 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
   templates leave `User-Agent` to you. The Firefox value comes from headless
   captures; Firefox sent no headless marker, but no headful Firefox capture
   confirms the value.
-- The Firefox HTTP/3 lists come from Firefox 156.0.1, the HTTP/1.1 and
-  HTTP/2 lists from 156.0. Firefox sends `Alt-Used` after `accept-encoding`
-  on requests to an origin it reached through Alt-Svc; Phantom appends the
-  field it generates last.
+- The Firefox HTTP/1.1, HTTP/2, and HTTP/3 lists come from Firefox 156.0.1
+  on Windows; only the macOS templates' fields come from 156.0. Firefox
+  sends `Alt-Used` after `accept-encoding` on requests to an origin it
+  reached through Alt-Svc; Phantom appends the field it generates last.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |
 | --- | --- | --- |

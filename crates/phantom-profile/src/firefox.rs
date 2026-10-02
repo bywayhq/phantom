@@ -267,7 +267,7 @@ pub fn v156_http1() -> Http1Settings {
     }
 }
 
-/// Returns HTTP/2 settings observed from Firefox 156.0 on Windows 11.
+/// Returns HTTP/2 settings observed from Firefox 156.0.1 on Windows 11.
 ///
 /// The initial SETTINGS, connection window, request pseudo-header order, and
 /// navigation HEADERS priority come from the retained local H2 session
@@ -384,7 +384,7 @@ pub fn v156_http2() -> Http2Settings {
     }
 }
 
-/// Returns WebSocket settings observed from Firefox 156.0 on Windows 11.
+/// Returns WebSocket settings observed from Firefox 156.0.1 on Windows 11.
 ///
 /// From the retained Windows 11 (build 26200) WebSocket captures. A `wss://`
 /// WebSocket uses a pooled H2 session to the origin when its peer enabled
@@ -484,7 +484,7 @@ pub fn v156_websocket() -> WebSocketSettings {
     }
 }
 
-/// Returns the CONNECT request fields observed from Firefox 156.0 on Windows 11.
+/// Returns the CONNECT request fields observed from Firefox 156.0.1 on Windows 11.
 ///
 /// From the retained proxy route captures, three runs of each scenario.
 /// Every HTTP/1.1 CONNECT for the page's `ws://` origin sends `User-Agent`,
@@ -832,7 +832,7 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
     RequestField::proxy_authorization(name, ProxyAuthorizationAttempt::Replay)
 }
 
-/// Returns navigation request fields observed from Firefox 156.0 on Windows 11.
+/// Returns navigation request fields observed from Firefox 156.0.1 on Windows 11.
 ///
 /// A top-level navigation the user starts from the address bar: an HTML
 /// document request with `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
@@ -940,7 +940,7 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
     }
 }
 
-/// Returns same-origin `fetch` request fields observed from Firefox 156.0 on Windows 11.
+/// Returns same-origin `fetch` request fields observed from Firefox 156.0.1 on Windows 11.
 ///
 /// A script `fetch(url, {cache: "no-store"})` GET to the page's own origin;
 /// the cache mode adds `Pragma` and `Cache-Control`, which Firefox sends

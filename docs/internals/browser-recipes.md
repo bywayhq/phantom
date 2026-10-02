@@ -29,7 +29,10 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
 - Phantom carries one version per browser: the current stable build on the
   capture host, or for an Android browser the build Play serves to the
   capture emulator. A new version replaces the old one. A macOS capture uses
-  the same build as the Windows one, so update the Mac's browser first.
+  the same build as the Windows one, so update the Mac's browser first. One
+  exception stands: the macOS Firefox captures are from 156.0, while the
+  Windows ones are from 156.0.1; the
+  [roadmap](../roadmap.md#browser-recipes) tracks the recapture.
 - Captures come from the Windows 11 development host, Android captures from
   the emulator on it, and macOS captures from one macOS 15.5 Mac on Apple
   silicon, under the host directory `macos-15.5-arm64`. A Windows capture

@@ -126,6 +126,11 @@ anything does.
   idle-only TCP keepalive, known from Chromium source but not captured; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
+- macOS Firefox at 156.0.1. Evidence: the macOS Firefox fixtures and the
+  `v156_macos_*` templates come from Firefox 156.0, while every Windows
+  Firefox capture is from 156.0.1. Blocker: none; update the Mac's Firefox
+  and capture the navigation, TLS, and WebSocket sets under
+  `fixtures/*/firefox/156.0/macos-15.5-arm64` again.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
