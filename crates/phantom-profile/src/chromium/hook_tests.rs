@@ -279,10 +279,15 @@ fn chromium_family_built_in_resolver_keeps_an_answer_past_the_recipe_ttl() -> Re
 /// sat idle 310 s was closed when the next request came, which opened a new
 /// connection. Chromium 154 keeps a used idle socket for 300 s
 /// (`net/socket/client_socket_pool.cc:42`) and checks it only when a request
-/// reaches its pool. No Phantom recipe models this limit.
+/// reaches its pool, as the recipe's `idle_timeout` does.
 #[test]
 fn chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request() -> Result<(), String>
 {
+    let timeout = v154_http1()
+        .idle_timeout
+        .checked_on_request()
+        .ok_or("recipe keeps idle connections")?;
+    let timeout_ms = u64::try_from(timeout.as_millis()).map_err(|e| e.to_string())?;
     for logs in &LOGS {
         let log = logs.idle;
         assert_provenance(log, logs)?;
@@ -305,7 +310,7 @@ fn chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request() -
         };
         let idle = number(connections[first], "idle_before_close_ms:")?;
         assert!(
-            (300_000..320_000).contains(&idle),
+            (timeout_ms..timeout_ms + 20_000).contains(&idle),
             "{}: {idle}",
             logs.browser
         );

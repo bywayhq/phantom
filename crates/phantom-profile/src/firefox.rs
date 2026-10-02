@@ -5,7 +5,7 @@ use std::{num::NonZeroUsize, time::Duration};
 use crate::{
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
-    http1::Http1Settings,
+    http1::{Http1IdleTimeout, Http1Settings},
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
         Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
@@ -269,10 +269,22 @@ pub fn v157_dns_cache() -> DnsCacheSettings {
 /// where this recipe keeps 6. And urgent-start requests may exceed the limit
 /// by `network.http.max-urgent-start-excessive-connections-per-host`, 3
 /// (`modules/libpref/init/all.js:1155-1157`).
+///
+/// Firefox's idle limit is not modeled either, so an idle connection stays
+/// reusable until the server closes it. Firefox reuses a connection only
+/// while it has been idle less than `network.http.keep-alive.timeout`, 115
+/// seconds (`modules/libpref/init/all.js:1136`;
+/// `netwerk/protocol/http/nsHttpConnection.cpp:965-983`), or the `timeout`
+/// of the response's `Keep-Alive` field when it names one (`:1120-1129`).
+/// It also closes a connection on a timer once that time passes, with no
+/// request pending (`nsHttpConnection::TimeToLive`, `:1009-1026`;
+/// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258`, `:1027-1030`,
+/// `:2572-2605`), which no [`Http1IdleTimeout`] variant models yet.
 #[must_use]
 pub fn v157_http1() -> Http1Settings {
     Http1Settings {
         max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
+        idle_timeout: Http1IdleTimeout::Unlimited,
     }
 }
 

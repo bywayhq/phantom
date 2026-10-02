@@ -7,7 +7,7 @@ use std::{future::Future, net::Ipv4Addr, net::SocketAddr, num::NonZeroUsize, tim
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, ResponseBody, Route,
-    profile::{ClientProfile, Http1Settings, chromium, firefox},
+    profile::{ClientProfile, Http1IdleTimeout, Http1Settings, chromium, firefox},
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -245,6 +245,74 @@ async fn idle_connection_is_reused_before_another_opens() -> TestResult {
     .await
 }
 
+/// Chromium's 300-second idle timeout, shortened so the test can wait it out:
+/// a connection idle less than the timeout carries the next request, and one
+/// idle longer is closed when the next request comes, which opens another.
+/// The window is wide enough that a slow host still reuses the connection;
+/// the paused-clock pool tests check the exact edge.
+#[tokio::test]
+async fn connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request() -> TestResult {
+    const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let uri = |path: &str| format!("http://{address}/{path}");
+        let settings = Http1Settings {
+            idle_timeout: Http1IdleTimeout::CheckedOnRequest(IDLE_TIMEOUT),
+            ..chromium::v154_http1()
+        };
+        let client = builder(profile().with_http1(settings)).build()?;
+        let first_uri = uri("first");
+        let second_uri = uri("second");
+        let third_uri = uri("third");
+
+        let first = tokio::spawn({
+            let client = client.clone();
+            async move { finish(hold(&client, &first_uri).await?).await }
+        });
+        let (mut original, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+        assert_eq!(request_path(&read_head(&mut original).await?), "first");
+        original
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
+            .await?;
+        first.await??;
+
+        let second = tokio::spawn({
+            let client = client.clone();
+            async move { finish(hold(&client, &second_uri).await?).await }
+        });
+        assert_eq!(request_path(&read_head(&mut original).await?), "second");
+        original
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
+            .await?;
+        second.await??;
+
+        tokio::time::sleep(IDLE_TIMEOUT + QUIET_WINDOW).await;
+        let third = tokio::spawn({
+            let client = client.clone();
+            async move { finish(hold(&client, &third_uri).await?).await }
+        });
+        let (mut replacement, _) = timeout(TEST_TIMEOUT, listener.accept()).await??;
+        let mut byte = [0_u8; 1];
+        let read = timeout(
+            TEST_TIMEOUT,
+            tokio::io::AsyncReadExt::read(&mut original, &mut byte),
+        )
+        .await??;
+        assert_eq!(
+            read, 0,
+            "the expired connection carried bytes instead of closing"
+        );
+        assert_eq!(request_path(&read_head(&mut replacement).await?), "third");
+        replacement
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
+            .await?;
+        third.await??;
+        Ok(())
+    })
+    .await
+}
+
 #[tokio::test]
 async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
     bounded(async {
@@ -423,6 +491,7 @@ async fn requests_cancelled_during_connection_setup_leave_the_full_bound() -> Te
 fn custom_profile_carries_its_own_http1_bound() -> TestResult {
     let settings = Http1Settings {
         max_connections_per_origin: bound(3)?,
+        idle_timeout: Http1IdleTimeout::Unlimited,
     };
     let client = builder(profile().with_http1(settings)).build()?;
     assert!(format!("{client:?}").contains("max_concurrent_http1_requests_per_origin: 3"));

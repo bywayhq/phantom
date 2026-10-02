@@ -1,4 +1,4 @@
-use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc};
+use std::{fmt, net::IpAddr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use http::Method;
 use phantom_net::{
@@ -122,6 +122,8 @@ pub(crate) struct ClientInner {
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
     pub(crate) http1_connections_per_origin: NonZeroUsize,
+    /// How long the profile reuses an idle HTTP/1.1 connection.
+    pub(crate) http1_used_idle_timeout: Option<Duration>,
     /// Profile position of the jar's `Cookie` field.
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
@@ -1784,6 +1786,10 @@ impl ClientBuilder {
                 .profile
                 .http1()
                 .map_or(NonZeroUsize::MIN, |http1| http1.max_connections_per_origin),
+            http1_used_idle_timeout: self
+                .profile
+                .http1()
+                .and_then(|http1| http1.idle_timeout.checked_on_request()),
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,

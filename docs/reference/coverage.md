@@ -224,10 +224,13 @@ Not modeled:
 
 - Chromium's caps across groups: 256 sockets per pool and 128 per proxy
   chain.
-- Chromium's limit on idle time: once a used connection has sat idle for
-  300 s, the next request to its pool closes it and opens another, as the
-  Chrome, Edge, and Opera hook logs show. Phantom keeps an idle connection
-  until the server closes it.
+- Chromium's cleanup of other origins' idle connections. A request closes
+  the connections of its own origin and route that have sat idle 300 s, as
+  `chromium::v154_http1` sets, but Chromium also closes those of every other
+  origin in the same proxy chain's pool.
+- Firefox's limit on idle time, 115 s or the response's `Keep-Alive`
+  timeout. `firefox::v157_http1` keeps an idle connection until the server
+  closes it.
 - Firefox's limit of 32 for plaintext requests forwarded through an HTTP
   proxy, where its recipe keeps 6, and the 3 extra connections it allows
   urgent-start requests. Firefox also leaves idle connections out of its

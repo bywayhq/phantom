@@ -40,6 +40,27 @@ fn nonzero(value: usize) -> NonZeroUsize {
 }
 
 #[test]
+fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn std::error::Error>> {
+    let chromium_client =
+        Client::builder(profile(chromium::v154_http3_tls()).with_http1(chromium::v154_http1()))
+            .build()?;
+    let firefox = Client::builder(
+        profile(chromium::v154_http3_tls()).with_http1(phantom_profile::firefox::v157_http1()),
+    )
+    .build()?;
+
+    let timeout = Some(Duration::from_secs(300));
+    assert_eq!(chromium_client.state.http1.used_idle_timeout(), timeout);
+    assert_eq!(
+        chromium_client.state.http1_or_2.http1_used_idle_timeout(),
+        timeout
+    );
+    assert_eq!(firefox.state.http1.used_idle_timeout(), None);
+    assert_eq!(firefox.state.http1_or_2.http1_used_idle_timeout(), None);
+    Ok(())
+}
+
+#[test]
 fn client_applies_its_options() -> Result<(), Box<dyn std::error::Error>> {
     let timeouts = RequestTimeouts::new().total(Duration::from_secs(5));
     let retry = RetryPolicy::connection_failures(nonzero(2), Duration::from_millis(1));

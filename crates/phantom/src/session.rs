@@ -356,7 +356,8 @@ impl ClientOptions {
             self.max_pending_http2_requests_per_origin,
         )
         .with_max_http2_connections(self.max_http2_connections_per_origin)
-        .with_setup_wait_limit(self.negotiated_setup_wait_limit);
+        .with_setup_wait_limit(self.negotiated_setup_wait_limit)
+        .with_http1_used_idle_timeout(inner.http1_used_idle_timeout);
         #[cfg(feature = "https-records")]
         http1_or_2.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
@@ -365,7 +366,8 @@ impl ClientOptions {
             self.max_concurrent_http1_requests_per_origin
                 .unwrap_or(inner.http1_connections_per_origin),
             self.max_pending_http1_requests_per_origin,
-        );
+        )
+        .with_used_idle_timeout(inner.http1_used_idle_timeout);
         #[cfg(feature = "https-records")]
         http1.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]

@@ -6,7 +6,7 @@ use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
-    http1::Http1Settings,
+    http1::{Http1IdleTimeout, Http1Settings},
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
         Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
@@ -378,9 +378,28 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
 /// request takes the most recently used idle socket before it opens another
 /// (`net/socket/transport_client_socket_pool.cc:530-560`).
 ///
+/// A socket that carried a request and has sat idle for
+/// `g_used_idle_socket_timeout_s = 300` seconds is not reused
+/// (`net/socket/client_socket_pool.cc:42`). The pool checks the timeout only
+/// when a request arrives: `RequestSocket` first calls `CleanupIdleSockets`,
+/// which closes every idle socket idle at least that long, so the request
+/// opens a new one (`net/socket/transport_client_socket_pool.cc:242-263`,
+/// `:935-955`, `:969-1000`). Hook logs of Chrome 154, Edge 154, and Opera 136
+/// show it: a connection idle 290 s carried the next request, and one idle
+/// 310 s was closed as its replacement opened.
+///
+/// Chromium closes an idle socket that never carried a request, which only a
+/// preconnect or a connect job whose request went elsewhere leaves, after 60
+/// seconds (`kPreconnectIntervalSec`,
+/// `net/socket/client_socket_pool_manager.cc:208-212`). Phantom opens a
+/// connection only for a request, so it has no such connection to time out.
+///
 /// Chromium's other socket limits are not modeled: 256 sockets per pool and
 /// 128 per proxy chain (`net/socket/client_socket_pool_manager.cc:37-44`,
-/// `:60-66`), and 255 per group for WebSocket connections.
+/// `:60-66`), and 255 per group for WebSocket connections. Chromium's cleanup
+/// also closes the expired idle sockets of every other origin in the same
+/// proxy chain's pool; Phantom closes only those of the request's origin and
+/// route.
 ///
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
 /// values, so this recipe also serves Brave 154. Brave enables
@@ -390,6 +409,7 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
 pub fn v154_http1() -> Http1Settings {
     Http1Settings {
         max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
+        idle_timeout: Http1IdleTimeout::CheckedOnRequest(Duration::from_secs(300)),
     }
 }
 

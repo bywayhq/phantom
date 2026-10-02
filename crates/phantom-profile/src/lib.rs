@@ -31,7 +31,7 @@ pub use client_hints::{
 };
 pub use cookie::CookiePlacement;
 pub use dns_cache::DnsCacheSettings;
-pub use http1::Http1Settings;
+pub use http1::{Http1IdleTimeout, Http1Settings};
 pub use http2::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,

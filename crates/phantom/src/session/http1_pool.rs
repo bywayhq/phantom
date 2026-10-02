@@ -19,7 +19,7 @@ use phantom_net::http1::{
 };
 use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, time::Instant};
 use tracing::debug;
 
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
@@ -43,11 +43,12 @@ pub(crate) enum Http1ConnectionMode {
 /// A request first passes the key's admission, which lets at most
 /// `max_active` requests through and queues the rest in arrival order. It
 /// then takes the most recently used idle connection, or opens one when none
-/// is idle.
+/// is idle. An idle connection past `used_idle_timeout` is closed instead.
 pub(crate) struct Http1Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
+    used_idle_timeout: Option<Duration>,
     state: Mutex<PoolState>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -63,10 +64,23 @@ impl Http1Pool {
             capacity,
             max_active,
             max_pending,
+            used_idle_timeout: None,
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
         }
+    }
+
+    /// Closes an idle connection instead of reusing it once it has been idle
+    /// `timeout` or longer; `None` reuses it until the server closes it.
+    pub(super) const fn with_used_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.used_idle_timeout = timeout;
+        self
+    }
+
+    #[cfg(test)]
+    pub(super) const fn used_idle_timeout(&self) -> Option<Duration> {
+        self.used_idle_timeout
     }
 
     /// Gives direct connections the client's HTTPS record lookups, for
@@ -328,7 +342,7 @@ impl Http1Pool {
             .admissions
             .get(&key, self.max_active, self.max_pending);
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
-        let mut entry = PoolEntry::new(admission, self.max_active);
+        let mut entry = PoolEntry::new(admission, self.max_active, self.used_idle_timeout);
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
         #[cfg(feature = "https-records")]
@@ -469,10 +483,15 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
-    fn new(admission: Arc<Admission>, max_connections: NonZeroUsize) -> Self {
+    fn new(
+        admission: Arc<Admission>,
+        max_connections: NonZeroUsize,
+        used_idle_timeout: Option<Duration>,
+    ) -> Self {
         Self {
             connections: Arc::new(EntryConnections {
                 max: max_connections,
+                used_idle_timeout,
                 set: std::sync::Mutex::new(ConnectionSet::default()),
             }),
             admission,
@@ -720,13 +739,16 @@ impl PoolEntry {
 /// is released.
 struct EntryConnections {
     max: NonZeroUsize,
+    /// How long an idle connection stays reusable; see
+    /// [`phantom_profile::Http1Settings::used_idle_timeout`].
+    used_idle_timeout: Option<Duration>,
     set: std::sync::Mutex<ConnectionSet>,
 }
 
 #[derive(Default)]
 struct ConnectionSet {
     /// Connections with no request, least recently used first.
-    idle: Vec<Http1Connection>,
+    idle: Vec<IdleConnection>,
     /// Connections leased to a request, and connections being opened.
     leased: usize,
 }
@@ -734,6 +756,33 @@ struct ConnectionSet {
 impl ConnectionSet {
     fn open(&self) -> usize {
         self.idle.len() + self.leased
+    }
+}
+
+/// A connection returned to its pool key, and when it was returned.
+pub(super) struct IdleConnection {
+    pub(super) connection: Http1Connection,
+    since: Instant,
+}
+
+impl IdleConnection {
+    pub(super) fn new(connection: Http1Connection) -> Self {
+        Self {
+            connection,
+            since: Instant::now(),
+        }
+    }
+
+    /// Whether the connection may carry another request: the server has not
+    /// closed it, and it has been idle less than `used_idle_timeout`.
+    ///
+    /// Chromium checks the timeout as each request reaches its socket pool
+    /// and closes every idle socket idle at least that long
+    /// (`net/socket/transport_client_socket_pool.cc:263`, `:969-1000` at
+    /// tag `154.0.8037.58`).
+    pub(super) fn is_reusable(&self, used_idle_timeout: Option<Duration>) -> bool {
+        self.connection.is_reusable()
+            && used_idle_timeout.is_none_or(|timeout| self.since.elapsed() < timeout)
     }
 }
 
@@ -753,7 +802,8 @@ impl EntryConnections {
     /// new connection when none is idle or `force_new_connection` is set.
     fn checkout(self: &Arc<Self>, force_new_connection: bool) -> Checkout {
         let mut set = self.lock();
-        set.idle.retain(Http1Connection::is_reusable);
+        let timeout = self.used_idle_timeout;
+        set.idle.retain(|idle| idle.is_reusable(timeout));
         let idle = if force_new_connection {
             if set.open() >= self.max.get() && !set.idle.is_empty() {
                 // Proxy-authentication and reused-connection replays both need
@@ -767,7 +817,7 @@ impl EntryConnections {
             }
             None
         } else {
-            set.idle.pop()
+            set.idle.pop().map(|idle| idle.connection)
         };
         set.leased += 1;
         let reservation = Reservation {
@@ -785,7 +835,9 @@ impl EntryConnections {
         let mut set = self.lock();
         set.leased = set.leased.saturating_sub(1);
         match connection {
-            Some(connection) if connection.is_reusable() => set.idle.push(connection),
+            Some(connection) if connection.is_reusable() => {
+                set.idle.push(IdleConnection::new(connection));
+            }
             _ => debug!(
                 outcome = "invalidated",
                 "HTTP/1 pooled connection invalidated"

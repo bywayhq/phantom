@@ -177,6 +177,16 @@ for each origin and route.
 - A request reuses the most recently used idle connection before it opens
   another. Once the limit is reached, it waits in arrival order, up to the
   waiter limit in [Defaults and limits](limits.md#connection-pools).
+- `Http1Settings::idle_timeout` ends reuse of an idle connection.
+  `chromium::v154_http1` sets `Http1IdleTimeout::CheckedOnRequest` with 300
+  seconds, Chromium's used idle socket timeout: when a request reaches the
+  origin and route's connections, each connection idle 300 s or more is
+  closed, and the request reuses another or opens one. Nothing closes a
+  connection between requests. The Chrome 154, Edge 154, and Opera 136 hook
+  logs show the same replacement. `firefox::v157_http1` sets
+  `Http1IdleTimeout::Unlimited`, so a connection stays reusable until the
+  server closes it. Firefox's own limit, 115 s, which it also enforces with a
+  timer when no request comes, is not modeled.
 - `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
   profile's value.
 - Negotiated requests, which let ALPN choose between HTTP/1.1 and HTTP/2,
@@ -198,7 +208,10 @@ for each origin and route.
   HTTP proxy, and 3 more for urgent-start requests; its recipe keeps 6 for
   both. Firefox also leaves idle connections out of its count.
 - Chromium's caps across groups, 256 sockets per pool and 128 per proxy
-  chain, are not modeled.
+  chain, are not modeled. Neither is its cleanup of other origins: a request
+  to one origin also closes the expired idle connections of every origin in
+  the same proxy chain's pool, where Phantom closes only its own origin and
+  route's.
 - Brave keys each socket group by top-level site as well
   (`kPartitionConnectionsByNetworkIsolationKey`), so one origin embedded
   under two sites can have 6 connections for each. A Phantom client has no

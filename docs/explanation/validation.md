@@ -1806,9 +1806,11 @@ What is claimed: `chromium::v154_http1` and `firefox::v157_http1` allow 6
 HTTP/1.1 connections to one origin and route, as those browsers do at the
 profiled release tags and as Brave 154, Edge 154, and Opera 136 do, and the
 client opens
-connections up to the profile's bound. Negotiated requests that select
-HTTP/1.1 use the same bound, and their TLS handshakes follow the browsers'
-rule for a server whose protocol is not yet known.
+connections up to the profile's bound. `chromium::v154_http1` stops reusing
+a connection that has sat idle 300 s, as Chromium 154 does and as the Chrome
+154, Edge 154, and Opera 136 hook logs show. Negotiated requests that select
+HTTP/1.1 use the same bound and idle limit, and their TLS handshakes follow
+the browsers' rule for a server whose protocol is not yet known.
 
 Evidence: a capture of one page load cannot show a limit that the page never
 reached, so the recipes rest on browser source at Chromium tag
@@ -1816,7 +1818,7 @@ reached, so the recipes rest on browser source at Chromium tag
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_http1` | The normal socket pool allows six sockets per group, `g_max_sockets_per_group` (`net/socket/client_socket_pool_manager.cc:46-58`). A group is one scheme, host, and port within the pool of one proxy chain (`net/socket/client_socket_pool.h:130-153`, `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as one origin and route. Idle, connecting, and in-use sockets all occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a request takes the most recently used idle socket before it opens another (`net/socket/transport_client_socket_pool.cc:530-560`). |
+| `chromium::v154_http1` | The normal socket pool allows six sockets per group, `g_max_sockets_per_group` (`net/socket/client_socket_pool_manager.cc:46-58`). A socket that carried a request is closed once it has sat idle `g_used_idle_socket_timeout_s = 300` seconds (`net/socket/client_socket_pool.cc:42`), checked when `RequestSocket` calls `CleanupIdleSockets` before it looks for a socket (`net/socket/transport_client_socket_pool.cc:242-263`, `:935-955`, `:969-1000`). A group is one scheme, host, and port within the pool of one proxy chain (`net/socket/client_socket_pool.h:130-153`, `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as one origin and route. Idle, connecting, and in-use sockets all occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a request takes the most recently used idle socket before it opens another (`net/socket/transport_client_socket_pool.cc:530-560`). |
 | `firefox::v157_http1` | `network.http.max-persistent-connections-per-server` is 6 (`modules/libpref/init/all.js:1150-1153`). Firefox applies it to direct and CONNECT-tunneled connections and counts active connections together with those still connecting (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1202-1209`, `:1394-1430`; `netwerk/protocol/http/ConnectionEntry.cpp:289-297`). |
 
 Differences from the browsers:
@@ -1839,9 +1841,28 @@ Differences from the browsers:
   and Chrome's, show ten concurrent requests to one origin holding at most
   six connections, so both use `chromium::v154_http1`
   ([Socket hook evidence](#socket-hook-evidence)).
-- Chromium closes a used connection that has been idle 300 s when the next
-  request reaches its pool, which the Chrome, Edge, and Opera hook logs
-  show. Phantom keeps an idle connection until the server closes it.
+- Chromium's cleanup on a request closes the expired idle sockets of every
+  group in the proxy chain's pool (`net/socket/transport_client_socket_pool.cc:935-955`).
+  Phantom closes only those of the request's own origin and route, so a
+  server whose connection expired sees it close at its own origin's next
+  request, not at the next request to any origin.
+- Chromium closes an idle socket that never carried a request after
+  `kPreconnectIntervalSec = 60` seconds
+  (`net/socket/client_socket_pool_manager.cc:208-212`). Only a preconnect or
+  a connect job whose request was served elsewhere leaves such a socket.
+  Phantom opens a connection only for a request and pools it only after the
+  request, so no pooled connection is unused and the 60-second limit has
+  nothing to apply to.
+- Firefox reuses a connection only while it has been idle less than
+  `network.http.keep-alive.timeout`, 115 s, or the response's `Keep-Alive`
+  timeout (`modules/libpref/init/all.js:1136`;
+  `netwerk/protocol/http/nsHttpConnection.cpp:965-983`, `:1120-1129`), and
+  closes an expired idle connection on a timer, with no request pending
+  (`nsHttpConnection.cpp:1009-1026`;
+  `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258`, `:1027-1030`,
+  `:2572-2605`). `firefox::v157_http1` sets no limit, so a Firefox profile
+  reuses an idle connection until the server closes it.
+  `Http1IdleTimeout` is non-exhaustive so that a timer can be added.
 
 Negotiated requests: both browsers count a connection whose ALPN selected
 HTTP/1.1 against the same per-group limit, and differ from each other only
@@ -1893,6 +1914,18 @@ Loopback tests in `crates/phantom/tests/sessions/session_http1_parallel.rs`:
 | `profile_without_http1_policy_keeps_one_connection_per_origin` | A profile without `Http1Settings` keeps one connection |
 | `requests_cancelled_during_connection_setup_leave_the_full_bound` | Requests dropped while their connection is being set up do not use up the bound |
 | `custom_profile_carries_its_own_http1_bound` | A custom `Http1Settings` bound reaches the client |
+| `connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request` | With a 2-second `Http1IdleTimeout::CheckedOnRequest`, a connection idle less than that carries the next request; one idle longer is closed when the next request comes, and that request opens a new connection |
+
+Unit tests in `crates/phantom/src/session/http1_pool/tests.rs` and
+`http1_or_2_pool/tests.rs`, on a paused clock, check the 300-second edge:
+`connection_idle_less_than_the_timeout_is_reused` (299 s),
+`connection_idle_for_the_timeout_is_closed_and_replaced` (300 s, and the
+peer sees the close),
+`connection_without_a_timeout_is_reused_however_long_it_was_idle`, and
+`idle_http1_connection_past_the_timeout_is_closed_instead_of_leased` for a
+negotiated HTTP/1.1 connection. `profile_used_idle_timeout_reaches_both_http1_pools`
+in `crates/phantom/src/session/tests.rs` checks that both recipes' values
+reach the exact and negotiated pools.
 
 Loopback tests in `crates/phantom/tests/sessions/negotiated_parallel.rs`:
 
@@ -2071,7 +2104,7 @@ them. The calls came from `chrome.dll`, `msedge.dll`, and
 | IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 3 ms, after the failure | 3 ms, after the failure | 301 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
 | System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0, 60, and 120 s | `chromium::v154_dns_cache`: an answer kept 60 s |
 | Lookups with the default built-in DNS client (`lookups`) | One A and one HTTPS query at 0 s | The same | The same | Not modeled: the record TTL |
-| A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | Not modeled: Phantom keeps it |
+| A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | `chromium::v154_http1`: reused under 300 s idle, replaced at 300 s or more |
 
 Each system-resolver lookup was two `getaddrinfo` calls from the browser
 module within a few milliseconds; the calls those make inside `ws2_32.dll`
@@ -2118,9 +2151,9 @@ Differences from the browsers:
 - Phantom sets neither `SO_RANDOMIZE_PORT` nor `SIO_TCP_INITIAL_RTO`. With
   port randomization, Windows picks each connection's local port at random
   instead of in sequence, which a server sees in the source ports of
-  successive connections; no recipe models it yet.
-- Phantom keeps an idle HTTP/1.1 connection until the server closes it;
-  the browsers replace one idle 300 s or more when the next request comes.
+  successive connections. No recipe models it: `socket2` has no setter for
+  the option, and Phantom sets socket options only through safe APIs
+  ([Roadmap](../roadmap.md#browser-recipes)).
 - The browsers resolve with their built-in DNS client by default and keep an
   answer for its record TTL. Phantom resolves through the operating system
   and keeps an answer for the 60 s the browsers use on that path.
@@ -2136,7 +2169,7 @@ retained logs of all three browsers:
 | `chromium_154_tries_ipv4_right_after_a_failed_ipv6_attempt` | Chrome and Edge try IPv4 within 150 ms of a refused `[::1]` attempt |
 | `chromium_family_system_resolver_keeps_an_answer_for_the_cache_ttl` | Successive system-resolver lookups are at least the recipe's 60 s and less than 70 s apart |
 | `chromium_family_built_in_resolver_keeps_an_answer_past_the_recipe_ttl` | The built-in client sent one A and one HTTPS query in 120 s |
-| `chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request` | The connection idle 290 s carried the next request; the one idle 310 s closed as the replacement opened |
+| `chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request` | The connection idle 290 s carried the next request; the one idle 310 s, past the recipe's `idle_timeout`, closed as the replacement opened |
 
 How to reproduce: run `socket_hooks.py --scenario all` once per browser with
 the command in the

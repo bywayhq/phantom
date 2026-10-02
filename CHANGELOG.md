@@ -14,6 +14,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http1Settings` gained the public field `idle_timeout`
+  (`Http1IdleTimeout`), so struct literals that name every field no longer
+  compile. With `Http1IdleTimeout::CheckedOnRequest(duration)`, when a
+  request reaches the HTTP/1.1 connections of its origin and route, an idle
+  connection that has been idle that long or longer is closed instead of
+  reused, and the request opens another. `Http1IdleTimeout` is
+  non-exhaustive, so a match on it needs a wildcard arm.
+  `chromium::v154_http1` sets 300 seconds, Chromium's used idle socket
+  timeout, which the Chrome 154, Edge 154, and Opera 136 hook logs show, so
+  Chrome, Edge, Brave, and Opera profiles now replace a connection idle
+  300 s or more. Exact and negotiated HTTP/1.1 requests both apply it.
+  `firefox::v157_http1` sets `Http1IdleTimeout::Unlimited`, so Firefox
+  profiles keep an idle connection until the server closes it, as before
+  ([evidence](docs/explanation/validation.md#http11-connection-bound-evidence)).
+  Migrate: add `idle_timeout: Http1IdleTimeout::Unlimited` to an
+  `Http1Settings` literal to keep reusing idle connections, or copy the
+  value from `chromium::v154_http1`.
 - The Windows Firefox recipes move to Firefox 157.0 on Windows 11: every
   `firefox::v156_*` function except the two macOS templates is removed from
   `phantom-profile` and the `phantom` facade and replaced by its `v157_*`

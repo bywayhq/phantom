@@ -72,6 +72,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
 - Parallel HTTP/1.1 connections per origin and bounded pools
   ([Connections and client state](guides/connections-and-state.md)).
+- Chromium's HTTP/1.1 idle limit in the Chrome, Edge, Brave, and Opera
+  recipes: a connection that has sat idle 300 s is closed when the next
+  request comes, and that request opens another, as the Chrome 154, Edge
+  154, and Opera 136 hook logs show
+  ([HTTP/1.1 connection bound evidence](explanation/validation.md#http11-connection-bound-evidence)).
 - The address cache, host-to-address overrides, and a caller-supplied
   address resolver ([Resolve host names](guides/name-resolution.md)).
 - Redirects, the cookie jar, and cookie snapshots
@@ -159,12 +164,16 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Windows TCP port randomization and Chromium's idle connection limit.
-  Evidence: hook logs of Chrome 154, Edge 154, and Opera 136 show
-  `SO_RANDOMIZE_PORT` on every TCP socket, and a used HTTP/1.1 connection
-  idle 300 s or more replaced by the next request
+- Windows TCP port randomization. Evidence: hook logs of Chrome 154, Edge
+  154, and Opera 136 show `SO_RANDOMIZE_PORT` on every TCP socket, which
+  Chromium 154 sets right before `connect` on Windows 11 22H2 and later
+  (`net/socket/tcp_socket_win.cc:1048-1053`, `net/base/features.cc:308-314`)
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
-  Blocker: none; `TcpSettings` and the HTTP/1.1 pool need a setting each.
+  Blocker: no safe Rust API sets the option. `socket2` 0.6.5, the newest
+  release, exposes neither `SO_RANDOMIZE_PORT` nor a general `setsockopt`,
+  and a `windows-sys` call would be unsafe code outside the one allowed FFI
+  module ([Design](explanation/design.md#unsafe-code)). It needs a `socket2`
+  method or a new documented and audited FFI boundary.
 - Opera 136 and Edge 154.0.4258.48 on macOS. Evidence: the macOS captures
   are of Opera 135.0.5973.92 and Edge 154.0.4258.37, so
   `opera::v135_macos_client_hints` and `edge::v154_macos_client_hints` carry

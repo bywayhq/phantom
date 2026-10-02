@@ -145,6 +145,7 @@ closes, or sends; the last column says which.
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
 | TCP address-racing fallback delay | 300 ms in `chromium::v154_tcp`; Firefox recipe tries addresses in order | Chromium 154 source | `TcpSettings::address_racing` | Yes |
 | TCP keepalive idle and interval | 45 seconds in `chromium::v154_tcp`; unset for Firefox | Chromium 154 source | `TcpSettings::keepalive` | Yes |
+| Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`; no limit for Firefox or without a recipe | Chromium 154 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
 | HTTP/2 idle PING | None sent | Phantom | Not configurable | No |
 | SSE reconnect delay | 3 seconds, or the server's `retry` | Phantom | `initial_retry`, `min_retry` | Yes |

@@ -75,6 +75,10 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
   request waits once the bound is reached. Without `with_http1` the bound
   is 1; `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces
   it.
+- With `chromium::v154_http1`, a connection idle 300 s or more is closed
+  when the next request comes, and that request opens another, as Chrome
+  does. `firefox::v157_http1` reuses an idle connection until the server
+  closes it.
 - `get_negotiated` requests use the same bound when ALPN selects HTTP/1.1.
   When it selects HTTP/2, they share one connection. Handshake order and
   other rules:

@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize, sync::Arc};
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use phantom_net::http1::Http1Connection;
 use tokio::io::{DuplexStream, duplex};
@@ -13,8 +13,16 @@ fn bound(value: usize) -> Result<NonZeroUsize, Box<dyn std::error::Error>> {
 }
 
 fn connections(max: NonZeroUsize) -> Arc<EntryConnections> {
+    timed_connections(max, None)
+}
+
+fn timed_connections(
+    max: NonZeroUsize,
+    used_idle_timeout: Option<Duration>,
+) -> Arc<EntryConnections> {
     Arc::new(EntryConnections {
         max,
+        used_idle_timeout,
         set: std::sync::Mutex::new(ConnectionSet::default()),
     })
 }
@@ -62,6 +70,23 @@ async fn per_origin_admission_survives_lru_eviction() -> TestResult {
     assert_eq!(replacement.admission.available_active(), 0);
     drop(permit);
     assert_eq!(replacement.admission.available_active(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn pool_entries_take_the_pool_used_idle_timeout() -> TestResult {
+    let one = NonZeroUsize::MIN;
+    let timeout = Some(Duration::from_secs(300));
+    let pool = Http1Pool::new(one, one, one).with_used_idle_timeout(timeout);
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &origin,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    assert_eq!(entry.connections.used_idle_timeout, timeout);
     Ok(())
 }
 
@@ -165,6 +190,63 @@ async fn closed_idle_connection_is_discarded_instead_of_leased() -> TestResult {
 
     assert!(matches!(connections.checkout(false), Checkout::Reserved(_)));
     assert_eq!(connections.open(), 0);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn connection_idle_less_than_the_timeout_is_reused() -> TestResult {
+    let connections = timed_connections(bound(2)?, Some(Duration::from_secs(300)));
+    let (connection, _peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("an empty pool key leased an idle connection".into());
+    };
+    drop(reservation.into_lease(connection));
+
+    tokio::time::advance(Duration::from_secs(299)).await;
+    let Checkout::Idle(lease) = connections.checkout(false) else {
+        return Err("a connection idle 299 s was not reused".into());
+    };
+    drop(lease);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn connection_idle_for_the_timeout_is_closed_and_replaced() -> TestResult {
+    let connections = timed_connections(bound(2)?, Some(Duration::from_secs(300)));
+    let (connection, mut peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("an empty pool key leased an idle connection".into());
+    };
+    drop(reservation.into_lease(connection));
+
+    tokio::time::advance(Duration::from_secs(300)).await;
+    let Checkout::Reserved(replacement) = connections.checkout(false) else {
+        return Err("a connection idle 300 s was reused".into());
+    };
+    // The expired connection no longer counts, and its peer sees it close.
+    assert_eq!(connections.open(), 1);
+    let mut buffer = [0_u8; 1];
+    let read = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::io::AsyncReadExt::read(&mut peer, &mut buffer),
+    )
+    .await??;
+    assert_eq!(read, 0);
+    drop(replacement);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn connection_without_a_timeout_is_reused_however_long_it_was_idle() -> TestResult {
+    let connections = connections(bound(2)?);
+    let (connection, _peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("an empty pool key leased an idle connection".into());
+    };
+    drop(reservation.into_lease(connection));
+
+    tokio::time::advance(Duration::from_secs(3_600)).await;
+    assert!(matches!(connections.checkout(false), Checkout::Idle(_)));
     Ok(())
 }
 

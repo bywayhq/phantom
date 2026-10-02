@@ -98,6 +98,18 @@ async fn pre_selection_admission_survives_lru_eviction() -> TestResult {
 }
 
 #[tokio::test]
+async fn pool_entries_take_the_pool_http1_used_idle_timeout() -> TestResult {
+    let one = NonZeroUsize::MIN;
+    let timeout = Some(Duration::from_secs(300));
+    let pool =
+        Http1Or2Pool::new(one, one, one, one, one, one).with_http1_used_idle_timeout(timeout);
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let entry = pool.entry(PoolKey::new(&origin, &Route::Direct)).await;
+    assert_eq!(entry.connections.http1_used_idle_timeout, timeout);
+    Ok(())
+}
+
+#[tokio::test]
 async fn pool_key_admits_as_many_connection_slots_as_the_http1_bound() -> TestResult {
     let one = NonZeroUsize::MIN;
     let pool = Http1Or2Pool::new(one, bound(6)?, one, one, one, one);
@@ -159,6 +171,35 @@ async fn idle_http1_connection_is_leased_before_a_setup_is_reserved() -> TestRes
     let second = reserve(&connections)?;
     assert_eq!(connections.counts(), (0, 1, 1));
     drop((lease, second));
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn idle_http1_connection_past_the_timeout_is_closed_instead_of_leased() -> TestResult {
+    let connections = Arc::new(
+        EntryConnections::new(
+            bound(2)?,
+            Arc::new(Http2Keys::default()),
+            key("origin.test")?,
+        )
+        .with_http1_used_idle_timeout(Some(Duration::from_secs(300))),
+    );
+    let (connection, _peer) = http1().await?;
+    drop(reserve(&connections)?.finish(connection));
+
+    tokio::time::advance(Duration::from_secs(299)).await;
+    let Checkout::Found(Acquired::Http1(lease)) = connections.checkout(false, false) else {
+        return Err("a connection idle 299 s was passed over".into());
+    };
+    drop(lease);
+    assert_eq!(connections.counts(), (1, 0, 0));
+
+    tokio::time::advance(Duration::from_secs(300)).await;
+    let Checkout::Reserved(reservation) = connections.checkout(false, false) else {
+        return Err("a connection idle 300 s was reused".into());
+    };
+    assert_eq!(connections.counts(), (0, 0, 1));
+    drop(reservation);
     Ok(())
 }
 

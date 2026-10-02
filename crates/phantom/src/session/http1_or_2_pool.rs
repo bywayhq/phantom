@@ -28,6 +28,7 @@ use tracing::{Span, debug};
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::ClientHintContext,
+    http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
     http2_pool::{is_graceful_goaway, send_on},
     stream_count::{OpenStream, StreamCount},
@@ -63,6 +64,8 @@ pub(crate) struct Http1Or2Pool {
     max_http2_connections: NonZeroUsize,
     /// Longest wait for a setup in flight to a key that selected H2 before.
     setup_wait_limit: Option<Duration>,
+    /// How long an idle H1 connection stays reusable.
+    http1_used_idle_timeout: Option<Duration>,
     state: Mutex<PoolState>,
     http2_keys: Arc<Http2Keys>,
     #[cfg(feature = "https-records")]
@@ -86,6 +89,7 @@ impl Http1Or2Pool {
             max_http2_pending,
             max_http2_connections: NonZeroUsize::MIN,
             setup_wait_limit: None,
+            http1_used_idle_timeout: None,
             state: Mutex::new(PoolState::default()),
             http2_keys: Arc::new(Http2Keys::default()),
             #[cfg(feature = "https-records")]
@@ -104,6 +108,18 @@ impl Http1Or2Pool {
     pub(super) const fn with_setup_wait_limit(mut self, limit: Option<Duration>) -> Self {
         self.setup_wait_limit = limit;
         self
+    }
+
+    /// Closes an idle H1 connection instead of reusing it once it has been
+    /// idle `timeout` or longer; `None` reuses it until the server closes it.
+    pub(super) const fn with_http1_used_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.http1_used_idle_timeout = timeout;
+        self
+    }
+
+    #[cfg(test)]
+    pub(super) const fn http1_used_idle_timeout(&self) -> Option<Duration> {
+        self.http1_used_idle_timeout
     }
 
     /// Gives direct connections the client's HTTPS record lookups, for
@@ -479,7 +495,8 @@ impl Http1Or2Pool {
         .with_http2_spread(Http2Spread::new(
             self.max_http2_connections,
             self.max_http2_active,
-        ));
+        ))
+        .with_http1_used_idle_timeout(self.http1_used_idle_timeout);
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
             selection_admission,
@@ -1202,6 +1219,9 @@ fn connect_phase(
 /// idle connection therefore always has room to open one.
 struct EntryConnections {
     max_http1: NonZeroUsize,
+    /// How long an idle H1 connection stays reusable; see
+    /// [`phantom_profile::Http1Settings::used_idle_timeout`].
+    http1_used_idle_timeout: Option<Duration>,
     state: std::sync::Mutex<ConnectionState>,
     /// Woken whenever a connection setup finishes, fails, or is cancelled,
     /// and whenever a stream on one of the key's H2 connections ends.
@@ -1217,7 +1237,7 @@ struct ConnectionState {
     /// How H2 streams spread across `http2`.
     spread: Http2Spread,
     /// H1 connections with no request, least recently used first.
-    http1_idle: Vec<Http1Connection>,
+    http1_idle: Vec<IdleConnection>,
     /// H1 connections leased to a request.
     http1_leased: usize,
     /// Connections being set up.
@@ -1313,6 +1333,7 @@ impl EntryConnections {
         };
         Self {
             max_http1,
+            http1_used_idle_timeout: None,
             state: std::sync::Mutex::new(state),
             setup_done: Arc::new(Notify::new()),
             http2_keys,
@@ -1322,6 +1343,11 @@ impl EntryConnections {
 
     fn with_http2_spread(self, spread: Http2Spread) -> Self {
         self.lock().spread = spread;
+        self
+    }
+
+    const fn with_http1_used_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.http1_used_idle_timeout = timeout;
         self
     }
 
@@ -1410,7 +1436,8 @@ impl EntryConnections {
         if !setup_wait_expired && state.awaits_setup() {
             return Checkout::Found(Acquired::AwaitSetup);
         }
-        state.http1_idle.retain(Http1Connection::is_reusable);
+        let timeout = self.http1_used_idle_timeout;
+        state.http1_idle.retain(|idle| idle.is_reusable(timeout));
         let idle = if force_new_connection {
             if state.open_http1_or_connecting() >= self.max_http1.get()
                 && !state.http1_idle.is_empty()
@@ -1426,7 +1453,7 @@ impl EntryConnections {
             }
             None
         } else {
-            state.http1_idle.pop()
+            state.http1_idle.pop().map(|idle| idle.connection)
         };
         match idle {
             Some(connection) => {
@@ -1471,7 +1498,9 @@ impl EntryConnections {
         let mut state = self.lock();
         state.http1_leased = state.http1_leased.saturating_sub(1);
         match connection {
-            Some(connection) if connection.is_reusable() => state.http1_idle.push(connection),
+            Some(connection) if connection.is_reusable() => {
+                state.http1_idle.push(IdleConnection::new(connection));
+            }
             _ => debug!(
                 outcome = "invalidated",
                 "negotiated HTTP/1 pooled connection invalidated"
