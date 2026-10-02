@@ -20,7 +20,7 @@ presented as a complete client match.
 | Edge 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Firefox 156 | Browser source, partial | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Not sent by Firefox | Captured, 156.0.1 on Windows and 156.0 on macOS | Captured, 156.0.1 |
+| Firefox 156 | Browser source, partial | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Not sent by Firefox | Captured, 156.0.1 | Captured, 156.0.1 |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
@@ -33,6 +33,9 @@ presented as a complete client match.
 - **Browser source**: taken from the browser's source code at the release tag,
   because a capture cannot show it. Firefox's recipe sets `TCP_NODELAY` only.
 - **Not covered**: no recipe exists, and none is claimed.
+- **Captured, 156.0.1**: the build of Firefox's Windows captures. Its macOS
+  captures, which also back the TLS, H2, request template, and WebSocket
+  cells, are from 156.0.
 
 Read the matrix with these conditions:
 
