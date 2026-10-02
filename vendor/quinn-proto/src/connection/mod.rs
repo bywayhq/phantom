@@ -3719,7 +3719,8 @@ impl Connection {
     /// Adopts `version` and its authenticated Initial `keys`
     ///
     /// 0-RTT keys of the start version are discarded, and the handshake then treats early
-    /// data as rejected, so it is sent again in 1-RTT packets.
+    /// data as rejected: the streams it opened are reset, and the application may send the
+    /// data again once the connection is established.
     fn commit_switch(&mut self, version: u32, keys: Keys) -> bool {
         if !self.crypto.switch_version(version) {
             debug!(version, "crypto session cannot switch QUIC version");
@@ -3751,20 +3752,26 @@ impl Connection {
             ));
         }
         // RFC 9368 section 4: the server's Chosen Version must be the version in use, and a
-        // client that was switched must have been told so.
-        if self.side.is_client() {
-            match params.version_information.map(|info| info.chosen) {
-                Some(chosen) if chosen != self.version => {
-                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
-                        "server chose another version",
-                    ));
+        // client that was switched must have been told so. Without compatible versions the
+        // parameter is ignored, as upstream ignores any unknown one.
+        if !self.endpoint_config.compatible_versions.is_empty() {
+            if let Some(error) = params.version_information_error {
+                return Err(error.into());
+            }
+            if self.side.is_client() {
+                match params.version_information.map(|info| info.chosen) {
+                    Some(chosen) if chosen != self.version => {
+                        return Err(TransportError::VERSION_NEGOTIATION_ERROR(
+                            "server chose another version",
+                        ));
+                    }
+                    None if self.original_version.is_some() => {
+                        return Err(TransportError::VERSION_NEGOTIATION_ERROR(
+                            "switched version without Version Information",
+                        ));
+                    }
+                    _ => {}
                 }
-                None if self.original_version.is_some() => {
-                    return Err(TransportError::VERSION_NEGOTIATION_ERROR(
-                        "switched version without Version Information",
-                    ));
-                }
-                _ => {}
             }
         }
 

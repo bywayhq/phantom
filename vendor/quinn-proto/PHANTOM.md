@@ -142,24 +142,28 @@ version negotiation (RFC 9368) for clients:
   and nonce.
 - `EndpointConfig::compatible_versions` lists the versions a server may move
   a client to. Until the server's first flight yields handshake keys, the
-  client accepts an Initial in such a version, asks its crypto session to
-  switch. It first derives that version's Initial keys with the new
-  `Session::initial_keys_for_version`, from the first Initial's Destination
-  Connection ID or a Retry's Source Connection ID, and decrypts the packet
-  with them on a copy. Only a packet that authenticates moves the connection
-  to the new version, through the new `Session::switch_version`; any other is
-  dropped and the client stays in its version. A switch discards the 0-RTT
-  keys, and the handshake treats early data as rejected, so it is sent again
-  in 1-RTT packets. A server may first acknowledge the client in the
-  original version; aioquic does. The default methods refuse, so a provider
-  that cannot switch drops the packet.
-- The transport parameters read the peer's `version_information` (`0x11`).
-  A client closes with the new `VERSION_NEGOTIATION_ERROR` (`0x11`) when the
-  server's Chosen Version differs from the version in use, or when a client
-  that switched gets no `version_information`. A zero Chosen or Available
-  Version is malformed, and a server's Available Versions may be empty. An
-  endpoint with compatible versions writes its own, listing its version and
-  then its compatible versions.
+  client accepts an Initial in such a version. It derives that version's
+  Initial keys with the new `Session::initial_keys_for_version`, from the
+  first Initial's Destination Connection ID or a Retry's Source Connection
+  ID, and decrypts the packet with them on a copy. Only a packet that
+  authenticates moves the connection to the new version, through the new
+  `Session::switch_version`; any other is dropped and the client stays in
+  its version. A switch discards the 0-RTT keys, and the handshake treats
+  early data as rejected: Quinn resets the streams that carried it, and the
+  application may send the data again once the connection is established. A
+  server may first acknowledge the client in the original version; aioquic
+  does. The default methods refuse, so a provider that cannot switch drops
+  the packet.
+- An endpoint with compatible versions writes its own `version_information`
+  (`0x11`), listing its version and then its compatible versions, and checks
+  the peer's. A malformed parameter closes the connection with
+  `TRANSPORT_PARAMETER_ERROR`: a zero Chosen or Available Version, or a
+  client whose Available Versions omit its Chosen Version. A server's
+  Available Versions may be empty. A client closes with the new
+  `VERSION_NEGOTIATION_ERROR` (`0x11`) when the server's Chosen Version
+  differs from the version in use, or when a client that switched gets no
+  `version_information`. An endpoint without compatible versions skips the
+  peer's parameter as unknown, as upstream does.
 - Only the client side of compatible version negotiation is implemented. A
   server never switches a client, and does not check a client's
   `version_information` against the version it received.
@@ -168,7 +172,9 @@ Tests cover the packet-type bits in both versions, a connection and a Retry
 in v2, a client moved from v1 to v2, a switched client that gets no
 `version_information`, a server that lists no Available Versions, a v2
 Initial that fails authentication and leaves the client in v1, a switch
-with 0-RTT data outstanding, and a client that stays in v1. The move is shown with
+with 0-RTT data outstanding, and a client that stays in v1. Default clients
+and servers ignore a malformed or mismatched `version_information`, while a
+client with compatible versions closes for it. The move is shown with
 a rustls session that handshakes in v2 and protects its first flight with
 v1 Initial keys, because a rustls session cannot change version; the test
 re-protects that flight as v2 for a v2-only server. Phantom's BoringSSL

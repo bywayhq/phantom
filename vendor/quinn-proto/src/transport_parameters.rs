@@ -104,6 +104,12 @@ macro_rules! make_struct {
             /// Quinn writes it only when its endpoint allows compatible version negotiation. From
             /// a peer, only the Chosen Version is kept.
             pub(crate) version_information: Option<VersionInformation>,
+            /// Why a peer's `version_information` could not be read
+            ///
+            /// Reading never fails on it: an endpoint without compatible versions skips the
+            /// parameter as upstream skips any unknown one, and only an endpoint with them
+            /// closes the connection for this error.
+            pub(crate) version_information_error: Option<Error>,
 
             // Server-only
             /// The value of the Destination Connection ID field from the first Initial packet sent
@@ -145,6 +151,7 @@ macro_rules! make_struct {
                     min_ack_delay: None,
                     min_ack_delay_draft02: false,
                     version_information: None,
+                    version_information_error: None,
 
                     original_dst_cid: None,
                     retry_src_cid: None,
@@ -530,29 +537,18 @@ impl TransportParameters {
                     _ => return Err(Error::Malformed),
                 },
                 TransportParameterId::VersionInformation => {
-                    if len < 4
-                        || len % 4 != 0
-                        || params.version_information.is_some()
-                        || r.remaining() < len
+                    let mut body = r.take(len);
+                    let read = match params.version_information.is_some()
+                        || params.version_information_error.is_some()
                     {
-                        return Err(Error::Malformed);
+                        true => Err(Error::Malformed),
+                        false => VersionInformation::read(side, &mut body),
+                    };
+                    body.advance(body.remaining());
+                    match read {
+                        Ok(info) => params.version_information = Some(info),
+                        Err(error) => params.version_information_error = Some(error),
                     }
-                    // RFC 9368 section 4: a zero Chosen or Available Version is a parsing
-                    // failure. A client lists its Chosen Version among its Available
-                    // Versions; a server's Available Versions may be empty.
-                    let chosen = r.get::<u32>()?;
-                    let mut lists_chosen = false;
-                    for _ in 1..len / 4 {
-                        let available = r.get::<u32>()?;
-                        if available == 0 {
-                            return Err(Error::IllegalValue);
-                        }
-                        lists_chosen |= available == chosen;
-                    }
-                    if chosen == 0 || (side.is_server() && !lists_chosen) {
-                        return Err(Error::IllegalValue);
-                    }
-                    params.version_information = Some(VersionInformation::chosen(chosen));
                 }
                 // Only written: the endpoint never sends RESET_STREAM_AT, so a peer's
                 // parameter is skipped as upstream skips any unknown one.
@@ -818,12 +814,35 @@ impl VersionInformation {
     const MAX_AVAILABLE: usize = 8;
 
     /// A peer's parameter, whose Available Versions Quinn does not use
-    fn chosen(chosen: u32) -> Self {
+    pub(crate) fn chosen(chosen: u32) -> Self {
         Self {
             chosen,
             available: [0; Self::MAX_AVAILABLE],
             available_len: 0,
         }
+    }
+
+    /// Reads a peer's parameter from its whole body
+    fn read(side: Side, r: &mut impl Buf) -> Result<Self, Error> {
+        if r.remaining() < 4 || r.remaining() % 4 != 0 {
+            return Err(Error::Malformed);
+        }
+        // RFC 9368 section 4: a zero Chosen or Available Version is a parsing failure. A
+        // client lists its Chosen Version among its Available Versions; a server's Available
+        // Versions may be empty.
+        let chosen = r.get::<u32>()?;
+        let mut lists_chosen = false;
+        while r.has_remaining() {
+            let available = r.get::<u32>()?;
+            if available == 0 {
+                return Err(Error::IllegalValue);
+            }
+            lists_chosen |= available == chosen;
+        }
+        if chosen == 0 || (side.is_server() && !lists_chosen) {
+            return Err(Error::IllegalValue);
+        }
+        Ok(Self::chosen(chosen))
     }
 
     /// The local parameter of an endpoint that allows compatible version negotiation

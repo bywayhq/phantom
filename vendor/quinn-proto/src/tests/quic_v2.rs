@@ -17,6 +17,7 @@ use crate::{
         rustls::{configured_provider, initial_keys, initial_suite_from_provider},
     },
     packet::{FixedLengthConnectionIdParser, Header, InitialHeader, PacketNumber, QUIC_V2},
+    transport_parameters::VersionInformation,
 };
 
 const QUIC_V1: u32 = 1;
@@ -517,7 +518,7 @@ fn version_information_round_trips() {
 }
 
 #[test]
-fn malformed_version_information_is_rejected() {
+fn malformed_version_information_is_recorded_without_failing_the_read() {
     use crate::transport_parameters::Error;
 
     for (side, encoded) in [
@@ -528,13 +529,187 @@ fn malformed_version_information_is_rejected() {
         (Side::Server, &[0x11, 0x04, 0, 0, 0, 1][..]),
         (Side::Server, &[0x11, 0x08, 0, 0, 0, 1, 0, 0, 0, 2][..]),
         (Side::Client, &[0x11, 0x08, 0, 0, 0, 0, 0, 0, 0, 1][..]),
+        // Sent twice
+        (
+            Side::Client,
+            &[0x11, 0x04, 0, 0, 0, 1, 0x11, 0x04, 0, 0, 0, 1][..],
+        ),
     ] {
+        // The parameters that follow are still read.
+        let mut buf = encoded.to_vec();
+        buf.extend_from_slice(&[0x01, 0x01, 0x05]);
+        let read = TransportParameters::read(side, &mut buf.as_slice())
+            .unwrap_or_else(|error| panic!("{encoded:02x?}: {error}"));
         assert!(
             matches!(
-                TransportParameters::read(side, &mut &encoded[..]),
-                Err(Error::Malformed | Error::IllegalValue)
+                read.version_information_error,
+                Some(Error::Malformed | Error::IllegalValue)
             ),
             "{encoded:02x?}"
+        );
+        assert_eq!(read.max_idle_timeout, VarInt(5));
+    }
+}
+
+/// Server crypto that announces `info` as its `version_information`
+struct ServerVersionInformation {
+    inner: Arc<crypto::rustls::QuicServerConfig>,
+    info: VersionInformation,
+}
+
+impl crypto::ServerConfig for ServerVersionInformation {
+    fn initial_keys(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+    ) -> Result<Keys, crypto::UnsupportedVersion> {
+        self.inner.initial_keys(version, dst_cid)
+    }
+
+    fn retry_tag(&self, version: u32, orig_dst_cid: &ConnectionId, packet: &[u8]) -> [u8; 16] {
+        self.inner.retry_tag(version, orig_dst_cid, packet)
+    }
+
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        params: &TransportParameters,
+    ) -> Box<dyn crypto::Session> {
+        let params = TransportParameters {
+            version_information: Some(self.info),
+            ..*params
+        };
+        self.inner.clone().start_session(version, &params)
+    }
+}
+
+/// Client crypto that announces `info` as its `version_information`
+struct ClientVersionInformation {
+    inner: Arc<crypto::rustls::QuicClientConfig>,
+    info: VersionInformation,
+}
+
+impl crypto::ClientConfig for ClientVersionInformation {
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        server_name: &str,
+        params: &TransportParameters,
+    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+        let params = TransportParameters {
+            version_information: Some(self.info),
+            ..*params
+        };
+        self.inner
+            .clone()
+            .start_session(version, server_name, &params)
+    }
+}
+
+/// Starts a v1 client toward a server whose `version_information` is `info`
+fn connect_to_server_announcing(
+    client_compatible: &[u32],
+    info: VersionInformation,
+) -> (Pair, ConnectionHandle) {
+    let mut server_config = server_config();
+    server_config.crypto = Arc::new(ServerVersionInformation {
+        inner: Arc::new(server_crypto()),
+        info,
+    });
+    let mut pair = Pair::new_from_endpoint(
+        Endpoint::new(
+            endpoint_config(&[QUIC_V1, QUIC_V2], client_compatible),
+            None,
+            true,
+            None,
+        ),
+        Endpoint::new(
+            endpoint_config(&[QUIC_V1, QUIC_V2], &[]),
+            Some(Arc::new(server_config)),
+            true,
+            None,
+        ),
+    );
+    let client_ch = pair.begin_connect(client_config());
+    pair.drive();
+    (pair, client_ch)
+}
+
+#[test]
+fn a_default_client_ignores_the_server_version_information() {
+    let _guard = subscribe();
+    // A zero Chosen Version is malformed; QUIC v2 is not the version in use.
+    for info in [
+        VersionInformation::chosen(0),
+        VersionInformation::chosen(QUIC_V2),
+    ] {
+        let (mut pair, client_ch) = connect_to_server_announcing(&[], info);
+        pair.server.assert_accept();
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::HandshakeDataReady)
+        );
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::Connected)
+        );
+    }
+}
+
+#[test]
+fn a_client_with_compatible_versions_checks_the_server_version_information() {
+    let _guard = subscribe();
+    for (info, code) in [
+        (
+            VersionInformation::chosen(0),
+            TransportErrorCode::TRANSPORT_PARAMETER_ERROR,
+        ),
+        (
+            VersionInformation::chosen(QUIC_V2),
+            TransportErrorCode::VERSION_NEGOTIATION_ERROR,
+        ),
+    ] {
+        let (mut pair, client_ch) = connect_to_server_announcing(&[QUIC_V2], info);
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::HandshakeDataReady)
+        );
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::ConnectionLost {
+                reason: ConnectionError::TransportError(TransportError { code: lost, .. })
+            }) if lost == code
+        );
+    }
+}
+
+#[test]
+fn a_default_server_ignores_the_client_version_information() {
+    let _guard = subscribe();
+    // A zero Chosen Version is malformed, and a client's Available Versions must list its
+    // Chosen Version.
+    for info in [
+        VersionInformation::chosen(0),
+        VersionInformation::chosen(QUIC_V1),
+    ] {
+        let mut pair = pair_with(
+            endpoint_config(&[QUIC_V1, QUIC_V2], &[]),
+            endpoint_config(&[QUIC_V1, QUIC_V2], &[]),
+        );
+        let config = ClientConfig::new(Arc::new(ClientVersionInformation {
+            inner: Arc::new(client_crypto()),
+            info,
+        }));
+        let client_ch = pair.begin_connect(config);
+        pair.drive();
+        pair.server.assert_accept();
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::HandshakeDataReady)
+        );
+        assert_matches!(
+            pair.client_conn_mut(client_ch).poll(),
+            Some(Event::Connected)
         );
     }
 }
