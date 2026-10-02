@@ -38,7 +38,7 @@ recaptured and reverified.
 | Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
 | Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
-| Opera 135 | `opera::v135_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v135_windows_client_hints`, `v135_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
+| Opera 136 | `opera::v136_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v136_windows_client_hints`; `v135_macos_client_hints` from Opera 135 | Chromium | Windows; macOS (Opera 135) for client hints and templates |
 | Firefox 156 | `firefox::v156_*` | Yes | Yes | Yes | No | `v156_websocket` | Windows (156.0.1); macOS for templates (156.0) |
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
@@ -116,8 +116,7 @@ resolved addresses.
 | None (no `with_tcp`) | OS default | OS default | One at a time, resolver order |
 | `chromium::v154_tcp` | Set (Nagle off) | 45 s and 45 s, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay |
 | `firefox::v156_tcp` | Set (Nagle off) | Untouched | One at a time, resolver order |
-| Brave | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
-| Edge, Opera | Not covered | Not covered | Not covered |
+| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
 | Android browsers | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
@@ -129,8 +128,14 @@ resolved addresses.
 - Firefox's keepalive schedule and address selection are not modeled.
 - Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
-- No capture shows Edge's or Opera's socket options, and their network
-  source is not public.
+- Edge's and Opera's network source is not public. Frida hook logs of Edge
+  154.0.4258.48 and Opera 136.0.6008.52 on Windows 11 show the options and
+  the 300 ms fallback of `chromium::v154_tcp`, as Chrome 154's do
+  ([Validation](../explanation/validation.md#socket-hook-evidence)).
+- Chrome, Edge, and Opera on Windows 11 also set `SO_RANDOMIZE_PORT` on
+  each TCP socket before connecting, and Chrome and Edge fail a refused
+  loopback connect at once with `SIO_TCP_INITIAL_RTO`. No recipe sets either
+  option.
 - The Android emulator ends the device's TCP connections and opens new ones
   from the host, so no Android browser's socket option reaches a capture.
 
@@ -161,7 +166,7 @@ for each origin and route.
 | `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v156_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
 | Brave | 6, from `chromium::v154_http1` | Brave 1.96.59 builds the same Chromium tag and changes none of the cited values |
-| Edge, Opera | Not covered | Their network source is not public, and no capture shows the value |
+| Edge, Opera | 6, from `chromium::v154_http1` | Hook logs: ten concurrent requests to one origin opened six connections |
 | Android browsers | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
@@ -213,7 +218,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
 | `firefox::v156_dns_cache` | 1,600 | 60 s | 60 s |
 | Brave | 1,000, from `chromium::v154_dns_cache` | 60 s | Not kept |
-| Edge, Opera | Not covered | Not covered | Not covered |
+| Edge, Opera | 1,000, from `chromium::v154_dns_cache` | 60 s, as hook logs show through the system resolver | Not kept |
 | Android browsers | Not covered | Not covered | Not covered |
 
 - Phantom resolves through the operating system, which reports no record
@@ -254,8 +259,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `edge::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `brave::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
-| `opera::v135_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
-| `opera::v135_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `opera::v136_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `opera::v136_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v156_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 value |
 | `firefox::v156_macos_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 macOS value |
@@ -438,7 +443,7 @@ replace it.
 | Recipe | HTTP/1.1 proxy | HTTP/2 proxy, after `:method` and `:authority` |
 | --- | --- | --- |
 | None (no `with_proxy_connect`) | `Host`, then `Proxy-Authorization` | `proxy-authorization` |
-| `chromium::v154_proxy_connect` (Chrome 154, Edge 154, Brave 154, and Opera 135) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+| `chromium::v154_proxy_connect` (Chrome 154, Edge 154, Brave 154, and Opera 136) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 | `firefox::v156_proxy_connect` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 
 - `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`

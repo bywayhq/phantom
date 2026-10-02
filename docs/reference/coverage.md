@@ -17,9 +17,9 @@ presented as a complete client match.
 | Browser | TCP | TLS | H1 | H2 | QUIC | H3 | Client hints | Request templates | WebSocket opening |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Edge 154 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Edge 154 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Opera 135 | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Opera 136 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 156 | Browser source, partial | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Captured, 156.0.1 | Not sent by Firefox | Captured, 156.0.1 | Captured, 156.0.1 |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
@@ -32,6 +32,10 @@ presented as a complete client match.
   retained [captures](glossary.md#capture) of that browser build.
 - **Browser source**: taken from the browser's source code at the release tag,
   because a capture cannot show it. Firefox's recipe sets `TCP_NODELAY` only.
+- **Hook logs**: the browser's own Winsock and resolver calls, recorded with
+  Frida inside its network service process, match the Chromium recipe, so the
+  browser uses `chromium::v154_tcp` (see
+  [Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
 - **Not covered**: no recipe exists, and none is claimed.
 - **Captured, 156.0.1**: the build of Firefox's Windows captures. Its macOS
   captures, which also back the TLS, H2, request template, and WebSocket
@@ -52,11 +56,11 @@ Read the matrix with these conditions:
   carry. The Chrome and Firefox recipes set a connection bound
   (`Http1Settings`) of 6 per origin and route, from browser source; without
   them the bound is 1. Brave uses the Chromium one, since it builds the same
-  Chromium tag without changing the bound; Edge and Opera have no H1
-  connection recipe.
+  Chromium tag without changing the bound, and Edge and Opera use it because
+  their hook logs show six connections to one origin.
 - Edge's, Brave's, and Opera's H2, QUIC, H3, and WebSocket layers use the
   Chromium recipes, which equal their captures on every compared field.
-  Opera 135 is built on Chromium 151 and is compared with the Chrome 154
+  Opera 136 is built on Chromium 152 and is compared with the Chrome 154
   recipes, the only Chromium version Phantom carries. So do Chrome's,
   Edge's, and Brave's for Android, except that Edge for Android has no
   WebSocket recipe.
@@ -143,10 +147,10 @@ Not modeled:
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
-- An Edge or Opera TCP recipe. No capture shows their options, and their
-  network source is not public. Brave uses `chromium::v154_tcp`: Brave
-  1.96.59 builds Chromium tag `154.0.8037.58` and changes none of the values
-  the recipe cites.
+- Windows TCP port randomization (`SO_RANDOMIZE_PORT`), which Chrome 154,
+  Edge 154, and Opera 136 set on every TCP socket, and Chromium 154's
+  immediate failure of a refused loopback connect (`SIO_TCP_INITIAL_RTO`).
+  Hook logs show both; `chromium::v154_tcp` sets neither.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP
@@ -199,7 +203,8 @@ Supported:
   recently used idle connection before it opens another, and waits in
   arrival order, up to a bounded number of waiters, once the bound is
   reached. The Chrome 154 and Firefox 156 recipes set the browsers'
-  per-host limit of 6, from browser source. A profile without
+  per-host limit of 6, from browser source; Edge and Opera use the Chromium
+  one, which their hook logs show. A profile without
   `Http1Settings` keeps one connection. Negotiated requests that select H1
   use the same bound, each connection with its own TLS handshake; until a
   connection has selected H2, their handshakes run in parallel.
@@ -219,6 +224,10 @@ Not modeled:
 
 - Chromium's caps across groups: 256 sockets per pool and 128 per proxy
   chain.
+- Chromium's limit on idle time: once a used connection has sat idle for
+  300 s, the next request to its pool closes it and opens another, as the
+  Chrome, Edge, and Opera hook logs show. Phantom keeps an idle connection
+  until the server closes it.
 - Firefox's limit of 32 for plaintext requests forwarded through an HTTP
   proxy, where its recipe keeps 6, and the 3 extra connections it allows
   urgent-start requests. Firefox also leaves idle connections out of its
@@ -868,12 +877,12 @@ the naming rules.
 Each recipe records the platform its captures came from, and no recipe
 shares component data with a capture from another platform:
 
-- Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37), Brave 154
-  (154.1.96.59), Opera 135 (135.0.5973.92), and Firefox 156 (156.0.1) recipes
-  come from Windows 11 captures. The `macos` client-hint and template
-  recipes of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures
-  on Apple silicon, at the same builds except Firefox, whose macOS captures
-  are from 156.0. Single retained macOS runs of the TCP
+- Chrome 154 (154.0.8037.58), Edge 154 (154.0.4258.37, and 154.0.4258.48
+  for client hints), Brave 154 (154.1.96.59), Opera 136 (136.0.6008.52), and
+  Firefox 156 (156.0.1) recipes come from Windows 11 captures. The `macos`
+  client-hint and template recipes of Chrome, Edge, Opera, and Firefox come
+  from macOS 15.5 captures on Apple silicon, at the Windows builds except
+  Edge (154.0.4258.37), Opera (135.0.5973.92), and Firefox (156.0). Single retained macOS runs of the TCP
   ClientHello and resumption and the H2 session for all four, and of the
   QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
   Windows recipes in the replay tests
@@ -915,10 +924,12 @@ How the recipes differ:
   version to `.0.0.0`. Its templates drop signed exchanges from the
   navigation `Accept`, add `Sec-GPC: 1`, and leave `Accept-Language` to the
   caller, because Brave draws its `q` value per session.
-- Opera 135 matches the same Chromium recipes and omits trust-anchor IDs, and
-  its TCP ClientHello has no GREASE signature algorithm. `opera::` carries
-  `v135_tls`, `v135_http3_tls`, `v135_windows_client_hints`, and its request
-  templates, which equal the Chromium templates apart from `User-Agent`.
+- Opera 136 matches the same Chromium recipes and sends Chromium 152's 32
+  trust-anchor IDs, in an order fixed per process, where Chrome 154 sends 28
+  sorted. `opera::` carries `v136_tls`, `v136_http3_tls`,
+  `v136_windows_client_hints`, `v135_macos_client_hints` from the Mac's
+  Opera 135, and its request templates, which equal the Chromium templates
+  apart from `User-Agent`.
 - `firefox_android::v156_tls` returns `firefox::v156_tls`, which the Android
   ClientHellos equal. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.
@@ -954,7 +965,7 @@ Request templates:
 - The navigation templates match every retained page request:
   - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
     WebSocket captures), and H3 (the H3 startup capture);
-  - Edge 154, Brave 154, Opera 135, and Brave 153 for Android over H1, H2,
+  - Edge 154, Brave 154, Opera 136, and Brave 153 for Android over H1, H2,
     and H3;
   - Chrome 154 and Edge 153 for Android over H1 and H2 (the WebSocket
     captures); and
@@ -1004,7 +1015,7 @@ Randomized fields:
   and differed between processes, a hash-iteration order rather than a
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
-- The Chrome 154, Edge 154, Brave 154, Opera 135, and Chrome 154, Edge 153,
+- The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those
   browsers does. Tests compare it exactly.

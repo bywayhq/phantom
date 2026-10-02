@@ -16,7 +16,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 
 - One-line git or path dependency with no `[patch]` table
   ([Adding Phantom to a project](guides/downstream.md)).
-- Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 156 recipes from
+- Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 156 recipes from
   retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
@@ -24,6 +24,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   recipes from Android emulator captures
   ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes),
   [Edge for Android 153 recipes](explanation/validation.md#edge-for-android-153-recipes)).
+- TCP options, the HTTP/1.1 connection bound, and the address cache of the
+  Chromium recipes for Brave 154, from a `brave-core` source reading, and for
+  Edge 154 and Opera 136, from Frida hook logs that match Chrome 154's
+  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
 - Exact and negotiated HTTP/1.1 and HTTP/2, ordered fields, streaming bodies,
   and ordered static or body-produced trailers ([Using the client](guides/client.md)).
 - Bounded response collection and opt-in decompression
@@ -161,16 +165,19 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Opera TCP, HTTP/1.1 connection, and address cache recipes. Delivered:
-  Brave 154 uses the Chromium TCP, HTTP/1.1, and address cache recipes after
-  a `brave-core` source reading at its release tag, and both browsers use
-  the Chromium cookie placement, which their cookie captures equal
-  ([Brave 154 and Opera 135 recipes](explanation/validation.md#brave-154-and-opera-135-recipes)).
-  Evidence: none for Opera itself; Chromium 151, which Opera reports, has
-  the Chromium 154 values at its tag. Blocker: Opera's network source is not
-  public, and no capture shows socket options or cache lifetimes.
+- Windows TCP port randomization and Chromium's idle connection limit.
+  Evidence: hook logs of Chrome 154, Edge 154, and Opera 136 show
+  `SO_RANDOMIZE_PORT` on every TCP socket, and a used HTTP/1.1 connection
+  idle 300 s or more replaced by the next request
+  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
+  Blocker: none; `TcpSettings` and the HTTP/1.1 pool need a setting each.
+- Opera 136 and Edge 154.0.4258.48 on macOS. Evidence: the macOS captures
+  are of Opera 135.0.5973.92 and Edge 154.0.4258.37, so
+  `opera::v135_macos_client_hints` and `edge::v154_macos_client_hints` carry
+  those builds. Blocker: none; update the Mac's browsers and take the macOS
+  client hints and request captures again.
 - Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
-  query with the capture tool's preferences, and `opera::v135_tls` keeps
+  query with the capture tool's preferences, and `opera::v136_tls` keeps
   GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.
 - Firefox keepalive schedule and address selection. Evidence: not yet
   gathered. Today every TCP path applies Chromium's keepalive and Happy Eyeballs v2, so

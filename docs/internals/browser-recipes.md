@@ -63,7 +63,7 @@ captures, and `4a01b7f` added `crates/phantom-profile/src/edge.rs`, which
 reuses the Chromium recipes and changes only what the captures show differs.
 `brave.rs` and `opera.rs` follow the same pattern. Brave's request templates
 are the Chromium templates with its field changes applied, and Opera, built
-on Chromium 151, is compared with the Chrome 154 recipes because Phantom
+on Chromium 152, is compared with the Chrome 154 recipes because Phantom
 carries one Chromium version.
 
 ## Step 1: capture each area
@@ -97,7 +97,7 @@ has the exact Chrome 154 commands and launch arguments to repeat.
   runs the TLS, H2, or QUIC listener and launches the browser with the
   Chrome 154 arguments for that layer. Those listeners serve only the first
   connection, so for a browser that abandons its startup connections, as
-  Opera 135 does, pass `--navigate devtools`.
+  Opera 135 did, pass `--navigate devtools`.
 - To capture several areas or browsers in one command, list them in a
   manifest for
   [`run_matrix.py`](../../scripts/capture/README.md#run-captures-from-a-manifest),
@@ -110,8 +110,11 @@ has the exact Chrome 154 commands and launch arguments to repeat.
   run. Captures in different launch modes are compared, never assumed equal.
 - Some layers cannot be captured. TCP socket options do not appear on the
   wire, so `chromium::v154_tcp` rests on Chromium source at the release tag.
-  Edge has no TCP recipe, because its network source is not public. Say which
-  layers have no evidence; do not borrow another browser's.
+  For a browser whose network source is not public, such as Edge or Opera,
+  record its socket calls with
+  [`socket_hooks.py`](../../scripts/capture/README.md#socket-hooks) and
+  compare them with Chrome's. Say which layers have no evidence; do not
+  borrow another browser's.
 
 ## Step 2: retain the fixtures
 
