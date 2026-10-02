@@ -486,10 +486,11 @@ pub(super) fn begin_accept_ch_restart(
     restart_hints: &mut RestartHints,
     body: &mut RequestBodySource,
 ) {
-    restart_hints.add(&restart.hints);
+    let restarts = restart_hints.add(&restart.hints);
     body.restore(restart.body);
     tracing::debug!(
-        retry = 1,
+        restart = restarts,
+        hints_added = restart.hints.len(),
         reason = "accept_ch",
         "restarting request with the client hints its connection's ACCEPT_CH asks for"
     );

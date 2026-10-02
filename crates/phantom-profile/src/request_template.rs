@@ -297,6 +297,25 @@ pub struct RequestTemplate {
     /// hints the profile sends by default, and a client must refuse to send a
     /// requested hint with it rather than guess a position.
     pub requested_client_hint_placement: bool,
+    /// Whether this request kind restarts when its HTTP/2 or HTTP/3
+    /// connection's ALPS `ACCEPT_CH` names a client hint it lacks.
+    ///
+    /// Chromium restarts only navigations. The network service attaches the
+    /// `ACCEPT_CH` observer only from a request's trusted parameters
+    /// (`services/network/url_loader_factory.cc:341-371` at tag
+    /// `154.0.8037.58`), which only the browser's navigation loader sets
+    /// (`content/browser/loader/navigation_url_loader_impl.cc:256-277`,
+    /// `:2160-2181`) and a renderer's factory refuses
+    /// (`services/network/cors/cors_url_loader_factory.cc:657-662`). Without
+    /// the observer no interceptor exists
+    /// (`services/network/accept_ch_frame_interceptor.cc:57-68`), and the
+    /// loader sends a `fetch` as built
+    /// (`services/network/url_loader.cc:933-937`).
+    ///
+    /// When `false`, a request with this template goes out with the fields it
+    /// was built with, whatever the connection's `ACCEPT_CH` names, and the
+    /// entry teaches the origin nothing.
+    pub restarts_for_connection_accept_ch: bool,
 }
 
 impl RequestTemplate {

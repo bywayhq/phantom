@@ -277,11 +277,71 @@ fn empty_absent_or_malformed_connection_value_asks_for_nothing() -> Result<(), R
 }
 
 #[test]
-fn restart_hints_accumulate_in_ascending_order() {
+fn restart_hints_keep_the_order_the_restarts_added_them() {
+    let mut restart = RestartHints::default();
+    assert_eq!(restart.add(&[2]), 1);
+    assert_eq!(restart.add(&[1, 2]), 2);
+    assert_eq!(restart.indices, [2, 1]);
+}
+
+#[test]
+fn hints_the_origin_requested_since_the_build_ask_for_no_restart() -> Result<(), RequestError> {
+    let store = ClientHintStore::new(NonZeroUsize::MIN);
+    let endpoint = endpoint("example.test");
+    let settings = settings();
+    let context =
+        ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
+    let built = context.prepare(Vec::new())?;
+
+    // An `Accept-CH` response stores the hint after the list was built.
+    let mut learned = HeaderMap::new();
+    learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Arch"));
+    store.learn_and_should_retry(&endpoint, true, &settings, &learned, &built);
+    assert_eq!(
+        context.connection_restart(&built, Some(b"Sec-CH-UA-Arch")),
+        None
+    );
+    // One hint not stored restarts the request, which then adds both.
+    assert_eq!(
+        context
+            .connection_restart(&built, Some(b"Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version"))
+            .as_deref(),
+        Some(&[1, 2][..])
+    );
+    Ok(())
+}
+
+#[test]
+fn width_hints_ask_for_no_restart() -> Result<(), RequestError> {
+    let endpoint = endpoint("example.test");
+    let settings = ClientHintSettings::new(vec![
+        ClientHint::new("sec-ch-ua", "baseline", ClientHintDelivery::Default),
+        ClientHint::new("sec-ch-width", "100", ClientHintDelivery::AcceptCh),
+        ClientHint::new("width", "100", ClientHintDelivery::AcceptCh),
+    ]);
+    let context = ClientHintContext::new(&endpoint, "https://example.test", &settings, None);
+    let built = context.prepare(Vec::new())?;
+    assert_eq!(
+        context.connection_restart(&built, Some(b"Sec-CH-Width, Width")),
+        None
+    );
+    Ok(())
+}
+
+#[test]
+fn a_restart_added_hint_follows_the_caller_fields() -> Result<(), RequestError> {
+    let endpoint = endpoint("example.test");
+    let settings = settings();
     let mut restart = RestartHints::default();
     restart.add(&[2]);
-    restart.add(&[1, 2]);
-    assert_eq!(restart.indices, [1, 2]);
+    let context = ClientHintContext::new(&endpoint, "https://example.test", &settings, None)
+        .with_restart_hints(&restart);
+    let prepared = context.prepare(vec![RequestHeader::new("x-caller", "one")])?;
+    assert_eq!(
+        prepared.iter().map(RequestHeader::name).collect::<Vec<_>>(),
+        ["sec-ch-ua", "x-caller", "sec-ch-ua-platform-version"]
+    );
+    Ok(())
 }
 
 mod template_slots {
@@ -463,6 +523,69 @@ mod template_slots {
             ),
             Some(RequestErrorKind::RequestTemplate)
         );
+    }
+
+    #[test]
+    fn a_fetch_template_never_restarts_and_a_navigation_template_does() {
+        use std::num::NonZeroUsize;
+
+        use super::super::{ClientHintContext, ClientHintStore};
+
+        let hints = chromium::v154_windows_client_hints();
+        let endpoint = super::endpoint("example.test");
+        let store = ClientHintStore::new(NonZeroUsize::MIN);
+        let fetch = prepare(&chromium::v154_windows_fetch_no_store_template());
+        let navigation = prepare(&chromium::v154_windows_navigation_template());
+        let context = |template| {
+            ClientHintContext::new(&endpoint, "https://example.test", &hints, Some(&store))
+                .with_template(Some(template))
+        };
+        let sent = [RequestHeader::new("sec-ch-ua", "x")];
+        assert_eq!(
+            context(&fetch).connection_restart(&sent, Some(b"Sec-CH-UA-Arch")),
+            None
+        );
+        assert_eq!(
+            context(&navigation)
+                .connection_restart(&sent, Some(b"Sec-CH-UA-Arch"))
+                .as_deref(),
+            Some(&[3][..])
+        );
+    }
+
+    /// A hint only a restart added follows every template field, as
+    /// Chromium's header merge appends a new name; a stored hint keeps the
+    /// template's slot.
+    #[test]
+    fn a_restart_added_hint_follows_the_navigation_fields() -> Result<(), crate::RequestError> {
+        use std::num::NonZeroUsize;
+
+        use http::{HeaderMap, HeaderValue};
+
+        use super::super::{ClientHintContext, ClientHintStore, RestartHints};
+
+        let hints = chromium::v154_windows_client_hints();
+        let endpoint = super::endpoint("example.test");
+        let store = ClientHintStore::new(NonZeroUsize::MIN);
+        let mut learned = HeaderMap::new();
+        learned.insert("accept-ch", HeaderValue::from_static("Sec-CH-UA-Model"));
+        store.learn_and_should_retry(&endpoint, true, &hints, &learned, &[]);
+        let template = chromium::v154_windows_navigation_template();
+        let navigation = prepare(&template);
+        let mut restart = RestartHints::default();
+        restart.add(&[3]);
+        let fields = expand(&template.http2_fields, &[], Some(&hints), true);
+        let prepared =
+            ClientHintContext::new(&endpoint, "https://example.test", &hints, Some(&store))
+                .with_template(Some(&navigation))
+                .with_restart_hints(&restart)
+                .prepare(fields)?;
+        let names: Vec<&str> = prepared.iter().map(RequestHeader::name).collect();
+        assert_eq!(names.last(), Some(&"sec-ch-ua-arch"));
+        let model = names.iter().position(|name| *name == "sec-ch-ua-model");
+        let user_agent = names.iter().position(|name| *name == "user-agent");
+        assert!(model < user_agent, "{names:?}");
+        Ok(())
     }
 
     #[test]

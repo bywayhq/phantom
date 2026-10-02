@@ -951,6 +951,8 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
             exclusive: false,
         }),
         requested_client_hint_placement: false,
+        // Firefox sends no client hints and ignores ACCEPT_CH.
+        restarts_for_connection_accept_ch: false,
     }
 }
 
@@ -1044,6 +1046,8 @@ fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
             exclusive: false,
         }),
         requested_client_hint_placement: false,
+        // Firefox sends no client hints and ignores ACCEPT_CH.
+        restarts_for_connection_accept_ch: false,
     }
 }
 

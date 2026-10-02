@@ -94,6 +94,10 @@ impl PreparedRequestTemplate {
         self.0.template.requested_client_hint_placement
     }
 
+    pub(crate) fn restarts_for_connection_accept_ch(&self) -> bool {
+        self.0.template.restarts_for_connection_accept_ch
+    }
+
     pub(crate) fn http2_priority(&self) -> Option<Http2Priority> {
         self.0.template.http2_priority
     }

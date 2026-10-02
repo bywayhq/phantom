@@ -623,9 +623,9 @@ Supported:
 
   See [Cookies](../guides/cookies.md#keep-cookies-between-requests).
 - [Client-hint](glossary.md#client-hints) fields defined by the profile, with
-  bounded `Accept-CH` state per exact origin from responses, a restart when
-  a connection's H2/H3 ALPS `ACCEPT_CH` names a hint the request lacks, and
-  one bounded `Critical-CH` retry for safe methods. A request template places the hints at its captured
+  bounded `Accept-CH` state per exact origin from responses, a restart
+  when a connection's H2/H3 ALPS `ACCEPT_CH` names a hint a navigation
+  lacks, and one bounded `Critical-CH` retry for safe methods. A request template places the hints at its captured
   slots. Without one, they precede the caller's fields. See
   [Client hints](../guides/request-templates.md#send-client-hints).
 - Opt-in finite redirects: WHATWG URL resolution, `http://` and `https://`

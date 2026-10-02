@@ -235,10 +235,10 @@ impl Http3Pool {
     /// goes out as early data; the connection knows no ALPS `ACCEPT_CH` yet.
     /// If the server rejects the early data, it processed none of it (RFC
     /// 9001, section 4.6.2); the connection starts HTTP/3 again after the
-    /// handshake, and the request is sent again on it, as Chromium does,
-    /// unless the handshake's `ACCEPT_CH` restarts it. Any other request
-    /// waits for the answer, keeps its body until then, and restarts when the
-    /// completed handshake's `ACCEPT_CH` asks for a hint it lacks.
+    /// handshake, and the request is sent again on it as built, as Chromium
+    /// does. Any other request waits for the answer, keeps its body until
+    /// then, and restarts when the completed handshake's `ACCEPT_CH` asks for
+    /// a hint it lacks.
     #[allow(clippy::too_many_arguments)]
     async fn send_on_lease(
         &self,
@@ -255,6 +255,9 @@ impl Http3Pool {
         retries: &mut ConnectionSetupRetryState,
     ) -> Result<Dispatched<Http3Response>, RequestError> {
         let mut leased = leased;
+        // The connection's ACCEPT_CH check, which a request sent as early
+        // data never gets.
+        let mut accept_ch_check = client_hints;
         if sends_before_handshake(
             is_replay_safe(&method, body.as_ref(), &trailers),
             leased.lease.connection.early_data_pending(),
@@ -263,6 +266,13 @@ impl Http3Pool {
         ) {
             let entry = Arc::clone(&leased.entry);
             let lease = leased.lease.clone();
+            // Early data goes out before the handshake delivers ALPS. If the
+            // server rejects it, Chromium's QUIC session retransmits the same
+            // stream data under 1-RTT keys (`QuicSession::OnZeroRttRejected`,
+            // `quiche/quic/core/quic_session.cc` lines 2038-2049 at the quiche
+            // revision Chromium 154.0.8037.58 pins), so the request is not
+            // built or checked again; the resend below sends it as built.
+            accept_ch_check = None;
             let result = dispatch(
                 leased,
                 connector,
@@ -271,7 +281,7 @@ impl Http3Pool {
                 target.clone(),
                 headers.clone(),
                 trailers.clone(),
-                client_hints,
+                None,
                 None,
                 timeout_budget,
                 retries,
@@ -284,11 +294,6 @@ impl Http3Pool {
                         "HTTP/3 early data rejected; sending again on the connection"
                     );
                     leased = Http3Lease::readmit(entry, lease, timeout_budget).await?;
-                }
-                // A replay-safe request has no body; any it had stays here.
-                Ok(Dispatched::Restart(mut restart)) => {
-                    restart.body = restart.body.or(body);
-                    return Ok(Dispatched::Restart(restart));
                 }
                 result => return result,
             }
@@ -304,7 +309,7 @@ impl Http3Pool {
             target,
             headers,
             trailers,
-            client_hints,
+            accept_ch_check,
             body,
             timeout_budget,
             retries,

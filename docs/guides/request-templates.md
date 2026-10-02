@@ -99,8 +99,9 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
   `http://` origin gets none, as in Chrome.
 - Such an origin's `Accept-CH` response sets the hints requested for its
   exact origin. On H2 and H3, a server can also request hints during the TLS
-  handshake with ALPS `ACCEPT_CH`: a request that lacks one restarts with it
-  before anything is sent, and the origin's learned hints do not change.
+  handshake with ALPS `ACCEPT_CH`: a navigation, or a request without a
+  template, that lacks one restarts with it before anything is sent, and the
+  origin's learned hints do not change. A `fetch` goes out as built.
 - If a `Critical-CH` response names a missing supported hint and the method
   is safe, Phantom retries once, on the same protocol and route. A streaming
   body cannot be retried and fails with `RequestErrorKind::RequestBody`.

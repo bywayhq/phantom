@@ -17,7 +17,7 @@ use bytes::Bytes;
 use http::{Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestHeader,
+    Client, HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader,
     profile::{
         AlpsSettings, CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings,
         ClientProfile, Http3ClientSettings, NamedGroup, TlsVersion, chromium,
@@ -448,6 +448,105 @@ async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request(
         Ok(())
     })
     .await
+}
+
+/// Chromium restarts only navigations for a connection's ACCEPT_CH, so a
+/// fetch template's request goes out once, as built, and succeeds.
+#[tokio::test]
+async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built() -> TestResult<()> {
+    bounded(async {
+        let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
+        let template =
+            PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
+        let response = alps_client_with_hints(&identity, chromium::v154_windows_client_hints())?
+            .get(HttpProtocol::Http2, &format!("{origin}/"))?
+            .template(&template)
+            .header(RequestHeader::new("referer", format!("{origin}/").as_str()))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let names = server.await??;
+        assert!(
+            !names.iter().any(|name| name == "sec-ch-ua-arch"),
+            "{names:?}"
+        );
+        assert!(names.iter().any(|name| name == "sec-ch-ua"), "{names:?}");
+        Ok(())
+    })
+    .await
+}
+
+/// A navigation template restarts, and the hint the restart added follows
+/// every template field, where Chromium's header merge appends a new name.
+#[tokio::test]
+async fn http2_navigation_template_restart_appends_the_hint_after_its_fields() -> TestResult<()> {
+    bounded(async {
+        let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
+        let template = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+        let response = alps_client_with_hints(&identity, chromium::v154_windows_client_hints())?
+            .get(HttpProtocol::Http2, &format!("{origin}/"))?
+            .template(&template)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let names = server.await??;
+        assert_eq!(
+            names.last().map(String::as_str),
+            Some("sec-ch-ua-arch"),
+            "{names:?}"
+        );
+        assert_eq!(
+            names.first().map(String::as_str),
+            Some("sec-ch-ua"),
+            "{names:?}"
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// Starts a TLS 1.3 H2 origin whose ALPS names `accept_ch` for itself, and
+/// returns the field names, in order, of the one request it answers. It fails
+/// if a second request follows.
+async fn alps_origin_answering(
+    accept_ch: &str,
+) -> TestResult<(
+    TestIdentity,
+    String,
+    tokio::task::JoinHandle<TestResult<Vec<String>>>,
+)> {
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let origin = format!("https://{}", listener.local_addr()?);
+    let application_settings = accept_ch_alps(&origin, accept_ch);
+    let mut acceptor = identity.acceptor_builder(H2_ALPN)?;
+    acceptor.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+    acceptor.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+    let acceptor = acceptor.build();
+    let server = tokio::spawn(async move {
+        let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
+        let mut connection = ::http2::server::handshake(stream).await?;
+        let (request, mut response) = accept_http2(&mut connection).await?;
+        let names = request
+            .headers()
+            .keys()
+            .map(|name| name.as_str().to_owned())
+            .collect::<Vec<_>>();
+        response.send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(())?,
+            true,
+        )?;
+        drop((request, response));
+        match timeout(Duration::from_millis(200), connection.accept()).await {
+            Ok(Some(Ok(_))) => Err("the server saw a second request".into()),
+            _ => Ok(names),
+        }
+    });
+    Ok((identity, origin, server))
 }
 
 /// A restart writes nothing of the request, so a one-shot streaming body
@@ -904,6 +1003,13 @@ fn client(identity: &TestIdentity) -> TestResult<Client> {
 }
 
 fn alps_client(identity: &TestIdentity) -> TestResult<Client> {
+    alps_client_with_hints(identity, client_hint_settings())
+}
+
+fn alps_client_with_hints(
+    identity: &TestIdentity,
+    hints: ClientHintSettings,
+) -> TestResult<Client> {
     let mut tls = tls_settings();
     tls.min_version = TlsVersion::Tls13;
     tls.max_version = TlsVersion::Tls13;
@@ -916,7 +1022,7 @@ fn alps_client(identity: &TestIdentity) -> TestResult<Client> {
     });
     let profile = ClientProfile::new(tls)
         .with_http2(chromium::v154_http2())
-        .with_client_hints(client_hint_settings());
+        .with_client_hints(hints);
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)

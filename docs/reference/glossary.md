@@ -13,9 +13,10 @@ header or trailer line, as RFC 9110 does.
 A response field in which a
 [potentially trustworthy](#potentially-trustworthy) origin asks for more
 [client hints](#client-hints) on later requests. Phantom keeps bounded
-`Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make the
-same request for a whole connection with an `ACCEPT_CH` setting sent through
-[ALPS](#alps); a request that lacks a hint it names restarts with it. See [Client hints](../guides/request-templates.md#send-client-hints).
+`Accept-CH` state per exact [origin](#origin). An H2 or H3 server can make
+the same request for a whole connection with an `ACCEPT_CH` setting sent
+through [ALPS](#alps); a navigation that lacks a hint it names restarts with
+it. See [Client hints](../guides/request-templates.md#send-client-hints).
 
 ## ALPN
 

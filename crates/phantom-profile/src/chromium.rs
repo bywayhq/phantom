@@ -876,6 +876,7 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
             exclusive: true,
         }),
         requested_client_hint_placement: true,
+        restarts_for_connection_accept_ch: true,
     }
 }
 
@@ -931,6 +932,7 @@ pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestT
             exclusive: true,
         }),
         requested_client_hint_placement: false,
+        restarts_for_connection_accept_ch: false,
     }
 }
 

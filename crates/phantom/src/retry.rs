@@ -39,10 +39,18 @@ mod retry_after;
 ///
 /// A few replays are browser behavior rather than caller policy, so they run
 /// whatever the policy is and no policy budget counts them. Each repeats a
-/// request the server did not process, once:
+/// request the server did not process:
 ///
 /// - The negotiated and exact HTTP/2 pools send a bodyless GET refused by
-///   `GOAWAY(NO_ERROR)` once more on a replacement connection.
+///   `GOAWAY(NO_ERROR)` once more on a replacement connection, once per
+///   dispatch to the pool.
+/// - When an HTTP/2 or HTTP/3 connection's ALPS `ACCEPT_CH` names a client
+///   hint that a navigation, or a request without a template, lacks, the pool
+///   writes nothing of the request, and its attempt builds it again with the
+///   hint and sends it, as Chromium restarts a navigation. Any method and
+///   body may restart, since nothing was sent. Each restart adds at least one
+///   hint, so an attempt restarts at most once per hint the profile sends on
+///   request; the origin attempt of an Alt-Svc race starts with none.
 /// - When a server rejects TLS early data, the connection that sent it sends
 ///   the same bytes again once its handshake completes, as Chrome does over
 ///   HTTP/3 and Firefox over TCP. The TCP stream or the HTTP/3 pool owns the

@@ -2413,8 +2413,10 @@ so and states what they cover.
 What is claimed: the Chromium-family recipes fix a request's client hints
 when its field lists are built, on HTTP/1.1, HTTP/2, and HTTP/3 alike. On
 HTTP/2 and HTTP/3, when the connection's ALPS `ACCEPT_CH` entry for the
-origin names a hint the request lacks, the request is not written; it starts
-again with the hint, as Chromium 154 restarts a navigation.
+origin names a hint a navigation lacks and the origin has not requested, the
+request is not written; it starts again with the hint appended after its
+other fields, as Chromium 154 restarts a navigation. A `fetch` goes out as
+built.
 
 Evidence: Chromium source at tag `154.0.8037.58`; no capture shows a
 restart.
@@ -2423,17 +2425,23 @@ restart.
 | --- | --- |
 | Hints are request fields, set before a connection is chosen | The check compares the entry with the request's own fields, `url_request_->extra_request_headers()` (`services/network/url_loader.cc` lines 939-941) |
 | The check runs once the request has a stream, before it is written | `URLLoader::ProcessAcceptCHFrameOnConnected` passes the connection's entry and the request's fields to `AcceptCHFrameInterceptor::OnConnected` (`services/network/url_loader.cc` lines 920-942; `services/network/accept_ch_frame_interceptor.cc` lines 90-146) |
-| Only hints the request lacks count | `ComputeAcceptCHFrameHints` drops each hint already among the request's fields (`accept_ch_frame_interceptor.cc` lines 26-52) |
+| Only navigations restart | The network service takes the observer only from a request's trusted parameters (`services/network/url_loader_factory.cc` lines 341-371), which only `NavigationURLLoaderImpl` sets (`content/browser/loader/navigation_url_loader_impl.cc` lines 256-277, 2160-2181) and a renderer's factory refuses (`services/network/cors/cors_url_loader_factory.cc` lines 657-662). Without it no interceptor exists (`accept_ch_frame_interceptor.cc` lines 57-68), and the loader continues (`url_loader.cc` lines 933-937) |
+| Only hints the request lacks count | `ComputeAcceptCHFrameHints` drops each hint already among the request's fields, and the width hints (`accept_ch_frame_interceptor.cc` lines 26-52) |
+| Only hints the origin has not enabled restart | `NeedsObserverCheck` skips the browser when every missing hint is enabled (`accept_ch_frame_interceptor.cc` lines 159-200), and the browser restarts only when one is not (`GetCriticalHintsMissingStatus`, `content/browser/client_hints/client_hints.cc` lines 1074-1098) |
+| A hint the restart adds follows the request's fields | `MergeFrom` sets each field with `SetHeaderInternal`, which appends a name the request lacks (`net/http/http_request_headers.cc` lines 191-195, 303-310) |
 | The restart carries the hints and nothing is stored | `OnAcceptCHFrameReceived` computes the fields with the entry's hints added and cleared again, merges them into the request, and restarts it (`navigation_url_loader_impl.cc` lines 1838-1846, 1904, 1922) |
 | Restarts are bounded | `accept_ch_restart_limit_ = kMaxRedirects`, 20, per navigation (`navigation_url_loader_impl.h` line 315, `navigation_url_loader_impl.cc` line 1873) |
 
 Differences from Chromium:
 
-- Chromium attaches the observer only to navigations
-  (`content/browser/loader/navigation_url_loader_impl.cc` lines 2161-2181;
-  `services/network/url_loader_factory.cc` lines 365-370); a subresource
-  request never restarts. Phantom's client-hint model treats every request as a
-  top-level one, so any request with client hints may restart.
+- A template says whether its request kind restarts
+  (`RequestTemplate::restarts_for_connection_accept_ch`): the Chromium-family
+  navigation templates do, and every `fetch` and Firefox template does not.
+  A request without a template is a top-level one in Phantom's client-hint
+  model, so it restarts.
+- Chromium's enabled-hint check reads the browser's stored hints and the
+  permissions policy; Phantom reads the origin's stored `Accept-CH` hints and
+  has no permissions policy.
 - Phantom bounds restarts by the profile's hints: each restart adds at least
   one hint the request keeps for the rest of its hop, so a request restarts
   at most once per hint the profile sends on request, 8 with
@@ -2448,12 +2456,15 @@ Tests:
 | Test | What it proves |
 | --- | --- |
 | `client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe` | An H2 server whose ALPS names two hints sees one request, carrying both and the caller's value |
+| `client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built` | A request with the Chrome `fetch` template is sent once, without the hint the entry names, and succeeds |
+| `client_hints::http2_navigation_template_restart_appends_the_hint_after_its_fields` | A request with the Chrome navigation template restarts, and the added hint is its last field |
 | `client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once` | A POST with a one-shot streaming body restarts, and the server receives the hint and the body once |
 | `client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for` | After a graceful `GOAWAY`, the replacement connection's entry restarts the request again, which keeps the first connection's hint |
 | `client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request` | A hint an `Accept-CH` response teaches while a built request waits for admission is absent from that request and present on the next |
 | `client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint` | A BoringSSL QUIC server whose ALPS names a hint sees one H3 request, carrying it |
 | `field_lists::tests::an_accept_ch_restart_builds_the_lists_again_with_the_hint` | A negotiated restart builds and checks its HTTP/1.1 and HTTP/2 lists a second time, and the server sees one request |
-| `session::client_hints::tests::*` | Which entries ask for a restart: a missing requested hint does; a present, default, caller-supplied, unknown, already restarted, empty, or malformed one does not |
+| `session::client_hints::tests::*` | Which entries ask for a restart: a missing requested hint does; a present, default, caller-supplied, unknown, width, already restarted, or since-stored one, an empty or malformed entry, and a `fetch` template do not; a restart-added hint follows every other field while a stored one keeps its slot |
+| `request_template::tests::only_chromium_navigation_templates_restart_for_connection_accept_ch` | Which built-in templates restart |
 
 The first five are in `crates/phantom/tests/requests/client_hints.rs`, the
 others in `crates/phantom/src`. Byte-for-byte replays of the captured
@@ -2465,7 +2476,9 @@ tests.
 Limits:
 
 - No capture of Chrome restarting a request exists, so which fields the
-  restarted navigation rebuilds rests on source.
+  restarted navigation rebuilds, and where the network stack puts the
+  appended hint among the fields it adds itself, such as `Cookie`, rest on
+  source.
 - The test servers send `ACCEPT_CH` only through ALPS; frames sent after the
   handshake are not supported.
 

@@ -413,7 +413,7 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 | --- | --- |
 | The template has no hint slots and the profile sends hints by default | Before any I/O |
 | One of your fields carries a hint the profile sends only on request, including to an origin that gets no automatic hints | Before any I/O |
-| The origin asked for such a hint through `Accept-CH` or ALPS `ACCEPT_CH`, including the retry a `Critical-CH` response asks for | Before the request is sent on the connection |
+| The origin asked for such a hint through `Accept-CH`, including the retry a `Critical-CH` response asks for | Before the request is sent on the connection |
 
 ### Template limits
 
@@ -552,9 +552,17 @@ On H2 and H3, a server can send an `ACCEPT_CH` entry through ALPS during the
 TLS handshake, so the first request on a connection carries the requested
 hints. A request's hints are fixed when its fields are built, so the entry
 never adds a field to a request about to be sent. When the entry names a
-hint the request lacks, the request stops before anything of it is written
-and starts again with the hint, on the same connection when it is still
-pooled, as Chromium 154 restarts a navigation.
+hint a navigation lacks and the origin has not requested through
+`Accept-CH`, the request stops before anything of it is written and starts
+again with the hint, on the same connection when it is still pooled, as
+Chromium 154 restarts a navigation. The added hint follows every other field,
+where Chromium's header merge appends it.
+
+- `RequestTemplate::restarts_for_connection_accept_ch` decides which
+  requests restart. The Chromium-family navigation templates set it; the
+  `fetch` and Firefox templates do not, so such a request goes out as built,
+  as Chromium sends a subresource request. A request without a template
+  restarts.
 
 - The entry applies to requests whose origin matches it exactly. Default
   hints, hints learned from responses, and hints you supply all count as
@@ -574,7 +582,7 @@ pooled, as Chromium 154 restarts a navigation.
 - Live BoringSSL integration tests cover the restart on H2 and H3
   ([Coverage](coverage.md#http3)).
 - A request sent as HTTP/3 early data goes out before the connection knows
-  its entry, so it never restarts.
+  its entry, so neither it nor its resend after a rejection restarts.
 
 ### `Critical-CH` retry
 
@@ -594,9 +602,7 @@ method is safe, Phantom retries the request once.
 The model covers top-level requests from a standalone client. It does not
 support:
 
-- Permissions Policy delegation or subresource browsing contexts. Chromium
-  restarts only navigations for ALPS `ACCEPT_CH`; Phantom treats every
-  request as one;
+- Permissions Policy delegation or subresource browsing contexts;
 - persistence, or expiry other than explicit replacement;
 - restarting a full navigation across a redirect chain already followed;
 - `ACCEPT_CH` frames sent after the handshake.

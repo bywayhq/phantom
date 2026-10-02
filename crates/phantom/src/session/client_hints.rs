@@ -121,14 +121,31 @@ impl<'a> ClientHintContext<'a> {
     /// nothing: the browser computes the restarted request's hints with the
     /// entry's hints added and clears them again (`:1838-1846`).
     ///
-    /// An empty or malformed entry asks for nothing. A hint this request
-    /// already restarted for is not asked for again, so restarts end after at
-    /// most one per hint the profile sends on request.
+    /// Only a navigation restarts: a template whose
+    /// `restarts_for_connection_accept_ch` is `false`, such as a `fetch`, goes
+    /// out as built. A request without a template is a top-level one.
+    ///
+    /// An empty or malformed entry asks for nothing, and neither does a width
+    /// hint, which Chromium leaves out because only images send it
+    /// (`accept_ch_frame_interceptor.cc` lines 38-43). When every missing hint
+    /// is one the origin requested through `Accept-CH` by now, the request
+    /// goes out as built: the browser restarts only for a hint that is not
+    /// enabled for the origin (`AcceptCHFrameInterceptor::NeedsObserverCheck`,
+    /// lines 159-200; `GetCriticalHintsMissingStatus`,
+    /// `content/browser/client_hints/client_hints.cc` lines 1074-1098). A hint
+    /// this request already restarted for is not asked for again, so restarts
+    /// end after at most one per hint the profile sends on request.
     pub(crate) fn connection_restart(
         self,
         sent: &[RequestHeader],
         connection_accept_ch: Option<&[u8]>,
     ) -> Option<Box<[usize]>> {
+        if self
+            .template
+            .is_some_and(|template| !template.restarts_for_connection_accept_ch())
+        {
+            return None;
+        }
         let value = connection_accept_ch.filter(|value| !value.is_empty())?;
         let tokens = match std::str::from_utf8(value)
             .map_err(|_| ())
@@ -140,34 +157,65 @@ impl<'a> ClientHintContext<'a> {
                 return None;
             }
         };
-        let missing: Box<[usize]> = requested_indices(self.settings, &tokens)
+        let missing: Vec<usize> = requested_indices(self.settings, &tokens)
             .iter()
             .copied()
             .filter(|index| {
-                self.restart.binary_search(index).is_err()
-                    && !contains_field(sent, self.settings.hints()[*index].name())
+                let name = self.settings.hints()[*index].name();
+                !is_width_hint(name) && !contains_field(sent, name)
             })
             .collect();
-        (!missing.is_empty()).then_some(missing)
+        let stored = self.store.and_then(|store| {
+            store.stored_indices(&OriginKey::new(self.endpoint, self.is_https()))
+        });
+        let enabled_now = |index: &usize| {
+            stored
+                .as_deref()
+                .is_some_and(|stored| stored.contains(index))
+        };
+        if missing.iter().all(enabled_now) {
+            return None;
+        }
+        let added: Box<[usize]> = missing
+            .into_iter()
+            .filter(|index| !self.restart.contains(index))
+            .collect();
+        (!added.is_empty()).then_some(added)
     }
 }
 
-/// The hints that connections' ALPS `ACCEPT_CH` restarted one request for.
+/// Whether `name` is a width hint, which only image requests send.
+fn is_width_hint(name: &str) -> bool {
+    name.eq_ignore_ascii_case("sec-ch-width") || name.eq_ignore_ascii_case("width")
+}
+
+/// The hints that connections' ALPS `ACCEPT_CH` restarted one request for,
+/// in the order the restarts added them.
 ///
 /// They only accumulate: Chromium merges each restart's hints into the
 /// request's fields (`navigation_url_loader_impl.cc` line 1904 at tag
-/// `154.0.8037.58`), so a later restart keeps the earlier ones.
+/// `154.0.8037.58`), so a later restart keeps the earlier ones, and a name
+/// the fields lack is appended after them (`HttpRequestHeaders::MergeFrom`
+/// and `SetHeaderInternal`, `net/http/http_request_headers.cc` lines
+/// 191-195 and 303-310).
 #[derive(Clone, Debug, Default)]
 pub(crate) struct RestartHints {
-    /// Profile hint indices, ascending.
+    /// Profile hint indices, in the order they were added.
     indices: Vec<usize>,
+    /// How many restarts added them.
+    restarts: usize,
 }
 
 impl RestartHints {
-    pub(crate) fn add(&mut self, hints: &[usize]) {
-        self.indices.extend_from_slice(hints);
-        self.indices.sort_unstable();
-        self.indices.dedup();
+    /// Records one restart's hints and returns how many restarts there were.
+    pub(crate) fn add(&mut self, hints: &[usize]) -> usize {
+        for hint in hints {
+            if !self.indices.contains(hint) {
+                self.indices.push(*hint);
+            }
+        }
+        self.restarts += 1;
+        self.restarts
     }
 }
 
@@ -226,6 +274,14 @@ impl ClientHintStore {
 
     pub(super) fn clear(&self) {
         self.lock_entries().clear();
+    }
+
+    /// Returns the hints `origin` requested, without marking it recently used.
+    fn stored_indices(&self, origin: &OriginKey) -> Option<Box<[usize]>> {
+        self.lock_entries()
+            .iter()
+            .find(|entry| &entry.origin == origin)
+            .map(|entry| entry.requested.clone())
     }
 
     #[cfg(test)]
@@ -326,13 +382,31 @@ fn prepare_fields(
     let enabled = |index: usize| {
         settings.hints()[index].delivery() == ClientHintDelivery::Default
             || stored.is_some_and(|indices| indices.binary_search(&index).is_ok())
-            || restart.is_some_and(|indices| indices.binary_search(&index).is_ok())
     };
     let slots = template.map_or(&[][..], PreparedRequestTemplate::client_hint_slots);
-    if !slots.is_empty() {
-        return place_in_slots(settings, slots, enabled, caller);
+    let mut prepared = if slots.is_empty() {
+        place_before_caller(settings, enabled, caller)
+    } else {
+        place_in_slots(settings, slots, enabled, caller)
+    };
+    // A hint only a restart added follows every other field, where
+    // Chromium's merge appends a new name; a stored one keeps its slot.
+    for index in restart.unwrap_or_default() {
+        let hint = &settings.hints()[*index];
+        if !enabled(*index) && !contains_field(&prepared, hint.name()) {
+            prepared.push(RequestHeader::new(hint.name(), hint.value()));
+        }
     }
+    prepared
+}
 
+/// Puts the enabled hints in profile order before the caller's fields,
+/// leaving out any hint the caller supplies.
+fn place_before_caller(
+    settings: &ClientHintSettings,
+    enabled: impl Fn(usize) -> bool,
+    caller: Vec<RequestHeader>,
+) -> Vec<RequestHeader> {
     let caller_names = caller
         .iter()
         .map(|header| header.name().to_ascii_lowercase().into_boxed_str())

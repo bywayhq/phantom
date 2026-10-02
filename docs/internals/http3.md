@@ -543,7 +543,8 @@ their own. Every request on such a connection follows one rule
 
 - A replay-safe request (a safe method, no body, and no trailers) goes out
   as early data while the early data is unanswered, with the client hints
-  its fields were built with; the connection knows no ALPS `ACCEPT_CH` yet. Under a dynamic QPACK policy it is encoded
+  its fields were built with; the connection knows no ALPS `ACCEPT_CH`
+  yet, and the request is never checked against it. Under a dynamic QPACK policy it is encoded
   with the SETTINGS remembered with the ticket; see
   [Remembered SETTINGS](#remembered-settings). A connection that started
   without them holds such a request until the server's SETTINGS arrive, with
@@ -734,8 +735,9 @@ control-stream SETTINGS that arrived first. Only then does the connection
 report its early data as accepted. If the metadata is invalid, the connection
 is closed, and the requests on it fail with the same `Http3Error` a full
 handshake reports. A request sent as early data went out before any ALPS was
-known, so ALPS `ACCEPT_CH` never restarts it; a request dispatched after the
-handshake restarts when the entry names a hint its fields lack.
+known, so ALPS `ACCEPT_CH` never restarts it or its resend after a
+rejection; a request dispatched after the handshake restarts when the entry
+names a hint its fields lack.
 
 Because the connection is pooled before its early data is answered, `n`
 concurrent requests to one resumed location share one connection, as the

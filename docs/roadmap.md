@@ -90,8 +90,9 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([Fields of a repeated attempt](explanation/design.md#fields-of-a-repeated-attempt)).
 - Client hints fixed per request on every protocol, as Chromium sets them
   before it chooses a connection. On HTTP/2 and HTTP/3, a connection whose
-  ALPS `ACCEPT_CH` names a hint the request lacks restarts the request with
-  it before anything is sent, as Chromium 154 does
+  ALPS `ACCEPT_CH` names a hint a navigation lacks restarts it with the hint
+  before anything is sent, as Chromium 154 does; a `fetch` goes out as
+  built
   ([Fields of a repeated attempt](explanation/design.md#fields-of-a-repeated-attempt)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
@@ -252,11 +253,13 @@ anything does.
   Blocker: a capture of such an origin, which decides whether Chrome races
   them, picks one by rule, or tries them in order.
 - Capture evidence for the ALPS `ACCEPT_CH` restart. Phantom fixes a
-  request's client hints when it builds its lists and restarts the request
+  request's client hints when it builds its lists and restarts a navigation
   when its connection's `ACCEPT_CH` names a hint it lacks, from Chromium
   source ([Design](explanation/design.md#fields-of-a-repeated-attempt)).
   Blocker: a capture of a Chrome navigation whose connection's `ACCEPT_CH`
-  adds a hint, to confirm which fields the restarted request rebuilds.
+  adds a hint, to confirm which fields the restarted request rebuilds and
+  where the appended hint lands among the fields the network stack adds,
+  such as `Cookie`.
 
 #### Discovery, DNS, and ECH
 

@@ -14,6 +14,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `RequestTemplate` gained the public field
+  `restarts_for_connection_accept_ch` (`bool`), so struct literals that name
+  every field no longer compile. It says whether a request with the template
+  restarts when its HTTP/2 or HTTP/3 connection's ALPS `ACCEPT_CH` names a
+  client hint it lacks. Every Chromium-family navigation template sets it to
+  `true`, as Chromium restarts only navigations; every `fetch` template and
+  every Firefox template leaves it `false`, so such a request goes out as
+  built.
+  A Chrome `fetch` template on such a connection is now sent where it failed
+  with `RequestErrorKind::RequestTemplate`
+  ([evidence](docs/explanation/validation.md#alps-accept_ch-restart-evidence)).
+  Migrate: add `restarts_for_connection_accept_ch: true` to a navigation
+  `RequestTemplate` literal and `false` to any other, or build the template
+  from a recipe with `..recipe`.
 - `Http1Settings` gained the public field `idle_timeout`
   (`Http1IdleTimeout`), so struct literals that name every field no longer
   compile. With `Http1IdleTimeout::CheckedOnRequest(duration)`, when a
@@ -1184,13 +1198,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   request's hints before it chooses a connection. A hint that a response
   teaches while a request waits for a connection reaches the next request,
   not that one. A connection's ALPS `ACCEPT_CH` no longer adds a field at
-  dispatch: when it names a hint the request lacks, the request stops before
-  anything of it is written and starts again with the hint, building its
-  fields again, as Chromium 154 restarts a navigation. Any method and body
-  may restart, a streaming body included, and a request restarts at most
-  once per hint the profile sends on request. The hint stays with the
-  request for its redirect hop, so a replacement connection after a
-  graceful `GOAWAY` sends it too
+  dispatch: when it names a hint a navigation, or a request without a
+  template, lacks and the origin has not requested, the request stops
+  before anything of it is written and starts again with the hint appended
+  after its other fields, building them again, as Chromium 154 restarts a
+  navigation. A `fetch` goes out as built. Any method and body may restart,
+  a streaming body included, and a request restarts at most once per hint
+  the profile sends on request. The hint stays with the request for its
+  redirect hop, so a replacement connection after a graceful `GOAWAY` sends
+  it too. A request sent as HTTP/3 early data, and its resend after a
+  rejection, are never checked
   ([evidence](docs/explanation/validation.md#alps-accept_ch-restart-evidence)).
 - A request that races an Alt-Svc alternative against its origin builds and
   checks its HTTP/3, HTTP/1.1, and HTTP/2 field lists once, before the race,

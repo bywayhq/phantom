@@ -274,27 +274,43 @@ fields. An exact request builds its one list again for a reused-connection
 replay and an unprocessed-request replay as well.
 
 A connection's ALPS `ACCEPT_CH` never adds a field to a list already built.
-When the connection's entry for the origin names a hint the list lacks, the
-request stops before any of it is written, the connection stays pooled, and
-the request starts again with that hint: it builds and checks its lists
-anew, reading the cookie jar and the stored hints again, and takes a
-connection from the pool again, usually the same one. The entry teaches the
-origin nothing. Chromium behaves the same way.
-`AcceptCHFrameInterceptor::OnConnected` runs once the request has a stream
-and before the request is written
+For a navigation, or a request without a template, an entry for the origin
+that names a hint the list lacks stops the request before any of it is
+written. The connection stays pooled, and the request starts again with that
+hint: it builds and checks its lists anew, reading the cookie jar and the
+stored hints again, and takes a connection from the pool again, usually the
+same one. The entry teaches the origin nothing. A request whose template does
+not restart, such as a `fetch`, goes out as built.
+
+Chromium behaves the same way. `AcceptCHFrameInterceptor::OnConnected` runs
+once the request has a stream and before the request is written
 (`services/network/accept_ch_frame_interceptor.cc` lines 90-146, called from
 `URLLoader::ProcessAcceptCHFrameOnConnected`,
-`services/network/url_loader.cc` lines 920-942 at 154.0.8037.58). When the
-entry names a hint the request lacks, `NavigationURLLoaderImpl::OnAcceptCHFrameReceived`
+`services/network/url_loader.cc` lines 920-942 at 154.0.8037.58). Only a
+navigation has the observer that restarts
+(`services/network/url_loader_factory.cc` lines 341-371,
+`content/browser/loader/navigation_url_loader_impl.cc` lines 256-277 and
+2160-2181); without it the loader sends the request as built
+(`url_loader.cc` lines 933-937). When the entry names a hint the request
+lacks and the origin has not enabled, `NavigationURLLoaderImpl::OnAcceptCHFrameReceived`
 aborts the loader, merges the hints into the request's fields, and starts
-the navigation again (`content/browser/loader/navigation_url_loader_impl.cc`
-lines 1757-1923), computing them with the entry's hints added only for that
-call (lines 1838-1846). A restart writes nothing, so any method and any
-body may restart, a streaming body included. The hints a request restarted
-for stay for the rest of its hop, so it restarts at most once per hint the
-profile sends on request; Chromium's own bound, 20 restarts per navigation
+the navigation again (`navigation_url_loader_impl.cc` lines 1757-1923),
+computing them with the entry's hints added only for that call (lines
+1838-1846). The merge appends a name the fields lack after them
+(`net/http/http_request_headers.cc` lines 191-195 and 303-310), so Phantom
+puts a hint that only a restart added after every other field of the list,
+while a hint the origin requested through `Accept-CH` keeps the template's
+client-hint slot. Where the network stack then puts that appended field
+among the fields it adds itself, such as `Cookie`, no capture shows.
+
+A restart writes nothing, so any method and any body may restart, a
+streaming body included. The hints a request restarted for stay for the rest
+of its hop, so it restarts at most once per hint the profile sends on
+request; Chromium's own bound, 20 restarts per navigation
 (`accept_ch_restart_limit_ = kMaxRedirects`, line 1873), is out of reach of
-every named recipe.
+every named recipe. A request sent as HTTP/3 early data is never checked,
+because ALPS arrives with the handshake, and neither is its resend after a
+rejection, which Chromium's QUIC session retransmits as it was sent.
 
 ## Safety boundary
 

@@ -979,6 +979,39 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
     }
 }
 
+/// Chromium restarts only a navigation for a connection's `ACCEPT_CH`; a
+/// `fetch` goes out as built, and Firefox ignores `ACCEPT_CH`.
+#[test]
+fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
+    for (template, restarts) in [
+        (chromium::v154_windows_navigation_template(), true),
+        (chromium::v154_macos_navigation_template(), true),
+        (edge::v154_windows_navigation_template(), true),
+        (brave::v154_windows_navigation_template(), true),
+        (opera::v136_windows_navigation_template(), true),
+        (chrome_android::v154_android_navigation_template(), true),
+        (edge_android::v153_android_navigation_template(), true),
+        (brave_android::v153_android_navigation_template(), true),
+        (chromium::v154_windows_fetch_no_store_template(), false),
+        (chromium::v154_macos_fetch_no_store_template(), false),
+        (edge::v154_windows_fetch_no_store_template(), false),
+        (brave::v154_windows_fetch_no_store_template(), false),
+        (opera::v136_windows_fetch_no_store_template(), false),
+        (
+            chrome_android::v154_android_fetch_no_store_template(),
+            false,
+        ),
+        (edge_android::v153_android_fetch_no_store_template(), false),
+        (brave_android::v153_android_fetch_no_store_template(), false),
+        (firefox::v157_windows_navigation_template(), false),
+        (firefox::v157_windows_fetch_no_store_template(), false),
+        (firefox::v156_macos_navigation_template(), false),
+        (firefox::v156_macos_fetch_no_store_template(), false),
+    ] {
+        assert_eq!(template.restarts_for_connection_accept_ch, restarts);
+    }
+}
+
 #[test]
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
     let cases: [(RequestTemplate, &[&str], &str, u16); 12] = [
