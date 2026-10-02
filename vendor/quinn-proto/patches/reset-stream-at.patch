@@ -69,10 +69,10 @@ index 93268e1..cd20c90 100644
      pub(super) fn read(&mut self, max_length: usize, ordered: bool) -> Option<Chunk> {
          loop {
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
-index 703ad59..95ea4bf 100644
+index 703ad59..f5ff371 100644
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
-@@ -1387,6 +1387,30 @@ impl Connection {
+@@ -1387,6 +1387,65 @@ impl Connection {
          self.key_phase_size = self.spaces[SpaceId::Data].sent_with_keys;
      }
  
@@ -100,21 +100,82 @@ index 703ad59..95ea4bf 100644
 +        self.process_payload(now, self.path.remote, number, packet)
 +    }
 +
++    /// Processes `frames` as the payload of a Handshake packet, or an Initial packet when
++    /// `initial` is set
++    #[cfg(test)]
++    pub(crate) fn process_early_frames_for_test(
++        &mut self,
++        now: Instant,
++        initial: bool,
++        frames: &[u8],
++    ) -> Result<(), TransportError> {
++        let cid = ConnectionId::new(&[]);
++        let number = PacketNumber::U8(0);
++        let header = match initial {
++            true => Header::Initial(InitialHeader {
++                dst_cid: cid,
++                src_cid: cid,
++                token: Bytes::new(),
++                number,
++                version: self.version,
++            }),
++            false => Header::Long {
++                ty: LongType::Handshake,
++                dst_cid: cid,
++                src_cid: cid,
++                number,
++                version: self.version,
++            },
++        };
++        let packet = Packet {
++            header,
++            header_data: Bytes::new(),
++            payload: BytesMut::from(frames),
++        };
++        self.process_early_payload(now, packet)
++    }
++
      /// Whether the connection is in the process of being established
      ///
      /// If this returns `false`, the connection may be either established or closed, signaled by the
-@@ -2916,6 +2940,18 @@ impl Connection {
+@@ -2499,7 +2558,9 @@ impl Connection {
+                 return Ok(());
+             }
+             State::Closed(_) => {
+-                for result in frame::Iter::new(packet.payload.freeze())? {
++                let frames = frame::Iter::new(packet.payload.freeze())?
++                    .reset_stream_at(self.config.reset_stream_at);
++                for result in frames {
+                     let frame = match result {
+                         Ok(frame) => frame,
+                         Err(err) => {
+@@ -2755,7 +2816,9 @@ impl Connection {
+         debug_assert_ne!(packet.header.space(), SpaceId::Data);
+         let payload_len = packet.payload.len();
+         let mut ack_eliciting = false;
+-        for result in frame::Iter::new(packet.payload.freeze())? {
++        let frames =
++            frame::Iter::new(packet.payload.freeze())?.reset_stream_at(self.config.reset_stream_at);
++        for result in frames {
+             let frame = result?;
+             let span = match frame {
+                 Frame::Padding => continue,
+@@ -2813,7 +2876,8 @@ impl Connection {
+         let mut close = None;
+         let payload_len = payload.len();
+         let mut ack_eliciting = false;
+-        for result in frame::Iter::new(payload)? {
++        let frames = frame::Iter::new(payload)?.reset_stream_at(self.config.reset_stream_at);
++        for result in frames {
+             let frame = result?;
+             let span = match frame {
+                 Frame::Padding => continue,
+@@ -2916,6 +2980,12 @@ impl Connection {
                          self.spaces[SpaceId::Data].pending.max_data = true;
                      }
                  }
 +                Frame::ResetStreamAt(frame) => {
-+                    if !self.config.reset_stream_at {
-+                        // Without the extension the frame type is unknown, and closes the
-+                        // connection as any unknown frame type does.
-+                        let mut error = TransportError::FRAME_ENCODING_ERROR("invalid frame ID");
-+                        error.frame = Some(frame::FrameType::RESET_STREAM_AT);
-+                        return Err(error);
-+                    }
++                    // Decoded only when the extension is enabled.
 +                    if self.streams.received_reset_at(frame)?.should_transmit() {
 +                        self.spaces[SpaceId::Data].pending.max_data = true;
 +                    }
@@ -593,7 +654,7 @@ index cb1b1dc..d561369 100644
 +    }
  }
 diff --git a/src/frame.rs b/src/frame.rs
-index 01d9a02..e6b9977 100644
+index 01d9a02..eec78b2 100644
 --- a/src/frame.rs
 +++ b/src/frame.rs
 @@ -130,6 +130,8 @@ frame_types! {
@@ -621,11 +682,38 @@ index 01d9a02..e6b9977 100644
              Close(self::Close::Connection(_)) => FrameType::CONNECTION_CLOSE,
              Close(self::Close::Application(_)) => FrameType::APPLICATION_CLOSE,
              MaxData(_) => FrameType::MAX_DATA,
-@@ -582,6 +586,18 @@ impl Iter {
+@@ -545,6 +549,7 @@ impl NewToken {
+ pub(crate) struct Iter {
+     bytes: Bytes,
+     last_ty: Option<FrameType>,
++    reset_stream_at: bool,
+ }
+ 
+ impl Iter {
+@@ -561,9 +566,18 @@ impl Iter {
+         Ok(Self {
+             bytes: payload,
+             last_ty: None,
++            reset_stream_at: false,
+         })
+     }
+ 
++    /// Decodes `RESET_STREAM_AT` frames when `accept` is set
++    ///
++    /// Otherwise the frame type is unknown, and its body is never read, as upstream treats it.
++    pub(crate) fn reset_stream_at(mut self, accept: bool) -> Self {
++        self.reset_stream_at = accept;
++        self
++    }
++
+     fn take_len(&mut self) -> Result<Bytes, UnexpectedEnd> {
+         let len = self.bytes.get_var()?;
+         if len > self.bytes.remaining() as u64 {
+@@ -582,6 +596,18 @@ impl Iter {
                  error_code: self.bytes.get()?,
                  final_offset: self.bytes.get()?,
              }),
-+            FrameType::RESET_STREAM_AT => {
++            FrameType::RESET_STREAM_AT if self.reset_stream_at => {
 +                let frame = ResetStreamAt {
 +                    id: self.bytes.get()?,
 +                    error_code: self.bytes.get()?,
@@ -640,7 +728,7 @@ index 01d9a02..e6b9977 100644
              FrameType::CONNECTION_CLOSE => Frame::Close(Close::Connection(ConnectionClose {
                  error_code: self.bytes.get()?,
                  frame_type: {
-@@ -847,6 +863,28 @@ impl ResetStream {
+@@ -847,6 +873,28 @@ impl ResetStream {
      }
  }
  
@@ -669,7 +757,7 @@ index 01d9a02..e6b9977 100644
  #[derive(Debug, Copy, Clone)]
  pub(crate) struct StopSending {
      pub(crate) id: StreamId,
-@@ -1005,4 +1043,40 @@ mod test {
+@@ -1005,4 +1053,66 @@ mod test {
          assert_eq!(frames.len(), 1);
          assert_matches!(&frames[0], Frame::ImmediateAck);
      }
@@ -684,7 +772,11 @@ index 01d9a02..e6b9977 100644
 +        };
 +        let mut buf = Vec::new();
 +        frame.encode(&mut buf);
-+        let frames = frames(buf);
++        let frames = Iter::new(Bytes::from(buf))
++            .unwrap()
++            .reset_stream_at(true)
++            .collect::<Result<Vec<_>, _>>()
++            .unwrap();
 +        assert_eq!(frames.len(), 1);
 +        assert_matches!(
 +            &frames[0],
@@ -706,15 +798,37 @@ index 01d9a02..e6b9977 100644
 +        };
 +        let mut buf = Vec::new();
 +        frame.encode(&mut buf);
-+        let mut frames = Iter::new(Bytes::from(buf)).unwrap();
++        let mut frames = Iter::new(Bytes::from(buf)).unwrap().reset_stream_at(true);
 +        assert!(frames.next().unwrap().is_err());
++    }
++
++    #[test]
++    fn reset_stream_at_is_an_unknown_frame_type_by_default() {
++        // A whole frame, and the frame type alone with its body cut off
++        let mut whole = Vec::new();
++        ResetStreamAt {
++            id: StreamId(3),
++            error_code: VarInt(7),
++            final_offset: VarInt(10),
++            reliable_size: VarInt(4),
++        }
++        .encode(&mut whole);
++        for buf in [whole, vec![0x24]] {
++            let error = Iter::new(Bytes::from(buf))
++                .unwrap()
++                .next()
++                .unwrap()
++                .unwrap_err();
++            assert_eq!(error.reason, "invalid frame ID");
++            assert_eq!(error.ty, Some(FrameType::RESET_STREAM_AT));
++        }
 +    }
  }
 diff --git a/src/tests/transport_limits.rs b/src/tests/transport_limits.rs
-index bc134ca..a57f755 100644
+index bc134ca..84db70e 100644
 --- a/src/tests/transport_limits.rs
 +++ b/src/tests/transport_limits.rs
-@@ -196,6 +196,39 @@ fn larger_connection_id_limit_accepts_more_peer_cids() {
+@@ -196,6 +196,53 @@ fn larger_connection_id_limit_accepts_more_peer_cids() {
      );
  }
  
@@ -728,12 +842,22 @@ index bc134ca..a57f755 100644
 +    let mut pair = Pair::default();
 +    let (client_ch, _) = pair.connect();
 +    let now = pair.time;
-+    let error = pair
-+        .client_conn_mut(client_ch)
-+        .process_frames_for_test(now, &RESET_STREAM_AT)
-+        .unwrap_err();
-+    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
-+    assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
++    let conn = pair.client_conn_mut(client_ch);
++    // The whole frame, then the frame type with its body cut off
++    for frames in [&RESET_STREAM_AT[..], &RESET_STREAM_AT[..2]] {
++        let errors = [
++            conn.process_frames_for_test(now, frames).unwrap_err(),
++            conn.process_early_frames_for_test(now, true, frames)
++                .unwrap_err(),
++            conn.process_early_frames_for_test(now, false, frames)
++                .unwrap_err(),
++        ];
++        for error in errors {
++            assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++            assert_eq!(error.reason, "invalid frame ID");
++            assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
++        }
++    }
 +}
 +
 +#[test]
@@ -746,9 +870,13 @@ index bc134ca..a57f755 100644
 +    config.transport_config(Arc::new(transport));
 +    let (client_ch, _) = pair.connect_with(config);
 +    let now = pair.time;
-+    pair.client_conn_mut(client_ch)
-+        .process_frames_for_test(now, &RESET_STREAM_AT)
-+        .unwrap();
++    let conn = pair.client_conn_mut(client_ch);
++    conn.process_frames_for_test(now, &RESET_STREAM_AT).unwrap();
++    // A known frame type that Initial and Handshake packets may not carry
++    let error = conn
++        .process_early_frames_for_test(now, true, &RESET_STREAM_AT)
++        .unwrap_err();
++    assert_eq!(error.code, TransportErrorCode::PROTOCOL_VIOLATION);
 +}
 +
  #[test]

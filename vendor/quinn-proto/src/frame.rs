@@ -549,6 +549,7 @@ impl NewToken {
 pub(crate) struct Iter {
     bytes: Bytes,
     last_ty: Option<FrameType>,
+    reset_stream_at: bool,
 }
 
 impl Iter {
@@ -565,7 +566,16 @@ impl Iter {
         Ok(Self {
             bytes: payload,
             last_ty: None,
+            reset_stream_at: false,
         })
+    }
+
+    /// Decodes `RESET_STREAM_AT` frames when `accept` is set
+    ///
+    /// Otherwise the frame type is unknown, and its body is never read, as upstream treats it.
+    pub(crate) fn reset_stream_at(mut self, accept: bool) -> Self {
+        self.reset_stream_at = accept;
+        self
     }
 
     fn take_len(&mut self) -> Result<Bytes, UnexpectedEnd> {
@@ -586,7 +596,7 @@ impl Iter {
                 error_code: self.bytes.get()?,
                 final_offset: self.bytes.get()?,
             }),
-            FrameType::RESET_STREAM_AT => {
+            FrameType::RESET_STREAM_AT if self.reset_stream_at => {
                 let frame = ResetStreamAt {
                     id: self.bytes.get()?,
                     error_code: self.bytes.get()?,
@@ -1085,7 +1095,11 @@ mod test {
         };
         let mut buf = Vec::new();
         frame.encode(&mut buf);
-        let frames = frames(buf);
+        let frames = Iter::new(Bytes::from(buf))
+            .unwrap()
+            .reset_stream_at(true)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
         assert_eq!(frames.len(), 1);
         assert_matches!(
             &frames[0],
@@ -1107,8 +1121,30 @@ mod test {
         };
         let mut buf = Vec::new();
         frame.encode(&mut buf);
-        let mut frames = Iter::new(Bytes::from(buf)).unwrap();
+        let mut frames = Iter::new(Bytes::from(buf)).unwrap().reset_stream_at(true);
         assert!(frames.next().unwrap().is_err());
+    }
+
+    #[test]
+    fn reset_stream_at_is_an_unknown_frame_type_by_default() {
+        // A whole frame, and the frame type alone with its body cut off
+        let mut whole = Vec::new();
+        ResetStreamAt {
+            id: StreamId(3),
+            error_code: VarInt(7),
+            final_offset: VarInt(10),
+            reliable_size: VarInt(4),
+        }
+        .encode(&mut whole);
+        for buf in [whole, vec![0x24]] {
+            let error = Iter::new(Bytes::from(buf))
+                .unwrap()
+                .next()
+                .unwrap()
+                .unwrap_err();
+            assert_eq!(error.reason, "invalid frame ID");
+            assert_eq!(error.ty, Some(FrameType::RESET_STREAM_AT));
+        }
     }
 
     #[test]

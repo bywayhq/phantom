@@ -1427,6 +1427,41 @@ impl Connection {
         self.process_payload(now, self.path.remote, number, packet)
     }
 
+    /// Processes `frames` as the payload of a Handshake packet, or an Initial packet when
+    /// `initial` is set
+    #[cfg(test)]
+    pub(crate) fn process_early_frames_for_test(
+        &mut self,
+        now: Instant,
+        initial: bool,
+        frames: &[u8],
+    ) -> Result<(), TransportError> {
+        let cid = ConnectionId::new(&[]);
+        let number = PacketNumber::U8(0);
+        let header = match initial {
+            true => Header::Initial(InitialHeader {
+                dst_cid: cid,
+                src_cid: cid,
+                token: Bytes::new(),
+                number,
+                version: self.version,
+            }),
+            false => Header::Long {
+                ty: LongType::Handshake,
+                dst_cid: cid,
+                src_cid: cid,
+                number,
+                version: self.version,
+            },
+        };
+        let packet = Packet {
+            header,
+            header_data: Bytes::new(),
+            payload: BytesMut::from(frames),
+        };
+        self.process_early_payload(now, packet)
+    }
+
     /// Whether the connection is in the process of being established
     ///
     /// If this returns `false`, the connection may be either established or closed, signaled by the
@@ -2564,7 +2599,9 @@ impl Connection {
                 return Ok(());
             }
             State::Closed(_) => {
-                for result in frame::Iter::new(packet.payload.freeze())? {
+                let frames = frame::Iter::new(packet.payload.freeze())?
+                    .reset_stream_at(self.config.reset_stream_at);
+                for result in frames {
                     let frame = match result {
                         Ok(frame) => frame,
                         Err(err) => {
@@ -2824,7 +2861,9 @@ impl Connection {
         debug_assert_ne!(packet.header.space(), SpaceId::Data);
         let payload_len = packet.payload.len();
         let mut ack_eliciting = false;
-        for result in frame::Iter::new(packet.payload.freeze())? {
+        let frames =
+            frame::Iter::new(packet.payload.freeze())?.reset_stream_at(self.config.reset_stream_at);
+        for result in frames {
             let frame = result?;
             let span = match frame {
                 Frame::Padding => continue,
@@ -2882,7 +2921,8 @@ impl Connection {
         let mut close = None;
         let payload_len = payload.len();
         let mut ack_eliciting = false;
-        for result in frame::Iter::new(payload)? {
+        let frames = frame::Iter::new(payload)?.reset_stream_at(self.config.reset_stream_at);
+        for result in frames {
             let frame = result?;
             let span = match frame {
                 Frame::Padding => continue,
@@ -2986,13 +3026,7 @@ impl Connection {
                     }
                 }
                 Frame::ResetStreamAt(frame) => {
-                    if !self.config.reset_stream_at {
-                        // Without the extension the frame type is unknown, and closes the
-                        // connection as any unknown frame type does.
-                        let mut error = TransportError::FRAME_ENCODING_ERROR("invalid frame ID");
-                        error.frame = Some(frame::FrameType::RESET_STREAM_AT);
-                        return Err(error);
-                    }
+                    // Decoded only when the extension is enabled.
                     if self.streams.received_reset_at(frame)?.should_transmit() {
                         self.spaces[SpaceId::Data].pending.max_data = true;
                     }

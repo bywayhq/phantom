@@ -89,7 +89,7 @@ index a8e155d..558cd37 100644
  #[derive(Clone, Copy, Debug, Eq, PartialEq)]
  #[non_exhaustive]
 diff --git a/src/connection/mod.rs b/src/connection/mod.rs
-index 95ea4bf..57d36e6 100644
+index f5ff371..744cf1f 100644
 --- a/src/connection/mod.rs
 +++ b/src/connection/mod.rs
 @@ -15,9 +15,9 @@ use thiserror::Error;
@@ -105,7 +105,7 @@ index 95ea4bf..57d36e6 100644
      cid_generator::ConnectionIdGenerator,
      cid_queue::CidQueue,
      coding::BufMutExt,
-@@ -3073,6 +3073,10 @@ impl Connection {
+@@ -3107,6 +3107,10 @@ impl Connection {
                      }
                  }
                  Frame::AckFrequency(ack_frequency) => {
@@ -117,10 +117,10 @@ index 95ea4bf..57d36e6 100644
                      let space = &mut self.spaces[SpaceId::Data];
  
 diff --git a/src/frame.rs b/src/frame.rs
-index e6b9977..f92190b 100644
+index eec78b2..33c9891 100644
 --- a/src/frame.rs
 +++ b/src/frame.rs
-@@ -968,6 +968,37 @@ pub(crate) struct AckFrequency {
+@@ -978,6 +978,37 @@ pub(crate) struct AckFrequency {
  }
  
  impl AckFrequency {
@@ -158,9 +158,9 @@ index e6b9977..f92190b 100644
      pub(crate) fn encode<W: BufMut>(&self, buf: &mut W) {
          buf.write(FrameType::ACK_FREQUENCY);
          buf.write(self.sequence);
-@@ -1079,4 +1110,53 @@ mod test {
-         let mut frames = Iter::new(Bytes::from(buf)).unwrap();
-         assert!(frames.next().unwrap().is_err());
+@@ -1115,4 +1146,53 @@ mod test {
+             assert_eq!(error.ty, Some(FrameType::RESET_STREAM_AT));
+         }
      }
 +
 +    #[test]

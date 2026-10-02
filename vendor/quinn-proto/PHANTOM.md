@@ -114,8 +114,9 @@ Otherwise the final size becomes known, reads deliver bytes up to the
 Reliable Size and then report the reset, and flow-control credit for the
 discarded bytes is released when the reset completes or the stream stops. A
 Reliable Size larger than the final size is a `FRAME_ENCODING_ERROR`. When
-support was not advertised, the frame closes the connection with
-`FRAME_ENCODING_ERROR`, as any unknown frame type does. A stream read with
+support was not advertised, the frame type is unknown: in any packet, the
+connection closes with `FRAME_ENCODING_ERROR` and the reason "invalid frame
+ID" before the frame's body is read, as upstream does. A stream read with
 unordered reads cannot keep the reliable bytes in order, so the frame resets
 it at once, and an unordered read that starts while a reliable reset waits
 ends the wait with the reset. A peer's `reset_stream_at` parameter is skipped

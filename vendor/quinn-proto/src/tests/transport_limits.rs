@@ -206,12 +206,22 @@ fn reset_stream_at_is_an_unknown_frame_unless_advertised() {
     let mut pair = Pair::default();
     let (client_ch, _) = pair.connect();
     let now = pair.time;
-    let error = pair
-        .client_conn_mut(client_ch)
-        .process_frames_for_test(now, &RESET_STREAM_AT)
-        .unwrap_err();
-    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
-    assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
+    let conn = pair.client_conn_mut(client_ch);
+    // The whole frame, then the frame type with its body cut off
+    for frames in [&RESET_STREAM_AT[..], &RESET_STREAM_AT[..2]] {
+        let errors = [
+            conn.process_frames_for_test(now, frames).unwrap_err(),
+            conn.process_early_frames_for_test(now, true, frames)
+                .unwrap_err(),
+            conn.process_early_frames_for_test(now, false, frames)
+                .unwrap_err(),
+        ];
+        for error in errors {
+            assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
+            assert_eq!(error.reason, "invalid frame ID");
+            assert_eq!(error.frame, Some(frame::FrameType::RESET_STREAM_AT));
+        }
+    }
 }
 
 #[test]
@@ -224,9 +234,13 @@ fn reset_stream_at_is_accepted_when_advertised() {
     config.transport_config(Arc::new(transport));
     let (client_ch, _) = pair.connect_with(config);
     let now = pair.time;
-    pair.client_conn_mut(client_ch)
-        .process_frames_for_test(now, &RESET_STREAM_AT)
-        .unwrap();
+    let conn = pair.client_conn_mut(client_ch);
+    conn.process_frames_for_test(now, &RESET_STREAM_AT).unwrap();
+    // A known frame type that Initial and Handshake packets may not carry
+    let error = conn
+        .process_early_frames_for_test(now, true, &RESET_STREAM_AT)
+        .unwrap_err();
+    assert_eq!(error.code, TransportErrorCode::PROTOCOL_VIOLATION);
 }
 
 #[test]
