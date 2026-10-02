@@ -24,6 +24,12 @@ use crate::{firefox, tls::TlsSettings};
 /// Firefox for Android also draws its ECH GREASE AEAD per connection: 5 of
 /// the 12 used AES-128-GCM and 7 ChaCha20-Poly1305. This returns that recipe.
 ///
+/// It sizes the ECH GREASE payload from the ClientHello as the desktop
+/// recipe does. Only the fresh 240 bytes come from an Android capture: the
+/// resumed and IP-literal lengths come from NSS source and the desktop
+/// captures, since no Android capture resumed a session or reached an IP
+/// literal.
+///
 /// It keeps the desktop recipe's early data over TCP
 /// ([`TlsSettings::tcp_early_data`]) from source, not from a capture: no
 /// Android capture resumed a session. At tag `FIREFOX_156_0_RELEASE`,

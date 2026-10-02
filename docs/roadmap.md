@@ -49,8 +49,8 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Firefox's ECH GREASE payload length, sized from each ClientHello as NSS
-  does: 240 bytes fresh and 368 resumed over TCP and QUIC, and padded by the
-  host text of an IP literal
+  does: 240 bytes fresh and 368 resumed with the capture servers' tickets,
+  over TCP and QUIC, and padded by the host text of an IP literal
   ([Firefox ECH GREASE payload](explanation/validation.md#firefox-ech-grease-payload-evidence)).
 - Early data over TCP in the Firefox recipe: a resumed direct connection
   offers `early_data` where Firefox 157 does, sends replay-safe requests in

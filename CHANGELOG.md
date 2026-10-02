@@ -1292,8 +1292,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the order of the shuffled extensions
   ([evidence](docs/explanation/validation.md#firefox-157-http3-recipe)).
   To keep the old ClientHello, set `record_size_limit: None`,
-  `tls12_extensions_in_tls13_client_hello: false`, and `extension_order:
-  ClientHelloExtensionOrder::Permuted` on the returned settings.
+  `tls12_extensions_in_tls13_client_hello: false`, `extension_order:
+  ClientHelloExtensionOrder::Permuted`, and `ech_grease_payload_length:
+  EchGreasePayloadLength::Exact(240)` on the returned settings.
 - `btls-sys` moves to `bywayhq/btls` commit `f478ea16`, whose native
   patches 0014 to 0017 write a fixed extension tail after the shuffled
   extensions, negotiate `record_size_limit` over QUIC, send

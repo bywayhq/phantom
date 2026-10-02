@@ -4714,29 +4714,41 @@ split from it, and every one under `ip-literal/`.
 
 `fixtures/tls/firefox/157.0/windows-11-26200/ip-literal/` keeps ClientHellos
 Firefox 157.0 sent on 2026-10-02 on the Windows 11 capture host, headless with
-fresh profiles, to `https://127.0.0.1:<port>/` and `https://[::1]:<port>/`.
+fresh profiles, to `https://127.0.0.1:<port>/` and `https://[::1]:<port>/`,
+recorded with `scripts/capture/ip_literal_client_hello.py`
+([capture README](../../scripts/capture/README.md#clienthellos-to-ip-literals)).
 Over TCP a listener read each ClientHello and closed the connection, so
 Firefox retried, and its later ClientHellos drop `compress_certificate`. Over
 QUIC the alt-svc test mapping pointed Firefox at `h3` on the same port, and a
 UDP socket decrypted the client's Initial packets with the Initial keys.
-Neither listener answered. Firefox sends no `server_name` to an IP literal,
-yet pads by the address text, an IPv6 address without brackets: the TCP runs
-set `grease_size` on either side of the value where one more byte of padding
-adds a 32-byte block. With the 9-byte `127.0.0.1`, 93 gives 208 bytes and 94
-gives 240; with the 3-byte `::1`, 87 gives 208 and 88 gives 240. Padding by no
-host would give 240 bytes at 93 and at 87. The TCP capture script did not
-record the `grease_size` it set. The sweep labeled each run with a number; 84
-plus the label matches both boundaries, and the fixture names carry that
-inferred value. The QUIC runs record it (77, 85, and 86), and all gave 208, as
-QUIC does not read the preference. The QUIC capture to `[::1]` received no
-datagram, so the IPv6 literal is verified over TCP only.
+Neither listener answered.
+
+Firefox sends no `server_name` to an IP literal, yet pads by the address
+text, an IPv6 address without brackets. The first evidence is an earlier TCP
+sweep of `grease_size`, kept as `tcp-ipv4-sweep-<label>.txt` and
+`tcp-ipv6-sweep-<label>.txt`, whose script recorded each run's label but not
+the size it set. The 32-byte boundary, where the first ClientHello's payload
+moves from 208 to 240 bytes, falls at label 10 for `127.0.0.1` and at label
+4 for `::1`. Those boundaries are six labels apart, the 9-byte `127.0.0.1`
+less the 3-byte `::1`. Padding by no host would put both at one label, and
+padding by `[::1]` four labels apart. Turning labels into sizes assumes one
+offset for both sweeps; with 84 plus the label, IPv4 crosses between 93 and 94
+and IPv6 between 87 and 88. The committed tool then recaptured those four
+sizes and records each in a `prefs=` line (`tcp-ipv4-grease-size-93.txt` to
+`tcp-ipv6-grease-size-88.txt`): 93 gives 208 bytes and 94 gives 240 for
+`127.0.0.1`, and 87 gives 208 and 88 gives 240 for `::1`. The QUIC runs record
+their size too (77, 85, and 86), and all gave 208, as QUIC does not read the
+preference. No QUIC capture to `[::1]` received a datagram, with the alt-svc
+mapping written as `::1` or as `[::1]`, so the IPv6 literal is verified over
+TCP only.
 
 The recipes set `EchGreasePayloadLength::FromClientHello` with a
 `maximum_name_length` of 100. The backend builds the same inner ClientHello
 from the ClientHello it is about to send (native patch 0017 of the btls fork,
-described in `vendor/btls/PHANTOM.md`), and Phantom passes the host of an IP
-literal, with no brackets, for the padding; a host name pads by the server
-name.
+described in `vendor/btls/PHANTOM.md`). For the padding, TCP and QUIC
+connections pass `EchGreasePayloadLength::ip_literal_host` of the server
+name: an IP literal without brackets, or nothing for a host name, which pads
+by the server name itself.
 
 Tests, in `crates/phantom-net`, check the lengths against
 `tls::test_support::nss_ech_grease`, a model of the rule written from NSS
@@ -4760,8 +4772,11 @@ rather than from the patch:
   gives 368 for Phantom's ClientHello with the captured `pre_shared_key`
   length.
 - `firefox_157_ip_literal_captures_pad_ech_grease_by_the_host_text` checks
-  the model against every TCP ClientHello in `ip-literal/`, the retries
-  included, and that padding by no host would miss the boundary runs.
+  the model against every ClientHello of the TCP runs at a known size, the
+  retries included, at the size each records.
+- `firefox_157_ip_literal_sweep_boundaries_follow_the_host_length` finds the
+  sweep's boundaries at labels 10 and 4 and checks that their gap is the
+  difference in host length, not zero or the gap `[::1]` would give.
 - `firefox_157_recipe_matches_the_ip_literal_captures` sends the first TCP
   ClientHello shape of each IP-literal capture, without `server_name`, with
   the same extension layout and a 240-byte payload, to `127.0.0.1` and
@@ -4771,13 +4786,9 @@ rather than from the patch:
   of the four QUIC captures, and the model's length to `::1`.
 
 How to reproduce: the fresh and resumed lengths come from the snapshot and
-resumption captures above. For an IP literal, point a fresh headless
-Firefox profile at `https://127.0.0.1:<port>/` with a TCP listener on that
-port that reads the ClientHello and closes, and set
-`security.tls.ech.grease_size` to move the padding; for QUIC, also set
-`network.http.http3.alt-svc-mapping-for-testing` to
-`127.0.0.1;h3=:<port>` and read the CRYPTO frames of the client's Initial
-packets on a UDP socket at that port.
+resumption captures above. The IP-literal runs come from the
+[capture README](../../scripts/capture/README.md#clienthellos-to-ip-literals)
+commands, with `--grease-size` for each size of a sweep.
 
 Limits:
 
@@ -4787,6 +4798,9 @@ Limits:
   servers'.
 - The IPv6 literal is captured over TCP only; over QUIC the recipe follows
   the rule.
+- An IPv4-mapped IPv6 literal pads by the text Phantom has for it, which Rust
+  writes as `::ffff:127.0.0.1`. How Firefox writes such a host, and so how
+  many bytes it pads by, is not verified.
 - The rule is read from the NSS of Firefox 157.0. A later NSS that changes the
   inner ClientHello or the padding changes the length.
 
