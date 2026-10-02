@@ -32,9 +32,8 @@ fn profiles() -> [ClientProfile; 5] {
         .with_http2(firefox::v156_http2())
         .with_cookie_placement(firefox::v156_cookie_placement());
 
-    // Edge 154: its own TLS and client hints; its H2, QUIC, and H3 match the
-    // Chromium recipes. Hook logs show its TCP options, HTTP/1.1 connection
-    // bound, and system-resolver cache equal Chromium's.
+    // Edge 154: its own TLS and client hints; Chromium TCP, HTTP/1.1,
+    // address cache, H2, QUIC, and H3 recipes.
     let edge = ClientProfile::new(edge::v154_tls())
         .with_tcp(chromium::v154_tcp())
         .with_http1(chromium::v154_http1())
@@ -50,9 +49,6 @@ fn profiles() -> [ClientProfile; 5] {
 
     // Brave 154 and Opera 136 follow the same pattern with their own TLS,
     // H3 TLS, and client hints, and both place cookies as Chromium does.
-    // Brave builds Chrome 154's Chromium tag, and Opera's hook logs match
-    // Chrome's, so both take Chromium's TCP options, HTTP/1.1 bound, and
-    // address cache.
     let brave = ClientProfile::new(brave::v154_tls())
         .with_tcp(chromium::v154_tcp())
         .with_http1(chromium::v154_http1())

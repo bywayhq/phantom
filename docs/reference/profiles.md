@@ -100,9 +100,12 @@ On macOS, Opera sends the fields of its `windows` request templates, and
 Edge does too with its language list set to `en-US`. Edge otherwise takes
 `Accept-Language` from the system's language list, so for another locale
 override that field. Both therefore have `macos` client hints but no `macos`
-templates. Their other layers are the recipes without a platform in the
+templates. Edge's other layers are the recipes without a platform in the
 name, which retained single macOS runs match
-([Validation](../explanation/validation.md#macos-recipes)).
+([Validation](../explanation/validation.md#macos-recipes)). The macOS Opera
+captures are of Opera 135, whose TLS ClientHello `opera::v136_tls` does not
+match, so `opera::v135_macos_client_hints` has no TLS recipe of its build;
+with `opera::v136_tls` it presents a mixed identity.
 
 ## TCP socket options
 

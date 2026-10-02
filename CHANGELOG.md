@@ -157,8 +157,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the same list. The client hints send
   `"Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136"` and the
   matching full version list. The templates are unchanged.
+  Opera orders its trust-anchor IDs per process, and separately for QUIC;
+  both recipes send the most frequent of 20 processes' TCP orders.
   `opera::v135_macos_client_hints` stays, because the Mac still runs Opera
-  135 ([evidence](docs/explanation/validation.md#brave-154-and-opera-136-recipes)).
+  135; no TLS recipe matches Opera 135's ClientHello any more, so pairing it
+  with `v136_tls` mixes two builds
+  ([evidence](docs/explanation/validation.md#brave-154-and-opera-136-recipes)).
   Migrate: rename `opera::v135_tls` to `opera::v136_tls`, `v135_http3_tls`
   to `v136_http3_tls`, `v135_windows_client_hints` to
   `v136_windows_client_hints`, `v135_windows_navigation_template` to

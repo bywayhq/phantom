@@ -118,9 +118,9 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
 /// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
-/// 154.0.4258.37, one patch release behind the Windows recipe. The returned value is owned and may be
-/// customized before client creation, for example to carry another macOS
-/// version.
+/// 154.0.4258.37, one patch release behind the Windows recipe. The returned
+/// value is owned and may be customized before client creation, for example
+/// to carry another macOS version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};

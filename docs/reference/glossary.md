@@ -156,6 +156,15 @@ Connecting to IPv6 and IPv4 addresses in a staggered race. Phantom's
 A browser launched without a visible window. Most captures are headless; the
 runs marked headful used a visible window.
 
+## Hook log
+
+A record of the calls a named browser build made into the operating
+system's socket and resolver interfaces, taken from inside its network
+service process with Frida. It shows socket options, failed connection
+attempts, and lookups answered from a cache, which a
+[capture](#capture) cannot. See
+[Socket hook evidence](../explanation/validation.md#socket-hook-evidence).
+
 ## HPACK
 
 The H2 field compression (RFC 7541). A server can see which representation,

@@ -32,9 +32,9 @@ presented as a complete client match.
   retained [captures](glossary.md#capture) of that browser build.
 - **Browser source**: taken from the browser's source code at the release tag,
   because a capture cannot show it. Firefox's recipe sets `TCP_NODELAY` only.
-- **Hook logs**: the browser's own Winsock and resolver calls, recorded with
-  Frida inside its network service process, match the Chromium recipe, so the
-  browser uses `chromium::v154_tcp` (see
+- **Hook logs**: the browser's own Winsock and resolver calls, recorded as a
+  [hook log](glossary.md#hook-log) inside its network service process, match
+  the Chromium recipe, so the browser uses `chromium::v154_tcp` (see
   [Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
 - **Not covered**: no recipe exists, and none is claimed.
 - **Captured, 156.0.1**: the build of Firefox's Windows captures. Its macOS
@@ -882,10 +882,12 @@ shares component data with a capture from another platform:
   Firefox 156 (156.0.1) recipes come from Windows 11 captures. The `macos`
   client-hint and template recipes of Chrome, Edge, Opera, and Firefox come
   from macOS 15.5 captures on Apple silicon, at the Windows builds except
-  Edge (154.0.4258.37), Opera (135.0.5973.92), and Firefox (156.0). Single retained macOS runs of the TCP
-  ClientHello and resumption and the H2 session for all four, and of the
-  QUIC ClientHello and H3 startup for Chrome, Edge, and Opera, match the
-  Windows recipes in the replay tests
+  Edge (154.0.4258.37), Opera (135.0.5973.92), and Firefox (156.0). Single
+  retained macOS runs of the TCP ClientHello and resumption for Chrome,
+  Edge, and Firefox, of the H2 session for all four, of the QUIC
+  ClientHello and H3 startup for Chrome and Edge, and of Opera's QUIC
+  transport parameters and H3 startup match the Windows recipes in the
+  replay tests. No TLS recipe matches the Mac's Opera 135 ClientHello
   ([Validation](../explanation/validation.md#macos-recipes)). No Linux
   capture exists, and no other layer is claimed to be platform
   independent. The retired Chrome 152 and Firefox 154 captures, which did
@@ -1015,6 +1017,12 @@ Randomized fields:
   and differed between processes, a hash-iteration order rather than a
   per-connection permutation; see
   [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
+- Opera 136, built on Chromium 152, keeps that per-process order for its
+  32 trust-anchor IDs, and orders its QUIC list apart from its TCP list.
+  `opera::v136_tls` and `opera::v136_http3_tls` send one fixed order, the
+  most frequent of 20 processes' TCP orders; the per-process draw is not
+  modeled
+  ([Brave 154 and Opera 136 recipes](../explanation/validation.md#brave-154-and-opera-136-recipes)).
 - The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those

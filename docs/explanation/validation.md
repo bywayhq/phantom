@@ -15,10 +15,11 @@ Phantom's claims rest on five kinds of evidence:
   replayed by tests.
 - **Browser source** is the browser's code at a release tag. It is the
   evidence where a capture cannot see a behavior.
-- A **hook log** records a named browser build's own calls into the
-  operating system's socket and resolver interfaces, from inside its
-  network service process. It is the evidence for socket options, failed
-  connection attempts, and cached lookups, which no listener sees.
+- A [hook log](../reference/glossary.md#hook-log) records a named browser
+  build's own calls into the operating system's socket and resolver
+  interfaces, from inside its network service process. It is the evidence
+  for socket options, failed connection attempts, and cached lookups, which
+  no listener sees.
 - A **loopback test** drives Phantom's public client against a scripted local
   peer. It proves Phantom's own contract, not browser parity.
 - A **hostile-peer regression** sends malformed or abusive traffic. It proves
@@ -603,8 +604,9 @@ differed in the same client-hint values as on Windows. The macOS captures
 of [macOS recipes](#macos-recipes) were then taken again for Edge 154 in 23
 seconds: client hints and the `accept` and `h1-accept` WebSocket scenarios
 three times each with `--accept-lang=en-US`, and one TLS `sequential` and
-one H3 startup run. `edge::v154_macos_client_hints` differs from the Windows
-hints only in the platform data.
+one H3 startup run. `edge::v154_macos_client_hints` then differed from the
+Windows hints only in the platform data; since the Windows recipe moved to
+154.0.4258.48, the full version differs too.
 
 On 2026-10-02 the Windows host updated Edge to 154.0.4258.48. Three
 snapshots matched the retained Edge 154.0.4258.37 TCP and QUIC ClientHellos,
@@ -632,7 +634,7 @@ Limits:
 ### Brave 154 and Opera 136 recipes
 
 What is claimed: the `brave::v154_*` recipes, with the Chromium recipes they
-reuse, reproduce Brave 154.1.96.59 and 154.1.96.60, and the `opera::v136_*`
+reuse, reproduce Brave 154.1.96.59, and the `opera::v136_*`
 recipes, with the Chromium recipes they reuse, reproduce Opera 136.0.6008.52,
 both on Windows 11. Brave 154 is built on Chromium 154. Opera 136 reports
 Chromium 152.0.7977.130 in its client hints; Phantom carries no Chromium 152
@@ -673,7 +675,8 @@ DevTools three times each, in 52 seconds.
 
 Opera 136 sends Chromium 152's trust-anchor IDs: the 28 that Chrome 154
 sends and `d6790902`, `d6790903`, `d6790909`, and `d679090e`, which Chrome
-153 dropped ([Chrome 154 trust-anchor ID order](#chrome-154-trust-anchor-id-order)).
+154 does not send
+([Chrome 154 trust-anchor ID order](#chrome-154-trust-anchor-id-order)).
 Chromium 152 encodes the list in hash-set order, so Opera's order is fixed
 within a process and differs between processes: 11 distinct orders among the
 20 TLS startups, the most frequent in 5. Every later ClientHello of a process
@@ -862,7 +865,8 @@ once per fresh process:
 | Opera `http3` | `--layer http3 --navigate devtools --repeat 3` |
 
 `startup_capture.py` was committed after the Brave and Opera 135 captures,
-and took the Opera 136 startups. The earlier ones came from a scratch script that ran the same listeners with the same launch arguments;
+and took the Opera 136 startups. The earlier ones came from a scratch script
+that ran the same listeners with the same launch arguments;
 `test_startup_capture.py` checks that the tool records exactly the
 `launch_arguments` and `launch_mode` of every retained Brave and Opera
 startup fixture, and one run of each Opera 135 DevTools layer and of Brave
@@ -892,6 +896,9 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 
 Limits:
 
+- Brave 154.1.96.60, the build installed since 2 October 2026, rests on
+  three snapshots against the 154.1.96.59 fixtures; its other layers were
+  not captured again.
 - One Windows build per browser. Opera's macOS captures are of Opera 135
   and cover client hints, request fields, and single runs of the other
   layers ([macOS recipes](#macos-recipes)); Brave has none, and no Linux
@@ -924,8 +931,13 @@ send on macOS 15.5 on Apple silicon. On macOS, Opera 135 sends the fields
 of its Windows request templates with the macOS client hints, and Edge 154
 does too with its language list set to `en-US`; for another locale, override
 `Accept-Language`. So neither has a separate macOS template. Every other
-layer of these browsers is the Windows recipe, and the replay tests compare
-it with the single macOS runs listed below.
+layer of Chrome and Edge is the Windows recipe, and the replay tests compare
+it with the single macOS runs listed below. The Mac's Opera is 135, whose
+TLS ClientHellos carry no trust-anchor IDs and no signature-algorithm
+GREASE, so `opera::v136_tls` does not describe it and no Opera TLS replay
+reads the macOS runs; its H2, QUIC, and H3 runs are still compared with the
+Chromium recipes. `opera::v135_macos_client_hints` paired with
+`opera::v136_tls` presents Opera 135 hints over an Opera 136 ClientHello.
 
 Evidence: the capture host is a MacBook Air (M4) on macOS 15.5 (24F74). It
 ran Chrome 154.0.8037.58 as installed, Edge 154.0.4258.37 from Microsoft's
@@ -939,11 +951,11 @@ on 127.0.0.1. Chromium launches on macOS add `--use-mock-keychain`
 
 | Browser and layer | Samples | Result |
 | --- | --- | --- |
-| Chrome, Edge, Opera client hints | 3 runs each | Windows names, order, delivery, and brand values; `sec-ch-ua-platform` `"macOS"`, `sec-ch-ua-platform-version` `"15.5.0"`, `sec-ch-ua-arch` `"arm"`; `sec-ch-ua-bitness` `"64"` and `sec-ch-ua-wow64` `?0` as on Windows |
+| Chrome, Edge, Opera client hints | 3 runs each | Windows names, order, and delivery, and the brand values of the same build on Windows (Opera 135, Edge 154.0.4258.37); `sec-ch-ua-platform` `"macOS"`, `sec-ch-ua-platform-version` `"15.5.0"`, `sec-ch-ua-arch` `"arm"`; `sec-ch-ua-bitness` `"64"` and `sec-ch-ua-wow64` `?0` as on Windows |
 | Chrome, Edge, Opera page loads and no-store `fetch()` over H1 and H2 | 3 runs each | The Windows template fields and values. `User-Agent` is a caller slot in every macOS Chromium-family template, and the headless value names `Macintosh; Intel Mac OS X 10_15_7` |
 | Chrome, Opera H3 page request | 1 startup each | The Windows template's H3 fields |
 | Firefox page loads and no-store `fetch()` over H1 and H2 | 3 runs | The Windows template, with `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0` |
-| Chrome, Edge, Opera, Firefox resumed TCP ClientHello | 1 `tls_resumption.py --scenario sequential` run each | The shape of the TLS recipe's resumed ClientHello, as for the Windows captures (`phantom-net` `tls::tests::resumption`) |
+| Chrome, Edge, Firefox resumed TCP ClientHello | 1 `tls_resumption.py --scenario sequential` run each | The shape of the TLS recipe's resumed ClientHello, as for the Windows captures (`phantom-net` `tls::tests::resumption`). The Opera 135 run is retained but replayed against no recipe |
 | Chrome, Edge, Opera, Firefox H2 session | 3 page loads each | The H2 recipe's SETTINGS, WINDOW_UPDATE, priority, pseudo-header order, and static-name choice |
 | Chrome, Edge, Opera QUIC ClientHello and H3 startup | 1 startup each | `chromium::v154_quic` and the Chromium H3 control stream; Chrome's and Opera's H3 request fields equal their Windows startups apart from persona fields |
 
@@ -1688,8 +1700,7 @@ Limits:
 
 - Hook logs of Chrome 154, Edge 154, and Opera 136 confirm the Windows
   options and fallback delay, once each; no wire capture confirms them, and
-  none shows keepalive probe timing on an
-  idle connection.
+  none shows keepalive probe timing on an idle connection.
 - The source was read at one tag per browser, so build-time or field-trial
   changes to these options would not be seen. Branded Chrome receives
   server-side field-trial configuration, so the source cannot rule out a
