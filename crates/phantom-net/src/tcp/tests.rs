@@ -2,7 +2,7 @@ use std::{io, time::Duration};
 
 use phantom_profile::{
     TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy,
-    TcpSettings, chromium,
+    TcpPortRandomization, TcpSettings, chromium,
 };
 use socket2::SockRef;
 use tokio::net::TcpListener;
@@ -15,6 +15,7 @@ use super::{
 mod address_selection;
 mod keepalive_paths;
 mod paths;
+mod port_randomization;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
@@ -31,7 +32,23 @@ fn chromium_like() -> TcpSettings {
         address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
         }),
+        port_randomization: Some(TcpPortRandomization {
+            minimum_windows_build: 22_621,
+        }),
     }
+}
+
+/// Whether `settings` set `SO_RANDOMIZE_PORT` on this host.
+#[cfg(windows)]
+fn sets_random_port(settings: &TcpSettings) -> bool {
+    settings.port_randomization.is_some_and(|randomization| {
+        super::host_reaches_build(randomization.minimum_windows_build).unwrap_or(false)
+    })
+}
+
+#[cfg(not(windows))]
+fn sets_random_port(_settings: &TcpSettings) -> bool {
+    false
 }
 
 #[tokio::test(flavor = "current_thread")]

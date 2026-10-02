@@ -49,6 +49,11 @@ tokio-btls.workspace = true
 btls = { workspace = true, features = ["prefix-symbols"] }
 tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 
+# The Winsock and ntdll declarations behind `SO_RANDOMIZE_PORT`. socket2 and
+# Tokio already build this version on Windows.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Win32_Networking_WinSock", "Win32_System_SystemInformation"] }
+
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
@@ -65,5 +70,18 @@ tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "rt-
 name = "transport"
 harness = false
 
-[lints]
-workspace = true
+# The workspace lints, except that unsafe code is denied rather than forbidden
+# so the private `tcp::windows_port_randomization` FFI module can allow it.
+[lints.rust]
+missing_docs = "warn"
+unreachable_pub = "warn"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+dbg_macro = "deny"
+expect_used = "warn"
+todo = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unwrap_used = "warn"

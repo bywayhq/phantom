@@ -30,8 +30,9 @@ rests on.
   and SETTINGS and pseudo-header fields in the order the profile lists them.
 - Connection pools, cookies, Alt-Svc entries, and TLS session caches belong
   to one `Client`, each with a size limit. Nothing is global to the process.
-- The workspace forbids `unsafe` code, except in one private, documented
-  module that calls BoringSSL's QUIC API.
+- The workspace forbids `unsafe` code, except in two private, documented
+  modules: one calls BoringSSL's QUIC API, and one sets a Windows socket
+  option that no safe API reaches.
 
 ## When not to use Phantom
 

@@ -14,6 +14,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TcpSettings` gained the public field `port_randomization`
+  (`Option<TcpPortRandomization>`), so struct literals that name every field
+  no longer compile. `TcpPortRandomization { minimum_windows_build }` sets
+  `SO_RANDOMIZE_PORT` on each TCP socket, after the other options and before
+  the socket is bound or connects, on Windows 10.0 from that build on;
+  Windows then picks each connection's local port at random instead of in
+  sequence. A rejection fails the connection attempt, and the setting has
+  no effect off Windows. `chromium::v154_tcp` sets it from build 22621
+  (Windows 11 22H2), as Chromium 154 does, so Chrome, Brave, Edge, and Opera
+  profiles on such a host now connect from random local ports; the Chrome
+  154, Edge 154, and Opera 136 hook logs show the option on every TCP socket
+  ([evidence](docs/explanation/validation.md#socket-hook-evidence)).
+  `firefox::v157_tcp` leaves it `None`, as Firefox 157 does. `phantom-net`
+  sets it through a Windows-only FFI module, the workspace's second unsafe
+  code boundary
+  ([audit](docs/explanation/design.md#windows-port-randomization-audit)).
+  Migrate: add `port_randomization: None` to a `TcpSettings` literal to keep
+  the host's port choice, or end the literal with `..TcpSettings::default()`;
+  copy the value from `chromium::v154_tcp()` to match Chromium.
 - `TcpSettings` replaces `keepalive: Option<TcpKeepalive>` with
   `keepalive: TcpKeepalivePolicy` and `address_racing:
   Option<TcpAddressRacing>` with `address_selection: TcpAddressSelection`,
@@ -651,7 +670,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   six connections to one origin, and a 60-second system-resolver cache in
   all three ([evidence](docs/explanation/validation.md#socket-hook-evidence)).
   The logs also show Windows port randomization (`SO_RANDOMIZE_PORT`) on
-  every socket, which no recipe sets yet.
+  every socket, which `chromium::v154_tcp` now sets (see Breaking).
 - `scripts/capture/socket_hooks.py` and its Frida agent
   `scripts/capture/socket_hooks.js` record a Chromium browser's socket
   options, connection attempts, and host lookups on Windows, from inside its

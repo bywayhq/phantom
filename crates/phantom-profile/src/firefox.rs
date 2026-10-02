@@ -223,6 +223,9 @@ pub fn v157_tls() -> TlsSettings {
 ///   moves to the next address only after a refused, unreachable, or
 ///   timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`,
 ///   `:1747-1755`).
+/// - No socket in the hook logs sets `SO_RANDOMIZE_PORT`, so Windows gives
+///   each connection the next free local port, and
+///   [`TcpSettings::port_randomization`] is `None`.
 ///
 /// Not modeled:
 ///
@@ -272,6 +275,7 @@ pub fn v157_tcp() -> TcpSettings {
         address_selection: TcpAddressSelection::Sequential(
             TcpAddressAdvance::AfterRefusalOrTimeout,
         ),
+        port_randomization: None,
     }
 }
 

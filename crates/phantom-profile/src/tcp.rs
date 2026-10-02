@@ -205,6 +205,27 @@ impl Default for TcpAddressSelection {
     }
 }
 
+/// Asks Windows to choose each socket's local port at random, with
+/// `SO_RANDOMIZE_PORT`, rather than the next free port in sequence.
+///
+/// A server sees the difference in the source ports of successive
+/// connections. Windows rejects the option on a socket that is already
+/// bound, so it is set after the other options and before a source binding
+/// binds the socket; a source-bound connection gets a random port too. A
+/// rejection fails the connection attempt, as for every other option.
+///
+/// Only Windows has the option. Elsewhere the setting changes nothing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TcpPortRandomization {
+    /// The first Windows build number that gets the option.
+    ///
+    /// It applies on Windows version 10.0 from this build on, and on any
+    /// later major version. Windows 10 and 11 both report version 10.0;
+    /// build 22621 is Windows 11 22H2. Older Windows connects from the
+    /// operating system's sequential ports.
+    pub minimum_windows_build: u32,
+}
+
 /// TCP socket options and address selection applied to each outgoing
 /// connection.
 ///
@@ -229,6 +250,9 @@ pub struct TcpSettings {
     pub keepalive: TcpKeepalivePolicy,
     /// How the resolved addresses are tried.
     pub address_selection: TcpAddressSelection,
+    /// Whether and from which Windows build to ask Windows for a random
+    /// local port, or `None` to keep the operating system's choice.
+    pub port_randomization: Option<TcpPortRandomization>,
 }
 
 impl TcpSettings {

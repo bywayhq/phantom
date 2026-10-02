@@ -6,7 +6,7 @@
 use phantom_profile::{TcpSettings, chromium};
 use tokio::{net::TcpListener, task::JoinHandle};
 
-use super::{TestResult, chromium_like};
+use super::{TestResult, chromium_like, sets_random_port};
 use crate::{
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
@@ -51,6 +51,7 @@ fn assert_profiled(path: &str, sockets: &[ObservedSocket]) {
             ObservedSocket {
                 nodelay: true,
                 keepalive: true,
+                random_port: sets_random_port(&chromium_like()),
             },
             "{path}"
         );
@@ -98,6 +99,7 @@ async fn connectors_without_tcp_settings_keep_os_defaults() -> TestResult {
         [ObservedSocket {
             nodelay: false,
             keepalive: false,
+            random_port: false,
         }]
     );
     Ok(())

@@ -57,6 +57,7 @@ fn default_settings_ask_for_nothing_and_are_valid() {
         settings.address_selection,
         TcpAddressSelection::Sequential(TcpAddressAdvance::AfterAnyFailure)
     );
+    assert_eq!(settings.port_randomization, None);
     assert_eq!(settings.validate(), Ok(()));
 }
 

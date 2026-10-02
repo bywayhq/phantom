@@ -245,8 +245,9 @@ pub mod profile {
         NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate,
         RequestField, RequestTemplate, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
         TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
-        TcpKeepaliveSchedule, TcpSettings, TlsSettings, TlsVersion, WebSocketConnectionPolicy,
-        WebSocketDeflateParameter, WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketField,
+        WebSocketNewConnection, WebSocketSettings,
     };
 
     /// Chromium-family recipes implemented by the public facade.

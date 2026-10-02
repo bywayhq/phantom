@@ -33,7 +33,8 @@ use crate::{
 };
 
 use crate::tcp::{
-    TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpSettings,
+    TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
+    TcpSettings,
 };
 
 use crate::quic::{
@@ -302,12 +303,22 @@ pub fn v154_tls() -> TlsSettings {
 /// line numbers were read at tag `153.0.8010.48` and have not been re-read at
 /// 154.
 ///
+/// On Windows 11 22H2 and later Chromium also sets `SO_RANDOMIZE_PORT` right
+/// before `connect` (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`).
+/// The `kTcpPortRandomizationWin` feature that gates it is enabled by
+/// default, with a minimum of `base::win::Version::WIN11_22H2`, build 22621
+/// (`net/base/features.cc:308-314`; `base/win/windows_version.cc:386-404`).
+/// [`TcpSettings::port_randomization`] sets it from the same build.
+///
 /// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
 /// (`net/socket/tcp_socket_posix.cc:101-105`); set [`TcpKeepalive::interval`]
 /// to `None` for that platform. Android and iOS builds enable no keepalive.
-/// Chromium ignores a failure to set either option
-/// (`net/socket/tcp_socket_win.cc:70-71`); Phantom instead fails the connection
-/// attempt rather than connect with options the profile did not ask for.
+/// Chromium ignores a failure to set any of these options
+/// (`net/socket/tcp_socket_win.cc:70-71`, `:1046-1047`); Phantom instead fails
+/// the connection attempt rather than connect with options the profile did
+/// not ask for. Windows rejects `SO_RANDOMIZE_PORT` on a socket that is
+/// already bound, which Chromium's comment names as the expected failure;
+/// Phantom sets it before binding.
 ///
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
 /// values, so this recipe also serves Brave 154 (see [`crate::brave`]).
@@ -324,6 +335,9 @@ pub fn v154_tcp() -> TcpSettings {
         }),
         address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: Duration::from_millis(300),
+        }),
+        port_randomization: Some(TcpPortRandomization {
+            minimum_windows_build: 22_621,
         }),
     }
 }

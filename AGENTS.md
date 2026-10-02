@@ -69,10 +69,13 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Never silently change protocol, route, or fingerprint as a fallback.
 - Return recoverable input and network failures; runtime library code must not
   panic for them.
-- Unsafe code is forbidden. The one exception is the private `backend` FFI
-  module of `phantom-quic-btls`, which documents every unsafe block; see
-  [Design](docs/explanation/design.md#unsafe-code). Adding unsafe code anywhere else
-  requires a new documented and audited FFI boundary.
+- Unsafe code is forbidden. The two exceptions are the private `backend` FFI
+  module of `phantom-quic-btls` and the Windows-only
+  `tcp::windows_port_randomization` FFI module of `phantom-net`, each of
+  which documents every unsafe block; see
+  [Design](docs/explanation/design.md#unsafe-code), which also holds the
+  `phantom-net` module's audit. Adding unsafe code anywhere else requires a
+  new documented and audited FFI boundary.
 - Change a vendored crate only through its `patches/series`, as its
   `PHANTOM.md` describes; never make an unrecorded edit under `vendor/`.
 

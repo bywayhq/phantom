@@ -107,24 +107,31 @@ fn assert_provenance(log: &str, logs: &HookLogs) -> Result<(), String> {
     Ok(())
 }
 
-/// Every socket the browsers opened to the origin set `TCP_NODELAY` and the
-/// recipe's keepalive idle time and interval, before port randomization and,
-/// on Chromium 154, the loopback-only SYN retransmission setting.
+/// Every socket the browsers opened to the origin set `TCP_NODELAY`, the
+/// recipe's keepalive idle time and interval, and port randomization, in
+/// that order, then, on Chromium 154, the loopback-only SYN retransmission
+/// setting, which the recipe leaves out.
 #[test]
 fn chromium_family_sockets_set_the_chromium_tcp_options() -> Result<(), String> {
     let tcp = v154_tcp();
     assert!(tcp.nodelay);
+    // The logs come from Windows 11 build 26200, where the recipe sets the
+    // option.
+    let randomization = tcp
+        .port_randomization
+        .ok_or("recipe sets no port randomization")?;
+    assert!(randomization.minimum_windows_build <= 26_200);
     let TcpKeepalivePolicy::Fixed(keepalive) = tcp.keepalive else {
         return Err("recipe has no fixed keepalive".to_owned());
     };
     let interval = keepalive.interval.ok_or("recipe has no interval")?;
     let recipe = format!(
-        "TCP_NODELAY=1,SIO_KEEPALIVE_VALS=1/{}/{}",
+        "TCP_NODELAY=1,SIO_KEEPALIVE_VALS=1/{}/{},SO_RANDOMIZE_PORT=1",
         keepalive.idle.as_millis(),
         interval.as_millis()
     );
     for logs in &LOGS {
-        let mut expected = format!("{recipe},SO_RANDOMIZE_PORT=1");
+        let mut expected = recipe.clone();
         if logs.loopback_fast_fail {
             expected.push_str(",SIO_TCP_INITIAL_RTO=0/254");
         }

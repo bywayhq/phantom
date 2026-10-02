@@ -173,11 +173,13 @@ fn switch_after(schedule: &TcpKeepaliveSchedule, interval: Duration) -> Duration
 
 /// Every socket Firefox opened to an origin set `TCP_NODELAY` and the
 /// recipe's send buffer before connecting, and `SO_LINGER` to `{1, 0}`,
-/// which the recipe leaves out because the close is a FIN either way.
+/// which the recipe leaves out because the close is a FIN either way. None
+/// set `SO_RANDOMIZE_PORT`, and neither does the recipe.
 #[test]
 fn firefox_sockets_set_nodelay_and_the_send_buffer_before_connecting() -> TestResult {
     let tcp = v157_tcp();
     assert!(tcp.nodelay);
+    assert_eq!(tcp.port_randomization, None);
     let send_buffer = tcp.send_buffer_size.ok_or("recipe has no send buffer")?;
     let expected = [
         "TCP_NODELAY=1".to_owned(),

@@ -13,6 +13,14 @@
 //! facade exposes both through its `diagnostics` feature. The optional
 //! `https-records` feature adds [`dns`], HTTPS DNS record lookups, and the
 //! resolver dependency they need.
+//!
+//! All `unsafe` code is confined to the private
+//! `tcp::windows_port_randomization` module, a Windows-only FFI boundary that
+//! sets Winsock's `SO_RANDOMIZE_PORT`. The rest of the crate denies
+//! `unsafe_code`, and every unsafe block in that module carries a `SAFETY`
+//! comment required by `clippy::undocumented_unsafe_blocks`.
+
+#![deny(unsafe_code)]
 
 mod accept_ch;
 pub mod address_cache;

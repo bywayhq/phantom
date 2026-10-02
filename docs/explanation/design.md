@@ -326,8 +326,8 @@ rejection, which Chromium's QUIC session retransmits as it was sent.
 A fingerprinting client works inside the TLS handshake and a native TLS
 library, where a mistake is a security bug. Phantom keeps that work inside
 three narrow boundaries: TLS verification stays on unless the caller turns it
-off, unsafe code lives in one module, and vendored changes go through a
-recorded patch series.
+off, unsafe code lives in two private FFI modules, and vendored changes go
+through a recorded patch series.
 
 In practice, verification can be disabled only for H1 and H2 conformance
 testing, and your build cannot swap Phantom's patched dependencies for stock
@@ -361,25 +361,77 @@ H3.
 
 ### Unsafe code
 
-The workspace forbids `unsafe_code`. The single exception is
-`phantom-quic-btls`, the audited FFI crate that drives BoringSSL's QUIC TLS
-API for Quinn.
+The workspace forbids `unsafe_code`. Two crates make an exception, each for
+one private module that is the crate's complete FFI boundary:
+
+| Crate | Module | Foreign calls |
+| --- | --- | --- |
+| `phantom-quic-btls` | `backend` | BoringSSL's QUIC TLS API, for Quinn |
+| `phantom-net` | `tcp::windows_port_randomization`, compiled on Windows only | Winsock `setsockopt`, `getsockopt` (tests only), and `WSAGetLastError`; ntdll `RtlGetVersion` |
+
+Both crates follow the same rules:
 
 - The crate overrides the workspace lint with `unsafe_code = "deny"` and
-  `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only in its
-  private `backend` module, which is the complete FFI boundary.
+  `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only on the
+  declaration of that one module.
 - Every unsafe block there carries a `SAFETY` comment;
   `clippy::undocumented_unsafe_blocks` is denied.
-- No raw pointer or `btls-sys` item crosses the crate's public API. Callers
-  supply only the safe `btls` `SslContext` wrapper.
+- No raw pointer or FFI item crosses the module's API. Callers of `backend`
+  supply only the safe `btls` `SslContext` wrapper; callers of
+  `windows_port_randomization` pass a `BorrowedSocket` and get an
+  `io::Result`.
 
-Safe protocol code in the crate cannot add unsafe operations without moving
-them into `backend`, where review concentrates. A change to that module needs
-the same scrutiny as a vendored patch: a stated invariant for every unsafe
-block, and tests that exercise the failure paths. The macOS and Windows CI
-jobs also run the crate's unit tests in release mode to check the native
-link. [Fuzzing and sanitizers](validation.md#fuzzing-and-sanitizers) records
-which failure paths have tests.
+Safe code in either crate cannot add unsafe operations without moving them
+into that module, where review concentrates. A change to it needs the same
+scrutiny as a vendored patch: a stated invariant for every unsafe block, and
+tests that exercise the failure paths. The macOS and Windows CI jobs also run
+`phantom-quic-btls`'s unit tests in release mode to check the native link.
+[Fuzzing and sanitizers](validation.md#fuzzing-and-sanitizers) records which
+of its failure paths have tests.
+
+#### Windows port randomization audit
+
+Chromium asks Windows for a random local port on every TCP socket with
+`SO_RANDOMIZE_PORT` ([Socket hook
+evidence](validation.md#socket-hook-evidence)), and
+`TcpPortRandomization` reproduces it. No safe Rust API sets the option:
+`socket2` 0.6.5 has no method for it, and its general `setsockopt` is
+private. The declarations come from `windows-sys` 0.61.2, which `socket2`
+and Tokio already build on Windows, so the boundary added no crate to the
+build.
+
+The module has four unsafe blocks, one foreign call each:
+
+| Call | What it relies on | Why that holds |
+| --- | --- | --- |
+| `setsockopt(SOL_SOCKET, SO_RANDOMIZE_PORT)` | An open socket handle, and `optlen` readable bytes at `optval` | The handle comes from a `BorrowedSocket`, whose lifetime keeps the socket open for the call. `optval` points to a local `i32` and `optlen` is 4. |
+| `getsockopt(SOL_SOCKET, SO_RANDOMIZE_PORT)`, in tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `i32` and `optlen` to a local 4. Windows may write a one-byte `BOOL`, so the code accepts a length of 1 to 4 and reads the integer, which is little-endian on every Windows target. |
+| `WSAGetLastError` | Nothing | It takes no arguments and reads the calling thread's last error. |
+| `RtlGetVersion` | A writable `OSVERSIONINFOW` whose `dwOSVersionInfoSize` is its size | A zero-initialized local with its own size. |
+
+Every pointer is an exclusive borrow of a local that outlives the call, and
+none of the calls keeps a pointer after it returns. The raw handle is
+converted to `SOCKET` with `try_from`, not a cast. The module exports no
+`unsafe fn`.
+
+`RtlGetVersion` reports the real Windows version. `GetVersionExW`, the
+documented alternative, reports Windows 8 to an executable whose manifest
+does not name a later Windows, which a Rust test binary does not.
+
+Tests in `crates/phantom-net/src/tcp/tests/port_randomization.rs` run on
+Windows. They read the option back with `getsockopt` after a loopback
+connect with the Chromium recipe (set) and the Firefox recipe (not set),
+check that a minimum build past the host leaves it off, that a bound socket
+rejects it with `WSAEINVAL` (the failure path), and that eight successive
+connections, with and without a source binding, get scattered local ports.
+`tcp/tests/paths.rs` reads it back on every TCP connect path. On a Windows
+build below 22621 the scattered-port tests return early, because the
+Chromium recipe does not set the option there. No test reaches
+`WSAENOPROTOOPT`, which a Windows without the option would return.
+
+Miri does not apply: it cannot execute calls into `ws2_32.dll` or
+`ntdll.dll`, and the module has no unsafe code apart from those calls. The
+sanitizer jobs build on Linux, where the module does not compile.
 
 ## How the pieces fit
 

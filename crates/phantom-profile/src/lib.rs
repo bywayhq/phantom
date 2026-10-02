@@ -52,7 +52,8 @@ pub use request_template::{
 };
 pub use tcp::{
     InvalidTcpSettings, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
-    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpSettings,
+    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+    TcpPortRandomization, TcpSettings,
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,

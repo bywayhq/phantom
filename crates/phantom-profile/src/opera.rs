@@ -18,11 +18,11 @@
 //! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
 //! against [`chromium::v154_cookie_placement`] with the H2 and H3 recipes.
 //!
-//! Opera's network-stack source is not public, and no wire capture shows
-//! socket options or cache lifetimes. Frida hook logs of Opera 136's network
-//! service, under `fixtures/socket-hooks/`, show the `TCP_NODELAY` and
-//! keepalive of [`chromium::v154_tcp`] on every origin socket, its 300 ms
-//! IPv4 fallback, six connections to one origin as in
+//! Opera's network-stack source is not public, and no wire capture shows socket
+//! options or cache lifetimes. Frida hook logs of Opera 136's network service,
+//! under `fixtures/socket-hooks/`, show the `TCP_NODELAY`, keepalive, and
+//! `SO_RANDOMIZE_PORT` of [`chromium::v154_tcp`] on every origin socket, its
+//! 300 ms IPv4 fallback, six connections to one origin as in
 //! [`chromium::v154_http1`], and system-resolver answers kept for the 60 s of
 //! [`chromium::v154_dns_cache`], as Chrome 154's logs do. Opera profiles
 //! therefore use those recipes; Opera has no TCP, HTTP/1.1 connection, or

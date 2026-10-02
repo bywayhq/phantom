@@ -104,7 +104,7 @@ renames, dependency updates, and cleanup out of it. Preserve observable
 ordering, and return an error when a requested protocol, route, or
 fingerprint cannot be honored; never fall back. Expose configuration only
 once it is applied, validated, and tested. Keep recoverable failures panic-free, and add
-no unsafe code outside the audited FFI module in
+no unsafe code outside the two audited FFI modules in
 [Design](docs/explanation/design.md#unsafe-code). When public behavior
 changes, update the guide, coverage contract, or design boundary, and never
 document unverified support.

@@ -15,7 +15,8 @@ use std::{
 };
 
 use phantom_profile::{
-    TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpSettings,
+    TcpAddressAdvance, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
+    TcpSettings,
 };
 use socket2::SockRef;
 use tokio::{
@@ -28,6 +29,11 @@ use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
 mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
+// Raw Winsock and ntdll access is isolated here so safe code cannot grow new
+// unsafe operations without crossing an explicit, reviewable module boundary.
+#[cfg(windows)]
+#[allow(unsafe_code, reason = "private Windows socket FFI boundary")]
+mod windows_port_randomization;
 
 pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 
@@ -414,7 +420,9 @@ async fn connect_address(
 /// `FIREFOX_157_0_RELEASE`). Phantom fails the attempt instead, so a
 /// connection never proceeds with socket options the profile did not ask
 /// for. A keepalive schedule sets nothing here: it starts once the socket
-/// has connected.
+/// has connected. Port randomization comes last, as in Chromium's call
+/// order, and before a source binding binds the socket, which Windows
+/// requires.
 fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
     let socket = SockRef::from(socket);
     if settings.nodelay {
@@ -434,7 +442,49 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
             .set_tcp_keepalive(&keepalive_parameters(keepalive)?)
             .map_err(|error| option_error("TCP keepalive", error))?;
     }
+    if let Some(randomization) = settings.port_randomization {
+        randomize_port(&socket, randomization)?;
+    }
     Ok(())
+}
+
+/// Sets `SO_RANDOMIZE_PORT` when this Windows is at least
+/// `randomization.minimum_windows_build`.
+#[cfg(windows)]
+fn randomize_port(socket: &socket2::Socket, randomization: TcpPortRandomization) -> io::Result<()> {
+    use std::os::windows::io::AsSocket;
+
+    if !host_reaches_build(randomization.minimum_windows_build)? {
+        return Ok(());
+    }
+    windows_port_randomization::enable(socket.as_socket())
+        .map_err(|error| option_error("SO_RANDOMIZE_PORT", error))
+}
+
+/// Only Windows has `SO_RANDOMIZE_PORT`; see [`TcpPortRandomization`].
+#[cfg(not(windows))]
+fn randomize_port(
+    _socket: &socket2::Socket,
+    _randomization: TcpPortRandomization,
+) -> io::Result<()> {
+    Ok(())
+}
+
+/// Whether the running Windows is version 10.0 at `minimum_build` or later,
+/// or a later major version. The version is read once.
+#[cfg(windows)]
+fn host_reaches_build(minimum_build: u32) -> io::Result<bool> {
+    static HOST: std::sync::OnceLock<Option<windows_port_randomization::WindowsVersion>> =
+        std::sync::OnceLock::new();
+    let version = HOST
+        .get_or_init(windows_port_randomization::windows_version)
+        .ok_or_else(|| io::Error::other("could not read the Windows version"))?;
+    Ok(reaches_build(version.major, version.build, minimum_build))
+}
+
+#[cfg(any(windows, test))]
+fn reaches_build(major: u32, build: u32, minimum_build: u32) -> bool {
+    major > 10 || (major == 10 && build >= minimum_build)
 }
 
 /// Builds socket2 keepalive parameters for settings that
@@ -652,6 +702,8 @@ pub(crate) mod observed {
     pub(crate) struct ObservedSocket {
         pub(crate) nodelay: bool,
         pub(crate) keepalive: bool,
+        /// `SO_RANDOMIZE_PORT`, always `false` off Windows.
+        pub(crate) random_port: bool,
     }
 
     thread_local! {
@@ -663,8 +715,21 @@ pub(crate) mod observed {
         let observed = ObservedSocket {
             nodelay: socket.tcp_nodelay().unwrap_or(false),
             keepalive: socket.keepalive().unwrap_or(false),
+            random_port: random_port(stream),
         };
         SOCKETS.with(|sockets| sockets.borrow_mut().push(observed));
+    }
+
+    #[cfg(windows)]
+    fn random_port(stream: &TcpStream) -> bool {
+        use std::os::windows::io::AsSocket;
+
+        super::windows_port_randomization::is_enabled(stream.as_socket()).unwrap_or(false)
+    }
+
+    #[cfg(not(windows))]
+    fn random_port(_stream: &TcpStream) -> bool {
+        false
     }
 
     /// Returns and clears the sockets connected on this thread.
