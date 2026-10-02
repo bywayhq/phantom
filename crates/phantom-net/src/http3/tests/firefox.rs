@@ -286,8 +286,14 @@ fn captured_initial_datagram(snapshot: &str, index: usize) -> TestResult<Initial
 /// Sends the first flight to a silent loopback socket bound to `bind` and
 /// returns its first two datagrams.
 async fn first_flight(bind: SocketAddr) -> TestResult<Vec<InitialDatagram>> {
-    let identity = TestIdentity::generate()?;
-    let connector = connector(&identity)?;
+    first_flight_of(connector(&TestIdentity::generate()?)?, bind).await
+}
+
+/// Sends `connector`'s first flight as [`first_flight`] does.
+async fn first_flight_of(
+    connector: Http3Connector,
+    bind: SocketAddr,
+) -> TestResult<Vec<InitialDatagram>> {
     let socket = UdpSocket::bind(bind).await?;
     let address = socket.local_addr()?;
     let host = address.ip().to_string();
@@ -518,8 +524,48 @@ async fn v2_relay(
 #[tokio::test(flavor = "current_thread")]
 async fn firefox_156_client_follows_a_server_to_version_2() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let connector = connector(&identity)?;
-    let (server_address, endpoint, keys) = v2_server(&identity)?;
+    follow_a_server_to_version_2(&identity, connector(&identity)?).await
+}
+
+/// A connector bound to a source address and holding a client certificate
+/// keeps the recipe's QUIC v2 offer and Initial datagram size.
+#[tokio::test(flavor = "current_thread")]
+async fn firefox_156_bound_certificate_connector_keeps_initials_and_version_2() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let bound = |connector: Http3Connector| -> TestResult<Http3Connector> {
+        let key = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
+        let certificate = rcgen::CertificateParams::new(Vec::<String>::new())?.self_signed(&key)?;
+        Ok(connector
+            .with_source_binding(
+                crate::SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into()),
+            )
+            .with_client_certificate(&crate::tls::ClientCertificate::from_der(
+                [certificate.der().as_ref()],
+                &key.serialize_der(),
+            )?))
+    };
+
+    let datagrams = first_flight_of(
+        bound(connector(&identity)?)?,
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )
+    .await?;
+    assert!(
+        datagrams
+            .iter()
+            .all(|datagram| (datagram.0, datagram.1) == (1_252, QUIC_V1)),
+        "{datagrams:?}"
+    );
+    follow_a_server_to_version_2(&identity, bound(connector(&identity)?)?).await
+}
+
+/// Sends one request through a relay that answers `connector`'s first flight
+/// in version 2, and checks that the client finishes the handshake in it.
+async fn follow_a_server_to_version_2(
+    identity: &TestIdentity,
+    connector: Http3Connector,
+) -> TestResult<()> {
+    let (server_address, endpoint, keys) = v2_server(identity)?;
     let relay_socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let relay_address = relay_socket.local_addr()?;
     let client_v2_packets = Arc::new(AtomicUsize::new(0));
