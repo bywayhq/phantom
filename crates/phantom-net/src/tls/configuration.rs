@@ -1,6 +1,6 @@
 //! Translation from browser-neutral TLS settings to BoringSSL configuration.
 
-use std::{fmt, net::IpAddr};
+use std::fmt;
 
 use btls::ssl::{ExtensionType, KeyShare, SslContextBuilder, SslOptions, SslRef, SslVersion};
 use phantom_profile::{
@@ -144,25 +144,11 @@ pub(super) fn apply_ech_grease_payload_length(
             maximum_name_length,
         } => ssl.set_ech_grease_payload_from_client_hello(
             maximum_name_length,
-            ip_literal_host(server_name),
+            EchGreasePayloadLength::ip_literal_host(server_name),
         ),
         _ => return Err(TlsError::unsupported("ech_grease_payload_length", length)),
     };
     result.map_err(|error| TlsError::backend("ech_grease_payload_length", error))
-}
-
-/// Returns `server_name` without brackets when it is an IP literal.
-///
-/// NSS pads a GREASE ECH payload by the length of the URL host. For a host
-/// name that is the server name BoringSSL sends; an IP literal sends no
-/// server name, so the address text is passed instead, an IPv6 address
-/// without brackets as Firefox 157 pads it.
-fn ip_literal_host(server_name: &str) -> Option<&str> {
-    let host = server_name
-        .strip_prefix('[')
-        .and_then(|host| host.strip_suffix(']'))
-        .unwrap_or(server_name);
-    host.parse::<IpAddr>().is_ok().then_some(host)
 }
 
 fn version(field: &'static str, version: TlsVersion) -> Result<SslVersion, TlsError> {

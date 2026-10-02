@@ -9,6 +9,7 @@ use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef};
 use btls::x509::verify::X509CheckFlags;
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
+use phantom_profile::EchGreasePayloadLength;
 
 use super::drain_error_queue;
 use super::quic_callbacks::{CallbackInstallError, install_on_ssl};
@@ -690,7 +691,7 @@ fn apply_tls_profile(
         } => ssl
             .set_ech_grease_payload_from_client_hello(
                 maximum_name_length,
-                server_name.parse::<IpAddr>().is_ok().then_some(server_name),
+                EchGreasePayloadLength::ip_literal_host(server_name),
             )
             .map_err(|_| backend_failure("ECH GREASE payload length"))?,
     }

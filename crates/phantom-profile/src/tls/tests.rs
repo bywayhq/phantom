@@ -410,6 +410,26 @@ fn ech_grease_payload_from_the_client_hello_requires_ech_grease() -> Result<(), 
 }
 
 #[test]
+fn ech_grease_padding_uses_an_ip_literal_without_brackets() {
+    for (server_name, host) in [
+        ("127.0.0.1", Some("127.0.0.1")),
+        ("::1", Some("::1")),
+        ("[::1]", Some("::1")),
+        ("::ffff:127.0.0.1", Some("::ffff:127.0.0.1")),
+        ("[::ffff:127.0.0.1]", Some("::ffff:127.0.0.1")),
+        ("server.phantom.test", None),
+        ("[server.phantom.test]", None),
+        ("127.0.0.1.nip.io", None),
+    ] {
+        assert_eq!(
+            EchGreasePayloadLength::ip_literal_host(server_name),
+            host,
+            "{server_name}"
+        );
+    }
+}
+
+#[test]
 fn tls_12_rejects_alps() {
     let mut settings = minimal_settings();
     settings.max_version = TlsVersion::Tls12;

@@ -1,6 +1,6 @@
 //! Backend-neutral TLS profile settings.
 
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, net::IpAddr};
 
 const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
 const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERHEAD;
@@ -286,10 +286,11 @@ pub enum ClientHelloExtensionOrder {
     /// Randomize the other extensions for each connection, then write the
     /// listed ones last, in this order.
     ///
-    /// Only `padding` and `pre_shared_key` follow the listed extensions, and
-    /// a listed extension is written only when the connection sends it
-    /// anyway, so a list may name an extension that only QUIC or only a
-    /// resumption sends. The second ClientHello after a HelloRetryRequest
+    /// Only `padding` and `pre_shared_key` follow the listed extensions. With
+    /// [`TlsSettings::grease`] set, the trailing GREASE extension is written
+    /// just before them. A listed extension is written only when the
+    /// connection sends it anyway, so a list may name an extension that only
+    /// QUIC or only a resumption sends. The second ClientHello after a HelloRetryRequest
     /// keeps the first one's order. The list must not be empty or repeat an
     /// extension.
     PermutedWithTail(Vec<ClientHelloExtension>),
@@ -321,6 +322,25 @@ pub enum EchGreasePayloadLength {
         /// The `maximum_name_length` the padding assumes.
         maximum_name_length: u8,
     },
+}
+
+impl EchGreasePayloadLength {
+    /// Returns the host text that [`Self::FromClientHello`] pads by in place
+    /// of the server name: `server_name` without brackets when it is an IP
+    /// literal, which sends no server name, and `None` for a host name,
+    /// which pads by the server name itself.
+    ///
+    /// Firefox 157 pads by `127.0.0.1` and by `::1` without brackets. An
+    /// IPv4-mapped IPv6 address keeps the text it is given, such as
+    /// `::ffff:127.0.0.1`; how Firefox writes such a host is not verified.
+    #[must_use]
+    pub fn ip_literal_host(server_name: &str) -> Option<&str> {
+        let host = server_name
+            .strip_prefix('[')
+            .and_then(|host| host.strip_suffix(']'))
+            .unwrap_or(server_name);
+        host.parse::<IpAddr>().is_ok().then_some(host)
+    }
 }
 
 /// ALPS configuration for one ALPN protocol.
