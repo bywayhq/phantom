@@ -35,7 +35,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
-async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
+async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -60,8 +60,7 @@ async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
             serve_one(isolated, "/isolated").await
         });
 
-        let client = tls13_client(&identity)?;
-        let session = client.session();
+        let session = tls13_client(&identity)?;
         send(&session, HttpProtocol::Http2, format!("https://{address}/")).await?;
         if wait_for_first_close.await.is_err() {
             server.await??;
@@ -75,7 +74,7 @@ async fn tls13_resumption_is_scoped_to_one_session() -> TestResult<()> {
         .await?;
         drop(session);
         send(
-            &client.session(),
+            &tls13_client(&identity)?,
             HttpProtocol::Http2,
             format!("https://{address}/isolated"),
         )
@@ -113,8 +112,7 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
             serve_http1(isolated, "/isolated").await
         });
 
-        let client = tls_support::test_client(&identity, false)?;
-        let session = client.session();
+        let session = tls_support::test_client(&identity, false)?;
         send(&session, HttpProtocol::Http1, format!("https://{address}/")).await?;
         send(
             &session,
@@ -124,7 +122,7 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
         .await?;
         drop(session);
         send(
-            &client.session(),
+            &tls_support::test_client(&identity, false)?,
             HttpProtocol::Http1,
             format!("https://{address}/isolated"),
         )
@@ -219,7 +217,7 @@ async fn serve_http1(mut stream: SslStream<TcpStream>, expected_path: &str) -> T
     Ok(())
 }
 
-async fn send(session: &phantom::Session, protocol: HttpProtocol, uri: String) -> TestResult<()> {
+async fn send(session: &phantom::Client, protocol: HttpProtocol, uri: String) -> TestResult<()> {
     let response = session.get(protocol, &uri)?.send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     response.into_body().collect().await?;

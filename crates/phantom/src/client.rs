@@ -21,10 +21,8 @@ use phantom_profile::{
 };
 
 use crate::{
-    BuildError, RequestBuilder, Route, Session, SessionBuilder,
-    session::{
-        ClientOptions, ClientState, client_option_setters, http3_pool::ConnectUdpConnectors,
-    },
+    BuildError, RequestBuilder, Route,
+    session::{ClientOptions, ClientState, http3_pool::ConnectUdpConnectors},
 };
 #[cfg(feature = "websocket")]
 use crate::{WebSocketError, WebSocketRequestBuilder};
@@ -88,25 +86,20 @@ pub struct Client {
     pub(crate) state: Arc<ClientState>,
 }
 
-/// Transport configuration shared by a client, its clones, and its sessions.
+/// Transport configuration shared by a client and its clones.
 ///
 /// Cloning is shallow: TLS contexts, the HTTP/3 connectors, and the key log
-/// stay shared. A session takes a clone whose connectors hold its own proxy
-/// credential record and address cache, with the same host overrides and
-/// address resolver.
+/// stay shared.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
     pub(crate) http3: Option<Arc<Http3Connector>>,
-    /// Whether the profile's HTTP/3 TLS settings enable session tickets,
-    /// which HTTP/3 early data needs.
-    pub(crate) http3_session_tickets: bool,
     /// Proxy-leg connectors for CONNECT-UDP proxies, using proxy trust.
     pub(crate) connect_udp_proxy: Option<Arc<ConnectUdpConnectors>>,
     /// Opens CONNECT tunnels through an HTTPS proxy, sharing HTTP/2 proxy
-    /// connections from the session's pool.
+    /// connections from the client's pool.
     pub(crate) https_proxy: Option<HttpsProxyConnector>,
     /// `https_proxy` for `http://` requests forwarded over HTTP/2, with the
     /// pool the profile's [`Http2ProxyConnections`] gives them.
@@ -121,11 +114,10 @@ pub(crate) struct ClientInner {
     /// opted into more.
     pub(crate) http2_proxy_connections_per_route: NonZeroUsize,
     /// Proxies that accepted Basic credentials, shared with the connectors.
-    /// Each session has its own.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
     /// Host overrides, the address resolver, and the address cache, shared
-    /// with the connectors. Each session has its own cache. `None` when the
-    /// client asks the operating system for every connection.
+    /// with the connectors. `None` when the client asks the operating system
+    /// for every connection.
     pub(crate) host_resolver: Option<HostResolver>,
     pub(crate) client_hints: Option<ClientHintSettings>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
@@ -147,34 +139,6 @@ pub(crate) struct ClientInner {
 }
 
 impl ClientInner {
-    /// Returns this configuration with an empty proxy credential record, an
-    /// empty address cache, and empty HTTP/2 proxy pools, or itself when it
-    /// keeps none of them.
-    ///
-    /// Sessions call this so that one session's remembered proxy credentials,
-    /// resolved addresses, and proxy connections never reach another, as with
-    /// cookies, Alt-Svc, and pools.
-    pub(crate) fn with_fresh_session_state(self: &Arc<Self>) -> Arc<Self> {
-        let caches_addresses = self
-            .host_resolver
-            .as_ref()
-            .is_some_and(|resolver| resolver.cache().is_some());
-        if self.proxy_credentials.is_none() && !caches_addresses && self.https_proxy.is_none() {
-            return Arc::clone(self);
-        }
-        let mut inner = Self::clone(self);
-        if inner.proxy_credentials.is_some() {
-            let cache = ProxyCredentialCache::new();
-            inner.bind_proxy_credentials(&cache);
-            inner.proxy_credentials = Some(cache);
-        }
-        if let Some(resolver) = self.host_resolver.as_ref().filter(|_| caches_addresses) {
-            inner.bind_host_resolver(resolver.with_empty_cache());
-        }
-        inner.bind_http2_proxy_pools();
-        Arc::new(inner)
-    }
-
     /// Gives the HTTPS proxy connectors new HTTP/2 connection pools: one for
     /// every purpose, or one per purpose, as the profile says.
     ///
@@ -530,21 +494,6 @@ impl Client {
     ) -> Result<WebSocketRequestBuilder, WebSocketError> {
         WebSocketRequestBuilder::new_client_with_profile_policy(self.clone(), uri)
     }
-
-    /// Creates an isolated compatibility client with default bounded state.
-    #[must_use]
-    #[doc(hidden)]
-    pub fn session(&self) -> Session {
-        // Default options enable no Alt-Svc store, so they need no validation.
-        ClientOptions::default().into_client(self.inner.with_fresh_session_state())
-    }
-
-    /// Starts a compatibility builder for isolated state over this transport.
-    #[must_use]
-    #[doc(hidden)]
-    pub fn session_builder(&self) -> SessionBuilder {
-        SessionBuilder::new(self.clone())
-    }
 }
 
 /// Builds an immutable [`Client`].
@@ -577,7 +526,7 @@ pub struct ClientBuilder {
     proxy_additional_roots: Vec<Box<[u8]>>,
     proxy_server_authentication: ServerAuthentication,
     route: Route,
-    options: ClientOptions,
+    pub(crate) options: ClientOptions,
     preemptive_proxy_authentication: bool,
     http2_proxy_connections_per_route: NonZeroUsize,
     /// The caller's address cache choice: `None` keeps the profile's, and
@@ -765,8 +714,7 @@ impl ClientBuilder {
     /// usual single retry. The record holds at most
     /// [`MAX_PROXY_CREDENTIAL_ENTRIES`] proxy and credential pairs and is
     /// never consulted for a route whose credentials differ. Clones of this
-    /// client share it; a session built from the client starts with an empty
-    /// record of its own, as it does with cookies, Alt-Svc, and pools.
+    /// client share it; a separately built client has its own.
     ///
     /// When disabled, every tunnel and forwarded request starts without
     /// credentials and waits for a `407`. CONNECT-UDP routes always start
@@ -783,7 +731,7 @@ impl ClientBuilder {
     /// Lets each route through an HTTP/2 proxy open up to `maximum`
     /// connections to it instead of one.
     ///
-    /// Off by default: like Chrome and Firefox, a session keeps one HTTP/2
+    /// Off by default: like Chrome and Firefox, a client keeps one HTTP/2
     /// connection per proxy route and puts every CONNECT tunnel on it, and a
     /// tunnel past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS` waits until
     /// another stream on it ends. With a larger `maximum`, a route opens
@@ -792,8 +740,7 @@ impl ClientBuilder {
     /// stream limit when that is lower, so a tunnel does not wait behind
     /// long-lived tunnels. The trade-off: the proxy can see more connections
     /// than a browser opens. The profile's CONNECT recipe still decides which
-    /// requests share each route's connections. Sessions keep the client's
-    /// value.
+    /// requests share each route's connections.
     ///
     /// [`Self::build`] fails with
     /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when `maximum`
@@ -826,9 +773,8 @@ impl ClientBuilder {
     /// lookup through a [`dns_resolver`](Self::dns_resolver) runs as a task on
     /// the runtime that started it instead.
     ///
-    /// Clones of this client share the cache; a session built from the
-    /// client starts with an empty cache of its own. The client does not
-    /// watch for network changes as browsers do;
+    /// Clones of this client share the cache; a separately built client has
+    /// its own. The client does not watch for network changes as browsers do;
     /// [`Client::clear_dns_cache`] forgets every answer.
     #[must_use]
     pub fn dns_cache(mut self, settings: DnsCacheSettings) -> Self {
@@ -907,8 +853,7 @@ impl ClientBuilder {
     /// [`resolve`](Self::resolve). With an address cache, from the profile or
     /// [`dns_cache`](Self::dns_cache), each name is asked for once per cache
     /// lifetime, and concurrent connections share that lookup; without one,
-    /// every new connection asks. Clones and sessions of the client share
-    /// the resolver.
+    /// every new connection asks. Clones of the client share the resolver.
     ///
     /// A resolver error fails the request with the kind a failed system
     /// lookup gets on the same path:
@@ -1027,8 +972,7 @@ impl ClientBuilder {
     /// does not change, and the certificate and its chain leave the client
     /// only in answer to a `CertificateRequest`. One certificate serves every
     /// origin; there is no per-origin selection. Proxies, including the
-    /// outer connection of a CONNECT-UDP route, never receive it. Sessions
-    /// built from the client present it too.
+    /// outer connection of a CONNECT-UDP route, never receive it.
     ///
     /// BoringSSL signs the `CertificateVerify` only with a scheme from the
     /// profile's `signature_schemes`, so [`build`](Self::build) fails with
@@ -1106,8 +1050,6 @@ impl ClientBuilder {
             None => self.profile.dns_cache(),
         }
     }
-
-    client_option_setters!();
 
     /// Validates the profile and builds reusable protocol connectors.
     ///
@@ -1411,7 +1353,6 @@ impl ClientBuilder {
             http1_or_2,
             http2,
             http3: http3.map(Arc::new),
-            http3_session_tickets,
             connect_udp_proxy: connect_udp_proxy.map(Arc::new),
             https_proxy,
             forward_https_proxy: None,
@@ -1589,68 +1530,6 @@ mod tests {
         assert_eq!(without_rtt.len() + 1, recipe.wire_parameters.len());
         assert_eq!(outer.wire_parameters, without_rtt);
         assert_eq!(outer.parameter_order, recipe.parameter_order);
-    }
-
-    /// Every `ClientBuilder` option reaches a session: per-client state and
-    /// policy through the `SessionBuilder` setters that
-    /// `client_option_setters!` defines on both builders, and transport by
-    /// sharing the parent client's.
-    ///
-    /// The pattern names every field, so a new builder option does not
-    /// compile here until it is sorted into one of the two.
-    #[test]
-    fn every_client_builder_option_reaches_sessions() -> Result<(), Box<dyn std::error::Error>> {
-        let builder = || -> Result<super::ClientBuilder, Box<dyn std::error::Error>> {
-            let builder = Client::builder(
-                ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2()),
-            )
-            .route(Route::http_proxy(HttpProxy::new("http://proxy.example")?))
-            .preemptive_proxy_authentication(false)
-            .dns_cache(phantom_profile::firefox::v156_dns_cache());
-            #[cfg(feature = "diagnostics")]
-            let builder = builder.key_log(NonZeroUsize::MIN);
-            Ok(builder)
-        };
-        let super::ClientBuilder {
-            // Transport the session shares with the client.
-            profile: _,
-            additional_roots: _,
-            server_authentication: _,
-            proxy_additional_roots: _,
-            proxy_server_authentication: _,
-            route: _,
-            preemptive_proxy_authentication: _,
-            http2_proxy_connections_per_route: _,
-            dns_cache: _,
-            host_overrides: _,
-            address_resolver: _,
-            source_binding: _,
-            client_certificate: _,
-            #[cfg(feature = "diagnostics")]
-                key_log_capacity: _,
-            #[cfg(feature = "diagnostics")]
-                qlog_dir: _,
-            // Set per session; `session::tests` checks every field.
-            options: _,
-        } = builder()?;
-
-        let client = builder()?.build()?;
-        let session = client.session_builder().build()?;
-        assert_eq!(session.inner.route, client.inner.route);
-        assert!(session.inner.proxy_credentials.is_none());
-        assert!(
-            session
-                .inner
-                .host_resolver
-                .as_ref()
-                .is_some_and(|resolver| resolver.cache().is_some())
-        );
-        #[cfg(feature = "diagnostics")]
-        assert!(match (&session.inner.key_log, &client.inner.key_log) {
-            (Some(session), Some(client)) => std::sync::Arc::ptr_eq(session, client),
-            _ => false,
-        });
-        Ok(())
     }
 
     #[test]

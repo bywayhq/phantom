@@ -44,7 +44,7 @@ async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>([primary.await??, secondary.await??])
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let primary = session
             .get(HttpProtocol::Http2, &format!("https://{address}/"))?
             .send()
@@ -90,7 +90,7 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
             serve_421_without_replay(listener, stream, response_seen_by_server).await
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let response = session
             .get(
                 HttpProtocol::Http2,

@@ -77,7 +77,7 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
             expect_no_connection(&endpoint).await
         });
 
-        let session = early_data_client(&identity)?.session();
+        let session = early_data_client(&identity)?;
         for path in ["/first", "/early"] {
             send(&session, relay, path).await?;
             read_tx.send(())?;

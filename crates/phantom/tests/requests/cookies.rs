@@ -155,8 +155,7 @@ async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build()?;
+        let session = cookie_client_builder(&identity).cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http1,
@@ -207,8 +206,7 @@ async fn http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
 
-        let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build()?;
+        let session = cookie_client_builder(&identity).cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http2,
@@ -262,8 +260,7 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
 
-        let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build()?;
+        let session = cookie_client_builder(&identity).cookies().build()?;
         send_and_drain(
             &session,
             HttpProtocol::Http3,
@@ -322,8 +319,7 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((explicit, learned))
         });
 
-        let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build()?;
+        let session = cookie_client_builder(&identity).cookies().build()?;
         let url = format!("https://{address}/");
         send_and_drain(&session, HttpProtocol::Http2, &url).await?;
         session
@@ -388,8 +384,7 @@ async fn dropping_body_after_headers_preserves_learned_cookie() -> TestResult<()
             ))
         });
 
-        let client = cookie_client(&identity)?;
-        let session = client.session_builder().cookies().build()?;
+        let session = cookie_client_builder(&identity).cookies().build()?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
             .send()
@@ -445,11 +440,11 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let mut tls = tls_settings();
         tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
-        let client = Client::builder(ClientProfile::new(tls))
+        let session = Client::builder(ClientProfile::new(tls))
             .add_root_certificate_der(identity.root_der)
             .route(route)
+            .cookies()
             .build()?;
-        let session = client.session_builder().cookies().build()?;
         let url = format!("https://example.com:{}/", address.port());
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;
         send_and_drain(&session, HttpProtocol::Http1, &url).await?;
@@ -495,10 +490,10 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
         };
         for placement in [firefox::v156_cookie_placement(), CookiePlacement::last()] {
             let profile = ClientProfile::new(tls_settings()).with_cookie_placement(placement);
-            let client = Client::builder(profile)
+            let session = Client::builder(profile)
                 .add_root_certificate_der(identity.root_der.clone())
+                .cookies()
                 .build()?;
-            let session = client.session_builder().cookies().build()?;
             session
                 .cookie_jar()
                 .ok_or("cookie jar was disabled")?
@@ -547,10 +542,6 @@ fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
         .collect())
 }
 
-fn cookie_client(identity: &TestIdentity) -> TestResult<Client> {
-    Ok(cookie_client_builder(identity).build()?)
-}
-
 fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
@@ -559,7 +550,7 @@ fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
 }
 
 async fn send_and_drain(
-    session: &phantom::Session,
+    session: &phantom::Client,
     protocol: HttpProtocol,
     url: &str,
 ) -> TestResult<()> {

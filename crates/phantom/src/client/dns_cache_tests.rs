@@ -157,24 +157,24 @@ async fn concurrent_requests_to_one_host_share_one_lookup() -> TestResult {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn clones_share_the_cache_and_sessions_start_empty() -> TestResult {
+async fn clones_share_the_cache_and_separate_clients_do_not() -> TestResult {
     let origin = ClosingOrigin::bind().await?;
     let client = Client::builder(profile()).dns_cache(settings()).build()?;
     let (client, calls) = with_counting_cache(&client, watch::channel(true).1);
 
     get(&client, &origin.url()).await?;
     get(&client.clone(), &origin.url()).await?;
-    let session = client.session();
+    let separate = Client::builder(profile()).dns_cache(settings()).build()?;
 
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    let session_cache = session
+    let separate_cache = separate
         .inner
         .host_resolver
         .as_ref()
         .and_then(HostResolver::cache)
-        .ok_or("the session has no address cache")?;
-    assert!(session_cache.is_empty());
-    assert_eq!(session_cache.settings(), &settings());
+        .ok_or("the separate client has no address cache")?;
+    assert!(separate_cache.is_empty());
+    assert_eq!(separate_cache.settings(), &settings());
     Ok(())
 }
 
@@ -290,18 +290,16 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
             .is_some_and(|c| c.host_resolver().is_none())
     );
     assert!(without.inner.host_resolver.is_none());
-    assert!(without.session().inner.host_resolver.is_none());
     Ok(())
 }
 
 #[test]
-fn overrides_without_a_cache_reach_the_connectors_and_sessions() -> TestResult {
+fn overrides_without_a_cache_reach_the_connectors() -> TestResult {
     let pinned = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 9));
     let client = Client::builder(profile().with_http2(chromium::v154_http2()))
         .no_dns_cache()
         .resolve("Pinned.Phantom.Test", [pinned])
         .build()?;
-    let session = client.session();
     let pinned_in = |resolver: Option<&HostResolver>| {
         resolver.and_then(|resolver| {
             resolver
@@ -310,18 +308,17 @@ fn overrides_without_a_cache_reach_the_connectors_and_sessions() -> TestResult {
         })
     };
 
-    for inner in [&client.inner, &session.inner] {
-        let resolver = inner.host_resolver.as_ref();
-        assert!(resolver.is_some_and(|resolver| resolver.cache().is_none()));
-        assert_eq!(pinned_in(resolver), Some(vec![pinned]));
-        assert_eq!(
-            pinned_in(inner.http1.as_ref().and_then(|c| c.host_resolver())),
-            Some(vec![pinned])
-        );
-        assert_eq!(
-            pinned_in(inner.http2.as_ref().and_then(|c| c.host_resolver())),
-            Some(vec![pinned])
-        );
-    }
+    let inner = &client.inner;
+    let resolver = inner.host_resolver.as_ref();
+    assert!(resolver.is_some_and(|resolver| resolver.cache().is_none()));
+    assert_eq!(pinned_in(resolver), Some(vec![pinned]));
+    assert_eq!(
+        pinned_in(inner.http1.as_ref().and_then(|c| c.host_resolver())),
+        Some(vec![pinned])
+    );
+    assert_eq!(
+        pinned_in(inner.http2.as_ref().and_then(|c| c.host_resolver())),
+        Some(vec![pinned])
+    );
     Ok(())
 }

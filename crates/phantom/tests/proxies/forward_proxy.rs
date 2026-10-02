@@ -1062,10 +1062,7 @@ async fn session_reuses_same_origin_and_forward_route() -> TestResult<()> {
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let session = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .session();
+        let session = client_builder(&identity, false).route(route).build()?;
         let first = session
             .get(HttpProtocol::Http1, "http://origin.test/first")?
             .send()
@@ -1116,10 +1113,7 @@ async fn session_isolates_forward_connections_by_origin() -> TestResult<()> {
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
-        let session = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .session();
+        let session = client_builder(&identity, false).route(route).build()?;
         for origin in ["first.test", "second.test"] {
             session
                 .get(HttpProtocol::Http1, &format!("http://{origin}/resource"))?
@@ -1499,8 +1493,7 @@ async fn plaintext_forwarding_does_not_generate_or_learn_client_hints() -> TestR
         let session = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .route(route)
-            .build()?
-            .session();
+            .build()?;
         session
             .get(HttpProtocol::Http1, "http://origin.test/first")?
             .header(RequestHeader::new("Sec-CH-UA", "caller"))

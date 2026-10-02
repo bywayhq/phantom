@@ -129,7 +129,7 @@ async fn resumption_stays_on_the_origin_and_route_that_learned_the_ticket() -> T
         let proxy = tokio::spawn(forward_one_socks5_udp_associate(listener, origin));
         let route = Route::socks5(Socks5Proxy::new(&format!("socks5://{proxy_address}"))?);
 
-        let session = resuming_client(&identity)?.session();
+        let session = resuming_client(&identity)?;
         let uri = format!("https://{origin}/");
 
         send(session.get(HttpProtocol::Http3, &uri)?).await?;
@@ -360,7 +360,7 @@ async fn a_failed_resumed_handshake_is_repeated_once_without_a_ticket() -> TestR
             vec![Attempt::Serve, Attempt::FailHandshake, Attempt::Serve],
         )?;
         let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?.session();
+        let session = resuming_client(&identity)?;
         let uri = format!("https://{}/", sniffer.address);
 
         send(session.get(HttpProtocol::Http3, &uri)?).await?;
@@ -404,7 +404,7 @@ async fn a_repeated_handshake_that_fails_is_not_repeated_again() -> TestResult<(
             ],
         )?;
         let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?.session();
+        let session = resuming_client(&identity)?;
         let uri = format!("https://{}/", sniffer.address);
 
         send(session.get(HttpProtocol::Http3, &uri)?).await?;
@@ -434,7 +434,7 @@ async fn a_failed_handshake_without_a_ticket_is_not_repeated() -> TestResult<()>
         let identity = TestIdentity::generate()?;
         let server = ScriptedServer::spawn(&identity, vec![Attempt::FailHandshake])?;
         let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?.session();
+        let session = resuming_client(&identity)?;
         let uri = format!("https://{}/", sniffer.address);
 
         let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
@@ -482,16 +482,15 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = Client::builder(resuming_profile(extended_request_settings()))
+        let session = Client::builder(resuming_profile(extended_request_settings()))
             .add_root_certificate_der(origin_identity.root_der.clone())
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .build()?;
-        let session = client.session();
         let uri = format!("https://{origin}/");
         let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
         // The proxy and the origin share the server name `127.0.0.1`, so a
         // shared cache would present one server's ticket to the other.
-        let mut through_proxy = async |session: &phantom::Session| -> TestResult<()> {
+        let mut through_proxy = async |session: &phantom::Client| -> TestResult<()> {
             send(session.get(HttpProtocol::Http3, &uri)?.route(route.clone())).await?;
             read_tx.send(())?;
             served.recv().await.ok_or("server stopped")?;

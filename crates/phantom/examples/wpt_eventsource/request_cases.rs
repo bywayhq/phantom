@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
-use phantom::{HttpProtocol, Session, SseErrorKind, SseEventSource};
+use phantom::{Client, HttpProtocol, SseErrorKind, SseEventSource};
 
 use super::{BoxError, Context, endpoint, invalid_data};
 
 pub(super) async fn accept_header(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client.session(),
+        &context.client,
         context,
         "/eventsource/resources/accept.event_stream",
         &[("pipe", "sub")],
@@ -19,10 +19,9 @@ pub(super) async fn accept_header(context: &Context) -> Result<(), BoxError> {
 }
 
 pub(super) async fn cache_control(context: &Context) -> Result<(), BoxError> {
-    let session = context.client.session();
     for _ in 0..2 {
         let mut source = connect(
-            &session,
+            &context.client,
             context,
             "/eventsource/resources/cache-control.event_stream",
             &[("pipe", "sub")],
@@ -37,7 +36,7 @@ pub(super) async fn cache_control(context: &Context) -> Result<(), BoxError> {
 
 pub(super) async fn last_event_id(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client.session(),
+        &context.client,
         context,
         "/eventsource/resources/last-event-id.py",
         &[],
@@ -55,7 +54,7 @@ pub(super) async fn last_event_id(context: &Context) -> Result<(), BoxError> {
 
 pub(super) async fn nul_id(context: &Context, value: &str) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client.session(),
+        &context.client,
         context,
         "/eventsource/resources/last-event-id.py",
         &[("idvalue", value)],
@@ -74,7 +73,7 @@ pub(super) async fn nul_id(context: &Context, value: &str) -> Result<(), BoxErro
 pub(super) async fn unterminated_event(context: &Context) -> Result<(), BoxError> {
     let message = "retry:1000\ndata:test1\n\nid:test\ndata:test2";
     let mut source = connect(
-        &context.client.session(),
+        &context.client,
         context,
         "/eventsource/resources/message.py",
         &[("newline", "none"), ("message", message)],
@@ -92,7 +91,7 @@ pub(super) async fn unterminated_event(context: &Context) -> Result<(), BoxError
 
 pub(super) async fn bogus_retry(context: &Context) -> Result<(), BoxError> {
     let mut source = connect(
-        &context.client.session(),
+        &context.client,
         context,
         "/eventsource/resources/message.py",
         &[("message", "retry:3000\nretry:1000x\ndata:x")],
@@ -129,7 +128,6 @@ pub(super) async fn status(context: &Context, status: u16) -> Result<(), BoxErro
     )?;
     let result = context
         .client
-        .session()
         .event_source(HttpProtocol::Http1, url.as_str())?
         .max_reconnects(0)
         .connect()
@@ -153,14 +151,14 @@ pub(super) async fn status(context: &Context, status: u16) -> Result<(), BoxErro
 }
 
 async fn connect(
-    session: &Session,
+    client: &Client,
     context: &Context,
     path: &str,
     query: &[(&str, &str)],
     max_reconnects: usize,
 ) -> Result<SseEventSource, BoxError> {
     let url = endpoint(&context.base_url, path, query)?;
-    let response = session
+    let response = client
         .event_source(HttpProtocol::Http1, url.as_str())?
         .max_reconnects(max_reconnects)
         .connect()

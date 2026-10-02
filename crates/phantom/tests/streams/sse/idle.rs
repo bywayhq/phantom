@@ -120,7 +120,6 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
     });
 
     let response = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .idle_timeout(IDLE_TIMEOUT)
         .initial_retry(Duration::ZERO)
@@ -188,7 +187,6 @@ async fn timeout_without_a_reconnect_budget_is_terminal() -> TestResult<()> {
     });
 
     let response = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .idle_timeout(Duration::from_secs(1))
         .max_reconnects(0)
@@ -219,7 +217,6 @@ async fn invalid_timeout_fails_before_io() -> TestResult<()> {
     let address = listener.local_addr()?;
 
     let error = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .idle_timeout(Duration::MAX)
         .connect()

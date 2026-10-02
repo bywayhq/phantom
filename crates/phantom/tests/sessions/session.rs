@@ -46,8 +46,7 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
             serve_requests(stream, 2).await
         });
 
-        let client = test_client(&identity, true)?;
-        let session = client.session();
+        let session = test_client(&identity, true)?;
         for path in ["/first", "/second"] {
             let response = session
                 .get(HttpProtocol::Http2, &format!("https://{address}{path}"))?
@@ -111,7 +110,7 @@ async fn session_upload_and_followup_reuse_one_http2_connection() -> TestResult<
             Ok::<_, Box<dyn Error + Send + Sync>>((body, [first_id, second_id]))
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let response = session
             .request(
                 HttpProtocol::Http2,
@@ -155,8 +154,7 @@ async fn concurrent_cold_requests_through_cloned_session_share_one_connection() 
             serve_requests(stream, 2).await
         });
 
-        let client = test_client(&identity, true)?;
-        let session = client.session();
+        let session = test_client(&identity, true)?;
         let start = std::sync::Arc::new(Barrier::new(3));
         let first = tokio::spawn(send_after_barrier(
             session.clone(),
@@ -245,7 +243,7 @@ async fn idna_equivalent_origins_reuse_one_plaintext_connect_tunnel() -> TestRes
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         for (host, path) in [
             (UNICODE_ORIGIN_NAME, "/first"),
             (ASCII_ORIGIN_NAME, "/second"),
@@ -305,8 +303,7 @@ async fn idna_equivalent_origins_reuse_one_https_connect_tunnel() -> TestResult<
         let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let session = client_builder(&identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .build()?
-            .session();
+            .build()?;
         for (host, path) in [
             (UNICODE_ORIGIN_NAME, "/first"),
             (ASCII_ORIGIN_NAME, "/second"),
@@ -345,8 +342,7 @@ async fn idna_equivalent_origins_reuse_one_https_connect_tunnel() -> TestResult<
 #[tokio::test]
 async fn invalid_http2_header_in_session_fails_before_network_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let client = test_client(&identity, true)?;
-    let session = client.session();
+    let session = test_client(&identity, true)?;
     let listener = StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     listener.set_nonblocking(true)?;
     let address = listener.local_addr()?;
@@ -414,8 +410,7 @@ async fn dropping_response_body_cancels_only_its_stream_and_preserves_reuse() ->
             ))
         });
 
-        let client = test_client(&identity, true)?;
-        let session = client.session();
+        let session = test_client(&identity, true)?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
             .send()

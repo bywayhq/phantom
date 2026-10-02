@@ -1826,7 +1826,7 @@ Loopback tests in `crates/phantom/src/client/dns_cache_tests.rs` drive the
 client against a plaintext origin that closes each connection:
 `repeated_requests_to_one_host_resolve_it_once`,
 `concurrent_requests_to_one_host_share_one_lookup`,
-`clones_share_the_cache_and_sessions_start_empty`, and
+`clones_share_the_cache_and_separate_clients_do_not`, and
 `clear_dns_cache_resolves_the_host_again`.
 `profile_dns_cache_reaches_every_connector` and
 `builder_settings_replace_or_disable_the_profiles` check the wiring.
@@ -4287,7 +4287,7 @@ Against the route matrix:
   origins arrive as streams 1, 3, and 5 of one proxy connection, that the
   Chromium recipe adds forwarded requests and a `ws://` tunnel to it and the
   Firefox recipe keeps them on connections of their own, each starting at
-  stream 3, that two sessions
+  stream 3, that two separately built clients
   never share one, and that the opt-in
   `max_http2_proxy_connections_per_route` opens a second connection at the
   proxy's stream limit. `crates/phantom-net/src/proxy/tests/http2_pool.rs`

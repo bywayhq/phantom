@@ -364,18 +364,18 @@ fn a_proxy_connection_maximum_above_the_ceiling_fails_the_build() -> TestResult<
     Ok(())
 }
 
-/// A session keeps its own proxy connections, as it keeps its own pools.
+/// A client keeps its own proxy connections, as it keeps its own pools.
 #[tokio::test]
-async fn sessions_never_share_a_proxy_connection() -> TestResult<()> {
+async fn separately_built_clients_never_share_a_proxy_connection() -> TestResult<()> {
     bounded(async {
         let origin_identity = TestIdentity::generate()?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy, log) = spawn_proxy(&proxy_identity).await?;
         let origin = spawn_origin(&origin_identity).await?;
-        let client = client(chromium_profile(), &origin_identity, &proxy_identity, proxy)?;
-        let session = client.session();
-        get_https(&client, origin).await?;
-        get_https(&session, origin).await?;
+        let first = client(chromium_profile(), &origin_identity, &proxy_identity, proxy)?;
+        let second = client(chromium_profile(), &origin_identity, &proxy_identity, proxy)?;
+        get_https(&first, origin).await?;
+        get_https(&second, origin).await?;
         let connections: Vec<usize> = seen(&log).iter().map(|seen| seen.connection).collect();
         assert_eq!(connections, [0, 1]);
         Ok(())

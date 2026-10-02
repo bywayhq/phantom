@@ -26,7 +26,6 @@ async fn replacing_headers_removes_event_source_defaults() -> TestResult<()> {
     });
 
     let response = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .headers(vec![SseHeader::field(RequestHeader::new(
             "X-Custom", "only",

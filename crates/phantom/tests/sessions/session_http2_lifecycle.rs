@@ -150,8 +150,7 @@ async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
         });
 
         let two = NonZeroUsize::new(2).ok_or("two must be non-zero")?;
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .max_concurrent_http2_requests_per_origin(two)
             .build()?;
         let first = session
@@ -206,7 +205,7 @@ async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult
             Ok::<_, Box<dyn Error + Send + Sync>>(requests)
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/held"))?
             .send()
@@ -248,7 +247,7 @@ async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestR
             serve_requests(replacement, 1).await
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/failed"))?
             .send()
@@ -287,8 +286,7 @@ async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_str
         });
 
         let two = NonZeroUsize::new(2).ok_or("two must be non-zero")?;
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .max_concurrent_http2_requests_per_origin(two)
             .build()?;
         let lower = session
@@ -344,7 +342,7 @@ async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()>
             }
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let result = session
             .get(HttpProtocol::Http2, &format!("https://{address}/bounded"))?
             .send()
@@ -419,7 +417,7 @@ async fn assert_goaway_not_retried(
             }
         });
 
-        let session = test_client(&identity, true)?.session();
+        let session = test_client(&identity, true)?;
         let mut request = session.request(
             HttpProtocol::Http2,
             method,

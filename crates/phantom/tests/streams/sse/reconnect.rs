@@ -17,7 +17,7 @@ use tokio_btls::SslStream;
 use super::{
     TestResult,
     reserved_port::ReservedPort,
-    tls_support::{H1_ALPN, TestIdentity, read_head, test_client},
+    tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
 };
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -63,11 +63,10 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
         Ok::<_, Box<dyn Error + Send + Sync>>((listener, first_head, second_head))
     });
 
-    let client = test_client(&identity, false)?;
+    let builder = client_builder(&identity, false);
     #[cfg(feature = "cookies")]
-    let session = client.session_builder().cookies().build()?;
-    #[cfg(not(feature = "cookies"))]
-    let session = client.session();
+    let builder = builder.cookies();
+    let session = builder.build()?;
     let response = session
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .header(RequestHeader::new("X-User", "stable"))
@@ -202,7 +201,6 @@ async fn event_source_retries_an_initial_transport_failure() -> TestResult<()> {
     });
 
     let response = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .initial_retry(Duration::ZERO)
         .max_reconnects(1)
@@ -231,7 +229,6 @@ async fn event_source_reports_the_last_initial_failure_after_exhaustion() -> Tes
     });
 
     let error = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .initial_retry(Duration::ZERO)
         .max_reconnects(1)
@@ -253,7 +250,6 @@ async fn deterministic_initial_request_failure_is_not_retried() -> TestResult<()
     let started = Instant::now();
 
     let error = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .header(RequestHeader::new("Host", "caller.example"))
         .max_reconnects(3)
@@ -294,7 +290,6 @@ async fn unrepresentable_last_event_id_ends_reconnects_with_request_error() -> T
     });
 
     let mut source = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .initial_retry(Duration::ZERO)
         .max_reconnects(3)
@@ -328,7 +323,6 @@ fn reconnect_delay_without_runtime_timers_returns_request_error() -> TestResult<
         let address = reserved.address();
 
         let error = test_client(&identity, false)?
-            .session()
             .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .initial_retry(Duration::ZERO)
             .max_reconnects(1)
@@ -354,7 +348,6 @@ async fn invalid_initial_retry_fails_before_io() -> TestResult<()> {
     let address = listener.local_addr()?;
 
     let error = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
         .initial_retry(Duration::MAX)
         .max_reconnects(1)
@@ -379,7 +372,6 @@ async fn invalid_initial_retry_fails_before_io() -> TestResult<()> {
 async fn event_source_rejects_caller_last_event_id_before_io() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let error = test_client(&identity, false)?
-        .session()
         .event_source(HttpProtocol::Http1, "https://127.0.0.1:1/events")?
         .header(RequestHeader::new("Last-Event-ID", "caller-value"))
         .connect()

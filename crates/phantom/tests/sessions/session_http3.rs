@@ -37,7 +37,7 @@ async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let session = test_client(&identity)?.session();
+        let session = test_client(&identity)?;
         for path in ["/first", "/second"] {
             let response = session
                 .get(HttpProtocol::Http3, &format!("https://{address}{path}"))?
@@ -70,7 +70,7 @@ async fn warmed_session_reuse_uses_the_connection_runtime() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let session = test_client(&identity)?.session();
+        let session = test_client(&identity)?;
         let first = send_and_drain(session.clone(), format!("https://{address}/first")).await?;
         assert_eq!(first, "/first");
 
@@ -113,7 +113,7 @@ async fn concurrent_cloned_session_requests_multiplex_one_http3_connection() -> 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
 
-        let session = test_client(&identity)?.session();
+        let session = test_client(&identity)?;
         let first = tokio::spawn(send_and_drain(
             session.clone(),
             format!("https://{address}/first"),

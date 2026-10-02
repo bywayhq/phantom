@@ -44,7 +44,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
             Ok::<_, Box<dyn Error + Send + Sync>>((first, second))
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         let first = session
             .get(
                 HttpProtocol::Http1,
@@ -191,7 +191,7 @@ async fn connection_close_response_is_replaced_without_replay() -> TestResult {
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         for path in ["first", "second"] {
             session
                 .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
@@ -247,7 +247,7 @@ async fn segmented_close_response_is_reassembled_before_connection_replacement()
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         let first = session
             .get(HttpProtocol::Http1, &format!("https://{address}/segmented"))?
             .send()
@@ -297,7 +297,7 @@ async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
             Ok::<_, Box<dyn Error + Send + Sync>>(second_head)
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         let first = session
             .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
             .send()
@@ -351,7 +351,7 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, replacement_head))
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         let mut body = session
             .get(HttpProtocol::Http1, &format!("https://{address}/truncated"))?
             .send()
@@ -477,7 +477,7 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, failed_head, later_head))
         });
 
-        let session = test_client(&identity, false)?.session();
+        let session = test_client(&identity, false)?;
         session
             .get(HttpProtocol::Http1, &format!("https://{address}/first"))?
             .send()

@@ -495,6 +495,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `opera_android::v102_android_client_hints(model)` with
   `v154_android_client_hints()` and `v102_android_client_hints()` for a
   Pixel 7, or with the `_for_model(model)` functions for another phone.
+- The hidden session API is removed from the `phantom` facade: the `Session`
+  alias of `Client`, `SessionBuilder`, `Client::session`, and
+  `Client::session_builder`. A separately built `Client` already starts with
+  its own pools, cookies, Alt-Svc and client-hint state, proxy credential
+  record, and address cache; unlike a session, it also has its own TLS
+  contexts and key log.
+  Migrate: replace `client.session()` with a second `ClientBuilder::build`
+  from the same profile and settings, and
+  `client.session_builder().<option>(...).build()?` with the same option on
+  `Client::builder(profile)` before `build()`. Replace the type `Session`
+  with `Client`.
 - The hidden `WebSocketHeader::SessionCookies` variant and
   `WebSocketHeader::session_cookies` constructor are removed.
   Migrate: use `WebSocketHeader::ClientCookies` and

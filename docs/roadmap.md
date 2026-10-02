@@ -313,9 +313,6 @@ the wire, capture evidence.
 - An opt-in status-to-error conversion that keeps the response.
 - A published wire-assertion harness, so downstream tests can check a request
   against a named recipe.
-- Sessions: the hidden compatibility `SessionBuilder` takes every per-client
-  option of `ClientBuilder` and shares the client's transport. Document it,
-  or retire it in favor of separately built clients.
 
 Non-goals: middleware that can add a field or change an order, fallback from
 a proxy route to a direct connection, silent protocol fallback, automatic

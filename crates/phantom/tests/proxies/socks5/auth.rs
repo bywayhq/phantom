@@ -188,7 +188,7 @@ async fn http2_pool_separates_credentials_and_reuses_matches() -> TestResult<()>
             .with_username_password("first-user", "first-password")?;
         let second_route = Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?
             .with_username_password("second-user", "second-password")?;
-        let session = client_builder(&identity, true).build()?.session();
+        let session = client_builder(&identity, true).build()?;
         for (path, proxy) in [
             ("/first", first_route.clone()),
             ("/second", second_route),

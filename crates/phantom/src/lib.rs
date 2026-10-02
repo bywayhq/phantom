@@ -196,8 +196,6 @@ pub use session::{
     CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
     CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
 };
-#[doc(hidden)]
-pub use session::{Session, SessionBuilder};
 #[cfg(feature = "sse")]
 pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseHeader, SseLimits, SseRequestBuilder,

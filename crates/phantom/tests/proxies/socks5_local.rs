@@ -166,10 +166,7 @@ async fn session_reuses_one_http2_connection_and_local_dns_tunnel() -> TestResul
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_socks5(proxy_listener, origin_address));
         let route = Route::socks5(Socks5Proxy::new(&format!("socks5://{proxy_address}"))?);
-        let session = client_builder(&identity, true)
-            .route(route)
-            .build()?
-            .session();
+        let session = client_builder(&identity, true).route(route).build()?;
 
         for path in ["/first", "/second"] {
             let response = session

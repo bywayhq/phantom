@@ -149,14 +149,17 @@ async fn remembered_credentials_never_reach_another_proxy_or_the_origin() -> Tes
 }
 
 #[tokio::test]
-async fn each_session_starts_with_an_empty_credential_record() -> TestResult<()> {
+async fn each_client_starts_with_an_empty_credential_record() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::start(&identity).await?;
         let proxy = CountingProxy::start(origin.address).await?;
-        let client = client_builder(&identity, false)
-            .route(proxy_route(proxy.address, "alice", "secret")?)
-            .build()?;
+        let build = || -> TestResult<Client> {
+            Ok(client_builder(&identity, false)
+                .route(proxy_route(proxy.address, "alice", "secret")?)
+                .build()?)
+        };
+        let client = build()?;
         let url = format!("https://{}/", origin.address);
 
         // The client learns the credentials once.
@@ -164,25 +167,22 @@ async fn each_session_starts_with_an_empty_credential_record() -> TestResult<()>
         send_one(&client, &url).await?;
         assert_eq!(proxy.counts().challenges, 1);
 
-        // Neither kind of session inherits the client's record, and each
-        // learns its own.
-        let built = client.session_builder().build()?;
-        send_one(&built, &url).await?;
-        send_one(&built, &url).await?;
+        // A separately built client does not inherit the record, and learns
+        // its own.
+        let separate = build()?;
+        send_one(&separate, &url).await?;
+        send_one(&separate, &url).await?;
         assert_eq!(proxy.counts().challenges, 2);
-        let session = client.session();
-        send_one(&session, &url).await?;
-        assert_eq!(proxy.counts().challenges, 3);
 
-        // The sessions did not change what the client remembers, and a clone
-        // shares the client's record.
+        // The other client did not change what the first remembers, and a
+        // clone shares the first client's record.
         send_one(&client.clone(), &url).await?;
         assert_eq!(
             proxy.counts(),
             ProxyCounts {
-                connections: 9,
-                challenges: 3,
-                with_credentials: 6,
+                connections: 7,
+                challenges: 2,
+                with_credentials: 5,
             }
         );
         Ok(())

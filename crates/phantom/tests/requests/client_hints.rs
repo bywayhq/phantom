@@ -50,8 +50,7 @@ async fn http1_client_hints_share_the_canonical_origin_key() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>([first, second, third])
         });
 
-        let client = client(&identity)?;
-        let session = client.session();
+        let session = client(&identity)?;
         let url = format!("https://{address}/");
         let unicode_url = format!("https://１２７．０．０．１:{}/", address.port());
         send_and_drain(&session, HttpProtocol::Http1, &unicode_url).await?;
@@ -119,8 +118,7 @@ async fn http2_client_hints_share_one_session_connection() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = client(&identity)?;
-        let session = client.session();
+        let session = client(&identity)?;
         let url = format!("https://{address}/");
         send_and_drain(&session, HttpProtocol::Http2, &url).await?;
         send_and_drain(&session, HttpProtocol::Http2, &url).await?;
@@ -188,7 +186,6 @@ async fn http2_alps_accept_ch_applies_to_the_first_request_without_a_probe() -> 
         });
 
         let response = alps_client(&identity)?
-            .session()
             .get(HttpProtocol::Http2, &format!("{origin}/"))?
             .header(RequestHeader::new("sec-ch-ua-arch", "\"caller\""))
             .send()
@@ -343,7 +340,6 @@ async fn http2_replacement_uses_only_its_own_alps_accept_ch() -> TestResult<()> 
         });
 
         let response = alps_client(&identity)?
-            .session()
             .get(HttpProtocol::Http2, &format!("{origin}/replacement"))?
             .send()
             .await?;
@@ -415,8 +411,7 @@ async fn http3_client_hints_share_one_session_connection() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let client = client(&identity)?;
-        let session = client.session();
+        let session = client(&identity)?;
         let url = format!("https://{address}/");
         send_and_drain(&session, HttpProtocol::Http3, &url).await?;
         send_and_drain(&session, HttpProtocol::Http3, &url).await?;
@@ -471,7 +466,6 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
         });
 
         let response = client(&identity)?
-            .session()
             .get(HttpProtocol::Http2, &format!("https://{address}/"))?
             .send()
             .await?;
@@ -512,7 +506,6 @@ async fn critical_ch_retry_rejects_a_consumed_streaming_body() -> TestResult<()>
         });
 
         let result = client(&identity)?
-            .session()
             .get(HttpProtocol::Http2, &format!("https://{address}/"))?
             .streaming_body(Full::new(Bytes::from_static(b"one-shot")))
             .send()

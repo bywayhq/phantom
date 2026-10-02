@@ -79,7 +79,7 @@ async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(early)
         });
 
-        let session = client(&identity)?.session();
+        let session = client(&identity)?;
         send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
         if wait_for_first_close.await.is_err() {
             server.await??;
@@ -240,10 +240,9 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
         let profile = ClientProfile::new(firefox::v156_tls())
             .with_http2(firefox::v156_http2())
             .with_http1(http1);
-        let client = Client::builder(profile)
+        let session = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
-        let session = client.session();
         let slow_uri = format!("https://{address}/slow");
         let slow = send_negotiated(&session, Method::GET, &slow_uri);
         let post = async {
@@ -315,7 +314,7 @@ async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
 
-        let session = client(&identity)?.session();
+        let session = client(&identity)?;
         send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
         if wait_for_first_close.await.is_err() {
             server.await??;
@@ -373,7 +372,7 @@ async fn failure_after_early_data(
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let session = client(&identity)?.session();
+        let session = client(&identity)?;
         let first = format!("https://{address}/");
         match protocol {
             Some(protocol) => send(&session, protocol, Method::GET, &first).await?,
@@ -564,7 +563,7 @@ async fn serve_http1(mut stream: Server) -> TestResult<()> {
     Ok(())
 }
 
-async fn send_negotiated(session: &phantom::Session, method: Method, uri: &str) -> TestResult<()> {
+async fn send_negotiated(session: &phantom::Client, method: Method, uri: &str) -> TestResult<()> {
     let mut request = session.request_negotiated(method.clone(), uri)?;
     if method == Method::POST {
         request = request.body("payload");
@@ -576,7 +575,7 @@ async fn send_negotiated(session: &phantom::Session, method: Method, uri: &str) 
 }
 
 async fn send(
-    session: &phantom::Session,
+    session: &phantom::Client,
     protocol: HttpProtocol,
     method: Method,
     uri: &str,

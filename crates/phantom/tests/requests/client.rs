@@ -1007,15 +1007,8 @@ fn polling_request_with_timeouts_without_tokio_returns_error() -> TestResult<()>
 }
 
 #[test]
-fn session_alt_svc_without_http3_fails_like_client_builder() -> TestResult<()> {
+fn alt_svc_without_http3_fails_to_build() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let client = test_client(&identity, true)?;
-    let error = match client.session_builder().alt_svc(NonZeroUsize::MIN).build() {
-        Ok(_) => return Err("Alt-Svc session without an HTTP/3 connector was built".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
-
     let error = match client_builder(&identity, true)
         .alt_svc(NonZeroUsize::MIN)
         .build()

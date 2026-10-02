@@ -31,10 +31,7 @@ async fn authenticated_connect_tunnel_is_reused_by_http1_session() -> TestResult
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );
-        let session = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .session();
+        let session = client_builder(&identity, false).route(route).build()?;
 
         for path in ["first", "second"] {
             let response = session

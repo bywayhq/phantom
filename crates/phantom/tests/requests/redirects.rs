@@ -18,7 +18,8 @@ use bytes::{Buf, Bytes};
 use http::{Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo, profile::ClientProfile,
+    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo,
+    profile::ClientProfile,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -28,7 +29,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use tls_support::{H2_ALPN, TestIdentity, test_client};
+use tls_support::{H2_ALPN, TestIdentity, client_builder};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -53,8 +54,7 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
         });
 
         let one = NonZeroUsize::MIN;
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(one))
             .build()?;
 
@@ -120,8 +120,7 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let session = test_client(&identity, false)?
-            .session_builder()
+        let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -166,8 +165,7 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
             Ok::<_, Box<dyn Error + Send + Sync>>((head, body, second.is_err()))
         });
 
-        let client = test_client(&identity, false)?
-            .session_builder()
+        let client = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let error = match client
@@ -240,8 +238,7 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let session = http3_client(&identity)?
-            .session_builder()
+        let session = http3_client_builder(&identity)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -311,8 +308,7 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let session = http3_client(&identity)?
-            .session_builder()
+        let session = http3_client_builder(&identity)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -350,8 +346,7 @@ async fn plaintext_request_that_is_not_redirected_is_sent_with_a_policy() -> Tes
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
         });
 
-        let session = test_client(&identity, false)?
-            .session_builder()
+        let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -405,8 +400,7 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
         });
 
-        let session = test_client(&identity, false)?
-            .session_builder()
+        let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -464,8 +458,7 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let error = match session
@@ -527,8 +520,7 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
         });
 
-        let session = test_client(&identity, true)?
-            .session_builder()
+        let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?;
         let response = session
@@ -552,7 +544,7 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
 }
 
 async fn send_redirect_probe(
-    session: &phantom::Session,
+    session: &phantom::Client,
     address: std::net::SocketAddr,
     status: u16,
     body: &'static [u8],
@@ -699,13 +691,11 @@ async fn collect_h3_body(stream: &mut H3Stream) -> TestResult<Bytes> {
     Ok(Bytes::from(body))
 }
 
-fn http3_client(identity: &TestIdentity) -> TestResult<Client> {
+fn http3_client_builder(identity: &TestIdentity) -> ClientBuilder {
     let mut tcp_tls = tls_support::tls_settings();
     tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     let profile = ClientProfile::new(tcp_tls).with_http3(h3_support::client_settings());
-    Ok(Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?)
+    Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 
 fn assert_response_info(response: &Response<phantom::ResponseBody>, uri: &str) -> TestResult<()> {

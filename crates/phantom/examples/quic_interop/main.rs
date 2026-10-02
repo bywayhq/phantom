@@ -13,7 +13,7 @@ use std::{
 
 use btls::x509::X509;
 use phantom::{
-    Client, HttpProtocol, ResponseInfo, Session,
+    Client, HttpProtocol, ResponseInfo,
     profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 use tokio::{
@@ -72,7 +72,7 @@ async fn run() -> Result<InvocationOutcome, BoxError> {
     };
     let client = build_client(&config.ca_pem).await?;
     fs::create_dir_all(&config.download_directory).await?;
-    download_all(client.session(), config).await?;
+    download_all(client, config).await?;
     Ok(InvocationOutcome::Complete)
 }
 
@@ -158,7 +158,7 @@ async fn build_client(ca_pem: &Path) -> Result<Client, BoxError> {
         .build()?)
 }
 
-async fn download_all(session: Session, config: Config) -> Result<(), BoxError> {
+async fn download_all(client: Client, config: Config) -> Result<(), BoxError> {
     let partials = config
         .targets
         .iter()
@@ -171,7 +171,7 @@ async fn download_all(session: Session, config: Config) -> Result<(), BoxError> 
     let mut downloads = JoinSet::new();
     for target in config.targets {
         downloads.spawn(download_one(
-            session.clone(),
+            client.clone(),
             config.download_directory.clone(),
             target,
         ));
@@ -203,7 +203,7 @@ async fn download_all(session: Session, config: Config) -> Result<(), BoxError> 
 }
 
 async fn download_one(
-    session: Session,
+    client: Client,
     directory: PathBuf,
     target: DownloadTarget,
 ) -> Result<(), BoxError> {
@@ -217,7 +217,7 @@ async fn download_one(
     }
 
     let partial = directory.join(format!(".{}.part", target.file_name()));
-    let result = download_to_partial(&session, &target, &partial).await;
+    let result = download_to_partial(&client, &target, &partial).await;
     if let Err(error) = result {
         let _ = fs::remove_file(&partial).await;
         return Err(error);
@@ -228,7 +228,7 @@ async fn download_one(
 }
 
 async fn download_to_partial(
-    session: &Session,
+    client: &Client,
     target: &DownloadTarget,
     partial: &Path,
 ) -> Result<(), BoxError> {
@@ -239,7 +239,7 @@ async fn download_to_partial(
         .write(true)
         .open(partial)
         .await?;
-    let response = session
+    let response = client
         .get(HttpProtocol::Http3, target.url().as_str())?
         .send()
         .await?;
