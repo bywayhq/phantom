@@ -512,8 +512,8 @@ never supplies credentials to a route. A route sends its own credentials, and
 only to its own proxy, so a proxy never receives another route's credentials,
 and Phantom never sends a proxy's credentials to an origin. The record
 belongs to one client, holds at most 128 pairs, and forgets the least
-recently used pair first. Clones of a client share it; each session starts
-with an empty record, as it does with cookies, Alt-Svc, and pools.
+recently used pair first. Clones of a client share it; a separately built
+client has its own, as it has its own cookies, Alt-Svc state, and pools.
 Browsers add an entry when credentials are supplied, before the proxy has
 accepted them; Phantom adds one only after the proxy accepts, so a rejected
 credential is never sent first. Browsers key their entries by realm as well;
@@ -548,8 +548,8 @@ selected protocol or route, and never falls back to a direct connection.
 Chrome 154, Edge 154, and Firefox 156 open several CONNECT tunnels as
 streams of one HTTP/2 connection to a proxy
 ([evidence](validation.md#proxy-route-browser-evidence)), so Phantom does
-too. Each session keeps its own `Http2ProxyPool`, and each HTTPS proxy
-connector the session builds shares it. A pool is keyed by the proxy host,
+too. Each client keeps its own `Http2ProxyPool`, and each HTTPS proxy
+connector the client builds shares it. A pool is keyed by the proxy host,
 port, and TLS server name, the route's Basic credentials, and the identity of
 the connector settings that shape the connection (TLS, TCP, HTTP/2, and name
 resolution). Routes with other credentials never share a connection, because
@@ -584,7 +584,8 @@ on a connection that had carried streams fails because the proxy did not
 process it, such as after a `GOAWAY` that crossed it, the connection is
 retired and the CONNECT is sent once more on another. An idle connection
 stays pooled until the proxy closes it, its route is forgotten (a pool keeps
-32 routes, least recently used first out), or the session is dropped.
+32 routes, least recently used first out), or the client and its clones
+are dropped.
 
 The profile's `ProxyConnectTemplate::http2_connections` decides which
 requests share a pool. With `Shared`, the Chromium recipe, forwarded

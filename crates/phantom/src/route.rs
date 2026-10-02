@@ -356,7 +356,7 @@ impl HttpProxy {
     ///
     /// Tunnels are streams of shared proxy connections whose TLS handshake
     /// must select `h2`; a proxy that selects `http/1.1` or no protocol fails
-    /// with a proxy error instead of falling back. Each session shares one
+    /// with a proxy error instead of falling back. Each client shares one
     /// connection per proxy and set of credentials between tunnels to
     /// different origins; past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`
     /// a tunnel waits there until another stream ends, and after the proxy's

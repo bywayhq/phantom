@@ -1768,8 +1768,9 @@ default (`net/dns/host_resolver_manager_request_impl.cc:51-56`,
 `net/base/features.cc:213-217`). Firefox keys a record by host, type, flags,
 address family, private browsing, and origin-attributes suffix
 (`netwerk/dns/nsHostRecord.h:77-93`). Phantom keys an entry by the
-lowercased host name alone, one cache per client, with a new empty cache for
-each session built from it, as it does for cookies and Alt-Svc.
+lowercased host name alone, one cache per client that its clones share; a
+separately built client has its own cache, as it has its own cookies and
+Alt-Svc state.
 
 Differences from the browsers:
 
@@ -4272,7 +4273,7 @@ Against the route matrix:
   them.
 - `ws://` H1 through an H2 proxy: Phantom opens a CONNECT stream and sends
   the Upgrade inside it, as every captured browser does.
-- Connection sharing on an H2 proxy: each session keeps pooled proxy
+- Connection sharing on an H2 proxy: each client keeps pooled proxy
   connections, and `ProxyConnectTemplate::http2_connections` decides which
   requests share one. `chromium::v154_proxy_connect` uses `Shared`, which
   puts forwarded requests, CONNECT tunnels, and WebSocket tunnels on one
@@ -4450,7 +4451,8 @@ Against Phantom:
   one `407`; with `preemptive_proxy_authentication(false)` it sees eight
   connections and four `407` responses. The same file proves that another
   proxy port, other credentials, and the origin never receive remembered
-  credentials, and that each session starts with an empty record.
+  credentials, and that a separately built client starts with an empty
+  record.
 - `keep_alive_challenges_cost_no_extra_proxy_connection` in the same file
   sends the four tunnels through a proxy whose `407` keeps the connection
   open: the proxy sees four connections, with the record and without it.

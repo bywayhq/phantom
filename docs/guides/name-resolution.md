@@ -42,7 +42,7 @@ fn build() -> Result<Client, BuildError> {
 - Concurrent connections to one host share one lookup, and the resolver's
   address order is kept. Bounds and recipe values are in
   [Address cache](../reference/profiles.md#address-cache).
-- Clones share the cache, and each session starts with an empty one.
+- Clones share the cache; a separately built client has its own.
   `Client::clear_dns_cache` forgets every answer.
 
 ## Send a host name to addresses you choose
