@@ -17,6 +17,11 @@
 //!    response from any other `http://` origin cannot store one.
 //! 3. A snapshot the client exported passes the client's own import again
 //!    and yields the same number of cookies.
+//!
+//! Invariant 3 holds only while no cookie expires between the export and the
+//! second import, because import drops an entry whose expiry has passed. Each
+//! entry's lifetime is therefore counted in hours, far longer than the CI
+//! job's per-input timeout, so no run crosses an expiry.
 
 #[cfg(test)]
 mod tests;
@@ -44,6 +49,10 @@ pub const VALID_ENTRIES: &[u8] = b"\x03\tid\t1\texample.com\t/\t\t\x00\n\
 /// Largest number of snapshot entries one input builds.
 const MAX_ENTRIES: usize = 32;
 
+/// Unit of an entry's lifetime byte, which must exceed any one run of
+/// [`drive`] (see invariant 3).
+const LIFETIME_UNIT: Duration = Duration::from_secs(60 * 60);
+
 /// A client with a default cookie jar, built once. The jar is cleared before
 /// every import, so each input still sees an empty jar.
 ///
@@ -67,8 +76,8 @@ fn text(field: &[u8]) -> String {
 ///
 /// The flags byte's bits are: 0 `https` source scheme, 1 host-only, 2
 /// `Secure`, 3 `HttpOnly`, 4 and 5 `SameSite` (none, `Strict`, `Lax`,
-/// `None`), and 6 a partition key taken from the sixth field. A lifetime of
-/// zero seconds makes a session cookie.
+/// `None`), and 6 a partition key taken from the sixth field. The seventh
+/// field's first byte is the lifetime in hours; zero makes a session cookie.
 #[must_use]
 pub fn entries(input: &[u8], now: SystemTime) -> Vec<CookieSnapshotEntry> {
     input
@@ -108,7 +117,7 @@ pub fn entries(input: &[u8], now: SystemTime) -> Vec<CookieSnapshotEntry> {
                 entry = entry.with_partition_key(partition);
             }
             if lifetime != 0 {
-                entry = entry.with_expires_at(now + Duration::from_secs(u64::from(lifetime)));
+                entry = entry.with_expires_at(now + LIFETIME_UNIT * u32::from(lifetime));
             }
             entry
         })

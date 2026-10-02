@@ -1,10 +1,11 @@
 //! Deterministic regressions for the cookie snapshot harness.
 
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use phantom::CookieSourceScheme;
 
 use super::{VALID_ENTRIES, drive, entries};
+use crate::seed;
 
 /// The embedded seed must keep importing. A seed that stopped validating
 /// would leave the fuzz target perturbing entries that import rejects
@@ -35,4 +36,31 @@ fn structural_seeds_decode_to_the_described_entries() {
 #[test]
 fn secure_cookie_from_an_untrustworthy_http_origin_is_rejected() {
     assert!(!drive(b"\x06\tsid\tv\texample.com\t/\t\t\x00"));
+}
+
+/// A CI input that merges the seed's third and fourth records into a
+/// `Partitioned` entry whose lifetime byte is 1, with the rest of the fourth
+/// record left in fields the decoder ignores.
+const ONE_UNIT_LIFETIME: &[u8] =
+    b"\x63\x01\x00\x00\x00\x00\x00\x00\x00\x0b..\x00\x00\x00\x00\x00\x00\x00";
+
+/// The perturbed seed imports and round-trips. With lifetimes in seconds its
+/// `Partitioned` entry could expire between the export and the second
+/// import, which drops it, and the run then failed invariant 3.
+#[test]
+fn entry_with_the_shortest_lifetime_round_trips() {
+    assert!(drive(&seed::perturb(VALID_ENTRIES, ONE_UNIT_LIFETIME)));
+}
+
+/// No decoded entry may expire within a run: invariant 3 compares two
+/// imports made at different instants, and import drops an expired entry.
+#[test]
+fn shortest_decoded_lifetime_outlasts_any_run() {
+    let now = SystemTime::now();
+    let decoded = entries(&seed::perturb(VALID_ENTRIES, ONE_UNIT_LIFETIME), now);
+    let shortest = decoded
+        .iter()
+        .filter_map(|entry| entry.expires_at()?.duration_since(now).ok())
+        .min();
+    assert_eq!(shortest, Some(Duration::from_secs(60 * 60)));
 }
