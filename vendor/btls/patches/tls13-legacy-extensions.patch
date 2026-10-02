@@ -1,0 +1,110 @@
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+index db053ff..2671caf 100644
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -2262,6 +2262,22 @@ impl SslContextBuilder {
+         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
+     }
+ 
++    /// Sets whether a client whose minimum version is TLS 1.3 still sends the
++    /// `extended_master_secret` and `renegotiation_info` extensions, as NSS
++    /// does.
++    ///
++    /// Both only affect TLS 1.2 and earlier, and are omitted from such a
++    /// ClientHello by default. ClientHelloInner never carries them, and
++    /// [`SslOptions::NO_RENEGOTIATION`] still omits `renegotiation_info`. This
++    /// applies to TLS and QUIC.
++    #[cfg(not(feature = "fips"))]
++    #[corresponds(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)]
++    pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
++        unsafe {
++            ffi::SSL_CTX_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _)
++        }
++    }
++
+     /// Sets ClientHello extensions that are written after all others, in the
+     /// given order.
+     ///
+@@ -3593,6 +3609,14 @@ impl SslRef {
+         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
+     }
+ 
++    /// Like [`SslContextBuilder::set_tls12_extensions_in_tls13_client_hello`],
++    /// but for this connection only.
++    #[cfg(not(feature = "fips"))]
++    #[corresponds(SSL_set_tls12_extensions_in_tls13_client_hello)]
++    pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
++        unsafe { ffi::SSL_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _) }
++    }
++
+     /// Like [`SslContextBuilder::set_record_size_limit`], but for this
+     /// connection only.
+     #[cfg(not(feature = "fips"))]
+diff --git a/src/ssl/test/patches.rs b/src/ssl/test/patches.rs
+index cb0b346..4641cc4 100644
+--- a/src/ssl/test/patches.rs
++++ b/src/ssl/test/patches.rs
+@@ -610,6 +610,63 @@ fn boringssl_patch_extension_order_tail_rejects_prefix_overlap() {
+         .unwrap();
+ }
+ 
++#[test]
++fn boringssl_patch_tls13_client_hello_can_send_tls12_extensions() {
++    // 0016-boringssl-tls13-legacy-extensions.patch lets a TLS 1.3-only client
++    // send extended_master_secret and renegotiation_info, as NSS does.
++    for (context_enabled, connection_enabled, expected) in [
++        (false, None, false),
++        (true, None, true),
++        (true, Some(false), false),
++        (false, Some(true), true),
++    ] {
++        let observed = Arc::new(Mutex::new(None));
++        let mut server = Server::builder();
++        server.ctx().set_select_certificate_callback({
++            let observed = Arc::clone(&observed);
++            move |client_hello| {
++                *observed.lock().unwrap() = Some((
++                    client_hello
++                        .get_extension(ExtensionType::EXTENDED_MASTER_SECRET)
++                        .map(ToOwned::to_owned),
++                    client_hello
++                        .get_extension(ExtensionType::RENEGOTIATE)
++                        .map(ToOwned::to_owned),
++                ));
++                Ok(())
++            }
++        });
++        let server = server.build();
++
++        let mut client = server.client_with_root_ca();
++        client
++            .ctx()
++            .set_min_proto_version(Some(SslVersion::TLS1_3))
++            .unwrap();
++        client
++            .ctx()
++            .set_tls12_extensions_in_tls13_client_hello(context_enabled);
++        let client = client.build();
++        let mut ssl = client.builder();
++        if let Some(enabled) = connection_enabled {
++            ssl.ssl()
++                .set_tls12_extensions_in_tls13_client_hello(enabled);
++        }
++        let stream = ssl.connect();
++        assert_eq!(stream.ssl().version2(), Some(SslVersion::TLS1_3));
++        drop(server);
++
++        let (ems, ri) = observed.lock().unwrap().take().unwrap();
++        if expected {
++            assert_eq!(ems.as_deref(), Some(&[][..]));
++            assert_eq!(ri.as_deref(), Some(&[0][..]));
++        } else {
++            assert_eq!(ems, None);
++            assert_eq!(ri, None);
++        }
++    }
++}
++
+ #[test]
+ fn boringssl_patch_allows_duplicate_signature_algorithms() {
+     let signature_algorithms = Arc::new(Mutex::new(None));

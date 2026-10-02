@@ -121,7 +121,7 @@ make_btls_candidate() {
       "${dependency%% = *} = { workspace = true }"
   done
   replace_fixture_line "$destination/btls/Cargo.toml" \
-    'btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "c4596bc5ee7facb860ef91c184ac50b5b863b733" }' \
+    'btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb" }' \
     'btls-sys = { workspace = true }'
 
   cat > "$destination/Cargo.toml" <<'EOF'
@@ -200,7 +200,7 @@ stage_tmp="$test_root/stage-tmp"
 mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
-grep -F -q 'rev = "c4596bc5ee7facb860ef91c184ac50b5b863b733"' \
+grep -F -q 'rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
@@ -421,7 +421,7 @@ mkdir -p "$darwin_tmp"
 # The wrapper candidate replaces vendor/btls only; root dependency sources and
 # the vendored tokio-btls fork stay pinned to the reviewed revision.
 git -C "$probe_checkout" diff --quiet -- Cargo.toml
-grep -F -q 'rev = "c4596bc5ee7facb860ef91c184ac50b5b863b733"' \
+grep -F -q 'rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
   "$probe_checkout/vendor/btls/Cargo.toml"
 grep -F -x -q 'cargo update -p phantom-btls' "$command_log"
 grep -F -x -q 'cargo tree -i phantom-btls --locked' "$command_log"

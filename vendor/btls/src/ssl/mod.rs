@@ -2162,7 +2162,9 @@ impl SslContextBuilder {
     /// Sets the maximum protected TLS record plaintext this endpoint accepts.
     ///
     /// A value of `0` disables [RFC 8449]. Other values must be in
-    /// `64..=16385`. DTLS, QUIC, and handoff connections are not supported.
+    /// `64..=16385`. DTLS and handoff connections are not supported. A QUIC
+    /// connection negotiates the extension, but QUIC does not use TLS records,
+    /// so no limit applies to it and its early data is unaffected.
     ///
     /// A TLS 1.3 client sends early data before it learns the server's
     /// limit, so records in the whole 0-RTT epoch may use the protocol
@@ -2235,7 +2237,9 @@ impl SslContextBuilder {
     /// Sets the ClientHello extension order.
     ///
     /// Known extensions stay in the configured order. Unlisted extensions are
-    /// appended in random order.
+    /// appended in random order, before any tail set by
+    /// [`Self::set_extension_order_tail`]. A type that the tail also lists is
+    /// rejected.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_extension_order)]
     pub fn set_extension_permutation(
@@ -2256,6 +2260,51 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_permute_extensions)]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
+    }
+
+    /// Sets whether a client whose minimum version is TLS 1.3 still sends the
+    /// `extended_master_secret` and `renegotiation_info` extensions, as NSS
+    /// does.
+    ///
+    /// Both only affect TLS 1.2 and earlier, and are omitted from such a
+    /// ClientHello by default. ClientHelloInner never carries them, and
+    /// [`SslOptions::NO_RENEGOTIATION`] still omits `renegotiation_info`. This
+    /// applies to TLS and QUIC.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)]
+    pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
+        unsafe {
+            ffi::SSL_CTX_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _)
+        }
+    }
+
+    /// Sets ClientHello extensions that are written after all others, in the
+    /// given order.
+    ///
+    /// Only `padding` and `pre_shared_key` follow them. With GREASE enabled,
+    /// the trailing GREASE extension precedes them. The extensions between the
+    /// order set by [`Self::set_extension_permutation`] and this tail are
+    /// shuffled when that order is set or [`Self::set_permute_extensions`] is
+    /// enabled, and keep BoringSSL's default order otherwise. The second
+    /// ClientHello after a HelloRetryRequest keeps the order.
+    ///
+    /// Unknown and repeated types are ignored, and a listed extension is
+    /// written only when the connection sends it anyway. An empty list clears
+    /// the tail. A type that [`Self::set_extension_permutation`] also lists is
+    /// rejected and leaves the previous tail in place.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set_extension_order_tail)]
+    pub fn set_extension_order_tail(
+        &mut self,
+        extensions: &[ExtensionType],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_CTX_set_extension_order_tail(
+                self.as_ptr(),
+                extensions.as_ptr() as *const _,
+                extensions.len(),
+            ))
+        }
     }
 
     /// Sets the context's supported signature verification algorithms.
@@ -3560,6 +3609,14 @@ impl SslRef {
         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
 
+    /// Like [`SslContextBuilder::set_tls12_extensions_in_tls13_client_hello`],
+    /// but for this connection only.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_tls12_extensions_in_tls13_client_hello)]
+    pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
+        unsafe { ffi::SSL_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _) }
+    }
+
     /// Like [`SslContextBuilder::set_record_size_limit`], but for this
     /// connection only.
     #[cfg(not(feature = "fips"))]
@@ -4429,9 +4486,11 @@ impl SslRef {
 
     /// Sets the exact payload length of a GREASE ECH extension.
     ///
-    /// This does not enable ECH GREASE. Without calling this method, BoringSSL
-    /// retains its default randomized payload-length policy. The payload must
-    /// be non-empty and leave room for the ECHClientHelloOuter framing.
+    /// This does not enable ECH GREASE. Without calling this method or
+    /// [`Self::set_ech_grease_payload_from_client_hello`], BoringSSL retains
+    /// its default randomized payload-length policy. The payload must be
+    /// non-empty and leave room for the ECHClientHelloOuter framing. The last
+    /// call between the two methods wins.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_ech_grease_payload_length)]
     pub fn set_ech_grease_payload_length(
@@ -4442,6 +4501,51 @@ impl SslRef {
             cvt_0i(ffi::SSL_set_ech_grease_payload_length(
                 self.as_ptr(),
                 payload_length,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sizes the payload of a GREASE ECH extension from the ClientHello that
+    /// carries it, as NSS does.
+    ///
+    /// The payload is as long as the encrypted EncodedClientHelloInner that a
+    /// real ECH offer of the same ClientHello would carry, padded for an
+    /// ECHConfig whose `maximum_name_length` is `maximum_name_length`. Firefox
+    /// uses 100. The inner hello follows NSS 3.128: it copies `server_name`
+    /// and `pre_shared_key`, offers only TLS 1.3 and any GREASE version, drops
+    /// `ec_point_formats`, `extended_master_secret`, `session_ticket`, and
+    /// `renegotiation_info`, and compresses every other extension. The length
+    /// depends on the ClientHello, including any session ticket, and a
+    /// HelloRetryRequest repeats the first ClientHello's extension.
+    ///
+    /// NSS pads by the length of the host in the URL it connects to, which is
+    /// also its server name unless the host is an IP literal, for which it
+    /// sends no server name. Pass that host as `host`, with an IPv6 literal
+    /// written without brackets, such as `127.0.0.1` or `::1`; only its length
+    /// is used. With `None`, the server name set by [`Self::set_hostname`] is
+    /// used, and without one, all of `maximum_name_length` is padding.
+    ///
+    /// This does not enable ECH GREASE. It replaces a length set by
+    /// [`Self::set_ech_grease_payload_length`], and a later call to that method
+    /// replaces it. DTLS connections are rejected.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_ech_grease_payload_from_client_hello)]
+    pub fn set_ech_grease_payload_from_client_hello(
+        &mut self,
+        maximum_name_length: u8,
+        host: Option<&str>,
+    ) -> Result<(), ErrorStack> {
+        let (host_ptr, host_len) = match host {
+            Some(host) => (host.as_ptr().cast::<c_char>(), host.len()),
+            None => (ptr::null(), 0),
+        };
+        unsafe {
+            cvt_0i(ffi::SSL_set_ech_grease_payload_from_client_hello(
+                self.as_ptr(),
+                maximum_name_length,
+                host_ptr,
+                host_len,
             ))
             .map(|_| ())
         }

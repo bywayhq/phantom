@@ -184,7 +184,7 @@ dependencies = [
 [[package]]
 name = "btls-sys"
 version = "0.5.6"
-source = "git+https://github.com/bywayhq/btls?rev=c4596bc5ee7facb860ef91c184ac50b5b863b733#c4596bc5ee7facb860ef91c184ac50b5b863b733"
+source = "git+https://github.com/bywayhq/btls?rev=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb#f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1327,7 +1327,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.4"
+version = "0.5.6-phantom.5"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -1532,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.4"
+version = "0.5.6-phantom.5"
 dependencies = [
  "phantom-btls",
  "tokio",

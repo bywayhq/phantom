@@ -8,4 +8,8 @@ scoped-client-sessions.patch
 ech-grease-aead.patch
 ech-server-keys.patch
 scoped-session-early-data.patch
+extension-order-tail.patch
+record-size-limit-quic.patch
+tls13-legacy-extensions.patch
+ech-grease-payload-from-client-hello.patch
 publish-identity.patch

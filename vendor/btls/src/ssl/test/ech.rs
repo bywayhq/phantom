@@ -112,6 +112,76 @@ fn ech_grease_payload_must_be_nonempty_and_fit_the_extension_body() {
 
 #[cfg(not(feature = "fips"))]
 #[test]
+fn ech_grease_payload_from_client_hello_follows_the_maximum_name_length() {
+    // The name padding grows by 32 bytes, and the payload is a multiple of 32
+    // plus the 16-byte tag.
+    let short = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_hostname("foobar.com").unwrap();
+        ssl.set_ech_grease_payload_from_client_hello(100, None)
+            .unwrap();
+    });
+    let long = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_hostname("foobar.com").unwrap();
+        ssl.set_ech_grease_payload_from_client_hello(132, None)
+            .unwrap();
+    });
+
+    let short_payload = short.len() - 42;
+    assert_eq!((short_payload - 16) % 32, 0, "{short_payload}");
+    assert_eq!(long.len() - 42, short_payload + 32);
+}
+
+#[cfg(not(feature = "fips"))]
+#[test]
+fn ech_grease_payload_length_and_client_hello_sizing_replace_each_other() {
+    let exact = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_ech_grease_payload_from_client_hello(100, None)
+            .unwrap();
+        ssl.set_ech_grease_payload_length(239).unwrap();
+    });
+    assert_eq!(exact.len(), 281);
+
+    let sized = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_ech_grease_payload_length(239).unwrap();
+        ssl.set_ech_grease_payload_from_client_hello(100, None)
+            .unwrap();
+    });
+    assert_eq!((sized.len() - 42 - 16) % 32, 0);
+}
+
+#[cfg(not(feature = "fips"))]
+#[test]
+fn ech_grease_payload_from_client_hello_pads_by_the_given_host() {
+    // An IP-literal URL sends no server name, but NSS still pads by the host
+    // text. A host 32 bytes longer removes 32 bytes of padding.
+    let short_host = "::1";
+    let long_host = format!("{}::1", "0".repeat(32));
+    let short = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_ech_grease_payload_from_client_hello(100, Some(short_host))
+            .unwrap();
+    });
+    let long = capture_ech_grease_extension_with(|ssl| {
+        ssl.set_ech_grease_payload_from_client_hello(100, Some(long_host.as_str()))
+            .unwrap();
+    });
+
+    assert_eq!(long.len() + 32, short.len());
+}
+
+#[cfg(not(feature = "fips"))]
+#[test]
+fn ech_grease_payload_from_client_hello_rejects_dtls() {
+    let context = SslContext::builder(SslMethod::dtls()).unwrap().build();
+    let mut ssl = Ssl::new(&context).unwrap();
+
+    let error = ssl
+        .set_ech_grease_payload_from_client_hello(100, Some("127.0.0.1"))
+        .unwrap_err();
+    assert!(!error.errors().is_empty());
+}
+
+#[cfg(not(feature = "fips"))]
+#[test]
 fn ech_grease_uses_a_single_configured_aead() {
     for aead_id in [0x0001, 0x0002, 0x0003] {
         let extension = capture_ech_grease_extension_with(|ssl| {

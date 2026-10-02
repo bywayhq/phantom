@@ -61,14 +61,14 @@ check_btls_patch_replay() {
 
 check_tokio_btls_patch_replay() {
   local staging archive candidate
-  local revision=c4596bc5ee7facb860ef91c184ac50b5b863b733
+  local revision=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb
   staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-tokio-btls-replay.XXXXXX")
   trap 'rm -rf "$staging"' RETURN
   archive="$staging/btls-$revision.tar.gz"
   curl --fail --location --silent --show-error --retry 3 \
     --output "$archive" \
     "https://codeload.github.com/bywayhq/btls/tar.gz/$revision"
-  [[ "$(sha256_of "$archive")" == b81f35227ad4e407baab66b7db17603d2b01acec681242f939380bb98737b63a ]]
+  [[ "$(sha256_of "$archive")" == e9c2fd9f12a995afc8adcd31b86effa9d767570d9e4e52efee68b5ffc2d626cf ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/btls-$revision/tokio-btls"
   apply_series "$candidate" vendor/tokio-btls
@@ -293,6 +293,10 @@ case "${1:-}" in
       "${btls_features[@]}" --locked record_size_limit
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked delegated_credentials
+    cargo test --manifest-path vendor/btls/Cargo.toml \
+      "${btls_features[@]}" --locked boringssl_patch_extension_order_tail
+    cargo test --manifest-path vendor/btls/Cargo.toml \
+      "${btls_features[@]}" --locked boringssl_patch_tls13_client_hello
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked \
       aead::tests::shared_generic_context_seals_and_opens_concurrently

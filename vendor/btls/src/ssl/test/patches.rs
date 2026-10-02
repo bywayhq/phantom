@@ -39,6 +39,25 @@ fn signature_algorithm_ids(extension: &[u8]) -> Vec<u16> {
     length_prefixed_u16_list(extension)
 }
 
+/// Returns the extension types of a ClientHello body in wire order.
+fn client_hello_extension_types(body: &[u8]) -> Vec<u16> {
+    // legacy_version and random, then the session ID, cipher suites, and
+    // compression methods.
+    let mut rest = &body[34..];
+    rest = &rest[1 + usize::from(rest[0])..];
+    rest = &rest[2 + usize::from(u16::from_be_bytes([rest[0], rest[1]]))..];
+    rest = &rest[1 + usize::from(rest[0])..];
+    let extensions_len = usize::from(u16::from_be_bytes([rest[0], rest[1]]));
+    let mut extensions = &rest[2..2 + extensions_len];
+    let mut types = Vec::new();
+    while !extensions.is_empty() {
+        types.push(u16::from_be_bytes([extensions[0], extensions[1]]));
+        let len = usize::from(u16::from_be_bytes([extensions[2], extensions[3]]));
+        extensions = &extensions[4 + len..];
+    }
+    types
+}
+
 fn badssl_addr(host: &str) -> Option<TcpStream> {
     let addrs = match (host, 443).to_socket_addrs() {
         Ok(addrs) => addrs,
@@ -507,6 +526,145 @@ fn boringssl_patch_partial_extension_order_can_handshake() {
         .unwrap();
 
     client.connect();
+}
+
+#[test]
+fn boringssl_patch_extension_order_tail_follows_shuffled_extensions() {
+    // 0014-boringssl-extension-order-tail.patch writes the tail after a
+    // shuffled middle part. Only padding may follow it in a fresh ClientHello.
+    const CONNECTIONS: usize = 8;
+    const PADDING: u16 = 0x0015;
+    const KEY_SHARE: u16 = 0x0033;
+    const ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
+    let orders = Arc::new(Mutex::new(Vec::new()));
+    let mut server = Server::builder();
+    server.expected_connections_count(CONNECTIONS);
+    server.ctx().set_select_certificate_callback({
+        let orders = Arc::clone(&orders);
+        move |client_hello| {
+            orders
+                .lock()
+                .unwrap()
+                .push(client_hello_extension_types(client_hello.as_bytes()));
+            Ok(())
+        }
+    });
+    let server = server.build();
+
+    let mut client = server.client_with_root_ca();
+    client
+        .ctx()
+        .set_min_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    client.ctx().set_permute_extensions(true);
+    client
+        .ctx()
+        .set_extension_order_tail(&[
+            ExtensionType::KEY_SHARE,
+            ExtensionType::from(0xffff),
+            ExtensionType::ENCRYPTED_CLIENT_HELLO,
+        ])
+        .unwrap();
+    let client = client.build();
+    for _ in 0..CONNECTIONS {
+        let mut ssl = client.builder();
+        ssl.ssl().set_enable_ech_grease(true);
+        ssl.connect();
+    }
+    drop(server);
+
+    let orders = orders.lock().unwrap();
+    assert_eq!(orders.len(), CONNECTIONS);
+    for order in orders.iter() {
+        let order: Vec<u16> = order.iter().copied().filter(|&ty| ty != PADDING).collect();
+        assert!(
+            order.ends_with(&[KEY_SHARE, ENCRYPTED_CLIENT_HELLO]),
+            "{order:04x?}"
+        );
+    }
+    // Eight equal permutations of at least five extensions have probability
+    // at most 120^-7.
+    assert!(orders.iter().any(|order| order != &orders[0]));
+}
+
+#[test]
+fn boringssl_patch_extension_order_tail_rejects_prefix_overlap() {
+    let mut context = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    context
+        .set_extension_permutation(&[ExtensionType::SUPPORTED_VERSIONS])
+        .unwrap();
+    let error = context
+        .set_extension_order_tail(&[ExtensionType::SUPPORTED_VERSIONS])
+        .unwrap_err();
+    assert!(!error.errors().is_empty());
+    context
+        .set_extension_order_tail(&[ExtensionType::KEY_SHARE])
+        .unwrap();
+    let error = context
+        .set_extension_permutation(&[ExtensionType::KEY_SHARE])
+        .unwrap_err();
+    assert!(!error.errors().is_empty());
+    context.set_extension_order_tail(&[]).unwrap();
+    context
+        .set_extension_permutation(&[ExtensionType::KEY_SHARE])
+        .unwrap();
+}
+
+#[test]
+fn boringssl_patch_tls13_client_hello_can_send_tls12_extensions() {
+    // 0016-boringssl-tls13-legacy-extensions.patch lets a TLS 1.3-only client
+    // send extended_master_secret and renegotiation_info, as NSS does.
+    for (context_enabled, connection_enabled, expected) in [
+        (false, None, false),
+        (true, None, true),
+        (true, Some(false), false),
+        (false, Some(true), true),
+    ] {
+        let observed = Arc::new(Mutex::new(None));
+        let mut server = Server::builder();
+        server.ctx().set_select_certificate_callback({
+            let observed = Arc::clone(&observed);
+            move |client_hello| {
+                *observed.lock().unwrap() = Some((
+                    client_hello
+                        .get_extension(ExtensionType::EXTENDED_MASTER_SECRET)
+                        .map(ToOwned::to_owned),
+                    client_hello
+                        .get_extension(ExtensionType::RENEGOTIATE)
+                        .map(ToOwned::to_owned),
+                ));
+                Ok(())
+            }
+        });
+        let server = server.build();
+
+        let mut client = server.client_with_root_ca();
+        client
+            .ctx()
+            .set_min_proto_version(Some(SslVersion::TLS1_3))
+            .unwrap();
+        client
+            .ctx()
+            .set_tls12_extensions_in_tls13_client_hello(context_enabled);
+        let client = client.build();
+        let mut ssl = client.builder();
+        if let Some(enabled) = connection_enabled {
+            ssl.ssl()
+                .set_tls12_extensions_in_tls13_client_hello(enabled);
+        }
+        let stream = ssl.connect();
+        assert_eq!(stream.ssl().version2(), Some(SslVersion::TLS1_3));
+        drop(server);
+
+        let (ems, ri) = observed.lock().unwrap().take().unwrap();
+        if expected {
+            assert_eq!(ems.as_deref(), Some(&[][..]));
+            assert_eq!(ri.as_deref(), Some(&[0][..]));
+        } else {
+            assert_eq!(ems, None);
+            assert_eq!(ri, None);
+        }
+    }
 }
 
 #[test]

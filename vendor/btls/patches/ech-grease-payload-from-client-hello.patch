@@ -1,0 +1,152 @@
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+index 2671caf..b7dceee 100644
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -4486,9 +4486,11 @@ impl SslRef {
+ 
+     /// Sets the exact payload length of a GREASE ECH extension.
+     ///
+-    /// This does not enable ECH GREASE. Without calling this method, BoringSSL
+-    /// retains its default randomized payload-length policy. The payload must
+-    /// be non-empty and leave room for the ECHClientHelloOuter framing.
++    /// This does not enable ECH GREASE. Without calling this method or
++    /// [`Self::set_ech_grease_payload_from_client_hello`], BoringSSL retains
++    /// its default randomized payload-length policy. The payload must be
++    /// non-empty and leave room for the ECHClientHelloOuter framing. The last
++    /// call between the two methods wins.
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_set_ech_grease_payload_length)]
+     pub fn set_ech_grease_payload_length(
+@@ -4504,6 +4506,51 @@ impl SslRef {
+         }
+     }
+ 
++    /// Sizes the payload of a GREASE ECH extension from the ClientHello that
++    /// carries it, as NSS does.
++    ///
++    /// The payload is as long as the encrypted EncodedClientHelloInner that a
++    /// real ECH offer of the same ClientHello would carry, padded for an
++    /// ECHConfig whose `maximum_name_length` is `maximum_name_length`. Firefox
++    /// uses 100. The inner hello follows NSS 3.128: it copies `server_name`
++    /// and `pre_shared_key`, offers only TLS 1.3 and any GREASE version, drops
++    /// `ec_point_formats`, `extended_master_secret`, `session_ticket`, and
++    /// `renegotiation_info`, and compresses every other extension. The length
++    /// depends on the ClientHello, including any session ticket, and a
++    /// HelloRetryRequest repeats the first ClientHello's extension.
++    ///
++    /// NSS pads by the length of the host in the URL it connects to, which is
++    /// also its server name unless the host is an IP literal, for which it
++    /// sends no server name. Pass that host as `host`, with an IPv6 literal
++    /// written without brackets, such as `127.0.0.1` or `::1`; only its length
++    /// is used. With `None`, the server name set by [`Self::set_hostname`] is
++    /// used, and without one, all of `maximum_name_length` is padding.
++    ///
++    /// This does not enable ECH GREASE. It replaces a length set by
++    /// [`Self::set_ech_grease_payload_length`], and a later call to that method
++    /// replaces it. DTLS connections are rejected.
++    #[cfg(not(feature = "fips"))]
++    #[corresponds(SSL_set_ech_grease_payload_from_client_hello)]
++    pub fn set_ech_grease_payload_from_client_hello(
++        &mut self,
++        maximum_name_length: u8,
++        host: Option<&str>,
++    ) -> Result<(), ErrorStack> {
++        let (host_ptr, host_len) = match host {
++            Some(host) => (host.as_ptr().cast::<c_char>(), host.len()),
++            None => (ptr::null(), 0),
++        };
++        unsafe {
++            cvt_0i(ffi::SSL_set_ech_grease_payload_from_client_hello(
++                self.as_ptr(),
++                maximum_name_length,
++                host_ptr,
++                host_len,
++            ))
++            .map(|_| ())
++        }
++    }
++
+     /// Sets the HPKE AEAD identifiers from which a GREASE ECH extension selects
+     /// its cipher suite.
+     ///
+diff --git a/src/ssl/test/ech.rs b/src/ssl/test/ech.rs
+index e56cc2a..a3cc41a 100644
+--- a/src/ssl/test/ech.rs
++++ b/src/ssl/test/ech.rs
+@@ -110,6 +110,76 @@ fn ech_grease_payload_must_be_nonempty_and_fit_the_extension_body() {
+     assert!(!oversized_payload.errors().is_empty());
+ }
+ 
++#[cfg(not(feature = "fips"))]
++#[test]
++fn ech_grease_payload_from_client_hello_follows_the_maximum_name_length() {
++    // The name padding grows by 32 bytes, and the payload is a multiple of 32
++    // plus the 16-byte tag.
++    let short = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_hostname("foobar.com").unwrap();
++        ssl.set_ech_grease_payload_from_client_hello(100, None)
++            .unwrap();
++    });
++    let long = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_hostname("foobar.com").unwrap();
++        ssl.set_ech_grease_payload_from_client_hello(132, None)
++            .unwrap();
++    });
++
++    let short_payload = short.len() - 42;
++    assert_eq!((short_payload - 16) % 32, 0, "{short_payload}");
++    assert_eq!(long.len() - 42, short_payload + 32);
++}
++
++#[cfg(not(feature = "fips"))]
++#[test]
++fn ech_grease_payload_length_and_client_hello_sizing_replace_each_other() {
++    let exact = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_ech_grease_payload_from_client_hello(100, None)
++            .unwrap();
++        ssl.set_ech_grease_payload_length(239).unwrap();
++    });
++    assert_eq!(exact.len(), 281);
++
++    let sized = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_ech_grease_payload_length(239).unwrap();
++        ssl.set_ech_grease_payload_from_client_hello(100, None)
++            .unwrap();
++    });
++    assert_eq!((sized.len() - 42 - 16) % 32, 0);
++}
++
++#[cfg(not(feature = "fips"))]
++#[test]
++fn ech_grease_payload_from_client_hello_pads_by_the_given_host() {
++    // An IP-literal URL sends no server name, but NSS still pads by the host
++    // text. A host 32 bytes longer removes 32 bytes of padding.
++    let short_host = "::1";
++    let long_host = format!("{}::1", "0".repeat(32));
++    let short = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_ech_grease_payload_from_client_hello(100, Some(short_host))
++            .unwrap();
++    });
++    let long = capture_ech_grease_extension_with(|ssl| {
++        ssl.set_ech_grease_payload_from_client_hello(100, Some(long_host.as_str()))
++            .unwrap();
++    });
++
++    assert_eq!(long.len() + 32, short.len());
++}
++
++#[cfg(not(feature = "fips"))]
++#[test]
++fn ech_grease_payload_from_client_hello_rejects_dtls() {
++    let context = SslContext::builder(SslMethod::dtls()).unwrap().build();
++    let mut ssl = Ssl::new(&context).unwrap();
++
++    let error = ssl
++        .set_ech_grease_payload_from_client_hello(100, Some("127.0.0.1"))
++        .unwrap_err();
++    assert!(!error.errors().is_empty());
++}
++
+ #[cfg(not(feature = "fips"))]
+ #[test]
+ fn ech_grease_uses_a_single_configured_aead() {

@@ -21,10 +21,13 @@ size limit, and delegated-credential patches.
 - Complete source archive SHA-256:
   `e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767`
 - Reviewed dependency fork: <https://github.com/bywayhq/btls>
-- Reviewed dependency commit: `c4596bc5ee7facb860ef91c184ac50b5b863b733`
-  (`feat(boringssl): allow early data with record size limits`, which adds
-  native patch 0013). Its parent, `126eca11538e79814ffef527a68080fe6dbbb21b`
-  (`fix(btls-sys): leave the C allocator out of the bindings`), keeps
+- Reviewed dependency commit: `f478ea16a4b2f6ebbd221ce7cafdec10a32028eb`
+  (`feat(boringssl): size ECH GREASE payloads from the ClientHello`, which
+  adds native patch 0017). It is four commits on the earlier reviewed commit
+  `c4596bc5ee7facb860ef91c184ac50b5b863b733`, and they add native patches
+  0014 to 0017 and their wrapper methods. That commit added native patch 0013
+  on `126eca11538e79814ffef527a68080fe6dbbb21b`
+  (`fix(btls-sys): leave the C allocator out of the bindings`), which keeps
   `malloc`, `calloc`, `realloc`, and `free` out of the generated bindings,
   whose `extern` declarations of them Rust 1.99.0 denies, and is itself
   one commit on the earlier reviewed commit `c48fddb13539e06fadedfac6039570598ff89864`.
@@ -34,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.4`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.5`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -127,6 +130,32 @@ limit applies from the handshake write keys. A server that negotiated a
 limit below 16385 cannot accept such records, so it issues no early-data
 tickets and declines early data; a server at the maximum accepts it.
 
+Three parts of Firefox 157's QUIC ClientHello cannot be expressed through the
+upstream wrapper. Firefox shuffles its built-in extensions and appends the
+rest, so every QUIC ClientHello ends with `quic_transport_parameters` and then
+`encrypted_client_hello`, followed by `pre_shared_key` when it resumes;
+BoringSSL can fix a prefix and shuffle the remainder, but cannot fix a tail.
+Native patch 0014 adds a fixed tail written after the shuffled middle, and
+`extension-order-tail.patch` wraps it. BoringSSL refuses `record_size_limit` on
+a QUIC connection, which Firefox sends with 16385; native patch 0015 negotiates
+it there without applying a limit, since QUIC carries no TLS records, and
+`record-size-limit-quic.patch` corrects the wrapper documentation that said
+QUIC was unsupported. NSS also sends an empty `extended_master_secret` and a
+`renegotiation_info` of one zero byte in a ClientHello whose minimum version is
+TLS 1.3, which BoringSSL omits; native patch 0016 adds a switch for both, and
+`tls13-legacy-extensions.patch` wraps it on the context and the connection.
+
+NSS sizes its ECH GREASE payload as if it encrypted the ClientHello it
+actually sends, so the payload grows with a session ticket: Firefox 157 sent
+240 bytes in a fresh ClientHello and 368 in a resumed one, and 208 over QUIC
+to an IP literal. A fixed length set with `set_ech_grease_payload_length`
+matches only one of them. Native patch 0017 builds the EncodedClientHelloInner
+that NSS 3.128 would encrypt for the built ClientHello and pads it as NSS does
+for an ECHConfig with a given `maximum_name_length`, by the length of the URL
+host, which is the server name except for an IP literal, where NSS sends no
+server name but still pads by the host text.
+`ech-grease-payload-from-client-hello.patch` wraps it.
+
 The upstream delegated-credential patch advertised extension 34 but could not
 accept a credential. BoringSSL's `tls13_process_certificate` rejects the
 unknown CertificateEntry extension with a fatal `unsupported_extension` alert,
@@ -208,6 +237,24 @@ The patches are additive:
   rejection followed by a reset and a resend on the same connection, a guarded
   reset that refuses to run twice, and a capable session that offers nothing
   when its connection does not enable early data.
+- `SslContextBuilder::set_extension_order_tail` exposes
+  `SSL_CTX_set_extension_order_tail`; `set_extension_permutation` documents
+  that it rejects a type the tail lists. `src/ssl/test/patches.rs` proves
+  that eight shuffled ClientHellos end with the tail, before padding, and that
+  a type cannot be in both the order and the tail.
+- `SslContextBuilder::set_record_size_limit` documents that a QUIC
+  connection negotiates the extension with no limit applied. It adds no code.
+- `SslContextBuilder::set_tls12_extensions_in_tls13_client_hello` and
+  `SslRef::set_tls12_extensions_in_tls13_client_hello` expose the native
+  switch. `src/ssl/test/patches.rs` proves the context default, the
+  connection override in both directions, and the exact empty and one-byte
+  bodies.
+- `SslRef::set_ech_grease_payload_from_client_hello` takes the maximum name
+  length and an optional host, and replaces a length set by
+  `set_ech_grease_payload_length`, as a later call to that method replaces
+  it. Both are excluded from FIPS builds. `src/ssl/test/ech.rs` proves the
+  padding step of 32 bytes, padding by the given host, the last call winning,
+  and the DTLS rejection.
 
 The canonical machine-applicable wrapper changes are listed in
 `patches/series`; the order is part of the reviewed source transformation.
@@ -216,11 +263,18 @@ packaging changes remain separate. The dependency commit stores the native
 BoringSSL changes in the numbered, non-FIPS `btls-sys` patch series: patch 0005
 implements RFC 8449, patch 0006 implements RFC 9345 client verification,
 patch 0011 controls the ECH GREASE payload length, patch 0012 selects the
-ECH GREASE AEAD from a configured list, and patch 0013 allows early data
-beside RFC 8449 limits. Patch 0012 carries BoringSSL `ssl_test` coverage for
+ECH GREASE AEAD from a configured list, patch 0013 allows early data
+beside RFC 8449 limits, patch 0014 writes a fixed extension tail after the
+shuffled middle, patch 0015 negotiates RFC 8449 over QUIC, patch 0016 sends
+`extended_master_secret` and `renegotiation_info` in a TLS 1.3-only
+ClientHello on request, and patch 0017 sizes the ECH GREASE payload from the
+built ClientHello. Patch 0012 carries BoringSSL `ssl_test` coverage for
 the selection, the rejected inputs, and reuse of the choice across a
 HelloRetryRequest; patch 0013 carries coverage for 0-RTT with configured and
-negotiated limits on both sides. Every native patch owns the
+negotiated limits on both sides; patches 0014 to 0017 carry `ssl_test`
+coverage of the tail order across a HelloRetryRequest, the QUIC negotiation,
+the outer-only legacy extensions, and payload sizes for fresh, resumed, and
+IP-literal ClientHellos. Every native patch owns the
 generated prefix-symbol entries for the APIs it introduces. The dependency CI
 replays the complete patch order and rejects stale BoringSSL pregenerated files.
 
@@ -298,6 +352,8 @@ cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --lo
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked boringssl_patch_extension_order_tail
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked boringssl_patch_tls13_client_hello
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked aead::tests::shared_generic_context_seals_and_opens_concurrently
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols
 ```
@@ -319,6 +375,8 @@ cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials
+cargo test --manifest-path vendor/btls/Cargo.toml --locked boringssl_patch_extension_order_tail
+cargo test --manifest-path vendor/btls/Cargo.toml --locked boringssl_patch_tls13_client_hello
 cargo test --manifest-path vendor/btls/Cargo.toml --locked aead::tests::shared_generic_context_seals_and_opens_concurrently
 cargo +1.85.0 check --manifest-path vendor/btls/Cargo.toml --all-targets
 ```
