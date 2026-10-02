@@ -74,6 +74,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([Redirects](guides/redirects.md), [Cookies](guides/cookies.md)).
 - Connection-setup retries, reused-connection replay, unprocessed-request
   replay, and status retries ([Retries and replays](guides/retries.md)).
+- Field lists built once: a negotiated request builds and checks its
+  HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
+  once per redirect hop before any I/O. The race's winner and every replay
+  that follows no response send them as built
+  ([Fields of a repeated attempt](explanation/design.md#fields-of-a-repeated-attempt)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
 - A local source address per address family and, on Linux and Android, an
@@ -247,14 +252,6 @@ Each of these needs no capture, because no named recipe may reach it
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
   `IP_UNICAST_IF`), and a client certificate chosen per origin.
-
-#### Request pipeline
-
-- Build a raced request once. A request that races an Alt-Svc alternative
-  against its origin builds and checks its HTTP/3, HTTP/1.1, and HTTP/2
-  field lists before the race, then builds and checks the winner's lists
-  again. A negotiated request still builds both its HTTP/1.1 and HTTP/2
-  lists on every attempt, because both are checked before any I/O.
 
 ### Proposed after Phase 1
 
