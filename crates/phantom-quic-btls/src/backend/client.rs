@@ -869,6 +869,9 @@ struct SessionState {
     application_state: Option<(ApplicationState, u64)>,
     /// The client's 0-RTT write secret, present only while offering early data.
     early_secret: Option<(u16, TrafficSecret)>,
+    /// Set once a server moved the connection to another version, which withdraws early
+    /// data whatever BoringSSL reports.
+    version_switched: bool,
     /// The ticket issuer's transport parameters, applied to 0-RTT data until
     /// the server's current parameters arrive.
     remembered_transport_parameters: Option<Box<[u8]>>,
@@ -900,6 +903,7 @@ impl SessionState {
             ticket_sink: None,
             application_state: None,
             early_secret: None,
+            version_switched: false,
             remembered_transport_parameters: None,
             ech: None,
             #[cfg(test)]
@@ -912,6 +916,7 @@ impl SessionState {
             self.outbound.stage(chunk);
         }
         if self.early_secret.is_none()
+            && !self.version_switched
             && let Some(secret) = self.backend.take_early_secret()
         {
             self.early_secret = Some(secret);
@@ -1092,7 +1097,10 @@ impl crypto::Session for QuicSession {
     }
 
     fn early_data_accepted(&self) -> Option<bool> {
-        Some(self.lock().backend.early_data_accepted())
+        // BoringSSL may report that the server accepted early data sent in the start
+        // version, but Quinn dropped it when the version changed.
+        let state = self.lock();
+        Some(!state.version_switched && state.backend.early_data_accepted())
     }
 
     fn is_handshaking(&self) -> bool {
@@ -1215,6 +1223,7 @@ impl crypto::Session for QuicSession {
         }
         state.version = version;
         state.early_secret = None;
+        state.version_switched = true;
         true
     }
 

@@ -372,6 +372,15 @@ fn a_version_switch_withdraws_the_0rtt_keys() {
     assert!(client.early_crypto().is_some());
     assert!(client.switch_version(0x6b33_43cf));
     assert!(client.early_crypto().is_none());
+
+    // The server accepts the early data BoringSSL offered, but the switch dropped it.
+    let server = test_ok(
+        RawServer::new_accepting_early_data(&server_context),
+        "server accepting early data",
+    );
+    let client = handshake_with(client, server);
+    assert!(resumed(client.as_ref()));
+    assert_eq!(client.early_data_accepted(), Some(false));
 }
 
 #[test]
