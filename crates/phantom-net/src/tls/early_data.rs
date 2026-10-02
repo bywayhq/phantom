@@ -19,6 +19,7 @@ use std::{
     error::Error as StdError,
     fmt, io,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll, ready},
 };
 
@@ -56,17 +57,58 @@ enum Phase {
     Resending { written: usize },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 enum Answer {
     Unanswered,
     /// The handshake completed, and any rejected early data was sent again.
     Settled,
-    /// The handshake failed.
-    Failed,
+    /// The connection failed: during the handshake when the failure is
+    /// known, or afterwards, while sending rejected early data again.
+    Failed(Option<EarlyDataFailure>),
+}
+
+/// Why a connection that sent early data failed before its handshake
+/// completed, so the protocol layer can report what a fresh connection would.
+#[derive(Clone, Debug)]
+pub(crate) enum EarlyDataFailure {
+    /// The handshake failed, after a rejection or without one.
+    Handshake(Arc<io::Error>),
     /// The server rejected the early data and then selected another ALPN
-    /// protocol, so the connection failed without the server processing any
-    /// request on it.
-    AlpnChanged,
+    /// protocol. The server processed no request on the connection.
+    AlpnChanged {
+        /// The ALPN protocol the server selected, if any.
+        negotiated: Option<Box<[u8]>>,
+    },
+}
+
+impl EarlyDataFailure {
+    /// Returns the TLS error a fresh connection reports for a handshake
+    /// failure, or `None` for an ALPN change.
+    pub(crate) fn tls_error(&self) -> Option<super::TlsError> {
+        match self {
+            Self::Handshake(error) => Some(super::TlsError::after_early_data(SharedError(
+                Arc::clone(error),
+            ))),
+            Self::AlpnChanged { .. } => None,
+        }
+    }
+}
+
+/// One handshake error shared by the stream's caller and every request that
+/// waited on the early data.
+#[derive(Debug)]
+struct SharedError(Arc<io::Error>);
+
+impl fmt::Display for SharedError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, formatter)
+    }
+}
+
+impl StdError for SharedError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&*self.0)
+    }
 }
 
 impl EarlyData {
@@ -103,17 +145,30 @@ impl EarlyDataWait {
     pub(crate) async fn answered(&self) -> io::Result<()> {
         let mut receiver = self.0.clone();
         let answer = receiver
-            .wait_for(|answer| *answer != Answer::Unanswered)
+            .wait_for(|answer| !matches!(answer, Answer::Unanswered))
             .await
-            .map(|answer| *answer);
+            .map(|answer| matches!(*answer, Answer::Settled));
         match answer {
-            Ok(Answer::Settled) => Ok(()),
-            Ok(Answer::Unanswered | Answer::Failed | Answer::AlpnChanged) | Err(_) => {
-                Err(io::Error::new(
-                    io::ErrorKind::ConnectionAborted,
-                    "the TLS handshake did not complete after early data",
-                ))
-            }
+            Ok(true) => Ok(()),
+            Ok(false) | Err(_) => Err(io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                "the TLS handshake did not complete after early data",
+            )),
+        }
+    }
+
+    /// Returns whether the server has not answered the early data yet and the
+    /// connection is still open.
+    pub(crate) fn is_pending(&self) -> bool {
+        matches!(*self.0.borrow(), Answer::Unanswered) && self.0.has_changed().is_ok()
+    }
+
+    /// Returns why the connection failed before its handshake completed, if
+    /// it did.
+    pub(crate) fn failure(&self) -> Option<EarlyDataFailure> {
+        match &*self.0.borrow() {
+            Answer::Failed(failure) => failure.clone(),
+            Answer::Unanswered | Answer::Settled => None,
         }
     }
 
@@ -121,7 +176,10 @@ impl EarlyDataWait {
     /// another ALPN protocol, which failed the connection. The server
     /// processed none of its requests.
     pub(crate) fn alpn_changed(&self) -> bool {
-        *self.0.borrow() == Answer::AlpnChanged
+        matches!(
+            *self.0.borrow(),
+            Answer::Failed(Some(EarlyDataFailure::AlpnChanged { .. }))
+        )
     }
 }
 
@@ -157,11 +215,24 @@ where
     ) -> Poll<io::Result<()>> {
         loop {
             ready!(self.poll_restart(context))?;
+            let before = buffer.filled().len();
             let result = Pin::new(&mut self.inner).poll_read(context, buffer);
             if self.take_rejection(&result) {
                 continue;
             }
-            return self.observe(result);
+            let result = self.observe(result);
+            // The peer closed the connection before the handshake completed.
+            if matches!(result, Poll::Ready(Ok(())))
+                && buffer.filled().len() == before
+                && self.early_data.is_some()
+            {
+                let error = io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "the server closed the connection during the TLS handshake",
+                );
+                self.fail_handshake(error);
+            }
+            return result;
         }
     }
 
@@ -203,18 +274,20 @@ where
                         Ok(()) => {}
                         Err(error) => {
                             let error = error.into_io_error().unwrap_or_else(io::Error::other);
-                            return Poll::Ready(Err(self.fail(error)));
+                            return Poll::Ready(Err(self.fail_handshake(error)));
                         }
                     }
                     let negotiated = self.inner.ssl().selected_alpn_protocol();
                     if negotiated != early.alpn.as_deref() {
+                        let negotiated = negotiated.map(Box::from);
                         let error = AlpnChangedAfterRejection {
                             early: early.alpn.take(),
-                            negotiated: negotiated.map(Box::from),
+                            negotiated: negotiated.clone(),
                         };
                         debug!(%error, "TLS connection failed after early data");
                         let error = io::Error::new(io::ErrorKind::InvalidData, error);
-                        return Poll::Ready(Err(self.fail_with(error, Answer::AlpnChanged)));
+                        let failure = EarlyDataFailure::AlpnChanged { negotiated };
+                        return Poll::Ready(Err(self.fail_with(error, Some(failure))));
                     }
                     early.phase = Phase::Resending { written: 0 };
                 }
@@ -265,7 +338,10 @@ where
     /// and releases waiting requests when it failed.
     fn observe<T>(&mut self, result: Poll<io::Result<T>>) -> Poll<io::Result<T>> {
         match result {
-            Poll::Ready(Err(error)) => Poll::Ready(Err(self.fail(error))),
+            Poll::Ready(Err(error)) if self.inner.ssl().is_init_finished() => {
+                Poll::Ready(Err(self.fail(error)))
+            }
+            Poll::Ready(Err(error)) => Poll::Ready(Err(self.fail_handshake(error))),
             result => {
                 if self.inner.ssl().is_init_finished() {
                     self.settle();
@@ -293,13 +369,25 @@ where
         early.answer.send_replace(Answer::Settled);
     }
 
+    /// Fails the connection after its handshake completed.
     fn fail(&mut self, error: io::Error) -> io::Error {
-        self.fail_with(error, Answer::Failed)
+        self.fail_with(error, None)
     }
 
-    fn fail_with(&mut self, error: io::Error, answer: Answer) -> io::Error {
+    /// Fails the handshake and shares the error with the waiting requests.
+    fn fail_handshake(&mut self, error: io::Error) -> io::Error {
+        if self.early_data.is_none() {
+            return error;
+        }
+        let kind = error.kind();
+        let error = Arc::new(error);
+        let failure = EarlyDataFailure::Handshake(Arc::clone(&error));
+        self.fail_with(io::Error::new(kind, SharedError(error)), Some(failure))
+    }
+
+    fn fail_with(&mut self, error: io::Error, failure: Option<EarlyDataFailure>) -> io::Error {
         if let Some(early) = self.early_data.take() {
-            early.answer.send_replace(answer);
+            early.answer.send_replace(Answer::Failed(failure));
         }
         error
     }

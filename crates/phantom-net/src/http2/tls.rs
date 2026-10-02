@@ -1673,9 +1673,15 @@ where
     }
     let early_data = stream.early_data_wait();
     if early_data.is_some() {
-        return Http2Connection::connect_with_early_data(stream, client, accept_ch, early_data)
-            .await
-            .map_err(Into::into);
+        return Http2Connection::connect_with_early_data(
+            stream,
+            client,
+            accept_ch,
+            extended_connect,
+            early_data,
+        )
+        .await
+        .map_err(Into::into);
     }
 
     if extended_connect {

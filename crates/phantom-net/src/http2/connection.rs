@@ -18,7 +18,10 @@ use tracing::{Instrument, debug, debug_span, field};
 
 use crate::accept_ch::AcceptCh;
 use crate::request::{RequestBody, RequestBodyMetadata};
-use crate::tls::EarlyDataWait;
+use crate::{
+    http2::Http2TlsError,
+    tls::{EarlyDataFailure, EarlyDataWait},
+};
 
 use super::{
     Http2Body, Http2Builder, Http2Error, Http2ExtendedConnectOutcome, Http2ExtendedConnectStream,
@@ -636,6 +639,40 @@ impl Http2Connection {
         }
     }
 
+    /// Returns whether this connection sent TLS early data that the server
+    /// has not answered yet.
+    #[must_use]
+    pub fn early_data_pending(&self) -> bool {
+        self.inner
+            .early_data
+            .as_ref()
+            .is_some_and(EarlyDataWait::is_pending)
+    }
+
+    /// Returns the error a fresh connection reports when this connection's
+    /// handshake failed after it sent TLS early data.
+    ///
+    /// A handshake failure is [`Http2TlsError::Tls`]. Another ALPN protocol
+    /// that the server selected after rejecting the early data is
+    /// [`Http2TlsError::UnsupportedAlpn`], or
+    /// [`Http2TlsError::MissingNegotiatedAlpn`] when it selected none.
+    /// Requests on the connection fail with a connection error; this tells
+    /// which handshake failure caused it.
+    #[must_use]
+    pub fn early_data_failure(&self) -> Option<Http2TlsError> {
+        let failure = self.inner.early_data.as_ref()?.failure()?;
+        if let Some(error) = failure.tls_error() {
+            return Some(Http2TlsError::Tls(error));
+        }
+        let EarlyDataFailure::AlpnChanged { negotiated } = failure else {
+            return None;
+        };
+        Some(match negotiated {
+            Some(selected) => Http2TlsError::UnsupportedAlpn { selected },
+            None => Http2TlsError::MissingNegotiatedAlpn,
+        })
+    }
+
     /// Returns whether the server rejected this connection's TLS early data
     /// and then selected another ALPN protocol.
     ///
@@ -739,13 +776,20 @@ impl Http2Connection {
         stream: T,
         client: Http2Builder,
         accept_ch: AcceptCh,
+        extended_connect: bool,
         early_data: Option<EarlyDataWait>,
     ) -> Result<Self, Http2Error>
     where
         T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        Self::connect_with_builder_kind_and_accept_ch(stream, client, accept_ch, false, early_data)
-            .await
+        Self::connect_with_builder_kind_and_accept_ch(
+            stream,
+            client,
+            accept_ch,
+            extended_connect,
+            early_data,
+        )
+        .await
     }
 
     pub(super) async fn connect_extended_with_builder_and_accept_ch<T>(

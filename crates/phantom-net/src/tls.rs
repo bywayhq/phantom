@@ -33,7 +33,7 @@ pub use self::client_certificate::{
 use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
-pub(crate) use self::early_data::EarlyDataWait;
+pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
 use self::{early_data::EarlyData, session_cache::TlsSessionCache};
 
 mod client_certificate;
@@ -195,6 +195,13 @@ impl TlsConnector {
     /// session permits it.
     pub(crate) const fn offers_early_data(&self) -> bool {
         self.early_data
+    }
+
+    /// Removes every cached session for `server_name`.
+    pub(crate) fn forget_sessions(&self, server_name: &str) {
+        if let Some(cache) = &self.session_cache {
+            cache.forget(server_name);
+        }
     }
 
     /// Returns a clone, sharing this connector's session cache, whose direct
@@ -1011,6 +1018,17 @@ impl TlsError {
             TlsErrorKind::BackendConfiguration,
             Some(field),
             "BoringSSL rejected the configured value".into(),
+            Some(Box::new(source)),
+        )
+    }
+
+    /// The handshake of a connection that sent early data failed after it
+    /// returned, as the same failure fails a fresh connection's handshake.
+    pub(crate) fn after_early_data(source: impl StdError + Send + Sync + 'static) -> Self {
+        Self::new(
+            TlsErrorKind::Handshake,
+            None,
+            "TLS handshake failed after early data".into(),
             Some(Box::new(source)),
         )
     }

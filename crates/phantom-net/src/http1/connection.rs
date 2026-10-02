@@ -29,8 +29,9 @@ use super::{
     response_head::ResponseHeadObserver,
 };
 use crate::{
+    http1::Http1TlsError,
     request::{RequestBody, RequestBodyError},
-    tls::EarlyDataWait,
+    tls::{EarlyDataFailure, EarlyDataWait, TlsError},
 };
 
 /// An established HTTP/1.1 connection that executes requests sequentially.
@@ -222,6 +223,42 @@ impl Http1Connection {
         if let Some(early_data) = &self.inner.early_data {
             let _ = early_data.answered().await;
         }
+    }
+
+    /// Returns whether this connection sent TLS early data that the server
+    /// has not answered yet.
+    #[must_use]
+    pub fn early_data_pending(&self) -> bool {
+        self.inner
+            .early_data
+            .as_ref()
+            .is_some_and(EarlyDataWait::is_pending)
+    }
+
+    /// Returns the error a fresh connection reports when this connection's
+    /// handshake failed after it sent TLS early data.
+    ///
+    /// A handshake failure is [`Http1TlsError::Tls`]. An ALPN protocol other
+    /// than `http/1.1` that the server selected after rejecting the early
+    /// data is [`Http1TlsError::UnsupportedAlpn`]. Requests on the connection
+    /// fail with a connection error; this tells which handshake failure
+    /// caused it.
+    #[must_use]
+    pub fn early_data_failure(&self) -> Option<Http1TlsError> {
+        let failure = self.inner.early_data.as_ref()?.failure()?;
+        if let Some(error) = failure.tls_error() {
+            return Some(Http1TlsError::Tls(error));
+        }
+        let EarlyDataFailure::AlpnChanged { negotiated } = failure else {
+            return None;
+        };
+        Some(match negotiated {
+            Some(selected) => Http1TlsError::UnsupportedAlpn { selected },
+            None => Http1TlsError::Tls(TlsError::after_early_data(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "the server rejected early data and then selected no ALPN protocol",
+            ))),
+        })
     }
 
     /// Returns whether the server rejected this connection's TLS early data

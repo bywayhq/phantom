@@ -99,6 +99,12 @@ impl TlsSessionCache {
         sessions.remove(position).map(|cached| cached.session)
     }
 
+    /// Removes every session for `hostname`.
+    pub(super) fn forget(&self, hostname: &str) {
+        self.sessions()
+            .retain(|cached| !hostnames_match(&cached.hostname, hostname));
+    }
+
     pub(super) fn restore(&self, hostname: &str, session: ScopedSslSession) {
         self.insert(hostname.into(), session);
     }

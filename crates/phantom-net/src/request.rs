@@ -609,7 +609,8 @@ impl fmt::Debug for RequestHeader {
 /// `netwerk/protocol/http/nsHttpRequestHead.cpp:345-360` at tag
 /// `FIREFOX_156_0_RELEASE`), which also admits a body and `PROPFIND`,
 /// `REPORT`, and `SEARCH`; Phantom holds those back.
-pub(crate) fn is_replay_safe(method: &Method, has_body: bool, has_trailers: bool) -> bool {
+#[must_use]
+pub fn is_replay_safe(method: &Method, has_body: bool, has_trailers: bool) -> bool {
     method.is_safe() && !has_body && !has_trailers
 }
 
