@@ -221,6 +221,21 @@ anything does.
 - An origin that advertises more than one alternative. Phantom uses one.
   Blocker: a capture of such an origin, which decides whether Chrome races
   them, picks one by rule, or tries them in order.
+- Client hints fixed per request on HTTP/2 and HTTP/3. Phantom's HTTP/1.1
+  list carries the hints known before any I/O, but each HTTP/2 and HTTP/3
+  dispatch places hints again from the client's store and the connection's
+  ALPS `ACCEPT_CH`. Evidence: source only. Chromium's hints are request
+  headers set before a connection is chosen. When a connection's `ACCEPT_CH`
+  names a hint the request lacks, `AcceptCHFrameInterceptor::OnConnected`
+  asks the browser, which destroys the loader and starts another request with
+  the hint (`services/network/accept_ch_frame_interceptor.cc` lines 90-146 at
+  154.0.8037.58, called from `URLLoader::ProcessAcceptCHFrameOnConnected`,
+  `services/network/url_loader.cc` lines 920-942). A hint that another
+  response teaches between the build and the dispatch therefore reaches the
+  request in Phantom and only the next request in Chromium, and the restarted
+  Chromium request reads its cookies again. Blocker: a capture of a Chrome
+  request whose connection's `ACCEPT_CH` adds a hint, to show which fields
+  the restarted request rebuilds.
 
 #### Discovery, DNS, and ECH
 
