@@ -295,7 +295,6 @@ Each of these needs no capture, because no named recipe may reach it
 - Racing more than one alternative, bounded and chosen by the caller.
 - `Expect: 100-continue` and caller-owned conditional-request validators.
 - A buffered request body that a retry may replay.
-- Keepalive and address-selection settings on a custom profile.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
   `IP_UNICAST_IF`), and a client certificate chosen per origin.
@@ -390,8 +389,19 @@ not carry its renames. Until then, depend on a pinned git revision
 
 ## Phase 3: Hardening
 
-- Cross-platform debug and release gates, and `unwrap_used` and
-  `expect_used` denied once every recoverable path has a typed error.
+- Cross-platform debug and release gates. Non-test code already has no
+  `unwrap`, `expect`, or panicking macro; turn the `unwrap_used` and
+  `expect_used` lints from warn to deny, and allow them in tests through
+  `clippy.toml` instead of the `unwrap_or_else(|_| panic!(..))` workaround.
+- Coverage reports, `cargo hack` feature-powerset checks in place of the
+  hand-written feature rows, and a minimal-versions check.
+- Miri on the pure-Rust codecs (HPACK, frames, DNS and HTTPS records, ECH
+  configurations, SOCKS5, Alt-Svc, cookie snapshots, HTTP/1.1 response
+  parsing), `clippy::indexing_slicing` on the same parsers, and a loom or
+  deterministic-scheduler test for pool admission and setup waiters.
+- One SOCKS5 negotiation for TCP CONNECT and UDP ASSOCIATE; today TCP uses
+  `tokio-socks` and UDP a separate implementation, so their greetings are not
+  guaranteed to match.
 - Broader fuzzing, sanitizers, lifecycle regressions, and soak tests,
   including a panic across a real BoringSSL callback in `phantom-quic-btls`
   and a fuzzing seam for HTTPS-record `h3` selection.
@@ -405,7 +415,8 @@ not carry its renames. Until then, depend on a pinned git revision
   `header_too_big_server_error_trailers`, and restore the check.
 - Document the TCP/IP stack fingerprint as the host's, with reference JA4T
   and p0f signatures and a check that compares the host with the profile's
-  platform.
+  platform. JA4T is published under the FoxIO License 1.1, unlike JA3 and
+  JA4; check its terms before Phantom tooling computes it.
 - A bounded spike on [compio](https://github.com/compio-rs/compio) support
   behind a narrow runtime seam in `phantom-net`, adopted only with
   byte-identical wire evidence.
@@ -423,6 +434,27 @@ not carry its renames. Until then, depend on a pinned git revision
 - Audit the workspace for readable, idiomatic Rust once functionality and
   measured optimization have settled the real boundaries: naming, module
   ownership, seams, and file layout.
+- Replace the route-specific public methods of `phantom-net` (about 100,
+  such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with one
+  connect, send, and upgrade operation per protocol that takes a route value,
+  and build the connection leg in one place. This removes most of the
+  duplication between `http1/tls.rs` and `http2/tls.rs`, the
+  `too_many_arguments` allowances, and the six copies of route dispatch in the
+  pools and WebSocket openings. Each new route or authentication scheme makes
+  this larger.
+- Decide retry, replay, and early-data handling from typed fields set where an
+  error is created, instead of downcasting error chains to `phantom-net`
+  types.
+- Decide how the public profile settings structs grow before publication:
+  `#[non_exhaustive]` with constructors, or an explicit versioning policy.
+- Give the four connection pools one core for origin entries, admission,
+  setup waiters, ECH choice, and lease guards, and split functions longer than
+  100 lines; add invariant comments to the most deeply nested state machines.
+- Move test helpers copied across test files into `phantom-testkit` or
+  `tests/support`.
+- Keep capture history in [Validation](explanation/validation.md) rather
+  than in recipe rustdoc, and split Validation into one evidence page per
+  browser.
 - Keep wire fixtures, public API contracts, diagnostics, cancellation
   behavior, and the full gates through every behavior-preserving refactor.
 - Audit the tooling (capture and conformance scripts, CI and release scripts,
