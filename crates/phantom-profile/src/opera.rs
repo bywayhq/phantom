@@ -39,11 +39,11 @@ use crate::{
 };
 
 // Chromium 152 encodes the trust-anchor ID list in the iteration order of a
-// hash set, so the order is fixed within a browser process and differs
-// between processes. These are the 32 IDs in the most frequent order among 20
-// fresh Opera 136.0.6008.52 processes (5 of 20; 11 distinct orders). Every
-// later ClientHello of a process in the TLS resumption captures repeats its
-// first one's order. Chrome 154 sorts the list and lacks four of these IDs:
+// hash set. Over TCP the order is fixed within a browser process and differs
+// between processes: these are the 32 IDs in the most frequent order of the
+// 29 Opera 136.0.6008.52 processes in the retained `trust-anchor-orders.txt`
+// (5 of 29; 16 distinct orders), whose 100 ClientHellos never change order
+// within a process. Chrome 154 sorts the list and lacks four of these IDs:
 // `d6790902`, `d6790903`, `d6790909`, and `d679090e`.
 const V136_TRUST_ANCHOR_IDS: &[&[u8]] = &[
     &[0xd6, 0x79, 0x09, 0x0e],
@@ -80,13 +80,47 @@ const V136_TRUST_ANCHOR_IDS: &[&[u8]] = &[
     &[0xd6, 0x79, 0x09, 0x02],
 ];
 
-fn trust_anchor_ids() -> Option<Vec<Box<[u8]>>> {
-    Some(
-        V136_TRUST_ANCHOR_IDS
-            .iter()
-            .map(|id| Box::from(*id))
-            .collect(),
-    )
+// Over QUIC, Opera 136 draws an order per connection: the 20 retained QUIC
+// ClientHellos of 6 processes carry 19 orders, and a process's connections
+// differ from each other. This is the one order seen twice, on two
+// connections of one process.
+const V136_QUIC_TRUST_ANCHOR_IDS: &[&[u8]] = &[
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x09],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x08],
+    &[0xd6, 0x79, 0x09, 0x0e],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x07],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0c],
+    &[0xd6, 0x79, 0x09, 0x06],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0d],
+    &[0xd6, 0x79, 0x09, 0x09],
+    &[0x82, 0xdf, 0x13, 0x02, 0x14],
+    &[0x82, 0xdf, 0x13, 0x02, 0x01],
+    &[0x82, 0xdf, 0x13, 0x02, 0x06],
+    &[0x82, 0xdf, 0x13, 0x02, 0x13],
+    &[0xd6, 0x79, 0x09, 0x01],
+    &[0xd6, 0x79, 0x09, 0x0d],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x12],
+    &[0x82, 0xdf, 0x13, 0x02, 0x12],
+    &[0xd6, 0x79, 0x09, 0x08],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0e],
+    &[0xd6, 0x79, 0x09, 0x05],
+    &[0xd6, 0x79, 0x09, 0x0b],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x13],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0f],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0a],
+    &[0xd6, 0x79, 0x09, 0x0c],
+    &[0x82, 0xdf, 0x13, 0x02, 0x0d],
+    &[0xd6, 0x79, 0x09, 0x03],
+    &[0xd6, 0x79, 0x09, 0x0f],
+    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0b],
+    &[0xd6, 0x79, 0x09, 0x04],
+    &[0xd6, 0x79, 0x09, 0x0a],
+    &[0xd6, 0x79, 0x09, 0x07],
+    &[0xd6, 0x79, 0x09, 0x02],
+];
+
+fn trust_anchor_ids(ids: &[&[u8]]) -> Option<Vec<Box<[u8]>>> {
+    Some(ids.iter().map(|id| Box::from(*id)).collect())
 }
 
 /// Returns TLS settings captured from Opera 136.0.6008.52 on Windows 11.
@@ -95,14 +129,15 @@ fn trust_anchor_ids() -> Option<Vec<Box<[u8]>>> {
 /// ClientHello, signature-algorithm GREASE included, in all 20 retained fresh
 /// processes, with one difference: its trust-anchor IDs extension carries 32
 /// IDs in a per-process order where Chrome 154 sends 28 in sorted order. This
-/// reuses [`chromium::v154_tls`] with the most frequent observed order of
-/// those 32 IDs; the retained Opera ClientHello is replayed against the
-/// result. It leaves [`TlsSettings::ech_from_https_records`] unset: no capture
+/// reuses [`chromium::v154_tls`] with the most frequent order among 29
+/// retained processes, which 5 of them used; a recipe cannot draw a new order
+/// per process. The retained Opera ClientHello, one of those five, is
+/// replayed against the result. It leaves [`TlsSettings::ech_from_https_records`] unset: no capture
 /// shows Opera using an HTTPS record's `ech`.
 #[must_use]
 pub fn v136_tls() -> TlsSettings {
     let mut settings = chromium::v154_tls();
-    settings.requested_trust_anchor_ids = trust_anchor_ids();
+    settings.requested_trust_anchor_ids = trust_anchor_ids(V136_TRUST_ANCHOR_IDS);
     settings.ech_from_https_records = false;
     settings
 }
@@ -110,9 +145,10 @@ pub fn v136_tls() -> TlsSettings {
 /// Returns TLS settings for the Opera 136.0.6008.52 HTTP/3 offer on Windows 11.
 ///
 /// The QUIC ClientHellos match [`chromium::v154_http3_tls`] except in the
-/// trust-anchor IDs, which are the 32 IDs of [`v136_tls`]. A process orders
-/// its QUIC list independently of its TCP list, and three processes showed
-/// three orders, so this uses the order of the TCP recipe. It inherits that
+/// trust-anchor IDs, which are the 32 IDs of [`v136_tls`] in an order drawn
+/// per connection: 20 retained QUIC ClientHellos carry 19 orders. This sends
+/// the one order Opera sent twice, on two connections of one process, on
+/// every connection; the per-connection draw is not modeled. It inherits that
 /// recipe's ticket resumption, whose Chromium source basis was read at 154,
 /// not at Opera's Chromium 152 base. It clears
 /// [`TlsSettings::ech_from_https_records`], as [`v136_tls`] does: no capture
@@ -120,7 +156,7 @@ pub fn v136_tls() -> TlsSettings {
 #[must_use]
 pub fn v136_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();
-    settings.requested_trust_anchor_ids = trust_anchor_ids();
+    settings.requested_trust_anchor_ids = trust_anchor_ids(V136_QUIC_TRUST_ANCHOR_IDS);
     settings.ech_from_https_records = false;
     settings
 }

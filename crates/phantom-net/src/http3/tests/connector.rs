@@ -119,7 +119,8 @@ fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
 }
 
 /// Opera 136 offers the Chromium QUIC ClientHello with the 32 trust-anchor IDs
-/// of its TCP offer; each process orders them its own way.
+/// of its TCP offer, in an order drawn per connection, so the replay compares
+/// the IDs as a set.
 #[test]
 fn opera_136_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
@@ -232,6 +233,8 @@ pub(super) fn assert_client_hello_matches_capture(
         expected.signature_algorithms()
     );
     assert_eq!(actual.alpn_protocols(), expected.alpn_protocols());
+    // Opera 136 orders its QUIC trust-anchor IDs per connection; the Chromium
+    // recipes' sorted list compares the same way as a set.
     assert_eq!(
         sorted_trust_anchor_ids(&actual),
         sorted_trust_anchor_ids(&expected)

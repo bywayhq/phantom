@@ -157,8 +157,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the same list. The client hints send
   `"Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136"` and the
   matching full version list. The templates are unchanged.
-  Opera orders its trust-anchor IDs per process, and separately for QUIC;
-  both recipes send the most frequent of 20 processes' TCP orders.
+  Opera orders its trust-anchor IDs per process over TCP and per
+  connection over QUIC; `v136_tls` sends the most frequent of 29 processes'
+  TCP orders and `v136_http3_tls` the most frequent of 20 QUIC ClientHellos'
+  orders, which `trust-anchor-orders.txt` tallies.
   `opera::v135_macos_client_hints` stays, because the Mac still runs Opera
   135; no TLS recipe matches Opera 135's ClientHello any more, so pairing it
   with `v136_tls` mixes two builds

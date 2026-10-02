@@ -371,6 +371,8 @@ fn assert_resumed_client_hello_matches(actual: &[u8], expected: &[u8]) -> TestRe
         actual_summary.alpn_protocols(),
         expected_summary.alpn_protocols()
     );
+    // Opera 136 draws a new trust-anchor order for each QUIC connection, so
+    // its resumed ClientHellos compare the IDs as a set.
     assert_eq!(
         sorted_trust_anchor_ids(&actual_summary),
         sorted_trust_anchor_ids(&expected_summary)
