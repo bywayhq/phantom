@@ -29,10 +29,17 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
 - Phantom carries one version per browser: the current stable build on the
   capture host, or for an Android browser the build Play serves to the
   capture emulator. A new version replaces the old one. A macOS capture uses
-  the same build as the Windows one, so update the Mac's browser first. One
-  exception stands: the macOS Firefox captures are from 156.0, while the
-  Windows ones are from 157.0; the
-  [roadmap](../roadmap.md#browser-recipes) tracks the recapture.
+  the Windows capture's build, so update the Mac's browser first, from the
+  vendor's release archive when its updater lags.
+- When neither the updater nor an archive offers the Mac the Windows build,
+  and the Mac's build differs only in the last version component (Chrome
+  154.0.8037.95 on the Mac, 154.0.8037.97 on Windows), capture the Mac's
+  build under its own version directory. Its `macos` client hints then
+  report that build in `sec-ch-ua-full-version` and
+  `sec-ch-ua-full-version-list`, the only fields that carry it, since the
+  reduced `User-Agent` names `154.0.0.0`. Name the build in the recipe's
+  rustdoc and record in Validation why the builds differ. Every other macOS
+  layer must still match the Windows recipe in the replay tests.
 - Captures come from the Windows 11 development host, Android captures from
   the emulator on it, and macOS captures from one macOS 15.5 Mac on Apple
   silicon, under the host directory `macos-15.5-arm64`. A Windows capture

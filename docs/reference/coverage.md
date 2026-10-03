@@ -20,7 +20,7 @@ presented as a complete client match.
 | Edge 154 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 136 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Firefox 157 | Hook logs, partial | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Captured, 157.0 | Not sent by Firefox | Captured, 157.0 | Captured, 157.0 |
+| Firefox 157 | Hook logs, partial | Captured | Captured | Captured | Captured | Captured | Not sent by Firefox | Captured | Captured |
 | Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
@@ -41,9 +41,6 @@ presented as a complete client match.
   ([Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
   "Partial" means the logs show behavior the recipe leaves out.
 - **Not covered**: no recipe exists, and none is claimed.
-- **Captured, 157.0**: the build of Firefox's Windows captures. Its macOS
-  captures, which also back the TLS, H2, request template, and WebSocket
-  cells, are from 156.0.
 
 Read the matrix with these conditions:
 
@@ -948,13 +945,11 @@ shares component data with a capture from another platform:
   (154.1.96.59), Opera 136 (136.0.6008.52), and Firefox 157 (157.0) recipes
   come from Windows 11 captures. The `macos` client-hint and template recipes
   of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures on Apple
-  silicon of Chrome 154.0.8037.58, Edge 154.0.4258.37, Opera 135.0.5973.92,
-  and Firefox 156.0. Single
-  retained macOS runs of the TCP ClientHello and resumption for Chrome,
-  Edge, and Firefox, of the H2 session for all four, of the QUIC
-  ClientHello and H3 startup for Chrome and Edge, and of Opera's QUIC
-  transport parameters and H3 startup match the Windows recipes in the
-  replay tests. No TLS recipe matches the Mac's Opera 135 ClientHello
+  silicon of Chrome 154.0.8037.95, Edge 154.0.4258.48, Opera 136.0.6008.52,
+  and Firefox 157.0. Single retained macOS runs of the TCP ClientHello and
+  resumption and of the H2 session for all four, and of the QUIC transport
+  parameters and H3 startup for Chrome, Edge, and Opera, match the Windows
+  recipes in the replay tests
   ([Validation](../explanation/validation.md#macos-recipes)). No Linux
   capture exists, and no other layer is claimed to be platform
   independent. The retired Chrome 152 and Firefox 154 captures, which did
@@ -997,9 +992,8 @@ How the recipes differ:
   trust-anchor IDs, in an order drawn per process, where Chrome 154 sends 28
   sorted. `opera::` carries `v136_tls`, which keeps Chrome's ECH from
   HTTPS records, `v136_http3_tls`,
-  `v136_windows_client_hints`, `v135_macos_client_hints` from the Mac's
-  Opera 135, and its request templates, which equal the Chromium templates
-  apart from `User-Agent`.
+  `v136_windows_client_hints`, `v136_macos_client_hints`, and its request
+  templates, which equal the Chromium templates apart from `User-Agent`.
 - `firefox_android::v156_tls` returns `firefox::v157_tls`, which the Android
   ClientHellos equal. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.

@@ -39,8 +39,8 @@ recaptured and reverified.
 | Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
 | Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
-| Opera 136 | `opera::v136_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v136_windows_client_hints`; `v135_macos_client_hints` from Opera 135 | Chromium | Windows; macOS (Opera 135) for client hints and templates |
-| Firefox 157 | `firefox::v157_*`, and `v156_macos_*` for the macOS templates | Yes | Yes | Yes | No | `v157_websocket` | Windows (157.0); macOS for templates (156.0) |
+| Opera 136 | `opera::v136_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v136_windows_client_hints`, `v136_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
+| Firefox 157 | `firefox::v157_*` | Yes | Yes | Yes | No | `v157_websocket` | Windows; macOS for templates |
 | Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
 | Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
@@ -101,12 +101,9 @@ On macOS, Opera sends the fields of its `windows` request templates, and
 Edge does too with its language list set to `en-US`. Edge otherwise takes
 `Accept-Language` from the system's language list, so for another locale
 override that field. Both therefore have `macos` client hints but no `macos`
-templates. Edge's other layers are the recipes without a platform in the
+templates. Their other layers are the recipes without a platform in the
 name, which retained single macOS runs match
-([Validation](../explanation/validation.md#macos-recipes)). The macOS Opera
-captures are of Opera 135, whose TLS ClientHello `opera::v136_tls` does not
-match, so `opera::v135_macos_client_hints` has no TLS recipe of its build;
-with `opera::v136_tls` it presents a mixed identity.
+([Validation](../explanation/validation.md#macos-recipes)).
 
 ## TLS ClientHello shape
 
@@ -409,8 +406,8 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `opera::v136_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `firefox::v157_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 157 value |
 | `firefox::v157_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 157 value |
-| `firefox::v156_macos_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 156 macOS value |
-| `firefox::v156_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 156 macOS value |
+| `firefox::v157_macos_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 157 macOS value |
+| `firefox::v157_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 157 macOS value |
 | `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `chrome_android::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
@@ -566,9 +563,10 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
   captures; Firefox sent no headless marker, but no headful Firefox capture
   confirms the value.
 - The Firefox HTTP/1.1, HTTP/2, and HTTP/3 lists come from Firefox 157.0
-  on Windows; only the macOS templates' fields come from 156.0. Firefox
-  sends `Alt-Used` after `accept-encoding` on requests to an origin it
-  reached through Alt-Svc; Phantom appends the field it generates last.
+  on Windows, and the macOS templates' HTTP/1.1 and HTTP/2 fields from 157.0
+  on macOS. Firefox sends `Alt-Used` after `accept-encoding` on requests to
+  an origin it reached through Alt-Svc; Phantom appends the field it
+  generates last.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |
 | --- | --- | --- |

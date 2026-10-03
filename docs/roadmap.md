@@ -191,8 +191,8 @@ anything does.
   Remaining: the position of `Alt-Used`. Blocker: a template slot for a
   field the client generates.
 - macOS beyond client hints and request fields. Delivered: `macos` client
-  hints for Chrome 154, Edge 154, and Opera 135 and `macos` request
-  templates for Chrome 154 and Firefox 156, from macOS 15.5 captures on an
+  hints for Chrome 154, Edge 154, and Opera 136 and `macos` request
+  templates for Chrome 154 and Firefox 157, from macOS 15.5 captures on an
   Apple silicon Mac, with single runs of the TCP, QUIC, H2, and H3 layers
   replayed against the Windows recipes
   ([Validation](explanation/validation.md#macos-recipes)). Remaining: a
@@ -200,11 +200,6 @@ anything does.
   idle-only TCP keepalive, known from Chromium source but not captured; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
-- macOS Firefox at 157.0. Evidence: the macOS Firefox fixtures and the
-  `v156_macos_*` templates come from Firefox 156.0, while the Windows
-  Firefox captures are from 157.0. Blocker: none; update the Mac's Firefox
-  and capture the navigation, TLS, and WebSocket sets under
-  `fixtures/*/firefox/156.0/macos-15.5-arm64` again.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
@@ -214,11 +209,6 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Opera 136 and Edge 154.0.4258.48 on macOS. Evidence: the macOS captures
-  are of Opera 135.0.5973.92 and Edge 154.0.4258.37, so
-  `opera::v135_macos_client_hints` and `edge::v154_macos_client_hints` carry
-  those builds. Blocker: none; update the Mac's browsers and take the macOS
-  client hints and request captures again.
 - Firefox's address selection. Evidence: in five Firefox 157 runs on
   Windows 11, an IPv4 backup attempt started 254 to 260 ms after a slow
   first attempt, the first attempt's slower connection stayed open and
