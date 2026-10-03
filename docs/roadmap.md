@@ -355,6 +355,20 @@ the wire, capture evidence.
 
 ## Phase 2: Ergonomics
 
+Phase 2 settles the public API before the first release, so it starts with
+the two structural changes that would otherwise break published crates. Both
+wait for Phase 1, so they cover every route and setting it adds.
+
+- Replace the route-specific public methods of `phantom-net` (about 100,
+  such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with one
+  connect, send, and upgrade operation per protocol that takes a route value,
+  and build the connection leg in one place. This removes most of the
+  duplication between `http1/tls.rs` and `http2/tls.rs`, the
+  `too_many_arguments` allowances, and the six copies of route dispatch in the
+  pools and WebSocket openings. It changes no wire field or order: every
+  fixture replay stays byte-identical.
+- Decide how the public profile settings structs grow:
+  `#[non_exhaustive]` with constructors, or an explicit versioning policy.
 - Composed per-browser profile constructors, such as `chromium::v154()`, so
   a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
 - Error triage over `kind()`, a public replay-safety accessor, and the
@@ -451,20 +465,11 @@ not carry its renames. Until then, depend on a pinned git revision
 
 - Audit the workspace for readable, idiomatic Rust once functionality and
   measured optimization have settled the real boundaries: naming, module
-  ownership, seams, and file layout.
-- Replace the route-specific public methods of `phantom-net` (about 100,
-  such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with one
-  connect, send, and upgrade operation per protocol that takes a route value,
-  and build the connection leg in one place. This removes most of the
-  duplication between `http1/tls.rs` and `http2/tls.rs`, the
-  `too_many_arguments` allowances, and the six copies of route dispatch in the
-  pools and WebSocket openings. Each new route or authentication scheme makes
-  this larger.
+  ownership, seams, and file layout. It changes no public API; the two
+  structural changes that do open [Phase 2](#phase-2-ergonomics).
 - Decide retry, replay, and early-data handling from typed fields set where an
   error is created, instead of downcasting error chains to `phantom-net`
   types.
-- Decide how the public profile settings structs grow before publication:
-  `#[non_exhaustive]` with constructors, or an explicit versioning policy.
 - Give the four connection pools one core for origin entries, admission,
   setup waiters, ECH choice, and lease guards, and split functions longer than
   100 lines; add invariant comments to the most deeply nested state machines.
