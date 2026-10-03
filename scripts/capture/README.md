@@ -1133,7 +1133,7 @@ connection because the chain ends at a third-party root.
 `tls_resumption.py` records how a browser resumes TLS 1.3 sessions over TCP:
 the resumed ClientHello, which ticket each connection presents, whether it
 offers and sends early data, and which requests arrive in early data. It
-writes one `format=phantom-tls-resumption-v1` fixture per scenario, named
+writes one `format=phantom-tls-resumption-v2` fixture per scenario, named
 `resumption-<scenario>.txt`.
 
 Capture Chrome on Windows:
@@ -1158,6 +1158,14 @@ offers it with a known ticket. It closes a connection after answering
 Each page step waits 300 ms before the next, so every step starts on a new
 connection.
 
+In the `websocket` scenarios the page retires its connection, then opens a
+WebSocket to `wss://server.phantom.test:<port>/socket`, closes it once it
+opens, and requests `/done`. The server answers an HTTP/1.1 Upgrade with
+`101` and, over HTTP/2, sends `SETTINGS_ENABLE_CONNECT_PROTOCOL` in its first
+SETTINGS and answers an extended CONNECT with `200`. It answers the client's
+first WebSocket frame, its Close, with a Close. Only Firefox offers early
+data over TCP, so only Firefox fixtures of these scenarios are retained.
+
 | Scenario | ALPN | Tickets | Question |
 | --- | --- | --- | --- |
 | `sequential` | `h2` | 2 per connection | Resumed ClientHello, early data, and which of two tickets a new connection uses |
@@ -1169,6 +1177,8 @@ connection.
 | `methods` | `h2` | 2 per connection | Which of `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, and `DELETE`, issued together, travel in early data; then a lone `POST` |
 | `methods-http1` | `http/1.1` | 2 per connection | The same with HTTP/1.1 |
 | `partition` | `h2` | 2 per connection | Whether a ticket learned while `server.phantom.test` is the top-level site is offered when a `top.partition.test` page fetches it, and after returning |
+| `websocket` | `h2` | 2 per connection | Whether a resumed connection that opens a `wss://` WebSocket offers early data, and what travels in it |
+| `websocket-http1` | `http/1.1` | 2 per connection | The same with HTTP/1.1 |
 
 For each connection the fixture keeps:
 
@@ -1176,7 +1186,9 @@ For each connection the fixture keeps:
 - the tickets the ClientHello offered, named `connection_<n>.ticket_<i>` after
   the connection that issued them, and whether the server resumed one;
 - whether early data was offered and accepted, how many early-data bytes
-  arrived, and the tickets the connection was issued;
+  arrived, the HTTP/2 events, by `h2` class name, that early data produced
+  (only in `v2` fixtures; `v1` fixtures also lack `server_websocket`),
+  and the tickets the connection was issued;
 - the extension order, key-share groups, PSK modes, PSK identity and binder
   lengths, the `session_ticket` extension length, and how the ClientHello
   differs from the run's first one.

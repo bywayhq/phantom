@@ -37,7 +37,12 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 
 from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
-from .http2_session import HOSTNAME, Certificate, generate_certificate
+from .http2_session import (
+    HOSTNAME,
+    Certificate,
+    generate_certificate,
+    websocket_accept,
+)
 from .http3_wire import SENSITIVE_REQUEST_HEADERS
 from .quic_resumption import (
     EARLY_DATA,
@@ -51,7 +56,10 @@ from .quic_resumption import (
     tls_code,
 )
 
-FORMAT = "phantom-tls-resumption-v1"
+# v2 adds `server_websocket` and each connection's
+# `early_data_http2_events`; v1 fixtures lack both.
+FORMAT = "phantom-tls-resumption-v2"
+FORMATS = ("phantom-tls-resumption-v1", FORMAT)
 # A second registrable domain, so a page on it is a different top-level site.
 PARTITION_HOSTNAME = "top.partition.test"
 RETIRE_DELAY_SECONDS = 0.05
@@ -73,6 +81,9 @@ CONTENT_HANDSHAKE = 22
 CONTENT_APPLICATION_DATA = 23
 HANDSHAKE_CLIENT_HELLO = 1
 HANDSHAKE_END_OF_EARLY_DATA = 5
+# A WebSocket close frame with status 1000, unmasked as a server sends it.
+WEBSOCKET_CLOSE = b"\x88\x02\x03\xe8"
+WEBSOCKET_WAIT_MILLISECONDS = 5000
 SERVER_CIPHER_SUITES = [
     tls.CipherSuite.AES_128_GCM_SHA256,
     tls.CipherSuite.AES_256_GCM_SHA384,
@@ -90,10 +101,14 @@ class Scenario:
     # connection to complete a handshake.
     tickets_on_first_connection_only: bool
     # Pages in order; each is (URL of the page, steps its script runs).
-    # URLs use the placeholders {a}, {b}, and {p}; see `origins`.
+    # URLs use the placeholders {a}, {b}, {p}, and {w}; see `origins`.
     pages: tuple[tuple[str, tuple[object, ...]], ...]
     # Whether each ticket carries the early_data extension.
     tickets_permit_early_data: bool = True
+    # Whether the server answers WebSocket openings: an HTTP/1.1 Upgrade with
+    # 101, or, on HTTP/2, an extended CONNECT with 200 after SETTINGS that
+    # advertise SETTINGS_ENABLE_CONNECT_PROTOCOL.
+    websocket: bool = False
 
 
 def retire_steps(origin: str, count: int) -> tuple[object, ...]:
@@ -101,6 +116,17 @@ def retire_steps(origin: str, count: int) -> tuple[object, ...]:
 
 
 METHODS = ("GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE")
+# A step ("WEBSOCKET", URL) opens a WebSocket, closes it once it opens, and
+# waits for the close.
+WEBSOCKET = "WEBSOCKET"
+# The page's own connection closes first, so the WebSocket opens a new
+# connection that resumes a ticket the page connection was issued.
+WEBSOCKET_PAGES = (
+    (
+        "{a}/",
+        ("{a}/retire", (WEBSOCKET, "{w}/socket"), "{a}/done"),
+    ),
+)
 # One request of each method, issued together as the first requests on a new
 # connection. A step is a URL (a GET) or a (method, URL) pair.
 METHOD_STEP = tuple(
@@ -217,6 +243,24 @@ SCENARIOS = {
             pages=METHOD_PAGES,
         ),
         Scenario(
+            "websocket",
+            "Whether a resumed WebSocket opening offers early data, and what it carries",
+            alpn="h2",
+            tickets_per_connection=2,
+            tickets_on_first_connection_only=False,
+            pages=WEBSOCKET_PAGES,
+            websocket=True,
+        ),
+        Scenario(
+            "websocket-http1",
+            "The same question when the server selects HTTP/1.1",
+            alpn="http/1.1",
+            tickets_per_connection=2,
+            tickets_on_first_connection_only=False,
+            pages=WEBSOCKET_PAGES,
+            websocket=True,
+        ),
+        Scenario(
             "partition",
             "Whether a ticket learned under one top-level site is offered under another",
             alpn="h2",
@@ -240,7 +284,24 @@ PAGE = """<!doctype html>
 const steps = STEPS;
 const next = NEXT;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function openWebSocket(url) {
+  return new Promise((resolve, reject) => {
+    let opened = false;
+    const socket = new WebSocket(url);
+    const timer = setTimeout(() => reject(new Error("websocket timed out")), WEBSOCKET_WAIT);
+    socket.onopen = () => {
+      opened = true;
+      socket.close(1000);
+    };
+    socket.onclose = () => {
+      clearTimeout(timer);
+      if (opened) resolve();
+      else reject(new Error("websocket failed to open"));
+    };
+  });
+}
 function request(step) {
+  if (typeof step !== "string" && step.websocket) return openWebSocket(step.websocket);
   const { method, url } = typeof step === "string" ? { method: "GET", url: step } : step;
   const options = { method, cache: "no-store" };
   if (method === "POST" || method === "PUT") options.body = "phantom";
@@ -262,6 +323,8 @@ function request(step) {
 
 def render_page(scenario: Scenario, index: int, origins: dict[str, str]) -> bytes:
     def resolve(value: object) -> object:
+        if isinstance(value, tuple) and value and value[0] == WEBSOCKET:
+            return {"websocket": str(value[1]).format(**origins)}
         if isinstance(value, tuple) and value and value[0] in METHODS:
             return {"method": value[0], "url": str(value[1]).format(**origins)}
         if isinstance(value, tuple):
@@ -278,6 +341,7 @@ def render_page(scenario: Scenario, index: int, origins: dict[str, str]) -> byte
         PAGE.replace("STEPS", json.dumps(steps))
         .replace("NEXT", json.dumps(next_page))
         .replace("STEP_WAIT", str(STEP_WAIT_MILLISECONDS))
+        .replace("WEBSOCKET_WAIT", str(WEBSOCKET_WAIT_MILLISECONDS))
         .encode()
     )
 
@@ -475,6 +539,8 @@ class ConnectionRecord:
     early_data_bytes: int = 0
     skipped_early_data_bytes: int = 0
     alpn: str | None = None
+    # HTTP/2 events, by h2's class name, that early data produced.
+    early_data_http2_events: list[str] = field(default_factory=list)
     tickets_issued: tuple[str, ...] = ()
     handshake_ms: float | None = None
     closed_ms: float | None = None
@@ -592,6 +658,10 @@ class Connection:
         self.goaway_sent = False
         self.h2_requests: dict[int, RequestRecord] = {}
         self.responded: set[int] = set()
+        # The HTTP/1.1 connection switched to WebSocket after a 101.
+        self.upgraded = False
+        self.websocket_streams: set[int] = set()
+        self.websocket_closed: set[int] = set()
         self.tasks: set[asyncio.Task] = set()
 
     # Handshake ---------------------------------------------------------------
@@ -755,6 +825,9 @@ class Connection:
         if self.scenario.alpn == "h2":
             self.handle_http2(data)
             return
+        if self.upgraded:
+            self.close_websocket_http1()
+            return
         for line, fields, body_length in self.http1.feed(data):
             method, _, rest = line.decode("latin-1").partition(" ")
             path = rest.rpartition(" ")[0]
@@ -774,7 +847,38 @@ class Connection:
                 tuple(name.decode("latin-1") for name, _ in fields),
             )
             request.body_bytes = body_length
+            if self.scenario.websocket and is_websocket_opening(fields):
+                self.accept_websocket_http1(fields)
+                return
             self.schedule_response(request)
+
+    def accept_websocket_http1(self, fields: list[tuple[bytes, bytes]]) -> None:
+        key = next(
+            (value for name, value in fields if name.lower() == b"sec-websocket-key"),
+            b"",
+        )
+        head = (
+            b"HTTP/1.1 101 Switching Protocols\r\n"
+            b"upgrade: websocket\r\n"
+            b"connection: Upgrade\r\n"
+            b"sec-websocket-accept: " + websocket_accept(key) + b"\r\n\r\n"
+        )
+        self.upgraded = True
+        self.writer.write(self.seal(CONTENT_APPLICATION_DATA, head))
+
+    def close_websocket_http1(self) -> None:
+        """Answer the client's first WebSocket frame, its close, with a close."""
+        if 0 in self.websocket_closed or self.closing:
+            return
+        self.websocket_closed.add(0)
+        self.writer.write(self.seal(CONTENT_APPLICATION_DATA, WEBSOCKET_CLOSE))
+        task = asyncio.get_running_loop().create_task(self.close_soon())
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+
+    async def close_soon(self) -> None:
+        await asyncio.sleep(RETIRE_DELAY_SECONDS)
+        self.close_by("server")
 
     def add_request(
         self,
@@ -808,6 +912,10 @@ class Connection:
         self.h2 = h2.connection.H2Connection(
             h2.config.H2Configuration(client_side=False, header_encoding=None)
         )
+        if self.scenario.websocket:
+            # In the first SETTINGS: Firefox decides on extended CONNECT
+            # when it reads the peer's first SETTINGS frame.
+            self.h2.local_settings = websocket_server_settings()
         self.h2.initiate_connection()
         self.flush_http2()
 
@@ -827,6 +935,10 @@ class Connection:
             if self.goaway_sent:
                 return
             raise
+        if self.in_early_data:
+            self.record.early_data_http2_events.extend(
+                type(event).__name__ for event in events
+            )
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
                 fields = dict(event.headers)
@@ -838,11 +950,22 @@ class Connection:
                     tuple(name.decode("latin-1") for name, _ in event.headers),
                 )
                 self.h2_requests[event.stream_id] = request
-                if event.stream_ended is not None:
+                if self.scenario.websocket and fields.get(b":protocol") == b"websocket":
+                    self.websocket_streams.add(event.stream_id)
+                    self.responded.add(event.stream_id)
+                    self.h2.send_headers(event.stream_id, [(b":status", b"200")])
+                elif event.stream_ended is not None:
                     self.schedule_response(request)
             elif isinstance(event, h2.events.DataReceived):
                 request = self.h2_requests.get(event.stream_id)
-                if request is not None:
+                if event.stream_id in self.websocket_streams:
+                    # The client's close; answer it and end the stream.
+                    if event.stream_id not in self.websocket_closed:
+                        self.websocket_closed.add(event.stream_id)
+                        self.h2.send_data(
+                            event.stream_id, WEBSOCKET_CLOSE, end_stream=True
+                        )
+                elif request is not None:
                     request.body_bytes += len(event.data)
                     if request.body_bytes > MAX_BODY:
                         raise ValueError("request body exceeds the capture limit")
@@ -990,6 +1113,26 @@ class CaptureServer:
         return handle
 
 
+def is_websocket_opening(fields: list[tuple[bytes, bytes]]) -> bool:
+    return any(
+        name.lower() == b"upgrade" and value.lower() == b"websocket"
+        for name, value in fields
+    )
+
+
+def websocket_server_settings():
+    from h2.settings import SettingCodes, Settings
+
+    return Settings(
+        client=False,
+        initial_values={
+            SettingCodes.MAX_CONCURRENT_STREAMS: 100,
+            SettingCodes.MAX_HEADER_LIST_SIZE: 65536,
+            SettingCodes.ENABLE_CONNECT_PROTOCOL: 1,
+        },
+    )
+
+
 def load_certificate(certificate: Certificate) -> tuple[object, object]:
     return (
         tls.load_pem_x509_certificates(certificate.certificate_pem)[0],
@@ -1019,6 +1162,7 @@ async def serving(
             "a": f"https://{HOSTNAME}:{port_a}",
             "b": f"https://{HOSTNAME}:{port_b}",
             "p": f"https://{PARTITION_HOSTNAME}:{port_a}",
+            "w": f"wss://{HOSTNAME}:{port_a}",
         }
         yield server
     finally:
@@ -1190,6 +1334,8 @@ def connection_lines(
         f"{prefix}_early_data_accepted={flag(record.early_data_accepted)}",
         f"{prefix}_early_data_bytes={record.early_data_bytes}",
         f"{prefix}_skipped_early_data_bytes={record.skipped_early_data_bytes}",
+        f"{prefix}_early_data_http2_events="
+        + (",".join(record.early_data_http2_events) or "none"),
         f"{prefix}_tickets_issued={','.join(record.tickets_issued) or 'none'}",
         f"{prefix}_pre_shared_key_last="
         + flag(shape.extension_types[-1:] == (PRE_SHARED_KEY,)),
@@ -1344,6 +1490,7 @@ def render_fixture(
         f"capture_tool=aioquic {aioquic.__version__} TLS 1.3 over TCP",
         f"scenario={scenario.name}",
         f"server_alpn={scenario.alpn}",
+        f"server_websocket={flag(scenario.websocket)}",
         f"server_tickets_per_connection={scenario.tickets_per_connection}",
         "server_tickets_on="
         + (

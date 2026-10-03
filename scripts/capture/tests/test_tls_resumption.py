@@ -12,8 +12,10 @@ from scripts.capture.http2_session import HOSTNAME, generate_certificate
 from scripts.capture.quic_resumption import PRE_SHARED_KEY, parse_client_hello
 from scripts.capture.tls_resumption import (
     FORMAT,
+    FORMATS,
     PARTITION_HOSTNAME,
     SCENARIOS,
+    WEBSOCKET_CLOSE,
     Http1Parser,
     RecordProtection,
     RunResult,
@@ -157,6 +159,25 @@ class PageAndParserTests(unittest.TestCase):
         self.assertEqual(page_index("/page/2"), 2)
         self.assertIsNone(page_index("/retire"))
 
+    def test_a_websocket_step_opens_the_wss_origin_after_the_page_connection_retires(
+        self,
+    ) -> None:
+        origins = {
+            "a": "https://server.phantom.test:1",
+            "b": "https://server.phantom.test:2",
+            "p": "https://top.partition.test:1",
+            "w": "wss://server.phantom.test:1",
+        }
+        page = render_page(SCENARIOS["websocket-http1"], 0, origins).decode()
+        self.assertIn(
+            '["https://server.phantom.test:1/retire", '
+            '{"websocket": "wss://server.phantom.test:1/socket"}, '
+            '"https://server.phantom.test:1/done"]',
+            page,
+        )
+        self.assertIn("new WebSocket(url)", page)
+        self.assertNotIn("WEBSOCKET_WAIT", page)
+
     def test_http1_parser_splits_pipelined_requests_with_bodies(self) -> None:
         parser = Http1Parser()
         self.assertEqual(
@@ -202,12 +223,17 @@ class TicketTests(unittest.TestCase):
 
 
 ROOT = Path(__file__).resolve().parents[3]
+# Scenarios captured only with Firefox, the one browser that offers early data
+# over TCP.
+FIREFOX_ONLY = {"websocket", "websocket-http1"}
 
 
 class RetainedFixtureTests(unittest.TestCase):
     def test_every_retained_fixture_matches_its_scenario(self) -> None:
         paths = sorted(ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"))
-        self.assertEqual(len(paths), 5 * len(SCENARIOS))
+        self.assertEqual(
+            len(paths), 5 * len(SCENARIOS.keys() - FIREFOX_ONLY) + len(FIREFOX_ONLY)
+        )
         for path in paths:
             fields = dict(
                 line.split("=", 1)
@@ -215,8 +241,12 @@ class RetainedFixtureTests(unittest.TestCase):
             )
             scenario = SCENARIOS[fields["scenario"]]
             self.assertEqual(path.name, f"resumption-{scenario.name}.txt")
-            self.assertEqual(fields["format"], FORMAT)
+            self.assertIn(fields["format"], FORMATS)
             self.assertEqual(fields["server_alpn"], scenario.alpn)
+            if scenario.name in FIREFOX_ONLY:
+                self.assertEqual(fields["client"], "Mozilla Firefox")
+                self.assertEqual(fields["format"], FORMAT)
+                self.assertEqual(fields["server_websocket"], "true")
             self.assertEqual(
                 int(fields["server_tickets_per_connection"]),
                 scenario.tickets_per_connection,
@@ -367,6 +397,131 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             [record.listener for record in server.run.connections], ["a", "b"]
         )
+
+
+class WebSocketServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_an_http1_websocket_opening_gets_101_and_a_close(self) -> None:
+        scenario = SCENARIOS["websocket-http1"]
+        async with serving(scenario, "127.0.0.1", certificates()) as server:
+            port = int(server.origins["a"].rsplit(":", 1)[1])
+            head, close = await asyncio.to_thread(blocking_http1_websocket, port)
+            await http1_request(port, "/done")
+            await asyncio.wait_for(server.run.done.wait(), timeout=5)
+        self.assertTrue(head.startswith(b"HTTP/1.1 101 Switching Protocols\r\n"))
+        # RFC 6455 section 1.3's sample key and answer.
+        self.assertIn(b"sec-websocket-accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n", head)
+        self.assertEqual(close, WEBSOCKET_CLOSE)
+        self.assertIsNone(server.run.error)
+        self.assertEqual(
+            [(request.method, request.path) for request in server.run.requests],
+            [("GET", "/socket"), ("GET", "/done")],
+        )
+        self.assertEqual(server.run.connections[0].closed_by, "server")
+
+    async def test_an_http2_websocket_opening_gets_200_and_a_close(self) -> None:
+        scenario = SCENARIOS["websocket"]
+        async with serving(scenario, "127.0.0.1", certificates()) as server:
+            port = int(server.origins["a"].rsplit(":", 1)[1])
+            enabled, status, data = await asyncio.to_thread(
+                blocking_http2_websocket, port
+            )
+            await asyncio.wait_for(server.run.done.wait(), timeout=5)
+        self.assertEqual(enabled, 1)
+        self.assertEqual(status, b"200")
+        self.assertEqual(data, WEBSOCKET_CLOSE)
+        self.assertIsNone(server.run.error)
+        self.assertEqual(
+            [(request.method, request.path) for request in server.run.requests],
+            [("CONNECT", "/socket"), ("GET", "/done")],
+        )
+
+
+# A masked client close frame with status 1000 and an all-zero mask.
+CLIENT_CLOSE = b"\x88\x82\x00\x00\x00\x00\x03\xe8"
+
+
+def blocking_http1_websocket(port: int) -> tuple[bytes, bytes]:
+    raw = socket.create_connection(("127.0.0.1", port), timeout=5)
+    with HTTP1_CLIENT.wrap_socket(raw, server_hostname=HOSTNAME) as stream:
+        stream.sendall(
+            (
+                f"GET /socket HTTP/1.1\r\nhost: {HOSTNAME}:{port}\r\n"
+                "upgrade: websocket\r\nconnection: Upgrade\r\n"
+                "sec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+                "sec-websocket-version: 13\r\n\r\n"
+            ).encode("ascii")
+        )
+        received = b""
+        while b"\r\n\r\n" not in received:
+            received += stream.recv(65536)
+        head, _, rest = received.partition(b"\r\n\r\n")
+        stream.sendall(CLIENT_CLOSE)
+        while chunk := stream.recv(65536):
+            rest += chunk
+        return head + b"\r\n\r\n", rest
+
+
+def blocking_http2_websocket(port: int) -> tuple[int | None, bytes | None, bytes]:
+    import h2.config
+    import h2.connection
+    import h2.events
+    from h2.settings import SettingCodes
+
+    authority = f"{HOSTNAME}:{port}".encode()
+    raw = socket.create_connection(("127.0.0.1", port), timeout=5)
+    with client_context("h2").wrap_socket(raw, server_hostname=HOSTNAME) as stream:
+        client = h2.connection.H2Connection(
+            h2.config.H2Configuration(client_side=True, header_encoding=None)
+        )
+        client.initiate_connection()
+        stream.sendall(client.data_to_send())
+        enabled = status = None
+        data = b""
+        ended = False
+        while not ended:
+            for event in client.receive_data(stream.recv(65536)):
+                if (
+                    isinstance(event, h2.events.RemoteSettingsChanged)
+                    and enabled is None
+                ):
+                    enabled = client.remote_settings.get(
+                        SettingCodes.ENABLE_CONNECT_PROTOCOL
+                    )
+                    client.send_headers(
+                        1,
+                        [
+                            (b":method", b"CONNECT"),
+                            (b":protocol", b"websocket"),
+                            (b":scheme", b"https"),
+                            (b":path", b"/socket"),
+                            (b":authority", authority),
+                        ],
+                    )
+                elif isinstance(event, h2.events.ResponseReceived):
+                    status = dict(event.headers)[b":status"]
+                    client.send_data(1, CLIENT_CLOSE)
+                elif isinstance(event, h2.events.DataReceived):
+                    data += event.data
+                    client.acknowledge_received_data(
+                        event.flow_controlled_length, event.stream_id
+                    )
+                elif isinstance(event, h2.events.StreamEnded):
+                    ended = True
+            stream.sendall(client.data_to_send())
+        client.send_headers(
+            3,
+            [
+                (b":method", b"GET"),
+                (b":scheme", b"https"),
+                (b":path", b"/done"),
+                (b":authority", authority),
+            ],
+            end_stream=True,
+        )
+        stream.sendall(client.data_to_send())
+        while chunk := stream.recv(65536):
+            client.receive_data(chunk)
+        return enabled, status, data
 
 
 if __name__ == "__main__":
