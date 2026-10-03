@@ -309,3 +309,59 @@ fn opening_a_connection_stays_within_the_setup_budget() {
         &[("PoolEntry::open", future_size(&super::PoolEntry::open))],
     );
 }
+
+/// A read-idle limit on a `407` body drain needs a timer; on a runtime
+/// without its time driver the drain fails instead of panicking.
+#[test]
+fn challenge_drain_without_a_time_driver_is_runtime_unavailable() -> TestResult {
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+    // The connection driver needs timers, so the connection and its `407`
+    // come from a complete runtime, and only the drain runs without timers.
+    let complete = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let (mut body, _server, _connection) = complete.block_on(async {
+        let (connection, mut server) = connection().await?;
+        let target = phantom_net::http1::OriginForm::parse("/").map_err(|_| "invalid target")?;
+        let host = vec![phantom_net::http1::RequestHeader::new(
+            "host",
+            b"proxy.test",
+        )];
+        let proxy = async {
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                let mut byte = [0_u8; 1];
+                server.read_exact(&mut byte).await?;
+                request.push(byte[0]);
+            }
+            // The body never arrives, so the drain waits on its timer.
+            server
+                .write_all(
+                    b"HTTP/1.1 407 Proxy Authentication Required\r\ncontent-length: 5\r\n\r\n",
+                )
+                .await?;
+            Ok::<_, std::io::Error>(server)
+        };
+        let (response, server) = tokio::try_join!(
+            async { Ok::<_, Box<dyn std::error::Error>>(connection.send_get(target, host).await?) },
+            async { Ok(proxy.await?) },
+        )?;
+        let (_, body) = response.into_parts();
+        Ok::<_, Box<dyn std::error::Error>>((body, server, connection))
+    })?;
+    let without_time = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()?;
+
+    let drained = without_time.block_on(super::drain_challenge(
+        &mut body,
+        Some(Duration::from_secs(1)),
+    ));
+
+    let error = drained
+        .err()
+        .ok_or("the drain without a timer did not fail")?;
+    assert_eq!(error.kind(), crate::RequestErrorKind::RuntimeUnavailable);
+    Ok(())
+}

@@ -1786,6 +1786,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- A forward-proxy `407` whose body is drained before the credentialed
+  replay, with a `read_idle` timeout set, fails with `RuntimeUnavailable` on
+  a Tokio runtime without its time driver instead of panicking.
 - On macOS, internal deadlines such as the wait for an HTTPS record, the
   TCP attempt fallback, the TCP keepalive schedule, and HTTP/2 PING timeouts
   could fire up to about 150 ms late on a loaded host, so a record that

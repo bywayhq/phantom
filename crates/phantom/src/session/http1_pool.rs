@@ -402,9 +402,13 @@ async fn drain_challenge(
     loop {
         let frame = poll_fn(|context| Pin::new(&mut *body).poll_frame(context));
         let frame = match read_idle {
-            Some(read_idle) => tokio::time::timeout(read_idle, frame).await.map_err(|_| {
-                RequestError::timeout(TimeoutPhase::ReadIdle, Some(HttpProtocol::Http1))
-            })?,
+            Some(read_idle) => {
+                crate::timeout::within(read_idle, frame)
+                    .await?
+                    .ok_or_else(|| {
+                        RequestError::timeout(TimeoutPhase::ReadIdle, Some(HttpProtocol::Http1))
+                    })?
+            }
             None => frame.await,
         };
         match frame {
