@@ -9,6 +9,8 @@ support, see [Coverage](reference/coverage.md).
 Each phase names its main delivery focus. Idiomatic Rust, clear ownership,
 accurate documentation, and green validation gates are required in every
 phase, and the [standing rules](#standing-rules) apply to all of them.
+Counts in the later phases come from a read-only review of `main` at
+438f8de6 (2026-10-02) and change as work lands.
 
 ## Phase 1: Functionality (current)
 
@@ -368,39 +370,81 @@ baseline comes first, so the lints guide the refactor rather than follow it.
   `must_use_candidate`, `needless_pass_by_value`, `doc_markdown`, and the
   `cast_*` lints), and `clippy::cargo` for the release. Each lint is fixed
   across the workspace before it is turned on.
-- Replace the route-specific public methods of `phantom-net` (about 100,
-  such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with one
-  connect, send, and upgrade operation per protocol that takes a route value,
-  and build the connection leg in one place. This removes most of the
-  duplication between `http1/tls.rs` and `http2/tls.rs`, the
-  `too_many_arguments` allowances, and the six copies of route dispatch in the
-  pools and WebSocket openings. It changes no wire field or order: every
-  fixture replay stays byte-identical.
-- Decide how the public profile settings structs grow:
-  `#[non_exhaustive]` with constructors, or an explicit versioning policy.
+- Replace the route-specific public API of `phantom-net` (109 methods on
+  five connectors and 14 free functions; 84 `pub fn` names spell out a
+  route, such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with
+  one connect, send, and upgrade operation per protocol that takes a route
+  value, and build the connection leg in one place. This removes most of
+  the duplication between `http1/tls.rs` and `http2/tls.rs`, most of the 89
+  `too_many_arguments` allowances in `phantom-net`, and the 9
+  `match route` blocks in 6 pool and WebSocket files. It changes no wire
+  field or order: every fixture replay stays byte-identical.
+- Narrow what `phantom-net` and `phantom-quic-btls` publish. 104 of
+  `phantom-net`'s 543 non-test `pub` items are named by no other crate,
+  example, or test, 9 `pub` functions have no caller at all, and 12
+  `#[doc(hidden)] pub` items carry plumbing between crates.
+  `phantom-quic-btls` exports packet-protection primitives, such as
+  `derive_initial_keys`, `HeaderProtectionKey`, and `retry_integrity_tag`,
+  that only its own tests use. Make them `pub(crate)` and check the result
+  with `cargo public-api`.
+- `#[non_exhaustive]` on the 24 exhaustive public enums of `phantom-net`,
+  among them its 6 error enums and 9 error-kind enums, so a new failure
+  mode is not a breaking change. `phantom` already marks 18 of its 21 enums
+  and `phantom-profile` 48 of 51.
+- Keep vendored-fork types out of `phantom-net`'s public API: `Http1Error`
+  wraps `wreq_proto::Error` and `Http3Error` has a public
+  `From<h3::error::StreamError>`, so refreshing a fork is a semver break.
+  Wrap foreign errors in opaque types reached through `source()`, and list
+  each crate's intended public dependencies, such as the `btls` and
+  `quinn-proto` types `phantom-quic-btls` names as a quinn crypto provider.
+- Decide how the 26 public profile settings structs (135 `pub` fields)
+  grow: `#[non_exhaustive]` with constructors, or an explicit versioning
+  policy. Let the constructors make invalid combinations unrepresentable.
+  `TlsSettings` pairs `session_tickets: bool` with a per-origin count and
+  `ech_grease: bool` with a payload policy, and accepts a `min_version`
+  above `max_version`; today only the 10 `validate()` methods, with about
+  144 rejection sites, catch these when `ClientBuilder::build` runs.
 - Group the 23 public `phantom-profile` modules: browser recipes under one
   module beside the protocol settings modules, with one naming rule for
   Chrome and Chromium (today `chromium` holds the Chrome desktop recipes and
   `chrome_android` the Android ones).
 - Check every public type against the
   [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html):
-  common traits derived where they make sense, `Send` and `Sync` asserted in
-  tests, `as_`, `to_`, and `into_` naming, consistent builders, `# Errors` and
-  `# Panics` sections, an example on each public item, and `#[must_use]`
-  where dropping a value is a bug.
+  common traits derived where they make sense (no `phantom-profile` type
+  derives `Hash`), `Send` and `Sync` asserted in tests (no error type is
+  today), `as_`, `to_`, and `into_` naming, consistent builders, `# Errors`
+  and `# Panics` sections, an example on each public item, and
+  `#[must_use]` where dropping a value is a bug. Today 7 of `phantom`'s 282
+  public functions have an example and the other library crates have none.
+  `# Errors` is on every `phantom` function that returns `Result`, but on 88
+  of 218 in `phantom-net`, 5 of 12 in `phantom-profile`, and 1 of 28 in
+  `phantom-quic-btls`.
+- `From` and `TryFrom` where a constructor is a conversion, such as
+  `CipherSuite::from_iana_id`, `QuicVersion::from_wire`, and
+  `RequestBody::from_bytes`; enums in place of value-selecting `bool`
+  parameters, such as `RequestField::default_value(trustworthy)`; and a
+  `Stream` impl on the SSE types, which offer only `next_event()` while
+  `WebSocket` implements `Stream` and `Sink`.
 - Public errors with a stable `kind()`, a `source()` chain, and lowercase
   messages without trailing punctuation; enums or newtypes in place of
-  strings a caller would match on.
+  strings a caller would match on. The messages already meet the style
+  rule. The gaps: 23 of the 47 library error types have no `kind()`, 14 of
+  them classify by a `&'static str` field name, and 13 types print their
+  cause in `Display` and also return it from `source()`, so a chain
+  reporter prints each cause once per level above it.
 - Named types in place of bare primitives and nested collections in public
   settings where the meaning is not obvious, such as the
   `Vec<Vec<Box<[u8]>>>` of trust-anchor orders.
 - Composed per-browser profile constructors, such as `chromium::v154()`, so
   a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
-- Error triage over `kind()`, a public replay-safety accessor, and the
-  response carried on errors that have one.
+- Error triage over `kind()`, a public replay-safety accessor, the
+  response carried on errors that have one, and the origin (scheme, host,
+  and port, never the full URI) on `RequestError`.
 - Bounded `text()`, `bytes()`, and typed-JSON helpers that never set a
   request field.
-- Re-exports of the types the public API names, such as `Bytes`.
+- Re-exports of the types the public API names, such as `Bytes`,
+  `http::Response`, `StatusCode`, and `Uri`, and of the five profile types
+  reachable only through public fields, such as `Http2StreamSettings`.
 - A tracing span and field contract, then one narrow request hook that may
   fill a declared slot but never add a field.
 - A per-request timeout that layers onto the client's, and a retry budget.
@@ -445,6 +489,17 @@ not carry its renames. Until then, depend on a pinned git revision
   Phase 2 wire-assertion harness may need anyway.
 - Measure the public API with `cargo public-api`, and check each release
   against the previous one with `cargo semver-checks`.
+- Check the vendored forks against security advisories before the first
+  publish. RustSec and `cargo deny` match advisories by registry crate
+  name, so none reaches the nine renamed `phantom-*` forks of h2, h3,
+  quinn, quinn-proto, tungstenite, btls, and the others; the http2 fork's
+  RUSTSEC-2026-0258 fix was found and backported by hand
+  ([`vendor/http2/PHANTOM.md`](../vendor/http2/PHANTOM.md)). Look up each
+  fork's upstream name and version in the weekly freshness job, fail on an
+  unaddressed advisory, and record the handled ones in its `PHANTOM.md`.
+- Turn the further-reading paths in the `phantom` crate docs into absolute
+  repository links. They are code spans today, which a docs.rs reader
+  cannot follow.
 
 ## Phase 3: Hardening
 
@@ -463,17 +518,98 @@ not carry its renames. Until then, depend on a pinned git revision
   guaranteed to match.
 - Broader fuzzing, sanitizers, lifecycle regressions, and soak tests,
   including a panic across a real BoringSSL callback in `phantom-quic-btls`
-  and a fuzzing seam for HTTPS-record `h3` selection.
+  and a fuzzing seam for HTTPS-record `h3` selection. Peer-facing parsers
+  with no fuzz target: Alt-Svc fields, SSE, the content-coding pipeline and
+  its gzip header parser, CONNECT-UDP capsules, SOCKS5 replies, ALPS
+  `ACCEPT_CH`, `Retry-After`, the WebSocket handshake checks, QUIC header
+  protection and the Retry tag, and the vendored HPACK and QPACK engines.
+  Two of the 11 targets, `client_hello` and `http2_frame`, fuzz testkit
+  parsers rather than the production ones.
 - An async correctness audit: cancellation safety at every `select!` and
   dropped future, no lock held across an `.await`, no detached task that
   outlives its owner, no blocking call on a runtime thread, and `Send` bounds
-  on public futures.
+  on public futures. Known sites: the HTTP/3 session sender, a Tokio mutex
+  held across `send_request().await`, which waits on stream credit and flow
+  control; the HTTP/3 connect turn, a mutex guard held across connection
+  setup; pool state behind Tokio mutexes although no critical section
+  awaits, with every stream end waking every setup waiter; and no `Send`
+  assertion for the futures of `collect_with_limit` and of the WebSocket
+  `send`, `receive`, and `close`.
 - A resource lifecycle audit: each per-client store's bound, what drop and
   shutdown release, timers cancelled with their owner, and the threads and
-  runtimes the library starts.
+  runtimes the library starts. Known gaps: in-flight HTTPS-record lookups
+  have no count bound, where the address cache caps shared resolutions at
+  its capacity, and a `from_fn` resolver has no time bound; an orphaned
+  Alt-Svc setup holds a `Client` clone, so dropping the client does not
+  release its pools until the setup ends; `Client` has no shutdown method;
+  idle connections close only on checkout or eviction; evicting a pool
+  entry with a setup in flight lets a second setup exceed the per-key
+  bound for a while; qlog output writes files on runtime threads with no
+  size bound; and the first use of the process-wide
+  `phantom-shutdown-timer` thread blocks the calling runtime thread until
+  that thread has built its runtime.
 - A secrets audit: proxy credentials, cookies, and authorization values
-  kept out of `Debug` output and tracing fields, and parser limits against
-  oversized headers and decompression bombs.
+  kept out of `Debug` output and tracing fields and zeroized on drop
+  (`zeroize` covers only QUIC and TLS key material today), and parser
+  limits against oversized headers and decompression bombs.
+- Input limits that the per-field caps miss. The default cookie limits
+  allow about 720 KiB of cookies per domain against a 32 KiB request-header
+  cap, so one origin can make every later request to its domain fail
+  locally. `br, br, br` holds about 48 MiB of decoder windows from a few
+  bytes, which the decoded-bytes cap does not count. The HTTP/1.1 response
+  head is parsed again from byte 0 on every read
+  (`phantom-net/src/http1/response_head.rs`), quadratic in the bytes of a
+  server that trickles them.
+- Document that Phantom checks neither revocation nor Certificate
+  Transparency: it requests OCSP staples and SCTs for the fingerprint only
+  and trusts only the bundled `webpki-root-certs`. Decide whether a custom
+  profile may keep the TLS 1.0 minimum that validation allows today, or
+  needs an explicit opt-in below 1.2.
+- Build `zstd` without its default features, whose `legacy` decoders for
+  the v0.1 to v0.7 formats read peer bodies today, and run `cargo deny`
+  over `fuzz/Cargo.lock` (240 packages), which the root check skips.
+- Tighten the unsafe-code boundary. `fuzz/Cargo.toml` has no `[lints]`
+  table, and `check-unsafe-boundaries.sh` fails a manifest that allows
+  `unsafe_code` but not one that omits the lint; it also reads attributes
+  line by line, so it misses a multi-line `allow(...)`. `phantom-net` and
+  `phantom-quic-btls` copy the workspace lint table instead of inheriting
+  it. In `phantom-quic-btls`, drop the redundant `unsafe impl Send` and
+  `Sync` for `AesHeaderCipher`, and correct two SAFETY comments in
+  `quic_callbacks.rs`: one omits the non-zero-size precondition of
+  `alloc`, and one calls a built `SslContext` immutable, which
+  `set_ech_keys(&self)` contradicts.
+- Run tests at default features: every test runs with `--all-features`,
+  so the off-state stubs are compiled but never run, and the Windows and
+  macOS jobs build no reduced feature set. Compile the branches no job
+  builds: Android interface binding, which Phase 1 and the `SourceBinding`
+  rustdoc claim; the fallback for targets outside the 16-target list in
+  `phantom-net/src/tcp.rs`, which is written out three times; and its
+  OpenBSD, Haiku, and Vita exclusion. Otherwise narrow the claims to Linux.
+- Tests that do not depend on wall-clock speed: 16 real-time upper-bound
+  asserts (such as `http2/tests/preface_ping.rs`, which expects 5 to 7 s
+  over real 4 and 2 s waits), two test servers that stop accepting after a
+  300 or 500 ms quiet spell, and 110 real-time sleeps; only 11 files pause
+  the clock. Assert ordering and lower bounds, and stop servers on an
+  explicit signal. Paused time cannot reach code on `std::time`, such as
+  Alt-Svc expiry and backoff and the DNS cache TTL: non-test code reads
+  `std::time::Instant` 35 times and `tokio::time::Instant` 18 times, so
+  give each crate one clock.
+- Make skipped tests visible: 8 runtime skip paths print `skipped:` and
+  pass, so a runner that lost a capability, such as port randomization or
+  interface binding, looks green.
+- Close the gaps between the gate and CI. From 2026-09-25 to 2026-10-02
+  `main` failed on macOS for 67 runs and nothing reported it; alert when
+  `main` fails twice in a row. The nightly recursion check, which guards
+  `Send` on public futures, runs only in a local gate with that nightly
+  installed, and the fuzz crate's lints and tests only in the advisory,
+  path-filtered fuzz workflow. The full gate runs no ShellCheck,
+  `cargo deny`, `check-downstream.sh`, script self-tests, or release-link
+  test, all of which CI runs, and CI's ShellCheck covers 15 of the 20
+  shell scripts.
+- Check every copy of a toolchain version: `check-tool-pins.sh` checks
+  none of the hard-coded copies of the 1.88.0 MSRV (in the Platform job,
+  AGENTS.md, CONTRIBUTING.md, README.md, and others), the btls 1.85.0 MSRV,
+  or the `rust:1.99.0` images of the conformance Dockerfiles.
 - Audit the vendored `h3` engine against Hyperium and the
   [`0x676e67/http3`](https://github.com/0x676e67/http3) fork before its next
   refresh: port the QPACK absolute-Base fix and Hyperium's buffered-write fix,
@@ -499,7 +635,19 @@ not carry its renames. Until then, depend on a pinned git revision
   cancellation, and bounded-resource evidence.
 - Build health: compile time, generic code that monomorphizes per profile or
   route, binary size of a minimal client, and dependencies that add build
-  time for little use.
+  time for little use. Starting points: 48 `async fn`s in `phantom-net` are
+  generic over the stream type, behind 55 connection-setup futures (the
+  largest 9,248 bytes against a 12 KiB budget); 8 crates are locked at two
+  versions, such as `syn` 2 and 3 and `thiserror` 1 through `tokio-socks`,
+  which `deny.toml` allows; 11 dependencies, `tokio` among them, repeat
+  across member manifests instead of `[workspace.dependencies]`; and no
+  `[profile.release]` is set.
+- CI cost. The fuzz workflow takes 71 runner-minutes for 15 s of fuzzing
+  per target, because each of its 11 jobs rebuilds the ASan fuzz crate and
+  9 build `cargo-fuzz` from source. The Downstream and Vendor jobs run
+  without a Cargo cache. Real protocol timers set test time: 40 tests take
+  over 1 s on Linux, the slowest 7.5 s, waiting on HTTP/2 `PING` and
+  keepalive timers.
 
 ## Phase 5: Architecture audit
 
@@ -510,37 +658,95 @@ not carry its renames. Until then, depend on a pinned git revision
 - A readability pass by a human reviewer for code that passes the lints but
   reads as generated: over-parameterized helpers, deeply nested `match`
   blocks, defensive branches for states that cannot occur, and names that
-  spell out a whole call path.
-- Comment density brought toward peer crates: inline comments are about
-  1.5% of lines, where hyper, quinn, and rustls carry 4.7 to 8.2%, so the
-  dense protocol code needs more invariant comments while recipe rustdoc
-  needs less capture history.
-- Test files split by behavior where they pass about 1,500 lines, and
-  table-driven tests where cases differ only by data.
+  spell out a whole call path. 45 non-test functions exceed 100 lines and
+  9 exceed 200, such as `connect_http1` in `phantom/src/websocket/http1.rs`
+  (345 lines) and `ClientBuilder::build` (326); the deepest, the two proxy
+  Basic authentication exchanges, nest 7 and 8 brace levels.
+- Inline comments where the code needs them. Counted over non-test,
+  non-blank lines with rustdoc excluded, Phantom's inline comments are
+  1.23% of lines, against 3.44% in quinn 0.11.12, 3.58% in rustls 0.23.45,
+  4.76% in hyper 1.11.1, 5.83% in quinn-proto 0.11.19, and 6.46% in h2
+  0.4.19. The pools already carry 3.7 to 5.0 comments per 100 code lines;
+  the gap is branchy functions with no invariant comment. Start with
+  `send_prepared_request` in `phantom-net/src/http1/connection.rs`, which
+  holds a Tokio mutex across `.await` as an exception to a standing rule,
+  then the `biased` select in `http3/body/task.rs`, the nested `Option` in
+  `http2/upload.rs`, and the phase changes in `tls/early_data.rs`.
+- Test files split by behavior where they pass about 1,500 lines (3 today,
+  the largest `phantom-profile/src/request_template/tests.rs` at 2,039),
+  and table-driven tests where cases differ only by data (23 groups of 50
+  structurally identical tests, most of them per-browser recipe tests).
 - Decide retry, replay, and early-data handling from typed fields set where an
   error is created, instead of downcasting error chains to `phantom-net`
-  types.
-- Give the four connection pools one core for origin entries, admission,
-  setup waiters, ECH choice, and lease guards, and split functions longer than
-  100 lines; add invariant comments to the most deeply nested state machines.
+  types at 11 sites.
+- Give the five connection pools one core for origin entries, admission,
+  setup waiters, ECH choice, and lease guards: the four in
+  `phantom/src/session` (5,342 lines, each with its own `PoolState`,
+  `PoolKey`, `PoolEntry`, and `ConnectionLease`) and `Http2ProxyPool` in
+  `phantom-net`, whose crate docs say it owns no pools. Pass one request
+  context into the pools in place of the 15 to 17 inputs of each
+  `send_request`, which keep the 25 `too_many_arguments` allowances in
+  `phantom` that the Phase 2 route value leaves. Split functions longer
+  than 100 lines, and add invariant comments to the most deeply nested
+  state machines.
+- One runtime seam. 20 `Handle::try_current` checks in 12 files and 15
+  `RuntimeUnavailable` variants each check the runtime; probe it once when
+  the client is built, and route spawn, sleep, and dial through one module,
+  the seam the Phase 3 compio spike needs.
+- Test hooks out of production types: production files carry 225
+  `#[cfg(test)]` attributes outside `mod tests`, 67 of them on struct
+  fields, most in `phantom-net/src/http3`. Give each owner one test-only
+  hooks field.
+- One copy of each private helper: the span-outcome drop guard (11 copies
+  across `phantom` and `phantom-net`), `is_token_byte` (3 in
+  `phantom-profile`), and the WebSocket handshake's nonce, base64, and
+  SHA-1 calls, which reach `btls` directly and are the only reason the
+  `websocket` feature pulls `btls` into `phantom-http`.
+- Allowances that fail when stale: 23 `too_many_arguments` allowances sit
+  on functions with 7 inputs, which the lint does not flag, and
+  module-level `dead_code` allowances in `phantom-quic-btls` cover 1,884
+  lines and hide an uncalled `into_packet_key`. Use `#[expect]` instead.
 - Move test helpers copied across test files into `phantom-testkit` or
-  `tests/support`.
+  `tests/support`. 90 helper names are defined in 3 or more files,
+  `bounded` in 49 and `const TEST_TIMEOUT` in 58 with four values, and a
+  blanket `allow(dead_code)` on `tests/support` hides the unused ones.
 - Bring the file layout to the test-placement and module-file rules in
-  [AGENTS.md](../AGENTS.md#code-and-documentation): fold short tests back
-  inline and remove the 44 directories that hold only `tests.rs`, drop the
-  redundant `#[path]` attributes, replace the four `mod.rs` files and enforce
-  the rule with Clippy's `mod_module_files`, move test-only code such as
-  `tracing_test.rs` out of `src`, place the Windows FFI module with its
-  owner, and split source files over about 1,500 lines, such as
-  `http1/tls.rs` and `client.rs`, along protocol lines.
+  [AGENTS.md](../AGENTS.md#code-and-documentation): fold back inline the 31
+  of the 44 `tests.rs`-only directories whose tests are 300 lines or fewer,
+  and the 6 in `fuzz/src`; move the 3 inline test modules over 300 lines
+  (`retry.rs`, `client.rs`, `socks5_udp.rs`) to `tests.rs` files; drop the
+  22 redundant `#[path]` attributes of the 39; replace the 7 `mod.rs` files
+  (4 in `phantom-net`, 2 in `phantom-testkit`, and `tests/support/mod.rs`)
+  and enforce the rule with Clippy's `mod_module_files`; move test-only
+  code such as `tracing_test.rs` out of `src`; place the Windows FFI module
+  with its owner; and split source files over about 1,500 lines (9 today),
+  such as `client.rs`, along protocol lines. `http1/tls.rs` repeats 52% of
+  its lines within itself and should fall below 1,000 lines through the
+  Phase 2 route value rather than a split.
 - Keep capture history in [Validation](explanation/validation.md) rather
-  than in recipe rustdoc, and split Validation into one evidence page per
-  browser.
+  than in recipe rustdoc, which is 35.1% of `phantom-profile`'s lines
+  against 13.7 to 22.3% in the peers above, and split Validation into one
+  evidence page per browser.
+- Give `phantom-profile` a crate page: one line covers its 23 public
+  modules today. Explain the `<browser>::v<N>_<layer>` naming and which
+  layers a `ClientProfile` takes, with one composed example.
+- Re-read at the `154.0.8037.58` tag the 11 Chromium source citations still
+  pinned to `153.0.8010.48` (cookies, Alt-Svc policy, address racing, and
+  TCP settings), or make the re-read a step of each recipe refresh.
+- Add the last-checked date that
+  [Writing the documentation](internals/documentation.md#claims) requires
+  to the [At a glance](reference/coverage.md#at-a-glance) table of Coverage
+  and to the table in [Profile reference](reference/profiles.md).
 - Keep wire fixtures, public API contracts, diagnostics, cancellation
   behavior, and the full gates through every behavior-preserving refactor.
 - Audit the tooling (capture and conformance scripts, CI and release scripts,
   development helpers, workflows, and agent configuration), remove what no
-  gate uses, and keep documented commands in step with CI.
+  gate uses, and keep documented commands in step with CI. Start with
+  `scripts/dev/consolidate_integration_tests.py`, a finished one-off
+  migration whose tests still run in the gate and CI, and the copied script
+  code: 11 groups of byte-identical Python helpers across the capture and
+  conformance scripts, and shell functions copied between the
+  upstream-freshness scripts.
 
 ## Next
 
