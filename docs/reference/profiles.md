@@ -352,21 +352,24 @@ target of a local-DNS `socks5://` route. A target that a proxy resolves is
 never resolved locally, and a name with a `ClientBuilder::resolve` override
 never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 
-| Recipe | Names kept | Answer kept for | Failure kept for |
-| --- | --- | --- | --- |
-| None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept |
-| `chromium::v154_dns_cache` | 1,000 | 60 s | Not kept |
-| `firefox::v157_dns_cache` | 1,600 | 60 s | 60 s |
-| Brave | 1,000, from `chromium::v154_dns_cache` | 60 s | Not kept |
-| Edge, Opera | 1,000, from `chromium::v154_dns_cache` | 60 s, as hook logs show through the system resolver | Not kept |
-| Android browsers | Not covered | Not covered | Not covered |
+| Recipe | Names kept | Answer without a record TTL kept for (`ttl`) | Answer with a record TTL kept for (`min_record_ttl`) | Failure kept for |
+| --- | --- | --- | --- | --- |
+| None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept | Not kept |
+| `chromium::v154_dns_cache` | 1,000 | 60 s | The TTL, at least 60 s | Not kept |
+| `firefox::v157_dns_cache` | 1,600 | 60 s | The TTL | 60 s |
+| Brave | 1,000, from `chromium::v154_dns_cache` | 60 s | The TTL, at least 60 s | Not kept |
+| Edge, Opera | 1,000, from `chromium::v154_dns_cache` | 60 s, as hook logs show through the system resolver | The TTL, at least 60 s | Not kept |
+| Android browsers | Not covered | Not covered | Not covered | Not covered |
 
-- Phantom resolves through the operating system, which reports no record
-  TTL, or through the caller's `AddressResolver`, which returns none. Both
-  recipes use the browser's value for an answer without one: Chromium's
-  system-resolver path and Firefox's `network.dnsCacheExpiration`.
-- Chromium's built-in DNS client keeps an answer for its record TTL, at least
-  60 s, and Firefox on Windows asks the OS for the TTL. Neither is modeled.
+- The operating system's resolver reports no record TTL, and neither does
+  an `AddressResolver::from_fn` resolver, so every answer is kept for
+  `ttl`: Chromium's system-resolver value and Firefox's
+  `network.dnsCacheExpiration`.
+- Chromium keeps an answer from its built-in DNS client for its record TTL,
+  at least 60 s. Firefox on Windows reads the record TTL from the operating
+  system and keeps the answer that long, without a lower bound.
+  `min_record_ttl` carries both rules, but it applies only to an answer
+  from a resolver that reports a TTL, and Phantom's resolvers report none.
 - Firefox serves an expired answer for up to 600 s more while it resolves the
   name again in the background. Phantom resolves an expired name before it
   connects.

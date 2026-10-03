@@ -2192,15 +2192,16 @@ Limits:
 
 What is claimed: `chromium::v154_dns_cache` and `firefox::v157_dns_cache`
 keep as many names, and an answer and a failure for as long, as those
-browsers do for an answer without a record TTL at the profiled release tags,
-and `chromium::v154_dns_cache` as Brave 154, Edge 154, and Opera 136 do.
-With a cache, the client makes one lookup per name it resolves itself per
-cache `ttl`, shares one lookup between concurrent connections, keeps every
-resolved address as returned except its port, and never resolves a
-proxy-resolved target. The shared lookup runs on the starting runtime's
-blocking pool, which bounds the resolutions in flight, and a connection on
-one Tokio runtime never waits on another runtime that has stopped being
-driven.
+browsers do at the profiled release tags, and `chromium::v154_dns_cache` as
+Brave 154, Edge 154, and Opera 136 do: an answer without a record TTL for
+`ttl`, and an answer with one for that TTL or `min_record_ttl`, whichever is
+longer. With a cache, the client makes one lookup per name it resolves
+itself per answer lifetime, shares one lookup between concurrent
+connections, keeps every resolved address as returned except its port, and
+never resolves a proxy-resolved target. The shared lookup runs on the
+starting runtime's blocking pool, which bounds the resolutions in flight,
+and a connection on one Tokio runtime never waits on another runtime that
+has stopped being driven.
 
 Evidence: a capture of one page load cannot show how long a browser reuses
 an answer, so the recipes rest on browser source at Chromium tag
@@ -2208,8 +2209,8 @@ an answer, so the recipes rest on browser source at Chromium tag
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_dns_cache` | Each `URLRequestContext`, one per browser profile, creates its resolver with caching on (`net/url_request/url_request_context_builder.cc:363-382`), and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000` entries in builds with the built-in DNS client (`net/dns/resolve_context.cc:109-121`), which is every Blink build (`net/dns/BUILD.gn:9`). An answer from the system resolver is kept for `kCacheEntryTTLSeconds = 60` and a failure for `kNegativeCacheEntryTTLSeconds = 0` (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`); a failure without a positive TTL is not cached (`net/dns/host_resolver_manager.cc:1284-1291`). A full cache evicts the entry that expires soonest, stale entries first (`net/dns/host_cache.cc:886-916`, `:1289-1319`). A request joins the job already running for its key (`net/dns/host_resolver_manager.cc:993-1010`). |
-| `firefox::v157_dns_cache` | `network.dnsCacheEntries` is 1600 outside nightly builds and `network.dnsCacheExpiration`, the lifetime of an answer without an OS TTL, is 60 seconds (`modules/libpref/init/StaticPrefList.yaml:15647-15661`; `netwerk/dns/nsHostResolver.cpp:1311-1318`). A failed lookup is kept for `NEGATIVE_RECORD_LIFETIME`, 60 seconds (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`). A request for a name being resolved is appended to that record's callbacks (`netwerk/dns/nsHostResolver.cpp:647-653`). |
+| `chromium::v154_dns_cache` | Each `URLRequestContext`, one per browser profile, creates its resolver with caching on (`net/url_request/url_request_context_builder.cc:363-382`), and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000` entries in builds with the built-in DNS client (`net/dns/resolve_context.cc:109-121`), which is every Blink build (`net/dns/BUILD.gn:9`). An answer from the system resolver is kept for `kCacheEntryTTLSeconds = 60` and a failure for `kNegativeCacheEntryTTLSeconds = 0` (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`); a failure without a positive TTL is not cached (`net/dns/host_resolver_manager.cc:1284-1291`). An answer from the built-in DNS client takes the smallest TTL of its results (`net/dns/host_cache.cc:279-336`, `:729-740`), each the smallest TTL of its records or of an empty answer's SOA records (`net/dns/dns_response_result_extractor.cc:265-296`, `:330-354`), and is kept for that TTL or `kMinimumTTLSeconds`, which is `kCacheEntryTTLSeconds`, whichever is longer (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`). A built-in lookup that fails, or finds no address, falls back to the system resolver (`net/dns/host_resolver_manager.cc:1415-1421`; `net/dns/host_resolver_manager_job.cc:932-946`), whose answer is then kept 60 s and whose failure is not kept. A full cache evicts the entry that expires soonest, stale entries first (`net/dns/host_cache.cc:886-916`, `:1289-1319`). A request joins the job already running for its key (`net/dns/host_resolver_manager.cc:993-1010`). |
+| `firefox::v157_dns_cache` | `network.dnsCacheEntries` is 1600 outside nightly builds and `network.dnsCacheExpiration`, the lifetime of an answer without an OS TTL, is 60 seconds (`modules/libpref/init/StaticPrefList.yaml:15647-15661`; `netwerk/dns/nsHostResolver.cpp:1311-1318`). With `network.dns.get-ttl`, on in Windows builds (`:15663-15671`), Firefox looks a resolved name up again and reads the smallest record TTL from the operating system's cache with `DnsQuery_A` (`netwerk/dns/nsHostResolver.cpp:1625-1645`, `netwerk/dns/GetAddrInfo.cpp:150-175`), and that TTL replaces the lifetime without a bound (`netwerk/dns/nsHostResolver.cpp:1314-1315`). A failed lookup is kept for `NEGATIVE_RECORD_LIFETIME`, 60 seconds (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`). A request for a name being resolved is appended to that record's callbacks (`netwerk/dns/nsHostResolver.cpp:647-653`). |
 
 Both browsers keep one cache per browser profile. Chromium keys an entry by
 host, query type, flags, source, secure mode, target network, and network

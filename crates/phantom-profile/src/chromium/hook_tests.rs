@@ -388,15 +388,36 @@ fn chromium_family_system_resolver_keeps_an_answer_for_the_cache_ttl() -> Result
     Ok(())
 }
 
-/// With their default built-in DNS client, the browsers sent one A query and
-/// one HTTPS query for the name in 120 s of fetches, and answered every later
-/// fetch from the cache: the client keeps a record for its TTL, which no
-/// recipe models (Phantom resolves through the operating system).
+/// With their default built-in DNS client, the browsers sent one HTTPS query
+/// and one A query for the name in 120 s of fetches, and answered every later
+/// fetch from the cache: the client keeps an answer for its record TTL, at
+/// least the recipe's `min_record_ttl`, past the 60 s of an answer without
+/// one. The host had no IPv6 route, so no AAAA query was sent, and the HTTPS
+/// query went first, in the same millisecond as the A query.
 #[test]
-fn chromium_family_built_in_resolver_keeps_an_answer_past_the_recipe_ttl() -> Result<(), String> {
+fn chromium_family_built_in_resolver_keeps_an_answer_for_its_record_ttl() -> Result<(), String> {
+    let recipe = v154_dns_cache();
+    assert_eq!(recipe.min_record_ttl, recipe.ttl);
     for logs in &LOGS {
         let log = logs.lookups;
         assert_provenance(log, logs)?;
+        let order = field(log, "run_0_lookups")?
+            .split(' ')
+            .map(|lookup| lookup.split(':').take(3).collect::<Vec<_>>().join(":"))
+            .collect::<Vec<_>>();
+        assert_eq!(order.len(), 2, "{}: {order:?}", logs.browser);
+        let [https, a] = [&order[0], &order[1]].map(|lookup| lookup.split_once(':'));
+        let (Some((https_ms, "WSASendTo:HTTPS")), Some((a_ms, "WSASendTo:A"))) = (https, a) else {
+            return Err(format!("{}: {order:?}", logs.browser));
+        };
+        let [https_ms, a_ms] =
+            [https_ms, a_ms].map(|ms| ms.parse::<u64>().map_err(|e| e.to_string()));
+        let gap = a_ms?.checked_sub(https_ms?);
+        assert!(
+            gap.is_some_and(|gap| gap <= 1),
+            "{}: {order:?}",
+            logs.browser
+        );
         assert_eq!(
             lookup_times(log, ":WSASendTo:A:")?.len(),
             1,
@@ -406,6 +427,11 @@ fn chromium_family_built_in_resolver_keeps_an_answer_past_the_recipe_ttl() -> Re
         assert_eq!(
             lookup_times(log, ":WSASendTo:HTTPS:")?.len(),
             1,
+            "{}",
+            logs.browser
+        );
+        assert!(
+            lookup_times(log, ":WSASendTo:AAAA:")?.is_empty(),
             "{}",
             logs.browser
         );

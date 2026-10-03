@@ -9,32 +9,58 @@ use std::{
     net::{IpAddr, SocketAddr},
     pin::Pin,
     sync::Arc,
+    time::Duration,
 };
 
 use phantom_profile::DnsCacheSettings;
 
 use crate::address_cache::AddressCache;
 
-type ResolveFuture = Pin<Box<dyn Future<Output = io::Result<Vec<IpAddr>>> + Send + 'static>>;
+type ResolveFuture = Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send + 'static>>;
+
+/// One lookup's answer: the addresses, each with port 0, in the order to try
+/// them, and the record TTL when the resolver reports one.
+pub(crate) struct Resolved {
+    pub(crate) addresses: Vec<SocketAddr>,
+    pub(crate) ttl: Option<Duration>,
+}
+
+impl Resolved {
+    /// An answer without a record TTL, as the operating system reports.
+    pub(crate) fn without_ttl(addresses: impl IntoIterator<Item = IpAddr>) -> Self {
+        Self {
+            addresses: with_port(addresses, 0),
+            ttl: None,
+        }
+    }
+}
 
 /// Resolves host names to addresses with a caller-supplied async function,
 /// in place of the operating system resolver.
 ///
-/// The function receives the host name as the connection names it, in ASCII
+/// The resolver receives the host name as the connection names it, in ASCII
 /// lowercase (for a URL host, with IDNA A-labels), never an IP literal, and
 /// returns the addresses in the order connections should try them. Address
-/// racing starts from that order as it does from the operating system's. An error is reported as a failed system lookup would
-/// be on the same path; an empty list is reported as a system answer with
-/// no addresses.
+/// racing starts from that order as it does from the operating system's. An
+/// error is reported as a failed system lookup would be on the same path; an
+/// empty list is reported as a system answer with no addresses.
 ///
-/// Clones share one function.
+/// Clones share one resolver.
 #[derive(Clone)]
 pub struct AddressResolver {
-    lookup: Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>,
+    backend: Backend,
+}
+
+#[derive(Clone)]
+enum Backend {
+    Function(Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>),
 }
 
 impl AddressResolver {
     /// Answers lookups with `lookup`.
+    ///
+    /// Its answers carry no record TTL, so an address cache keeps them for
+    /// [`DnsCacheSettings::ttl`].
     ///
     /// Without an address cache, the returned future runs inside the
     /// connection attempt that asked for it, and is dropped with that
@@ -46,22 +72,40 @@ impl AddressResolver {
         F: Fn(String) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = io::Result<Vec<IpAddr>>> + Send + 'static,
     {
+        Self::from_resolved_fn(move |host| {
+            let lookup = lookup(host);
+            async move { lookup.await.map(Resolved::without_ttl) }
+        })
+    }
+
+    /// Answers lookups with `lookup`, whose answers may carry a record TTL.
+    pub(crate) fn from_resolved_fn<F, Fut>(lookup: F) -> Self
+    where
+        F: Fn(String) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = io::Result<Resolved>> + Send + 'static,
+    {
         Self {
-            lookup: Arc::new(move |host| Box::pin(lookup(host)) as ResolveFuture),
+            backend: Backend::Function(Arc::new(move |host| {
+                Box::pin(lookup(host)) as ResolveFuture
+            })),
         }
     }
 
     /// Starts a lookup of `host`, already lowercased.
     pub(crate) fn lookup(&self, host: &str) -> ResolveFuture {
-        (self.lookup)(host.to_owned())
+        match &self.backend {
+            Backend::Function(lookup) => lookup(host.to_owned()),
+        }
     }
 }
 
 impl fmt::Debug for AddressResolver {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("AddressResolver")
-            .finish_non_exhaustive()
+        let mut debug = formatter.debug_struct("AddressResolver");
+        match &self.backend {
+            Backend::Function(_) => debug.field("backend", &"function"),
+        };
+        debug.finish_non_exhaustive()
     }
 }
 
@@ -189,7 +233,16 @@ impl HostResolver {
             return cache.lookup_noting_cache(host, port).await;
         }
         let addresses = match &self.resolver {
-            Some(resolver) => with_port(resolver.lookup(&host.to_ascii_lowercase()).await?, port),
+            Some(resolver) => resolver
+                .lookup(&host.to_ascii_lowercase())
+                .await?
+                .addresses
+                .into_iter()
+                .map(|mut address| {
+                    address.set_port(port);
+                    address
+                })
+                .collect(),
             None => tokio::net::lookup_host((host, port)).await?.collect(),
         };
         Ok((addresses, false))

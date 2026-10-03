@@ -182,7 +182,7 @@ order and the differences from Chromium.
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
-| Lifetime of cached addresses | `DnsCacheSettings::ttl`: 60 seconds in both recipes |
+| Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chromium::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |
 | Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |

@@ -4,13 +4,14 @@ use crate::{chromium, firefox};
 
 #[test]
 fn chromium_154_keeps_1000_answers_for_60_seconds_and_no_failures() {
-    // `kDefaultCacheSize`, `net/dns/resolve_context.cc:110`, and the system
-    // resolver TTLs, `net/dns/host_resolver_manager_job.cc:55-58`, at
-    // `154.0.8037.58`.
+    // `kDefaultCacheSize`, `net/dns/resolve_context.cc:110`, the system
+    // resolver TTLs, `net/dns/host_resolver_manager_job.cc:55-58`, and the
+    // built-in client's `kMinimumTTLSeconds`, `:61`, at `154.0.8037.58`.
     let settings = chromium::v154_dns_cache();
 
     assert_eq!(settings.max_entries.get(), 1000);
     assert_eq!(settings.ttl, Duration::from_secs(60));
+    assert_eq!(settings.min_record_ttl, Duration::from_secs(60));
     assert_eq!(settings.negative_ttl, None);
 }
 
@@ -20,9 +21,12 @@ fn firefox_157_keeps_1600_answers_and_failures_for_60_seconds() {
     // `modules/libpref/init/StaticPrefList.yaml:15648-15661`, and
     // `NEGATIVE_RECORD_LIFETIME`, `netwerk/dns/nsHostResolver.cpp:68`, at
     // `FIREFOX_157_0_RELEASE`.
+    // A record TTL from `DnsQuery_A` replaces the lifetime without a bound,
+    // `netwerk/dns/nsHostResolver.cpp:1314-1315`.
     let settings = firefox::v157_dns_cache();
 
     assert_eq!(settings.max_entries.get(), 1600);
     assert_eq!(settings.ttl, Duration::from_secs(60));
+    assert_eq!(settings.min_record_ttl, Duration::ZERO);
     assert_eq!(settings.negative_ttl, Some(Duration::from_secs(60)));
 }

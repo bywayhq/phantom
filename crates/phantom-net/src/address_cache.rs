@@ -8,16 +8,16 @@ use std::{
     net::{IpAddr, SocketAddr, ToSocketAddrs},
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use crate::host_resolver::AddressResolver;
+use crate::host_resolver::{AddressResolver, Resolved};
 
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
-type ResolverFuture = Pin<Box<dyn Future<Output = io::Result<Vec<IpAddr>>> + Send>>;
+type ResolverFuture = Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send>>;
 
 /// Identifies one shared resolution in flight: the name, and for a caller's
 /// resolver the runtime whose task runs it.
@@ -44,9 +44,12 @@ enum Lookup {
 /// lookup.
 ///
 /// A lookup's answer keeps the resolver's address order, on which address
-/// racing depends. It is kept for [`DnsCacheSettings::ttl`]; a
-/// failure or an empty answer is kept for [`DnsCacheSettings::negative_ttl`],
-/// or not at all. A lifetime too long for the clock never expires.
+/// racing depends. An answer without a record TTL, as from the operating
+/// system, is kept for [`DnsCacheSettings::ttl`]; one with a record TTL,
+/// from a resolver that reports record TTLs, for that TTL or
+/// [`DnsCacheSettings::min_record_ttl`], whichever is longer. A failure or an
+/// empty answer is kept for [`DnsCacheSettings::negative_ttl`], or not at
+/// all. A lifetime too long for the clock never expires.
 /// Addresses keep everything the resolver returned except the port, which
 /// each lookup supplies, so an IPv6 scope ID and flow label survive.
 ///
@@ -128,6 +131,14 @@ enum Outcome {
 }
 
 impl Outcome {
+    /// Splits a resolution into its outcome and its record TTL, if any.
+    fn from_resolution(result: io::Result<Resolved>) -> (Self, Option<Duration>) {
+        match result {
+            Ok(Resolved { addresses, ttl }) => (Self::from_result(Ok(addresses)), ttl),
+            Err(error) => (Self::from_result(Err(error)), None),
+        }
+    }
+
     fn from_result(result: io::Result<Vec<SocketAddr>>) -> Self {
         match result {
             Ok(addresses) => Self::Resolved(addresses.into()),
@@ -265,8 +276,8 @@ impl AddressCache {
                     generation,
                     resolution,
                 } => {
-                    let outcome = Outcome::from_result(resolution.await.map(with_zero_ports));
-                    self.complete(&host, None, generation, &outcome);
+                    let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
+                    self.complete(&host, None, generation, &outcome, record_ttl);
                     return outcome.addresses(port).map(|addresses| (addresses, false));
                 }
             };
@@ -346,13 +357,16 @@ impl AddressCache {
                         .build()
                         .map_err(io::Error::other)
                         .and_then(|runtime| runtime.block_on(resolution));
-                    publisher.publish(result);
+                    publisher.publish(result.map(|addresses| Resolved {
+                        addresses,
+                        ttl: None,
+                    }));
                 }));
             }
             Lookup::Task(resolver) => {
                 let resolution = resolver.lookup(&publisher.key.0);
                 drop(runtime.spawn(async move {
-                    publisher.publish(resolution.await.map(with_zero_ports));
+                    publisher.publish(resolution.await);
                 }));
             }
         }
@@ -361,12 +375,16 @@ impl AddressCache {
 
     /// Stores a finished resolution, unless the cache was cleared after it
     /// started, and releases its shared entry in `pending`, if it has one.
+    ///
+    /// `record_ttl` is the answer's record TTL, when the resolver reported
+    /// one.
     fn complete(
         &self,
         host: &str,
         pending: Option<&PendingKey>,
         generation: u64,
         outcome: &Outcome,
+        record_ttl: Option<Duration>,
     ) {
         let mut state = self.lock();
         if state.generation != generation {
@@ -378,10 +396,11 @@ impl AddressCache {
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
+        let settings = &self.inner.settings;
         let ttl = if outcome.is_negative() {
-            self.inner.settings.negative_ttl
+            settings.negative_ttl
         } else {
-            Some(self.inner.settings.ttl)
+            Some(record_ttl.map_or(settings.ttl, |ttl| ttl.max(settings.min_record_ttl)))
         };
         let now = Instant::now();
         // A lifetime too long for `Instant` never expires rather than
@@ -443,11 +462,11 @@ struct Publisher {
 
 impl Publisher {
     /// Stores the resolution's result and answers its waiters.
-    fn publish(mut self, result: io::Result<Vec<SocketAddr>>) {
-        let outcome = Outcome::from_result(result);
+    fn publish(mut self, result: io::Result<Resolved>) {
+        let (outcome, record_ttl) = Outcome::from_resolution(result);
         let pending = self.shared.then_some(&self.key);
         self.cache
-            .complete(&self.key.0, pending, self.generation, &outcome);
+            .complete(&self.key.0, pending, self.generation, &outcome, record_ttl);
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(Some(outcome));
         }
@@ -475,15 +494,6 @@ enum Answer {
         generation: u64,
         resolution: ResolverFuture,
     },
-}
-
-/// Turns a caller's addresses into socket addresses whose port each lookup
-/// replaces.
-fn with_zero_ports(addresses: Vec<IpAddr>) -> Vec<SocketAddr> {
-    addresses
-        .into_iter()
-        .map(|address| SocketAddr::new(address, 0))
-        .collect()
 }
 
 impl fmt::Debug for AddressCache {

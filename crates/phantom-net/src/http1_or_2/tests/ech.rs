@@ -559,6 +559,7 @@ fn slow_resolver(delay: Duration) -> (crate::host_resolver::HostResolver, Arc<No
     let settings = phantom_profile::DnsCacheSettings {
         max_entries: std::num::NonZeroUsize::MIN,
         ttl: Duration::from_secs(60),
+        min_record_ttl: Duration::ZERO,
         negative_ttl: None,
     };
     let resolved = Arc::new(Notify::new());

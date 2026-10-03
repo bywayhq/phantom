@@ -13,7 +13,7 @@ use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
 use super::AddressCache;
-use crate::host_resolver::AddressResolver;
+use crate::host_resolver::{AddressResolver, Resolved};
 
 mod routes;
 
@@ -27,6 +27,7 @@ fn settings(max_entries: usize, ttl: Duration, negative_ttl: Option<Duration>) -
     DnsCacheSettings {
         max_entries: NonZeroUsize::new(max_entries).unwrap_or(NonZeroUsize::MIN),
         ttl,
+        min_record_ttl: Duration::ZERO,
         negative_ttl,
     }
 }
@@ -161,6 +162,51 @@ async fn an_expired_answer_is_resolved_again() -> TestResult {
     let _ = cache.lookup("origin.phantom.test", 443).await?;
 
     assert_eq!(recorder.calls(), 2);
+    Ok(())
+}
+
+/// A resolver whose answers carry `record_ttl`, counting its lookups.
+fn with_record_ttl(calls: &Arc<AtomicUsize>, record_ttl: Duration) -> AddressResolver {
+    let calls = Arc::clone(calls);
+    AddressResolver::from_resolved_fn(move |_| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        async move {
+            let mut resolved = Resolved::without_ttl([V4]);
+            resolved.ttl = Some(record_ttl);
+            Ok(resolved)
+        }
+    })
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_answer_with_a_record_ttl_is_kept_for_that_ttl_instead_of_the_ttl() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut settings = settings(16, Duration::from_secs(600), None);
+    settings.min_record_ttl = Duration::from_millis(10);
+    let cache =
+        AddressCache::with_resolver(settings, with_record_ttl(&calls, Duration::from_millis(50)));
+
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_record_ttl_below_the_minimum_is_kept_for_the_minimum() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut settings = settings(16, Duration::ZERO, None);
+    settings.min_record_ttl = Duration::from_secs(600);
+    let cache = AddressCache::with_resolver(settings, with_record_ttl(&calls, Duration::ZERO));
+
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+    let _ = cache.lookup("origin.phantom.test", 443).await?;
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     Ok(())
 }
 

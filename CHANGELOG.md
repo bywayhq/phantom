@@ -14,6 +14,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `DnsCacheSettings` has a `min_record_ttl` field. An answer that carries a
+  record TTL is kept for that TTL or `min_record_ttl`, whichever is longer,
+  and `ttl` now applies only to an answer without one, as from the
+  operating system. `chromium::v154_dns_cache` sets 60 s, Chromium 154's
+  `kMinimumTTLSeconds`, and `firefox::v157_dns_cache` sets zero, as Firefox
+  157 keeps the TTL it reads on Windows without a lower bound
+  ([evidence](docs/explanation/validation.md#address-cache-evidence)).
+  Migrate: add `min_record_ttl` to a `DnsCacheSettings` literal, such as
+  `Duration::ZERO` to keep the record TTL as it is, or build from a recipe
+  with `..chromium::v154_dns_cache()`.
 - `TlsSettings` has a `close_notify` field: whether shutting down a TLS
   connection over TCP sends a `close_notify` alert before the TCP FIN. The
   Chromium-family recipes leave it unset and send only the FIN, as Chrome

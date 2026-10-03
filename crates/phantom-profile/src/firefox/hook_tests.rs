@@ -439,12 +439,16 @@ fn firefox_resolves_without_ai_addrconfig() -> TestResult {
     Ok(())
 }
 
-/// Not modeled: Firefox read the record's TTL with `DnsQuery_A` and kept
-/// the answer that long, so connections opened 33, 68, and 98 s after the
-/// first needed no lookup. The recipe keeps an answer for 60 s.
+/// Firefox read the record's TTL with `DnsQuery_A` and kept the answer that
+/// long, so connections opened 33, 68, and 98 s after the first needed no
+/// lookup. The recipe keeps an answer with a record TTL for that TTL, with
+/// no lower bound; Phantom's system lookups report none, so a Phantom client
+/// keeps those for the recipe's 60 s.
 #[test]
 fn firefox_keeps_an_answer_for_its_record_ttl() -> TestResult {
-    assert_eq!(v157_dns_cache().ttl, Duration::from_secs(60));
+    let recipe = v157_dns_cache();
+    assert_eq!(recipe.ttl, Duration::from_secs(60));
+    assert_eq!(recipe.min_record_ttl, Duration::ZERO);
     assert_eq!(sockets(DNS_CACHE, 0)?.len(), 4);
     let calls = field(DNS_CACHE, "run_0_lookup_calls")?;
     let mut ttl = None;

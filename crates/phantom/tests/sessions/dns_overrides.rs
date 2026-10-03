@@ -248,6 +248,7 @@ fn cache_for(ttl: Duration) -> DnsCacheSettings {
     DnsCacheSettings {
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl,
+        min_record_ttl: Duration::ZERO,
         negative_ttl: None,
     }
 }

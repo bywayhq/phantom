@@ -307,11 +307,19 @@ pub fn v157_tcp() -> TcpSettings {
 /// `NEGATIVE_RECORD_LIFETIME`, 60 seconds
 /// (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`).
 ///
-/// Two parts are not modeled. On Windows `network.dns.get-ttl` is on
-/// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`), so Firefox keeps
-/// an answer for its record TTL, which the Firefox 157 socket hook logs show
-/// it reading with `DnsQuery_A`; Phantom sees no TTL and keeps each answer
-/// for 60 seconds. Firefox also serves an expired answer for up to
+/// On Windows `network.dns.get-ttl` is on
+/// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`): after each
+/// system lookup Firefox resolves the name again and reads the smallest
+/// record TTL from the operating system's cache with `DnsQuery_A`
+/// (`netwerk/dns/nsHostResolver.cpp:1625-1645`,
+/// `netwerk/dns/GetAddrInfo.cpp:150-175`), then keeps the answer for that
+/// TTL, without a lower bound (`nsHostResolver.cpp:1311-1318`), hence a zero
+/// `min_record_ttl`. Its socket hook logs show a 1,757-second TTL kept.
+/// Phantom's system lookups report no TTL, so a Phantom client keeps those
+/// answers for 60 seconds; only a resolver that reports TTLs applies the
+/// record rule.
+///
+/// Firefox also serves an expired answer for up to
 /// `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
 /// the name again in the background (`:15680-15685`;
 /// `netwerk/dns/nsHostResolver.cpp:1266-1284`); Phantom resolves an expired
@@ -321,6 +329,7 @@ pub fn v157_dns_cache() -> DnsCacheSettings {
     DnsCacheSettings {
         max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
+        min_record_ttl: Duration::ZERO,
         negative_ttl: Some(Duration::from_secs(60)),
     }
 }

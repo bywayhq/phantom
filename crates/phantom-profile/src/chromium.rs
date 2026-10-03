@@ -387,8 +387,7 @@ pub fn v154_udp() -> UdpSettings {
     }
 }
 
-/// Returns the address cache of Chromium 154.0.8037.58's system-resolver
-/// path.
+/// Returns the address cache of Chromium 154.0.8037.58.
 ///
 /// From Chromium source at tag `154.0.8037.58`, not from a capture: a DNS
 /// cache is not visible on the wire, only the queries it saves. Each
@@ -407,12 +406,15 @@ pub fn v154_udp() -> UdpSettings {
 /// the entry that expires soonest is evicted, stale entries first
 /// (`net/dns/host_cache.cc:886-916`, `:1289-1319`).
 ///
-/// Chromium's built-in DNS client, enabled by default on Windows, macOS,
-/// Linux, ChromeOS, and Android (`net/base/features.cc:42-48`), instead keeps
-/// an answer for its record TTL, at least 60 seconds
-/// (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`), and a negative
-/// answer for its SOA TTL (`:907-908`). Phantom resolves through the operating
-/// system and sees no TTL, so this recipe follows the system-resolver path.
+/// An answer from Chromium's built-in DNS client, enabled by default on
+/// Windows, macOS, Linux, ChromeOS, and Android (`net/base/features.cc:42-48`),
+/// carries the smallest TTL of its records (`net/dns/host_cache.cc:279-336`,
+/// `:729-740`) and is kept for that TTL or `kMinimumTTLSeconds = 60`,
+/// whichever is longer (`net/dns/host_resolver_manager_job.cc:61`,
+/// `:965-966`), hence `min_record_ttl`. A built-in lookup that fails falls
+/// back to the system resolver (`net/dns/host_resolver_manager.cc:1415-1421`),
+/// whose failure is not cached. Chrome, Edge, and Opera with their default
+/// resolver sent one query for a name in 120 s of fetches 10 s apart.
 ///
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
 /// values, so this recipe also serves Brave 154. Brave enables
@@ -423,6 +425,7 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
     DnsCacheSettings {
         max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
+        min_record_ttl: Duration::from_secs(60),
         negative_ttl: None,
     }
 }
