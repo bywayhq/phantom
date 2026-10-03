@@ -61,6 +61,16 @@ impl HttpProtocol {
 /// only its route, timeouts, and retry policy, and can opt into content
 /// decoding.
 ///
+/// A connection belongs to the Tokio runtime that opened it, because its
+/// driver runs there. A request on another runtime opens a connection of its
+/// own, so a client may outlive a runtime or serve several. The per-origin
+/// request limits span runtimes, and connections opened on a runtime that was
+/// dropped stay pooled until the pool evicts them. A request left pending on
+/// a runtime that is alive but no longer driven holds its per-origin slot
+/// until it is dropped, and
+/// [`RequestTimeouts::pool_admission`](crate::RequestTimeouts::pool_admission)
+/// bounds how long other requests wait for one.
+///
 /// # Examples
 ///
 /// ```no_run

@@ -358,7 +358,7 @@ impl PoolState {
         max_active: NonZeroUsize,
         max_pending: NonZeroUsize,
     ) -> Arc<Admission> {
-        self.admissions.get(key, max_active, max_pending)
+        self.admissions.get(&key.origin(), max_active, max_pending)
     }
 }
 
@@ -382,6 +382,7 @@ struct PoolKey {
     host: Box<str>,
     port: u16,
     route: Route,
+    runtime: Option<tokio::runtime::Id>,
 }
 
 impl PoolKey {
@@ -390,6 +391,15 @@ impl PoolKey {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
             route: route.clone(),
+            runtime: super::current_runtime(),
+        }
+    }
+    /// This key without its runtime: the origin and route that per-origin
+    /// admission and learned protocol state belong to across runtimes.
+    fn origin(&self) -> Self {
+        Self {
+            runtime: None,
+            ..self.clone()
         }
     }
 }

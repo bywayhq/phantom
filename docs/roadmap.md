@@ -575,7 +575,9 @@ not carry its renames. Until then, depend on a pinned git revision
   its capacity, and a `from_fn` resolver has no time bound; an orphaned
   Alt-Svc setup holds a `Client` clone, so dropping the client does not
   release its pools until the setup ends; `Client` has no shutdown method;
-  idle connections close only on checkout or eviction; evicting a pool
+  idle connections close only on checkout or eviction; pool entries opened
+  on a runtime that was dropped keep their sockets until the pool evicts
+  them, because nothing tells a pool that a runtime ended; evicting a pool
   entry with a setup in flight lets a second setup exceed the per-key
   bound for a while; qlog output writes files on runtime threads with no
   size bound; and the first use of the process-wide

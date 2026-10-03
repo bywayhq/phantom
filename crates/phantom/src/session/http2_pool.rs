@@ -344,7 +344,7 @@ impl Http2Pool {
         }
         let admission = state
             .admissions
-            .get(&key, self.max_active, self.max_pending);
+            .get(&key.origin(), self.max_active, self.max_pending);
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
             admission,
@@ -393,6 +393,7 @@ struct PoolKey {
     port: u16,
     route: Route,
     mode: Http2ConnectionMode,
+    runtime: Option<tokio::runtime::Id>,
 }
 
 impl PoolKey {
@@ -402,6 +403,15 @@ impl PoolKey {
             port: endpoint.port(),
             route: route.clone(),
             mode,
+            runtime: super::current_runtime(),
+        }
+    }
+    /// This key without its runtime: the origin and route that per-origin
+    /// admission and learned protocol state belong to across runtimes.
+    fn origin(&self) -> Self {
+        Self {
+            runtime: None,
+            ..self.clone()
         }
     }
 }

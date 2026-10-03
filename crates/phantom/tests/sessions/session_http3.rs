@@ -57,15 +57,18 @@ async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<
     .await
 }
 
+/// A pooled connection serves only the runtime that opened it, so a request
+/// on a runtime without network I/O fails instead of taking the warmed
+/// connection.
 #[tokio::test]
-async fn warmed_session_reuse_uses_the_connection_runtime() -> TestResult<()> {
+async fn warmed_connection_is_not_reused_from_another_runtime() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
         let server = tokio::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
-            let requests = serve_requests(&mut connection, 2).await?;
+            let requests = serve_requests(&mut connection, 1).await?;
             let _ = done_received.await;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
         });
@@ -76,18 +79,24 @@ async fn warmed_session_reuse_uses_the_connection_runtime() -> TestResult<()> {
 
         let second_session = session.clone();
         let second_uri = format!("https://{address}/second");
-        let second = tokio::task::spawn_blocking(move || -> TestResult<Bytes> {
+        let second = tokio::task::spawn_blocking(move || -> TestResult<RequestErrorKind> {
             let runtime = tokio::runtime::Builder::new_current_thread().build()?;
-            runtime.block_on(send_and_drain(second_session, second_uri))
+            let result = runtime.block_on(async {
+                second_session
+                    .get(HttpProtocol::Http3, &second_uri)?
+                    .send()
+                    .await
+            });
+            Ok(result
+                .err()
+                .ok_or("a runtime without I/O reused the warmed connection")?
+                .kind())
         })
         .await??;
-        assert_eq!(second, "/second");
+        assert_eq!(second, RequestErrorKind::RuntimeUnavailable);
 
         let _ = client_done.send(());
-        assert_eq!(
-            server.await??,
-            vec!["/first".to_owned(), "/second".to_owned()]
-        );
+        assert_eq!(server.await??, vec!["/first".to_owned()]);
         Ok(())
     })
     .await

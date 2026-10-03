@@ -147,3 +147,33 @@ async fn a_failed_setup_fails_its_waiters_with_its_kind() -> TestResult {
     assert_eq!(opens.load(Ordering::Acquire), 2);
     Ok(())
 }
+
+/// A connection's driver runs on the runtime that opened it, so a tunnel on
+/// another runtime opens its own connection instead of one that runtime no
+/// longer drives.
+#[test]
+fn a_tunnel_on_another_runtime_opens_its_own_connection() -> TestResult {
+    let pool = Http2ProxyPool::new();
+    let settings = ConnectionSettingsId::default();
+    let peers = std::sync::Mutex::new(Vec::new());
+    let opens = AtomicUsize::new(0);
+    let open = || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        connection(&peers).await
+    };
+    let first_runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let second_runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+
+    let first = first_runtime.block_on(async { pool.acquire(key(&settings), open).await })?;
+    let again = first_runtime.block_on(async { pool.acquire(key(&settings), open).await })?;
+    let other = second_runtime.block_on(async { pool.acquire(key(&settings), open).await })?;
+
+    assert!(same_connection(&first, &again));
+    assert!(!same_connection(&first, &other));
+    assert_eq!(opens.load(Ordering::Acquire), 2);
+    Ok(())
+}

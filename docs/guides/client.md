@@ -169,6 +169,8 @@ fn client_with_certificate(
 - Accept the [pre-1.0 terms](../getting-started.md#distribution-status), use
   only components listed in [Coverage](../reference/coverage.md), and run
   inside a Tokio runtime with I/O and time enabled.
+- Connections stay on the runtime that opened them; per-origin limits span
+  runtimes.
 - A browser name implies no route, trust, redirect, retry, or timeout policy.
 - WebSocket connects apply none of the client's timeouts, retries, or
   redirects; the WebSocket builder has its own handshake timeout and retry

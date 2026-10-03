@@ -38,6 +38,21 @@ pub(crate) fn box_send<'a, T>(
     Box::pin(future)
 }
 
+/// The runtime the calling task runs on, which every pool key includes.
+///
+/// A connection's driver runs on the runtime that opened it and stops being
+/// polled once that runtime is dropped or no longer driven, as a
+/// current-thread runtime is after `block_on` returns. Keying pools by
+/// runtime keeps a client that outlives a runtime from sending on such a
+/// connection, where the request would never be answered. Per-origin
+/// admission and learned protocol state use the key without its runtime, so
+/// they stay per origin across runtimes.
+fn current_runtime() -> Option<tokio::runtime::Id> {
+    tokio::runtime::Handle::try_current()
+        .ok()
+        .map(|runtime| runtime.id())
+}
+
 pub use alt_svc::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
     AltSvcSnapshotError, AltSvcSnapshotErrorKind,

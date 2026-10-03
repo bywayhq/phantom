@@ -486,19 +486,20 @@ impl Http1Or2Pool {
             state.entries.pop_front();
             debug!(outcome = "evicted", "negotiated HTTP pool entry evicted");
         }
+        let origin = key.origin();
         let http1_admission =
             state
                 .http1_admissions
-                .get(&key, self.max_http1_active, self.max_http1_pending);
+                .get(&origin, self.max_http1_active, self.max_http1_pending);
         let http2_admission =
             state
                 .http2_admissions
-                .get(&key, self.max_http2_active, self.max_http2_pending);
+                .get(&origin, self.max_http2_active, self.max_http2_pending);
         let (selection_active, selection_pending) = self.selection_limits();
         let selection_admission =
             state
                 .selection_admissions
-                .get(&key, selection_active, selection_pending);
+                .get(&origin, selection_active, selection_pending);
         let connections = EntryConnections::new(
             self.max_http1_active,
             Arc::clone(&self.http2_keys),
@@ -542,6 +543,7 @@ struct PoolKey {
     host: Box<str>,
     port: u16,
     route: Route,
+    runtime: Option<tokio::runtime::Id>,
 }
 
 impl PoolKey {
@@ -550,6 +552,15 @@ impl PoolKey {
             host: endpoint.host().to_ascii_lowercase().into(),
             port: endpoint.port(),
             route: route.clone(),
+            runtime: super::current_runtime(),
+        }
+    }
+    /// This key without its runtime: the origin and route that per-origin
+    /// admission and learned protocol state belong to across runtimes.
+    fn origin(&self) -> Self {
+        Self {
+            runtime: None,
+            ..self.clone()
         }
     }
 }
@@ -566,7 +577,9 @@ const MAX_HTTP2_KEYS: usize = 500;
 /// contact. It is keyed by origin and route, as Firefox keys the
 /// `ConnectionEntry` that holds `mUsingSpdy`
 /// (`netwerk/protocol/http/nsHttpConnectionInfo.cpp:211-231`) and as Phantom
-/// keys its other learned state; Chromium keys it by origin alone.
+/// keys its other learned state; Chromium keys it by origin alone. The
+/// runtime in a pool key is left out, so a runtime that first reaches the
+/// origin still knows it selected H2.
 #[derive(Default)]
 struct Http2Keys {
     keys: std::sync::Mutex<VecDeque<PoolKey>>,
@@ -579,6 +592,7 @@ impl Http2Keys {
 
     /// Returns whether `key` selected H2 before, marking it recently used.
     fn contains(&self, key: &PoolKey) -> bool {
+        let key = &key.origin();
         let mut keys = self.lock();
         let Some(position) = keys.iter().position(|candidate| candidate == key) else {
             return false;
@@ -590,6 +604,7 @@ impl Http2Keys {
     }
 
     fn insert(&self, key: &PoolKey) {
+        let key = &key.origin();
         let mut keys = self.lock();
         if let Some(position) = keys.iter().position(|candidate| candidate == key) {
             keys.remove(position);

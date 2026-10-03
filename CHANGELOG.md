@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- A request on a Tokio runtime without I/O enabled no longer reuses a warm
+  HTTP/3 connection that another runtime opened; it fails with
+  `RequestErrorKind::RuntimeUnavailable`, because pooled connections now
+  belong to the runtime that opened them. Migrate: send from a runtime with
+  I/O enabled.
 - `DnsCacheSettings` has a `min_record_ttl` field. An answer that carries a
   record TTL is kept for that TTL or `min_record_ttl`, whichever is longer,
   and `ttl` now applies only to an answer without one, as from the
@@ -1798,6 +1803,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- A client used from more than one Tokio runtime no longer sends a request
+  on a pooled connection that another runtime opened. Once that runtime was
+  dropped, or no longer driven, as a current-thread runtime is after
+  `block_on` returns, nothing read the connection: an HTTP/3 request hung or
+  failed, and HTTP/1.1 and HTTP/2 requests hung while the first runtime
+  still existed. Every connection pool, including `phantom-net`'s
+  `Http2ProxyPool`, now keys connections by runtime, so each runtime opens
+  its own. The per-origin limits on active and waiting requests, and the
+  memory that an origin selected HTTP/2, still span runtimes.
 - A cross-origin redirect removes the `Authorization`, `Cookie2`, and
   `Proxy-Authorization` fields a request template sends itself, as it
   removed the caller's own. Before, a template literal such as

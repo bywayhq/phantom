@@ -35,8 +35,8 @@ use crate::http2::Http2Connection;
 /// This is Phantom's choice, not a browser value, and applies only after
 /// [`Http2ProxyPool::with_max_connections_per_route`]. A connection is also
 /// full at the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, when that is
-/// lower. The default pool keeps one connection per route and never applies
-/// it.
+/// lower. The default pool keeps one connection per route and runtime and
+/// never applies it.
 pub const MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION: usize = 100;
 
 /// Most HTTP/2 connections
@@ -68,6 +68,10 @@ pub const MAX_HTTP2_PROXY_POOL_ROUTES: usize = 32;
 /// Each open tunnel keeps its connection alive, whether or not the pool
 /// still holds it. Closing or resetting a tunnel ends only its own stream.
 ///
+/// A connection's driver runs on the Tokio runtime that opened it, so a
+/// route keeps its connections per runtime: a tunnel on another runtime
+/// opens a connection of its own.
+///
 /// When a connection setup fails, every tunnel that was waiting for it fails
 /// with an [`HttpConnectError::PooledSetupFailed`] of the same kind, rather
 /// than each trying again in turn.
@@ -93,7 +97,7 @@ impl Default for Http2ProxyPool {
 }
 
 impl Http2ProxyPool {
-    /// Creates an empty pool that keeps one connection per route.
+    /// Creates an empty pool that keeps one connection per route and runtime.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -241,7 +245,9 @@ struct RouteEntry {
 /// `settings` identifies the connector settings a connection was opened
 /// with; see [`ConnectionSettingsId`]. `authorization` is the route's
 /// encoded Basic credential, so routes with other credentials, or none,
-/// never share a connection.
+/// never share a connection. `runtime` is the runtime the tunnel's task runs
+/// on: a connection's driver runs on the runtime that opened it and stops
+/// being polled once that runtime is dropped or no longer driven.
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct RouteKey {
     settings: ConnectionSettingsId,
@@ -249,6 +255,7 @@ pub(super) struct RouteKey {
     port: u16,
     server_name: Box<str>,
     authorization: Option<Box<[u8]>>,
+    runtime: Option<tokio::runtime::Id>,
 }
 
 impl RouteKey {
@@ -265,6 +272,9 @@ impl RouteKey {
             port,
             server_name: server_name.to_ascii_lowercase().into(),
             authorization: credentials.map(|credentials| credentials.authorization().into()),
+            runtime: tokio::runtime::Handle::try_current()
+                .ok()
+                .map(|runtime| runtime.id()),
         }
     }
 }
