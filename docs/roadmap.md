@@ -246,11 +246,26 @@ anything does.
   where `firefox::v157_dns_cache` keeps it 60 s. Blocker: Phantom resolves through the operating
   system, which reports no TTL; a resolver that returns record TTLs, and a
   cache that honors them, are needed.
-- Early data on Firefox-profile WebSocket openings and on connections that
-  offer ECH from HTTPS records. Evidence: Firefox 157 disables TCP early data
-  only on proxy connections and origins that failed before
-  (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`); no capture resumed a
-  WebSocket opening. Phantom offers no early data on either.
+- Ticket resumption on `Client` WebSocket openings. Evidence: in every
+  Firefox 157 `websocket` and `websocket-http1` run, the WebSocket's
+  connection resumed a ticket the page's connection was issued and sent
+  early data
+  ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  `Client` opens WebSockets through connectors that keep no ticket, so every
+  opening makes a full handshake with every recipe: none resumes, and the
+  Firefox recipes also send no early data, which the `phantom-net`
+  WebSocket connectors would send on a resumed connection. Pending work: an
+  opening shares the ticket cache of the origin's request pool, which the
+  negotiated, HTTP/1.1, and HTTP/2 pools each keep per origin and route.
+- Early data on connections that offer ECH from HTTPS records. Evidence:
+  NSS offers `early_data` in both ClientHellos of a resumed ECH connection,
+  and Firefox 157 disables TCP early data only on proxy connections and
+  origins that failed before
+  ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  Blocker: no Firefox recipe offers ECH from HTTPS records, since Firefox
+  waits for the record only over DNS over HTTPS; with early data, Phantom's
+  retry after an ECH rejection would also have to move from the handshake to
+  the request.
 - Chromium's retry of a request whose session ended with
   `ERR_HTTP2_PING_FAILED`. Evidence: a Chrome 154 capture shows the request
   sent again at once on a new connection with the same fields, and source

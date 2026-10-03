@@ -13,7 +13,8 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
     AbsoluteForm, Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome,
-    OriginForm, PreparedGet, PreparedRequest, RequestHeader, send_prepared_upgrade,
+    OriginForm, PreparedGet, PreparedRequest, RequestHeader, connection::early_data_error,
+    send_prepared_upgrade,
 };
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
@@ -1261,6 +1262,19 @@ impl Http1TlsConnector {
     /// A `101 Switching Protocols` response yields the upgraded byte stream.
     /// Any other status remains an ordinary streaming HTTP response. The
     /// complete request is validated before DNS resolution or TCP I/O.
+    ///
+    /// The handshake offers early data as [`Self::connect_direct`] does, and
+    /// the GET, which is replay safe, travels in it: Firefox 157 sends a
+    /// WebSocket opening as early data on a resumed connection
+    /// (`TlsHandshaker::Check0RttEnabled` and `nsHttpTransaction::Do0RTT`,
+    /// `netwerk/protocol/http/TlsHandshaker.cpp:304-320` and
+    /// `nsHttpTransaction.cpp:3383-3392` at tag `FIREFOX_157_0_RELEASE`).
+    /// After a rejection the GET goes out again on the same connection. A
+    /// handshake that then fails returns the [`Http1TlsError::Tls`] a fresh
+    /// connection returns, and a server that rejects the early data and
+    /// selects another ALPN protocol returns
+    /// [`Http1TlsError::UnsupportedAlpn`], as a fresh connection that selects
+    /// it does.
     pub async fn upgrade_get_direct(
         &self,
         host: &str,
@@ -1278,8 +1292,12 @@ impl Http1TlsConnector {
                         DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
                         DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
                     })?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
+            debug!("HTTP/1 Upgrade request prepared");
+            let stream = self
+                .tls
+                .connect_offering_early_data(server_name, stream)
+                .await?;
+            upgrade_over_tls(stream, prepared).await
         }))
         .await
     }
@@ -1317,7 +1335,7 @@ impl Http1TlsConnector {
                 port,
                 server_name,
                 ech,
-                false,
+                true,
             )
             .await?;
             upgrade_over_tls(stream, prepared).await
@@ -2303,6 +2321,10 @@ where
 }
 
 /// Sends a prepared Upgrade GET over an established TLS stream.
+///
+/// On a stream whose handshake returned to send early data, the GET travels
+/// in it. When the handshake then fails, this reports the error a fresh
+/// connection reports.
 async fn upgrade_over_tls<S>(
     stream: TlsStream<S>,
     prepared: PreparedGet,
@@ -2311,7 +2333,15 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
     require_http1_selected(&stream)?;
-    let outcome = send_profiled_upgrade(stream, prepared).await?;
+    let early_data = stream.early_data_wait();
+    let outcome = send_profiled_upgrade(stream, prepared)
+        .await
+        .map_err(|error| {
+            early_data
+                .as_ref()
+                .and_then(early_data_error)
+                .unwrap_or_else(|| error.into())
+        })?;
     let status = match &outcome {
         Http1UpgradeOutcome::Upgraded(response) => response.status(),
         Http1UpgradeOutcome::Rejected(response) => response.status(),

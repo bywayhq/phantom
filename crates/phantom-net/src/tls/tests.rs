@@ -29,6 +29,7 @@ mod record_size_limit;
 mod resumption;
 mod session_cache;
 mod tracing;
+mod websocket_early_data;
 
 #[test]
 fn trust_anchor_ids_are_length_prefixed_for_boringssl() {

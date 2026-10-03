@@ -251,20 +251,7 @@ impl Http1Connection {
     /// caused it.
     #[must_use]
     pub fn early_data_failure(&self) -> Option<Http1TlsError> {
-        let failure = self.inner.early_data.as_ref()?.failure()?;
-        if let Some(error) = failure.tls_error() {
-            return Some(Http1TlsError::Tls(error));
-        }
-        let EarlyDataFailure::AlpnChanged { negotiated } = failure else {
-            return None;
-        };
-        Some(match negotiated {
-            Some(selected) => Http1TlsError::UnsupportedAlpn { selected },
-            None => Http1TlsError::Tls(TlsError::after_early_data(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "the server rejected early data and then selected no ALPN protocol",
-            ))),
-        })
+        early_data_error(self.inner.early_data.as_ref()?)
     }
 
     /// Returns whether the server rejected this connection's TLS early data
@@ -418,6 +405,26 @@ impl fmt::Debug for Http1Connection {
             .field("reusable", &self.is_reusable())
             .finish_non_exhaustive()
     }
+}
+
+/// Returns the error a fresh connection reports when a connection's
+/// handshake failed after it sent TLS early data; see
+/// [`Http1Connection::early_data_failure`].
+pub(super) fn early_data_error(early_data: &EarlyDataWait) -> Option<Http1TlsError> {
+    let failure = early_data.failure()?;
+    if let Some(error) = failure.tls_error() {
+        return Some(Http1TlsError::Tls(error));
+    }
+    let EarlyDataFailure::AlpnChanged { negotiated } = failure else {
+        return None;
+    };
+    Some(match negotiated {
+        Some(selected) => Http1TlsError::UnsupportedAlpn { selected },
+        None => Http1TlsError::Tls(TlsError::after_early_data(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "the server rejected early data and then selected no ALPN protocol",
+        ))),
+    })
 }
 
 pub(super) struct ConnectionLease {

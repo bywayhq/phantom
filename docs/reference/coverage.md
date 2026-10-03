@@ -209,8 +209,13 @@ Supported:
   data; any other request waits for the server's answer. After a rejection
   the same bytes go out again on the connection. If the server then picks
   another ALPN protocol, the connection fails and a negotiated request starts
-  again on a new connection without early data. Proxy routes and WebSocket
-  openings never offer it, and the Chromium-family recipes never do
+  again on a new connection without early data. The `phantom-net` WebSocket
+  connectors offer it on a direct opening that resumes a ticket: the
+  HTTP/1.1 Upgrade GET travels in it, and over HTTP/2 the preface and
+  SETTINGS do while the extended CONNECT waits for the answer. A `Client`
+  WebSocket opening keeps no ticket, so it makes a full handshake and offers
+  none. Proxy routes and connections that offer ECH from an HTTPS record
+  never offer it, and the Chromium-family recipes never do
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - A shutdown with or without a TLS `close_notify` alert before the TCP FIN
   (`TlsSettings::close_notify`): the Chromium-family recipes send only the

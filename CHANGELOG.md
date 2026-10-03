@@ -1330,6 +1330,22 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `Http1TlsConnector::upgrade_get_direct` and
+  `Http2TlsConnector::send_extended_connect_direct`, and their `_with_ech`
+  forms when no ECH configuration is offered, offer early data when they
+  resume a ticket permitting it and `TlsSettings::tcp_early_data` is set, as
+  Firefox 157 does on a resumed WebSocket opening. The HTTP/1.1 Upgrade GET
+  travels as early data; over HTTP/2 the connection preface and SETTINGS do,
+  and the extended CONNECT waits for the server's answer. After a rejection
+  the same bytes go out again on the connection, and a handshake that fails
+  after early data fails the opening with the error a fresh connection's
+  handshake reports. Openings through a proxy and connections that offer ECH
+  from an HTTPS record still offer none, and the Chromium-family recipes
+  never offer it. A `Client` WebSocket opening keeps no ticket, so it still
+  makes a full handshake without early data
+  ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  `scripts/capture/tls_resumption.py` gained the `websocket` and
+  `websocket-http1` scenarios.
 - `opera::v136_tls` and `opera::v136_http3_tls` set
   `ech_from_https_records`: given an HTTPS record with `ech`, Opera
   136.0.6008.52 encrypted its ClientHello over TCP and QUIC and handled a

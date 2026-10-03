@@ -379,6 +379,20 @@ impl Http2TlsConnector {
     /// DNS or TCP I/O. The connection is configured with the profile's
     /// dedicated five-field pseudo-header order and never falls back to H1.
     ///
+    /// The handshake offers early data as [`Self::connect_direct`] does. The
+    /// connection preface and SETTINGS travel in it, and the CONNECT waits
+    /// for the server's answer: Firefox 157 starts its HTTP/2 session in
+    /// early data and holds the WebSocket transaction until the session is
+    /// established (`nsHttpConnection::Start0RTTSpdy` and
+    /// `nsHttpConnection::MoveTransactionsToSpdy`,
+    /// `netwerk/protocol/http/nsHttpConnection.cpp:203-221` and `272-305` at
+    /// tag `FIREFOX_157_0_RELEASE`). After a rejection the preface and
+    /// SETTINGS go out again on the same connection. A handshake that then
+    /// fails returns the [`Http2TlsError::Tls`] a fresh connection returns,
+    /// and a server that rejects the early data and selects another ALPN
+    /// protocol returns [`Http2TlsError::UnsupportedAlpn`], or
+    /// [`Http2TlsError::MissingNegotiatedAlpn`] when it selects none.
+    ///
     /// # Errors
     ///
     /// Returns [`Http2TlsError`] when the profile has no extended CONNECT
@@ -401,7 +415,11 @@ impl Http2TlsConnector {
                 DirectConnectError::RuntimeUnavailable => Http2TlsError::RuntimeUnavailable,
                 DirectConnectError::Connect(error) => Http2TlsError::Connect(error),
             })?;
-        self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
+        let stream = self
+            .tls
+            .connect_offering_early_data(server_name, stream)
+            .await?;
+        self.extended_connect_over_tls(stream, client, authority, target, headers)
             .await
     }
 
@@ -438,15 +456,39 @@ impl Http2TlsConnector {
             port,
             server_name,
             ech,
-            false,
+            true,
         )
         .await?;
+        self.extended_connect_over_tls(stream, client, authority, target, headers)
+            .await
+    }
+
+    /// Opens the extended CONNECT stream on a new direct connection whose
+    /// handshake may have returned to send early data.
+    ///
+    /// When that handshake then fails, this reports the error a fresh
+    /// connection reports.
+    async fn extended_connect_over_tls<S>(
+        &self,
+        stream: TlsStream<S>,
+        client: Http2Builder,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+    {
         let keepalive = stream.tcp_keepalive();
         let connection = connect_over_tls(stream, client, true, keepalive).await?;
         connection
             .send_extended_connect_with_settings(&self.http2, authority, target, headers)
             .await
-            .map_err(Into::into)
+            .map_err(|error| {
+                connection
+                    .early_data_failure()
+                    .unwrap_or_else(|| error.into())
+            })
     }
 
     /// Opens one WebSocket extended CONNECT stream through a plaintext HTTP

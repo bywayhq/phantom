@@ -564,7 +564,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Edge 154.0.4258.37 | `cookies` | `crumbs-h1.txt`, `crumbs-h2.txt`, `crumbs-h3.txt` |
 | Edge 154.0.4258.37 | `websocket` | Nine scenarios; see [WebSocket browser evidence](#websocket-browser-evidence) |
 | Edge 154.0.4258.37 | `proxy` | Twenty scenarios; see [Proxy route browser evidence](#proxy-route-browser-evidence) |
-| Firefox 157.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE, split from `http3/.../snapshot-4.txt`), `client-hello-chacha20-ech.txt` (split from `snapshot-1.txt`), nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Firefox 157.0 | `tls` | `client-hello.txt` (AES-128-GCM ECH GREASE, split from `http3/.../snapshot-4.txt`), `client-hello-chacha20-ech.txt` (split from `snapshot-1.txt`), eleven `resumption-<scenario>.txt` files, two of them WebSocket openings; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
 | Firefox 157.0 | `websocket` | Nine scenarios |
 | Firefox 157.0 | `sse` | Seventeen scenarios |
 
@@ -4873,7 +4873,9 @@ What is claimed: over TCP, a resumed Phantom ClientHello has the extension
 set the captures show for its recipe's browser, with `pre_shared_key` last.
 With a ticket that permits early data, a direct Firefox-profile connection
 offers `early_data` where Firefox does and sends replay-safe requests as early
-data; the Chromium-family recipes never offer it. Phantom keeps as many
+data, including a WebSocket opening's HTTP/1.1 Upgrade GET on a
+`phantom-net` connector that holds a ticket; the Chromium-family recipes
+never offer it. Phantom keeps as many
 tickets per origin as the browser did, presents the newest first, and uses
 each once.
 
@@ -4885,7 +4887,11 @@ against the `tls_resumption.py` loopback server, which sends two
 NewSessionTickets after every handshake (eight after the first handshake
 only, in `issue-once`), each permitting early data except in
 `no-early-data`. [TLS resumption over TCP](../../scripts/capture/README.md#tls-resumption-over-tcp)
-lists the scenarios and the fields each fixture keeps.
+lists the scenarios and the fields each fixture keeps. Two more scenarios,
+`websocket` and `websocket-http1`, ran only with Firefox 157.0, three runs
+each, since only Firefox offers early data over TCP: the page's connection
+closes, then the page opens a `wss://` WebSocket to the same origin, which
+needs a new connection.
 
 Observed:
 
@@ -4896,6 +4902,7 @@ Observed:
 | Removed against the fresh ClientHello | Nothing; the empty `session_ticket` stays | The empty `session_ticket` (0x23), in all 120 |
 | `early_data` offered over TCP | Never, including with tickets that permit it | 108 of 108 resumptions with such a ticket; placed after `key_share` and before `supported_versions`, with `record_size_limit` (0x1c) still sent |
 | Requests sent in early data | None | `GET` 102 times, and `HEAD` and `OPTIONS` 3 times each; `POST`, `PUT`, and `DELETE` never (18 on connections that used early data) |
+| A resumed connection that opens a WebSocket (`websocket`, `websocket-http1`) | Not captured | Offers `early_data` in 3 of 3 runs over each protocol. Over HTTP/1.1 the Upgrade GET arrives in early data, 563 bytes each time. Over HTTP/2 the early data is 70 bytes: the preface, SETTINGS, and WINDOW_UPDATE; the extended CONNECT follows the handshake |
 | Tickets used of eight issued by one connection (`issue-once`) | 2 of 8 in every run: the newest, then the one before it | 8 of 8 in every run, each once; newest first in 2 of 3 runs |
 | Ticket presented twice | Never | Never |
 | Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Two resumed in every run, each with its own ticket |
@@ -4962,6 +4969,17 @@ data:
 
 - Only a direct connection offers it; Firefox disables it on every proxy
   connection (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`).
+- A WebSocket opening is an ordinary transaction to this rule, which the
+  `websocket` captures confirm.
+  `TlsHandshaker::Check0RttEnabled` asks the connection's transaction
+  whether it may send early data (`TlsHandshaker.cpp:304-320`), and
+  `nsHttpTransaction::Do0RTT` admits any safe method, the WebSocket `GET`
+  included (`nsHttpTransaction.cpp:3383-3392`). When the resumed session's
+  protocol is `h2`, `nsHttpConnection::Start0RTTSpdy` starts the HTTP/2
+  session in early data and puts the WebSocket transaction back in the
+  pending queue until the server's settings are known
+  (`nsHttpConnection.cpp:203-221` and `272-305`), so the extended CONNECT
+  never travels in early data.
 - A request travels as early data when its method is safe and it has no body
   and no trailers, the rule Phantom's HTTP/3 early data uses. Firefox's
   `nsHttpRequestHead::IsSafeMethod` (`nsHttpRequestHead.cpp:345-360`) also
@@ -5010,8 +5028,24 @@ data has arrived:
   server reading one copy of the request after a rejection.
 - `a_connection_through_a_proxy_offers_no_early_data` resumes a ticket that
   permits early data through a CONNECT tunnel without offering it, and
-  `the_plain_handshake_offers_no_early_data` covers the handshake proxy and
-  WebSocket connections use.
+  `the_plain_handshake_offers_no_early_data` covers the handshake proxy
+  connections use, WebSocket openings through a proxy included.
+- In `crates/phantom-net/src/tls/tests/websocket_early_data.rs`, a Firefox
+  connector with a ticket cache opens two WebSockets.
+  `a_resumed_http1_websocket_opening_sends_its_upgrade_get_as_early_data`
+  shows the second opening's whole Upgrade GET read as early data, and
+  `a_rejected_http1_websocket_opening_is_sent_once_more_on_the_same_connection`
+  one copy of it after a rejection.
+  `a_resumed_http2_websocket_opening_holds_its_connect_until_the_answer`
+  shows early data of the preface, SETTINGS, and WINDOW_UPDATE, as the
+  capture does, and the extended CONNECT after it;
+  `a_rejected_http2_websocket_opening_resends_its_preface_on_the_same_connection`
+  shows one copy after a rejection. For each protocol,
+  `an_http1_websocket_opening_reports_a_handshake_failure_after_early_data`
+  and its HTTP/2 twin show the TLS error of a failed handshake, and
+  `an_http1_websocket_opening_reports_an_alpn_change_after_early_data` and
+  its HTTP/2 twin the ALPN error after a rejection and another ALPN
+  protocol.
 - `a_resumed_negotiated_get_travels_as_early_data`,
   `an_alpn_change_restarts_a_get_on_a_full_handshake`, and
   `an_alpn_change_restarts_a_post_without_sending_its_body_early` drive the
@@ -5040,10 +5074,22 @@ Limits:
   stops offering early data to an origin after certain TLS alerts, and
   restarts a request without early data after a `425 Too Early` response.
 - Early data is offered on negotiated and exact HTTP/1.1 and HTTP/2
-  connections. Phantom offers none on WebSocket openings or on connections
-  that offer ECH from an HTTPS record, which Firefox does not exclude
-  ([roadmap](../roadmap.md)). An exact request whose server picks another
-  ALPN protocol after a rejection fails instead of restarting.
+  connections and on direct WebSocket openings that resume a ticket. A
+  `Client` WebSocket opening keeps no ticket: it makes a full handshake
+  where Firefox resumed the page's ticket and sent early data
+  ([roadmap](../roadmap.md)). Phantom offers none on a
+  connection that offers ECH from an HTTPS record, which Firefox does not
+  exclude: NSS offers `early_data` in a resumed ECH connection's outer
+  ClientHello when the ticket permits it, and copies it into the inner one
+  (`tls13_ClientSendEarlyDataXtn`, `tls13_ClientAllow0Rtt`, and
+  `tls13_ConstructInnerExtensionsFromOuter`,
+  `security/nss/lib/ssl/tls13exthandle.c:864-873`, `tls13con.c:7041-7078`,
+  and `tls13ech.c:1350-1558`). No Firefox recipe offers ECH from HTTPS
+  records, so only a custom profile that sets both
+  `TlsSettings::tcp_early_data` and `TlsSettings::ech_from_https_records`
+  meets this ([roadmap](../roadmap.md)). An exact request or a WebSocket
+  opening whose server picks another ALPN protocol after a rejection fails
+  instead of restarting, as Firefox restarts the transaction.
 - The early data's record boundaries are BoringSSL's, not NSS's.
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.
