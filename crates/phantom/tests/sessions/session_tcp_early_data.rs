@@ -4,40 +4,28 @@ use crate::support::tls as tls_support;
 
 use std::{
     error::Error,
-    future::{Future, poll_fn},
     net::Ipv4Addr,
-    pin::Pin,
     sync::{Arc, Mutex, PoisonError},
-    task::{Context, Poll},
     time::Duration,
 };
 
-use btls::ssl::{AlpnError, ExtensionType, SelectCertError, Ssl, SslAcceptor, select_next_proto};
-use http::{Method, Response, StatusCode};
+use btls::ssl::{AlpnError, ExtensionType, SelectCertError, SslAcceptor, select_next_proto};
+use http::{Method, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestErrorKind, RequestTimeouts,
     profile::{ClientProfile, firefox},
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
-    net::{TcpListener, TcpStream},
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
     sync::oneshot,
-    time::timeout,
 };
-use tokio_btls::SslStream;
 
+use super::early_data_server::{
+    H2_HEADERS, SERVER_DELAY, TestResult, accept, bounded, h2_frame_types, serve_http1, serve_http2,
+};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity};
-
-const TEST_TIMEOUT: Duration = Duration::from_secs(10);
-/// Long enough that the client's early data is on the wire before the server
-/// answers its ClientHello.
-const SERVER_DELAY: Duration = Duration::from_millis(200);
-const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-const H2_HEADERS: u8 = 0x1;
-
-type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-
 /// What one ClientHello offered.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Offer {
@@ -464,105 +452,6 @@ fn build_acceptor(
     Ok(acceptor.build())
 }
 
-/// A server TLS stream that records the application bytes it read before its
-/// handshake completed, which were early data.
-struct Server {
-    stream: SslStream<TcpStream>,
-    early: Arc<Mutex<Vec<u8>>>,
-}
-
-impl Server {
-    fn early_bytes(&self) -> Arc<Mutex<Vec<u8>>> {
-        Arc::clone(&self.early)
-    }
-}
-
-impl AsyncRead for Server {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        let before = buffer.filled().len();
-        let result = Pin::new(&mut self.stream).poll_read(context, buffer);
-        if !self.stream.ssl().is_init_finished() {
-            self.early
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .extend_from_slice(&buffer.filled()[before..]);
-        }
-        result
-    }
-}
-
-impl AsyncWrite for Server {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.stream).poll_write(context, buffer)
-    }
-
-    fn poll_flush(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.stream).poll_flush(context)
-    }
-
-    fn poll_shutdown(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.stream).poll_shutdown(context)
-    }
-}
-
-/// Accepts one connection that issues tickets permitting early data and
-/// accepts early data, starting the handshake `delay` after the TCP accept.
-async fn accept(
-    listener: &TcpListener,
-    acceptor: &SslAcceptor,
-    delay: Duration,
-) -> TestResult<Server> {
-    let (tcp, _) = listener.accept().await?;
-    tokio::time::sleep(delay).await;
-    let mut ssl = Ssl::new(acceptor.context())?;
-    ssl.set_early_data_enabled(true);
-    let mut stream = SslStream::new(ssl, tcp)?;
-    Pin::new(&mut stream).accept().await?;
-    Ok(Server {
-        stream,
-        early: Arc::default(),
-    })
-}
-
-async fn serve_http2(stream: Server, expected_path: &str) -> TestResult<()> {
-    let mut connection = ::http2::server::handshake(stream).await?;
-    let (request, mut respond) = connection
-        .accept()
-        .await
-        .ok_or("connection closed before request")??;
-    assert_eq!(request.uri().path(), expected_path);
-    respond.send_response(Response::builder().status(StatusCode::OK).body(())?, true)?;
-    connection.graceful_shutdown();
-    match poll_fn(|context| connection.poll_closed(context)).await {
-        Ok(()) => Ok(()),
-        Err(error) if error.get_io().is_some_and(tls_support::is_peer_gone) => Ok(()),
-        Err(error) => Err(error.into()),
-    }
-}
-
-async fn serve_http1(mut stream: Server) -> TestResult<()> {
-    tls_support::read_head(&mut stream).await?;
-    stream
-        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-        .await?;
-    stream.shutdown().await?;
-    Ok(())
-}
-
 async fn send_negotiated(session: &phantom::Client, method: Method, uri: &str) -> TestResult<()> {
     let mut request = session.request_negotiated(method.clone(), uri)?;
     if method == Method::POST {
@@ -586,21 +475,6 @@ async fn send(
     Ok(())
 }
 
-/// Returns the type of every frame after the client preface.
-fn h2_frame_types(bytes: &[u8]) -> TestResult<Vec<u8>> {
-    let mut frames = bytes
-        .strip_prefix(H2_PREFACE)
-        .ok_or("the early data does not start with the HTTP/2 preface")?;
-    let mut types = Vec::new();
-    while let Some(header) = frames.first_chunk::<9>() {
-        let length =
-            usize::from(header[0]) << 16 | usize::from(header[1]) << 8 | usize::from(header[2]);
-        types.push(header[3]);
-        frames = frames.get(9 + length..).unwrap_or_default();
-    }
-    Ok(types)
-}
-
 /// Joins the messages of `error` and its sources.
 fn source_chain(error: &(dyn Error + 'static)) -> String {
     let mut messages = vec![error.to_string()];
@@ -610,11 +484,4 @@ fn source_chain(error: &(dyn Error + 'static)) -> String {
         source = error.source();
     }
     messages.join(": ")
-}
-
-async fn bounded<T, F>(future: F) -> TestResult<T>
-where
-    F: Future<Output = TestResult<T>>,
-{
-    timeout(TEST_TIMEOUT, future).await?
 }

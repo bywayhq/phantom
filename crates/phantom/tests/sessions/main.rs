@@ -10,6 +10,7 @@
 mod support;
 
 mod dns_overrides;
+mod early_data_server;
 mod http2_connections;
 mod http3_connections;
 mod negotiated;
@@ -23,3 +24,5 @@ mod session_http2_lifecycle;
 mod session_http3;
 mod session_tcp_early_data;
 mod session_tls_resumption;
+#[cfg(feature = "websocket")]
+mod websocket_resumption;

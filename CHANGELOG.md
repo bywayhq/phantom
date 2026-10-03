@@ -253,8 +253,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   literals that name every field no longer compile. When set, a direct TCP
   connection that resumes a TLS 1.3 ticket permitting early data offers
   `early_data` and sends a safe request without a body or trailers as early
-  data; any other request waits for the server's answer. Proxy routes and
-  WebSocket openings never offer it. `firefox::v156_tls` (now named
+  data; any other request waits for the server's answer. Proxy routes never
+  offer it. `firefox::v156_tls` (now named
   `v157_tls`), and so `firefox_android::v156_tls`, sets it, as Firefox 156
   offers early data on every such resumption; every other recipe, and
   `firefox::v156_http3_tls` (now `v157_http3_tls`), leaves it unset. `TlsSettings::validate` rejects it without
@@ -1454,6 +1454,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- A `wss://` opening of a `Client`, direct or through an HTTP or SOCKS5
+  proxy, shares the TLS session tickets of its origin's request pool key: a
+  profile-policy opening the negotiated pool's, and an exact opening the
+  exact pool's of its protocol. It resumes a ticket an earlier request was
+  issued, as Firefox 157 resumed the page's ticket on its WebSocket
+  connections, and a later request resumes one the opening was issued, as
+  Chrome 154's session cache, keyed without ALPN, offers it. A Firefox
+  profile's opening now sends early data when it resumes a ticket that
+  permits it and offers the ticket's ALPN protocol: the Upgrade GET over
+  HTTP/1.1, or the preface, SETTINGS, and WINDOW_UPDATE over HTTP/2.
+  Before, every opening made a full handshake
+  ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - On the direct route the exact HTTP/1.1 pool keeps the slower attempt of a
   `TcpBackupConnection` without a request: it stays with the pool key of
   the runtime that opened it, counts toward that key's connection bound
@@ -1489,8 +1501,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   after early data fails the opening with the error a fresh connection's
   handshake reports. Openings through a proxy and connections that offer ECH
   from an HTTPS record still offer none, and the Chromium-family recipes
-  never offer it. A `Client` WebSocket opening keeps no ticket, so it still
-  makes a full handshake without early data
+  never offer it
   ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
   `scripts/capture/tls_resumption.py` gained the `websocket` and
   `websocket-http1` scenarios.

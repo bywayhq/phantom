@@ -347,6 +347,32 @@ impl Http1Pool {
         }
     }
 
+    /// The TLS connector of the TLS origin key of `endpoint` and `route` on
+    /// the current runtime, which holds the key's TLS session tickets,
+    /// creating the key as a request would.
+    ///
+    /// A WebSocket opening connects with it, so it resumes the tickets the
+    /// key's requests were issued and leaves its own for them, as browsers
+    /// keep one session cache for an origin's requests and WebSocket
+    /// connections.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn tls_origin_connector(
+        &self,
+        base: &Http1TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Http1TlsConnector {
+        self.entry(PoolKey::new(
+            endpoint,
+            route,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await
+        .connector
+        .get_or_init(|| base.with_isolated_session_cache())
+        .clone()
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state

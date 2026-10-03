@@ -56,6 +56,65 @@ async fn upgrade_direct(
         .await
 }
 
+/// The connector of the request pool whose TLS session tickets a `wss://`
+/// opening shares, or `None` when no request pool shares the connector's
+/// TLS context.
+///
+/// An exact opening shares the exact HTTP/1.1 pool's key for its origin and
+/// route; a profile-policy opening shares the negotiated pool's, or without
+/// one the exact HTTP/1.1 pool's, with the policy's ALPN offer. Chrome 154
+/// keys its session cache by host and port, network anonymization key,
+/// privacy mode, and proxy chain, not by ALPN
+/// (`SSLClientSocketImpl::GetSessionCacheKey`,
+/// `net/socket/ssl_client_socket_impl.cc` lines 1631-1644 at
+/// `154.0.8037.58`), and Firefox 157 resumed the page's ticket on its
+/// WebSocket connections in the retained captures.
+async fn pooled_tls_connector(
+    client: &Client,
+    upgrade_connector: Http1UpgradeConnector,
+    endpoint: &Endpoint,
+    route: &Route,
+) -> Result<Option<Http1TlsConnector>, WebSocketError> {
+    let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
+    let state = &client.state;
+    match upgrade_connector {
+        Http1UpgradeConnector::Profile => match &client.inner.http1 {
+            Some(base) => Ok(Some(
+                state
+                    .http1
+                    .tls_origin_connector(base, endpoint, route)
+                    .await,
+            )),
+            None => Ok(None),
+        },
+        Http1UpgradeConnector::PolicyAlpn => {
+            let Some(websocket) = &client.inner.websocket else {
+                return Ok(None);
+            };
+            let protocols = &websocket.connection.http1_alpn_protocols;
+            if let Some(base) = &client.inner.http1_or_2 {
+                return state
+                    .http1_or_2
+                    .tls_origin_connector(base, endpoint, route)
+                    .await
+                    .http1_connector(protocols)
+                    .map(Some)
+                    .map_err(setup);
+            }
+            match &client.inner.http1 {
+                Some(base) => state
+                    .http1
+                    .tls_origin_connector(base, endpoint, route)
+                    .await
+                    .with_alpn_protocols(protocols)
+                    .map(Some)
+                    .map_err(setup),
+                None => Ok(None),
+            }
+        }
+    }
+}
+
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
         self,
@@ -104,7 +163,7 @@ impl WebSocketRequestBuilder {
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
 
-        let connector = match upgrade_connector {
+        let base = match upgrade_connector {
             Http1UpgradeConnector::Profile => client.inner.http1.as_ref(),
             Http1UpgradeConnector::PolicyAlpn => client.inner.websocket_http1.as_ref(),
         }
@@ -115,6 +174,17 @@ impl WebSocketRequestBuilder {
             cookie_value,
             extension_offer.as_ref().map(http::HeaderValue::as_bytes),
         )?;
+        // Looked up only for a valid opening, since creating a pool key can
+        // evict another. CONNECT-UDP is rejected below before any I/O, and
+        // creates no pool key.
+        let pooled = if request.transport == WebSocketTransport::Tls
+            && !matches!(route, Route::ConnectUdp(_))
+        {
+            pooled_tls_connector(&client, upgrade_connector, &request.endpoint, route).await?
+        } else {
+            None
+        };
+        let connector = pooled.as_ref().unwrap_or(base);
         let outcome = match request.transport {
             WebSocketTransport::Plaintext => match route {
                 // CONNECT-UDP carries only QUIC; reject before any I/O.

@@ -15,7 +15,7 @@ use tracing::Span;
 use super::NegotiatedPerMessageDeflate;
 use super::{
     AdmissionGuard, Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
-    WebSocketRequestBuilder, WebSocketTransport,
+    WebSocketRequestBuilder, WebSocketSelection, WebSocketTransport,
     error::refused_extended_connect_stream,
     handshake::{prepare_http2, validate_http2_response},
 };
@@ -65,7 +65,7 @@ impl WebSocketRequestBuilder {
     ) -> Result<WebSocket, WebSocketError> {
         let Self {
             client,
-            selection: _,
+            selection,
             request,
             headers,
             http2_headers: _,
@@ -112,7 +112,7 @@ impl WebSocketRequestBuilder {
         let extension_offer = engine_config.deflate_offer();
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
-        let connector = client
+        let base = client
             .inner
             .http2
             .as_ref()
@@ -122,6 +122,30 @@ impl WebSocketRequestBuilder {
             cookie_value,
             extension_offer.as_ref().map(http::HeaderValue::as_bytes),
         )?;
+        // A new connection shares the TLS session tickets of a request pool
+        // key, as `pooled_tls_connector` in `http1.rs` describes, looked up
+        // only for a valid opening since creating a key can evict another; a
+        // pooled session makes no handshake, and CONNECT-UDP is rejected
+        // below before any I/O and creates no pool key.
+        let pooled = match (&target, route) {
+            (Http2Target::Session(..), _) | (_, Route::ConnectUdp(_)) => None,
+            (Http2Target::NewConnection, _) => Some(match (selection, &client.inner.http1_or_2) {
+                (WebSocketSelection::ProfilePolicy, Some(negotiated)) => client
+                    .state
+                    .http1_or_2
+                    .tls_origin_connector(negotiated, &request.endpoint, route)
+                    .await
+                    .http2_connector(),
+                _ => {
+                    client
+                        .state
+                        .http2
+                        .tls_origin_connector(base, &request.endpoint, route)
+                        .await
+                }
+            }),
+        };
+        let connector = pooled.as_ref().unwrap_or(base);
         let host = request.endpoint.host();
         let port = request.endpoint.port();
         let authority = request.endpoint.authority().as_str();

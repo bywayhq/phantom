@@ -496,8 +496,8 @@ pub struct TlsSettings {
     /// `phantom-net` connectors that resumes such a ticket offers it too: its
     /// HTTP/1.1 Upgrade GET travels in it, and over HTTP/2 the preface and
     /// SETTINGS do while the extended CONNECT waits for the answer. A
-    /// `phantom` `Client` WebSocket opening keeps no ticket yet, so it makes a
-    /// full handshake and offers no early data.
+    /// `phantom` `Client` WebSocket opening shares the tickets of its
+    /// origin's request pool, so it offers early data when it resumes one.
     /// Connections through a proxy never offer early data, as Firefox's never
     /// do. Phantom also never offers it on connections that offer Encrypted
     /// Client Hello from an HTTPS record, which Firefox does not exclude.
