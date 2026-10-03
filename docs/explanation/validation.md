@@ -5040,11 +5040,13 @@ What is claimed: over TCP, a resumed Phantom ClientHello has the extension
 set the captures show for its recipe's browser, with `pre_shared_key` last.
 With a ticket that permits early data, a direct Firefox-profile connection
 offers `early_data` where Firefox does and sends replay-safe requests as early
-data, including a WebSocket opening's HTTP/1.1 Upgrade GET on a
-`phantom-net` connector that holds a ticket; the Chromium-family recipes
-never offer it. Phantom keeps as many
-tickets per origin as the browser did, presents the newest first, and uses
-each once.
+data, including a WebSocket opening's HTTP/1.1 Upgrade GET; the
+Chromium-family recipes never offer it. Phantom keeps as many tickets per
+origin as the browser did, presents the newest first, and uses each once. A
+`Client` WebSocket opening shares the tickets of its origin's request pool,
+so it resumes a ticket an earlier request was issued, as Firefox's
+WebSocket connections did. A later request resumes one the opening was
+issued, which Chrome 154's session cache allows; no capture shows it.
 
 Evidence: `fixtures/tls/<browser>/<version>/windows-11-26200/` retains nine
 `resumption-<scenario>.txt` fixtures, three runs each, for headless Chrome
@@ -5213,6 +5215,36 @@ data has arrived:
   `an_http1_websocket_opening_reports_an_alpn_change_after_early_data` and
   its HTTP/2 twin the ALPN error after a rejection and another ALPN
   protocol.
+- In `crates/phantom/tests/sessions/websocket_resumption.rs`, a `Client`
+  opens a WebSocket after a request to the same origin, or the reverse.
+  `a_firefox_websocket_after_a_negotiated_request_sends_its_preface_early`
+  replays the `websocket` capture: the profile-policy opening's new HTTP/2
+  connection resumes the page's ticket and sends the preface, SETTINGS,
+  and WINDOW_UPDATE as early data, and no HEADERS.
+  `a_firefox_upgrade_after_an_http1_request_travels_as_early_data` replays
+  `websocket-http1` with an exact HTTP/1.1 opening: the Upgrade GET arrives
+  as early data. `a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request`
+  shows a Chromium-profile Upgrade connection that offers only `http/1.1`
+  resuming the ticket of an `h2` connection without early data, as
+  Chrome 154's session cache, keyed by host and port, network anonymization
+  key, privacy mode, and proxy chain, offers it
+  (`SSLClientSocketImpl::GetSessionCacheKey`,
+  `net/socket/ssl_client_socket_impl.cc` lines 1631-1644 at
+  `154.0.8037.58`); no Chromium-family capture covers it.
+  `a_negotiated_request_resumes_the_ticket_of_a_chromium_upgrade` and
+  `an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request`
+  cover the other direction and the exact HTTP/2 pool, and
+  `a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_request`
+  a CONNECT tunnel.
+  `a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_data`
+  shows an Upgrade that offers only `http/1.1` resuming an `h2` page's
+  ticket without offering early data, since the ticket's ALPN protocol is
+  not in its offer, and
+  `a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change`
+  the restart after a later request resumes that Upgrade's ticket.
+  `a_connector_with_the_websocket_alpn_list_sends_the_policy_client_hello`
+  in `crates/phantom-net/src/tls/tests/alps.rs` shows that the Upgrade
+  connection's ClientHello is the one the policy's TLS settings build.
 - `a_resumed_negotiated_get_travels_as_early_data`,
   `an_alpn_change_restarts_a_get_on_a_full_handshake`, and
   `an_alpn_change_restarts_a_post_without_sending_its_body_early` drive the
@@ -5242,9 +5274,21 @@ Limits:
   restarts a request without early data after a `425 Too Early` response.
 - Early data is offered on negotiated and exact HTTP/1.1 and HTTP/2
   connections and on direct WebSocket openings that resume a ticket. A
-  `Client` WebSocket opening keeps no ticket: it makes a full handshake
-  where Firefox resumed the page's ticket and sent early data
-  ([roadmap](../roadmap.md)). Phantom offers none on a
+  `Client` WebSocket opening takes its tickets from one request pool, the
+  negotiated pool for a profile-policy opening and the exact pool of its
+  protocol otherwise, and from the pool key of the current Tokio runtime,
+  as requests do. After `websocket-http1`'s opening, Firefox's `/done`
+  request resumed a ticket the page's connection was issued, where Phantom
+  presents the newest ticket it holds, one the WebSocket's connection was
+  issued ([roadmap](../roadmap.md)). When that ticket came from an Upgrade
+  connection that offered only `http/1.1`, a Firefox-profile negotiated
+  request sends its GET as early data under `http/1.1`, and a server that
+  selects `h2` rejects it, so the request starts again on a full handshake. Firefox's profile-policy opening
+  in `websocket-http1` offered `h2` and `http/1.1` and sent an Upgrade
+  when the server selected `http/1.1`; Phantom's opening without an
+  HTTP/2 session takes a new HTTP/2 connection and fails when the server
+  selects `http/1.1`, so the replay of that capture opens exactly
+  HTTP/1.1. Phantom offers none on a
   connection that offers ECH from an HTTPS record, which Firefox does not
   exclude: NSS offers `early_data` in a resumed ECH connection's outer
   ClientHello when the ticket permits it, and copies it into the inner one

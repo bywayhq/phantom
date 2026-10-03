@@ -215,8 +215,10 @@ Supported:
   connectors offer it on a direct opening that resumes a ticket: the
   HTTP/1.1 Upgrade GET travels in it, and over HTTP/2 the preface and
   SETTINGS do while the extended CONNECT waits for the answer. A `Client`
-  WebSocket opening keeps no ticket, so it makes a full handshake and offers
-  none. Proxy routes and connections that offer ECH from an HTTPS record
+  WebSocket opening shares the tickets of its origin's request pool, so it
+  resumes a ticket an earlier request was issued, and offers early data
+  when its ALPN offer includes the ticket's protocol.
+  Proxy routes and connections that offer ECH from an HTTPS record
   never offer it, and the Chromium-family recipes never do
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - A shutdown with or without a TLS `close_notify` alert before the TCP FIN
