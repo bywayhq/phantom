@@ -59,7 +59,7 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the
-  origin, with the Chrome 154, Edge 154, and Brave 154 recipes
+  origin, with the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence),
   [over QUIC](explanation/validation.md#real-ech-over-quic-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
@@ -199,9 +199,6 @@ anything does.
   `opera::v135_macos_client_hints` and `edge::v154_macos_client_hints` carry
   those builds. Blocker: none; update the Mac's browsers and take the macOS
   client hints and request captures again.
-- Opera's ECH default. Evidence: unknown; Opera 135 sent no DNS-over-HTTPS
-  query with the capture tool's preferences, and `opera::v136_tls` keeps
-  GREASE. Blocker: a way to point Opera at a test DNS-over-HTTPS server.
 - Firefox's address selection. Evidence: in five Firefox 157 runs on
   Windows 11, an IPv4 backup attempt started 254 to 260 ms after a slow
   first attempt, the first attempt's slower connection stayed open and

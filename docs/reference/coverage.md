@@ -441,13 +441,13 @@ Supported requests and routes:
   Alt-Svc store's number of origins. Records are parsed into typed fields
   (`alpn`, `no-default-alpn`, `port`, `ipv4hint`, `ipv6hint`, `mandatory`,
   and `ech` kept as raw bytes), and a malformed record is a typed error.
-  With the Chrome 154, Edge 154, or Brave 154 recipe, a direct HTTP/1.1 or
-  HTTP/2 connection, negotiated or exact, and a `wss://` opening encrypt the
-  ClientHello with the record's `ech`, waiting up to 50 ms after address
-  resolution for the lookup, not at all when the address comes from the
-  client's address cache, and retrying once after a rejection whose server
-  authenticates as the public name, as Chrome 154, Edge 153, and Brave 154
-  do
+  With the Chrome 154, Edge 154, Brave 154, or Opera 136 recipe, a direct
+  HTTP/1.1 or HTTP/2 connection, negotiated or exact, and a `wss://` opening
+  encrypt the ClientHello with the record's `ech`, waiting up to 50 ms after
+  address resolution for the lookup, not at all when the address comes from
+  the client's address cache, and retrying once after a rejection whose
+  server authenticates as the public name, as Chrome 154, Edge 153, Brave
+  154, and Opera 136 do
   ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
   Their HTTP/3 recipes do the same on a QUIC connection to the origin, an
   HTTPS-record alternative or an exact HTTP/3 request, except that a
@@ -523,8 +523,7 @@ Planned:
 - Datagram APIs for specific extensions.
 - Alt-Svc racing across multiple alternatives, and a racing delay derived
   from RTT.
-- Encrypted Client Hello from a record's `ech` value for Opera, and on an
-  Alt-Svc alternative at another host.
+- Encrypted Client Hello on an Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does; Phantom's address lookups go through the operating system.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
@@ -971,7 +970,8 @@ How the recipes differ:
   caller, because Brave draws its `q` value per session.
 - Opera 136 matches the same Chromium recipes and sends Chromium 152's 32
   trust-anchor IDs, in an order drawn per process, where Chrome 154 sends 28
-  sorted. `opera::` carries `v136_tls`, `v136_http3_tls`,
+  sorted. `opera::` carries `v136_tls`, which keeps Chrome's ECH from
+  HTTPS records, `v136_http3_tls`,
   `v136_windows_client_hints`, `v135_macos_client_hints` from the Mac's
   Opera 135, and its request templates, which equal the Chromium templates
   apart from `User-Agent`.

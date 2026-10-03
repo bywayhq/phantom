@@ -7,7 +7,7 @@ use btls::{
     hpke::HpkeKey,
     ssl::{AlpnError, SslEchKeys, select_next_proto},
 };
-use phantom_profile::{TlsSettings, brave, chromium, edge};
+use phantom_profile::{TlsSettings, brave, chromium, edge, opera};
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::{
     ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list,
@@ -38,6 +38,12 @@ const EDGE_ACCEPT: &str = include_str!(
 );
 const BRAVE_ACCEPT: &str = include_str!(
     "../../../../../fixtures/tls/brave/154.1.96.59/windows-11-26200/ech-quic-accept.txt"
+);
+const OPERA_ACCEPT: &str = include_str!(
+    "../../../../../fixtures/tls/opera/136.0.6008.52/windows-11-26200/ech-quic-accept.txt"
+);
+const OPERA_REJECT: &str = include_str!(
+    "../../../../../fixtures/tls/opera/136.0.6008.52/windows-11-26200/ech-quic-reject.txt"
 );
 
 /// What the server saw on one QUIC connection.
@@ -429,27 +435,39 @@ async fn quic_outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()
     assert_accept_replays(BRAVE_ACCEPT, &brave::v154_http3_tls()).await
 }
 
+#[tokio::test]
+async fn quic_outer_client_hello_has_the_shape_opera_136_sent() -> TestResult<()> {
+    assert_accept_replays(OPERA_ACCEPT, &opera::v136_http3_tls()).await
+}
+
 /// Every QUIC connection in Chrome's `reject` capture offered the record's
 /// configuration and closed with `ech_required`; none used the retry
 /// configuration, which only Chrome's TCP connection did.
 #[tokio::test]
 async fn chrome_154_quic_rejection_is_not_retried_as_chrome_did_not_retry_it() -> TestResult<()> {
-    let count = fixture_value(CHROME_REJECT, "quic_connection_count")?.parse::<usize>()?;
+    assert_quic_rejection_replays(CHROME_REJECT, &chromium::v154_http3_tls()).await
+}
+
+/// Opera 136's `reject` capture shows the same three QUIC connections.
+#[tokio::test]
+async fn opera_136_quic_rejection_is_not_retried_as_opera_did_not_retry_it() -> TestResult<()> {
+    assert_quic_rejection_replays(OPERA_REJECT, &opera::v136_http3_tls()).await
+}
+
+/// Checks that every QUIC connection of a `reject` capture offered the
+/// record's configuration and closed with `ech_required`, then that Phantom's
+/// connection with `settings` matches the first and is not repeated.
+async fn assert_quic_rejection_replays(fixture: &str, settings: &TlsSettings) -> TestResult<()> {
+    let count = fixture_value(fixture, "quic_connection_count")?.parse::<usize>()?;
     for index in 0..count {
-        let field =
-            |name: &str| fixture_value(CHROME_REJECT, &format!("quic_connection_{index}_{name}"));
+        let field = |name: &str| fixture_value(fixture, &format!("quic_connection_{index}_{name}"));
         assert!(field("ech_outer")?.contains("config_id=1,"));
         assert_eq!(field("handshake")?, "failed: client closed with 0x179");
     }
-    let (result, phantom, endpoint) = replay(
-        CHROME_REJECT,
-        &chromium::v154_http3_tls(),
-        &TEST_ECH_KEYS[1],
-    )
-    .await?;
+    let (result, phantom, endpoint) = replay(fixture, settings, &TEST_ECH_KEYS[1]).await?;
     let error = result.err().ok_or("a rejected ECH offer connected")?;
     assert_eq!(error.ech_failure(), Some(EchFailure::Rejected));
-    let field = |name: &str| fixture_value(CHROME_REJECT, &format!("quic_connection_0_{name}"));
+    let field = |name: &str| fixture_value(fixture, &format!("quic_connection_0_{name}"));
     assert_eq!(
         phantom.outer_server_name()?.as_deref(),
         Some(field("outer_server_name")?)

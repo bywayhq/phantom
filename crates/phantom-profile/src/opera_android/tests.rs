@@ -50,6 +50,7 @@ fn opera_android_102_tls_is_chrome_without_trust_anchor_ids()
     assert_eq!(settings, chrome);
     let mut desktop = opera::v136_tls();
     desktop.requested_trust_anchor_ids = None;
+    desktop.ech_from_https_records = false;
     assert_eq!(settings, desktop);
     Ok(())
 }

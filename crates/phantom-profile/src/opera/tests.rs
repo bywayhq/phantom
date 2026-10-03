@@ -108,7 +108,6 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
         ]
     );
     expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
-    expected.ech_from_https_records = false;
     assert_eq!(opera, expected);
 
     let opera = v136_http3_tls();
@@ -124,7 +123,6 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     assert_eq!(id_set(quic_ids), ids_listed);
     let mut expected = chromium::v154_http3_tls();
     expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
-    expected.ech_from_https_records = false;
     assert_eq!(opera, expected);
     Ok(())
 }

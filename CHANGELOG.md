@@ -1320,6 +1320,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `opera::v136_tls` and `opera::v136_http3_tls` set
+  `ech_from_https_records`: given an HTTPS record with `ech`, Opera
+  136.0.6008.52 encrypted its ClientHello over TCP and QUIC and handled a
+  rejection as Chrome 154 does, once its own Secure DNS preferences pointed
+  it at the record
+  ([evidence](docs/explanation/validation.md#real-ech-evidence)). They
+  sent ECH GREASE only before.
 - `firefox::v157_http3_tls` sends the QUIC ClientHello Firefox 157 sends.
   It keeps `quic_transport_parameters` and then `encrypted_client_hello`
   last after the shuffled extensions, where all of them were shuffled, and

@@ -287,15 +287,22 @@ fn ech_from_https_records_requires_ech_grease() {
 }
 
 #[test]
-fn only_the_chrome_edge_and_brave_recipes_use_ech_from_https_records() {
+fn only_the_desktop_chromium_recipes_use_ech_from_https_records() {
     assert!(crate::chromium::v154_tls().ech_from_https_records);
     assert!(crate::chromium::v154_http3_tls().ech_from_https_records);
     assert!(crate::edge::v154_tls().ech_from_https_records);
     assert!(crate::edge::v154_http3_tls().ech_from_https_records);
     assert!(crate::brave::v154_tls().ech_from_https_records);
     assert!(crate::brave::v154_http3_tls().ech_from_https_records);
-    assert!(!crate::opera::v136_tls().ech_from_https_records);
-    assert!(!crate::opera::v136_http3_tls().ech_from_https_records);
+    assert!(crate::opera::v136_tls().ech_from_https_records);
+    assert!(crate::opera::v136_http3_tls().ech_from_https_records);
+    assert!(!crate::opera_android::v102_tls().ech_from_https_records);
+    assert!(!crate::chrome_android::v154_tls().ech_from_https_records);
+    assert!(!crate::chrome_android::v154_http3_tls().ech_from_https_records);
+    assert!(!crate::edge_android::v153_tls().ech_from_https_records);
+    assert!(!crate::edge_android::v153_http3_tls().ech_from_https_records);
+    assert!(!crate::brave_android::v153_tls().ech_from_https_records);
+    assert!(!crate::brave_android::v153_http3_tls().ech_from_https_records);
     assert!(!crate::firefox::v157_tls().ech_from_https_records);
 }
 

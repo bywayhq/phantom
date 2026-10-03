@@ -939,11 +939,19 @@ where Chrome's and Opera's arrived in 1-RTT; Phantom does not model the
 preconnect timing that decides this (see
 [QUIC resumption and 0-RTT evidence](#quic-resumption-and-0-rtt-evidence)).
 
-Opera 135 sent no DNS-over-HTTPS query with the `chrome_ech.py`
-preferences, as Edge 153 did not, so no capture shows whether Opera uses an
-HTTPS record's `ech`; no Opera 136 ECH capture was tried. `opera::v136_tls`
-leaves `ech_from_https_records` unset and keeps ECH GREASE, which every Opera
-135 and 136 ClientHello carried.
+Opera 135 sent no DNS-over-HTTPS query with Chromium's `Local State`
+preferences alone. Opera 136 overrides them at startup with its own
+`dns_over_https.opera` preferences: `opera_browser.dll` in 136.0.6008.52
+holds the names `dns_over_https.opera.doh_mode`,
+`dns_over_https.opera.custom_servers`, and
+`dns_over_https.opera.enabled_version` beside the source file name
+`dns_over_https_prefs_observer.cc`, and a run with Chromium's preferences
+alone timed out with no lookup. With Opera's set in the throwaway profile it
+sent its lookups to the capture server and used the record's
+`ech` over TCP and QUIC, as Chrome 154 does. `opera::v136_tls` and
+`v136_http3_tls` therefore keep `ech_from_https_records`; see
+[Real ECH evidence](#real-ech-evidence). Without a record, every Opera 135
+and 136 ClientHello carried ECH GREASE.
 
 Tests: the `brave_154_*` and `opera_136_*` tests in `phantom-profile` and
 `phantom-net`, and the Brave and Opera cases of the Chromium tests, replay
@@ -994,7 +1002,7 @@ Retained fixtures, each under `fixtures/<area>/<browser>/<version>/windows-11-26
 | Browser | Area | Files |
 | --- | --- | --- |
 | Brave 154.1.96.59 | `tls` | `client-hello.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
-| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, the other 19 TLS startups as `startup-runs/client-hello-<n>.txt`, `trust-anchor-orders.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) |
+| Opera 136.0.6008.52 | `tls` | `client-hello.txt`, the other 19 TLS startups as `startup-runs/client-hello-<n>.txt`, `trust-anchor-orders.txt`, `ech-accept.txt`, `ech-reject.txt`, `ech-quic-accept.txt`, `ech-quic-reject.txt`, nine `resumption-<scenario>.txt` files; see [TLS resumption over TCP evidence](#tls-resumption-over-tcp-evidence) and [Real ECH evidence](#real-ech-evidence) |
 | Both | `http2` | `client-startup.txt` |
 | Both | `http3` | `client-startup.txt`, `quic-client-hello-{1,2}.txt`, `resumption-accept.txt`, `resumption-accept-delayed.txt`, `resumption-reject.txt` |
 | Opera 136.0.6008.52 | `http3` | `quic-client-hello-3.txt`, the third H3 startup, for `trust-anchor-orders.txt` |
@@ -3886,14 +3894,15 @@ Limits, as differences from Chrome:
 
 ### Real ECH evidence
 
-What is claimed: with the Chrome 154, Edge 154, or Brave 154 recipe and
-HTTPS record discovery, a direct negotiated connection to an origin whose
-HTTPS record carries `ech` encrypts its ClientHello with that
-configuration, as Chrome 154.0.8037.58, Edge 153.0.4234.48, and Brave
-154.1.96.59 do: the outer server name is the configuration's public name,
-the `encrypted_client_hello` extension has the kind, cipher suite, config ID,
-encapsulated key length, and payload length the browser sent, and the outer
-ClientHello carries the extension set the browser's did. After a rejection it
+What is claimed: with the Chrome 154, Edge 154, Brave 154, or Opera 136
+recipe and HTTPS record discovery, a direct negotiated connection to an
+origin whose HTTPS record carries `ech` encrypts its ClientHello with that
+configuration, as Chrome 154.0.8037.58, Edge 153.0.4234.48, Brave
+154.1.96.59, and Opera 136.0.6008.52 do: the outer server name is the
+configuration's public name, the `encrypted_client_hello` extension has the
+kind, cipher suite, config ID, encapsulated key length, and payload length
+the browser sent, and the outer ClientHello carries the extension set the
+browser's did. After a rejection it
 connects once more to the same address with the server's retry
 configurations, or with ECH GREASE and the true name when the server sent
 none. The ClientHello waits for the lookup as Chrome's does, for at most 50 ms
@@ -3931,6 +3940,25 @@ set without trust-anchor IDs, and, after a rejection, one connection with
 retry configuration 2 that the origin accepted.
 `outer_client_hello_has_the_shape_brave_154_sent` replays the accept capture
 with `brave::v154_tls`, as described below.
+
+Opera 136.0.6008.52 behaves the same way. Opera overrides Chromium's two
+`Local State` preferences with its own, so `chrome_ech.py --browser opera`
+also sets
+`dns_over_https.opera.doh_mode` to `custom` and
+`dns_over_https.opera.custom_servers` to the capture server's template in
+the throwaway profile; the fixture's `dns_configuration` line records them.
+Opera sent one `HTTPS` and one `A` query. Its retained `ech-accept.txt` and
+`ech-reject.txt`, under
+`fixtures/tls/opera/136.0.6008.52/windows-11-26200/`, show the same outer
+server name and extension fields as Chrome's, with Opera's trust-anchor IDs,
+and, after each of two rejections, one connection with retry configuration
+2 that the origin accepted. `outer_client_hello_has_the_shape_opera_136_sent`
+replays the accept capture with `opera::v136_tls`, and
+`opera_136_rejection_is_retried_as_opera_retried_it` replays the reject
+capture: the rejected connection and its retry have Opera's outer name,
+extension fields, acceptance, and inner name. One run of each scenario
+was taken, on 2 October 2026; the ClientHellos' trust-anchor orders are not
+among those `trust-anchor-orders.txt` tallies.
 
 `fixtures/tls/edge/153.0.4234.48/windows-11-26200/` retains `ech-accept.txt`
 and `ech-reject.txt` from headless Edge 153.0.4234.48 on the same host and
@@ -4127,11 +4155,12 @@ Limits:
 
 ### Real ECH over QUIC evidence
 
-What is claimed: with the Chrome 154, Edge 154, or Brave 154 HTTP/3 recipe
-and HTTPS record discovery, a direct QUIC connection to the origin's own host
-and port, whose first record that lists `h3` carries `ech`, encrypts its
-ClientHello with that configuration, as Chrome 154.0.8037.58, Edge
-153.0.4234.48, and Brave 154.1.96.59 do. The outer server name is the
+What is claimed: with the Chrome 154, Edge 154, Brave 154, or Opera 136
+HTTP/3 recipe and HTTPS record discovery, a direct QUIC connection to the
+origin's own host and port, whose first record that lists `h3` carries
+`ech`, encrypts its ClientHello with that configuration, as Chrome
+154.0.8037.58, Edge 153.0.4234.48, Brave 154.1.96.59, and Opera
+136.0.6008.52 do. The outer server name is the
 configuration's public name, the `encrypted_client_hello` extension has the
 cipher suite, config ID, encapsulated key length, and payload length the
 browser sent, and the outer ClientHello carries the extension set the
@@ -4177,6 +4206,16 @@ and the first of each is retained.
   `HTTPS`, and a second `A` query. In these runs Edge read its
   DNS-over-HTTPS server from the `Local State` preferences. Its policy key
   under `HKLM\SOFTWARE\Policies\Microsoft\Edge` existed and held no values.
+- Opera 136.0.6008.52, in one run of each scenario retained under
+  `fixtures/tls/opera/136.0.6008.52/windows-11-26200/`, matched Chrome: two
+  QUIC connections with the accepted configuration in `accept`; in `reject`,
+  three QUIC connections offering config ID 1, each closed with `0x179`,
+  then the page over TCP after one rejection and one retry with config ID 2.
+  `quic_outer_client_hello_has_the_shape_opera_136_sent` replays the accept
+  capture with `opera::v136_http3_tls`, and
+  `opera_136_quic_rejection_is_not_retried_as_opera_did_not_retry_it` the
+  reject capture: the connection has Opera's outer fields, closes with
+  `0x179`, and no second QUIC connection arrives.
 - A diagnostic Chrome `reject` run with `--log-net-log`, not retained, shows
   each QUIC session closing with `TLS handshake failure
   (ENCRYPTION_FORWARD_SECURE) 121: ECH required`, and the navigation's TCP

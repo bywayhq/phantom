@@ -388,6 +388,11 @@ const EDGE_REJECT: &str =
 /// Brave 154's ClientHelloOuter from `ech-accept.txt`, captured the same way.
 const BRAVE_ACCEPT: &str =
     include_str!("../../../../../fixtures/tls/brave/154.1.96.59/windows-11-26200/ech-accept.txt");
+/// Opera 136's, captured the same way with Opera's own Secure DNS preferences.
+const OPERA_ACCEPT: &str =
+    include_str!("../../../../../fixtures/tls/opera/136.0.6008.52/windows-11-26200/ech-accept.txt");
+const OPERA_REJECT: &str =
+    include_str!("../../../../../fixtures/tls/opera/136.0.6008.52/windows-11-26200/ech-reject.txt");
 
 fn fixture_value<'a>(fixture: &'a str, field: &str) -> TestResult<&'a str> {
     fixture
@@ -491,6 +496,13 @@ async fn outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()> {
     assert_accept_replays(BRAVE_ACCEPT, &phantom_profile::brave::v154_tls()).await
 }
 
+/// Opera sends Chrome's outer shape with its own trust-anchor IDs, whose
+/// order the extension set ignores.
+#[tokio::test]
+async fn outer_client_hello_has_the_shape_opera_136_sent() -> TestResult<()> {
+    assert_accept_replays(OPERA_ACCEPT, &phantom_profile::opera::v136_tls()).await
+}
+
 /// The fixture's `ech_outer` line for one observed connection.
 fn ech_outer_line(observed: &Observed) -> String {
     observed.ech.as_ref().map_or_else(
@@ -506,15 +518,26 @@ fn ech_outer_line(observed: &Observed) -> String {
 
 #[tokio::test]
 async fn edge_153_rejection_is_retried_as_edge_retried_it() -> TestResult<()> {
-    // Edge's first two connections, the navigation and a preconnect, were
-    // rejected and the next two were their retries. Each pair is identical,
-    // so the first of each stands for both.
-    let observed = replay(EDGE_REJECT, &edge::v154_tls(), TEST_ECH_KEYS[1], 2).await?;
+    assert_rejection_replays(EDGE_REJECT, &edge::v154_tls()).await
+}
+
+#[tokio::test]
+async fn opera_136_rejection_is_retried_as_opera_retried_it() -> TestResult<()> {
+    assert_rejection_replays(OPERA_REJECT, &phantom_profile::opera::v136_tls()).await
+}
+
+/// Checks Phantom's rejected connection and its retry, made with `settings`,
+/// against a `reject` capture.
+async fn assert_rejection_replays(fixture: &str, settings: &TlsSettings) -> TestResult<()> {
+    // The browser's first two connections, the navigation and a preconnect,
+    // were rejected and the next two were their retries. Each pair is
+    // identical, so the first of each stands for both.
+    let observed = replay(fixture, settings, TEST_ECH_KEYS[1], 2).await?;
     let [rejected, retried] = &observed[..] else {
         return Err(format!("expected two connections, saw {observed:?}").into());
     };
-    for (phantom, edge) in [(rejected, 0), (retried, 2)] {
-        let field = |name: &str| fixture_value(EDGE_REJECT, &format!("connection_{edge}_{name}"));
+    for (phantom, browser) in [(rejected, 0), (retried, 2)] {
+        let field = |name: &str| fixture_value(fixture, &format!("connection_{browser}_{name}"));
         assert_eq!(
             phantom.outer_server_name.as_deref(),
             Some(field("outer_server_name")?)

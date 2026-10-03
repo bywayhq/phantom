@@ -33,8 +33,8 @@ use crate::{
 /// Opera for Android sends none. The captures reached `localhost`, the only
 /// name Opera could resolve to the listener, and a ClientHello to another
 /// name differs only in its server name.
-/// [`TlsSettings::ech_from_https_records`] stays unset, as in the desktop
-/// Opera recipe.
+/// [`TlsSettings::ech_from_https_records`] is unset: no Android capture
+/// shows Opera using an HTTPS record's `ech`, though desktop Opera 136 does.
 #[must_use]
 pub fn v102_tls() -> TlsSettings {
     let mut settings = chromium::v154_tls();

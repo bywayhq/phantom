@@ -369,15 +369,16 @@ fn observed_orders(orders: &[(usize, [u8; 32])]) -> Vec<Vec<Box<[u8]>>> {
 /// [`chromium::v154_tls`] with [`TrustAnchorIds::PerClient`]: each client
 /// draws one of the 29 processes' orders, 16 distinct, and keeps it on every
 /// TCP connection, as a process does. The retained `client-hello.txt` is
-/// replayed against the result. It leaves
-/// [`TlsSettings::ech_from_https_records`] unset: no capture shows Opera
-/// using an HTTPS record's `ech`.
+/// replayed against the result. It keeps
+/// [`TlsSettings::ech_from_https_records`] set: given an HTTPS record with
+/// `ech` from its DNS-over-HTTPS server, Opera 136 sent the configuration,
+/// and after a rejection it retried once with the server's retry
+/// configuration, as Chrome 154 does.
 #[must_use]
 pub fn v136_tls() -> TlsSettings {
     let mut settings = chromium::v154_tls();
     settings.requested_trust_anchor_ids =
         Some(TrustAnchorIds::PerClient(observed_orders(&V136_TCP_ORDERS)));
-    settings.ech_from_https_records = false;
     settings
 }
 
@@ -389,16 +390,17 @@ pub fn v136_tls() -> TlsSettings {
 /// them with [`TrustAnchorIds::PerConnection`], drawing one of those 20
 /// ClientHellos' orders for each connection. It inherits that recipe's
 /// ticket resumption, whose Chromium source basis was read at 154, not at
-/// Opera's Chromium 152 base. It clears
-/// [`TlsSettings::ech_from_https_records`], as [`v136_tls`] does: no capture
-/// shows Opera using an HTTPS record's `ech`.
+/// Opera's Chromium 152 base. It keeps
+/// [`TlsSettings::ech_from_https_records`], as [`v136_tls`] does: Opera 136
+/// sent an HTTPS record's `ech` over QUIC, and closed a rejected QUIC
+/// connection with `ech_required` without retrying it there, as Chrome 154
+/// does.
 #[must_use]
 pub fn v136_http3_tls() -> TlsSettings {
     let mut settings = chromium::v154_http3_tls();
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerConnection(observed_orders(
         &V136_QUIC_ORDERS,
     )));
-    settings.ech_from_https_records = false;
     settings
 }
 
