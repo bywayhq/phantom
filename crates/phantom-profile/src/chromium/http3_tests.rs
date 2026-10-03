@@ -556,13 +556,13 @@ fn brave_captures_use_the_recipe_s_qpack_stream_numbers() -> Result<(), Box<dyn 
 fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     const CHROME: &str = include_str!(
-        "../../../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt"
+        "../../../../fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt"
     );
     const EDGE: &str = include_str!(
-        "../../../../fixtures/http3/edge/154.0.4258.37/macos-15.5-arm64/client-startup.txt"
+        "../../../../fixtures/http3/edge/154.0.4258.48/macos-15.5-arm64/client-startup.txt"
     );
     const OPERA: &str = include_str!(
-        "../../../../fixtures/http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt"
+        "../../../../fixtures/http3/opera/136.0.6008.52/macos-15.5-arm64/client-startup.txt"
     );
     for fixture in [CHROME, EDGE, OPERA] {
         assert_eq!(

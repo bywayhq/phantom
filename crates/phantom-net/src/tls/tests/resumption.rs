@@ -85,11 +85,13 @@ const OPERA_SEQUENTIAL: &str = fixture!("opera", "136.0.6008.52", "sequential");
 const FIREFOX_SEQUENTIAL: &str = fixture!("firefox", "157.0", "sequential");
 const FIREFOX_NO_EARLY_DATA: &str = fixture!("firefox", "157.0", "no-early-data");
 const CHROME_MACOS_SEQUENTIAL: &str =
-    fixture!("chrome", "154.0.8037.58", "macos-15.5-arm64", "sequential");
+    fixture!("chrome", "154.0.8037.95", "macos-15.5-arm64", "sequential");
 const EDGE_MACOS_SEQUENTIAL: &str =
-    fixture!("edge", "154.0.4258.37", "macos-15.5-arm64", "sequential");
+    fixture!("edge", "154.0.4258.48", "macos-15.5-arm64", "sequential");
+const OPERA_MACOS_SEQUENTIAL: &str =
+    fixture!("opera", "136.0.6008.52", "macos-15.5-arm64", "sequential");
 const FIREFOX_MACOS_SEQUENTIAL: &str =
-    fixture!("firefox", "156.0", "macos-15.5-arm64", "sequential");
+    fixture!("firefox", "157.0", "macos-15.5-arm64", "sequential");
 
 #[tokio::test]
 async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> TestResult<()> {
@@ -98,10 +100,10 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
         (edge::v154_tls(), EDGE_SEQUENTIAL),
         (brave::v154_tls(), BRAVE_SEQUENTIAL),
         (opera::v136_tls(), OPERA_SEQUENTIAL),
-        // One macOS 15.5 arm64 run per browser. The Mac still runs Opera 135,
-        // whose ClientHello no Opera recipe now describes.
+        // One macOS 15.5 arm64 run per browser.
         (chromium::v154_tls(), CHROME_MACOS_SEQUENTIAL),
         (edge::v154_tls(), EDGE_MACOS_SEQUENTIAL),
+        (opera::v136_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
         let (fresh, resumed) =
             fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;

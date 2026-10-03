@@ -690,21 +690,21 @@ fn chromium_family_macos_quic_captures_match_the_chromium_recipe()
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt"
+                "/../../fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt"
             )),
             "Google Chrome",
         ),
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../fixtures/http3/edge/154.0.4258.37/macos-15.5-arm64/client-startup.txt"
+                "/../../fixtures/http3/edge/154.0.4258.48/macos-15.5-arm64/client-startup.txt"
             )),
             "Microsoft Edge",
         ),
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../fixtures/http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt"
+                "/../../fixtures/http3/opera/136.0.6008.52/macos-15.5-arm64/client-startup.txt"
             )),
             "Opera",
         ),

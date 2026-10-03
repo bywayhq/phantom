@@ -108,14 +108,14 @@ const BRAVE_PROXY: [&str; 20] = [
     fixture!("proxy/brave/154.1.96.59/windows-11-26200/https-proxy-secure-hostname.txt"),
 ];
 const OPERA_WEBSOCKET: [&str; 9] = websocket_set!("opera/136.0.6008.52");
-const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.8037.58");
+const CHROME_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("chrome/154.0.8037.95");
 const CHROME_MACOS_HTTP3: &str =
-    fixture!("http3/chrome/154.0.8037.58/macos-15.5-arm64/client-startup.txt");
-const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/154.0.4258.37");
-const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/135.0.5973.92");
-const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/156.0");
+    fixture!("http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt");
+const EDGE_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("edge/154.0.4258.48");
+const OPERA_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("opera/136.0.6008.52");
+const FIREFOX_MACOS_WEBSOCKET: [&str; 2] = macos_websocket_set!("firefox/157.0");
 const OPERA_MACOS_HTTP3: &str =
-    fixture!("http3/opera/135.0.5973.92/macos-15.5-arm64/client-startup.txt");
+    fixture!("http3/opera/136.0.6008.52/macos-15.5-arm64/client-startup.txt");
 /// The page and `fetch` scenarios of the Android 17 captures, three runs each.
 const CHROME_ANDROID_WEBSOCKET: [&str; 2] = [
     fixture!("websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt"),
@@ -328,8 +328,8 @@ fn every_template_recipe_is_valid() {
         opera::v136_windows_fetch_no_store_template(),
         firefox::v157_windows_navigation_template(),
         firefox::v157_windows_fetch_no_store_template(),
-        firefox::v156_macos_navigation_template(),
-        firefox::v156_macos_fetch_no_store_template(),
+        firefox::v157_macos_navigation_template(),
+        firefox::v157_macos_fetch_no_store_template(),
         chromium::v154_macos_navigation_template(),
         chromium::v154_macos_fetch_no_store_template(),
         chrome_android::v154_android_navigation_template(),
@@ -838,7 +838,7 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
         (
             opera::v136_windows_navigation_template(),
             opera::v136_windows_fetch_no_store_template(),
-            opera::v135_macos_client_hints(),
+            opera::v136_macos_client_hints(),
             &OPERA_MACOS_WEBSOCKET,
             "opera macos",
         ),
@@ -862,7 +862,7 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
         ),
         (
             opera::v136_windows_navigation_template(),
-            opera::v135_macos_client_hints(),
+            opera::v136_macos_client_hints(),
             OPERA_MACOS_HTTP3,
             "opera macos h3",
         ),
@@ -874,8 +874,8 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
 }
 
 #[test]
-fn firefox_156_macos_templates_match_every_captured_request() -> CaptureResult<()> {
-    let navigation = firefox::v156_macos_navigation_template();
+fn firefox_157_macos_templates_match_every_captured_request() -> CaptureResult<()> {
+    let navigation = firefox::v157_macos_navigation_template();
     let (http1, http2) = observed(&[&FIREFOX_MACOS_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &navigation,
@@ -893,7 +893,7 @@ fn firefox_156_macos_templates_match_every_captured_request() -> CaptureResult<(
         3,
         "firefox macos h2",
     );
-    let fetch = firefox::v156_macos_fetch_no_store_template();
+    let fetch = firefox::v157_macos_fetch_no_store_template();
     let (http1, http2) = observed(&[&FIREFOX_MACOS_WEBSOCKET], "done", "empty")?;
     assert_all_match(&fetch, Protocol::Http1, None, &http1, 3, "firefox macos h1");
     assert_all_match(&fetch, Protocol::Http2, None, &http2, 3, "firefox macos h2");
@@ -902,15 +902,15 @@ fn firefox_156_macos_templates_match_every_captured_request() -> CaptureResult<(
 
 /// The Windows and macOS Firefox templates differ only in `User-Agent`.
 #[test]
-fn firefox_156_macos_templates_change_only_the_user_agent() {
+fn firefox_157_macos_templates_change_only_the_user_agent() {
     for (windows, macos) in [
         (
             firefox::v157_windows_navigation_template(),
-            firefox::v156_macos_navigation_template(),
+            firefox::v157_macos_navigation_template(),
         ),
         (
             firefox::v157_windows_fetch_no_store_template(),
-            firefox::v156_macos_fetch_no_store_template(),
+            firefox::v157_macos_fetch_no_store_template(),
         ),
     ] {
         let user_agent = |template: &RequestTemplate| {
@@ -931,7 +931,7 @@ fn firefox_156_macos_templates_change_only_the_user_agent() {
         assert_eq!(
             user_agent(&macos),
             vec![
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0";
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0";
                 2
             ]
         );
@@ -1007,8 +1007,8 @@ fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
         (brave_android::v153_android_fetch_no_store_template(), false),
         (firefox::v157_windows_navigation_template(), false),
         (firefox::v157_windows_fetch_no_store_template(), false),
-        (firefox::v156_macos_navigation_template(), false),
-        (firefox::v156_macos_fetch_no_store_template(), false),
+        (firefox::v157_macos_navigation_template(), false),
+        (firefox::v157_macos_fetch_no_store_template(), false),
     ] {
         assert_eq!(template.restarts_for_connection_accept_ch, restarts);
     }

@@ -14,6 +14,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- The macOS Opera and Firefox recipes move to the Windows host's builds,
+  captured again on macOS 15.5 arm64: `opera::v135_macos_client_hints`,
+  `firefox::v156_macos_navigation_template`, and
+  `firefox::v156_macos_fetch_no_store_template` are removed from
+  `phantom-profile` and the `phantom` facade. `opera::v136_macos_client_hints`
+  sends Opera 136's brand list,
+  `"Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136"`, and the
+  136.0.6008.52 full versions, which are the values of
+  `opera::v136_windows_client_hints` with macOS platform data, so it no
+  longer mixes two Opera builds with `opera::v136_tls`. The Firefox macOS
+  templates send `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15;
+  rv:157.0) Gecko/20100101 Firefox/157.0`; their other fields are unchanged
+  ([evidence](docs/explanation/validation.md#macos-recipes)).
+  Migrate: rename `opera::v135_macos_client_hints` to
+  `opera::v136_macos_client_hints`,
+  `firefox::v156_macos_navigation_template` to
+  `firefox::v157_macos_navigation_template`, and
+  `firefox::v156_macos_fetch_no_store_template` to
+  `firefox::v157_macos_fetch_no_store_template`.
 - A request on a Tokio runtime without I/O enabled no longer reuses a warm
   HTTP/3 connection that another runtime opened; it fails with
   `RequestErrorKind::RuntimeUnavailable`, because pooled connections now
@@ -1376,6 +1395,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `chromium::v154_macos_client_hints` reports Chrome 154.0.8037.95 and
+  `edge::v154_macos_client_hints` Edge 154.0.4258.48 in
+  `sec-ch-ua-full-version` and `sec-ch-ua-full-version-list`, the builds the
+  capture Mac runs since 2026-10-02, in place of 154.0.8037.58 and
+  154.0.4258.37. The Edge macOS hints now equal the Windows ones apart from
+  platform data
+  ([evidence](docs/explanation/validation.md#macos-recipes)).
 - `Http1TlsConnector::upgrade_get_direct` and
   `Http2TlsConnector::send_extended_connect_direct`, and their `_with_ech`
   forms when no ECH configuration is offered, offer early data when they

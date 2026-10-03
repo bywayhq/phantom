@@ -284,9 +284,9 @@ pub mod profile {
     /// ```
     pub mod firefox {
         pub use phantom_profile::firefox::{
-            v156_macos_fetch_no_store_template, v156_macos_navigation_template,
             v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_http3,
-            v157_http3_request, v157_http3_tls, v157_proxy_connect, v157_quic, v157_tcp, v157_tls,
+            v157_http3_request, v157_http3_tls, v157_macos_fetch_no_store_template,
+            v157_macos_navigation_template, v157_proxy_connect, v157_quic, v157_tcp, v157_tls,
             v157_websocket, v157_windows_fetch_no_store_template, v157_windows_navigation_template,
         };
     }
@@ -310,7 +310,7 @@ pub mod profile {
     /// ClientHellos, client hints, and request identity differ.
     pub mod opera {
         pub use phantom_profile::opera::{
-            v135_macos_client_hints, v136_http3_tls, v136_tls, v136_windows_client_hints,
+            v136_http3_tls, v136_macos_client_hints, v136_tls, v136_windows_client_hints,
             v136_windows_fetch_no_store_template, v136_windows_navigation_template,
         };
     }

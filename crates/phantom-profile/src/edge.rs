@@ -14,8 +14,10 @@
 //! list, its order, and the versions. The TCP and QUIC ClientHellos, the H2
 //! startup, and the H3 SETTINGS are unchanged, on Windows and on macOS. The
 //! Windows host then updated to Edge 154.0.4258.48, which differs from
-//! 154.0.4258.37 only in the full version its client hints report, so only
-//! [`v154_windows_client_hints`] comes from 154.0.4258.48 captures.
+//! 154.0.4258.37 only in the full version its client hints report, so
+//! [`v154_windows_client_hints`] comes from 154.0.4258.48 captures and the
+//! other Windows recipes from 154.0.4258.37 ones. Every macOS capture,
+//! including the one behind [`v154_macos_client_hints`], is of 154.0.4258.48.
 //!
 //! Edge's network-stack source is not public, and no wire capture shows socket
 //! options or cache lifetimes. Frida hook logs of Edge 154.0.4258.48's network
@@ -115,16 +117,15 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 
 /// Returns client-hint fields observed from Edge 154 on macOS 15.5 arm64.
 ///
-/// Names, order, delivery, and the brand list match
+/// Names, order, delivery, the brand list, and the versions match
 /// [`v154_windows_client_hints`]; three headless runs of the retained
-/// navigation capture of Edge 154.0.4258.37 on macOS 15.5 (24F74) on Apple
-/// silicon agree. The platform data differs: `sec-ch-ua-platform` is
+/// navigation capture of Edge 154.0.4258.48 on macOS 15.5 (24F74) on Apple
+/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
-/// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
-/// 154.0.4258.37, one patch release behind the Windows recipe. The returned
-/// value is owned and may be customized before client creation, for example
-/// to carry another macOS version.
+/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// customized before client creation, for example to carry another macOS
+/// version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
@@ -136,7 +137,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.37""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.48""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
@@ -145,7 +146,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.37", "Not A(Brand";v="99.0.0.0""#,
+            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.48", "Not A(Brand";v="99.0.0.0""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -167,7 +168,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
 /// that is not potentially trustworthy too: to `origin.phantom.test` Edge
 /// sends no `Sec-Fetch-*` field and `Accept-Encoding: gzip, deflate`.
 ///
-/// The template also matches the Edge 154.0.4258.37 captures on macOS 15.5
+/// The template also matches the Edge 154.0.4258.48 captures on macOS 15.5
 /// arm64 on HTTP/1.1 and HTTP/2, with [`v154_macos_client_hints`], so there
 /// is no separate macOS template. On macOS Edge takes `Accept-Language` from
 /// the system language list and ignores `--lang`; those captures ran with

@@ -29,8 +29,9 @@
 //! therefore use those recipes; Opera has no TCP, UDP, HTTP/1.1 connection,
 //! or address cache recipe of its own.
 //!
-//! The macOS 15.5 arm64 capture host still runs Opera 135.0.5973.92, so its
-//! client hints keep [`v135_macos_client_hints`].
+//! On macOS 15.5 arm64, Opera 136.0.6008.52 sends the Windows client hints
+//! with macOS platform data, [`v136_macos_client_hints`], and the fields of the
+//! Windows request templates.
 
 use crate::{
     chromium,
@@ -440,30 +441,29 @@ pub fn v136_windows_client_hints() -> ClientHintSettings {
     ])
 }
 
-/// Returns client-hint fields observed from Opera 135 on macOS 15.5 arm64.
+/// Returns client-hint fields observed from Opera 136 on macOS 15.5 arm64.
 ///
-/// Names, order, and delivery match the Chromium client-hint recipes; three
-/// headless runs of the retained navigation capture of Opera 135.0.5973.92 on
-/// macOS 15.5 (24F74) on Apple silicon agree. The values carry Opera 135's
-/// brand list, which puts the greased brand first, its Chromium
-/// 151.0.7922.176 base, and macOS platform data: `sec-ch-ua-platform` is
+/// Names, order, delivery, the brand list, and the versions match
+/// [`v136_windows_client_hints`]; three headless runs of the retained
+/// navigation capture of Opera 136.0.6008.52 on macOS 15.5 (24F74) on Apple
+/// silicon agree. Only the platform data differs: `sec-ch-ua-platform` is
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
-/// `sec-ch-ua-wow64` stays `?0`. Opera 136 changed the brand list, so these
-/// hints are not [`v136_windows_client_hints`] with other platform data. The
-/// returned value is owned and may be customized before client creation.
+/// `sec-ch-ua-wow64` stays `?0`. The returned value is owned and may be
+/// customized before client creation, for example to carry another macOS
+/// version.
 #[must_use]
-pub fn v135_macos_client_hints() -> ClientHintSettings {
+pub fn v136_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
         ClientHint::new(
             "sec-ch-ua",
-            r#""Not=A?Brand";v="99", "Opera";v="135", "Chromium";v="151""#,
+            r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""135.0.5973.92""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""136.0.6008.52""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
@@ -472,7 +472,7 @@ pub fn v135_macos_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Not=A?Brand";v="99.0.0.0", "Opera";v="135.0.5973.92", "Chromium";v="151.0.7922.176""#,
+            r#""Chromium";v="152.0.7977.130", "Not?A_Brand";v="24.0.0.0", "Opera";v="136.0.6008.52""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -491,9 +491,9 @@ pub fn v135_macos_client_hints() -> ClientHintSettings {
 /// trustworthy: to `origin.phantom.test` Opera sends no `Sec-Fetch-*` field
 /// and `Accept-Encoding: gzip, deflate`.
 ///
-/// The template also matches the Opera 135.0.5973.92 captures on macOS 15.5
-/// arm64 on HTTP/1.1 and HTTP/2, with [`v135_macos_client_hints`], so there
-/// is no separate macOS template.
+/// The template also matches the Opera 136.0.6008.52 captures on macOS 15.5
+/// arm64 on HTTP/1.1, HTTP/2, and HTTP/3, with [`v136_macos_client_hints`],
+/// so there is no separate macOS template.
 #[must_use]
 pub fn v136_windows_navigation_template() -> RequestTemplate {
     chromium::v154_navigation_template(None)

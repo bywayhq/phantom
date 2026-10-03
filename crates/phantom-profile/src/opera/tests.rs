@@ -1,7 +1,7 @@
 mod hash_set_order;
 
-use super::{v135_macos_client_hints, v136_http3_tls, v136_tls, v136_windows_client_hints};
-use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
+use super::{v136_http3_tls, v136_macos_client_hints, v136_tls, v136_windows_client_hints};
+use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
@@ -13,7 +13,7 @@ const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
 ));
 const MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/opera/135.0.5973.92/macos-15.5-arm64/navigation.txt"
+    "/../../fixtures/client-hints/opera/136.0.6008.52/macos-15.5-arm64/navigation.txt"
 ));
 const TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -448,13 +448,13 @@ fn opera_136_http2_session_capture_matches_the_chromium_recipe()
 }
 
 #[test]
-fn opera_135_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
+fn opera_136_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn std::error::Error>>
 {
-    let settings = v135_macos_client_hints();
+    let settings = v136_macos_client_hints();
     settings.validate()?;
     let capture = NavigationCapture::parse(MACOS_CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Opera");
-    assert_eq!(capture.value("client_version")?, "135.0.5973.92");
+    assert_eq!(capture.value("client_version")?, "136.0.6008.52");
     assert_eq!(
         capture.value("operating_system")?,
         "macOS 15.5 (24F74) arm64"
@@ -466,13 +466,29 @@ fn opera_135_macos_client_hints_match_navigation_capture() -> Result<(), Box<dyn
     Ok(())
 }
 
+/// The Mac runs the Windows recipe's build, so macOS changes only the
+/// platform hints.
+#[test]
+fn opera_136_macos_client_hints_differ_from_windows_in_platform_data_only() {
+    let changed = changed_hints(&v136_windows_client_hints(), &v136_macos_client_hints());
+    assert_eq!(
+        changed,
+        [
+            ("sec-ch-ua-arch", r#""arm""#),
+            ("sec-ch-ua-platform", r#""macOS""#),
+            ("sec-ch-ua-platform-version", r#""15.5.0""#),
+        ]
+        .map(|(name, value)| (name.to_owned(), value.to_owned()))
+    );
+}
+
 /// The macOS 15.5 arm64 page loads carry the same H2 settings as on Windows.
 #[test]
-fn opera_135_macos_http2_session_capture_matches_the_chromium_recipe()
+fn opera_136_macos_http2_session_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/websocket/opera/135.0.5973.92/macos-15.5-arm64/accept.txt"
+        "/../../fixtures/websocket/opera/136.0.6008.52/macos-15.5-arm64/accept.txt"
     )))?;
     assert_eq!(capture.value("client")?, "Opera");
     assert_eq!(

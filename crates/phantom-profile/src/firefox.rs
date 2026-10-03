@@ -877,8 +877,8 @@ const V157_NAVIGATION_ACCEPT: &str =
     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 const V157_WINDOWS_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:157.0) Gecko/20100101 Firefox/157.0";
-const V156_MACOS_USER_AGENT: &str =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0";
+const V157_MACOS_USER_AGENT: &str =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0";
 
 /// Returns Firefox 157's `Accept-Encoding` entry: `br` and `zstd` are offered
 /// only to a potentially trustworthy URL.
@@ -963,20 +963,20 @@ pub fn v157_windows_navigation_template() -> RequestTemplate {
     navigation_template(V157_WINDOWS_USER_AGENT)
 }
 
-/// Returns navigation request fields observed from Firefox 156.0 on macOS
+/// Returns navigation request fields observed from Firefox 157.0 on macOS
 /// 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
 /// [`v157_windows_navigation_template`], except `User-Agent`, which is the
-/// value Firefox 156.0 sent in the headless WebSocket and client-hint
+/// value Firefox 157.0 sent in the headless WebSocket and client-hint
 /// captures on macOS 15.5 (24F74) on Apple silicon:
-/// `Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101
-/// Firefox/156.0`. It names `Intel Mac OS X 10.15`, not the host's 15.5 or
+/// `Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101
+/// Firefox/157.0`. It names `Intel Mac OS X 10.15`, not the host's 15.5 or
 /// its Apple silicon CPU. `Accept-Language` is the capture host's `en-US`
 /// locale.
 #[must_use]
-pub fn v156_macos_navigation_template() -> RequestTemplate {
-    navigation_template(V156_MACOS_USER_AGENT)
+pub fn v157_macos_navigation_template() -> RequestTemplate {
+    navigation_template(V157_MACOS_USER_AGENT)
 }
 
 /// Builds the Firefox navigation lists with a literal `User-Agent`.
@@ -1060,15 +1060,15 @@ pub fn v157_windows_fetch_no_store_template() -> RequestTemplate {
     fetch_no_store_template(V157_WINDOWS_USER_AGENT)
 }
 
-/// Returns same-origin `fetch` request fields observed from Firefox 156.0 on
+/// Returns same-origin `fetch` request fields observed from Firefox 157.0 on
 /// macOS 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
 /// [`v157_windows_fetch_no_store_template`], except `User-Agent`, which
-/// matches [`v156_macos_navigation_template`].
+/// matches [`v157_macos_navigation_template`].
 #[must_use]
-pub fn v156_macos_fetch_no_store_template() -> RequestTemplate {
-    fetch_no_store_template(V156_MACOS_USER_AGENT)
+pub fn v157_macos_fetch_no_store_template() -> RequestTemplate {
+    fetch_no_store_template(V157_MACOS_USER_AGENT)
 }
 
 /// Builds the Firefox no-store `fetch` lists with a literal `User-Agent`.

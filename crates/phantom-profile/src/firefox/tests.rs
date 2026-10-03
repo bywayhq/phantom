@@ -227,11 +227,11 @@ fn firefox_157_http2_recipe_matches_windows_session_capture()
 
 /// The macOS 15.5 arm64 page loads carry the same H2 settings as on Windows.
 #[test]
-fn firefox_156_macos_http2_session_capture_matches_the_recipe()
+fn firefox_157_macos_http2_session_capture_matches_the_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/websocket/firefox/156.0/macos-15.5-arm64/accept.txt"
+        "/../../fixtures/websocket/firefox/157.0/macos-15.5-arm64/accept.txt"
     )))?;
     assert_eq!(capture.value("client")?, "Mozilla Firefox");
     assert_eq!(

@@ -16,7 +16,7 @@ const V154_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
 ));
 const V154_MACOS_CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../fixtures/client-hints/chrome/154.0.8037.58/macos-15.5-arm64/navigation.txt"
+    "/../../fixtures/client-hints/chrome/154.0.8037.95/macos-15.5-arm64/navigation.txt"
 ));
 const V154_TRUST_ANCHOR_ORDERS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -73,7 +73,7 @@ fn chrome_154_macos_client_hints_match_navigation_capture() -> Result<(), Box<dy
     settings.validate()?;
     let capture = NavigationCapture::parse(V154_MACOS_CLIENT_HINT_FIXTURE)?;
     assert_eq!(capture.value("client")?, "Google Chrome");
-    assert_eq!(capture.value("client_version")?, "154.0.8037.58");
+    assert_eq!(capture.value("client_version")?, "154.0.8037.95");
     assert_eq!(
         capture.value("operating_system")?,
         "macOS 15.5 (24F74) arm64"
@@ -86,20 +86,20 @@ fn chrome_154_macos_client_hints_match_navigation_capture() -> Result<(), Box<dy
 }
 
 /// macOS changes the platform hints, and the full version of the Mac's
-/// older build.
+/// build.
 #[test]
 fn chrome_154_macos_client_hints_differ_from_windows_in_platform_data_and_build() {
     let changed = changed_hints(&v154_windows_client_hints(), &v154_macos_client_hints());
     assert_eq!(
         changed,
         [
-            ("sec-ch-ua-full-version", r#""154.0.8037.58""#),
+            ("sec-ch-ua-full-version", r#""154.0.8037.95""#),
             ("sec-ch-ua-arch", r#""arm""#),
             ("sec-ch-ua-platform", r#""macOS""#),
             ("sec-ch-ua-platform-version", r#""15.5.0""#),
             (
                 "sec-ch-ua-full-version-list",
-                r#""Chromium";v="154.0.8037.58", "Google Chrome";v="154.0.8037.58", "Not A(Brand";v="99.0.0.0""#,
+                r#""Chromium";v="154.0.8037.95", "Google Chrome";v="154.0.8037.95", "Not A(Brand";v="99.0.0.0""#,
             ),
         ]
         .map(|(name, value)| (name.to_owned(), value.to_owned()))
@@ -260,7 +260,7 @@ const V154_CLIENT_HELLO_CAPTURES: &[(&str, &str)] = &[
         "tls/macos/resumption-sequential",
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/tls/chrome/154.0.8037.58/macos-15.5-arm64/resumption-sequential.txt"
+            "/../../fixtures/tls/chrome/154.0.8037.95/macos-15.5-arm64/resumption-sequential.txt"
         )),
     ),
     (
@@ -281,7 +281,7 @@ const V154_CLIENT_HELLO_CAPTURES: &[(&str, &str)] = &[
         "http3/macos/quic-client-hello-1",
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../fixtures/http3/chrome/154.0.8037.58/macos-15.5-arm64/quic-client-hello-1.txt"
+            "/../../fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/quic-client-hello-1.txt"
         )),
     ),
     (
@@ -533,7 +533,7 @@ fn chrome_154_macos_http2_session_capture_matches_the_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let capture = SessionCapture::parse(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../fixtures/websocket/chrome/154.0.8037.58/macos-15.5-arm64/accept.txt"
+        "/../../fixtures/websocket/chrome/154.0.8037.95/macos-15.5-arm64/accept.txt"
     )))?;
     assert_eq!(capture.value("client")?, "Google Chrome");
     assert_eq!(

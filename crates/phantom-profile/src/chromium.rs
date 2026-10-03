@@ -140,14 +140,14 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 ///
 /// Names, order, delivery, and the brand list match
 /// [`v154_windows_client_hints`]; three headless runs of the retained
-/// navigation capture of Chrome 154.0.8037.58 on macOS 15.5 (24F74) on Apple
+/// navigation capture of Chrome 154.0.8037.95 on macOS 15.5 (24F74) on Apple
 /// silicon agree. The platform data differs: `sec-ch-ua-platform` is
 /// `"macOS"`, `sec-ch-ua-platform-version` is `"15.5.0"`, and
 /// `sec-ch-ua-arch` is `"arm"`, while `sec-ch-ua-bitness` stays `"64"` and
 /// `sec-ch-ua-wow64` stays `?0`. The full version is that of the Mac's build,
-/// 154.0.8037.58, one patch release behind the Windows recipe. The returned
-/// value is owned and may be customized before client creation, for example
-/// to carry another macOS version.
+/// 154.0.8037.95, which Google's stable channel served alongside the Windows
+/// recipe's 154.0.8037.97. The returned value is owned and may be customized
+/// before client creation, for example to carry another macOS version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
@@ -159,7 +159,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
             Default,
         ),
         ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.58""#, AcceptCh),
+        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.95""#, AcceptCh),
         ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
         ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
         ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
@@ -168,7 +168,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
         ClientHint::new(
             "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Google Chrome";v="154.0.8037.58", "Not A(Brand";v="99.0.0.0""#,
+            r#""Chromium";v="154.0.8037.95", "Google Chrome";v="154.0.8037.95", "Not A(Brand";v="99.0.0.0""#,
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
@@ -865,7 +865,7 @@ pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
-/// Returns navigation request fields observed from Chrome 154.0.8037.58 on
+/// Returns navigation request fields observed from Chrome 154.0.8037.95 on
 /// macOS 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
@@ -881,7 +881,7 @@ pub fn v154_macos_navigation_template() -> RequestTemplate {
 }
 
 /// Returns same-origin no-store `fetch` request fields observed from Chrome
-/// 154.0.8037.58 on macOS 15.5 arm64.
+/// 154.0.8037.95 on macOS 15.5 arm64.
 ///
 /// The fields, order, values, and HTTP/2 priority are those of
 /// [`v154_windows_fetch_no_store_template`], with `User-Agent` as a required
