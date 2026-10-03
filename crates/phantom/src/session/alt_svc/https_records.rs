@@ -191,6 +191,11 @@ impl HttpsRecordDiscovery {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) const fn resolver(&self) -> &HttpsRecordResolver {
+        &self.resolver
+    }
+
     /// Returns the cached result for `origin`, starting a shared lookup when
     /// there is none.
     ///

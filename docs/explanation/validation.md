@@ -1969,10 +1969,11 @@ Limits:
 ### UDP socket option evidence
 
 What is claimed: `chromium::v154_udp` sets `SO_RANDOMIZE_PORT` on the UDP
-socket of every QUIC connection, as Chromium 154 sets it on every UDP socket
-it connects on Windows, and as Chrome 154, Edge 154, and Opera 136 do in
-their hook logs. Firefox 157 does not set it, and a Firefox profile takes no
-UDP settings.
+socket of every QUIC connection, and on the query socket of every HTTPS
+record query Phantom sends itself with the `https-records` feature, as
+Chromium 154 sets it on every UDP socket it connects on Windows, and as
+Chrome 154, Edge 154, and Opera 136 do in their hook logs. Firefox 157 does
+not set it, and a Firefox profile takes no UDP settings.
 
 Evidence: browser source at Chromium tags `154.0.8037.58` and
 `152.0.7977.130`, whose lines below are the same, and the hook logs of
@@ -2005,10 +2006,18 @@ Differences from the browsers:
   (`net/socket/socket_descriptor.cc:29-35`); Phantom does not. Phantom's
   IPv6 QUIC sockets send only to IPv6 peers, so no packet shows the
   difference.
-- `UdpSettings` reaches no DNS socket. Address lookups go through the
-  operating system, whose own sockets take the host's port choice. HTTPS
-  record lookups, with the `https-records` feature, go through hickory's
-  UDP sockets, for which hickory picks a random source port itself.
+- Address lookups go through the operating system, whose sockets take the
+  host's port choice. HTTPS record queries open each UDP socket through the
+  same bind as a QUIC socket, with the profile's `UdpSettings`. With
+  `port_randomization` on Windows the socket sets the option and binds
+  port 0, so Windows picks the port at random, as it does for Chromium's
+  DNS sockets at `connect`. Without it, and on other platforms, hickory
+  binds a random port from 1024 to 65535 itself, as Chromium's
+  `RandomBind` does outside Windows
+  (`net/socket/udp_socket_posix.cc:1564-1575`).
+- A TCP connection that carries a DNS query after a truncated UDP response
+  is hickory's own and takes no profile TCP options. Chromium's goes through
+  its TCP client socket, with `chromium::v154_tcp`'s options.
 
 Tests:
 
@@ -2018,6 +2027,8 @@ Tests:
 | `udp::tests::paths` (`phantom-net`) | The UDP socket of a direct HTTP/3 connection, with and without a source binding, and of a SOCKS5 UDP association, with local and remote DNS, has the option exactly when the connector has Chromium's UDP settings |
 | `udp::tests::a_socket_takes_port_randomization_only_when_the_settings_ask` (`phantom-net`) | On every platform, a socket has the option only on Windows and only with `chromium::v154_udp`, not with default or absent settings |
 | `profile_udp_settings_reach_every_http3_connector` (facade) | A profile's UDP settings reach the HTTP/3 connector and the CONNECT-UDP proxy's HTTP/3 connector the client builds |
+| `dns::tests::https_queries_randomize_their_port_with_the_profiles_udp_settings` (`phantom-net`) | Each HTTPS query socket to a loopback DNS server has the option exactly on Windows with `chromium::v154_udp`, not without UDP settings |
+| `profile_udp_settings_reach_the_dns_query_sockets` (facade) | A profile's UDP settings reach the client's HTTPS record resolver, and a profile without them leaves it unchanged |
 | `chromium_family_udp_sockets_randomize_their_port_before_connecting` (`phantom-profile`) | In every Chromium-family hook log, each UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket; the Chrome and Edge logs include QUIC sockets |
 | `firefox_sets_no_port_randomization_on_any_socket` (`phantom-profile`) | No call in the Firefox hook logs sets the option, and every UDP socket in them came from `ws2_32.dll` |
 

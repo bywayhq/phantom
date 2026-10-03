@@ -1,11 +1,13 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
+use phantom_profile::chromium;
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
 
 use super::{
     HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
     bind_loopback_nameserver, https_answers_from_message, nameserver, query_name,
 };
+use crate::udp::observed;
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -373,6 +375,32 @@ fn resolver_needs_a_nameserver() {
         error.map(|error| error.kind()),
         Some(HttpsLookupErrorKind::Configuration)
     );
+}
+
+/// The HTTPS query socket of a Chromium profile sets `SO_RANDOMIZE_PORT`
+/// before it binds port 0; without UDP settings hickory binds a random port
+/// itself.
+#[tokio::test]
+async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> TestResult<()> {
+    let server = DnsServer::spawn(|_| {
+        DnsReply::new(DnsAnswer::NoData {
+            soa_minimum: Some(60),
+        })
+    })
+    .await?;
+    let plain = HttpsRecordResolver::with_nameservers([server.address()])?;
+    let chromium = plain.clone().with_udp_settings(chromium::v154_udp());
+    assert_eq!(chromium.udp_settings(), Some(chromium::v154_udp()));
+    assert_eq!(plain.udp_settings(), None);
+
+    for (resolver, randomized) in [(&chromium, cfg!(windows)), (&plain, false)] {
+        observed::take();
+        resolver.lookup("origin.example.test", 443).await?;
+        let sockets = observed::take();
+        assert_eq!(sockets.len(), 1);
+        assert_eq!(sockets[0].random_port, randomized);
+    }
+    Ok(())
 }
 
 #[tokio::test]

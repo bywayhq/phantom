@@ -323,3 +323,40 @@ fn overrides_without_a_cache_reach_the_connectors() -> TestResult {
     );
     Ok(())
 }
+
+/// The client opens the query sockets of its HTTPS record lookups with the
+/// profile's UDP settings, and leaves them as they are for a profile
+/// without any.
+#[cfg(feature = "https-records")]
+#[test]
+fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
+    let nameserver = std::net::SocketAddr::from((Ipv4Addr::LOCALHOST, 53));
+    let records = crate::dns::HttpsRecordResolver::with_nameservers([nameserver])?;
+    let http3 = Http3ClientSettings::new(
+        chromium::v154_http3_tls(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        chromium::v154_http3_request(),
+    );
+    let base = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_http3(http3);
+    let build = |profile: ClientProfile| {
+        Client::builder(profile)
+            .https_record_discovery(records.clone())
+            .alt_svc(NonZeroUsize::MIN)
+            .build()
+    };
+
+    for (profile, expected) in [
+        (
+            base.clone().with_udp(chromium::v154_udp()),
+            Some(chromium::v154_udp()),
+        ),
+        (base, None),
+    ] {
+        let client = build(profile)?;
+        assert_eq!(client.https_record_udp_settings(), expected);
+    }
+    Ok(())
+}

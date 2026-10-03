@@ -1434,7 +1434,9 @@ impl ClientBuilder {
     /// fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     /// Concurrent requests for one origin share one lookup. Proxy routes never
-    /// query.
+    /// query. The client opens the resolver's query sockets with the
+    /// profile's [`UdpSettings`](crate::profile::UdpSettings), so the
+    /// Chromium-family recipes set `SO_RANDOMIZE_PORT` on them on Windows.
     ///
     /// Requires the `https-records` feature.
     #[cfg(feature = "https-records")]
@@ -1504,6 +1506,14 @@ impl ClientBuilder {
             ));
         }
         self.options.validate_policies()?;
+        #[cfg(feature = "https-records")]
+        if let Some(udp) = self.profile.udp() {
+            self.options.https_record_resolver = self
+                .options
+                .https_record_resolver
+                .take()
+                .map(|resolver| resolver.with_udp_settings(*udp));
+        }
         self.source_binding
             .validate()
             .map_err(BuildError::invalid_source_binding)?;

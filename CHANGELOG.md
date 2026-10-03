@@ -719,6 +719,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `HttpsRecordResolver::with_udp_settings` opens the resolver's DNS query
+  sockets with a profile's `UdpSettings`, and `udp_settings` returns them.
+  A client replaces them with its profile's settings when the profile has
+  some.
 - `ClientHelloExtensionOrder::PermutedWithTail` shuffles a ClientHello's
   extensions per connection and then writes the listed ones last, before
   only `padding` and `pre_shared_key`, and
@@ -1356,6 +1360,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
   `scripts/capture/tls_resumption.py` gained the `websocket` and
   `websocket-http1` scenarios.
+- A client opens the UDP sockets of its HTTPS record lookups with the
+  profile's `UdpSettings`. With `chromium::v154_udp` on Windows, as in the
+  Chrome, Edge, Brave, and Opera profiles, each query socket sets
+  `SO_RANDOMIZE_PORT` and binds port 0 through the bind that retries a
+  reserved port block, so Windows picks its port at random, as Chromium's
+  built-in DNS client gets one; hickory picked an explicit random port
+  before ([evidence](docs/explanation/validation.md#udp-socket-option-evidence)).
 - `opera::v136_tls` and `opera::v136_http3_tls` set
   `ech_from_https_records`: given an HTTPS record with `ech`, Opera
   136.0.6008.52 encrypted its ClientHello over TCP and QUIC and handled a

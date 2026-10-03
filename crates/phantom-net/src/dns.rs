@@ -1,18 +1,18 @@
 //! HTTPS resource record lookups (RFC 9460).
 //!
 //! Address records are still resolved by the operating system through
-//! `getaddrinfo`. HTTPS records cannot be: the portable system resolver
-//! interface returns addresses only, and the platform DNS APIs that can
-//! return other record types need an FFI boundary that Phantom forbids
-//! outside its audited TLS backend. [`HttpsRecordResolver`] therefore sends
-//! its own DNS queries, over UDP with a TCP retry on truncation, to the
-//! system's configured nameservers or to explicit ones.
+//! `getaddrinfo`. HTTPS records cannot be: the portable system resolver interface returns addresses only, and the
+//! platform DNS APIs that can return other record types need an FFI boundary
+//! that Phantom forbids outside its audited modules. [`HttpsRecordResolver`]
+//! therefore sends its own DNS queries, over UDP with a TCP retry on
+//! truncation, to the system's configured nameservers or to explicit ones.
 //!
 //! Each query carries one question with only the recursion-desired flag set
 //! and no EDNS(0) OPT record, the shape of Chromium's insecure DNS queries.
 //! The query leaves from Phantom's process rather than the operating
-//! system's resolver, so the DNS traffic of a Phantom client differs from
-//! that of a browser that sends its address queries from the same stub.
+//! system's resolver, as Chromium's built-in DNS client sends its queries
+//! from the browser. Its UDP socket opens through the profile's
+//! [`UdpSettings`] once a client applies them.
 
 use std::{
     collections::HashMap,
@@ -21,22 +21,26 @@ use std::{
     future::Future,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use hickory_resolver::{
-    TokioResolver,
+    Resolver,
     config::{ConnectionConfig, NameServerConfig, ResolveHosts, ResolverConfig, ResolverOpts},
-    net::{DnsError, NetError, runtime::TokioRuntimeProvider},
+    net::{DnsError, NetError},
     proto::{
         op::Message,
         rr::{DNSClass, LowerName, Name, RData, Record, RecordType, rdata::CNAME},
         serialize::binary::BinEncodable,
     },
 };
+use phantom_profile::UdpSettings;
 
 mod ech_config;
 mod https_record;
+mod query_sockets;
+
+use query_sockets::QuerySockets;
 
 pub use ech_config::{
     EchCipherSuite, EchConfig, EchConfigExtension, EchConfigListError, EchConfigListErrorKind,
@@ -61,11 +65,105 @@ type LookupFuture =
 
 #[derive(Clone)]
 enum Backend {
-    Dns {
-        resolver: Arc<TokioResolver>,
-        nameservers: usize,
-    },
+    Dns(Nameservers),
     Function(Arc<dyn Fn(String, u16) -> LookupFuture + Send + Sync>),
+}
+
+/// The nameservers Phantom's own DNS queries go to, and the hickory resolver
+/// that sends them through sockets opened with one set of [`UdpSettings`].
+#[derive(Clone)]
+struct Nameservers {
+    configs: Arc<[NameServerConfig]>,
+    udp: Option<UdpSettings>,
+    /// Built on first use after [`Self::with_udp_settings`]; clones with the
+    /// same settings share it.
+    resolver: Arc<OnceLock<Resolver<QuerySockets>>>,
+}
+
+impl Nameservers {
+    /// Reads the nameservers configured on this host: `/etc/resolv.conf` on
+    /// Unix, the adapter DNS servers on Windows, and the System
+    /// Configuration store on Apple platforms.
+    fn system() -> Result<Self, String> {
+        let (config, _) =
+            hickory_resolver::system_conf::read_system_conf().map_err(|error| error.to_string())?;
+        let (_, _, nameservers) = config.into_parts();
+        Self::new(nameservers)
+    }
+
+    fn with_addresses(nameservers: impl IntoIterator<Item = SocketAddr>) -> Result<Self, String> {
+        Self::new(
+            nameservers
+                .into_iter()
+                .map(|address| nameserver(address.ip(), address.port()))
+                .collect(),
+        )
+    }
+
+    /// Builds the resolver once, so a configuration it rejects fails here.
+    fn new(nameservers: Vec<NameServerConfig>) -> Result<Self, String> {
+        if nameservers.is_empty() {
+            return Err("no DNS nameserver is configured".to_owned());
+        }
+        let nameservers = Self {
+            configs: nameservers
+                .into_iter()
+                .map(bind_loopback_nameserver)
+                .collect(),
+            udp: None,
+            resolver: Arc::default(),
+        };
+        nameservers.resolver().map_err(|error| error.to_string())?;
+        Ok(nameservers)
+    }
+
+    fn with_udp_settings(&self, settings: UdpSettings) -> Self {
+        Self {
+            configs: Arc::clone(&self.configs),
+            udp: Some(settings),
+            resolver: Arc::default(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.configs.len()
+    }
+
+    /// Returns the resolver, building it on first use.
+    fn resolver(&self) -> Result<&Resolver<QuerySockets>, NetError> {
+        if let Some(resolver) = self.resolver.get() {
+            return Ok(resolver);
+        }
+        let sockets = QuerySockets::new(self.udp);
+        let mut options = ResolverOpts::default();
+        // One question, recursion desired, no OPT record: see the module docs.
+        options.edns0 = false;
+        options.case_randomization = false;
+        // Ask one nameserver at a time instead of racing two.
+        options.num_concurrent_reqs = 1;
+        // Callers cache results under their own bound.
+        options.cache_size = 0;
+        // Hosts files carry addresses only.
+        options.use_hosts_file = ResolveHosts::Never;
+        options.os_port_selection = sockets.leaves_port_to_the_os();
+        let resolver = Resolver::builder_with_config(
+            ResolverConfig::from_name_servers(self.configs.to_vec()),
+            sockets,
+        )
+        .with_options(options)
+        .build()?;
+        Ok(self.resolver.get_or_init(|| resolver))
+    }
+}
+
+impl fmt::Debug for Nameservers {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Nameservers")
+            .field("count", &self.len())
+            .field("udp", &self.udp)
+            .finish_non_exhaustive()
+    }
 }
 
 impl HttpsRecordResolver {
@@ -99,10 +197,9 @@ impl HttpsRecordResolver {
     /// Returns [`HttpsLookupErrorKind::Configuration`] when the host
     /// configuration cannot be read or names no nameserver.
     pub fn system() -> Result<Self, HttpsLookupError> {
-        let (config, _) = hickory_resolver::system_conf::read_system_conf()
-            .map_err(|error| HttpsLookupError::configuration(error.to_string()))?;
-        let (_, _, nameservers) = config.into_parts();
-        Self::from_nameservers(nameservers)
+        Nameservers::system()
+            .map(Self::from_nameservers)
+            .map_err(HttpsLookupError::configuration)
     }
 
     /// Queries the given nameservers, in order, over UDP and then TCP when a
@@ -114,48 +211,47 @@ impl HttpsRecordResolver {
     pub fn with_nameservers(
         nameservers: impl IntoIterator<Item = SocketAddr>,
     ) -> Result<Self, HttpsLookupError> {
-        Self::from_nameservers(
-            nameservers
-                .into_iter()
-                .map(|address| nameserver(address.ip(), address.port()))
-                .collect(),
-        )
+        Nameservers::with_addresses(nameservers)
+            .map(Self::from_nameservers)
+            .map_err(HttpsLookupError::configuration)
     }
 
-    fn from_nameservers(nameservers: Vec<NameServerConfig>) -> Result<Self, HttpsLookupError> {
-        if nameservers.is_empty() {
-            return Err(HttpsLookupError::configuration(
-                "no DNS nameserver is configured".to_owned(),
-            ));
+    const fn from_nameservers(nameservers: Nameservers) -> Self {
+        Self {
+            backend: Backend::Dns(nameservers),
         }
-        let nameservers: Vec<_> = nameservers
-            .into_iter()
-            .map(bind_loopback_nameserver)
-            .collect();
-        let count = nameservers.len();
-        let mut options = ResolverOpts::default();
-        // One question, recursion desired, no OPT record: see the module docs.
-        options.edns0 = false;
-        options.case_randomization = false;
-        // Ask one nameserver at a time instead of racing two.
-        options.num_concurrent_reqs = 1;
-        // Callers cache results under their own bound.
-        options.cache_size = 0;
-        // Hosts files carry addresses only.
-        options.use_hosts_file = ResolveHosts::Never;
-        let resolver = TokioResolver::builder_with_config(
-            ResolverConfig::from_name_servers(nameservers),
-            TokioRuntimeProvider::default(),
-        )
-        .with_options(options)
-        .build()
-        .map_err(|error| HttpsLookupError::configuration(error.to_string()))?;
-        Ok(Self {
-            backend: Backend::Dns {
-                resolver: Arc::new(resolver),
-                nameservers: count,
-            },
-        })
+    }
+
+    /// Opens the UDP sockets of this resolver's DNS queries with `settings`,
+    /// as a client does with its profile's [`UdpSettings`].
+    ///
+    /// With `port_randomization` on Windows, each query socket sets
+    /// `SO_RANDOMIZE_PORT` and binds port 0, so Windows picks a random port,
+    /// as Chromium's built-in DNS client gets one; otherwise the resolver
+    /// binds a random port itself. A resolver built with [`Self::from_fn`]
+    /// is returned unchanged.
+    ///
+    /// A client given this resolver through `ClientBuilder::https_record_discovery`
+    /// replaces these settings with its profile's `UdpSettings` when the
+    /// profile has them, and keeps them otherwise.
+    #[must_use]
+    pub fn with_udp_settings(self, settings: UdpSettings) -> Self {
+        match &self.backend {
+            Backend::Dns(nameservers) => {
+                Self::from_nameservers(nameservers.with_udp_settings(settings))
+            }
+            Backend::Function(_) => self,
+        }
+    }
+
+    /// Returns the UDP settings of this resolver's DNS queries, if it sends
+    /// any and was given some.
+    #[must_use]
+    pub fn udp_settings(&self) -> Option<UdpSettings> {
+        match &self.backend {
+            Backend::Dns(nameservers) => nameservers.udp,
+            Backend::Function(_) => None,
+        }
     }
 
     /// Looks up the HTTPS records of the `https` origin `host` and `port`.
@@ -177,7 +273,9 @@ impl HttpsRecordResolver {
         port: u16,
     ) -> Result<HttpsRecordLookup, HttpsLookupError> {
         let resolver = match &self.backend {
-            Backend::Dns { resolver, .. } => resolver,
+            Backend::Dns(nameservers) => {
+                nameservers.resolver().map_err(HttpsLookupError::resolve)?
+            }
             Backend::Function(lookup) => return lookup(host.to_owned(), port).await,
         };
         let query_name = query_name(host, port);
@@ -290,7 +388,9 @@ impl fmt::Debug for HttpsRecordResolver {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = formatter.debug_struct("HttpsRecordResolver");
         match &self.backend {
-            Backend::Dns { nameservers, .. } => debug.field("nameservers", nameservers),
+            Backend::Dns(nameservers) => debug
+                .field("nameservers", &nameservers.len())
+                .field("udp", &nameservers.udp),
             Backend::Function(_) => debug.field("backend", &"function"),
         };
         debug.finish_non_exhaustive()

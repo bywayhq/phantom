@@ -643,6 +643,15 @@ impl Client {
         }
     }
 
+    /// Returns the UDP settings of the HTTPS record lookups' query sockets.
+    #[cfg(all(test, feature = "https-records"))]
+    pub(crate) fn https_record_udp_settings(&self) -> Option<phantom_profile::UdpSettings> {
+        self.state
+            .https_records
+            .as_ref()
+            .and_then(|discovery| discovery.resolver().udp_settings())
+    }
+
     pub(crate) fn alt_svc_enabled(&self) -> bool {
         self.state.alt_svc.is_some()
     }

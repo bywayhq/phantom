@@ -161,6 +161,11 @@ Counts in the later phases come from a read-only review of `main` at
   browsers' hook logs show. It goes through the same FFI module, now at the
   crate root of `phantom-net`
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
+- Phantom's own DNS query sockets take the profile's `UdpSettings`: with
+  `chromium::v154_udp` on Windows each HTTPS record query socket sets
+  `SO_RANDOMIZE_PORT` and binds port 0, through a hickory `RuntimeProvider`
+  that binds as the QUIC sockets do
+  ([UDP socket option evidence](explanation/validation.md#udp-socket-option-evidence)).
 
 ### Remaining
 
@@ -304,13 +309,6 @@ anything does.
   (`net/quic/quic_session_pool_direct_job.cc`); Phantom looks up only the
   origin's records. Blocker: a capture of Chrome reaching such an
   alternative whose own record carries `ech`.
-- `SO_RANDOMIZE_PORT` on the hickory sockets of HTTPS-record lookups.
-  Evidence: Chromium's built-in DNS client connects its UDP sockets through
-  the path that sets the option (`net/dns/dns_transaction.cc:696-700`), and
-  the Chromium-family hook logs show it on every DNS socket. hickory binds
-  an explicit port it picks itself, which the option does not affect, and
-  only the resolver sees the socket. Blocker: binding hickory's sockets to
-  port 0 with the option set first, through a custom `RuntimeProvider`.
 - DNS over HTTPS where the captured browser uses it. Blocker: none
   recorded; a caller can already supply an `AddressResolver` that queries
   over HTTPS, but no recipe does.
