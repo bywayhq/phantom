@@ -81,6 +81,8 @@ enum EntryState {
     Pending {
         lookup: u64,
         result: LookupResult,
+        /// The runtime the lookup task runs on.
+        runtime: tokio::runtime::Id,
     },
     Ready {
         summary: Arc<RecordSummary>,
@@ -260,28 +262,38 @@ impl HttpsRecordDiscovery {
         let port = origin.port();
         let now = Instant::now();
         let mut entries = self.cache.lock_entries();
-        if let Some(position) = entries
-            .iter()
-            .position(|entry| *entry.host == *host && entry.port == port)
+        let same_origin = |entry: &Entry| *entry.host == *host && entry.port == port;
+        // An expired result, or a lookup that ended without a result because
+        // its runtime shut down or its task panicked and dropped the sender,
+        // can no longer answer: dropped here.
+        entries.retain(|entry| {
+            !same_origin(entry)
+                || match &entry.state {
+                    EntryState::Ready { expires_at, .. } => *expires_at > now,
+                    EntryState::Pending { result, .. } => result.has_changed().is_ok(),
+                }
+        });
+        // A request joins a lookup in flight only on its own runtime, as the
+        // address cache keys its lookups: another runtime may no longer be
+        // driven. Each runtime then has at most one lookup in flight.
+        let ready = entries.iter().position(|entry| {
+            same_origin(entry) && matches!(entry.state, EntryState::Ready { .. })
+        });
+        let found = ready.or_else(|| {
+            entries.iter().position(|entry| {
+                same_origin(entry)
+                    && matches!(&entry.state, EntryState::Pending { runtime: owner, .. } if *owner == runtime.id())
+            })
+        });
+        if let Some(position) = found
             && let Some(entry) = entries.remove(position)
         {
-            match &entry.state {
-                EntryState::Ready {
-                    summary,
-                    expires_at,
-                } if *expires_at > now => {
-                    let summary = Arc::clone(summary);
-                    entries.push_back(entry);
-                    return State::Ready(summary);
-                }
-                EntryState::Pending { result, .. } => {
-                    let pending = PendingLookup(result.clone());
-                    entries.push_back(entry);
-                    return State::Pending(pending);
-                }
-                // Expired: dropped here and looked up again below.
-                EntryState::Ready { .. } => {}
-            }
+            let state = match &entry.state {
+                EntryState::Ready { summary, .. } => State::Ready(Arc::clone(summary)),
+                EntryState::Pending { result, .. } => State::Pending(PendingLookup(result.clone())),
+            };
+            entries.push_back(entry);
+            return state;
         }
         let lookup = self.cache.next_lookup_id();
         let (sender, receiver) = watch::channel(None);
@@ -294,6 +306,7 @@ impl HttpsRecordDiscovery {
             state: EntryState::Pending {
                 lookup,
                 result: receiver.clone(),
+                runtime: runtime.id(),
             },
         });
         drop(entries);
@@ -354,7 +367,7 @@ impl Cache {
         self.next_lookup.fetch_add(1, Ordering::Relaxed)
     }
 
-    /// Stores a finished lookup unless its entry was evicted or replaced meanwhile.
+    /// Stores a finished lookup unless its entry was evicted meanwhile.
     fn complete(
         &self,
         host: &str,
@@ -364,11 +377,14 @@ impl Cache {
         ttl: Duration,
     ) {
         let mut entries = self.lock_entries();
-        let Some(entry) = entries.iter_mut().find(|entry| {
-            *entry.host == *host
-                && entry.port == port
+        let same_origin = |entry: &Entry| *entry.host == *host && entry.port == port;
+        let Some(position) = entries.iter().position(|entry| {
+            same_origin(entry)
                 && matches!(entry.state, EntryState::Pending { lookup: current, .. } if current == lookup)
         }) else {
+            return;
+        };
+        let Some(mut entry) = entries.remove(position) else {
             return;
         };
         let now = Instant::now();
@@ -376,6 +392,12 @@ impl Cache {
             summary,
             expires_at: now.checked_add(ttl).unwrap_or(now),
         };
+        // A lookup on another runtime may have finished first; the newest
+        // result replaces it, and lookups still in flight stay.
+        entries.retain(|other| {
+            !same_origin(other) || matches!(other.state, EntryState::Pending { .. })
+        });
+        entries.push_back(entry);
     }
 }
 

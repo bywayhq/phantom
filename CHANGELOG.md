@@ -1786,6 +1786,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- An HTTPS-record lookup that ends without a result, because the runtime
+  that ran it shut down or a `HttpsRecordResolver::from_fn` resolver
+  panicked, no longer leaves its origin waiting on it for the life of the
+  client. Every later request counted the origin as advertising no records,
+  so it went without the HTTPS-record HTTP/3 upgrade and ECH; the next
+  request now starts a new lookup. A request on another runtime no longer
+  waits on a lookup running on a runtime that is no longer driven: it starts
+  one on its own runtime.
 - A forward-proxy `407` whose body is drained before the credentialed
   replay, with a `read_idle` timeout set, fails with `RuntimeUnavailable` on
   a Tokio runtime without its time driver instead of panicking.

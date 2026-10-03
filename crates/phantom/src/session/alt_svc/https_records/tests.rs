@@ -1,7 +1,14 @@
-use std::{num::NonZeroUsize, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
 
 use http::uri::Authority;
-use phantom_net::dns::{HttpsRecord, HttpsRecordResolver};
+use phantom_net::dns::{HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup, HttpsRecordResolver};
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 
 use super::{Discovery, HttpsRecordDiscovery, advertises_h3, summarize};
@@ -192,6 +199,122 @@ async fn failed_lookup_is_remembered_as_no_advertisement() -> TestResult<()> {
         Discovery::NotAdvertised
     ));
     assert_eq!(server.queries().len(), queries);
+    Ok(())
+}
+
+/// A lookup pending on another runtime is not waited on: one whose task
+/// ended without a result because its runtime shut down, or one on a
+/// runtime that is alive but no longer driven. The next request starts a
+/// lookup of its own on its runtime.
+#[test]
+fn lookup_pending_on_another_runtime_is_started_again() -> TestResult<()> {
+    for keep_first_runtime in [false, true] {
+        let advertised = record(&rdata(1, &[], &[H3]))?;
+        let calls = Arc::new(AtomicUsize::new(0));
+        let resolver = {
+            let calls = Arc::clone(&calls);
+            HttpsRecordResolver::from_fn(move |_, _| {
+                let first = calls.fetch_add(1, Ordering::SeqCst) == 0;
+                let advertised = advertised.clone();
+                async move {
+                    if first {
+                        std::future::pending::<()>().await;
+                    }
+                    Ok(HttpsRecordLookup::new(
+                        vec![HttpsRecordAnswer::new(OWNER, 300, advertised)],
+                        None,
+                    ))
+                }
+            })
+        };
+        let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::MIN);
+        let origin = endpoint("origin.test:8443")?;
+
+        let first = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        first.block_on(async {
+            assert!(matches!(discovery.discover(&origin), Discovery::Pending(_)));
+            tokio::task::yield_now().await;
+        });
+        let kept = keep_first_runtime.then_some(first);
+        let second = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+
+        let advertises = second.block_on(async {
+            tokio::time::timeout(Duration::from_secs(5), settle(&discovery, &origin))
+                .await
+                .map_err(|_| "the lookup waited on another runtime")?
+        })?;
+        assert!(advertises);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        drop(kept);
+    }
+    Ok(())
+}
+
+/// Two driven runtimes that alternate requests while a lookup is in flight
+/// each start at most one lookup, and the result is cached for both.
+#[test]
+fn alternating_runtimes_each_start_at_most_one_lookup() -> TestResult<()> {
+    let advertised = record(&rdata(1, &[], &[H3]))?;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (release, released) = tokio::sync::watch::channel(false);
+    let resolver = {
+        let calls = Arc::clone(&calls);
+        HttpsRecordResolver::from_fn(move |_, _| {
+            calls.fetch_add(1, Ordering::SeqCst);
+            let advertised = advertised.clone();
+            let mut released = released.clone();
+            async move {
+                let _ = released.wait_for(|released| *released).await;
+                Ok(HttpsRecordLookup::new(
+                    vec![HttpsRecordAnswer::new(OWNER, 300, advertised)],
+                    None,
+                ))
+            }
+        })
+    };
+    let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::new(4).ok_or("zero")?);
+    let origin = endpoint("origin.test:8443")?;
+    let runtimes = [
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()?,
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()?,
+    ];
+
+    let mut lookups = Vec::new();
+    for _ in 0..2 {
+        for runtime in &runtimes {
+            let Discovery::Pending(lookup) =
+                runtime.block_on(async { discovery.discover(&origin) })
+            else {
+                return Err("an origin with a lookup in flight was not pending".into());
+            };
+            lookups.push(lookup);
+        }
+    }
+    let _ = release.send(true);
+    for (lookup, runtime) in lookups.into_iter().zip(runtimes.iter().cycle()) {
+        assert!(runtime.block_on(async {
+            tokio::time::timeout(Duration::from_secs(5), lookup.advertises_h3()).await
+        })?);
+    }
+
+    for runtime in &runtimes {
+        assert!(matches!(
+            runtime.block_on(async { discovery.discover(&origin) }),
+            Discovery::Advertised
+        ));
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert_eq!(discovery.cache.lock_entries().len(), 1);
     Ok(())
 }
 
