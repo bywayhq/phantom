@@ -684,7 +684,10 @@ impl RequestBuilder {
                         "following redirect"
                     );
                     drop(response);
-                    let template = resolved.template.take();
+                    let mut template = resolved.template.take();
+                    if !same_origin {
+                        template = template.map(|template| template.without_credentials());
+                    }
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                     resolved.template = template;
                 }

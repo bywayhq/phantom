@@ -40,8 +40,10 @@ async fn follow() -> Result<(), Box<dyn std::error::Error>> {
   and HEAD, dropping the body, static trailers, and body-describing fields.
   307 and 308 keep the method and resend an owned body.
 - A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
-  `Proxy-Authorization` fields and trailers, and rebuilds client hints. A
-  change between `http://` and `https://` on the same host is cross-origin.
+  `Proxy-Authorization` fields and trailers, yours and the request
+  template's own, for that hop and every later one, and rebuilds client
+  hints. A change between `http://` and `https://` on the same host is
+  cross-origin.
   Every hop keeps the route and protocol rule, one total timeout, and one
   retry budget.
 

@@ -18,8 +18,9 @@ use bytes::{Buf, Bytes};
 use http::{Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo,
-    profile::ClientProfile,
+    Client, ClientBuilder, HttpProtocol, PreparedRequestTemplate, RedirectPolicy, RequestErrorKind,
+    ResponseInfo,
+    profile::{ClientProfile, RequestField, RequestTemplate},
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -424,6 +425,182 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
         Ok(())
     })
     .await
+}
+
+/// Credentials a template sends itself stay on a same-origin hop and leave at
+/// the first cross-origin hop, for that hop and every later one, even back
+/// to the first origin, as the caller's own do: Fetch's HTTP-redirect fetch
+/// removes `Authorization` there whoever set it.
+#[tokio::test]
+async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let first_address = first_listener.local_addr()?;
+        let second_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let second_address = second_listener.local_addr()?;
+        let (heads_tx, mut heads) = tokio::sync::mpsc::unbounded_channel();
+        let routes = move |path: &str| match path {
+            "/first" => Some(format!("http://{first_address}/same")),
+            "/same" => Some(format!("http://{second_address}/cross")),
+            "/cross" => Some(format!("http://{first_address}/back")),
+            _ => None,
+        };
+        let first = tokio::spawn(serve_redirect_hops(
+            first_listener,
+            heads_tx.clone(),
+            routes,
+        ));
+        let second = tokio::spawn(serve_redirect_hops(second_listener, heads_tx, routes));
+        let fields = |names: [&str; 3]| {
+            vec![
+                RequestField::literal(names[0], "Bearer template"),
+                RequestField::literal(names[1], "Basic dGVtcGxhdGU6c2VjcmV0"),
+                RequestField::literal(names[2], "yes"),
+            ]
+        };
+        let template = PreparedRequestTemplate::new(RequestTemplate {
+            http1_fields: fields(["Authorization", "Proxy-Authorization", "X-Kept"]),
+            http2_fields: fields(["authorization", "proxy-authorization", "x-kept"]),
+            http3_fields: None,
+            http2_priority: None,
+            requested_client_hint_placement: false,
+            restarts_for_connection_accept_ch: false,
+        })?;
+
+        let session = client_builder(&identity, false)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::new(3).ok_or("zero")?))
+            .build()?;
+        let response = session
+            .get(
+                HttpProtocol::Http1,
+                &format!("http://{first_address}/first"),
+            )?
+            .template(&template)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        for (path, credentials) in [
+            ("/first", true),
+            ("/same", true),
+            ("/cross", false),
+            ("/back", false),
+        ] {
+            let head = heads.recv().await.ok_or("a hop was not served")?;
+            assert!(head.starts_with(format!("GET {path} HTTP/1.1\r\n").as_bytes()));
+            assert_eq!(
+                contains_header(&head, b"authorization"),
+                credentials,
+                "{path}"
+            );
+            assert_eq!(
+                contains_header(&head, b"proxy-authorization"),
+                credentials,
+                "{path}"
+            );
+            assert!(contains_header(&head, b"x-kept"), "{path}");
+        }
+        first.abort();
+        second.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// A template slot for the caller's `Authorization` does not fail the hop
+/// after a cross-origin redirect, which removed the caller's field: the
+/// slot leaves with it, even when the template requires the field.
+#[tokio::test]
+async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let first_address = first_listener.local_addr()?;
+        let second_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let second_address = second_listener.local_addr()?;
+        let (heads_tx, mut heads) = tokio::sync::mpsc::unbounded_channel();
+        let routes =
+            move |path: &str| (path == "/first").then(|| format!("http://{second_address}/second"));
+        let first = tokio::spawn(serve_redirect_hops(
+            first_listener,
+            heads_tx.clone(),
+            routes,
+        ));
+        let second = tokio::spawn(serve_redirect_hops(second_listener, heads_tx, routes));
+        let template = PreparedRequestTemplate::new(RequestTemplate {
+            http1_fields: vec![RequestField::required_caller("Authorization")],
+            http2_fields: vec![RequestField::required_caller("authorization")],
+            http3_fields: None,
+            http2_priority: None,
+            requested_client_hint_placement: false,
+            restarts_for_connection_accept_ch: false,
+        })?;
+
+        let session = client_builder(&identity, false)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = session
+            .get(
+                HttpProtocol::Http1,
+                &format!("http://{first_address}/first"),
+            )?
+            .header(phantom::RequestHeader::new(
+                "Authorization",
+                "Bearer caller",
+            ))
+            .template(&template)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let first_head = heads
+            .recv()
+            .await
+            .ok_or("the first request was not served")?;
+        assert!(contains_header(&first_head, b"authorization"));
+        let second_head = heads.recv().await.ok_or("the redirect was not served")?;
+        assert!(second_head.starts_with(b"GET /second HTTP/1.1\r\n"));
+        assert!(!contains_header(&second_head, b"authorization"));
+        first.abort();
+        second.abort();
+        Ok(())
+    })
+    .await
+}
+
+/// Serves every connection on `listener`, answering each request with a
+/// `302` to `routes(path)`, or a `200` when it returns `None`, and sends each
+/// request head to `heads`.
+async fn serve_redirect_hops(
+    listener: TcpListener,
+    heads: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+    routes: impl Fn(&str) -> Option<String> + Clone + Send + 'static,
+) -> TestResult<()> {
+    loop {
+        let (mut stream, _) = listener.accept().await?;
+        let heads = heads.clone();
+        let routes = routes.clone();
+        tokio::spawn(async move {
+            while let Ok(head) = tls_support::read_head(&mut stream).await {
+                let path = head
+                    .split(|byte| *byte == b' ')
+                    .nth(1)
+                    .map(|path| String::from_utf8_lossy(path).into_owned())
+                    .unwrap_or_default();
+                let _ = heads.send(head);
+                let response = match routes(&path) {
+                    Some(location) => format!(
+                        "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n"
+                    ),
+                    None => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_owned(),
+                };
+                if stream.write_all(response.as_bytes()).await.is_err() {
+                    return;
+                }
+            }
+        });
+    }
 }
 
 #[tokio::test]

@@ -508,3 +508,39 @@ fn a_forwarded_caller_proxy_authorization_takes_the_preemptive_slot() {
     );
     assert_eq!(names(&expanded).last(), Some(&"proxy-authorization"));
 }
+
+/// After a cross-origin redirect the template keeps no credential field or
+/// slot: a required `Authorization` slot no longer demands the caller field
+/// the redirect removed, and other fields stay.
+#[test]
+fn template_after_a_cross_origin_hop_keeps_no_credential_slot()
+-> Result<(), Box<dyn std::error::Error>> {
+    let fields = vec![
+        RequestField::required_caller("authorization"),
+        RequestField::literal("proxy-authorization", "Basic dGVtcGxhdGU="),
+        RequestField::literal("x-kept", "yes"),
+    ];
+    let template = RequestTemplate {
+        http1_fields: fields.clone(),
+        http2_fields: fields,
+        http3_fields: None,
+        http2_priority: None,
+        requested_client_hint_placement: false,
+        restarts_for_connection_accept_ch: false,
+    };
+    let prepared = PreparedRequestTemplate::new(template)?;
+    let scope = exact(HttpProtocol::Http1);
+    let missing = check(&prepared, scope, &[], None)
+        .err()
+        .map(|error| error.kind());
+    assert_eq!(missing, Some(RequestErrorKind::RequestTemplate));
+
+    let after_hop = prepared.without_credentials();
+
+    assert!(check(&after_hop, scope, &[], None).is_ok());
+    let fields = after_hop
+        .fields_for(HttpProtocol::Http1)
+        .ok_or("the HTTP/1.1 list is missing")?;
+    assert_eq!(names(&expand(fields, &[], None, true)), ["x-kept"]);
+    Ok(())
+}

@@ -1786,6 +1786,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- A cross-origin redirect removes the `Authorization`, `Cookie2`, and
+  `Proxy-Authorization` fields a request template sends itself, as it
+  removed the caller's own. Before, a template literal such as
+  `RequestField::literal("Authorization", token)` went to every redirect
+  target. Fetch removes `Authorization` at a cross-origin redirect whoever
+  set it, and so does Chromium 154.
 - An HTTPS-record lookup that ends without a result, because the runtime
   that ran it shut down or a `HttpsRecordResolver::from_fn` resolver
   panicked, no longer leaves its origin waiting on it for the life of the

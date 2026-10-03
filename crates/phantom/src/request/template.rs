@@ -46,6 +46,43 @@ impl PreparedRequestTemplate {
     /// data is invalid.
     pub fn new(template: RequestTemplate) -> Result<Self, InvalidRequestTemplate> {
         template.validate()?;
+        Ok(Self::prepare(template))
+    }
+
+    /// Returns this template without the credential fields it sends itself,
+    /// for the hops after a cross-origin redirect.
+    ///
+    /// Fetch's HTTP-redirect fetch, step 13, deletes `Authorization` from a
+    /// request whose redirect leaves the origin, whoever set it; Chromium 154
+    /// does so in `ResourceLoader::WillFollowRedirect`
+    /// (`third_party/blink/renderer/platform/loader/fetch/resource_loader.cc`
+    /// lines 541-548). A browser's own fields never carry credentials, so a
+    /// template's credential field stands for one the page set, and it goes
+    /// with the caller's fields of the same names, which the redirect state
+    /// removes. Caller slots for those names go too, so a required one is
+    /// not left without the field it names.
+    pub(crate) fn without_credentials(&self) -> Self {
+        let keeps = |field: &RequestField| match field {
+            RequestField::Literal { name, .. }
+            | RequestField::ByTrust { name, .. }
+            | RequestField::ByForwarding { name, .. }
+            | RequestField::Caller { name, .. } => !crate::redirect::is_credential_header(name),
+            _ => true,
+        };
+        if lists(&self.0.template).flatten().all(keeps) {
+            return self.clone();
+        }
+        let mut template = self.0.template.clone();
+        template.http1_fields.retain(keeps);
+        template.http2_fields.retain(keeps);
+        if let Some(fields) = &mut template.http3_fields {
+            fields.retain(keeps);
+        }
+        Self::prepare(template)
+    }
+
+    /// Computes the placement data of a valid template.
+    fn prepare(template: RequestTemplate) -> Self {
         let client_hint_slots = client_hint_placement(&template.http2_fields);
         let restart_client_hint_slot = restart_client_hint_placement(&template.http2_fields);
         let mut accept_encoding: [Option<Box<str>>; 2] = [None, None];
@@ -70,14 +107,14 @@ impl PreparedRequestTemplate {
                 required_fields.push(name.clone());
             }
         }
-        Ok(Self(Arc::new(Prepared {
+        Self(Arc::new(Prepared {
             template,
             client_hint_slots,
             restart_client_hint_slot,
             accept_encoding,
             accept_encoding_agrees,
             required_fields,
-        })))
+        }))
     }
 
     /// Returns the template's field list for `protocol`, if one was captured.

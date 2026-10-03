@@ -29,7 +29,8 @@ use crate::{RequestError, request::RequestBodySource};
 /// with [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
 /// A cross-origin hop, including a change between `http://` and `https://`,
 /// removes `Authorization`, `Cookie`, `Cookie2`, and `Proxy-Authorization`
-/// fields and trailers.
+/// fields and trailers, including the fields a request template sends
+/// itself, from that hop and every later one.
 ///
 /// # Examples
 ///
@@ -232,7 +233,8 @@ fn is_body_header(name: &str) -> bool {
         || name.eq_ignore_ascii_case("transfer-encoding")
 }
 
-fn is_credential_header(name: &str) -> bool {
+/// Whether a field carries credentials that a cross-origin hop removes.
+pub(crate) fn is_credential_header(name: &str) -> bool {
     name.eq_ignore_ascii_case("authorization")
         || name.eq_ignore_ascii_case("cookie")
         || name.eq_ignore_ascii_case("cookie2")
