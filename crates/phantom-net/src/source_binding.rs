@@ -23,13 +23,13 @@ const INTERFACE_BINDING: bool = cfg!(any(target_os = "android", target_os = "lin
 /// The local address, per address family, and the network interface that
 /// outgoing TCP and UDP sockets bind to before they connect or send.
 ///
-/// Each family has its own address, as curl's `--interface` and reqwest's
-/// `local_addresses` do, because one socket can bind only an address of its
-/// own family. When the binding names an address for one family only, the
-/// addresses of the other family are skipped: a host that resolves to both
-/// is reached over the bound family, and one that resolves only to the other
-/// family fails with [`io::ErrorKind::AddrNotAvailable`] instead of leaving
-/// from an unbound socket. A binding with no address leaves the source
+/// Each family has its own address, as curl's `--interface` and hyper-util's
+/// `HttpConnector::set_local_addresses` do, because one socket can bind only an
+/// address of its own family. When the binding names an address for one family
+/// only, the addresses of the other family are skipped: a host that resolves to
+/// both is reached over the bound family, and one that resolves only to the
+/// other family fails with [`io::ErrorKind::AddrNotAvailable`] instead of
+/// leaving from an unbound socket. A binding with no address leaves the source
 /// address to the operating system.
 ///
 /// An interface name binds each socket to that interface with
