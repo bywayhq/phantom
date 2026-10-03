@@ -149,10 +149,13 @@ fn chrome_on_macos() -> ClientProfile {
   ([Coverage](../reference/coverage.md#at-a-glance)).
 - The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
   platform the profile presents if that layer matters.
-- `firefox::v157_tcp` tries the addresses one at a time, moving on only
-  after a refused, unreachable, or timed-out connect. Firefox also starts an
-  IPv4 backup attempt after 250 ms, keeps the slower connection, and
-  remembers an origin's address family
+- `firefox::v157_tcp` starts an IPv4 backup attempt 250 ms after a slow
+  first one and, on direct HTTP/1.1 and negotiated requests, keeps the
+  slower connection idle, as Firefox does; through a proxy, for a
+  WebSocket, on exact HTTP/2, or with ECH from HTTPS records it closes that
+  connection instead. On direct HTTP/1.1 and negotiated requests a client
+  remembers each origin's address family until the idle timer finds no
+  connection to it left
   ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
 - `chromium::v154_tcp`, which Brave, Edge, and Opera also use, asks Windows
   for a random local port only from Windows 11 22H2 (build 22621), as

@@ -143,6 +143,22 @@ pipelines. HTTP/2 (H2) and HTTP/3 (H3) run concurrent streams within local and
 peer limits. Waiters are bounded, cancellation is scoped to a stream where
 possible, and a draining connection accepts no new work.
 
+A pool key's H1 bound counts connections, idle ones and those in setup
+included, and admission lets no more requests through than the bound, so a
+request that finds no idle connection always has room to open one. Each
+runtime has its own pool key and bound, so a client used from several
+runtimes can exceed Firefox's per-origin connection count. The one
+exception is the slower attempt of a `TcpBackupConnection`, which carried no
+request: the key counts it once it connects, as Firefox counts its
+connections, but keeps it whatever the count, as Firefox does, so each
+backup connection whose slower attempt is in flight can add one connection,
+up to the bound again, until the extra connections are used or expire idle.
+A request that finds no idle connection claims one instead of opening
+another. The same client keeps one timer that closes expired idle H1
+connections in both H1 pools and ends what each pool key remembers of an
+origin with no connection, as Firefox's connection manager prunes on one
+timer.
+
 ## Retries and replays
 
 A browser's recovery is part of its behavior, and a request sent twice can

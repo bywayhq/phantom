@@ -151,7 +151,8 @@ HTTP/1.1, HTTP/2, and HTTP/3.
 Connecting to IPv6 and IPv4 addresses in a staggered race. Phantom's
 `TcpAddressRacing` reproduces Chromium's Happy Eyeballs v2.
 `TcpBackupConnection` opens the IPv4 backup attempt of Firefox's release
-builds but closes the slower attempt, which Firefox keeps.
+builds and, on direct HTTP/1.1 and negotiated requests, keeps the slower
+attempt's connection, as Firefox does; elsewhere it closes it.
 See [TCP](coverage.md#tcp).
 
 ## Headless

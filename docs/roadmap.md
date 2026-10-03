@@ -88,6 +88,20 @@ Counts in the later phases come from a read-only review of `main` at
   request comes, and that request opens another, as the Chrome 154, Edge
   154, and Opera 136 hook logs show
   ([HTTP/1.1 connection bound evidence](explanation/validation.md#http11-connection-bound-evidence)).
+- Firefox's HTTP/1.1 idle limit: `firefox::v157_http1` closes a connection
+  idle 115 s on one timer per client, as Firefox 157 closed one 115.5 s
+  after its last response in the hook logs
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
+- Firefox's address selection in `firefox::v157_tcp`: an IPv4 backup
+  attempt 250 ms after a slow first attempt; the slower connection kept
+  idle by the HTTP/1.1 and negotiated pools on the direct route, counted
+  against the bound of the pool key of the runtime that opened it,
+  finished with its TLS handshake, claimable by a request, and closed once
+  the first connection selects HTTP/2; and the
+  address family of an origin, which later connections try alone until a
+  prune of the idle timer finds the origin without a connection, as five
+  Firefox 157 runs show
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
 - The address cache, host-to-address overrides, and a caller-supplied
   address resolver ([Resolve host names](guides/name-resolution.md)).
 - Redirects, the cookie jar, and cookie snapshots
@@ -209,22 +223,18 @@ anything does.
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
   The emulator hides TCP, so the Android TCP layer also needs a phone.
-- Firefox's address selection. Evidence: in five Firefox 157 runs on
-  Windows 11, an IPv4 backup attempt started 254 to 260 ms after a slow
-  first attempt, the first attempt's slower connection stayed open and
-  carried a later request, and every later connection to the origin tried
-  IPv4 alone, also after the origin had closed every connection
-  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
-  `TcpBackupConnection` opens the backup but closes the slower attempt, a
-  connection a server sees end without a request, so `firefox::v157_tcp`
-  tries the addresses one at a time. Blocker: the HTTP/1.1 and negotiated
-  pools must accept a connection opened for no request, finish its TLS
-  handshake, and count it against the origin's bound, and a second HTTP/2
-  connection needs Firefox's handling checked
-  (`netwerk/protocol/http/DnsAndConnectSocket.cpp:695-743`,
-  `nsHttpConnectionMgr.cpp`); the family memory must last as long as
-  Firefox's connection entry, which it drops at the next prune once the
-  origin has no connection.
+- Firefox's address selection beyond direct HTTP/1.1 and negotiated
+  requests. Evidence: Firefox keeps the slower backup connection and the
+  address family on every connection entry, proxies, WebSocket, and HTTP/2
+  included, and skips an address that failed to connect on the same cached
+  DNS record (`netwerk/protocol/http/DnsAndConnectSocket.cpp:671-745`,
+  `netwerk/base/nsSocketTransport2.cpp:1742-1745`); no hook log covers
+  these routes, and Phantom closes the slower attempt there, learns no
+  family, and tries a failed address again
+  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
+  Blocker: the proxy, WebSocket, exact HTTP/2, and ECH connectors return one
+  connection and take no family, and the address cache records no connect
+  failures.
 
 #### Wire fidelity
 

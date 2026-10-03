@@ -190,14 +190,19 @@ resolved addresses.
   moves the connection to 600 s; a connection idle in the pool keeps 10 s.
   HTTP/2 turns keepalive off, and an upgrade, such as WebSocket, moves to
   600 s at once. `TcpKeepaliveSchedule` documents the rule.
-- `TcpAddressSelection::Backup` (`TcpBackupConnection`): the first attempt
-  tries every address in resolver order and moves on only after a refused,
+- `TcpAddressSelection::Backup` (`TcpBackupConnection`), which
+  `firefox::v157_tcp` sets with a 250 ms delay: the first attempt tries
+  every address in resolver order and moves on only after a refused,
   unreachable, or timed-out connect; after the delay, while it has not
   connected, a backup attempt tries the IPv4 addresses. The first
-  connection wins and the slower attempt's socket is closed, so a server
-  that already answered its SYN sees a connection end without a request.
-  Firefox opens that backup 250 ms in but keeps the slower connection and
-  pools it, so `firefox::v157_tcp` does not use it.
+  connection carries the request. On the direct route of the HTTP/1.1 and
+  negotiated pools the slower attempt keeps connecting, and its connection
+  finishes any TLS handshake and waits idle, or goes to a request that
+  claimed it, unless the first connection selected H2. Each pool key
+  remembers the family of its first connection; later connections try that
+  family alone, each backup connect limited to `known_family_backup_timeout`
+  (5 s for Firefox), and the other family once its addresses fail.
+  `TcpBackupConnection` documents the full behavior.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -206,10 +211,13 @@ resolved addresses.
 - Firefox sets `SO_SNDBUF` on Windows only. On Linux a fixed send buffer
   turns off the kernel's send buffer autotuning, so clear
   `send_buffer_size` for a profile used off Windows.
-- Not modeled for Firefox: its IPv4 backup connection and the slower
-  connection it keeps, the address family it remembers for an origin, its
-  `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is), and
-  the probe counts of macOS and Linux.
+- Not modeled for Firefox: keeping the slower connection, and remembering
+  the address family, on proxy routes, WebSocket connections, exact HTTP/2
+  requests, and with ECH from HTTPS records, where Phantom starts the backup
+  and closes the slower attempt; skipping an address that failed before on
+  the same cached DNS record; its `SO_LINGER` of `{1, 0}` (its close is
+  still a FIN, as Phantom's is); and the probe
+  counts of macOS and Linux.
 - Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
 - Edge's and Opera's network source is not public. Frida hook logs of Edge
@@ -305,9 +313,10 @@ for each origin and route.
   closed, and the request reuses another or opens one. Nothing closes a
   connection between requests. The Chrome 154, Edge 154, and Opera 136 hook
   logs show the same replacement. `firefox::v157_http1` sets
-  `Http1IdleTimeout::Unlimited`, so a connection stays reusable until the
-  server closes it. Firefox's own limit, 115 s, which it also enforces with a
-  timer when no request comes, is not modeled.
+  `Http1IdleTimeout::ClosedOnTimer` with 115 seconds, Firefox's
+  `network.http.keep-alive.timeout`: a request does not reuse a connection
+  idle that long, and one timer per client closes it between requests,
+  within a second after the limit, as the Firefox 157 hook logs show.
 - `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces the
   profile's value.
 - Negotiated requests, which let ALPN choose between HTTP/1.1 and HTTP/2,

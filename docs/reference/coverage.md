@@ -144,10 +144,18 @@ Supported:
   154, Edge 154, and Opera 136 do in the hook logs
   ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
   It has no effect off Windows.
-- A backup connection (`TcpBackupConnection`) for custom profiles: an IPv4
-  attempt that starts while a first attempt in resolver order has not
-  connected. The losing attempt is closed, which Firefox does not do, so no
-  recipe uses it.
+- Firefox's backup connection (`TcpBackupConnection`), which
+  `firefox::v157_tcp` uses: an IPv4 attempt 250 ms after a first attempt in
+  resolver order that has not connected. On the direct route the HTTP/1.1
+  and negotiated pools keep the slower attempt's connection without a
+  request: it counts toward the bound of the pool key of the runtime that
+  opened it once connected, finishes its TLS handshake, and waits idle or
+  goes to a request that claimed it. Once the first connection selects H2,
+  the slower one is closed. Each pool key remembers the address family of
+  its first connection, and later connections try that family alone,
+  falling back to the other when its addresses fail, until a prune of the
+  client's idle timer finds the key without a connection
+  ([evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
 - The recipes `chromium::v154_tcp` (Windows and Linux), taken from browser
   source, and `firefox::v157_tcp` (Windows), taken from hook logs and source.
   See
@@ -157,12 +165,13 @@ Supported:
 
 Not modeled:
 
-- Firefox's address selection: an IPv4 backup attempt 250 ms after a slow
-  first one, whose slower connection Firefox keeps, finishes its TLS
-  handshake, and pools, and the address family that worked for an origin,
-  which it resolves alone for later connections while the origin's
-  connection entry lasts. `firefox::v157_tcp` tries the addresses one at a
-  time.
+- Parts of Firefox's address selection: keeping the slower connection, and
+  remembering the address family, on proxy routes, on WebSocket
+  connections, on exact HTTP/2 requests, and with ECH from HTTPS records,
+  where Phantom starts the backup and closes the slower attempt;
+  skipping an address that failed before on the same cached DNS record; and
+  noticing at once that a server closed an idle connection, which can make
+  Firefox remember a family longer.
 - Firefox's keepalive on macOS (idle time only) and on Linux and Android
   (`TCP_KEEPCNT` of 4) as named recipes.
 - Chromium's macOS idle-only keepalive as a named recipe.
@@ -242,6 +251,10 @@ Supported:
   `Http1Settings` keeps one connection. Negotiated requests that select H1
   use the same bound, each connection with its own TLS handshake; until a
   connection has selected H2, their handshakes run in parallel.
+- Idle limits: `chromium::v154_http1` stops reusing a connection idle 300 s
+  when the next request comes, and `firefox::v157_http1` closes one idle
+  115 s on a timer, within a second after the limit, whether or not a
+  request comes.
 - Finite opt-in redirects for `http://` and `https://` requests.
 - Opt-in typed connection-setup retries before dispatch.
 - Opt-in replay of an idempotent request, once, on a fresh connection when a
@@ -262,9 +275,8 @@ Not modeled:
   the connections of its own origin and route that have sat idle 300 s, as
   `chromium::v154_http1` sets, but Chromium also closes those of every other
   origin in the same proxy chain's pool.
-- Firefox's limit on idle time, 115 s or the response's `Keep-Alive`
-  timeout. `firefox::v157_http1` keeps an idle connection until the server
-  closes it.
+- The `timeout` of a response's `Keep-Alive` field, which Firefox uses in
+  place of its 115 s limit.
 - Firefox's limit of 32 for plaintext requests forwarded through an HTTP
   proxy, where its recipe keeps 6, and the 3 extra connections it allows
   urgent-start requests. Firefox also leaves idle connections out of its
