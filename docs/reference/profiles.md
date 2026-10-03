@@ -362,14 +362,17 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Android browsers | Not covered | Not covered | Not covered | Not covered |
 
 - The operating system's resolver reports no record TTL, and neither does
-  an `AddressResolver::from_fn` resolver, so every answer is kept for
-  `ttl`: Chromium's system-resolver value and Firefox's
+  an `AddressResolver::from_fn` resolver, so by default every answer is
+  kept for `ttl`: Chromium's system-resolver value and Firefox's
   `network.dnsCacheExpiration`.
-- Chromium keeps an answer from its built-in DNS client for its record TTL,
-  at least 60 s. Firefox on Windows reads the record TTL from the operating
-  system and keeps the answer that long, without a lower bound.
-  `min_record_ttl` carries both rules, but it applies only to an answer
-  from a resolver that reports a TTL, and Phantom's resolvers report none.
+- With the `https-records` feature, `AddressResolver::system_nameservers`
+  sends Phantom's own A and AAAA queries, as Chromium's built-in DNS client
+  does, and reports each answer's record TTL. Chromium keeps such an
+  answer for its TTL, at least 60 s. No recipe turns the resolver on
+  ([Resolve host names](../guides/name-resolution.md#resolve-names-with-phantoms-own-dns-queries)).
+- Firefox on Windows reads the record TTL from the operating system and
+  keeps the answer that long, without a lower bound. Phantom cannot read
+  that TTL, so a Firefox profile keeps each answer 60 s.
 - Firefox serves an expired answer for up to 600 s more while it resolves the
   name again in the background. Phantom resolves an expired name before it
   connects.

@@ -1,7 +1,9 @@
-//! HTTPS resource record lookups (RFC 9460).
+//! Phantom's own DNS queries: HTTPS resource record lookups (RFC 9460), and
+//! the address lookups of `AddressResolver::system_nameservers`.
 //!
-//! Address records are still resolved by the operating system through
-//! `getaddrinfo`. HTTPS records cannot be: the portable system resolver interface returns addresses only, and the
+//! Address records are resolved by the operating system through
+//! `getaddrinfo` unless a client is given that resolver. HTTPS records cannot
+//! be: the portable system resolver interface returns addresses only, and the
 //! platform DNS APIs that can return other record types need an FFI boundary
 //! that Phantom forbids outside its audited modules. [`HttpsRecordResolver`]
 //! therefore sends its own DNS queries, over UDP with a TCP retry on
@@ -36,10 +38,12 @@ use hickory_resolver::{
 };
 use phantom_profile::UdpSettings;
 
+mod address_lookup;
 mod ech_config;
 mod https_record;
 mod query_sockets;
 
+pub(crate) use address_lookup::AddressLookup;
 use query_sockets::QuerySockets;
 
 pub use ech_config::{
@@ -143,7 +147,8 @@ impl Nameservers {
         options.num_concurrent_reqs = 1;
         // Callers cache results under their own bound.
         options.cache_size = 0;
-        // Hosts files carry addresses only.
+        // The address lookup reads the hosts file itself, and HTTPS records
+        // have no hosts entries.
         options.use_hosts_file = ResolveHosts::Never;
         options.os_port_selection = sockets.leaves_port_to_the_os();
         let resolver = Resolver::builder_with_config(

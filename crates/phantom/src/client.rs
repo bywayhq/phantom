@@ -868,6 +868,15 @@ impl ClientBuilder {
     /// the same kind and message, because one stored failure can answer
     /// several requests.
     ///
+    /// With the `https-records` feature,
+    /// `AddressResolver::system_nameservers` sends Phantom's own A and AAAA
+    /// queries, as Chromium's built-in DNS client does, and reports each
+    /// answer's record TTL, which the address cache honors through
+    /// [`DnsCacheSettings::min_record_ttl`]. The client opens that
+    /// resolver's query sockets with the profile's
+    /// [`UdpSettings`](crate::profile::UdpSettings), so the Chromium-family
+    /// recipes set `SO_RANDOMIZE_PORT` on them on Windows.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1027,7 +1036,11 @@ impl ClientBuilder {
         }
         let mut resolver = HostResolver::new();
         if let Some(address_resolver) = &self.address_resolver {
-            resolver = resolver.with_resolver(address_resolver.clone());
+            let address_resolver = match self.profile.udp() {
+                Some(udp) => address_resolver.clone().with_udp_settings(*udp),
+                None => address_resolver.clone(),
+            };
+            resolver = resolver.with_resolver(address_resolver);
         }
         if let Some(settings) = dns_cache {
             resolver = resolver.with_cache(settings);

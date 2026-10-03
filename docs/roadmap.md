@@ -161,10 +161,17 @@ Counts in the later phases come from a read-only review of `main` at
   browsers' hook logs show. It goes through the same FFI module, now at the
   crate root of `phantom-net`
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
-- Phantom's own DNS query sockets take the profile's `UdpSettings`: with
-  `chromium::v154_udp` on Windows each HTTPS record query socket sets
-  `SO_RANDOMIZE_PORT` and binds port 0, through a hickory `RuntimeProvider`
-  that binds as the QUIC sockets do
+- Record TTLs in the address cache: `DnsCacheSettings::min_record_ttl`
+  keeps an answer that carries a record TTL for that TTL or the minimum,
+  60 s in `chromium::v154_dns_cache` and none in `firefox::v157_dns_cache`.
+  With the `https-records` feature, `AddressResolver::system_nameservers`
+  sends Phantom's own A and AAAA queries as Chromium's built-in DNS client
+  does and reports each answer's TTL; it is opt-in
+  ([Chromium's built-in DNS client](explanation/validation.md#chromiums-built-in-dns-client)).
+- Phantom's own DNS query sockets, for HTTPS records and addresses, take
+  the profile's `UdpSettings`: with `chromium::v154_udp` on Windows each
+  sets `SO_RANDOMIZE_PORT` and binds port 0, through a hickory
+  `RuntimeProvider` that binds as the QUIC sockets do
   ([UDP socket option evidence](explanation/validation.md#udp-socket-option-evidence)).
 
 ### Remaining
@@ -240,17 +247,28 @@ anything does.
   Blocker: generating new orders needs the source set's order and the seed
   distribution, which no capture shows; the seed comes from a thread-local
   counter, and one seed served 5 of 29 processes.
-- Chromium's built-in DNS client. Evidence: with their default resolver,
-  Chrome 154, Edge 154, and Opera 136 sent one query for a name in 120 s of
-  fetches, keeping the answer for the record's TTL
-  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
-  `chromium::v154_dns_cache` keeps every answer 60 s, the browsers' rule for
-  the system resolver. Firefox 157 on Windows also keeps an answer for its
-  record TTL, which it reads with `DnsQuery_A` after each lookup
-  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)),
-  where `firefox::v157_dns_cache` keeps it 60 s. Blocker: Phantom resolves through the operating
-  system, which reports no TTL; a resolver that returns record TTLs, and a
-  cache that honors them, are needed.
+- Chromium's built-in DNS client as the default resolver of the
+  Chromium-family profiles. Evidence: with their default resolver, Chrome
+  154, Edge 154, and Opera 136 sent their own HTTPS and A queries and kept
+  the answer for the record's TTL
+  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence));
+  `AddressResolver::system_nameservers` does the same when a caller passes
+  it. Blocker: Chromium's per-platform reading of the DNS configuration,
+  which takes the first adapter's servers on Windows and falls back to the
+  system resolver for a VPN adapter, a name resolution policy, a DNS proxy,
+  or different servers per adapter
+  (`net/dns/dns_config_service_win.cc:411-502`), with its own rules on macOS
+  and Linux; and the `https-records` feature, which the resolver needs and
+  the default build lacks
+  ([Chromium's built-in DNS client](explanation/validation.md#chromiums-built-in-dns-client)).
+- Firefox's record TTL on Windows. Evidence: Firefox 157 reads the record
+  TTL from the operating system's cache with `DnsQuery_A` after each lookup
+  and kept a 1,757-second answer
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence));
+  `firefox::v157_dns_cache` honors a record TTL, but Phantom's system
+  lookups report none. Blocker: `DnsQuery_A` needs a new audited FFI
+  boundary; Phantom's own queries would leave from its process, not the
+  operating system's resolver as Firefox's do.
 - Ticket resumption on `Client` WebSocket openings. Evidence: in every
   Firefox 157 `websocket` and `websocket-http1` run, the WebSocket's
   connection resumed a ticket the page's connection was issued and sent

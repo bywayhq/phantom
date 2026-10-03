@@ -169,9 +169,9 @@ Not modeled:
 - Firefox's keepalive on macOS (idle time only) and on Linux and Android
   (`TCP_KEEPCNT` of 4) as named recipes.
 - Chromium's macOS idle-only keepalive as a named recipe.
-- Chromium's resolver behavior before racing: its own address sorting, IPv6
-  reachability probe, partial DNS results, and HTTPS records fetched with the
-  address queries. Phantom races the system resolver's complete answer.
+- Chromium's resolver behavior before racing: its own address sorting,
+  partial DNS results, and HTTPS records fetched with the address queries.
+  Phantom races the resolver's complete answer.
 - Racing for HTTP/3. Chromium's QUIC job connects only to the first resolved
   address. Phantom's H3 connector tries the resolved addresses in order after
   a connection failure.
@@ -359,9 +359,9 @@ Supported:
   154 does on every UDP socket it connects, and as Chrome 154, Edge 154, and
   Opera 136 do in the hook logs
   ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
-  The client applies the same setting to the UDP socket of each HTTPS
-  record query Phantom sends itself, with the `https-records` feature,
-  which then binds port 0, as Chromium's built-in DNS client gets its port.
+  The client applies the same setting to the UDP socket of each DNS query
+  Phantom sends itself, with the `https-records` feature, which then binds
+  port 0, as Chromium's built-in DNS client gets its port.
   If Windows rejects it, that connection attempt fails. It has no effect off
   Windows.
 - An exact, seeded [transport-parameter](glossary.md#transport-parameters)
@@ -534,7 +534,9 @@ Planned:
   delay derived from RTT.
 - Encrypted Client Hello on an Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
-  Chrome does; Phantom's address lookups go through the operating system.
+  Chrome does. Phantom's address lookups go through the operating system,
+  or through `AddressResolver::system_nameservers`, whose queries are
+  separate from the HTTPS record lookup.
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
 - MASQUE recipes captured from browsers.
 
@@ -624,12 +626,21 @@ Supported:
   `clear_alt_svc` clears it.
 - A per-client address cache (`DnsCacheSettings`) for the names the client
   resolves itself: origin hosts on a direct route, proxy hosts, and local-DNS
-  `socks5://` targets. It is bounded, keeps each answer for a fixed time and
+  `socks5://` targets. It is bounded, keeps an answer without a record TTL
+  for a fixed time, one with a record TTL for that TTL or a minimum, and
   failures optionally, shares one lookup between concurrent connections, and
   keeps the resolver's address order. The recipes `chromium::v154_dns_cache`
   and `firefox::v157_dns_cache` come from browser source. Proxy-resolved
   targets never reach it. See
   [Address cache evidence](../explanation/validation.md#address-cache-evidence).
+- With the `https-records` feature, an opt-in address resolver,
+  `AddressResolver::system_nameservers`, that sends Phantom's own A and AAAA
+  queries to the host's nameservers as Chromium's built-in DNS client does:
+  `localhost` and the hosts file answered locally, AAAA only with a global
+  IPv6 route, AAAA before A, the operating system as fallback, and each
+  answer's record TTL reported to the cache. Its query sockets take the
+  profile's `UdpSettings`. No recipe or default uses it. See
+  [Chromium's built-in DNS client](../explanation/validation.md#chromiums-built-in-dns-client).
 - Caller host-to-address overrides and a caller-supplied async address
   resolver for the same names, off by default. An override skips the
   resolver and the cache; the resolver's answers go through the cache when
@@ -695,11 +706,16 @@ Not modeled:
   rejects every `Domain` on a `__Host-` cookie. Only a request to an IP
   literal can reach the difference, which for `http://` means a loopback
   address.
-- The browsers' address cache lifetimes from record TTLs (Chromium's built-in
-  DNS client, Firefox on Windows), Firefox's 600-second grace period for
-  expired answers, and the flush both browsers do when the network changes.
-  Phantom's system lookups report no TTL, and an `AddressResolver` returns
-  none.
+- Chromium's built-in DNS client as the default resolver of the
+  Chromium-family profiles. `AddressResolver::system_nameservers` is opt-in
+  because it does not follow Chromium's choice of nameservers, or its
+  fallback to the system resolver on a host with a VPN adapter, a name
+  resolution policy, or different servers per adapter.
+- Firefox's record TTL on Windows, which it reads from the operating
+  system's cache with `DnsQuery_A`. Phantom's system lookups report no TTL,
+  so a Firefox profile keeps each answer 60 s.
+- Firefox's 600-second grace period for expired answers, and the flush both
+  browsers do when the network changes.
 
 Planned:
 

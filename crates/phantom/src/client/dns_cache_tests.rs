@@ -324,13 +324,14 @@ fn overrides_without_a_cache_reach_the_connectors() -> TestResult {
     Ok(())
 }
 
-/// The client opens the query sockets of its HTTPS record lookups with the
-/// profile's UDP settings, and leaves them as they are for a profile
-/// without any.
+/// The client opens the query sockets of Phantom's own DNS lookups, for
+/// addresses and for HTTPS records, with the profile's UDP settings, and
+/// leaves them as they are for a profile without any.
 #[cfg(feature = "https-records")]
 #[test]
 fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
     let nameserver = std::net::SocketAddr::from((Ipv4Addr::LOCALHOST, 53));
+    let addresses = AddressResolver::with_nameservers([nameserver])?;
     let records = crate::dns::HttpsRecordResolver::with_nameservers([nameserver])?;
     let http3 = Http3ClientSettings::new(
         chromium::v154_http3_tls(),
@@ -343,6 +344,7 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
         .with_http3(http3);
     let build = |profile: ClientProfile| {
         Client::builder(profile)
+            .dns_resolver(addresses.clone())
             .https_record_discovery(records.clone())
             .alt_svc(NonZeroUsize::MIN)
             .build()
@@ -356,6 +358,13 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
         (base, None),
     ] {
         let client = build(profile)?;
+        let address_udp = client
+            .inner
+            .host_resolver
+            .as_ref()
+            .and_then(HostResolver::resolver)
+            .and_then(AddressResolver::udp_settings);
+        assert_eq!(address_udp, expected);
         assert_eq!(client.https_record_udp_settings(), expected);
     }
     Ok(())

@@ -1,7 +1,8 @@
 # Resolve host names
 
 Choose how a client turns host names into addresses: cache the answers,
-send a name to addresses you pick, or resolve names with your own resolver.
+send a name to addresses you pick, resolve names with your own resolver, or
+send DNS queries from the client as Chromium does.
 
 > For builders who have read [Connections and client state](connections-and-state.md).
 
@@ -124,6 +125,39 @@ fn with_resolver() -> Result<Client, BuildError> {
   chain; with one, a copy with the same kind and message is, because one
   stored failure can answer several requests.
 
+## Resolve names with Phantom's own DNS queries
+
+Send A and AAAA queries from the client, as Chromium's built-in DNS client
+does, so the address cache keeps each answer for its record TTL.
+
+```rust
+use std::error::Error;
+
+use phantom::profile::{chromium, ClientProfile};
+use phantom::{AddressResolver, Client};
+
+fn own_queries() -> Result<Client, Box<dyn Error>> {
+    let profile = ClientProfile::new(chromium::v154_tls())
+        .with_http2(chromium::v154_http2())
+        .with_udp(chromium::v154_udp())
+        .with_dns_cache(chromium::v154_dns_cache());
+    let resolver = AddressResolver::system_nameservers()?;
+    Ok(Client::builder(profile).dns_resolver(resolver).build()?)
+}
+```
+
+- It needs the `https-records` feature. It reads the host's nameservers
+  and hosts file once, when you call `system_nameservers`;
+  `AddressResolver::with_nameservers` takes nameservers you choose.
+- `localhost` and names in the hosts file are answered without a query.
+  Names without a dot or under `local` go to the operating system. AAAA is
+  sent only when the host has a global IPv6 route, before A. A failed or
+  empty lookup falls back to the operating system, and after it has
+  answered 16 such lookups in a row every name goes there.
+- With `chromium::v154_dns_cache`, an answer is kept for its record TTL, at
+  least 60 s. With the profile's `chromium::v154_udp`, each query socket
+  asks Windows for a random port with `SO_RANDOMIZE_PORT`.
+
 ## Limits
 
 - Overrides and the resolver cover address lookups only. The HTTPS DNS
@@ -142,8 +176,14 @@ fn with_resolver() -> Result<Client, BuildError> {
   records, an overridden name counts as resolved at once, so the TLS
   handshake waits only the 5 ms minimum for the record.
 - A resolver that sends its own DNS queries changes the client's DNS
-  traffic, which no longer comes from the operating system's resolver as a
-  browser's does. The connections keep the profile's fingerprint.
+  traffic, which no longer comes from the operating system's resolver as
+  Firefox's does. Chromium's built-in DNS client sends its own queries, but
+  `system_nameservers` does not choose nameservers as Chromium does: on
+  Windows it asks the servers of every adapter that is up, where Chromium
+  asks the first adapter's and leaves a host with a VPN adapter or a name
+  resolution policy to the operating system
+  ([Chromium's built-in DNS client](../explanation/validation.md#chromiums-built-in-dns-client)).
+  The connections keep the profile's fingerprint.
 
 ## Next
 

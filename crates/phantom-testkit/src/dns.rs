@@ -111,6 +111,14 @@ pub enum DnsAnswer {
         /// SOA MINIMUM and TTL, from which resolvers derive the negative TTL.
         soa_minimum: Option<u32>,
     },
+    /// No records of the queried type, with an SOA authority record whose
+    /// record TTL and MINIMUM field differ.
+    NoDataWithSoa {
+        /// The SOA record's TTL.
+        ttl: u32,
+        /// The SOA record's MINIMUM field.
+        minimum: u32,
+    },
     /// A SERVFAIL response.
     ServerFailure,
     /// No response at all.
@@ -226,11 +234,17 @@ async fn serve(
     }
 }
 
+/// An SOA authority record's TTL and MINIMUM field.
+type SoaFields = (u32, u32);
+
 fn response(query: &DnsQuery, answer: &DnsAnswer) -> Option<Vec<u8>> {
     let recursion = query.flags() & FLAG_RECURSION_DESIRED;
-    let (rcode, answers, authority): (u16, &[Vec<u8>], Option<u32>) = match answer {
+    let (rcode, answers, authority): (u16, &[Vec<u8>], Option<SoaFields>) = match answer {
         DnsAnswer::Records { rdata, .. } => (0, rdata, None),
-        DnsAnswer::NoData { soa_minimum } => (0, &[], *soa_minimum),
+        DnsAnswer::NoData { soa_minimum } => {
+            (0, &[], soa_minimum.map(|minimum| (minimum, minimum)))
+        }
+        DnsAnswer::NoDataWithSoa { ttl, minimum } => (0, &[], Some((*ttl, *minimum))),
         DnsAnswer::ServerFailure => (RCODE_SERVFAIL, &[], None),
         DnsAnswer::Silence => return None,
     };
@@ -251,13 +265,13 @@ fn response(query: &DnsQuery, answer: &DnsAnswer) -> Option<Vec<u8>> {
     for rdata in answers {
         push_record(&mut message, record_type, ttl, rdata)?;
     }
-    if let Some(minimum) = authority {
+    if let Some((soa_ttl, minimum)) = authority {
         let mut soa = Vec::new();
         soa.extend_from_slice(b"\x02ns\x00\x04host\x00");
         for value in [1_u32, 3_600, 600, 86_400, minimum] {
             soa.extend_from_slice(&value.to_be_bytes());
         }
-        push_record(&mut message, TYPE_SOA, minimum, &soa)?;
+        push_record(&mut message, TYPE_SOA, soa_ttl, &soa)?;
     }
     Some(message)
 }

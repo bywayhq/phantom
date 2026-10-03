@@ -719,6 +719,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- With the `https-records` feature, `AddressResolver::system_nameservers`
+  and `AddressResolver::with_nameservers` resolve names with Phantom's own
+  A and AAAA queries, as Chromium 154's built-in DNS client does:
+  `localhost` and the hosts file answer locally, names without a dot or
+  under `local` go to the operating system, AAAA is sent only when the
+  host has a global IPv6 route and before A, and a failed or empty lookup
+  falls back to the operating system, which takes over after it has
+  answered 16 such lookups in a row. Each answer reports its record TTL,
+  which the address cache honors. Pass the resolver to
+  `ClientBuilder::dns_resolver`; no recipe or default uses it, because it
+  reads the nameservers as hickory does, not as Chromium does
+  ([evidence](docs/explanation/validation.md#chromiums-built-in-dns-client)).
 - `HttpsRecordResolver::with_udp_settings` opens the resolver's DNS query
   sockets with a profile's `UdpSettings`, and `udp_settings` returns them.
   A client replaces them with its profile's settings when the profile has
@@ -1360,9 +1372,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
   `scripts/capture/tls_resumption.py` gained the `websocket` and
   `websocket-http1` scenarios.
-- A client opens the UDP sockets of its HTTPS record lookups with the
-  profile's `UdpSettings`. With `chromium::v154_udp` on Windows, as in the
-  Chrome, Edge, Brave, and Opera profiles, each query socket sets
+- A client opens the UDP sockets of its HTTPS record lookups, and of an
+  `AddressResolver::system_nameservers` resolver, with the profile's
+  `UdpSettings`. With `chromium::v154_udp` on Windows, as in the Chrome,
+  Edge, Brave, and Opera profiles, each query socket sets
   `SO_RANDOMIZE_PORT` and binds port 0 through the bind that retries a
   reserved port block, so Windows picks its port at random, as Chromium's
   built-in DNS client gets one; hickory picked an explicit random port

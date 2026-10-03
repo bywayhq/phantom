@@ -6,11 +6,39 @@
 //! survives a Windows reserved port block as a QUIC socket does. TCP
 //! connections, which carry a query only after a truncated UDP response, are
 //! hickory's own.
+//!
+//! hickory sends a UDP query while the task that awaits the lookup polls
+//! it. [`notify_sent_queries`] marks such a lookup, so its first sent
+//! datagram can release another lookup that must go after it.
 
-use std::{future::Future, io, net::SocketAddr, pin::Pin, time::Duration};
+use std::{
+    future::Future,
+    io,
+    net::SocketAddr,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+    time::Duration,
+};
 
-use hickory_resolver::net::runtime::{RuntimeProvider, TokioRuntimeProvider};
+use hickory_resolver::net::runtime::{
+    DnsUdpSocket, RuntimeProvider, TokioRuntimeProvider, TokioTime,
+};
 use phantom_profile::UdpSettings;
+use tokio::sync::Notify;
+
+tokio::task_local! {
+    /// Notified each time a query datagram of the marked lookup is sent.
+    static SENT: Arc<Notify>;
+}
+
+/// Runs `lookup`, notifying `sent` each time it sends a UDP query datagram.
+///
+/// The notice comes from the socket's send, which runs inside the polls of
+/// `lookup` on the task that awaits it.
+pub(crate) async fn notify_sent_queries<F: Future>(sent: Arc<Notify>, lookup: F) -> F::Output {
+    SENT.scope(sent, lookup).await
+}
 
 /// A hickory runtime whose UDP sockets open with a profile's UDP settings.
 #[derive(Clone, Default)]
@@ -44,7 +72,7 @@ impl QuerySockets {
 impl RuntimeProvider for QuerySockets {
     type Handle = <TokioRuntimeProvider as RuntimeProvider>::Handle;
     type Timer = <TokioRuntimeProvider as RuntimeProvider>::Timer;
-    type Udp = <TokioRuntimeProvider as RuntimeProvider>::Udp;
+    type Udp = QuerySocket;
     type Tcp = <TokioRuntimeProvider as RuntimeProvider>::Tcp;
 
     fn create_handle(&self) -> Self::Handle {
@@ -69,7 +97,39 @@ impl RuntimeProvider for QuerySockets {
         Box::pin(async move {
             let socket = crate::udp::bind_socket(server_addr, local_addr, None, udp)?;
             socket.set_nonblocking(true)?;
-            tokio::net::UdpSocket::from_std(socket)
+            Ok(QuerySocket {
+                socket: tokio::net::UdpSocket::from_std(socket)?,
+            })
         })
+    }
+}
+
+/// A query socket that reports each sent datagram to a marked lookup.
+pub(crate) struct QuerySocket {
+    socket: tokio::net::UdpSocket,
+}
+
+impl DnsUdpSocket for QuerySocket {
+    type Time = TokioTime;
+
+    fn poll_recv_from(
+        &self,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<(usize, SocketAddr)>> {
+        DnsUdpSocket::poll_recv_from(&self.socket, cx, buf)
+    }
+
+    fn poll_send_to(
+        &self,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+        target: SocketAddr,
+    ) -> Poll<io::Result<usize>> {
+        let sent = DnsUdpSocket::poll_send_to(&self.socket, cx, buf, target);
+        if let Poll::Ready(Ok(_)) = sent {
+            let _ = SENT.try_with(|notify| notify.notify_one());
+        }
+        sent
     }
 }

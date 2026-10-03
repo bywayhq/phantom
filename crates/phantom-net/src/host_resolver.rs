@@ -12,11 +12,30 @@ use std::{
     time::Duration,
 };
 
-use phantom_profile::DnsCacheSettings;
+use phantom_profile::{DnsCacheSettings, UdpSettings};
 
 use crate::address_cache::AddressCache;
 
-type ResolveFuture = Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send + 'static>>;
+pub(crate) type ResolveFuture =
+    Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send + 'static>>;
+
+/// A resolver that sends its own DNS queries, behind a trait object.
+///
+/// The object keeps the resolver's types out of every connection future
+/// that holds a [`HostResolver`]: proving such a future `Send` would
+/// otherwise walk hickory's whole resolver type, past the depth the pinned
+/// nightly accepts (see the nightly recursion check in
+/// `scripts/dev/README.md`).
+#[cfg(feature = "https-records")]
+pub(crate) trait DnsLookup: fmt::Debug + Send + Sync {
+    /// Starts a lookup of `host`, already lowercased.
+    fn start(self: Arc<Self>, host: String) -> ResolveFuture;
+    /// Returns a resolver like this one whose query sockets open with
+    /// `settings`.
+    fn opened_with(&self, settings: UdpSettings) -> Arc<dyn DnsLookup>;
+    /// Returns the UDP settings of the query sockets, if any.
+    fn socket_settings(&self) -> Option<UdpSettings>;
+}
 
 /// One lookup's answer: the addresses, each with port 0, in the order to try
 /// them, and the record TTL when the resolver reports one.
@@ -35,8 +54,9 @@ impl Resolved {
     }
 }
 
-/// Resolves host names to addresses with a caller-supplied async function,
-/// in place of the operating system resolver.
+/// Resolves host names to addresses in place of the operating system
+/// resolver: with a caller-supplied async function, or, with the
+/// `https-records` feature, with Phantom's own DNS queries.
 ///
 /// The resolver receives the host name as the connection names it, in ASCII
 /// lowercase (for a URL host, with IDNA A-labels), never an IP literal, and
@@ -45,7 +65,10 @@ impl Resolved {
 /// error is reported as a failed system lookup would be on the same path; an
 /// empty list is reported as a system answer with no addresses.
 ///
-/// Clones share one resolver.
+/// Clones share one resolver. A resolver that sends its own DNS queries
+/// keeps its IPv6 route check and its count of fallbacks to the operating
+/// system across the copies a client makes for its profile's UDP settings,
+/// so every client given one resolver shares that state.
 #[derive(Clone)]
 pub struct AddressResolver {
     backend: Backend,
@@ -54,6 +77,8 @@ pub struct AddressResolver {
 #[derive(Clone)]
 enum Backend {
     Function(Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>),
+    #[cfg(feature = "https-records")]
+    Dns(Arc<dyn DnsLookup>),
 }
 
 impl AddressResolver {
@@ -91,10 +116,107 @@ impl AddressResolver {
         }
     }
 
+    /// Resolves names with Phantom's own DNS queries to the nameservers
+    /// configured on this host, as Chromium's built-in DNS client does.
+    ///
+    /// The configuration is read once, now, as
+    /// [`HttpsRecordResolver::system`](crate::dns::HttpsRecordResolver::system)
+    /// reads it, and so is the hosts file. Each name is answered, in order:
+    ///
+    /// 1. `localhost` and names under it, with `::1` and `127.0.0.1`, without
+    ///    a query;
+    /// 2. a name without a dot, a name under `local`, or every name once the
+    ///    operating system has answered 16 lookups in a row through the
+    ///    fallback in step 5, through the operating system;
+    /// 3. from the hosts file, without a query;
+    /// 4. with an AAAA query, when this host has a global IPv6 route, and an
+    ///    A query, sent once the AAAA datagram has left, each a single
+    ///    question with recursion desired and no EDNS(0) record; IPv6
+    ///    addresses come first;
+    /// 5. through the operating system when a query fails or no address
+    ///    comes back.
+    ///
+    /// Without a global IPv6 route, an answer from the operating system
+    /// keeps only its IPv4 addresses, unless they are all loopback
+    /// addresses.
+    ///
+    /// An answer from step 4 carries the smallest TTL of its address and
+    /// alias records and of the SOA record of an empty answer, so an address
+    /// cache keeps it for that TTL, at least
+    /// [`DnsCacheSettings::min_record_ttl`]. Every other answer carries none.
+    /// The IPv6 route check binds a UDP socket to `[::]:0`, connects it to
+    /// `2001:4860:4860::8888` port 443 without sending anything, and reuses
+    /// its result for one second.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the host configuration cannot be read or names
+    /// no nameserver.
+    #[cfg(feature = "https-records")]
+    pub fn system_nameservers() -> io::Result<Self> {
+        crate::dns::AddressLookup::system().map(Self::from_dns)
+    }
+
+    /// Resolves names as [`Self::system_nameservers`] does, with queries to
+    /// the given nameservers, in order, over UDP and then TCP when a UDP
+    /// response is truncated.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `nameservers` is empty.
+    #[cfg(feature = "https-records")]
+    pub fn with_nameservers(nameservers: impl IntoIterator<Item = SocketAddr>) -> io::Result<Self> {
+        crate::dns::AddressLookup::with_nameservers(nameservers).map(Self::from_dns)
+    }
+
+    #[cfg(feature = "https-records")]
+    pub(crate) fn from_dns(lookup: crate::dns::AddressLookup) -> Self {
+        Self {
+            backend: Backend::Dns(Arc::new(lookup)),
+        }
+    }
+
+    /// Opens the UDP sockets of this resolver's own DNS queries with
+    /// `settings`: the client applies its profile's [`UdpSettings`] here
+    /// when it builds.
+    ///
+    /// With `port_randomization` on Windows, each query socket sets
+    /// `SO_RANDOMIZE_PORT` and binds port 0, so Windows picks a random port;
+    /// otherwise the resolver binds a random port itself. A resolver built
+    /// with [`Self::from_fn`] opens no sockets and is returned unchanged.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn with_udp_settings(self, settings: UdpSettings) -> Self {
+        match self.backend {
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => Self {
+                backend: Backend::Dns(lookup.opened_with(settings)),
+            },
+            backend @ Backend::Function(_) => {
+                let _ = settings;
+                Self { backend }
+            }
+        }
+    }
+
+    /// Returns the UDP settings of this resolver's own DNS queries, if it
+    /// sends any and was given some.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn udp_settings(&self) -> Option<UdpSettings> {
+        match &self.backend {
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => lookup.socket_settings(),
+            Backend::Function(_) => None,
+        }
+    }
+
     /// Starts a lookup of `host`, already lowercased.
     pub(crate) fn lookup(&self, host: &str) -> ResolveFuture {
         match &self.backend {
             Backend::Function(lookup) => lookup(host.to_owned()),
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => Arc::clone(lookup).start(host.to_owned()),
         }
     }
 }
@@ -104,6 +226,8 @@ impl fmt::Debug for AddressResolver {
         let mut debug = formatter.debug_struct("AddressResolver");
         match &self.backend {
             Backend::Function(_) => debug.field("backend", &"function"),
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => debug.field("backend", lookup),
         };
         debug.finish_non_exhaustive()
     }
@@ -203,6 +327,14 @@ impl HostResolver {
     #[must_use]
     pub fn cache(&self) -> Option<&AddressCache> {
         self.cache.as_ref()
+    }
+
+    /// Returns the resolver that answers names without an override, or
+    /// `None` when the operating system does.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn resolver(&self) -> Option<&AddressResolver> {
+        self.resolver.as_ref()
     }
 
     /// Returns the addresses `host` is overridden to, if it has an override.
