@@ -369,6 +369,10 @@ wait for Phase 1, so they cover every route and setting it adds.
   fixture replay stays byte-identical.
 - Decide how the public profile settings structs grow:
   `#[non_exhaustive]` with constructors, or an explicit versioning policy.
+- Group the 23 public `phantom-profile` modules: browser recipes under one
+  module beside the protocol settings modules, with one naming rule for
+  Chrome and Chromium (today `chromium` holds the Chrome desktop recipes and
+  `chrome_android` the Android ones).
 - Composed per-browser profile constructors, such as `chromium::v154()`, so
   a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
 - Error triage over `kind()`, a public replay-safety accessor, and the
@@ -475,6 +479,14 @@ not carry its renames. Until then, depend on a pinned git revision
   100 lines; add invariant comments to the most deeply nested state machines.
 - Move test helpers copied across test files into `phantom-testkit` or
   `tests/support`.
+- Bring the file layout to the test-placement and module-file rules in
+  [AGENTS.md](../AGENTS.md#code-and-documentation): fold short tests back
+  inline and remove the 44 directories that hold only `tests.rs`, drop the
+  redundant `#[path]` attributes, replace the four `mod.rs` files and enforce
+  the rule with Clippy's `mod_module_files`, move test-only code such as
+  `tracing_test.rs` out of `src`, place the Windows FFI module with its
+  owner, and split source files over about 1,500 lines, such as
+  `http1/tls.rs` and `client.rs`, along protocol lines.
 - Keep capture history in [Validation](explanation/validation.md) rather
   than in recipe rustdoc, and split Validation into one evidence page per
   browser.

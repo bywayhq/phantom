@@ -86,8 +86,16 @@ Use a sibling worktree only when independent work can proceed concurrently.
   `common`, `helpers`, or `utils` modules.
 - Keep private helpers with their owner. Extract a module only when it has a
   distinct responsibility, and keep the public module tree shallow.
-- Move substantial tests beside the implementation in `tests.rs` or `tests/`.
-  Test names describe observable behavior.
+- Place unit tests by size. Keep them inline in `#[cfg(test)] mod tests`
+  at the end of the file up to about 300 lines. Above that, or when they need
+  fixtures or helpers of their own, move them to `foo/tests.rs`, or to
+  `foo/tests/` for several files. Do not create a `foo/` directory only to hold
+  `tests.rs` for short tests, and do not add `#[path]` for `foo/tests.rs`:
+  `mod tests;` in `foo.rs` already finds it. Tests of public behavior across
+  modules go in the crate's `tests/` directory. Test names describe observable
+  behavior.
+- Write a module as `foo.rs` with its submodules in `foo/`; do not add
+  `mod.rs` files.
 - Comments explain invariants, safety conditions, wire citations, or
   non-obvious constraints. Put history and extended rationale in documentation.
 - Keep fixtures machine-focused; place capture rationale and reproduction
