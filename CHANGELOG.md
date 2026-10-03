@@ -768,7 +768,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - `phantom-net` gains hidden seams for the facade's pools, which are not
   supported API: `tcp::AddressFamily`, `tcp::AddressFamilyMemory`,
-  `tcp::SlowerConnection`, and `tcp::SlowerProgress`.
+  `tcp::SlowerConnection`, and `tcp::SlowerProgress`;
+  `Http1TlsConnector::connect_direct_keeping_slower`,
+  `Http1TlsConnector::connect_plaintext_direct_keeping_slower`, and
+  `Http1Or2TlsConnector::connect_direct_keeping_slower`.
 - With the `https-records` feature, `AddressResolver::system_nameservers`
   and `AddressResolver::with_nameservers` resolve names with Phantom's own
   A and AAAA queries, as Chromium 154's built-in DNS client does:

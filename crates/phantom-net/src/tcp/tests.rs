@@ -16,6 +16,7 @@ mod address_selection;
 mod keepalive_paths;
 mod paths;
 mod port_randomization;
+mod slower_connection;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 

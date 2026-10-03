@@ -219,6 +219,15 @@ impl Http1Connection {
             && !self.early_data_alpn_changed()
     }
 
+    /// Reports to the keepalive schedule that the connection waits in a pool
+    /// with no request, as one that finished its handshake without a
+    /// request does.
+    pub(crate) fn report_idle(&self) {
+        if let Some(keepalive) = &self.inner.keepalive {
+            keepalive.connection_idle();
+        }
+    }
+
     /// Waits until the server answers this connection's TLS early data.
     ///
     /// Returns at once for a connection that sent none, or whose early data

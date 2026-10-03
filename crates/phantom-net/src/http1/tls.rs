@@ -17,7 +17,7 @@ use super::{
     send_prepared_upgrade,
 };
 use crate::{
-    direct::{Dialer, DirectConnectError, connect_tcp},
+    direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
     proxy::{
         HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, ProxyCredentialCache,
@@ -25,7 +25,10 @@ use crate::{
         socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     source_binding::SourceBinding,
-    tcp::{ForeignStream, TcpKeepaliveSource},
+    tcp::{
+        AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
+        TcpKeepaliveSource,
+    },
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -822,6 +825,96 @@ impl Http1TlsConnector {
         .await
     }
 
+    /// Opens one direct TLS connection as [`Self::connect_direct`] does and,
+    /// when the TCP settings select a
+    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
+    /// and updates `family`, the origin's address family, and returns the
+    /// slower attempt when the backup started and that attempt is still
+    /// connecting.
+    ///
+    /// The slower attempt keeps connecting while the first connection's
+    /// handshake runs. Once the returned [`SlowerConnection`] is polled, it
+    /// makes the same TLS handshake with no request, waits for the server to
+    /// answer any early data, and comes back idle, its keepalive started
+    /// before the handshake. A failure of the first connection closes it.
+    ///
+    /// This is a seam for the facade's pools, not supported API.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ALPN
+    /// selection, or the HTTP/1.1 handshake of the first connection fails.
+    #[doc(hidden)]
+    pub async fn connect_direct_keeping_slower(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        family: &AddressFamilyMemory,
+    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        let mut slower = None;
+        let connection = self
+            .trace_connect(pin!(async {
+                let (stream, attempt) =
+                    connect_tcp_keeping_slower(host, port, self.dialer(), Some(family))
+                        .await
+                        .map_err(Http1TlsError::from_direct)?;
+                slower = attempt;
+                let handshake = async {
+                    let stream = self
+                        .tls
+                        .connect_offering_early_data(server_name, stream)
+                        .await?;
+                    connect_over_tls(stream).await
+                };
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(handshake).await,
+                    None => handshake.await,
+                }
+            }))
+            .await?;
+        let slower = slower.map(|attempt| self.slower_tls(attempt, server_name));
+        Ok((connection, slower))
+    }
+
+    /// Finishes the TLS handshake of a slower attempt's connection.
+    ///
+    /// The handshake is the one a request's connection makes, early data
+    /// offered as the cached session allows, as Firefox sets
+    /// `SSL_ENABLE_0RTT_DATA` for every socket from one process default
+    /// (`security/manager/ssl/nsNSSComponent.cpp:866-867` at tag
+    /// `FIREFOX_157_0_RELEASE`). No request is written, so no early data is
+    /// sent, as Firefox's null transaction declines it
+    /// (`netwerk/protocol/http/nsAHttpTransaction.h:215-217`,
+    /// `netwerk/protocol/http/TlsHandshaker.cpp:305-320`).
+    pub(crate) fn slower_tls(
+        &self,
+        attempt: SlowerAttempt,
+        server_name: &str,
+    ) -> SlowerConnection<Http1Connection> {
+        let tls = self.tls.clone();
+        let server_name = server_name.to_owned();
+        SlowerConnection::new(attempt.progress(), async move {
+            let stream = attempt
+                .connect()
+                .await
+                .ok()?
+                .into_stream(SlowerKeepalive::BeforeTls);
+            let stream = tls
+                .connect_offering_early_data(&server_name, stream)
+                .await
+                .inspect_err(|error| debug!(error = %error, "slower connection handshake failed"))
+                .ok()?;
+            let connection = connect_over_tls(stream).await.ok()?;
+            connection.early_data_answered().await;
+            if !connection.is_reusable() {
+                return None;
+            }
+            connection.report_idle();
+            Some(connection)
+        })
+    }
+
     /// Opens one direct TLS connection for sequential HTTP/1.1 requests,
     /// offering Encrypted Client Hello with the `ECHConfigList` that `ech`
     /// yields, as Chrome 154 does for an origin's HTTPS record.
@@ -872,6 +965,45 @@ impl Http1TlsConnector {
         host: &str,
         port: u16,
     ) -> Result<Http1Connection, Http1TlsError> {
+        self.connect_plaintext_direct_with(host, port, None)
+            .await
+            .map(|(connection, _)| connection)
+    }
+
+    /// Opens one direct plaintext TCP connection as
+    /// [`Self::connect_plaintext_direct`] does and, when the TCP settings
+    /// select a
+    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
+    /// and updates `family`, the origin's address family, and returns the
+    /// slower attempt when the backup started and that attempt is still
+    /// connecting.
+    ///
+    /// Once the returned [`SlowerConnection`] is polled and connects, it
+    /// comes back idle with no keepalive set until its first request.
+    ///
+    /// This is a seam for the facade's pools, not supported API.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, TCP
+    /// setup fails, or the HTTP/1.1 handshake fails.
+    #[doc(hidden)]
+    pub async fn connect_plaintext_direct_keeping_slower(
+        &self,
+        host: &str,
+        port: u16,
+        family: &AddressFamilyMemory,
+    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        self.connect_plaintext_direct_with(host, port, Some(family))
+            .await
+    }
+
+    async fn connect_plaintext_direct_with(
+        &self,
+        host: &str,
+        port: u16,
+        family: Option<&AddressFamilyMemory>,
+    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
         let span = debug_span!(
             "http1.direct.connect",
             transport = "tcp",
@@ -880,14 +1012,11 @@ impl Http1TlsConnector {
         );
         let outcome = OperationOutcome::new(&span);
         let result = async {
-            let stream =
-                connect_tcp(host, port, self.dialer())
-                    .await
-                    .map_err(|error| match error {
-                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                    })?;
-            connect_plaintext(stream).await.map_err(Into::into)
+            let (stream, slower) = connect_tcp_keeping_slower(host, port, self.dialer(), family)
+                .await
+                .map_err(Http1TlsError::from_direct)?;
+            let connection = connect_plaintext(stream).await?;
+            Ok((connection, slower.map(slower_plaintext)))
         }
         .instrument(span.clone())
         .await;
@@ -2269,7 +2398,7 @@ fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'sta
     }
 }
 
-fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'static str {
+fn connection_outcome<T>(result: &Result<T, Http1TlsError>) -> &'static str {
     match result {
         Ok(_) => "ok",
         Err(Http1TlsError::RuntimeUnavailable) => "runtime_unavailable",
@@ -2286,6 +2415,15 @@ fn connection_outcome(result: &Result<Http1Connection, Http1TlsError>) -> &'stat
     }
 }
 
+impl Http1TlsError {
+    fn from_direct(error: DirectConnectError) -> Self {
+        match error {
+            DirectConnectError::RuntimeUnavailable => Self::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => Self::Connect(error),
+        }
+    }
+}
+
 /// Starts HTTP/1.1 over an established TLS stream on a profile connection.
 async fn connect_over_tls<S>(stream: TlsStream<S>) -> Result<Http1Connection, Http1TlsError>
 where
@@ -2297,6 +2435,19 @@ where
     Http1Connection::connect_with_early_data(stream, early_data, keepalive)
         .await
         .map_err(Into::into)
+}
+
+/// Starts plaintext HTTP/1.1 on a slower attempt's connection once it
+/// connects, with no keepalive until its first request.
+pub(crate) fn slower_plaintext(attempt: SlowerAttempt) -> SlowerConnection<Http1Connection> {
+    SlowerConnection::new(attempt.progress(), async move {
+        let stream = attempt
+            .connect()
+            .await
+            .ok()?
+            .into_stream(SlowerKeepalive::OnFirstRequest);
+        connect_plaintext(stream).await.ok()
+    })
 }
 
 /// Starts plaintext HTTP/1.1 on a profile connection.

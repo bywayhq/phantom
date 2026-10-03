@@ -12,7 +12,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    direct::{Dialer, DirectConnectError, connect_tcp},
+    direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
     http1::{Http1Connection, Http1Error},
     http2::{
@@ -25,7 +25,10 @@ use crate::{
         http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     source_binding::SourceBinding,
-    tcp::{ForeignStream, TcpKeepaliveSource},
+    tcp::{
+        AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
+        TcpKeepaliveSource,
+    },
     tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
 };
 
@@ -545,6 +548,128 @@ impl Http1Or2TlsConnector {
         .await
     }
 
+    /// Opens one direct connection as [`Self::connect_direct`] does and,
+    /// when the TCP settings select a
+    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
+    /// and updates `family`, the origin's address family, and returns the
+    /// slower attempt when the backup started and that attempt is still
+    /// connecting.
+    ///
+    /// The slower attempt keeps connecting while the first connection's
+    /// handshake runs. When the first connection selects HTTP/2 and the
+    /// slower attempt has not connected by then, it is closed, as Firefox
+    /// closes its other connection attempts to the origin once a connection
+    /// reports HTTP/2 (`nsHttpConnectionMgr::ReportSpdyConnection` and
+    /// `ConnectionEntry::MakeAllDontReuseExcept`,
+    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:997`, `:1033`;
+    /// `netwerk/protocol/http/ConnectionEntry.cpp:643-649` at tag
+    /// `FIREFOX_157_0_RELEASE`). Otherwise, once the returned
+    /// [`SlowerConnection`] is polled, it makes the same TLS handshake with
+    /// no request, enters the protocol ALPN selects, and waits for the server
+    /// to answer any early data.
+    ///
+    /// This is a seam for the facade's pools, not supported API.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for runtime, connection, TLS, ALPN, ALPS,
+    /// or protocol setup failures of the first connection.
+    #[doc(hidden)]
+    pub async fn connect_direct_keeping_slower(
+        &self,
+        host: &str,
+        port: u16,
+        server_name: &str,
+        family: &AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1Or2Connection,
+            Option<SlowerConnection<Http1Or2Connection>>,
+        ),
+        Http1Or2TlsError,
+    > {
+        let mut slower = None;
+        let connection = self
+            .trace_connect(pin!(async {
+                let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+                let (stream, attempt) =
+                    connect_tcp_keeping_slower(host, port, self.dialer(), Some(family))
+                        .await
+                        .map_err(Http1Or2TlsError::from_direct)?;
+                slower = attempt;
+                let handshake = async {
+                    let stream = self
+                        .tls
+                        .connect_offering_early_data(server_name, stream)
+                        .await?;
+                    select_connection(stream, client).await
+                };
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(handshake).await,
+                    None => handshake.await,
+                }
+            }))
+            .await?;
+        let slower = slower
+            .filter(|attempt| keeps_slower(&connection, attempt))
+            .map(|attempt| self.slower_connection(attempt, server_name));
+        Ok((connection, slower))
+    }
+
+    /// Finishes the TLS handshake and protocol setup of a slower attempt's
+    /// connection.
+    ///
+    /// The handshake is the one a request's connection makes, early data
+    /// offered as the cached session allows. Firefox sets
+    /// `SSL_ENABLE_0RTT_DATA` for every socket from one process default
+    /// (`security/manager/ssl/nsNSSComponent.cpp:866-867` at tag
+    /// `FIREFOX_157_0_RELEASE`). Its null transaction declines HTTP/1 early
+    /// data, so nothing is written before the handshake ends
+    /// (`netwerk/protocol/http/nsAHttpTransaction.h:215-217`,
+    /// `netwerk/protocol/http/TlsHandshaker.cpp:305-320`), as no request is
+    /// written here, and an early `h2` selection starts the HTTP/2 session as
+    /// early data whatever the transaction (`TlsHandshaker.cpp:321-330`,
+    /// `netwerk/protocol/http/nsHttpConnection.cpp:272-305`), as
+    /// [`select_connection`] does for any connection.
+    pub(crate) fn slower_connection(
+        &self,
+        attempt: SlowerAttempt,
+        server_name: &str,
+    ) -> SlowerConnection<Http1Or2Connection> {
+        let tls = self.tls.clone();
+        let http2 = self.http2.clone();
+        let server_name = server_name.to_owned();
+        SlowerConnection::new(attempt.progress(), async move {
+            let client = translate_settings(&http2).ok()?;
+            let stream = attempt
+                .connect()
+                .await
+                .ok()?
+                .into_stream(SlowerKeepalive::BeforeTls);
+            let stream = tls
+                .connect_offering_early_data(&server_name, stream)
+                .await
+                .inspect_err(|error| debug!(error = %error, "slower connection handshake failed"))
+                .ok()?;
+            match select_connection(stream, client).await.ok()? {
+                Http1Or2Connection::Http1(connection) => {
+                    connection.early_data_answered().await;
+                    if !connection.is_reusable() {
+                        return None;
+                    }
+                    connection.report_idle();
+                    Some(Http1Or2Connection::Http1(connection))
+                }
+                Http1Or2Connection::Http2(connection) => {
+                    connection.early_data_answered().await;
+                    connection
+                        .is_reusable()
+                        .then_some(Http1Or2Connection::Http2(connection))
+                }
+            }
+        })
+    }
+
     /// Tunnels through a plaintext HTTP proxy with one HTTP/1.1 CONNECT, then
     /// selects HTTP/1.1 or HTTP/2 over origin TLS.
     ///
@@ -805,6 +930,13 @@ impl Http1Or2TlsConnector {
         outcome.finish(&result);
         result
     }
+}
+
+/// Whether the slower attempt of a backup connection is kept once the first
+/// connection is set up: not when that connection selected HTTP/2 before the
+/// attempt connected.
+pub(crate) fn keeps_slower(first: &Http1Or2Connection, attempt: &SlowerAttempt) -> bool {
+    !matches!(first, Http1Or2Connection::Http2(_)) || attempt.has_connected()
 }
 
 /// Starts the protocol TLS selected and reports it to the connection's

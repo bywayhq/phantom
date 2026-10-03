@@ -776,4 +776,6 @@ mod response_head;
 mod tls;
 mod upgrade;
 
+#[cfg(test)]
+pub(crate) use tls::slower_plaintext;
 pub use tls::{EchFailure, Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};

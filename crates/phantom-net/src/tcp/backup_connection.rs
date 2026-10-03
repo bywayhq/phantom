@@ -3,11 +3,6 @@
 //! as [`TcpBackupConnection`](phantom_profile::TcpBackupConnection)
 //! describes.
 
-#![allow(
-    dead_code,
-    reason = "the HTTP connectors take the slower attempt from the next commit"
-)]
-
 use std::{
     collections::VecDeque,
     fmt,
