@@ -3672,9 +3672,14 @@ Chromium recipe closes the connection as Chrome 154 does, sending `GOAWAY`
 with last stream ID 0, `PROTOCOL_ERROR`, and the debug data `Failed ping.`,
 then closing, 10 seconds after the later of the PING and the last frame
 read. Every request still open on the connection fails with
-`Http2Error::PingTimeout`, and the client's pool drops the connection, so
-the next request opens a new one. A request that reaches the closed
-connection before the pool drops it sends nothing and fails with
+`Http2Error::PingTimeout`, and the client's pool drops the connection. A
+request that failed so before its response head is sent again at once on
+another connection, up to twice per redirect hop
+(`Http2Settings::ping_failure_retries`), whatever its method and the retry
+policy, unless its body is a one-shot stream. A negotiated request sends the
+field lists of the failed attempt, as Chrome resends the same fields; an
+exact request builds its list again. A request that reaches the
+closed connection before the pool drops it sends nothing and fails with
 `Http2Error::ReusedConnectionClosed`, which reused-connection replay covers.
 
 Evidence: Chromium source at tag `154.0.8037.58` and loopback captures of
@@ -3769,9 +3774,17 @@ timeout after it would give 8,
 and an acknowledged PING leaves the connection usable 2 seconds past a
 1-second timeout. The vendored `http2` crate's tests add a peer that stops
 reading for three timeouts while a request body fills the pipe, then drains
-it and sends the ACK, and sees no GOAWAY. `crates/phantom/tests/requests/unprocessed_replay.rs`
-checks through the client that the failed request is not replayed, even with
-unprocessed replay on, and that the next request opens a new connection.
+it and sends the ACK, and sees no GOAWAY.
+`crates/phantom/tests/requests/ping_failure_replay.rs` checks through the
+client that the failed request goes out again on a second connection, a
+`GET` and a `POST` with its body, exact, negotiated, and through a CONNECT
+tunnel, and that a one-shot streaming body fails with
+`Http2Error::PingTimeout` and opens no other connection;
+`a_ping_failure_resend_builds_each_list_once` in
+`crates/phantom/src/request/field_lists/tests.rs` shows a negotiated resend
+sending the lists built for the failed attempt. `crates/phantom/tests/requests/unprocessed_replay.rs` checks
+that with `ping_failure_retries` at 0 the request fails, even with
+unprocessed replay on, and the next request opens a new connection.
 
 How to reproduce:
 
@@ -3783,6 +3796,7 @@ uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
   --output-dir fixtures/http2/chrome/154.0.8037.58/windows-11-26200
 cargo test -p phantom-net --lib http2::tests::preface_ping
+cargo test -p phantom-http --test requests ping_failure_replay
 cargo test -p phantom-http --test requests \
   unprocessed_replay::ping_timeout_fails_the_request_without_replay_and_retires_the_connection
 ```
@@ -3796,13 +3810,17 @@ Limits:
 - Chrome retries a request that fails with `ERR_HTTP2_PING_FAILED` before
   its response headers, whatever its method, up to twice on a new connection
   (`HttpNetworkTransaction::HandleIOError`,
-  `net/http/http_network_transaction.cc:2073-2074`, `:2222-2232`, with
+  `net/http/http_network_transaction.cc:2073-2074`, `:2222-2233`, with
   `kMaxRetryAttempts` of 2 at `:108`). The capture shows the first retry,
   sent at once on a new connection; a second needs the new connection's
   PING to fail too, which a fresh connection cannot reach, so the limit of
-  two rests on source. Phantom does not replay the request: the client
-  closed the connection itself, so nothing shows that the server did not
-  process it.
+  two rests on source, and no test drives a second failure. Chrome counts
+  these retries in one `retry_attempts_` with its retries after a refused
+  stream and on QUIC (`:2231`, `:2251`, `:2263`); Phantom counts them apart
+  from its retry policy's replays. Phantom returns the error for a
+  streaming body. An exact request builds its list again, so a cookie
+  another request stored meanwhile reaches the resend, where Chrome resends
+  the `Cookie` it set before the first attempt.
 - Phantom counts reads per whole frame for the idle time and the PING
   timeout, where Chrome counts every socket read, including part of a frame.
   Phantom also does not check the PING timeout while its writes are

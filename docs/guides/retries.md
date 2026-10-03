@@ -9,21 +9,20 @@ A retry can change what a server sees, so every retry keeps the request's
 route and its [exact protocol](../reference/glossary.md#exact-protocol) or
 negotiated selection rule, and each class has its own bound
 ([Design](../explanation/design.md#retries-and-replays)). Retries are your
-policy, so no browser recipe includes them.
+policy, so no browser recipe includes them apart from the PING resend below.
 
 | Class | Default | Configure with | Applies when |
 | --- | --- | --- | --- |
 | Connection-setup retry | Off | `RetryPolicy::connection_failures` | Setup failed before any request byte was sent |
 | Graceful `GOAWAY` replay | Always on | Not configurable | A bodyless H2 GET refused by `GOAWAY(NO_ERROR)` |
+| PING-failure resend | 2 per hop in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` | An H2 connection closed itself on an unanswered PING before the response head; any method, no streaming body |
 | Reused-connection replay | Off | `with_reused_connection_replay` | An H1 keep-alive connection closed before any response byte |
 | Unprocessed-request replay | Off | `with_unprocessed_replay` | The H2 or H3 peer reported it did not process the request |
 | Status retry | Off | `with_status_retry` | The status is 408, 425, 429, 500, 502, 503, or 504 |
 | WebSocket setup retry | Off | `WebSocketRetryPolicy` ([WebSocket](websocket.md#retry-a-connect-that-fails-to-open)) | A WebSocket connect failed before any byte reached the server |
 
-Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407`
-challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
-and one `Critical-CH` retry when the profile has client hints
-([Send client hints](request-templates.md#send-client-hints)).
+Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407` challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
+and one `Critical-CH` retry when the profile has client hints ([Send client hints](request-templates.md#send-client-hints)).
 
 ## Retry when a connection fails to open
 

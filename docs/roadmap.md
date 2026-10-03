@@ -54,6 +54,10 @@ Counts in the later phases come from a read-only review of `main` at
   does: 240 bytes fresh and 368 resumed with the capture servers' tickets,
   over TCP and QUIC, and padded by the host text of an IP literal
   ([Firefox ECH GREASE payload](explanation/validation.md#firefox-ech-grease-payload-evidence)).
+- Chromium's resend of a request whose HTTP/2 session ended with
+  `ERR_HTTP2_PING_FAILED`: at once on another connection, up to twice per
+  redirect hop, whatever the method
+  ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)).
 - Early data over TCP in the Firefox recipe: a resumed direct connection
   offers `early_data` where Firefox 157 does, sends replay-safe requests in
   it, sends them again on the same connection after a rejection, and restarts
@@ -292,14 +296,6 @@ anything does.
   waits for the record only over DNS over HTTPS; with early data, Phantom's
   retry after an ECH rejection would also have to move from the handshake to
   the request.
-- Chromium's retry of a request whose session ended with
-  `ERR_HTTP2_PING_FAILED`. Evidence: a Chrome 154 capture shows the request
-  sent again at once on a new connection with the same fields, and source
-  allows up to two such retries, whatever the method
-  ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence));
-  Phantom closes the connection as Chrome does but fails the request.
-  Blocker: a replay class for requests the client cannot show were
-  unprocessed, which the unprocessed-replay policy does not cover.
 - Firefox's read-timeout `PING` in `firefox::v157_http2`. Evidence: a
   Firefox 157 capture shows one `PING` with payload 0 on an idle pooled
   HTTP/2 connection about 60 seconds after its last read, from

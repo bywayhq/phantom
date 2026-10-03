@@ -163,8 +163,9 @@ with no connection, as Firefox's connection manager prunes on one timer.
 A browser's recovery is part of its behavior, and a request sent twice can
 have effects twice. Every retry class is therefore bounded, and none changes
 the route, the exact protocol, the negotiated selection rule, or the Alt-Svc
-alternative in use. Apart from one H2 `GOAWAY` replay, Phantom retries nothing
-unless you configure it, so a transient failure reaches your code as an error.
+alternative in use. Apart from one H2 `GOAWAY` replay and the Chromium
+recipes' resend after a failed H2 PING, Phantom retries nothing unless you
+configure it, so a transient failure reaches your code as an error.
 Firefox's transaction restarts on fresh connections are not reproduced.
 
 The [retries guide](../guides/retries.md) covers configuration. The sections
@@ -205,7 +206,7 @@ goes through pre-selection admission and ALPN again.
 ### Reused-connection replay
 
 Replaying bytes that may have reached the origin is a separate class, and it
-is opt-in. The H1 transport reports a reused keep-alive connection that closed
+is opt-in, apart from the PING-failure resend below. The H1 transport reports a reused keep-alive connection that closed
 or reset before any response byte as its own typed error. A fresh connection,
 or a failure after part of a response, keeps the ordinary protocol error.
 
@@ -235,6 +236,18 @@ Because the peer processed nothing, any method may repeat, but only with an
 absent or owned body. One request-scoped budget spans redirects and is
 separate from every other retry class. The replay adds no delay, and the pool
 retires the refusing connection so the replay uses another one.
+
+### PING-failure resend
+
+The Chromium recipes resend a request whose H2 connection closed itself after
+an unanswered PING before the request's response head, as Chrome resends after
+`ERR_HTTP2_PING_FAILED`. The profile owns it
+(`Http2Settings::ping_failure_retries`), not `RetryPolicy`, because it is
+browser behavior: any method may repeat, with an absent or owned body, up to
+the profile's count per redirect hop, apart from every policy budget. The
+server may have processed the request, which is why Firefox's recipe sets 0.
+The pool retires the connection before the request fails, so the resend
+takes another one at once.
 
 ### Status retry
 
@@ -268,8 +281,8 @@ reaches the next request, not this one.
 The race's winner sends its lists as they were built. So does every attempt
 of the request that repeats one no response answered: a graceful `GOAWAY`
 retry, a restart after rejected early data, a reused-connection replay, an
-unprocessed-request replay, and a race started again after an early-data
-handshake failed. A cookie that another request stores in the meantime is
+unprocessed-request replay, a PING-failure resend, and a race started again
+after an early-data handshake failed. A cookie that another request stores in the meantime is
 sent from the next request on. Browsers behave the same way: Chromium sets a
 request's `Cookie` once, before it asks for a connection, in
 `URLRequestHttpJob::SetCookieHeaderAndStart`
@@ -286,7 +299,7 @@ A `Critical-CH` retry and a status retry follow a response, which may have
 stored cookies or requested client hints, so they build and check the lists
 again. Each redirect hop builds its own for its URL, method, body, and
 fields. An exact request builds its one list again for a reused-connection
-replay and an unprocessed-request replay as well.
+replay, an unprocessed-request replay, and a PING-failure resend as well.
 
 A connection's ALPS `ACCEPT_CH` never adds a field to a list already built.
 For a navigation, or a request without a template, an entry for the origin

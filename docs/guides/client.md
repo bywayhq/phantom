@@ -40,9 +40,9 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 }
 ```
 
-- Timeouts, redirects, and retries are off until you set them.
-  `RequestTimeouts` limits five phases: pool admission, connect, response
-  head, read idle, and total ([timeout phases](../reference/limits.md#timeouts)).
+- Timeouts, redirects, and [retries](retries.md), bar the Chromium H2 PING
+  resend, are off until you set them. `RequestTimeouts` limits five phases:
+  pool admission, connect, response head, read idle, and total ([timeout phases](../reference/limits.md#timeouts)).
   Each phase limit restarts for every redirect, retry, and replay; the total
   limit is one deadline over all attempts, delays, and the final body.
 - Client settings are fixed once `build` returns. A request can override only

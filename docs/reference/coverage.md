@@ -339,8 +339,11 @@ Supported:
   read nothing for longer sends a PING right after the next request HEADERS
   or non-empty DATA frame, with a payload that counts up from 1. When the
   profile also sets a PING timeout (10 seconds for Chromium), a PING left
-  unanswered with nothing read for that long closes the connection with `GOAWAY(PROTOCOL_ERROR)`; its requests fail with
-  `Http2Error::PingTimeout` and are not replayed
+  unanswered with nothing read for that long closes the connection with
+  `GOAWAY(PROTOCOL_ERROR)`. A request it failed before the response head is
+  sent again on another connection, up to twice per redirect hop with the
+  Chromium recipes and never with Firefox's
+  (`Http2Settings::ping_failure_retries`)
   ([HTTP/2 preface PING evidence](../explanation/validation.md#http2-preface-ping-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
