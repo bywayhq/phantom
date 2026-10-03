@@ -9,6 +9,10 @@ run's disposable user-data directory, the same preferences the Secure DNS
 setting writes, so no setting outside that directory changes. Chrome ignores
 these preferences on a managed or parental-controlled Windows host.
 
+Opera 136 overrides Chromium's two preferences at startup with its own, so for
+`--browser opera` the file also sets `dns_over_https.opera.doh_mode` to
+`custom` and `dns_over_https.opera.custom_servers` to the template.
+
 Edge 153 sent no DNS-over-HTTPS query with those preferences. With
 `--dns-from-policy` the tool writes no preferences; the browser must already
 have the `DnsOverHttpsMode` and `DnsOverHttpsTemplates` machine policies,
@@ -60,12 +64,22 @@ POLICY_DNS_CONFIGURATION = (
     "policy {key} DnsOverHttpsMode=secure DnsOverHttpsTemplates=<doh_template>"
 )
 READY_PREFIX = "ready doh_template="
+# Opera's own Secure DNS preferences beside Chromium's, which Opera overrides
+# with them at startup (`dns_over_https_prefs_observer.cc` in opera_browser.dll).
+OPERA_DNS_SETTINGS = {"enabled_version": 1, "doh_mode": "custom"}
+OPERA_DNS_CONFIGURATION = (
+    " dns_over_https.opera.enabled_version=1 dns_over_https.opera.doh_mode=custom"
+    " dns_over_https.opera.custom_servers=<doh_template>"
+)
 CAPTURE_TIMEOUT_SECONDS = 180
 
 
-def local_state(template: str) -> str:
+def local_state(template: str, browser: str = "chrome") -> str:
     """A `Local State` file that sends every lookup to `template`."""
-    return json.dumps({"dns_over_https": {"mode": "secure", "templates": template}})
+    settings: dict[str, object] = {"mode": "secure", "templates": template}
+    if browser == "opera":
+        settings["opera"] = dict(OPERA_DNS_SETTINGS, custom_servers=template)
+    return json.dumps({"dns_over_https": settings})
 
 
 def doh_template(origin: str, port: int) -> str:
@@ -168,11 +182,14 @@ def capture_arguments(run: CaptureRun, plan: LaunchPlan) -> list[str]:
     """Arguments for the `capture_ech_client_hello` example."""
     port = [] if run.doh_port is None else ["--doh-port", str(run.doh_port)]
     quic = ["--quic"] if run.quic else []
-    dns_configuration = (
-        POLICY_DNS_CONFIGURATION.format(key=POLICY_KEYS[run.browser])
-        if run.dns_from_policy
-        else DNS_CONFIGURATION
-    )
+    if run.dns_from_policy:
+        dns_configuration = POLICY_DNS_CONFIGURATION.format(
+            key=POLICY_KEYS[run.browser]
+        )
+    elif run.browser == "opera":
+        dns_configuration = DNS_CONFIGURATION + OPERA_DNS_CONFIGURATION
+    else:
+        dns_configuration = DNS_CONFIGURATION
     return [
         str(run.capture_binary),
         *port,
@@ -253,7 +270,10 @@ def capture(
         configured = (
             plan
             if run.dns_from_policy
-            else replace(plan, profile_files=((LOCAL_STATE, local_state(template)),))
+            else replace(
+                plan,
+                profile_files=((LOCAL_STATE, local_state(template, run.browser)),),
+            )
         )
         with LaunchedBrowser(configured, URL):
             process.wait(timeout=CAPTURE_TIMEOUT_SECONDS)

@@ -20,6 +20,7 @@ from scripts.capture.alt_svc_race import (
     render_fixture,
     render_page,
     reserve_ports,
+    udp_listeners,
 )
 from scripts.capture.chrome_netlog import NetLog, broken_until_seconds, observe_races
 from scripts.capture.http2_session import generate_certificate
@@ -293,6 +294,26 @@ class ScenarioTests(unittest.TestCase):
             arg for arg in arguments if arg.startswith("--origin-to-force-quic-on")
         ]
         self.assertEqual(forced, [f"--origin-to-force-quic-on={HOST}:9"])
+
+    def test_alt_svc_lists_earlier_alternatives_before_the_origin_port(self) -> None:
+        origin = Origin(SCENARIOS["two-alternatives"], 20001, [20002])
+
+        self.assertEqual(
+            origin.alt_svc_value,
+            b'h3=":20002"; ma=86400, h3=":20001"; ma=86400',
+        )
+        with self.assertRaises(ValueError):
+            Scenario("bad", "?", "serve", (), ("tcp-only",))
+
+    def test_udp_listeners_total_each_listener(self) -> None:
+        run = new_run()
+        run.udp_peer(("127.0.0.1", 1), "earlier-0").datagrams += 3
+        run.udp_peer(("127.0.0.1", 2)).datagrams += 2
+        run.udp[("127.0.0.1", 2)].requests = 1
+
+        self.assertEqual(
+            udp_listeners(run), (("earlier-0", 1, 3, 0), ("origin", 1, 2, 1))
+        )
 
     def test_goaway_names_the_last_stream_with_no_error(self) -> None:
         self.assertEqual(

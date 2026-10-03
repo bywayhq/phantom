@@ -176,6 +176,8 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
 | Several cookies on one request over HTTP/1.1, HTTP/2, and HTTP/3 | [`cookie_crumbs.py`](#cookie-crumbs) | `fixtures/cookies/` |
 | The PING a Chromium browser sends when it reuses an idle HTTP/2 connection | [`http2_preface_ping.py`](#http2-preface-ping) | `fixtures/http2/` |
+| How each connection ends (TLS `close_notify` or not), idle and unanswered PINGs, revalidation, and upload fields | [`http_lifecycle.py`](#connection-lifecycle) | `fixtures/lifecycle/` |
+| Whether a Chromium navigation starts again for an ALPS `ACCEPT_CH` hint, and where the hint goes | [`alps_accept_ch.py`](#alps-accept_ch-restart) | `fixtures/client-hints/` |
 | Socket options, connection attempts, and host lookups inside a Chromium browser on Windows | [`socket_hooks.py`](#socket-hooks) | `fixtures/socket-hooks/` |
 | The same for Firefox on Windows, with keepalive over each connection's life and Firefox's MOZ_LOG | [`firefox_socket_hooks.py`](#firefox-socket-hooks) | `fixtures/socket-hooks/firefox/` |
 | Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
@@ -903,6 +905,83 @@ since the listener started, type, flags, stream, and length, the request path
 of a HEADERS frame without its query, and the payload of a PING. No other
 payload is written.
 
+## Connection lifecycle
+
+`http_lifecycle.py` serves a scripted page over TLS on loopback to Chrome,
+Edge, Brave, Opera, or Firefox, and writes one
+`format=phantom-http-lifecycle-v1` fixture, `<scenario>.txt`, per run. The
+server reads TLS through memory BIOs, so for every connection the browser
+opens it records whether a `close_notify` arrived before the TCP end, or a
+reset. It also keeps each connection's HTTP/2 client frames other than DATA,
+with PING payloads and `GOAWAY` fields, and each request's field names in
+wire order, with the values of the validator, `Expect`, and body fields.
+
+| Scenario | ALPN | What the page does |
+| --- | --- | --- |
+| `revalidate` | `h2` | Fetches four cacheable resources twice each; a matching `If-None-Match` or an `If-Modified-Since` gets `304` |
+| `upload-h1`, `upload-h2` | `http/1.1`, `h2` | POSTs 100 bytes, 1 MiB string and `Blob` bodies, a 1 MiB multipart `FormData`, and a form with a 1 MiB file |
+| `idle-ping` | `h2` | Fetches, leaves the connection idle for `--idle` seconds (75), fetches again |
+| `ping-unanswered` | `h2` | Fetches, waits 11.5 s, fetches again; from that request on the server writes nothing on the connection |
+| `close` | `h2` and `http/1.1` | Fetches over HTTP/2, aborts an HTTP/1.1 response at a second origin, fetches there again, then the tool closes the browser over CDP or WebDriver BiDi |
+
+Capture Chrome and Firefox on Windows:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.http_lifecycle --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.97 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario close \
+  --output-dir fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.http_lifecycle --browser firefox \
+  --browser-path "C:/Program Files/Mozilla Firefox/firefox.exe" \
+  --client-version 157.0 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --scenario idle-ping \
+  --output-dir fixtures/lifecycle/firefox/157.0/windows-11-26200
+```
+
+Chromium browsers map `server.phantom.test` with `--host-resolver-rules`
+and trust the throwaway certificate with
+`--ignore-certificate-errors-spki-list`; Firefox gets
+`network.dns.localDomains` and a `cert_override.txt` for both listener
+ports. Only the `close` scenario adds `--remote-debugging-port`. A run takes
+1 to 5 seconds, except `ping-unanswered` (about 23) and `idle-ping` (about
+81). The page's own results go to the `page_result` line.
+
+## ALPS `ACCEPT_CH` restart
+
+`alps_accept_ch.py` runs the `capture_alps_accept_ch` example, which serves
+`server.phantom.test` over TLS 1.3 and HTTP/2 from BoringSSL with an ALPS
+`ACCEPT_CH` frame naming `--accept-ch` for its own origin, and launches a
+Chromium browser at it with a NetLog. The page fetches `/fetch` and then
+`/done`. The `format=phantom-alps-accept-ch-v1` fixture keeps each
+connection and request the server saw, with field names in the order it
+decoded them and the hints beyond Chromium's three defaults, and from the
+NetLog the origin's `ACCEPT_CH` frames and each URL request to the origin:
+whether `URL_REQUEST_DELEGATE_CONNECTED` ended with an error, and the field
+names it sent. A navigation that started again shows as a request that
+sent nothing, followed by another for the same path.
+
+```sh
+cargo build -p phantom-net --example capture_alps_accept_ch
+uv run --no-project --python 3.10 python -m scripts.capture.alps_accept_ch \
+  --browser chrome \
+  --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
+  --client-version 154.0.8037.97 \
+  --operating-system "Windows 11 Home 10.0.26200 x64" \
+  --capture-binary target/debug/examples/capture_alps_accept_ch.exe \
+  --output fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/alps-accept-ch.txt
+```
+
+`alps-accept-ch-reordered.txt` used
+`--accept-ch "Sec-CH-UA-Platform-Version, Sec-CH-UA-Model, Sec-CH-UA-Arch"`.
+Every name but the origin's fails to resolve (`MAP * ~NOTFOUND`), so the
+fresh profile's background connections stay off the network. The NetLog is
+removed after the run unless `--netlog` names a path for it.
+
 ## HTTP/3 startup
 
 `chrome_http3.py` records one browser HTTP/3 connection against an aioquic
@@ -1211,6 +1290,16 @@ The page drives these server paths:
 | `quic-bad-alpn` | no common ALPN | Whether a QUIC ALPN failure marks the alternative broken |
 | `existing-h2-session` | serves H3 | Requests while an H2 session exists when h3 is learned |
 | `broken-backoff` | drops datagrams | Brokenness expiry and the period after a second failure (about 5.5 minutes per run) |
+| `two-alternatives` | serves H3, after a second serving alternative | Which of two listed alternatives a new connection uses |
+| `first-alternative-blackholed` | serves H3, after an alternative that drops datagrams | Whether a broken first alternative leads to the second |
+
+The last two scenarios list a QUIC-only listener on a port of its own before
+the origin's own port: `Alt-Svc: h3=":<earlier-0-port>"; ma=86400,
+h3=":<port>"; ma=86400`. That listener binds loopback port 0 through
+`reserved_ports.py`. The fixture records each run's datagrams and requests
+per listener in `run_<n>_udp_listeners`, and the server-side transport of a
+request to it as `h3-earlier-0`. The retained Chrome 154.0.8037.97 fixtures
+used `--scenario two-alternatives first-alternative-blackholed --repeat 3`.
 
 Chromium receives `--enable-quic`, the certificate's
 `--ignore-certificate-errors-spki-list`, `--log-net-log`,
@@ -1506,8 +1595,13 @@ Each connection records its ClientHello records, extension order, outer
 server name, the outer extension's fields, whether the origin decrypted the
 inner ClientHello, and the inner server name. Queries for names other than
 the origin are counted, not listed; they are the fresh profile's background
-requests. Opera 135 sent no DNS-over-HTTPS query with these
-preferences, so it has no fixture.
+requests. Opera 135 sent no DNS-over-HTTPS query with these preferences.
+Opera 136 overrides them at startup with its own, so for `--browser opera`
+the tool also writes `dns_over_https.opera.doh_mode` as `custom` and
+`dns_over_https.opera.custom_servers` as the template into the same
+`Local State` file, and records them in `dns_configuration`. Use Opera's
+versioned executable,
+`%LOCALAPPDATA%/Programs/Opera/136.0.6008.52/opera.exe`.
 
 ## Cookie crumbs
 

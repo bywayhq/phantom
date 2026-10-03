@@ -1,0 +1,25 @@
+format=phantom-http-lifecycle-v1
+captured_at_unix=1790989294
+client=Mozilla Firefox
+client_version=157.0
+operating_system=Windows 11 Home 10.0.26200 x64
+hostname=server.phantom.test
+launch_mode=headless
+launch_arguments=--headless --wait-for-browser --no-remote --profile '<temporary-profile>' 'https://server.phantom.test:<port>/start?run=<token>'
+capture_tool=python 3.10.20 h2 4.4.1 hpack 4.2.0
+scenario=upload-h1
+wall_clock_ms=1591
+remote_close_ms=none
+page_connection=0
+page_result=["/post-small:200","/post-large:200","/post-blob:200","/post-multipart:200","/form-upload:loaded"]
+connection_count=1
+connection_0=listener:main,alpn:http/1.1,accepted_ms:442.582,end:open,close_notify_ms:none,eof_ms:none,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_0_frame_count=0
+request_count=7
+request_0=connection:0,stream:none,ms:518.816,method:GET,path:/start,body_bytes:0,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Connection|Upgrade-Insecure-Requests|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Sec-Fetch-User|Priority
+request_1=connection:0,stream:none,ms:601.564,method:POST,path:/post-small,body_bytes:100,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Referer|Content-Type|Content-Length|Origin|Connection|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority,content-type:"text/plain;charset=UTF-8",content-length:"100"
+request_2=connection:0,stream:none,ms:619.276,method:POST,path:/post-large,body_bytes:1048576,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Referer|Content-Type|Content-Length|Origin|Connection|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority,content-type:"text/plain;charset=UTF-8",content-length:"1048576"
+request_3=connection:0,stream:none,ms:634.341,method:POST,path:/post-blob,body_bytes:1048576,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Referer|Content-Length|Origin|Connection|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority,content-length:"1048576"
+request_4=connection:0,stream:none,ms:652.524,method:POST,path:/post-multipart,body_bytes:1048916,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Referer|Content-Type|Content-Length|Origin|Connection|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority,content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048916"
+request_5=connection:0,stream:none,ms:668.187,method:POST,path:/form-upload,body_bytes:1048804,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Content-Type|Content-Length|Origin|Connection|Referer|Upgrade-Insecure-Requests|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority,content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048804"
+request_6=connection:0,stream:none,ms:682.618,method:GET,path:/done,body_bytes:0,status:200,fields:Host|User-Agent|Accept|Accept-Language|Accept-Encoding|Referer|Connection|Sec-Fetch-Dest|Sec-Fetch-Mode|Sec-Fetch-Site|Priority|Pragma|Cache-Control,cache-control:"no-cache",pragma:"no-cache"

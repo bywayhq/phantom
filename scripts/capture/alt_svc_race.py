@@ -8,7 +8,9 @@ server can retire every connection so the next request needs a new one.
 
 The QUIC listener's behavior is the scenario's variable: it serves H3, drops
 every datagram, presents a certificate the browser does not accept, or offers
-no common ALPN. Retained fixtures hold only derived times and decisions;
+no common ALPN. A scenario can also list QUIC-only alternatives on ports of
+their own ahead of the origin's port in `Alt-Svc`, to see which one the
+browser uses. Retained fixtures hold only derived times and decisions;
 NetLogs stay wherever `--netlog-dir` points.
 """
 
@@ -48,6 +50,7 @@ from .browser_launch import BrowserDriver, LaunchPlan
 from .chrome_netlog import NetLog, RaceObservation, broken_until_seconds, observe_races
 from .fixture_file import write_text_fixture
 from .http2_session import Certificate, generate_certificate, server_context
+from .reserved_ports import open_past_reserved_ports
 
 FORMAT = "phantom-alt-svc-race-v1"
 HOSTNAME = "server.phantom.test"
@@ -76,10 +79,14 @@ class Scenario:
     # Page steps in order: `learn`, `learn-retire`, `retire`, `fetch:<name>`,
     # or `wait:<milliseconds>`.
     steps: tuple[str, ...]
+    # QUIC modes of alternatives on ports of their own, which `Alt-Svc` lists
+    # in this order before the origin's own port.
+    earlier_alternatives: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if self.quic not in QUIC_MODES:
-            raise ValueError(f"unsupported QUIC mode: {self.quic}")
+        for mode in (self.quic, *self.earlier_alternatives):
+            if mode not in QUIC_MODES:
+                raise ValueError(f"unsupported QUIC mode: {mode}")
         for step in self.steps:
             kind, _, argument = step.partition(":")
             if kind in {"learn", "learn-retire", "retire"} and not argument:
@@ -189,6 +196,28 @@ SCENARIOS = {
             "serve",
             ("learn", "wait:300", "fetch:r1", "wait:500", "fetch:r2", "fetch:r3"),
         ),
+        Scenario(
+            "two-alternatives",
+            "Which of two serving h3 alternatives a new connection uses",
+            "serve",
+            ("learn-retire", "wait:300", "fetch:r1", "wait:500", "fetch:r2"),
+            ("serve",),
+        ),
+        Scenario(
+            "first-alternative-blackholed",
+            "Whether a failed first alternative leads to the second one",
+            "serve",
+            (
+                "learn-retire",
+                "wait:300",
+                "fetch:r1",
+                "wait:15000",
+                "retire",
+                "wait:300",
+                "fetch:r2",
+            ),
+            ("blackhole",),
+        ),
     )
 }
 
@@ -266,6 +295,9 @@ class UdpPeerRecord:
     requests: int = 0
     closed_ms: float | None = None
     close_reason: str | None = None
+    # `origin` for the origin's own port, `earlier-<n>` for an alternative
+    # `Alt-Svc` lists before it.
+    listener: str = "origin"
 
 
 @dataclass
@@ -286,10 +318,14 @@ class RunRecord:
     def wall_ms(self, relative_ms: float) -> float:
         return self.started_wall * 1000 + relative_ms
 
-    def udp_peer(self, address: tuple[str, int]) -> UdpPeerRecord:
+    def udp_peer(
+        self, address: tuple[str, int], listener: str = "origin"
+    ) -> UdpPeerRecord:
         peer = self.udp.get(address)
         if peer is None:
-            peer = UdpPeerRecord(index=len(self.udp), first_datagram_ms=self.now())
+            peer = UdpPeerRecord(
+                index=len(self.udp), first_datagram_ms=self.now(), listener=listener
+            )
             self.udp[address] = peer
         return peer
 
@@ -312,9 +348,12 @@ class Response:
 class Origin:
     """Routes requests for one scenario and owns connection retirement."""
 
-    def __init__(self, scenario: Scenario, port: int) -> None:
+    def __init__(
+        self, scenario: Scenario, port: int, earlier_ports: Sequence[int] = ()
+    ) -> None:
         self.scenario = scenario
         self.port = port
+        self.earlier_ports = tuple(earlier_ports)
         self.page = render_page(scenario)
         self.run: RunRecord | None = None
         self.retirers: list[Callable[[], None]] = []
@@ -322,7 +361,7 @@ class Origin:
 
     @property
     def alt_svc_value(self) -> bytes:
-        return f'h3=":{self.port}"; ma={ALT_SVC_MAX_AGE}'.encode()
+        return alt_svc_value((*self.earlier_ports, self.port)).encode()
 
     def begin(self, run: RunRecord) -> None:
         self.run = run
@@ -380,6 +419,11 @@ class Origin:
         if response.alt_svc:
             headers.append((b"alt-svc", self.alt_svc_value))
         return headers
+
+
+def alt_svc_value(ports: Sequence[int | str]) -> str:
+    """One `h3` entry per port, in the order given."""
+    return ", ".join(f'h3=":{port}"; ma={ALT_SVC_MAX_AGE}' for port in ports)
 
 
 def hold_response() -> Response:
@@ -636,7 +680,9 @@ class Http3Protocol(QuicConnectionProtocol):
             self.transmit()
 
         index = self.peer.index if self.peer is not None else -1
-        self.origin.request("h3", index, target, respond, self.retire)
+        listener = self.peers.listener
+        transport = "h3" if listener == "origin" else f"h3-{listener}"
+        self.origin.request(transport, index, target, respond, self.retire)
 
     def retire(self) -> None:
         # The retiring response is flushed before CONNECTION_CLOSE(NO_ERROR).
@@ -646,14 +692,15 @@ class Http3Protocol(QuicConnectionProtocol):
 class UdpRecorder:
     """Records the first arrival and count of datagrams per client address."""
 
-    def __init__(self, origin: Origin) -> None:
+    def __init__(self, origin: Origin, listener: str = "origin") -> None:
         self.origin = origin
+        self.listener = listener
         self.addresses: dict[bytes, tuple[str, int]] = {}
 
     def datagram(self, address: tuple[str, int]) -> None:
         run = self.origin.run
         if run is not None:
-            run.udp_peer(address[:2]).datagrams += 1
+            run.udp_peer(address[:2], self.listener).datagrams += 1
 
     def peer_for(self, quic) -> UdpPeerRecord | None:
         run = self.origin.run
@@ -697,11 +744,17 @@ def load_certificate(
 
 
 class UdpAlternative:
-    def __init__(self, origin: Origin, certificate: Certificate, mode: str) -> None:
+    def __init__(
+        self,
+        origin: Origin,
+        certificate: Certificate,
+        mode: str,
+        listener: str = "origin",
+    ) -> None:
         self.origin = origin
         self.certificate = certificate
         self.mode = mode
-        self.recorder = UdpRecorder(origin)
+        self.recorder = UdpRecorder(origin, listener)
         self.transport: asyncio.DatagramTransport | None = None
         self.server = None
 
@@ -773,6 +826,23 @@ def reserve_ports(
     raise OSError("no loopback port is free for both UDP and TCP")
 
 
+async def bind_udp(host: str) -> socket.socket:
+    """A loopback UDP socket on a port the system picks, past reserved blocks."""
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+
+    async def open_at(address: str, port: int) -> socket.socket:
+        sock = socket.socket(family, socket.SOCK_DGRAM)
+        try:
+            sock.bind((address, port))
+        except OSError:
+            sock.close()
+            raise
+        sock.setblocking(False)
+        return sock
+
+    return await open_past_reserved_ports(open_at, host, 0)
+
+
 # -- Run orchestration ----------------------------------------------------------
 
 
@@ -818,12 +888,22 @@ async def capture_run(
     certificate = generate_certificate(HOSTNAME)
     udp_socket, tcp_socket = reserve_ports(listen_host)
     port = tcp_socket.getsockname()[1]
-    origin = Origin(scenario, port)
+    earlier_sockets = [
+        await bind_udp(listen_host) for _ in scenario.earlier_alternatives
+    ]
+    earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
+    origin = Origin(scenario, port, earlier_ports)
     tcp = Http2Origin(origin, certificate)
     udp = UdpAlternative(origin, certificate, scenario.quic)
+    earlier = [
+        UdpAlternative(origin, certificate, mode, f"earlier-{number}")
+        for number, mode in enumerate(scenario.earlier_alternatives)
+    ]
     run = new_run()
     origin.begin(run)
     await udp.start(udp_socket)
+    for alternative, sock in zip(earlier, earlier_sockets, strict=True):
+        await alternative.start(sock)
     await tcp.start(tcp_socket)
     url = f"https://{HOSTNAME}:{port}/start"
     extra = chromium_extra_arguments(
@@ -846,6 +926,8 @@ async def capture_run(
             await asyncio.sleep(0.5)
     finally:
         udp.close()
+        for alternative in earlier:
+            alternative.close()
         await tcp.close()
     return RunResult(run, port, netlog, recorded, exited)
 
@@ -885,6 +967,8 @@ class RunSummary:
     races: tuple[RaceObservation, ...]
     netlog_complete: bool
     broken_lifetimes_s: tuple[int, ...]
+    # Per UDP listener that saw datagrams: name, peers, datagrams, requests.
+    udp_listeners: tuple[tuple[str, int, int, int], ...] = ()
 
 
 def summarize_run(index: int, result: RunResult, netlog: NetLog) -> RunSummary:
@@ -949,6 +1033,20 @@ def summarize_run(index: int, result: RunResult, netlog: NetLog) -> RunSummary:
         races=races,
         netlog_complete=netlog.complete,
         broken_lifetimes_s=lifetimes,
+        udp_listeners=udp_listeners(run),
+    )
+
+
+def udp_listeners(run: RunRecord) -> tuple[tuple[str, int, int, int], ...]:
+    """Per UDP listener that saw datagrams: name, peers, datagrams, requests."""
+    totals: dict[str, list[int]] = {}
+    for peer in run.udp.values():
+        total = totals.setdefault(peer.listener, [0, 0, 0])
+        total[0] += 1
+        total[1] += peer.datagrams
+        total[2] += peer.requests
+    return tuple(
+        (name, total[0], total[1], total[2]) for name, total in sorted(totals.items())
     )
 
 
@@ -986,7 +1084,14 @@ def render_fixture(
         f"scenario={scenario.name}",
         f"quic_listener={scenario.quic}",
         f"page_steps={','.join(scenario.steps)}",
-        f'alt_svc=h3=":<port>"; ma={ALT_SVC_MAX_AGE}',
+    ]
+    if scenario.earlier_alternatives:
+        lines.append(
+            f"earlier_quic_listeners={','.join(scenario.earlier_alternatives)}"
+        )
+    ports = [f"<earlier-{n}-port>" for n in range(len(scenario.earlier_alternatives))]
+    lines += [
+        f"alt_svc={alt_svc_value((*ports, '<port>'))}",
         f"runs={len(summaries)}",
     ]
     for summary in summaries:
@@ -1005,6 +1110,14 @@ def render_fixture(
             f"{prefix}_connections=tcp:{summary.tcp_connections},"
             f"idle_tcp:{summary.idle_tcp_connections},udp_peers:{summary.udp_peers}"
         )
+        if scenario.earlier_alternatives:
+            lines.append(
+                f"{prefix}_udp_listeners="
+                + ";".join(
+                    f"{name}>peers:{peers},datagrams:{datagrams},requests:{requests}"
+                    for name, peers, datagrams, requests in summary.udp_listeners
+                )
+            )
         lines.append(f"{prefix}_netlog_complete={str(summary.netlog_complete).lower()}")
         if summary.server_first_tcp_minus_first_udp_ms is not None:
             lines.append(

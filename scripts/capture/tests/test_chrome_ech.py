@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.capture.chrome_ech import (
     DNS_CONFIGURATION,
+    OPERA_DNS_CONFIGURATION,
     SPKI_PLACEHOLDER,
     URL,
     CaptureRun,
@@ -58,6 +59,29 @@ class ChromeEchTest(unittest.TestCase):
                 }
             },
         )
+
+    def test_opera_local_state_also_sets_operas_own_secure_dns(self) -> None:
+        settings = json.loads(local_state(TEMPLATE, "opera"))["dns_over_https"]
+
+        self.assertEqual(settings["mode"], "secure")
+        self.assertEqual(settings["templates"], TEMPLATE)
+        self.assertEqual(
+            settings["opera"],
+            {"enabled_version": 1, "doh_mode": "custom", "custom_servers": TEMPLATE},
+        )
+
+    def test_opera_arguments_record_operas_preferences(self) -> None:
+        run = replace(
+            EDGE_RUN,
+            browser="opera",
+            browser_path=Path("opera.exe"),
+            doh_port=None,
+            dns_from_policy=False,
+        )
+        arguments = capture_arguments(run, launch_plan(run))
+
+        self.assertEqual(arguments[6], DNS_CONFIGURATION + OPERA_DNS_CONFIGURATION)
+        self.assertIn("dns_over_https.opera.doh_mode=custom", arguments[6])
 
     def test_ready_line_yields_the_template_and_origin(self) -> None:
         self.assertEqual(

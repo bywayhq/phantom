@@ -1,0 +1,21 @@
+format=phantom-alps-accept-ch-v1
+captured_at_unix=1790989440
+client=Google Chrome
+client_version=154.0.8037.97
+operating_system=Windows 11 Home 10.0.26200 x64
+hostname=server.phantom.test
+launch_mode=headless
+launch_arguments=--headless=new '--user-data-dir=<temporary-profile>' --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --no-proxy-server --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-domain-reliability --disable-sync --no-pings --disable-features=MediaRouter,OptimizationHints '--host-resolver-rules=MAP server.phantom.test 127.0.0.1, MAP * ~NOTFOUND' --ignore-certificate-errors --disable-quic '--log-net-log=<netlog>' --net-log-capture-mode=Everything https://server.phantom.test:<port>/
+alps_accept_ch_origin=https://server.phantom.test:<port>
+alps_accept_ch=Sec-CH-UA-Platform-Version, Sec-CH-UA-Model, Sec-CH-UA-Arch
+wall_clock_ms=625
+server_0=connection=1 alpn=h2 client_alps=true
+server_1=connection=2 alpn=h2 client_alps=true
+server_2=request connection=1 order=0 method=GET path=/ fields=sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|upgrade-insecure-requests|user-agent|accept|sec-ch-ua-arch|sec-ch-ua-platform-version|sec-ch-ua-model|sec-fetch-site|sec-fetch-mode|sec-fetch-user|sec-fetch-dest|accept-encoding|accept-language|priority added_hints=sec-ch-ua-arch:"x86";sec-ch-ua-platform-version:"19.0.0";sec-ch-ua-model:""
+server_3=request connection=1 order=1 method=GET path=/fetch fields=pragma|cache-control|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority added_hints=none
+server_4=request connection=1 order=2 method=GET path=/done fields=pragma|cache-control|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority added_hints=none
+netlog_accept_ch_frame="Sec-CH-UA-Platform-Version, Sec-CH-UA-Model, Sec-CH-UA-Arch"
+netlog_url_request_0=path:/,delegate_connected_error:-3,sent_headers:false,fields:none
+netlog_url_request_1=path:/,delegate_connected_error:none,sent_headers:true,fields::method|:authority|:scheme|:path|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|upgrade-insecure-requests|user-agent|accept|sec-ch-ua-arch|sec-ch-ua-platform-version|sec-ch-ua-model|sec-fetch-site|sec-fetch-mode|sec-fetch-user|sec-fetch-dest|accept-encoding|accept-language|priority
+netlog_url_request_2=path:/fetch,delegate_connected_error:none,sent_headers:true,fields::method|:authority|:scheme|:path|pragma|cache-control|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority
+netlog_url_request_3=path:/done,delegate_connected_error:none,sent_headers:true,fields::method|:authority|:scheme|:path|pragma|cache-control|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority

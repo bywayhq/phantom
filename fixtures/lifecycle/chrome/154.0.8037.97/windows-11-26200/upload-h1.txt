@@ -1,0 +1,31 @@
+format=phantom-http-lifecycle-v1
+captured_at_unix=1790989261
+client=Google Chrome
+client_version=154.0.8037.97
+operating_system=Windows 11 Home 10.0.26200 x64
+hostname=server.phantom.test
+launch_mode=headless
+launch_arguments=--headless=new '--user-data-dir=<temporary-profile>' --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --no-proxy-server --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-domain-reliability --disable-sync --no-pings --disable-features=MediaRouter,OptimizationHints '--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost' --ignore-certificate-errors-spki-list=<certificate-spki> --disable-quic 'https://server.phantom.test:<port>/start?run=<token>'
+capture_tool=python 3.10.20 h2 4.4.1 hpack 4.2.0
+scenario=upload-h1
+wall_clock_ms=1167
+remote_close_ms=none
+page_connection=3
+page_result=["/post-small:200","/post-large:200","/post-blob:200","/post-multipart:200","/form-upload:loaded"]
+connection_count=4
+connection_0=listener:main,alpn:http/1.1,accepted_ms:152.020,end:eof,close_notify_ms:none,eof_ms:156.737,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_0_frame_count=0
+connection_1=listener:main,alpn:http/1.1,accepted_ms:157.368,end:eof,close_notify_ms:none,eof_ms:191.940,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_1_frame_count=0
+connection_2=listener:main,alpn:http/1.1,accepted_ms:157.432,end:eof,close_notify_ms:none,eof_ms:191.975,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_2_frame_count=0
+connection_3=listener:main,alpn:http/1.1,accepted_ms:196.844,end:open,close_notify_ms:none,eof_ms:none,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_3_frame_count=0
+request_count=7
+request_0=connection:3,stream:none,ms:197.894,method:GET,path:/start,body_bytes:0,status:200,fields:Host|Connection|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|Upgrade-Insecure-Requests|User-Agent|Accept|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-User|Sec-Fetch-Dest|Accept-Encoding|Accept-Language
+request_1=connection:3,stream:none,ms:202.102,method:POST,path:/post-small,body_bytes:100,status:200,fields:Host|Connection|Content-Length|sec-ch-ua-platform|User-Agent|sec-ch-ua|Content-Type|sec-ch-ua-mobile|Accept|Origin|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,content-type:"text/plain;charset=UTF-8",content-length:"100"
+request_2=connection:3,stream:none,ms:204.976,method:POST,path:/post-large,body_bytes:1048576,status:200,fields:Host|Connection|Content-Length|sec-ch-ua-platform|User-Agent|sec-ch-ua|Content-Type|sec-ch-ua-mobile|Accept|Origin|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,content-type:"text/plain;charset=UTF-8",content-length:"1048576"
+request_3=connection:3,stream:none,ms:208.505,method:POST,path:/post-blob,body_bytes:1048576,status:200,fields:Host|Connection|Content-Length|sec-ch-ua-platform|User-Agent|sec-ch-ua|sec-ch-ua-mobile|Accept|Origin|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,content-length:"1048576"
+request_4=connection:3,stream:none,ms:212.063,method:POST,path:/post-multipart,body_bytes:1048871,status:200,fields:Host|Connection|Content-Length|sec-ch-ua-platform|User-Agent|sec-ch-ua|Content-Type|sec-ch-ua-mobile|Accept|Origin|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048871"
+request_5=connection:3,stream:none,ms:232.686,method:POST,path:/form-upload,body_bytes:1048774,status:200,fields:Host|Connection|Content-Length|Cache-Control|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|Upgrade-Insecure-Requests|Content-Type|User-Agent|Origin|Accept|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,cache-control:"max-age=0",content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048774"
+request_6=connection:3,stream:none,ms:237.910,method:GET,path:/done,body_bytes:0,status:200,fields:Host|Connection|Pragma|Cache-Control|sec-ch-ua-platform|User-Agent|sec-ch-ua|sec-ch-ua-mobile|Accept|Sec-Fetch-Site|Sec-Fetch-Mode|Sec-Fetch-Dest|Referer|Accept-Encoding|Accept-Language,cache-control:"no-cache",pragma:"no-cache"

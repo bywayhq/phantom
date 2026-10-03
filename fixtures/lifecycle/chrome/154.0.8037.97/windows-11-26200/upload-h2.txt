@@ -1,0 +1,41 @@
+format=phantom-http-lifecycle-v1
+captured_at_unix=1790989262
+client=Google Chrome
+client_version=154.0.8037.97
+operating_system=Windows 11 Home 10.0.26200 x64
+hostname=server.phantom.test
+launch_mode=headless
+launch_arguments=--headless=new '--user-data-dir=<temporary-profile>' --no-first-run --no-default-browser-check --disable-background-networking --disable-component-update --disable-default-apps --no-proxy-server --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-domain-reliability --disable-sync --no-pings --disable-features=MediaRouter,OptimizationHints '--host-resolver-rules=MAP server.phantom.test 127.0.0.1, EXCLUDE localhost' --ignore-certificate-errors-spki-list=<certificate-spki> --disable-quic 'https://server.phantom.test:<port>/start?run=<token>'
+capture_tool=python 3.10.20 h2 4.4.1 hpack 4.2.0
+scenario=upload-h2
+wall_clock_ms=1176
+remote_close_ms=none
+page_connection=3
+page_result=["/post-small:200","/post-large:200","/post-blob:200","/post-multipart:200","/form-upload:loaded"]
+connection_count=4
+connection_0=listener:main,alpn:h2,accepted_ms:155.484,end:eof,close_notify_ms:none,eof_ms:160.361,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_0_frame_count=0
+connection_1=listener:main,alpn:h2,accepted_ms:161.327,end:eof,close_notify_ms:none,eof_ms:180.835,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_1_frame_count=0
+connection_2=listener:main,alpn:h2,accepted_ms:161.438,end:eof,close_notify_ms:none,eof_ms:180.880,reset_ms:none,server_silent_from_ms:none,data_frames:0
+connection_2_frame_count=0
+connection_3=listener:main,alpn:h2,accepted_ms:197.496,end:open,close_notify_ms:none,eof_ms:none,reset_ms:none,server_silent_from_ms:none,data_frames:444
+connection_3_frame_count=10
+connection_3_frame_0=ms:198.544,type:SETTINGS,flags:0x00,stream:0,length:24
+connection_3_frame_1=ms:198.544,type:WINDOW_UPDATE,flags:0x00,stream:0,length:4
+connection_3_frame_2=ms:198.717,type:HEADERS,flags:0x25,stream:1,length:489,path:/start
+connection_3_frame_3=ms:199.298,type:SETTINGS,flags:0x01,stream:0,length:0
+connection_3_frame_4=ms:203.544,type:HEADERS,flags:0x24,stream:3,length:177,path:/post-small
+connection_3_frame_5=ms:207.105,type:HEADERS,flags:0x24,stream:5,length:54,path:/post-large
+connection_3_frame_6=ms:218.156,type:HEADERS,flags:0x24,stream:7,length:47,path:/post-blob
+connection_3_frame_7=ms:227.047,type:HEADERS,flags:0x24,stream:9,length:109,path:/post-multipart
+connection_3_frame_8=ms:243.110,type:HEADERS,flags:0x24,stream:11,length:125,path:/form-upload
+connection_3_frame_9=ms:251.640,type:HEADERS,flags:0x25,stream:13,length:175,path:/done
+request_count=7
+request_0=connection:3,stream:1,ms:199.102,method:GET,path:/start,body_bytes:0,status:200,fields::method|:authority|:scheme|:path|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|upgrade-insecure-requests|user-agent|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-user|sec-fetch-dest|accept-encoding|accept-language|priority
+request_1=connection:3,stream:3,ms:203.835,method:POST,path:/post-small,body_bytes:100,status:200,fields::method|:authority|:scheme|:path|content-length|sec-ch-ua-platform|user-agent|sec-ch-ua|content-type|sec-ch-ua-mobile|accept|origin|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,content-type:"text/plain;charset=UTF-8",content-length:"100"
+request_2=connection:3,stream:5,ms:207.293,method:POST,path:/post-large,body_bytes:1048576,status:200,fields::method|:authority|:scheme|:path|content-length|sec-ch-ua-platform|user-agent|sec-ch-ua|content-type|sec-ch-ua-mobile|accept|origin|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,content-type:"text/plain;charset=UTF-8",content-length:"1048576"
+request_3=connection:3,stream:7,ms:218.317,method:POST,path:/post-blob,body_bytes:1048576,status:200,fields::method|:authority|:scheme|:path|content-length|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|origin|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,content-length:"1048576"
+request_4=connection:3,stream:9,ms:227.223,method:POST,path:/post-multipart,body_bytes:1048871,status:200,fields::method|:authority|:scheme|:path|content-length|sec-ch-ua-platform|user-agent|sec-ch-ua|content-type|sec-ch-ua-mobile|accept|origin|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048871"
+request_5=connection:3,stream:11,ms:243.300,method:POST,path:/form-upload,body_bytes:1048774,status:200,fields::method|:authority|:scheme|:path|content-length|cache-control|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|upgrade-insecure-requests|content-type|user-agent|origin|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,cache-control:"max-age=0",content-type:"multipart/form-data; boundary=<boundary>",content-length:"1048774"
+request_6=connection:3,stream:13,ms:251.820,method:GET,path:/done,body_bytes:0,status:200,fields::method|:authority|:scheme|:path|pragma|cache-control|sec-ch-ua-platform|user-agent|sec-ch-ua|sec-ch-ua-mobile|accept|sec-fetch-site|sec-fetch-mode|sec-fetch-dest|referer|accept-encoding|accept-language|priority,cache-control:"no-cache",pragma:"no-cache"
