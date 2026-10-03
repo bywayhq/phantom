@@ -31,6 +31,7 @@ fn backup_profile() -> TcpSettings {
     TcpSettings {
         address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(250),
+            known_family_backup_timeout: None,
         }),
         ..firefox::v157_tcp()
     }

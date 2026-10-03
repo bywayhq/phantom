@@ -1,9 +1,10 @@
 use std::{num::NonZeroU32, time::Duration};
 
 use super::{
-    MAX_TCP_FALLBACK_DELAY, MAX_TCP_KEEPALIVE_PROBES, MAX_TCP_KEEPALIVE_SECONDS,
-    MAX_TCP_SHORT_LIVED_SECONDS, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
-    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpSettings,
+    MAX_TCP_BACKUP_TIMEOUT_SECONDS, MAX_TCP_FALLBACK_DELAY, MAX_TCP_KEEPALIVE_PROBES,
+    MAX_TCP_KEEPALIVE_SECONDS, MAX_TCP_SHORT_LIVED_SECONDS, TcpAddressAdvance, TcpAddressRacing,
+    TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
+    TcpKeepaliveSchedule, TcpSettings,
 };
 
 fn with_keepalive(idle: Duration, interval: Option<Duration>) -> TcpSettings {
@@ -183,7 +184,10 @@ fn delay_bounds_are_inclusive() {
         let racing = TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: delay,
         });
-        let backup = TcpAddressSelection::Backup(TcpBackupConnection { delay });
+        let backup = TcpAddressSelection::Backup(TcpBackupConnection {
+            delay,
+            known_family_backup_timeout: None,
+        });
         assert_eq!(with_selection(racing).validate(), Ok(()));
         assert_eq!(with_selection(backup).validate(), Ok(()));
     }
@@ -198,7 +202,10 @@ fn delays_outside_bounds_are_rejected() {
         let racing = TcpAddressSelection::Racing(TcpAddressRacing {
             fallback_delay: delay,
         });
-        let backup = TcpAddressSelection::Backup(TcpBackupConnection { delay });
+        let backup = TcpAddressSelection::Backup(TcpBackupConnection {
+            delay,
+            known_family_backup_timeout: None,
+        });
         assert_eq!(
             rejected_field(with_selection(racing)),
             "address_selection.fallback_delay"
@@ -206,6 +213,40 @@ fn delays_outside_bounds_are_rejected() {
         assert_eq!(
             rejected_field(with_selection(backup)),
             "address_selection.delay"
+        );
+    }
+}
+
+#[test]
+fn backup_timeout_bounds_are_inclusive() {
+    for timeout in [
+        None,
+        Some(Duration::from_secs(1)),
+        Some(Duration::from_secs(MAX_TCP_BACKUP_TIMEOUT_SECONDS)),
+    ] {
+        let backup = TcpAddressSelection::Backup(TcpBackupConnection {
+            delay: Duration::from_millis(250),
+            known_family_backup_timeout: timeout,
+        });
+        assert_eq!(with_selection(backup).validate(), Ok(()), "{timeout:?}");
+    }
+}
+
+#[test]
+fn backup_timeouts_outside_bounds_or_in_fractions_are_rejected() {
+    for timeout in [
+        Duration::ZERO,
+        Duration::from_millis(1500),
+        Duration::from_secs(MAX_TCP_BACKUP_TIMEOUT_SECONDS + 1),
+    ] {
+        let backup = TcpAddressSelection::Backup(TcpBackupConnection {
+            delay: Duration::from_millis(250),
+            known_family_backup_timeout: Some(timeout),
+        });
+        assert_eq!(
+            rejected_field(with_selection(backup)),
+            "address_selection.known_family_backup_timeout",
+            "{timeout:?}"
         );
     }
 }

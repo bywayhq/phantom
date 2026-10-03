@@ -144,33 +144,63 @@ pub struct TcpAddressRacing {
     pub fallback_delay: Duration,
 }
 
-/// A backup connection restricted to IPv4, started when the first attempt
-/// is slow, as Firefox's `DnsAndConnectSocket` opens one, except for what
-/// happens to the slower attempt.
+/// Largest [`TcpBackupConnection::known_family_backup_timeout`], in whole
+/// seconds.
+///
+/// Firefox clamps `network.http.fallback-connection-timeout` to `0..=600`
+/// (`netwerk/protocol/http/nsHttpHandler.cpp:1491-1494` at tag
+/// `FIREFOX_157_0_RELEASE`), where 0 sets no timeout.
+pub const MAX_TCP_BACKUP_TIMEOUT_SECONDS: u64 = 600;
+
+/// A backup connection started when the first attempt is slow, as Firefox's
+/// `DnsAndConnectSocket` opens one.
+///
+/// Line numbers are for Firefox tag `FIREFOX_157_0_RELEASE`:
 ///
 /// - The primary attempt tries the resolved addresses one at a time in
 ///   resolver order.
 /// - [`Self::delay`] after the primary attempt starts connecting, while it
 ///   has not connected, a backup attempt starts. It tries only the IPv4
-///   addresses, one at a time in resolver order.
+///   addresses, one at a time in resolver order
+///   (`netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`, `:222-225`,
+///   `:242-265`).
 /// - Each attempt moves to its next address only after a connect is refused,
 ///   finds the network or host unreachable or the address unavailable, is
 ///   denied, or times out; any other failure ends that attempt.
-/// - The first established connection wins and the other attempt is
-///   cancelled. When both attempts fail, the most recent failure is
-///   returned. A primary attempt that fails before the delay ends the
-///   connection without a backup.
+/// - The first established connection carries the request. The other
+///   attempt keeps connecting, and its connection joins the origin's pool
+///   without a request, as Firefox's does (`DnsAndConnectSocket.cpp:671-745`);
+///   see the HTTP pools for what happens to it there. When both attempts
+///   fail, the most recent failure is returned. A primary attempt that fails
+///   before the delay ends the connection without a backup.
 ///
-/// Firefox keeps the slower attempt's connection, finishes its TLS
-/// handshake, and pools it. Phantom closes the slower attempt's socket
-/// instead, so a server that already answered its SYN sees the connection
-/// end without a request. No built-in recipe uses this selection.
+/// The pool entry of each origin and route remembers the address family of
+/// the first connection that succeeds, and later connections to it try that
+/// family alone, both attempts, the backup with
+/// [`Self::known_family_backup_timeout`] on each connect
+/// (`DnsAndConnectSocket.cpp:167-178`, `:1150-1164`, `:1295-1303`;
+/// `netwerk/protocol/http/ConnectionEntry.cpp:125-149`). An attempt whose
+/// remembered family has no address, or none left after a refusal, an
+/// unreachable network or host, or a timeout, tries the other family, and
+/// the entry then remembers the family that connects
+/// (`DnsAndConnectSocket.cpp:1014-1046`, `:1063`, `:1402-1412`;
+/// `netwerk/base/nsSocketTransport2.cpp:1799-1825`).
+///
+/// A connection that the caller cannot pool, such as one to a proxy, closes
+/// the slower attempt instead.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TcpBackupConnection {
     /// Delay after the primary attempt starts before the backup one begins.
     ///
     /// It must be nonzero and at most [`MAX_TCP_FALLBACK_DELAY`].
     pub delay: Duration,
+    /// Longest wait for each connect of the backup attempt once the origin's
+    /// address family is remembered, or `None` for no limit.
+    ///
+    /// A connect that takes longer counts as timed out, so the attempt moves
+    /// to its next address. It must be whole seconds in
+    /// `1..=`[`MAX_TCP_BACKUP_TIMEOUT_SECONDS`].
+    pub known_family_backup_timeout: Option<Duration>,
 }
 
 /// Which connect failures move an attempt to its next address.
@@ -282,7 +312,20 @@ impl TcpSettings {
                 validate_delay(racing.fallback_delay, "address_selection.fallback_delay")
             }
             TcpAddressSelection::Backup(backup) => {
-                validate_delay(backup.delay, "address_selection.delay")
+                validate_delay(backup.delay, "address_selection.delay")?;
+                match backup.known_family_backup_timeout {
+                    Some(timeout)
+                        if timeout.subsec_nanos() != 0
+                            || !(1..=MAX_TCP_BACKUP_TIMEOUT_SECONDS)
+                                .contains(&timeout.as_secs()) =>
+                    {
+                        Err(InvalidTcpSettings::new(
+                            "address_selection.known_family_backup_timeout",
+                            "the backup timeout must be whole seconds in 1..=600",
+                        ))
+                    }
+                    _ => Ok(()),
+                }
             }
         }
     }

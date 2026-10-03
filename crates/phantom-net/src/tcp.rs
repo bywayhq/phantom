@@ -30,6 +30,8 @@ mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
 
+pub(crate) use backup_connection::SlowerAttempt;
+pub use backup_connection::{AddressFamily, AddressFamilyMemory, SlowerConnection, SlowerProgress};
 pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 
 /// A TCP connection opened with a profile's [`TcpSettings`].
@@ -235,6 +237,28 @@ impl fmt::Debug for ProfileTcpStream {
 /// as [`TcpSettings::address_selection`] says; if every attempt fails, the
 /// most recent failure is returned. A source binding with an address for
 /// only one family skips the addresses of the other; see [`SourceBinding`].
+///
+/// For a [`TcpAddressSelection::Backup`], `family` is the origin's address
+/// family, which the connection uses and updates, and the slower attempt
+/// comes back when the backup started and that attempt is still connecting.
+/// Without `family` the slower attempt is closed.
+pub(crate) async fn connect_keeping_slower(
+    host: &str,
+    port: u16,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    resolver: Option<&HostResolver>,
+    family: Option<&AddressFamilyMemory>,
+) -> io::Result<(ProfileTcpStream, Option<SlowerAttempt>)> {
+    check_settings(settings.as_ref(), source)?;
+    let started = Instant::now();
+    let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
+    connect_resolved_keeping_slower(addresses, settings, source, started, family).await
+}
+
+/// Connects as [`connect_keeping_slower`] does without a family, closing any
+/// slower attempt.
+#[cfg(test)]
 pub(crate) async fn connect(
     host: &str,
     port: u16,
@@ -242,10 +266,9 @@ pub(crate) async fn connect(
     source: Option<&SourceBinding>,
     resolver: Option<&HostResolver>,
 ) -> io::Result<ProfileTcpStream> {
-    check_settings(settings.as_ref(), source)?;
-    let started = Instant::now();
-    let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
-    connect_resolved(addresses, settings, source, started).await
+    connect_keeping_slower(host, port, settings, source, resolver, None)
+        .await
+        .map(|(stream, _)| stream)
 }
 
 fn check_settings(
@@ -268,16 +291,36 @@ fn check_settings(
     check_host_support(settings).map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))
 }
 
-/// Connects to one of `addresses`, already resolved, as [`connect`] does.
+/// Connects to one of `addresses`, already resolved, as
+/// [`connect_keeping_slower`] does without a family, closing any slower
+/// attempt.
 ///
 /// `started` is when the host lookup began; a keepalive schedule takes its
 /// probe interval from the time since then.
+#[cfg(any(test, feature = "https-records"))]
 pub(crate) async fn connect_resolved(
     addresses: Vec<SocketAddr>,
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
     started: Instant,
 ) -> io::Result<ProfileTcpStream> {
+    connect_resolved_keeping_slower(addresses, settings, source, started, None)
+        .await
+        .map(|(stream, _)| stream)
+}
+
+/// Connects to one of `addresses`, already resolved, as
+/// [`connect_keeping_slower`] does.
+///
+/// `started` is when the host lookup began; a keepalive schedule takes its
+/// probe interval from the time since then.
+pub(crate) async fn connect_resolved_keeping_slower(
+    addresses: Vec<SocketAddr>,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    started: Instant,
+    family: Option<&AddressFamilyMemory>,
+) -> io::Result<(ProfileTcpStream, Option<SlowerAttempt>)> {
     check_settings(settings.as_ref(), source)?;
     // A schedule that could never switch would silently keep short-lived
     // keepalive; once the deadline service runs, it stays available.
@@ -297,29 +340,47 @@ pub(crate) async fn connect_resolved(
         settings.address_selection
     });
     let dial = |address| connect_address(address, settings, source);
-    let (stream, attempt_started) = match selection {
+    let schedule = match settings.map(|settings| settings.keepalive) {
+        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(schedule),
+        _ => None,
+    };
+    let (stream, attempt_started, slower) = match selection {
         TcpAddressSelection::Sequential(advance) => (
             connect_sequentially(addresses, advance, dial).await?,
             started,
+            None,
         ),
         TcpAddressSelection::Racing(racing) => {
             let fallback = deadline(racing.fallback_delay)?;
             let stream = address_racing::race(addresses, fallback, dial).await?;
-            (stream, started)
+            (stream, started, None)
         }
         TcpAddressSelection::Backup(backup) => {
             let delay = deadline(backup.delay)?;
-            backup_connection::connect(addresses, delay, dial, started).await?
+            let plan = backup_connection::Plan {
+                family: family.and_then(AddressFamilyMemory::family),
+                known_family_backup_timeout: backup.known_family_backup_timeout,
+            };
+            // The slower attempt outlives this call, so its dials own what
+            // they use.
+            let source = source.cloned();
+            let dial = move |address, timeout| {
+                let source = source.clone();
+                async move { connect_address_within(address, settings, source.as_ref(), timeout).await }
+            };
+            let won = backup_connection::connect(addresses, plan, delay, dial, started).await?;
+            let connected = won.connected;
+            let slower = family.and_then(|memory| {
+                memory.record_connection(&connected.address, connected.switched_family);
+                won.slower
+                    .map(|slower| SlowerAttempt::new(slower, memory.clone(), schedule))
+            });
+            (connected.stream, connected.started, slower)
         }
     };
-    let keepalive = match settings.map(|settings| settings.keepalive) {
-        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(TcpKeepaliveControl::opened(
-            schedule,
-            attempt_started.elapsed(),
-        )),
-        _ => None,
-    };
-    Ok(ProfileTcpStream { stream, keepalive })
+    let keepalive =
+        schedule.map(|schedule| TcpKeepaliveControl::opened(schedule, attempt_started.elapsed()));
+    Ok((ProfileTcpStream { stream, keepalive }, slower))
 }
 
 /// Tries `addresses` one at a time in resolver order, moving on after the
@@ -386,6 +447,37 @@ fn no_addresses() -> io::Error {
         io::ErrorKind::InvalidInput,
         "could not resolve to any addresses",
     )
+}
+
+/// Connects as [`connect_address`] does, failing with
+/// [`io::ErrorKind::TimedOut`] once `timeout` passes.
+async fn connect_address_within(
+    address: SocketAddr,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    timeout: Option<Duration>,
+) -> io::Result<TcpStream> {
+    within_connect_timeout(timeout, connect_address(address, settings, source)).await
+}
+
+/// Runs `connect`, failing with [`io::ErrorKind::TimedOut`] once `timeout`
+/// passes, which moves a backup attempt to its next address.
+async fn within_connect_timeout<T>(
+    timeout: Option<Duration>,
+    connect: impl std::future::Future<Output = io::Result<T>>,
+) -> io::Result<T> {
+    let Some(timeout) = timeout else {
+        return connect.await;
+    };
+    let expired = deadline(timeout)?;
+    tokio::select! {
+        biased;
+        result = connect => result,
+        () = expired => Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "the backup connect timed out",
+        )),
+    }
 }
 
 async fn connect_address(

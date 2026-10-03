@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use crate::{
     host_resolver::{HostResolver, resolve},
     source_binding::SourceBinding,
-    tcp::ProfileTcpStream,
+    tcp::{AddressFamilyMemory, ProfileTcpStream, SlowerAttempt},
 };
 
 #[derive(Debug)]
@@ -44,26 +44,44 @@ pub(crate) async fn connect_tcp(
     port: u16,
     dialer: Dialer<'_>,
 ) -> Result<ProfileTcpStream, DirectConnectError> {
+    connect_tcp_keeping_slower(host, port, dialer, None)
+        .await
+        .map(|(stream, _)| stream)
+}
+
+/// Opens one TCP connection as [`connect_tcp`] does and, when the profile
+/// selects addresses with a backup connection, keeps its slower attempt and
+/// uses and updates `family`, the origin's address family; see
+/// [`crate::tcp::connect_keeping_slower`].
+pub(crate) async fn connect_tcp_keeping_slower(
+    host: &str,
+    port: u16,
+    dialer: Dialer<'_>,
+    family: Option<&AddressFamilyMemory>,
+) -> Result<(ProfileTcpStream, Option<SlowerAttempt>), DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    let stream = match (dialer.tcp, dialer.source) {
+    let (stream, slower) = match (dialer.tcp, dialer.source) {
         (None, None) => {
             poll_tokio_io(|| async {
                 let addresses = resolve(dialer.resolver, host, port).await?;
                 TcpStream::connect(&*addresses)
                     .await
-                    .map(ProfileTcpStream::new)
+                    .map(|stream| (ProfileTcpStream::new(stream), None))
             })
             .await
         }
         (tcp, source) => {
-            poll_tokio_io(|| crate::tcp::connect(host, port, tcp, source, dialer.resolver)).await
+            poll_tokio_io(|| {
+                crate::tcp::connect_keeping_slower(host, port, tcp, source, dialer.resolver, family)
+            })
+            .await
         }
     }
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;
     #[cfg(test)]
     crate::tcp::observed::record(stream.tcp_stream());
-    Ok(stream)
+    Ok((stream, slower))
 }
 
 /// Shortest wait for an HTTPS record after the address answers

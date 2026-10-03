@@ -121,6 +121,35 @@ impl TcpKeepaliveControl {
         control
     }
 
+    /// Starts the schedule of a connection that waits in a pool before its
+    /// first request, whose attempt took `setup` to connect.
+    ///
+    /// Nothing is applied until [`Self::request_dispatched`]: Firefox puts
+    /// such a plaintext connection in its idle list without a transaction,
+    /// and keepalive starts when it dispatches the first one
+    /// (`netwerk/protocol/http/DnsAndConnectSocket.cpp:711-717`,
+    /// `netwerk/protocol/http/nsHttpConnection.cpp:686`).
+    pub(crate) fn opened_idle(schedule: TcpKeepaliveSchedule, setup: Duration) -> Self {
+        let control = Self {
+            shared: Arc::new(Mutex::new(State {
+                schedule,
+                interval: probe_interval(&schedule, setup),
+                wanted: KeepalivePhase::Unset,
+                applied: KeepalivePhase::Unset,
+                idle: true,
+                opening: false,
+                switch_at: None,
+                deadline: None,
+                waker: None,
+                #[cfg(test)]
+                log: Vec::new(),
+            })),
+        };
+        #[cfg(test)]
+        observed::record(&control);
+        control
+    }
+
     fn lock(&self) -> MutexGuard<'_, State> {
         self.shared.lock().unwrap_or_else(PoisonError::into_inner)
     }

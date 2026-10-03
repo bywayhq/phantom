@@ -14,6 +14,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TcpBackupConnection` gained the public field
+  `known_family_backup_timeout` (`Option<Duration>`), whole seconds up to
+  the new `phantom_profile::tcp::MAX_TCP_BACKUP_TIMEOUT_SECONDS`, 600. Once
+  the backup has started, the attempt that lost now keeps connecting for a
+  caller that keeps it, and a caller that remembers an origin's address
+  family has both attempts try that family alone, the backup with
+  `known_family_backup_timeout` on each connect, and the other family once
+  every address of it fails. A caller that keeps neither closes the slower
+  attempt, as before. Migrate: add `known_family_backup_timeout: None` to a
+  `TcpBackupConnection` literal, or `Some(Duration::from_secs(5))` as
+  Firefox sets it.
 - The macOS Opera and Firefox recipes move to the Windows host's builds,
   captured again on macOS 15.5 arm64: `opera::v135_macos_client_hints`,
   `firefox::v156_macos_navigation_template`, and
@@ -755,6 +766,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `phantom-net` gains hidden seams for the facade's pools, which are not
+  supported API: `tcp::AddressFamily`, `tcp::AddressFamilyMemory`,
+  `tcp::SlowerConnection`, and `tcp::SlowerProgress`.
 - With the `https-records` feature, `AddressResolver::system_nameservers`
   and `AddressResolver::with_nameservers` resolve names with Phantom's own
   A and AAAA queries, as Chromium 154's built-in DNS client does:

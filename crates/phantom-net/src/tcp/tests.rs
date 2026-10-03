@@ -274,6 +274,50 @@ async fn keepalive_without_interval_is_unsupported_on_windows() -> TestResult {
 
 /// Dials scripted outcomes: `reset` fails with a reset, every other address
 /// connects. Returns the addresses dialed, in order.
+/// With the family known, a backup connect that is still pending when the
+/// backup timeout passes fails as timed out, and the backup moves to its
+/// next address, while the primary attempt, which has no timeout, waits on.
+#[tokio::test(flavor = "current_thread")]
+async fn a_backup_connect_past_the_known_family_timeout_moves_to_the_next_address() -> TestResult {
+    let held: std::net::SocketAddr = "192.0.2.1:443".parse()?;
+    let answering: std::net::SocketAddr = "192.0.2.2:443".parse()?;
+    let timeout = Duration::from_millis(50);
+    let plan = super::backup_connection::Plan {
+        family: Some(super::AddressFamily::Ipv4),
+        known_family_backup_timeout: Some(timeout),
+    };
+    let dialed = std::cell::RefCell::new(Vec::new());
+    let dial = |address: std::net::SocketAddr, limit: Option<Duration>| {
+        dialed.borrow_mut().push((address, limit));
+        super::within_connect_timeout(limit, async move {
+            if address == held {
+                std::future::pending::<()>().await;
+            }
+            Ok(address)
+        })
+    };
+
+    let won = super::backup_connection::connect(
+        vec![held, answering],
+        plan,
+        std::future::ready(()),
+        dial,
+        std::time::Instant::now(),
+    )
+    .await?;
+
+    assert_eq!(won.connected.address, answering);
+    assert_eq!(
+        *dialed.borrow(),
+        [
+            (held, None),
+            (held, Some(timeout)),
+            (answering, Some(timeout))
+        ]
+    );
+    Ok(())
+}
+
 fn scripted_dial(
     reset: std::net::SocketAddr,
     dialed: &std::cell::RefCell<Vec<std::net::SocketAddr>>,
