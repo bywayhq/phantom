@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod early_data;
+mod slower_connection;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 

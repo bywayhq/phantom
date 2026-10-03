@@ -1420,7 +1420,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the address family of its first successful connection for later
   connections. The key keeps every slower connection whatever its count, as
   Firefox does, so each backup connection in flight can add one connection
-  beyond the bound.
+  beyond the bound. The negotiated pool does the same for a slower
+  connection that selects HTTP/1.1 while the key has no HTTP/2 connection.
+  When the first connection selects HTTP/2, a slower attempt that has not
+  connected is closed, and one that has finishes its handshake and is
+  closed, an HTTP/2 one after its preface and SETTINGS with `GOAWAY`; a
+  slower HTTP/2 connection to a key without one becomes its HTTP/2
+  connection.
 - `chromium::v154_macos_client_hints` reports Chrome 154.0.8037.95 and
   `edge::v154_macos_client_hints` Edge 154.0.4258.48 in
   `sec-ch-ua-full-version` and `sec-ch-ua-full-version-list`, the builds the

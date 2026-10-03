@@ -2,7 +2,7 @@ use std::{
     collections::VecDeque,
     num::NonZeroUsize,
     pin::pin,
-    sync::{Arc, MutexGuard, OnceLock, PoisonError},
+    sync::{Arc, MutexGuard, OnceLock, PoisonError, Weak},
     time::Duration,
 };
 
@@ -20,9 +20,13 @@ use phantom_net::{
     },
     proxy::HttpsProxyConnector,
     request::{OriginForm, RequestBody, RequestHeader, is_replay_safe},
+    tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress},
 };
 use phantom_profile::Http2Priority;
-use tokio::sync::{Mutex, Notify};
+use tokio::{
+    sync::{Mutex, Notify, oneshot},
+    task::AbortHandle,
+};
 use tracing::{Span, debug};
 
 use super::{
@@ -654,11 +658,14 @@ impl PoolEntry {
 
     /// Opens a direct connection, offering the `ech` value of the origin's
     /// HTTPS record when the profile does, as Chrome 154 does.
+    ///
+    /// The slower attempt of a backup connection comes back for the key to
+    /// keep; the ECH path closes it.
     async fn connect_direct(
         &self,
         connector: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+    ) -> Result<Opened, Http1Or2TlsError> {
         #[cfg(feature = "https-records")]
         if connector.ech_from_https_records()
             && let Some(discovery) = &self.https_records
@@ -666,10 +673,16 @@ impl PoolEntry {
             let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
             return connector
                 .connect_direct_with_ech(endpoint.host(), endpoint.port(), endpoint.host(), ech)
-                .await;
+                .await
+                .map(|connection| (connection, None));
         }
         connector
-            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+            .connect_direct_keeping_slower(
+                endpoint.host(),
+                endpoint.port(),
+                endpoint.host(),
+                &self.connections.family,
+            )
             .await
     }
 
@@ -818,6 +831,26 @@ impl PoolEntry {
                 // The slot goes back before waiting, so the setup being
                 // awaited never waits for this request.
                 Acquired::AwaitSetup => {}
+                Acquired::Spare(claim) => {
+                    let claimed = connect_phase(&mut connect, timeout_budget)?
+                        .run(async { Ok(claim.wait().await) })
+                        .await?;
+                    // A slower attempt that fails, or that selected H2,
+                    // drops the claim, and the request chooses again.
+                    if let Some(lease) = claimed {
+                        debug!(
+                            outcome = "claimed",
+                            "negotiated slower backup connection acquired"
+                        );
+                        request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
+                        drop(selection);
+                        return Ok(Selected {
+                            lease: ConnectionLease::Http1(lease),
+                            permit: slot,
+                            connect,
+                        });
+                    }
+                }
                 Acquired::Http1(lease) => {
                     request_span.record("selected_protocol", HttpProtocol::Http1.trace_name());
                     drop(selection);
@@ -1098,19 +1131,26 @@ impl PoolEntry {
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection =
+        let (connection, slower) =
             super::box_send(self.open(connector, https_proxy, endpoint, route)).await?;
-        Ok(reservation.finish(connection.into()))
+        let acquired = reservation.finish(connection.into());
+        // Adopted after the first connection, so a slower H1 connection
+        // finds the key's protocol already chosen.
+        if let Some(slower) = slower {
+            self.connections.adopt(slower);
+        }
+        Ok(acquired)
     }
 
-    /// Opens a connection for [`Self::acquire`] over `route`.
+    /// Opens a connection for [`Self::acquire`] over `route`, with the
+    /// slower attempt of a backup connection on the direct route.
     async fn open(
         &self,
         connector: &Http1Or2TlsConnector,
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
         route: &Route,
-    ) -> Result<Http1Or2Connection, RequestError> {
+    ) -> Result<Opened, RequestError> {
         let cached = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
@@ -1124,10 +1164,12 @@ impl PoolEntry {
             &restarted
         };
         let connection = match route {
-            Route::Direct => self
-                .connect_direct(connector, endpoint)
-                .await
-                .map_err(RequestError::http1_or_2_connection_setup)?,
+            Route::Direct => {
+                return self
+                    .connect_direct(connector, endpoint)
+                    .await
+                    .map_err(RequestError::http1_or_2_connection_setup);
+            }
             // The origin keeps its own TLS identity: the proxy carries the
             // stream, and `endpoint.host()` remains the verified name and SNI.
             Route::Socks5(proxy) => match proxy.dns_mode() {
@@ -1224,9 +1266,16 @@ impl PoolEntry {
                 return Err(RequestError::unsupported_negotiated_route());
             }
         };
-        Ok(connection)
+        Ok((connection, None))
     }
 }
+
+/// A new connection, and the slower attempt of its backup connection when
+/// one is still connecting.
+type Opened = (
+    Http1Or2Connection,
+    Option<SlowerConnection<Http1Or2Connection>>,
+);
 
 /// Returns the attempt's connect deadline, starting it on first use.
 fn connect_phase(
@@ -1251,11 +1300,23 @@ fn connect_phase(
 /// `max_http1` requests through, before it leases an H1 connection or opens
 /// one, and each such request holds at most one. A request that finds no
 /// idle connection therefore always has room to open one.
+///
+/// The slower attempt of a backup connection counts toward `max_http1` of
+/// the key of the runtime that opened it once it has connected, as Firefox
+/// counts the connections of an origin
+/// (`netwerk/protocol/http/ConnectionEntry.cpp:289-297` at tag
+/// `FIREFOX_157_0_RELEASE`), but is adopted whatever the count, as Firefox
+/// pools it at its limit too. Each request that opened its connection with
+/// a backup can leave one such connection, so the key holds up to one
+/// extra connection per backup connection whose slower attempt is in
+/// flight, at most `max_http1` extra, until they are used or expire idle.
 struct EntryConnections {
     max_http1: NonZeroUsize,
     /// How long an idle H1 connection stays reusable; see
-    /// [`phantom_profile::Http1Settings::used_idle_timeout`].
+    /// [`phantom_profile::Http1Settings::idle_timeout`].
     http1_used_idle_timeout: Option<Duration>,
+    /// The address family a backup connection to the origin tries first.
+    family: AddressFamilyMemory,
     state: std::sync::Mutex<ConnectionState>,
     /// Woken whenever a connection setup finishes, fails, or is cancelled,
     /// and whenever a stream on one of the key's H2 connections ends.
@@ -1276,6 +1337,9 @@ struct ConnectionState {
     http1_leased: usize,
     /// Connections being set up.
     connecting: usize,
+    /// Slower attempts of backup connections that have not finished.
+    spares: Vec<Spare>,
+    next_spare: u64,
     /// A connection to this key has selected H2 before, in this entry or in
     /// the client's [`Http2Keys`]. Chromium's `SetSupportsSpdy` and Firefox's
     /// `mUsingSpdy` record the same fact, and neither clears it when a later
@@ -1288,7 +1352,17 @@ struct ConnectionState {
 
 impl ConnectionState {
     fn open_http1_or_connecting(&self) -> usize {
-        self.http1_idle.len() + self.http1_leased + self.connecting
+        let connected_spares = self
+            .spares
+            .iter()
+            .filter(|spare| spare.progress.has_connected())
+            .count();
+        self.http1_idle.len() + self.http1_leased + self.connecting + connected_spares
+    }
+
+    fn take_spare(&mut self, id: u64) -> Option<Spare> {
+        let position = self.spares.iter().position(|spare| spare.id == id)?;
+        Some(self.spares.swap_remove(position))
     }
 
     /// Chooses among the reusable H2 connections, forgetting closed ones.
@@ -1308,6 +1382,37 @@ impl ConnectionState {
             Choice::Use(index) => self.http2.get(index),
             Choice::Open => None,
         }
+    }
+
+    /// Records that the key selected H2 and keeps `connection` as one of
+    /// its H2 connections, or returns it to be closed when a current one
+    /// has room. The key's first H2 connection also returns its idle H1
+    /// connections to be closed.
+    fn place_http2(
+        &mut self,
+        connection: Http2Connection,
+        setup_done: &Arc<Notify>,
+    ) -> (Option<Http2Connection>, Vec<IdleConnection>) {
+        self.selected_http2 = true;
+        if self.current_http2().is_some() {
+            debug!(
+                outcome = "redundant",
+                "negotiated HTTP/2 connection closed in favor of the current one"
+            );
+            return (Some(connection), Vec::new());
+        }
+        let first = self.http2.is_empty();
+        self.http2.push(Http2Slot {
+            connection,
+            token: Arc::new(()),
+            streams: StreamCount::notifying(Arc::clone(setup_done)),
+        });
+        let idle = if first {
+            std::mem::take(&mut self.http1_idle)
+        } else {
+            Vec::new()
+        };
+        (None, idle)
     }
 
     /// Whether a request should wait for a setup in flight rather than open
@@ -1352,6 +1457,72 @@ enum Acquired {
     /// An H2 connection can take the request once H2 admits it.
     Http2,
     AwaitSetup,
+    /// The slower connection of a backup connection, once it is ready.
+    Spare(SpareClaim),
+}
+
+/// The slower attempt of a backup connection, kept by its pool key until it
+/// has connected and finished its handshake.
+///
+/// One request that finds no H2 or idle H1 connection may claim it and wait
+/// for it instead of opening a connection, as Firefox lets a request claim
+/// the connection attempt whose own request went to the faster connection,
+/// and the connection while its handshake runs
+/// (`netwerk/protocol/http/ConnectionAttemptPool.cpp:141-163`,
+/// `netwerk/protocol/http/PendingTransactionInfo.cpp:20-44`, `:113-128`,
+/// `netwerk/protocol/http/ConnectionEntry.cpp:652-676` at tag
+/// `FIREFOX_157_0_RELEASE`).
+struct Spare {
+    id: u64,
+    progress: SlowerProgress,
+    claim: Option<oneshot::Sender<Http1Lease>>,
+    /// The task finishing the attempt, once it is spawned.
+    task: Option<AbortHandle>,
+}
+
+impl Spare {
+    fn is_claimed(&self) -> bool {
+        self.claim.as_ref().is_some_and(|claim| !claim.is_closed())
+    }
+}
+
+/// Reports the end of a slower attempt's task to its pool key.
+///
+/// The task owns it, so a task dropped before the attempt finishes, aborted
+/// or with the runtime it runs on, reports the attempt as failed and the key
+/// does not keep a spare that never ends.
+struct SpareReport {
+    entry: Option<Weak<EntryConnections>>,
+    id: u64,
+}
+
+impl SpareReport {
+    fn finished(mut self, connection: Option<Http1Or2Connection>) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, connection);
+        }
+    }
+}
+
+impl Drop for SpareReport {
+    fn drop(&mut self) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, None);
+        }
+    }
+}
+
+/// A request's claim on a slower connection still in its setup.
+struct SpareClaim {
+    receiver: oneshot::Receiver<Http1Lease>,
+}
+
+impl SpareClaim {
+    /// The H1 connection, leased to the request, or `None` when its setup
+    /// failed or it selected H2.
+    async fn wait(self) -> Option<Http1Lease> {
+        self.receiver.await.ok()
+    }
 }
 
 impl EntryConnections {
@@ -1363,11 +1534,14 @@ impl EntryConnections {
             http1_idle: Vec::new(),
             http1_leased: 0,
             connecting: 0,
+            spares: Vec::new(),
+            next_spare: 0,
             selected_http2: http2_keys.contains(&key),
         };
         Self {
             max_http1,
             http1_used_idle_timeout: None,
+            family: AddressFamilyMemory::new(),
             state: std::sync::Mutex::new(state),
             setup_done: Arc::new(Notify::new()),
             http2_keys,
@@ -1387,6 +1561,110 @@ impl EntryConnections {
 
     fn lock(&self) -> MutexGuard<'_, ConnectionState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Keeps the slower attempt of a backup connection, which finishes its
+    /// setup on its own task and then joins the key as
+    /// [`Self::spare_finished`] says.
+    ///
+    /// Outside a Tokio runtime the attempt is closed instead.
+    fn adopt(self: &Arc<Self>, slower: SlowerConnection<Http1Or2Connection>) {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let progress = slower.progress();
+        let id = {
+            let mut state = self.lock();
+            let id = state.next_spare;
+            state.next_spare = state.next_spare.wrapping_add(1);
+            state.spares.push(Spare {
+                id,
+                progress,
+                claim: None,
+                task: None,
+            });
+            id
+        };
+        let report = SpareReport {
+            entry: Some(Arc::downgrade(self)),
+            id,
+        };
+        // Spawned outside the lock: a runtime that is shutting down drops
+        // the task at once, and its report takes the lock.
+        let task = runtime.spawn(async move {
+            let connection = slower.finish().await;
+            report.finished(connection);
+        });
+        if let Some(spare) = self.lock().spares.iter_mut().find(|spare| spare.id == id) {
+            spare.task = Some(task.abort_handle());
+        }
+    }
+
+    /// Places a finished slower connection.
+    ///
+    /// An H1 connection goes to the request that claimed it, or to the idle
+    /// list, unless the key has an H2 connection: Firefox marks every other
+    /// connection to an origin not to be reused once one reports HTTP/2, and
+    /// closes it once its handshake ends
+    /// (`netwerk/protocol/http/ConnectionEntry.cpp:627-650`,
+    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:2754-2804` at tag
+    /// `FIREFOX_157_0_RELEASE`). An H2 connection is placed as
+    /// [`Reservation::finish`] places one: it is closed when the key has an
+    /// H2 connection with room, after its preface and SETTINGS, with
+    /// `GOAWAY`, as Firefox closes a second H2 connection to an origin
+    /// (`nsHttpConnectionMgr.cpp:921-960`;
+    /// `netwerk/protocol/http/Http2Session.cpp:812-826`, `:3570-3615`).
+    fn spare_finished(self: &Arc<Self>, id: u64, connection: Option<Http1Or2Connection>) {
+        let mut state = self.lock();
+        let mut claim = state.take_spare(id).and_then(|spare| spare.claim);
+        match connection {
+            None => {
+                drop(state);
+                debug!(
+                    outcome = "failed",
+                    "negotiated slower backup connection failed"
+                );
+            }
+            Some(Http1Or2Connection::Http2(connection)) => {
+                let (closed, idle) = state.place_http2(connection, &self.setup_done);
+                drop(state);
+                self.http2_keys.insert(&self.key);
+                // Dropping the last handle shuts a connection down; that
+                // happens outside the state lock.
+                drop(closed);
+                drop(idle);
+            }
+            Some(Http1Or2Connection::Http1(connection)) => {
+                state.http2.retain(|slot| slot.connection.is_reusable());
+                if !state.http2.is_empty() || !connection.is_reusable() {
+                    drop(state);
+                    debug!(
+                        outcome = "redundant",
+                        "negotiated slower HTTP/1 connection closed"
+                    );
+                    drop(connection);
+                } else if let Some(claimant) = claim.take().filter(|claim| !claim.is_closed()) {
+                    state.http1_leased += 1;
+                    drop(state);
+                    let lease = Http1Lease {
+                        connections: Arc::clone(self),
+                        connection,
+                        retired: false,
+                    };
+                    // A claimant that just left drops the lease, which
+                    // returns the connection to the idle list.
+                    drop(claimant.send(lease));
+                } else {
+                    state.http1_idle.push(IdleConnection::new(connection));
+                    drop(state);
+                    debug!(outcome = "kept", "negotiated slower backup connection idle");
+                }
+            }
+        }
+        // A claimant whose claim is dropped here chooses again: the H2
+        // connection, an idle one, or a new one.
+        drop(claim);
+        self.setup_done.notify_waiters();
     }
 
     /// Returns a reusable H2 connection of the key, whether or not it has
@@ -1472,6 +1750,14 @@ impl EntryConnections {
         }
         let timeout = self.http1_used_idle_timeout;
         state.http1_idle.retain(|idle| idle.is_reusable(timeout));
+        if !force_new_connection
+            && state.http1_idle.is_empty()
+            && let Some(spare) = state.spares.iter_mut().find(|spare| !spare.is_claimed())
+        {
+            let (sender, receiver) = oneshot::channel();
+            spare.claim = Some(sender);
+            return Checkout::Found(Acquired::Spare(SpareClaim { receiver }));
+        }
         let idle = if force_new_connection {
             if state.open_http1_or_connecting() >= self.max_http1.get()
                 && !state.http1_idle.is_empty()
@@ -1554,6 +1840,16 @@ impl EntryConnections {
     }
 }
 
+impl Drop for EntryConnections {
+    fn drop(&mut self) {
+        for spare in &self.lock().spares {
+            if let Some(task) = &spare.task {
+                task.abort();
+            }
+        }
+    }
+}
+
 /// A connection slot counted against the key's bound while its setup runs.
 ///
 /// Dropping it unfinished, when setup fails or the request is cancelled,
@@ -1589,34 +1885,9 @@ impl Reservation {
                 (lease, None, Vec::new())
             }
             PooledConnection::Http2(connection) => {
-                state.selected_http2 = true;
                 remember_http2 = true;
-                match state.current_http2() {
-                    Some(_) => {
-                        debug!(
-                            outcome = "redundant",
-                            "negotiated HTTP/2 connection closed in favor of the current one"
-                        );
-                        (Acquired::Http2, Some(connection), Vec::new())
-                    }
-                    None => {
-                        let first = state.http2.is_empty();
-                        let slot = Http2Slot {
-                            connection,
-                            token: Arc::new(()),
-                            streams: StreamCount::notifying(Arc::clone(
-                                &self.connections.setup_done,
-                            )),
-                        };
-                        state.http2.push(slot);
-                        let idle = if first {
-                            std::mem::take(&mut state.http1_idle)
-                        } else {
-                            Vec::new()
-                        };
-                        (Acquired::Http2, None, idle)
-                    }
-                }
+                let (closed, idle) = state.place_http2(connection, &self.connections.setup_done);
+                (Acquired::Http2, closed, idle)
             }
         };
         drop(state);
