@@ -1412,6 +1412,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- On the direct route the exact HTTP/1.1 pool keeps the slower attempt of a
+  `TcpBackupConnection` without a request: it counts toward the origin's
+  connection bound once it connects, finishes any TLS handshake the way a
+  request's connection does, and waits idle, and a request that finds no
+  idle connection claims it instead of opening one. Each pool key remembers
+  the address family of its first successful connection for later
+  connections. The key keeps every slower connection whatever its count, as
+  Firefox does, so each backup connection in flight can add one connection
+  beyond the bound.
 - `chromium::v154_macos_client_hints` reports Chrome 154.0.8037.95 and
   `edge::v154_macos_client_hints` Edge 154.0.4258.48 in
   `sec-ch-ua-full-version` and `sec-ch-ua-full-version-list`, the builds the

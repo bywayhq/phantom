@@ -3,7 +3,7 @@ use std::{
     future::poll_fn,
     num::NonZeroUsize,
     pin::Pin,
-    sync::{Arc, MutexGuard, OnceLock, PoisonError},
+    sync::{Arc, MutexGuard, OnceLock, PoisonError, Weak},
     time::Duration,
 };
 
@@ -19,7 +19,12 @@ use phantom_net::http1::{
 };
 use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
-use tokio::{sync::Mutex, time::Instant};
+use phantom_net::tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress};
+use tokio::{
+    sync::{Mutex, oneshot},
+    task::AbortHandle,
+    time::Instant,
+};
 use tracing::debug;
 
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
@@ -42,8 +47,10 @@ pub(crate) enum Http1ConnectionMode {
 /// Each pool key keeps up to `max_active` connections, idle ones included.
 /// A request first passes the key's admission, which lets at most
 /// `max_active` requests through and queues the rest in arrival order. It
-/// then takes the most recently used idle connection, or opens one when none
-/// is idle. An idle connection past `used_idle_timeout` is closed instead.
+/// then takes the most recently used idle connection, claims the slower
+/// connection of a backup connection that has not finished its setup, or
+/// opens one. An idle connection past `used_idle_timeout` is closed
+/// instead.
 pub(crate) struct Http1Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
@@ -342,7 +349,10 @@ impl Http1Pool {
             .admissions
             .get(&key.origin(), self.max_active, self.max_pending);
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
-        let mut entry = PoolEntry::new(admission, self.max_active, self.used_idle_timeout);
+        let mut entry = PoolEntry::new(
+            admission,
+            EntryConnections::new(self.max_active, self.used_idle_timeout),
+        );
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
         #[cfg(feature = "https-records")]
@@ -497,17 +507,9 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
-    fn new(
-        admission: Arc<Admission>,
-        max_connections: NonZeroUsize,
-        used_idle_timeout: Option<Duration>,
-    ) -> Self {
+    fn new(admission: Arc<Admission>, connections: Arc<EntryConnections>) -> Self {
         Self {
-            connections: Arc::new(EntryConnections {
-                max: max_connections,
-                used_idle_timeout,
-                set: std::sync::Mutex::new(ConnectionSet::default()),
-            }),
+            connections,
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
@@ -522,11 +524,14 @@ impl PoolEntry {
 
     /// Opens a direct TLS connection, offering the `ech` value of the
     /// origin's HTTPS record when the profile does, as Chrome 154 does.
+    ///
+    /// The slower attempt of a backup connection comes back for the key to
+    /// keep; the ECH path closes it.
     async fn connect_direct(
         &self,
         connector: &Http1TlsConnector,
         endpoint: &Endpoint,
-    ) -> Result<Http1Connection, Http1TlsError> {
+    ) -> Result<Opened, Http1TlsError> {
         #[cfg(feature = "https-records")]
         if connector.ech_from_https_records()
             && let Some(discovery) = &self.https_records
@@ -534,10 +539,16 @@ impl PoolEntry {
             let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
             return connector
                 .connect_direct_with_ech(endpoint.host(), endpoint.port(), endpoint.host(), ech)
-                .await;
+                .await
+                .map(|connection| (connection, None));
         }
         connector
-            .connect_direct(endpoint.host(), endpoint.port(), endpoint.host())
+            .connect_direct_keeping_slower(
+                endpoint.host(),
+                endpoint.port(),
+                endpoint.host(),
+                &self.connections.family,
+            )
             .await
     }
 
@@ -550,27 +561,44 @@ impl PoolEntry {
         mode: Http1ConnectionMode,
         force_new_connection: bool,
     ) -> Result<ConnectionLease, RequestError> {
-        let reservation = match self.connections.checkout(force_new_connection) {
-            Checkout::Idle(lease) => {
-                debug!(
-                    outcome = "hit",
-                    "HTTP/1 connection acquired from client pool"
-                );
-                return Ok(lease);
+        let reservation = loop {
+            match self.connections.checkout(force_new_connection) {
+                Checkout::Idle(lease) => {
+                    debug!(
+                        outcome = "hit",
+                        "HTTP/1 connection acquired from client pool"
+                    );
+                    return Ok(lease);
+                }
+                Checkout::Spare(claim) => {
+                    // A slower attempt that fails drops the claim, and the
+                    // request chooses again.
+                    if let Some(lease) = claim.wait().await {
+                        debug!(
+                            outcome = "claimed",
+                            "HTTP/1 slower backup connection acquired"
+                        );
+                        return Ok(lease);
+                    }
+                }
+                Checkout::Reserved(reservation) => break reservation,
             }
-            Checkout::Reserved(reservation) => reservation,
         };
 
         debug!(outcome = "connect", "HTTP/1 client pool opening connection");
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection =
+        let (connection, slower) =
             super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
+        if let Some(slower) = slower {
+            self.connections.adopt(slower);
+        }
         Ok(reservation.into_lease(connection))
     }
 
-    /// Opens a connection for [`Self::acquire`] in `mode` over `route`.
+    /// Opens a connection for [`Self::acquire`] in `mode` over `route`, with
+    /// the slower attempt of a backup connection on the direct route.
     async fn open(
         &self,
         connector: &Http1TlsConnector,
@@ -578,7 +606,7 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
         mode: Http1ConnectionMode,
-    ) -> Result<Http1Connection, RequestError> {
+    ) -> Result<Opened, RequestError> {
         let connection = match mode {
             Http1ConnectionMode::Forward => {
                 let Route::HttpProxy(proxy) = route else {
@@ -607,10 +635,16 @@ impl PoolEntry {
                 }
             }
             Http1ConnectionMode::PlaintextOrigin => match route {
-                Route::Direct => connector
-                    .connect_plaintext_direct(endpoint.host(), endpoint.port())
-                    .await
-                    .map_err(RequestError::http1_connection_setup)?,
+                Route::Direct => {
+                    return connector
+                        .connect_plaintext_direct_keeping_slower(
+                            endpoint.host(),
+                            endpoint.port(),
+                            &self.connections.family,
+                        )
+                        .await
+                        .map_err(RequestError::http1_connection_setup);
+                }
                 Route::Socks5(proxy) => match proxy.dns_mode() {
                     crate::Socks5DnsMode::Local => connector
                         .connect_plaintext_socks5_local_with_auth(
@@ -647,10 +681,12 @@ impl PoolEntry {
                     Route::ConnectUdp(_) => {
                         return Err(RequestError::unsupported_route(HttpProtocol::Http1));
                     }
-                    Route::Direct => self
-                        .connect_direct(connector, endpoint)
-                        .await
-                        .map_err(RequestError::http1_connection_setup)?,
+                    Route::Direct => {
+                        return self
+                            .connect_direct(connector, endpoint)
+                            .await
+                            .map_err(RequestError::http1_connection_setup);
+                    }
                     Route::HttpProxy(proxy) => {
                         let connect_authority = endpoint.tunnel_authority();
                         if proxy.uses_tls() {
@@ -742,9 +778,13 @@ impl PoolEntry {
                 }
             }
         };
-        Ok(connection)
+        Ok((connection, None))
     }
 }
+
+/// A new connection, and the slower attempt of its backup connection when
+/// one is still connecting.
+type Opened = (Http1Connection, Option<SlowerConnection<Http1Connection>>);
 
 /// The connections of one pool key.
 ///
@@ -752,11 +792,23 @@ impl PoolEntry {
 /// lease, so a request that finds no idle connection always has room to open
 /// one. A lease returns its connection before the request's admission permit
 /// is released.
+///
+/// The slower attempt of a backup connection counts toward `max` of the key
+/// of the runtime that opened it once it has connected, as Firefox counts
+/// the connections of an origin
+/// (`netwerk/protocol/http/ConnectionEntry.cpp:289-297` at tag
+/// `FIREFOX_157_0_RELEASE`), but is adopted whatever the count, as Firefox
+/// pools it at its limit too. Each request that opened its connection with
+/// a backup can leave one such connection, so the key holds up to one
+/// extra connection per backup connection whose slower attempt is in
+/// flight, at most `max` extra, until they are used or expire idle.
 struct EntryConnections {
     max: NonZeroUsize,
     /// How long an idle connection stays reusable; see
-    /// [`phantom_profile::Http1Settings::used_idle_timeout`].
+    /// [`phantom_profile::Http1Settings::idle_timeout`].
     used_idle_timeout: Option<Duration>,
+    /// The address family a backup connection to the origin tries first.
+    family: AddressFamilyMemory,
     set: std::sync::Mutex<ConnectionSet>,
 }
 
@@ -766,11 +818,75 @@ struct ConnectionSet {
     idle: Vec<IdleConnection>,
     /// Connections leased to a request, and connections being opened.
     leased: usize,
+    /// Slower attempts of backup connections that have not finished.
+    spares: Vec<Spare>,
+    next_spare: u64,
 }
 
 impl ConnectionSet {
     fn open(&self) -> usize {
-        self.idle.len() + self.leased
+        let connected_spares = self
+            .spares
+            .iter()
+            .filter(|spare| spare.progress.has_connected())
+            .count();
+        self.idle.len() + self.leased + connected_spares
+    }
+
+    fn take_spare(&mut self, id: u64) -> Option<Spare> {
+        let position = self.spares.iter().position(|spare| spare.id == id)?;
+        Some(self.spares.swap_remove(position))
+    }
+}
+
+/// The slower attempt of a backup connection, kept by its pool key until it
+/// has connected and finished its handshake.
+///
+/// One request that finds no idle connection may claim it and wait for it
+/// instead of opening a connection, as Firefox lets a request claim the
+/// connection attempt whose own request went to the faster connection, and
+/// the connection while its handshake runs
+/// (`netwerk/protocol/http/ConnectionAttemptPool.cpp:141-163`,
+/// `netwerk/protocol/http/PendingTransactionInfo.cpp:20-44`, `:113-128`,
+/// `netwerk/protocol/http/ConnectionEntry.cpp:652-676` at tag
+/// `FIREFOX_157_0_RELEASE`).
+struct Spare {
+    id: u64,
+    progress: SlowerProgress,
+    claim: Option<oneshot::Sender<ConnectionLease>>,
+    /// The task finishing the attempt, once it is spawned.
+    task: Option<AbortHandle>,
+}
+
+impl Spare {
+    fn is_claimed(&self) -> bool {
+        self.claim.as_ref().is_some_and(|claim| !claim.is_closed())
+    }
+}
+
+/// Reports the end of a slower attempt's task to its pool key.
+///
+/// The task owns it, so a task dropped before the attempt finishes, aborted
+/// or with the runtime it runs on, reports the attempt as failed and the key
+/// does not keep a spare that never ends.
+struct SpareReport {
+    entry: Option<Weak<EntryConnections>>,
+    id: u64,
+}
+
+impl SpareReport {
+    fn finished(mut self, connection: Option<Http1Connection>) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, connection);
+        }
+    }
+}
+
+impl Drop for SpareReport {
+    fn drop(&mut self) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, None);
+        }
     }
 }
 
@@ -802,15 +918,107 @@ impl IdleConnection {
 }
 
 enum Checkout {
-    /// An idle connection that has carried an earlier request.
+    /// An idle connection.
     Idle(ConnectionLease),
+    /// The slower connection of a backup connection, once it is ready.
+    Spare(SpareClaim),
     /// A slot for a connection the caller opens.
     Reserved(Reservation),
 }
 
+/// A request's claim on a slower connection still in its setup.
+struct SpareClaim {
+    receiver: oneshot::Receiver<ConnectionLease>,
+}
+
+impl SpareClaim {
+    /// The connection, leased to the request, or `None` when its setup
+    /// failed.
+    async fn wait(self) -> Option<ConnectionLease> {
+        self.receiver.await.ok()
+    }
+}
+
 impl EntryConnections {
+    fn new(max: NonZeroUsize, used_idle_timeout: Option<Duration>) -> Arc<Self> {
+        Arc::new(Self {
+            max,
+            used_idle_timeout,
+            family: AddressFamilyMemory::new(),
+            set: std::sync::Mutex::new(ConnectionSet::default()),
+        })
+    }
+
     fn lock(&self) -> MutexGuard<'_, ConnectionSet> {
         self.set.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Keeps the slower attempt of a backup connection, which finishes its
+    /// setup on its own task and then joins the idle list or the request
+    /// that claimed it.
+    ///
+    /// Outside a Tokio runtime the attempt is closed instead.
+    fn adopt(self: &Arc<Self>, slower: SlowerConnection<Http1Connection>) {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let progress = slower.progress();
+        let id = {
+            let mut set = self.lock();
+            let id = set.next_spare;
+            set.next_spare = set.next_spare.wrapping_add(1);
+            set.spares.push(Spare {
+                id,
+                progress,
+                claim: None,
+                task: None,
+            });
+            id
+        };
+        let report = SpareReport {
+            entry: Some(Arc::downgrade(self)),
+            id,
+        };
+        // Spawned outside the lock: a runtime that is shutting down drops
+        // the task at once, and its report takes the lock.
+        let task = runtime.spawn(async move {
+            let connection = slower.finish().await;
+            report.finished(connection);
+        });
+        if let Some(spare) = self.lock().spares.iter_mut().find(|spare| spare.id == id) {
+            spare.task = Some(task.abort_handle());
+        }
+    }
+
+    /// Gives a finished slower connection to the request that claimed it,
+    /// or to the idle list.
+    fn spare_finished(self: &Arc<Self>, id: u64, connection: Option<Http1Connection>) {
+        let mut set = self.lock();
+        let claim = set.take_spare(id).and_then(|spare| spare.claim);
+        let Some(connection) = connection.filter(Http1Connection::is_reusable) else {
+            debug!(outcome = "failed", "HTTP/1 slower backup connection failed");
+            // A claimant finds its claim dropped and chooses again.
+            return;
+        };
+        match claim.filter(|claim| !claim.is_closed()) {
+            Some(claim) => {
+                set.leased += 1;
+                drop(set);
+                let lease = Reservation {
+                    connections: Arc::clone(self),
+                    released: false,
+                }
+                .into_lease(connection);
+                // A claimant that just left drops the lease, which returns
+                // the connection to the idle list.
+                drop(claim.send(lease));
+            }
+            None => {
+                set.idle.push(IdleConnection::new(connection));
+                drop(set);
+                debug!(outcome = "kept", "HTTP/1 slower backup connection idle");
+            }
+        }
     }
 
     /// Leases the most recently used idle connection, or reserves a slot for a
@@ -819,6 +1027,14 @@ impl EntryConnections {
         let mut set = self.lock();
         let timeout = self.used_idle_timeout;
         set.idle.retain(|idle| idle.is_reusable(timeout));
+        if !force_new_connection
+            && set.idle.is_empty()
+            && let Some(spare) = set.spares.iter_mut().find(|spare| !spare.is_claimed())
+        {
+            let (sender, receiver) = oneshot::channel();
+            spare.claim = Some(sender);
+            return Checkout::Spare(SpareClaim { receiver });
+        }
         let idle = if force_new_connection {
             if set.open() >= self.max.get() && !set.idle.is_empty() {
                 // Proxy-authentication and reused-connection replays both need
@@ -863,6 +1079,16 @@ impl EntryConnections {
     #[cfg(test)]
     fn open(&self) -> usize {
         self.lock().open()
+    }
+}
+
+impl Drop for EntryConnections {
+    fn drop(&mut self) {
+        for spare in &self.lock().spares {
+            if let Some(task) = &spare.task {
+                task.abort();
+            }
+        }
     }
 }
 

@@ -3,8 +3,10 @@ use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use phantom_net::http1::Http1Connection;
 use tokio::io::{DuplexStream, duplex};
 
-use super::{Checkout, ConnectionSet, EntryConnections, Http1ConnectionMode, Http1Pool, PoolKey};
+use super::{Checkout, EntryConnections, Http1ConnectionMode, Http1Pool, PoolKey};
 use crate::{Route, authority::Endpoint};
+
+mod slower_connection;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -20,11 +22,7 @@ fn timed_connections(
     max: NonZeroUsize,
     used_idle_timeout: Option<Duration>,
 ) -> Arc<EntryConnections> {
-    Arc::new(EntryConnections {
-        max,
-        used_idle_timeout,
-        set: std::sync::Mutex::new(ConnectionSet::default()),
-    })
+    EntryConnections::new(max, used_idle_timeout)
 }
 
 /// Opens an HTTP/1.1 connection over an in-memory stream.
