@@ -36,6 +36,7 @@ use crate::tracing_test::OutcomeSubscriber;
 mod alps_concurrency_gate;
 mod alps_hpack_last_wins;
 mod key_update;
+mod ping_close;
 mod record_shape;
 
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
@@ -630,6 +631,7 @@ fn tls_settings() -> TlsSettings {
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
+        close_notify: true,
     }
 }
 

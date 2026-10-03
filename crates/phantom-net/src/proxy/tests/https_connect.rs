@@ -228,5 +228,6 @@ pub(super) fn tls_settings() -> TlsSettings {
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
+        close_notify: true,
     }
 }

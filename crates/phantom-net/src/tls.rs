@@ -83,6 +83,7 @@ pub(crate) struct TlsConnector {
     /// per-client lists are set on the context instead.
     per_connection_trust_anchors: Option<Arc<TrustAnchorIds>>,
     ech_from_https_records: bool,
+    close_notify: bool,
     scoped_sessions_enabled: bool,
     session_tickets_per_origin: u8,
     session_ticket_extension_when_resuming: bool,
@@ -416,6 +417,7 @@ impl TlsConnector {
             ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
             per_connection_trust_anchors,
             ech_from_https_records: settings.ech_from_https_records,
+            close_notify: settings.close_notify,
             scoped_sessions_enabled,
             session_tickets_per_origin: settings.session_tickets_per_origin,
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
@@ -714,6 +716,7 @@ impl TlsConnector {
                 negotiated_cipher_suite,
                 session_reused,
                 early_data,
+                close_notify: self.close_notify,
             })
         }
         .instrument(span.clone())
@@ -791,6 +794,9 @@ pub(crate) struct TlsStream<S> {
     session_reused: bool,
     /// Present while the server has not yet answered the early data.
     early_data: Option<EarlyData>,
+    /// `TlsSettings::close_notify`: whether a shutdown sends the alert before
+    /// the transport's own shutdown.
+    close_notify: bool,
 }
 
 impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for TlsStream<S> {
@@ -944,7 +950,12 @@ where
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.inner).poll_shutdown(context)
+        if self.close_notify {
+            Pin::new(&mut self.inner).poll_shutdown(context)
+        } else {
+            // Chromium closes the transport without `SSL_shutdown`.
+            Pin::new(self.inner.get_mut()).poll_shutdown(context)
+        }
     }
 }
 

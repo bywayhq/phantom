@@ -2,7 +2,12 @@ use std::{io, net::SocketAddr};
 
 use phantom_profile::{CipherSuite, TlsSettings, TlsVersion, chromium::v154_tls};
 use phantom_testkit::tls::{CaptureLimits, ClientHelloCapture, capture_client_hello};
-use tokio::{net::TcpListener, task::JoinHandle, time::Instant};
+use tokio::{
+    io::{AsyncReadExt as _, AsyncWriteExt as _},
+    net::TcpListener,
+    task::JoinHandle,
+    time::Instant,
+};
 
 use super::{
     TlsConnector, TlsErrorKind, encode_trust_anchor_ids, require_supported,
@@ -261,6 +266,45 @@ async fn untrusted_root_fails() -> TestResult<()> {
 
     let server_result = tokio::time::timeout(TEST_TIMEOUT, server_task).await??;
     assert!(server_result.is_err());
+    Ok(())
+}
+
+/// Chromium ends a TLS connection with a bare TCP FIN, and Firefox sends a
+/// `close_notify` alert first. The server reads the raw bytes the client sent
+/// after the handshake: one encrypted record holding the alert, or nothing.
+#[tokio::test]
+async fn shutdown_sends_close_notify_only_when_the_profile_does() -> TestResult<()> {
+    // A TLS 1.3 alert travels as application data: the 5-byte record header,
+    // then the 2-byte alert, its 1-byte inner content type, and a 16-byte tag.
+    const ALERT_RECORD_HEADER: [u8; 5] = [0x17, 0x03, 0x03, 0x00, 0x13];
+    const ALERT_RECORD_LENGTH: usize = 5 + 2 + 1 + 16;
+    let firefox = phantom_profile::firefox::v157_tls();
+    for (settings, sends_alert) in [(v154_tls(), false), (firefox, true)] {
+        let identity = TestIdentity::generate()?;
+        let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+        let (address, listener) = loopback_listener().await?;
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = accept_tls(listener, acceptor).await?;
+            let mut after_handshake = Vec::new();
+            stream.get_mut().read_to_end(&mut after_handshake).await?;
+            TestResult::Ok(after_handshake)
+        });
+        let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?;
+        let mut stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
+        stream.shutdown().await?;
+
+        let after_handshake = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        if sends_alert {
+            assert_eq!(
+                after_handshake.len(),
+                ALERT_RECORD_LENGTH,
+                "{after_handshake:02x?}"
+            );
+            assert_eq!(after_handshake.get(..5), Some(&ALERT_RECORD_HEADER[..]));
+        } else {
+            assert!(after_handshake.is_empty(), "{after_handshake:02x?}");
+        }
+    }
     Ok(())
 }
 

@@ -579,6 +579,19 @@ pub struct TlsSettings {
     pub request_signed_certificate_timestamps: bool,
     /// Whether the client should be treated as having AES hardware.
     pub aes_hardware: bool,
+    /// Whether shutting down a TCP connection sends a TLS `close_notify`
+    /// alert before the TCP FIN.
+    ///
+    /// Firefox 157 sent the alert when a page aborted an HTTP/1.1 response
+    /// and on each connection it closed at exit; on its other closes it rests
+    /// on NSS, whose `ssl_SecureClose` sends it. Chromium sends only the FIN,
+    /// because `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`.
+    /// It applies wherever Phantom shuts a connection down, such as an HTTP/2
+    /// connection that ends after `GOAWAY` or a PING timeout. A connection
+    /// dropped without a shutdown sends neither an alert nor a FIN of its
+    /// own; the operating system closes it. QUIC connections close with
+    /// `CONNECTION_CLOSE` instead and ignore it.
+    pub close_notify: bool,
 }
 
 impl TlsSettings {

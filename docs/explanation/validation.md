@@ -51,7 +51,8 @@ Phantom's claims rest on five kinds of evidence:
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
-| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source and a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom | One Windows build; the PING after a DATA frame, the 10-second boundary, and the close after an unanswered PING rest on source |
+| [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source, a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom, and one of Chrome 154.0.8037.97 closing a connection whose PING went unanswered | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
+| [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
@@ -3535,6 +3536,19 @@ request:
 runs of the same timeline, not retained, showed the same frames. The
 retained run took 37 seconds of wall clock.
 
+The close was captured later, from Chrome 154.0.8037.97, by
+[`http_lifecycle.py --scenario ping-unanswered`](../../scripts/capture/README.md#connection-lifecycle),
+and retained as
+[`ping-unanswered.txt`](../../fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/ping-unanswered.txt).
+The page fetched `/a`, waited 11.5 seconds, and fetched `/b`; from `/b` on,
+the server wrote nothing more on that connection. Chrome sent `/b`, then
+PING 1, and 10.003 seconds after the PING a `GOAWAY` with last stream ID 0,
+`PROTOCOL_ERROR`, and the debug data `Failed ping.`, then ended the TCP
+connection with no TLS `close_notify`. In the same millisecond it opened a
+new connection and sent `/b` again, with the same field list; the server
+answered it, and the page saw status 200 10.006 seconds after it asked. The
+run took 23 seconds of wall clock.
+
 `crates/phantom-net/src/http2/tests/preface_ping.rs` checks the fixture's
 order and payloads, then drives the Chromium recipe through the same
 timeline with its idle time scaled to 1 second against a loopback peer and
@@ -3580,24 +3594,86 @@ Limits:
 - The capture shows no PING after a DATA frame alone; a `POST` after an idle
   period gets its PING from the HEADERS. That case and the exact 10-second
   boundary rest on source.
-- No capture shows the close after an unanswered PING; it rests on source.
 - Chrome retries a request that fails with `ERR_HTTP2_PING_FAILED` before
   its response headers, whatever its method, up to twice on a new connection
   (`HttpNetworkTransaction::HandleIOError`,
   `net/http/http_network_transaction.cc:2073-2074`, `:2222-2232`, with
-  `kMaxRetryAttempts` of 2 at `:108`). Phantom does not replay it: the
-  client closed the connection itself, so nothing shows that the server did
-  not process the request.
+  `kMaxRetryAttempts` of 2 at `:108`). The capture shows the first retry,
+  sent at once on a new connection; a second needs the new connection's
+  PING to fail too, which a fresh connection cannot reach, so the limit of
+  two rests on source. Phantom does not replay the request: the client
+  closed the connection itself, so nothing shows that the server did not
+  process it.
 - Phantom counts reads per whole frame for the idle time and the PING
   timeout, where Chrome counts every socket read, including part of a frame.
   Phantom also does not check the PING timeout while its writes are
   blocked, since it then reads nothing either; Chrome reads and checks
   independently of its writes.
-- Phantom sends a TLS `close_notify` whenever an HTTP/2 connection closes
-  itself, this close included. Chrome sends none on any close:
-  `SSLClientSocketImpl::Disconnect`
-  (`net/socket/ssl_client_socket_impl.cc:400-418`) closes the transport,
-  and the file never calls `SSL_shutdown`.
+- The close sends no TLS `close_notify`, in Chrome and in the Chromium
+  recipes; see [TLS close evidence](#tls-close-evidence).
+
+### TLS close evidence
+
+What is claimed: `TlsSettings::close_notify` decides whether Phantom sends
+a TLS `close_notify` alert before the TCP FIN when it shuts a connection
+down. The Chromium-family recipes leave it unset and send only the FIN, as
+Chrome 154 did on every close captured; `firefox::v157_tls` sets it, as
+Firefox 157 did when it aborted a response and at exit. It applies wherever
+Phantom shuts a TLS connection down, such as an HTTP/2 connection that ends
+after a `GOAWAY` or a PING timeout.
+
+Evidence: headless Chrome 154.0.8037.97 and Firefox 157.0 on Windows 11
+(10.0.26200), captured by
+[`http_lifecycle.py`](../../scripts/capture/README.md#connection-lifecycle)
+and retained under `fixtures/lifecycle/<browser>/<version>/windows-11-26200/`.
+The server reads each connection through memory BIOs and records whether a
+`close_notify` arrived before the TCP end. The `close` scenario fetches over
+HTTP/2, aborts an HTTP/1.1 response mid-body at a second origin, fetches
+over a new HTTP/1.1 connection there, and then closes the browser over its
+remote protocol (CDP `Browser.close`, WebDriver BiDi `browser.close`).
+
+| Close | Chrome 154.0.8037.97 | Firefox 157.0 |
+| --- | --- | --- |
+| Connections opened at startup and abandoned | FIN, no `close_notify` | None opened |
+| HTTP/1.1 response aborted by the page | FIN, no `close_notify` | `close_notify`, then FIN |
+| HTTP/2 connection after an unanswered PING (`ping-unanswered`) | `GOAWAY`, then FIN, no `close_notify` | Not captured |
+| Idle HTTP/2 connection at browser exit | FIN, no `close_notify`, no `GOAWAY` | `GOAWAY` (`NO_ERROR`, last stream 0), `close_notify`, then FIN |
+| Idle HTTP/1.1 connection at browser exit | FIN, no `close_notify` | `close_notify`, then FIN |
+
+Chromium source agrees: `SSLClientSocketImpl::Disconnect`
+(`net/socket/ssl_client_socket_impl.cc:400-418` at `154.0.8037.58`) closes
+the transport, and the file never calls `SSL_shutdown`. Edge, Brave, and
+Opera use the same socket class; their recipes rest on that source.
+
+`tls::tests::shutdown_sends_close_notify_only_when_the_profile_does`, in
+`crates/phantom-net/src/tls/tests.rs`, shuts down a connection made with
+`chromium::v154_tls` and one made with `firefox::v157_tls` and reads the raw
+bytes each sent after the handshake: nothing before the FIN for Chromium,
+and for Firefox exactly one 24-byte encrypted record holding the alert.
+`http2::tls::tests::ping_close::chromium_ping_timeout_close_sends_nothing_after_goaway`,
+in `crates/phantom-net/src/http2/tls/tests/ping_close.rs`, lets an HTTP/2
+connection made with the Chromium TLS and HTTP/2 recipes time out its PING
+against a BoringSSL server, and checks that no byte follows the `GOAWAY`
+on the TCP stream, as in Chrome's `ping-unanswered.txt`.
+
+How to reproduce: the `close` and `ping-unanswered` commands in
+[Connection lifecycle](../../scripts/capture/README.md#connection-lifecycle);
+each `close` run took about 5 seconds, `ping-unanswered` 23. Then run
+`cargo test -p phantom-net --lib tls::tests::shutdown`.
+
+Limits:
+
+- A connection Phantom drops without shutting it down sends neither an
+  alert nor a FIN of its own; the operating system closes it. Firefox's
+  `GOAWAY` at exit is not reproduced.
+- One run per scenario on one Windows host; the Firefox recipe's setting
+  for HTTP/2 closes other than at exit rests on the HTTP/1.1 abort and on
+  NSS, which sends the alert from `ssl_SecureClose`.
+- No Android browser's close was captured. The Chrome, Edge, Brave, and
+  Opera for Android recipes, which leave the setting unset, rest on
+  `SSLClientSocketImpl::Disconnect` in Chromium source;
+  `firefox_android::v156_tls`, which sets it, rests on desktop Firefox 157
+  and NSS's `ssl_SecureClose`.
 
 ### Alt-Svc racing evidence
 

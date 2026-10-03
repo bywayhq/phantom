@@ -14,6 +14,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `TlsSettings` has a `close_notify` field: whether shutting down a TLS
+  connection over TCP sends a `close_notify` alert before the TCP FIN. The
+  Chromium-family recipes leave it unset and send only the FIN, as Chrome
+  154 does when it aborts a response, ends a connection after a failed
+  PING, or exits; `firefox::v157_tls` and `firefox_android::v156_tls` set
+  it, as Firefox 157 sent the alert when it aborted a response and at exit
+  ([evidence](docs/explanation/validation.md#tls-close-evidence)). Before,
+  every shutdown sent the alert. Migrate: add `close_notify: true` to a
+  `TlsSettings` literal to keep the old behavior, or `false` to close as
+  Chromium does.
 - `TlsSettings::requested_trust_anchor_ids` is an `Option<TrustAnchorIds>`
   instead of an `Option<Vec<Box<[u8]>>>`. `TrustAnchorIds::Fixed(ids)` sends
   one order on every connection, as before. `PerClient(orders)` draws one of

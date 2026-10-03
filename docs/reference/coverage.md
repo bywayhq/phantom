@@ -212,6 +212,11 @@ Supported:
   again on a new connection without early data. Proxy routes and WebSocket
   openings never offer it, and the Chromium-family recipes never do
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
+- A shutdown with or without a TLS `close_notify` alert before the TCP FIN
+  (`TlsSettings::close_notify`): the Chromium-family recipes send only the
+  FIN, as Chrome 154 does, and the Firefox recipes send the alert first, as
+  Firefox 157 does
+  ([evidence](../explanation/validation.md#tls-close-evidence)).
 
 Planned:
 

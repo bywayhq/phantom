@@ -62,6 +62,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
   origin, with the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes
   ([Real ECH evidence](explanation/validation.md#real-ech-evidence),
   [over QUIC](explanation/validation.md#real-ech-over-quic-evidence)).
+- A TLS shutdown without `close_notify` in the Chromium-family recipes and
+  with it in the Firefox recipe, through `TlsSettings::close_notify`, as the
+  Chrome 154 and Firefox 157 captures of aborted responses, failed PINGs,
+  and browser exit show
+  ([TLS close evidence](explanation/validation.md#tls-close-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
   A `407` on an HTTP/1.1 proxy connection is replayed on that connection
@@ -243,12 +248,6 @@ anything does.
   only on proxy connections and origins that failed before
   (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`); no capture resumed a
   WebSocket opening. Phantom offers no early data on either.
-- Closing a TLS connection without `close_notify`. Evidence: source only;
-  Chromium's `SSLClientSocketImpl::Disconnect` never calls `SSL_shutdown`
-  ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)),
-  while Phantom's TLS stream sends `close_notify` from `poll_shutdown` on
-  every close. Blocker: a TLS profile setting that `poll_shutdown` applies,
-  and a capture of a Chrome close.
 - Chromium's retry of a request whose session ended with
   `ERR_HTTP2_PING_FAILED`: up to twice on a new connection, whatever the
   method. Evidence: source only

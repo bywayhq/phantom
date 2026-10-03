@@ -207,6 +207,7 @@ pub fn v157_tls() -> TlsSettings {
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
+        close_notify: true,
     }
 }
 
