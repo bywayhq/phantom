@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     future::{Future, poll_fn},
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     pin::Pin,
@@ -10,8 +9,6 @@ use std::{
 use tokio::time::{Instant, Sleep};
 
 use crate::{HttpProtocol, RequestError};
-
-const TOKIO_TIME_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but timers are disabled. Call `enable_time` on the runtime builder to enable timers.";
 
 /// Time limits for one ordinary HTTP request operation.
 ///
@@ -517,14 +514,14 @@ impl DeadlineTimer {
     pub(crate) fn new(deadline: Instant) -> Result<Self, RequestError> {
         // Tokio panics when a timer is created outside any runtime, so a
         // missing runtime is reported before one is constructed. A runtime
-        // without its time driver has no query API and is detected from the
-        // panic Tokio raises for it.
+        // without its time driver has no query API and is detected after
+        // the panic Tokio raises for it.
         if tokio::runtime::Handle::try_current().is_err() {
             return Err(RequestError::runtime_timer_unavailable());
         }
         let sleep = match catch_unwind(AssertUnwindSafe(|| tokio::time::sleep_until(deadline))) {
             Ok(sleep) => sleep,
-            Err(payload) if is_time_disabled_panic(payload.as_ref()) => {
+            Err(_) if time_driver_missing() => {
                 return Err(RequestError::runtime_timer_unavailable());
             }
             Err(payload) => resume_unwind(payload),
@@ -541,7 +538,7 @@ impl DeadlineTimer {
         match catch_unwind(AssertUnwindSafe(|| self.sleep.as_mut().poll(context))) {
             Ok(Poll::Ready(())) => Poll::Ready(Ok(())),
             Ok(Poll::Pending) => Poll::Pending,
-            Err(payload) if is_time_disabled_panic(payload.as_ref()) => {
+            Err(_) if time_driver_missing() => {
                 Poll::Ready(Err(RequestError::runtime_timer_unavailable()))
             }
             Err(payload) => resume_unwind(payload),
@@ -553,13 +550,16 @@ impl DeadlineTimer {
     }
 }
 
-fn is_time_disabled_panic(payload: &(dyn Any + Send)) -> bool {
-    payload
-        .downcast_ref::<&str>()
-        .is_some_and(|message| *message == TOKIO_TIME_DISABLED_PANIC)
-        || payload
-            .downcast_ref::<String>()
-            .is_some_and(|message| message == TOKIO_TIME_DISABLED_PANIC)
+/// Whether the current context has no runtime with a time driver.
+///
+/// Called after a timer operation panicked. Tokio has no query for its time
+/// driver, and creating a timer without one panics, so creating a probe timer
+/// that panics as well attributes the first panic to the missing driver
+/// without relying on the wording of Tokio's panic message. A panic the probe
+/// does not repeat belongs to someone else and keeps unwinding.
+fn time_driver_missing() -> bool {
+    tokio::runtime::Handle::try_current().is_err()
+        || catch_unwind(|| drop(tokio::time::sleep_until(Instant::now()))).is_err()
 }
 
 #[cfg(test)]
@@ -567,6 +567,38 @@ mod tests {
     use std::{future::pending, time::Duration};
 
     use super::{RequestTimeouts, TimeoutBudget, TimeoutPhase};
+    use crate::RequestErrorKind;
+
+    #[test]
+    fn missing_time_driver_is_detected_without_reading_a_panic_message()
+    -> Result<(), Box<dyn std::error::Error>> {
+        assert!(super::time_driver_missing());
+        let without_time = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()?;
+        assert!(without_time.block_on(async { super::time_driver_missing() }));
+        let with_time = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()?;
+        assert!(!with_time.block_on(async { super::time_driver_missing() }));
+        Ok(())
+    }
+
+    #[test]
+    fn limit_on_a_runtime_without_a_time_driver_is_runtime_unavailable()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()?;
+
+        let result = runtime.block_on(super::within(Duration::from_secs(1), pending::<()>()));
+
+        let error = result
+            .err()
+            .ok_or("a limit without a time driver did not fail")?;
+        assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
+        Ok(())
+    }
 
     #[tokio::test(start_paused = true)]
     async fn within_returns_none_once_the_limit_passes() -> Result<(), Box<dyn std::error::Error>> {

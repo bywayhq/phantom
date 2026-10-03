@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     future::{Future, poll_fn},
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     task::Poll,
@@ -13,8 +12,6 @@ use crate::{
     source_binding::SourceBinding,
     tcp::ProfileTcpStream,
 };
-
-const TOKIO_IO_DISABLED_PANIC: &str = "A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.";
 
 #[derive(Debug)]
 pub(crate) struct RuntimeUnavailable;
@@ -266,7 +263,7 @@ where
 {
     let future = match catch_unwind(AssertUnwindSafe(operation)) {
         Ok(future) => future,
-        Err(payload) if is_io_disabled_panic(payload.as_ref()) => return Err(RuntimeUnavailable),
+        Err(_) if io_driver_missing() => return Err(RuntimeUnavailable),
         Err(payload) => resume_unwind(payload),
     };
     let mut future = std::pin::pin!(future);
@@ -275,22 +272,34 @@ where
         |context| match catch_unwind(AssertUnwindSafe(|| future.as_mut().poll(context))) {
             Ok(Poll::Ready(output)) => Poll::Ready(Ok(output)),
             Ok(Poll::Pending) => Poll::Pending,
-            Err(payload) if is_io_disabled_panic(payload.as_ref()) => {
-                Poll::Ready(Err(RuntimeUnavailable))
-            }
+            Err(_) if io_driver_missing() => Poll::Ready(Err(RuntimeUnavailable)),
             Err(payload) => resume_unwind(payload),
         },
     )
     .await
 }
 
-fn is_io_disabled_panic(payload: &(dyn Any + Send)) -> bool {
-    payload
-        .downcast_ref::<&str>()
-        .is_some_and(|message| *message == TOKIO_IO_DISABLED_PANIC)
-        || payload
-            .downcast_ref::<String>()
-            .is_some_and(|message| message == TOKIO_IO_DISABLED_PANIC)
+/// Whether the current context has no runtime with an I/O driver.
+///
+/// Called after an I/O operation panicked. Tokio has no query for its I/O
+/// driver, and registering a socket without one panics, so registering an
+/// unbound probe socket that panics as well attributes the first panic to the
+/// missing driver without relying on the wording of Tokio's panic message. A
+/// panic the probe does not repeat, or one the probe cannot check because no
+/// socket can be created, keeps unwinding. The probe socket is never bound or
+/// connected; an IPv6 one stands in on a host without IPv4.
+fn io_driver_missing() -> bool {
+    let socket = [socket2::Domain::IPV4, socket2::Domain::IPV6]
+        .into_iter()
+        .find_map(|domain| socket2::Socket::new(domain, socket2::Type::DGRAM, None).ok());
+    let Some(socket) = socket else {
+        return false;
+    };
+    if socket.set_nonblocking(true).is_err() {
+        return false;
+    }
+    let socket = std::net::UdpSocket::from(socket);
+    catch_unwind(AssertUnwindSafe(|| tokio::net::UdpSocket::from_std(socket))).is_err()
 }
 
 #[cfg(test)]
@@ -311,8 +320,22 @@ mod tests {
     }
 
     #[test]
-    fn unrelated_panics_resume_unwinding() -> Result<(), Box<dyn std::error::Error>> {
+    fn missing_io_driver_is_detected_whatever_the_panic_says()
+    -> Result<(), Box<dyn std::error::Error>> {
         let runtime = tokio::runtime::Builder::new_current_thread().build()?;
+        let result = runtime.block_on(poll_tokio_io(|| async {
+            panic!("the I/O driver is missing, in words a later Tokio might use");
+        }));
+
+        assert!(matches!(result, Err(RuntimeUnavailable)));
+        Ok(())
+    }
+
+    #[test]
+    fn unrelated_panics_resume_unwinding() -> Result<(), Box<dyn std::error::Error>> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()?;
         let result = catch_unwind(AssertUnwindSafe(|| {
             runtime.block_on(poll_tokio_io(|| async {
                 panic!("unrelated panic");
