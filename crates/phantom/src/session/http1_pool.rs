@@ -28,6 +28,7 @@ use tokio::{
 use tracing::debug;
 
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
+use super::prune_timer::{PruneTimer, PrunedEntry};
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
@@ -49,13 +50,15 @@ pub(crate) enum Http1ConnectionMode {
 /// `max_active` requests through and queues the rest in arrival order. It
 /// then takes the most recently used idle connection, claims the slower
 /// connection of a backup connection that has not finished its setup, or
-/// opens one. An idle connection past `used_idle_timeout` is closed
-/// instead.
+/// opens one. An idle connection past `used_idle_timeout` is closed instead,
+/// and the client's prune timer, when it has one, closes it between
+/// requests.
 pub(crate) struct Http1Pool {
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     used_idle_timeout: Option<Duration>,
+    prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -72,6 +75,7 @@ impl Http1Pool {
             max_active,
             max_pending,
             used_idle_timeout: None,
+            prune_timer: None,
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
@@ -85,9 +89,22 @@ impl Http1Pool {
         self
     }
 
+    /// Lets the client's prune timer close idle connections between
+    /// requests and end what each pool key remembers of an origin with no
+    /// connection.
+    pub(super) fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
+        self.prune_timer = timer;
+        self
+    }
+
     #[cfg(test)]
     pub(super) const fn used_idle_timeout(&self) -> Option<Duration> {
         self.used_idle_timeout
+    }
+
+    #[cfg(test)]
+    pub(super) const fn prune_timer(&self) -> Option<&Arc<PruneTimer>> {
+        self.prune_timer.as_ref()
     }
 
     /// Gives direct connections the client's HTTPS record lookups, for
@@ -351,7 +368,11 @@ impl Http1Pool {
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
             admission,
-            EntryConnections::new(self.max_active, self.used_idle_timeout),
+            EntryConnections::new(
+                self.max_active,
+                self.used_idle_timeout,
+                self.prune_timer.clone(),
+            ),
         );
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
@@ -807,6 +828,9 @@ struct EntryConnections {
     /// How long an idle connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
     used_idle_timeout: Option<Duration>,
+    /// The client's prune timer, when the profile closes idle connections
+    /// on one.
+    prune: Option<Arc<PruneTimer>>,
     /// The address family a backup connection to the origin tries first.
     family: AddressFamilyMemory,
     set: std::sync::Mutex<ConnectionSet>,
@@ -831,6 +855,10 @@ impl ConnectionSet {
             .filter(|spare| spare.progress.has_connected())
             .count();
         self.idle.len() + self.leased + connected_spares
+    }
+
+    fn is_empty(&self) -> bool {
+        self.idle.is_empty() && self.leased == 0 && self.spares.is_empty()
     }
 
     fn take_spare(&mut self, id: u64) -> Option<Spare> {
@@ -915,6 +943,11 @@ impl IdleConnection {
         self.connection.is_reusable()
             && used_idle_timeout.is_none_or(|timeout| self.since.elapsed() < timeout)
     }
+
+    /// How long the connection has been idle at `now`.
+    pub(super) fn idle_for(&self, now: Instant) -> Duration {
+        now.saturating_duration_since(self.since)
+    }
 }
 
 enum Checkout {
@@ -940,17 +973,34 @@ impl SpareClaim {
 }
 
 impl EntryConnections {
-    fn new(max: NonZeroUsize, used_idle_timeout: Option<Duration>) -> Arc<Self> {
-        Arc::new(Self {
+    fn new(
+        max: NonZeroUsize,
+        used_idle_timeout: Option<Duration>,
+        prune: Option<Arc<PruneTimer>>,
+    ) -> Arc<Self> {
+        let connections = Arc::new(Self {
             max,
             used_idle_timeout,
+            prune,
             family: AddressFamilyMemory::new(),
             set: std::sync::Mutex::new(ConnectionSet::default()),
-        })
+        });
+        if let Some(timer) = &connections.prune {
+            let entry: Arc<dyn PrunedEntry> = connections.clone();
+            timer.register(Arc::downgrade(&entry));
+        }
+        connections
     }
 
     fn lock(&self) -> MutexGuard<'_, ConnectionSet> {
         self.set.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Tells the prune timer that a connection became idle.
+    fn idle_added(&self) {
+        if let Some(timer) = &self.prune {
+            timer.idle_added(timer.limit());
+        }
     }
 
     /// Keeps the slower attempt of a backup connection, which finishes its
@@ -1017,6 +1067,7 @@ impl EntryConnections {
                 set.idle.push(IdleConnection::new(connection));
                 drop(set);
                 debug!(outcome = "kept", "HTTP/1 slower backup connection idle");
+                self.idle_added();
             }
         }
     }
@@ -1068,6 +1119,8 @@ impl EntryConnections {
         match connection {
             Some(connection) if connection.is_reusable() => {
                 set.idle.push(IdleConnection::new(connection));
+                drop(set);
+                self.idle_added();
             }
             _ => debug!(
                 outcome = "invalidated",
@@ -1079,6 +1132,23 @@ impl EntryConnections {
     #[cfg(test)]
     fn open(&self) -> usize {
         self.lock().open()
+    }
+}
+
+impl PrunedEntry for EntryConnections {
+    fn prune(&self, now: Instant, limit: Duration) -> Option<Duration> {
+        let mut set = self.lock();
+        set.idle
+            .retain(|idle| idle.connection.is_reusable() && idle.idle_for(now) < limit);
+        let next = set
+            .idle
+            .iter()
+            .map(|idle| limit.saturating_sub(idle.idle_for(now)))
+            .min();
+        if set.is_empty() {
+            self.family.forget();
+        }
+        next
     }
 }
 

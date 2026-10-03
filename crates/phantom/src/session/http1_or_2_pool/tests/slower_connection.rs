@@ -7,18 +7,21 @@ use phantom_net::{
     http1::Http1Connection,
     http1_or_2::Http1Or2Connection,
     http2::Http2Connection,
-    tcp::{SlowerConnection, SlowerProgress},
+    tcp::{AddressFamily, SlowerConnection, SlowerProgress},
 };
 use phantom_profile::{Http2Setting, firefox};
 use phantom_testkit::http2::{CLIENT_CONNECTION_PREFACE, CapturedFrame};
 use tokio::{
     io::{AsyncReadExt, DuplexStream, duplex},
     sync::oneshot,
-    time::timeout,
+    time::{Instant, timeout},
 };
 
 use super::{TestResult, bound, connections, current_token, http1, http2, reserve};
-use crate::session::http1_or_2_pool::{Acquired, BeforeAdmission, Checkout, EntryConnections};
+use crate::session::{
+    http1_or_2_pool::{Acquired, BeforeAdmission, Checkout, EntryConnections},
+    prune_timer::PrunedEntry,
+};
 
 const WAIT: Duration = Duration::from_secs(5);
 
@@ -270,5 +273,39 @@ async fn a_failed_slower_connection_lets_its_claimant_open_a_connection() -> Tes
 
     assert!(timeout(WAIT, claim.wait()).await?.is_none());
     reserve(&connections)?;
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_prune_keeps_the_family_of_a_key_with_an_http2_connection() -> TestResult {
+    let limit = Duration::from_secs(115);
+    let connections = connections(bound(6)?)?;
+    connections.family.remember(AddressFamily::Ipv4);
+    let (connection, _peer) = http2().await?;
+    let Acquired::Http2 = reserve(&connections)?.finish(connection) else {
+        return Err("an H2 connection was not leased as H2".into());
+    };
+
+    assert_eq!(connections.prune(Instant::now(), limit), None);
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_prune_closes_expired_idle_http1_connections_and_forgets_the_family() -> TestResult {
+    let limit = Duration::from_secs(115);
+    let connections = connections(bound(6)?)?;
+    connections.family.remember(AddressFamily::Ipv6);
+    let (connection, _peer) = http1().await?;
+    drop(reserve(&connections)?.finish(connection));
+    assert_eq!(connections.counts(), (1, 0, 0));
+
+    assert_eq!(connections.prune(Instant::now(), limit), Some(limit));
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv6));
+
+    tokio::time::advance(limit).await;
+    assert_eq!(connections.prune(Instant::now(), limit), None);
+    assert_eq!(connections.counts(), (0, 0, 0));
+    assert_eq!(connections.family.family(), None);
     Ok(())
 }

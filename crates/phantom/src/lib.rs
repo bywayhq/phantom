@@ -243,7 +243,7 @@ pub mod profile {
         Http2TableSizeUpdates, Http2UnindexedMatch, Http3ClientSettings, Http3CookieCrumbs,
         Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
         Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder,
-        Http3Settings, InvalidClientHintSettings, InvalidHttp2Settings,
+        Http3Settings, InvalidClientHintSettings, InvalidHttp1Settings, InvalidHttp2Settings,
         InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProxyConnectTemplate,
         InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
         NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate,

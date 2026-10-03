@@ -1,6 +1,10 @@
 //! HTTP/1.1 connection policy a client applies to each origin and route.
 
-use std::{num::NonZeroUsize, time::Duration};
+use std::{error::Error, fmt, num::NonZeroUsize, time::Duration};
+
+/// The longest idle limit [`Http1IdleTimeout::ClosedOnTimer`] accepts, in
+/// seconds; see [`Http1Settings::validate`].
+const MAX_HTTP1_TIMER_IDLE_SECONDS: u64 = 0xffff;
 
 /// How many HTTP/1.1 connections a client keeps to one origin and route, and
 /// when an idle one stops being reused.
@@ -19,17 +23,43 @@ pub struct Http1Settings {
     pub idle_timeout: Http1IdleTimeout,
 }
 
-/// When an idle HTTP/1.1 connection, one that has carried a request and now
-/// carries none, stops being reused.
+impl Http1Settings {
+    /// Validates the settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidHttp1Settings`] when a
+    /// [`Http1IdleTimeout::ClosedOnTimer`] limit is longer than 65,535
+    /// seconds, the most Firefox takes for `network.http.keep-alive.timeout`
+    /// (`netwerk/protocol/http/nsHttpHandler.cpp:1352-1356` at tag
+    /// `FIREFOX_157_0_RELEASE`).
+    pub fn validate(&self) -> Result<(), InvalidHttp1Settings> {
+        match self.idle_timeout {
+            Http1IdleTimeout::ClosedOnTimer(limit)
+                if limit > Duration::from_secs(MAX_HTTP1_TIMER_IDLE_SECONDS) =>
+            {
+                Err(InvalidHttp1Settings {
+                    field: "idle_timeout",
+                    message: "a timer's idle limit must be at most 65535 seconds",
+                })
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
+/// When an idle HTTP/1.1 connection, one that carries no request, stops being
+/// reused.
 ///
-/// A connection joins the idle list only after it has carried a request, so
-/// every variant applies to what Chromium calls a used idle socket.
+/// A connection joins the idle list after it has carried a request, what
+/// Chromium calls a used idle socket, or, for the slower attempt of a
+/// [`TcpBackupConnection`](crate::tcp::TcpBackupConnection), once it has
+/// connected and finished any TLS handshake. Its idle time counts from then.
 ///
 /// Browsers apply their limits differently. Chromium checks its limit only
 /// when a request reaches the pool, which [`Self::CheckedOnRequest`] models.
 /// Firefox also closes an idle connection on a timer once its limit passes,
-/// whether or not a request comes; no variant models that yet, so the enum is
-/// non-exhaustive.
+/// whether or not a request comes, which [`Self::ClosedOnTimer`] models.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http1IdleTimeout {
@@ -44,18 +74,77 @@ pub enum Http1IdleTimeout {
     /// Nothing closes an idle connection between requests, and
     /// `CheckedOnRequest(Duration::ZERO)` never reuses one.
     CheckedOnRequest(Duration),
+    /// Close an idle connection once it has been idle this long, checked
+    /// when a request arrives and by a timer, as Firefox's connection manager
+    /// prunes its idle connections.
+    ///
+    /// One timer serves all of a client's HTTP/1.1 connections, those of
+    /// negotiated requests included. It is set when a connection becomes
+    /// idle, for the time that connection has left in whole seconds, at least
+    /// one, unless it is already set to fire sooner. When it fires it closes
+    /// every idle connection idle at least this long and is set again for the
+    /// connection that expires next, if any. A connection therefore closes
+    /// within a second after its limit, as Firefox's does
+    /// (`nsHttpConnection::TimeToLive`,
+    /// `netwerk/protocol/http/nsHttpConnection.cpp:1009-1025`;
+    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258-271`, `:2572-2625`,
+    /// `:4075-4084` at tag `FIREFOX_157_0_RELEASE`). The same timer ends what
+    /// a [`TcpBackupConnection`](crate::tcp::TcpBackupConnection) remembers
+    /// of an origin with no connection left.
+    ///
+    /// `ClosedOnTimer(Duration::ZERO)` never reuses an idle connection, and
+    /// [`Http1Settings::validate`] rejects a limit over 65,535 seconds.
+    ClosedOnTimer(Duration),
 }
 
 impl Http1IdleTimeout {
     /// Returns the limit checked when a request arrives, if any.
+    ///
+    /// [`Self::ClosedOnTimer`] is checked then as well.
     #[must_use]
     pub const fn checked_on_request(self) -> Option<Duration> {
         match self {
             Self::Unlimited => None,
-            Self::CheckedOnRequest(timeout) => Some(timeout),
+            Self::CheckedOnRequest(timeout) | Self::ClosedOnTimer(timeout) => Some(timeout),
+        }
+    }
+
+    /// Returns the limit a timer enforces between requests, if any.
+    #[must_use]
+    pub const fn closed_on_timer(self) -> Option<Duration> {
+        match self {
+            Self::Unlimited | Self::CheckedOnRequest(_) => None,
+            Self::ClosedOnTimer(timeout) => Some(timeout),
         }
     }
 }
+
+/// Error returned when HTTP/1.1 profile settings cannot be applied as written.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidHttp1Settings {
+    field: &'static str,
+    message: &'static str,
+}
+
+impl InvalidHttp1Settings {
+    /// Returns the invalid setting's field name.
+    #[must_use]
+    pub fn field(&self) -> &'static str {
+        self.field
+    }
+}
+
+impl fmt::Display for InvalidHttp1Settings {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid HTTP/1.1 {}: {}",
+            self.field, self.message
+        )
+    }
+}
+
+impl Error for InvalidHttp1Settings {}
 
 #[cfg(test)]
 mod tests;

@@ -1,17 +1,26 @@
-//! The slower connection of a backup connection, which a pool key keeps.
+//! The slower connection of a backup connection, which a pool key keeps,
+//! and the prune timer's closing of idle connections.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use phantom_net::{
     http1::Http1Connection,
-    tcp::{SlowerConnection, SlowerProgress},
+    tcp::{AddressFamily, SlowerConnection, SlowerProgress},
 };
-use tokio::{sync::oneshot, time::timeout};
+use tokio::{
+    sync::oneshot,
+    time::{Instant, timeout},
+};
 
 use super::{TestResult, bound, connection, connections};
-use crate::session::http1_pool::{Checkout, EntryConnections};
+use crate::session::{
+    http1_pool::{Checkout, EntryConnections, Http1ConnectionMode, Http1Pool, PoolKey},
+    prune_timer::{PruneTimer, PrunedEntry},
+};
+use crate::{Route, authority::Endpoint};
 
 const WAIT: Duration = Duration::from_secs(5);
+const LIMIT: Duration = Duration::from_secs(115);
 
 /// A slower connection whose setup ends with the outcome the test sends.
 fn gated() -> (
@@ -150,5 +159,95 @@ async fn a_fresh_connection_request_skips_the_slower_connection() -> TestResult 
     let Checkout::Reserved(_reservation) = connections.checkout(true) else {
         return Err("a fresh-connection request took the slower connection".into());
     };
+    Ok(())
+}
+
+fn timed(timer: &Arc<PruneTimer>) -> Result<Arc<EntryConnections>, Box<dyn std::error::Error>> {
+    Ok(EntryConnections::new(
+        bound(6)?,
+        Some(timer.limit()),
+        Some(Arc::clone(timer)),
+    ))
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_prune_closes_a_connection_idle_for_the_limit() -> TestResult {
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let connections = timed(&timer)?;
+    let (connection, _peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("an empty key leased a connection".into());
+    };
+    let start = Instant::now();
+    drop(reservation.into_lease(connection));
+    assert_eq!(timer.wake_at(), Some(start + LIMIT));
+
+    tokio::time::advance(LIMIT - Duration::from_millis(500)).await;
+    let left = connections.prune(Instant::now(), LIMIT);
+    assert_eq!(left, Some(Duration::from_millis(500)));
+    assert_eq!(connections.lock().idle.len(), 1);
+
+    tokio::time::advance(Duration::from_millis(500)).await;
+    assert_eq!(connections.prune(Instant::now(), LIMIT), None);
+    assert!(connections.lock().idle.is_empty());
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_prune_forgets_the_family_only_of_a_key_without_connections() -> TestResult {
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let connections = timed(&timer)?;
+    connections.family.remember(AddressFamily::Ipv4);
+    let (connection, _peer) = connection().await?;
+    let Checkout::Reserved(reservation) = connections.checkout(false) else {
+        return Err("an empty key leased a connection".into());
+    };
+    let lease = reservation.into_lease(connection);
+
+    connections.prune(Instant::now(), LIMIT);
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
+
+    drop(lease);
+    connections.prune(Instant::now(), LIMIT);
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
+
+    tokio::time::advance(LIMIT).await;
+    connections.prune(Instant::now(), LIMIT);
+    assert_eq!(connections.family.family(), None);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_key_with_a_slower_attempt_keeps_its_family() -> TestResult {
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let connections = timed(&timer)?;
+    connections.family.remember(AddressFamily::Ipv6);
+    let (slower, _progress, _finish) = gated();
+    connections.adopt(slower);
+
+    connections.prune(Instant::now(), LIMIT);
+
+    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv6));
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_client_timer_prunes_every_pool_entry() -> TestResult {
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let one = std::num::NonZeroUsize::MIN;
+    let pool = Http1Pool::new(one, one, one).with_prune_timer(Some(Arc::clone(&timer)));
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let entry = pool
+        .entry(PoolKey::new(
+            &origin,
+            &Route::Direct,
+            Http1ConnectionMode::TlsOrigin,
+        ))
+        .await;
+    entry.connections.family.remember(AddressFamily::Ipv4);
+
+    timer.fire();
+
+    assert_eq!(entry.connections.family.family(), None);
     Ok(())
 }

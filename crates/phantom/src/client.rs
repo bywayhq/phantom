@@ -134,6 +134,8 @@ pub(crate) struct ClientInner {
     pub(crate) http1_connections_per_origin: NonZeroUsize,
     /// How long the profile reuses an idle HTTP/1.1 connection.
     pub(crate) http1_used_idle_timeout: Option<Duration>,
+    /// The idle limit the profile also enforces on a timer between requests.
+    pub(crate) http1_idle_timer: Option<Duration>,
     /// Profile position of the jar's `Cookie` field.
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
@@ -1498,8 +1500,8 @@ impl ClientBuilder {
     /// Returns a [`BuildError`] whose [`BuildError::kind`] is:
     ///
     /// - [`InvalidProfile`](crate::BuildErrorKind::InvalidProfile) when the
-    ///   TLS, TCP, client-hint, WebSocket, HTTP/2, or HTTP/3 settings are
-    ///   invalid, or this host cannot apply the TCP settings;
+    ///   TLS, TCP, HTTP/1.1, client-hint, WebSocket, HTTP/2, or HTTP/3
+    ///   settings are invalid, or this host cannot apply the TCP settings;
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
     ///   delay or setup limit exceeds the runtime clock range;
@@ -1556,6 +1558,11 @@ impl ClientBuilder {
             tcp.validate().map_err(BuildError::invalid_tcp_profile)?;
             phantom_net::tcp::check_host_support(tcp)
                 .map_err(BuildError::unsupported_tcp_profile)?;
+        }
+        if let Some(http1) = self.profile.http1() {
+            http1
+                .validate()
+                .map_err(BuildError::invalid_http1_profile)?;
         }
         if let Some(client_hints) = self.profile.client_hints() {
             client_hints
@@ -1829,6 +1836,10 @@ impl ClientBuilder {
                 .profile
                 .http1()
                 .and_then(|http1| http1.idle_timeout.checked_on_request()),
+            http1_idle_timer: self
+                .profile
+                .http1()
+                .and_then(|http1| http1.idle_timeout.closed_on_timer()),
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
@@ -1977,7 +1988,8 @@ mod tests {
     use std::time::Duration;
 
     use phantom_profile::{
-        ClientProfile, Http3ClientSettings, TcpKeepalive, TcpKeepalivePolicy, chromium,
+        ClientProfile, Http1IdleTimeout, Http3ClientSettings, TcpKeepalive, TcpKeepalivePolicy,
+        chromium, firefox,
     };
 
     use super::{Client, HttpProtocol};
@@ -2198,6 +2210,20 @@ mod tests {
             .build()
             .err()
             .ok_or("a zero keepalive idle time was accepted")?;
+
+        assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        Ok(())
+    }
+
+    #[test]
+    fn a_timer_idle_limit_beyond_firefox_range_is_an_invalid_profile() -> Result<(), &'static str> {
+        let mut http1 = firefox::v157_http1();
+        http1.idle_timeout = Http1IdleTimeout::ClosedOnTimer(Duration::MAX);
+        let profile = ClientProfile::new(firefox::v157_tls()).with_http1(http1);
+        let error = Client::builder(profile)
+            .build()
+            .err()
+            .ok_or("an idle limit of Duration::MAX was accepted")?;
 
         assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
         Ok(())

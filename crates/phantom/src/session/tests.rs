@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize, time::Duration};
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use phantom_profile::{ClientProfile, Http3ClientSettings, TlsSettings, chromium};
 
@@ -44,9 +44,14 @@ fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn st
     let chromium_client =
         Client::builder(profile(chromium::v154_http3_tls()).with_http1(chromium::v154_http1()))
             .build()?;
-    let firefox = Client::builder(
-        profile(chromium::v154_http3_tls()).with_http1(phantom_profile::firefox::v157_http1()),
-    )
+    let firefox = Client::builder(profile(chromium::v154_http3_tls()).with_http1(
+        phantom_profile::Http1Settings {
+            max_connections_per_origin: nonzero(6),
+            idle_timeout: phantom_profile::Http1IdleTimeout::ClosedOnTimer(Duration::from_secs(
+                115,
+            )),
+        },
+    ))
     .build()?;
 
     let timeout = Some(Duration::from_secs(300));
@@ -55,8 +60,21 @@ fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn st
         chromium_client.state.http1_or_2.http1_used_idle_timeout(),
         timeout
     );
-    assert_eq!(firefox.state.http1.used_idle_timeout(), None);
-    assert_eq!(firefox.state.http1_or_2.http1_used_idle_timeout(), None);
+    assert!(chromium_client.state.http1.prune_timer().is_none());
+    assert!(chromium_client.state.http1_or_2.prune_timer().is_none());
+
+    let timeout = Some(Duration::from_secs(115));
+    assert_eq!(firefox.state.http1.used_idle_timeout(), timeout);
+    assert_eq!(firefox.state.http1_or_2.http1_used_idle_timeout(), timeout);
+    // One timer closes the idle connections of both pools.
+    let exact = firefox.state.http1.prune_timer().ok_or("no exact timer")?;
+    let negotiated = firefox
+        .state
+        .http1_or_2
+        .prune_timer()
+        .ok_or("no negotiated timer")?;
+    assert!(Arc::ptr_eq(exact, negotiated));
+    assert_eq!(exact.limit(), Duration::from_secs(115));
     Ok(())
 }
 

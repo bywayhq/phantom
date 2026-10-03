@@ -22,7 +22,7 @@ fn timed_connections(
     max: NonZeroUsize,
     used_idle_timeout: Option<Duration>,
 ) -> Arc<EntryConnections> {
-    EntryConnections::new(max, used_idle_timeout)
+    EntryConnections::new(max, used_idle_timeout, None)
 }
 
 /// Opens an HTTP/1.1 connection over an in-memory stream.

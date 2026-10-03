@@ -1,6 +1,6 @@
 //! Runtime-neutral deadlines for protocol-driver shutdown, TCP attempt
-//! fallback, HTTP/2 PING timeouts, the TCP keepalive schedule, and the wait
-//! for an HTTPS record.
+//! fallback, HTTP/2 PING timeouts, the TCP keepalive schedule, the wait for
+//! an HTTPS record, and the facade's idle-connection timer.
 //!
 //! The deadlines run on a Tokio runtime of their own, on one thread for the
 //! life of the process, so they need no timer from the caller's runtime. That
@@ -23,6 +23,24 @@ static SERVICE: OnceLock<Option<Handle>> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ScheduleError;
+
+/// Completes once `delay` has passed, timed by Phantom's deadline service
+/// rather than the caller's runtime, which may run without a time driver.
+///
+/// Returns `None` when the service cannot start or the deadline cannot be
+/// represented.
+///
+/// This is a seam for the facade's idle-connection timer, not supported
+/// API.
+#[doc(hidden)]
+pub fn deadline(delay: Duration) -> Option<impl std::future::Future<Output = ()> + Send + 'static> {
+    let receiver = after(delay).ok()?;
+    // The service never drops a pending deadline, so an error counts as the
+    // deadline too.
+    Some(async move {
+        let _ = receiver.await;
+    })
+}
 
 pub(crate) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleError> {
     let service = SERVICE

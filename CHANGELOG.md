@@ -766,12 +766,25 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `Http1IdleTimeout::ClosedOnTimer(duration)` closes an idle HTTP/1.1
+  connection once it has been idle that long, checked when a request
+  arrives and by one timer per client, as Firefox's connection manager
+  prunes idle connections. The timer is set for the whole seconds the next
+  connection to expire has left, at least one, so a connection closes
+  within a second after its limit, in the exact HTTP/1.1 and the
+  negotiated pools alike. The same timer ends what a pool key remembers of
+  an origin's address family once the key has no connection.
+  `Http1IdleTimeout::closed_on_timer` returns the limit.
+  `Http1Settings::validate` rejects a timer's limit over 65,535 seconds,
+  the most Firefox takes, with the new `InvalidHttp1Settings`, and
+  `ClientBuilder::build` reports it as `BuildErrorKind::InvalidProfile`.
 - `phantom-net` gains hidden seams for the facade's pools, which are not
   supported API: `tcp::AddressFamily`, `tcp::AddressFamilyMemory`,
   `tcp::SlowerConnection`, and `tcp::SlowerProgress`;
   `Http1TlsConnector::connect_direct_keeping_slower`,
   `Http1TlsConnector::connect_plaintext_direct_keeping_slower`, and
-  `Http1Or2TlsConnector::connect_direct_keeping_slower`.
+  `Http1Or2TlsConnector::connect_direct_keeping_slower`; and `deadline`, a
+  runtime-neutral timer.
 - With the `https-records` feature, `AddressResolver::system_nameservers`
   and `AddressResolver::with_nameservers` resolve names with Phantom's own
   A and AAAA queries, as Chromium 154's built-in DNS client does:

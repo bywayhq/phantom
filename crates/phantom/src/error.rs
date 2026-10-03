@@ -13,8 +13,8 @@ use phantom_net::{
     tcp::UnsupportedTcpSettings,
 };
 use phantom_profile::{
-    InvalidClientHintSettings, InvalidProxyConnectTemplate, InvalidTcpSettings, InvalidTlsSettings,
-    InvalidWebSocketSettings,
+    InvalidClientHintSettings, InvalidHttp1Settings, InvalidProxyConnectTemplate,
+    InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
 };
 
 use crate::{HttpProtocol, TimeoutPhase};
@@ -86,6 +86,14 @@ impl BuildError {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
             "invalid TCP profile",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_http1_profile(source: InvalidHttp1Settings) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidProfile,
+            "invalid HTTP/1.1 profile",
             source,
         )
     }
