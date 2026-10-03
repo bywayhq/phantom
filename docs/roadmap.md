@@ -356,9 +356,15 @@ the wire, capture evidence.
 ## Phase 2: Ergonomics
 
 Phase 2 settles the public API before the first release, so it starts with
-the two structural changes that would otherwise break published crates. Both
-wait for Phase 1, so they cover every route and setting it adds.
+the structural changes that would otherwise break published crates. They
+wait for Phase 1, so they cover every route and setting it adds. A lint
+baseline comes first, so the lints guide the refactor rather than follow it.
 
+- A workspace lint baseline: `missing_debug_implementations`,
+  `rust_2018_idioms`, a chosen subset of `clippy::pedantic` (such as
+  `must_use_candidate`, `needless_pass_by_value`, `doc_markdown`, and the
+  `cast_*` lints), and `clippy::cargo` for the release. Each lint is fixed
+  across the workspace before it is turned on.
 - Replace the route-specific public methods of `phantom-net` (about 100,
   such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with one
   connect, send, and upgrade operation per protocol that takes a route value,
@@ -373,6 +379,18 @@ wait for Phase 1, so they cover every route and setting it adds.
   module beside the protocol settings modules, with one naming rule for
   Chrome and Chromium (today `chromium` holds the Chrome desktop recipes and
   `chrome_android` the Android ones).
+- Check every public type against the
+  [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html):
+  common traits derived where they make sense, `Send` and `Sync` asserted in
+  tests, `as_`, `to_`, and `into_` naming, consistent builders, `# Errors` and
+  `# Panics` sections, an example on each public item, and `#[must_use]`
+  where dropping a value is a bug.
+- Public errors with a stable `kind()`, a `source()` chain, and lowercase
+  messages without trailing punctuation; enums or newtypes in place of
+  strings a caller would match on.
+- Named types in place of bare primitives and nested collections in public
+  settings where the meaning is not obvious, such as the
+  `Vec<Vec<Box<[u8]>>>` of trust-anchor orders.
 - Composed per-browser profile constructors, such as `chromium::v154()`, so
   a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
 - Error triage over `kind()`, a public replay-safety accessor, and the
@@ -469,8 +487,18 @@ not carry its renames. Until then, depend on a pinned git revision
 
 - Audit the workspace for readable, idiomatic Rust once functionality and
   measured optimization have settled the real boundaries: naming, module
-  ownership, seams, and file layout. It changes no public API; the two
+  ownership, seams, and file layout. It changes no public API; the
   structural changes that do open [Phase 2](#phase-2-ergonomics).
+- A readability pass by a human reviewer for code that passes the lints but
+  reads as generated: over-parameterized helpers, deeply nested `match`
+  blocks, defensive branches for states that cannot occur, and names that
+  spell out a whole call path.
+- Comment density brought toward peer crates: inline comments are about
+  1.5% of lines, where hyper, quinn, and rustls carry 4.7 to 8.2%, so the
+  dense protocol code needs more invariant comments while recipe rustdoc
+  needs less capture history.
+- Test files split by behavior where they pass about 1,500 lines, and
+  table-driven tests where cases differ only by data.
 - Decide retry, replay, and early-data handling from typed fields set where an
   error is created, instead of downcasting error chains to `phantom-net`
   types.
