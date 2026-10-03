@@ -735,6 +735,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   sockets with a profile's `UdpSettings`, and `udp_settings` returns them.
   A client replaces them with its profile's settings when the profile has
   some.
+- `phantom::profile::firefox` re-exports `v157_http3_tls`, `v157_quic`,
+  `v157_http3`, and `v157_http3_request`, so a crate that depends only on
+  `phantom` can build a Firefox 157 profile with HTTP/3.
 - `ClientHelloExtensionOrder::PermutedWithTail` shuffles a ClientHello's
   extensions per connection and then writes the listed ones last, before
   only `padding` and `pre_shared_key`, and

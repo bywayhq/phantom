@@ -263,12 +263,28 @@ pub mod profile {
     }
 
     /// Firefox recipes implemented by the public facade.
+    ///
+    /// The HTTP/3 recipes build a Firefox 157 profile that can use HTTP/3:
+    ///
+    /// ```
+    /// use phantom::profile::{ClientProfile, Http3ClientSettings, firefox};
+    ///
+    /// let profile = ClientProfile::new(firefox::v157_tls())
+    ///     .with_http2(firefox::v157_http2())
+    ///     .with_http3(Http3ClientSettings::new(
+    ///         firefox::v157_http3_tls(),
+    ///         firefox::v157_quic(),
+    ///         firefox::v157_http3(),
+    ///         firefox::v157_http3_request(),
+    ///     ));
+    /// assert!(profile.http3().is_some());
+    /// ```
     pub mod firefox {
         pub use phantom_profile::firefox::{
             v156_macos_fetch_no_store_template, v156_macos_navigation_template,
-            v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_proxy_connect,
-            v157_tcp, v157_tls, v157_websocket, v157_windows_fetch_no_store_template,
-            v157_windows_navigation_template,
+            v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_http3,
+            v157_http3_request, v157_http3_tls, v157_proxy_connect, v157_quic, v157_tcp, v157_tls,
+            v157_websocket, v157_windows_fetch_no_store_template, v157_windows_navigation_template,
         };
     }
 
