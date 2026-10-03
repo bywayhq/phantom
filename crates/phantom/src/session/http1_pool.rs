@@ -27,8 +27,9 @@ use tokio::{
 };
 use tracing::debug;
 
+use super::address_families::AddressFamilies;
 use super::admission::{Admission, AdmissionPermit, AdmissionRegistry};
-use super::prune_timer::{PruneTimer, PrunedEntry};
+use super::prune_timer::{PruneTimer, Pruned, PrunedEntry};
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
 use crate::{
     HttpProtocol, RequestError, ResponseBody, Route,
@@ -90,8 +91,8 @@ impl Http1Pool {
     }
 
     /// Lets the client's prune timer close idle connections between
-    /// requests and end what each pool key remembers of an origin with no
-    /// connection.
+    /// requests and forget an origin's address family once none of its keys
+    /// has a connection.
     pub(super) fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
         self.prune_timer = timer;
         self
@@ -365,6 +366,7 @@ impl Http1Pool {
         let admission = state
             .admissions
             .get(&key.origin(), self.max_active, self.max_pending);
+        let family = state.families.get(&key.origin());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
             admission,
@@ -372,6 +374,7 @@ impl Http1Pool {
                 self.max_active,
                 self.used_idle_timeout,
                 self.prune_timer.clone(),
+                family,
             ),
         );
         // HTTPS records are looked up on the direct route only: Chromium sends
@@ -487,6 +490,7 @@ fn has_close_token(headers: &HeaderMap) -> bool {
 struct PoolState {
     entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
     admissions: AdmissionRegistry<PoolKey>,
+    families: AddressFamilies<PoolKey>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -831,8 +835,9 @@ struct EntryConnections {
     /// The client's prune timer, when the profile closes idle connections
     /// on one.
     prune: Option<Arc<PruneTimer>>,
-    /// The address family a backup connection to the origin tries first.
-    family: AddressFamilyMemory,
+    /// The address family a backup connection to the origin tries first,
+    /// shared with the origin's keys on other runtimes.
+    family: Arc<AddressFamilyMemory>,
     set: std::sync::Mutex<ConnectionSet>,
 }
 
@@ -977,12 +982,13 @@ impl EntryConnections {
         max: NonZeroUsize,
         used_idle_timeout: Option<Duration>,
         prune: Option<Arc<PruneTimer>>,
+        family: Arc<AddressFamilyMemory>,
     ) -> Arc<Self> {
         let connections = Arc::new(Self {
             max,
             used_idle_timeout,
             prune,
-            family: AddressFamilyMemory::new(),
+            family,
             set: std::sync::Mutex::new(ConnectionSet::default()),
         });
         if let Some(timer) = &connections.prune {
@@ -1136,7 +1142,7 @@ impl EntryConnections {
 }
 
 impl PrunedEntry for EntryConnections {
-    fn prune(&self, now: Instant, limit: Duration) -> Option<Duration> {
+    fn prune(&self, now: Instant, limit: Duration) -> Pruned {
         let mut set = self.lock();
         set.idle
             .retain(|idle| idle.connection.is_reusable() && idle.idle_for(now) < limit);
@@ -1145,10 +1151,14 @@ impl PrunedEntry for EntryConnections {
             .iter()
             .map(|idle| limit.saturating_sub(idle.idle_for(now)))
             .min();
-        if set.is_empty() {
-            self.family.forget();
+        Pruned {
+            next,
+            empty: set.is_empty(),
         }
-        next
+    }
+
+    fn address_family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.family
     }
 }
 

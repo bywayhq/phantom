@@ -6,6 +6,7 @@ use crate::{
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
+mod address_families;
 mod admission;
 pub(crate) mod alt_svc;
 pub(crate) mod client_hints;

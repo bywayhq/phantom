@@ -1953,14 +1953,16 @@ Differences from the browsers:
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
   it as soon as the first connection takes its request.
-- Phantom's memory of an origin's address family lasts as long as the pool
-  entry, until a prune of the client's timer finds the entry with no
-  connection, setup, or slower attempt. Firefox drops it with the
-  connection entry at the same kind of prune, but it notices a server's
-  close of an idle connection at once and stops its timer when no
-  connection is left, where Phantom notices the close only when the timer
-  fires; so Phantom may forget a family sooner. The HTTP/1.1 and negotiated
-  pools of one client, and an evicted pool entry, keep separate memories.
+- Phantom keeps one memory of an origin's address family per pool for the
+  origin and route, shared by the origin's pool entries on every runtime,
+  as per-origin admission is. A prune of the client's timer forgets it when
+  none of those entries has a connection, setup, or slower attempt left.
+  Firefox drops it with the connection entry at the same kind of prune,
+  but it notices a server's close of an idle connection at once and stops
+  its timer when no connection is left, where Phantom notices the close
+  only when the timer fires; so Phantom may forget a family sooner. The
+  HTTP/1.1 and negotiated pools of one client keep separate memories, and
+  a memory ends when the pool has evicted every entry that held it.
   ([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
 
 Tests in `phantom-net` read the options back from connected sockets with
@@ -2213,7 +2215,17 @@ one 115-second prune timer. On a paused clock,
 for its whole seconds, at least one, that only a sooner expiry moves it, and
 that firing prunes every pool key and sets it again for the soonest expiry
 left; `the_prune_closes_a_connection_idle_for_the_limit` closes a connection
-at 115 s and not 0.5 s before.
+at 115 s and not 0.5 s before; and
+`a_family_is_forgotten_only_when_every_runtime_key_of_its_origin_is_empty`
+keeps an origin's address family while any runtime's key for it is in use.
+On the wall clock with a one-second limit,
+`the_timer_fires_after_the_runtime_that_set_it_is_dropped` and
+`an_idle_connection_closes_after_the_runtime_that_set_the_timer_is_gone`
+show that the timer, which runs on the deadline service, outlives the
+runtime that set it and closes another runtime's idle connection, and
+`a_slower_connection_stays_with_its_runtime_and_the_origin_state_is_shared`
+shows that a slower connection counts only toward the key of the runtime
+that opened it, while admission and the address family stay per origin.
 
 Loopback tests in `crates/phantom/tests/sessions/negotiated_parallel.rs`:
 

@@ -792,19 +792,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   prunes idle connections. The timer is set for the whole seconds the next
   connection to expire has left, at least one, so a connection closes
   within a second after its limit, in the exact HTTP/1.1 and the
-  negotiated pools alike. The same timer ends what a pool key remembers of
-  an origin's address family once the key has no connection.
-  `Http1IdleTimeout::closed_on_timer` returns the limit.
-  `Http1Settings::validate` rejects a timer's limit over 65,535 seconds,
-  the most Firefox takes, with the new `InvalidHttp1Settings`, and
+  negotiated pools alike. The same timer forgets an origin's address
+  family once none of the origin's pool keys, on any runtime, has a
+  connection left. It waits and runs on Phantom's deadline service, so it
+  keeps closing idle connections on every runtime after the runtime that
+  set it is dropped. `Http1IdleTimeout::closed_on_timer` returns the
+  limit. `Http1Settings::validate` rejects a timer's limit over 65,535
+  seconds, the most Firefox takes, with the new `InvalidHttp1Settings`, and
   `ClientBuilder::build` reports it as `BuildErrorKind::InvalidProfile`.
 - `phantom-net` gains hidden seams for the facade's pools, which are not
   supported API: `tcp::AddressFamily`, `tcp::AddressFamilyMemory`,
   `tcp::SlowerConnection`, and `tcp::SlowerProgress`;
   `Http1TlsConnector::connect_direct_keeping_slower`,
   `Http1TlsConnector::connect_plaintext_direct_keeping_slower`, and
-  `Http1Or2TlsConnector::connect_direct_keeping_slower`; and `deadline`, a
-  runtime-neutral timer.
+  `Http1Or2TlsConnector::connect_direct_keeping_slower`; and `run_after`,
+  which runs a task on the deadline service after a delay.
 - With the `https-records` feature, `AddressResolver::system_nameservers`
   and `AddressResolver::with_nameservers` resolve names with Phantom's own
   A and AAAA queries, as Chromium 154's built-in DNS client does:
@@ -1446,14 +1448,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 ### Changed
 
 - On the direct route the exact HTTP/1.1 pool keeps the slower attempt of a
-  `TcpBackupConnection` without a request: it counts toward the origin's
-  connection bound once it connects, finishes any TLS handshake the way a
-  request's connection does, and waits idle, and a request that finds no
-  idle connection claims it instead of opening one. Each pool key remembers
-  the address family of its first successful connection for later
-  connections. The key keeps every slower connection whatever its count, as
-  Firefox does, so each backup connection in flight can add one connection
-  beyond the bound. The negotiated pool does the same for a slower
+  `TcpBackupConnection` without a request: it stays with the pool key of
+  the runtime that opened it, counts toward that key's connection bound
+  once it connects, finishes any TLS handshake the way a request's
+  connection does, and waits idle, and a request that finds no idle
+  connection claims it instead of opening one. The pool keys of one origin
+  and route on every runtime share one memory of the address family of
+  their first successful connection for later connections. The key keeps
+  every slower connection whatever its count, as Firefox does, so each
+  backup connection whose slower attempt is in flight can add one
+  connection beyond the bound. The negotiated pool does the same for a slower
   connection that selects HTTP/1.1 while the key has no HTTP/2 connection.
   When the first connection selects HTTP/2, a slower attempt that has not
   connected is closed, and one that has finishes its handshake and is

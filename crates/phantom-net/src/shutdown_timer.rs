@@ -1,6 +1,7 @@
 //! Runtime-neutral deadlines for protocol-driver shutdown, TCP attempt
 //! fallback, HTTP/2 PING timeouts, the TCP keepalive schedule, the wait for
-//! an HTTPS record, and the facade's idle-connection timer.
+//! an HTTPS record, and the facade's idle-connection timer, which also runs
+//! its work there.
 //!
 //! The deadlines run on a Tokio runtime of their own, on one thread for the
 //! life of the process, so they need no timer from the caller's runtime. That
@@ -24,22 +25,28 @@ static SERVICE: OnceLock<Option<Handle>> = OnceLock::new();
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ScheduleError;
 
-/// Completes once `delay` has passed, timed by Phantom's deadline service
-/// rather than the caller's runtime, which may run without a time driver.
+/// Runs `task` on Phantom's deadline service once `delay` has passed, unless
+/// the returned handle aborts it first.
 ///
-/// Returns `None` when the service cannot start or the deadline cannot be
-/// represented.
+/// The task runs on the service's own thread, so it needs neither a time
+/// driver in the caller's runtime nor that runtime to outlive the delay. It
+/// must not block. Returns `None` when the service cannot start or the
+/// deadline cannot be represented.
 ///
 /// This is a seam for the facade's idle-connection timer, not supported
 /// API.
 #[doc(hidden)]
-pub fn deadline(delay: Duration) -> Option<impl std::future::Future<Output = ()> + Send + 'static> {
-    let receiver = after(delay).ok()?;
-    // The service never drops a pending deadline, so an error counts as the
-    // deadline too.
-    Some(async move {
-        let _ = receiver.await;
-    })
+pub fn run_after(
+    delay: Duration,
+    task: impl FnOnce() + Send + 'static,
+) -> Option<tokio::task::AbortHandle> {
+    let service = SERVICE.get_or_init(start_service).as_ref()?;
+    let at = Instant::now().checked_add(delay)?;
+    let waiting = service.spawn(async move {
+        tokio::time::sleep_until(at.into()).await;
+        task();
+    });
+    Some(waiting.abort_handle())
 }
 
 pub(crate) fn after(delay: Duration) -> Result<oneshot::Receiver<()>, ScheduleError> {

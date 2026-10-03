@@ -54,7 +54,7 @@ mod windows_port_randomization;
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 #[doc(hidden)]
-pub use shutdown_timer::deadline;
+pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, ServerAuthentication,

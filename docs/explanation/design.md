@@ -155,9 +155,8 @@ backup connection whose slower attempt is in flight can add one connection,
 up to the bound again, until the extra connections are used or expire idle.
 A request that finds no idle connection claims one instead of opening
 another. The same client keeps one timer that closes expired idle H1
-connections in both H1 pools and ends what each pool key remembers of an
-origin with no connection, as Firefox's connection manager prunes on one
-timer.
+connections in both H1 pools and ends what each pool remembers of an origin
+with no connection, as Firefox's connection manager prunes on one timer.
 
 ## Retries and replays
 

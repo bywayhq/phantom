@@ -198,10 +198,11 @@ resolved addresses.
   connection carries the request. On the direct route of the HTTP/1.1 and
   negotiated pools the slower attempt keeps connecting, and its connection
   finishes any TLS handshake and waits idle, or goes to a request that
-  claimed it, unless the first connection selected H2. Each pool key
-  remembers the family of its first connection; later connections try that
-  family alone, each backup connect limited to `known_family_backup_timeout`
-  (5 s for Firefox), and the other family once its addresses fail.
+  claimed it, unless the first connection selected H2. Each pool remembers,
+  for each origin and route, the family of its first connection, shared by
+  every runtime's key; later connections try that family alone, each backup
+  connect limited to `known_family_backup_timeout` (5 s for Firefox), and
+  the other family once its addresses fail.
   `TcpBackupConnection` documents the full behavior.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any

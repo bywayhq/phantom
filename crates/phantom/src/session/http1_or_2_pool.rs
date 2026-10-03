@@ -31,12 +31,13 @@ use tokio::{
 use tracing::{Span, debug};
 
 use super::{
+    address_families::AddressFamilies,
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http1_pool::IdleConnection,
     http2_connections::{Choice, Http2Spread},
     http2_pool::{is_graceful_goaway, send_on},
-    prune_timer::{PruneTimer, PrunedEntry},
+    prune_timer::{PruneTimer, Pruned, PrunedEntry},
     stream_count::{OpenStream, StreamCount},
 };
 use crate::{
@@ -128,8 +129,8 @@ impl Http1Or2Pool {
     }
 
     /// Lets the client's prune timer close idle H1 connections between
-    /// requests and end what each pool key remembers of an origin with no
-    /// connection.
+    /// requests and forget an origin's address family once none of its keys
+    /// has a connection.
     pub(super) fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
         self.prune_timer = timer;
         self
@@ -533,7 +534,8 @@ impl Http1Or2Pool {
             self.max_http2_active,
         ))
         .with_http1_used_idle_timeout(self.http1_used_idle_timeout)
-        .with_prune_timer(self.prune_timer.clone());
+        .with_prune_timer(self.prune_timer.clone())
+        .with_address_family(state.families.get(&origin));
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut entry = PoolEntry::new(
             selection_admission,
@@ -560,6 +562,7 @@ struct PoolState {
     selection_admissions: AdmissionRegistry<PoolKey>,
     http1_admissions: AdmissionRegistry<PoolKey>,
     http2_admissions: AdmissionRegistry<PoolKey>,
+    families: AddressFamilies<PoolKey>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1343,8 +1346,9 @@ struct EntryConnections {
     /// The client's prune timer, when the profile closes idle H1
     /// connections on one.
     prune: Option<Arc<PruneTimer>>,
-    /// The address family a backup connection to the origin tries first.
-    family: AddressFamilyMemory,
+    /// The address family a backup connection to the origin tries first,
+    /// shared with the origin's keys on other runtimes.
+    family: Arc<AddressFamilyMemory>,
     state: std::sync::Mutex<ConnectionState>,
     /// Woken whenever a connection setup finishes, fails, or is cancelled,
     /// and whenever a stream on one of the key's H2 connections ends.
@@ -1579,7 +1583,7 @@ impl EntryConnections {
             max_http1,
             http1_used_idle_timeout: None,
             prune: None,
-            family: AddressFamilyMemory::new(),
+            family: Arc::default(),
             state: std::sync::Mutex::new(state),
             setup_done: Arc::new(Notify::new()),
             http2_keys,
@@ -1599,6 +1603,11 @@ impl EntryConnections {
 
     fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
         self.prune = timer;
+        self
+    }
+
+    fn with_address_family(mut self, family: Arc<AddressFamilyMemory>) -> Self {
+        self.family = family;
         self
     }
 
@@ -1894,7 +1903,7 @@ impl EntryConnections {
 }
 
 impl PrunedEntry for EntryConnections {
-    fn prune(&self, now: Instant, limit: Duration) -> Option<Duration> {
+    fn prune(&self, now: Instant, limit: Duration) -> Pruned {
         let mut state = self.lock();
         state
             .http1_idle
@@ -1905,10 +1914,14 @@ impl PrunedEntry for EntryConnections {
             .iter()
             .map(|idle| limit.saturating_sub(idle.idle_for(now)))
             .min();
-        if state.is_empty() {
-            self.family.forget();
+        Pruned {
+            next,
+            empty: state.is_empty(),
         }
-        next
+    }
+
+    fn address_family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.family
     }
 }
 

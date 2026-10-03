@@ -17,10 +17,10 @@ use tokio::{
     time::{Instant, timeout},
 };
 
-use super::{TestResult, bound, connections, current_token, http1, http2, reserve};
+use super::{Http2Keys, TestResult, bound, connections, current_token, http1, http2, key, reserve};
 use crate::session::{
     http1_or_2_pool::{Acquired, BeforeAdmission, Checkout, EntryConnections},
-    prune_timer::PrunedEntry,
+    prune_timer::{PruneTimer, PrunedEntry},
 };
 
 const WAIT: Duration = Duration::from_secs(5);
@@ -276,36 +276,75 @@ async fn a_failed_slower_connection_lets_its_claimant_open_a_connection() -> Tes
     Ok(())
 }
 
+/// A slower attempt whose runtime is dropped before it finishes leaves its
+/// key, so the key reports empty and the origin's family is forgotten.
+#[test]
+fn a_slower_attempt_dropped_with_its_runtime_leaves_the_key() -> TestResult {
+    let limit = Duration::from_secs(115);
+    let timer = PruneTimer::unscheduled(limit);
+    let connections = Arc::new(
+        EntryConnections::new(
+            bound(6)?,
+            Arc::new(Http2Keys::default()),
+            key("origin.test")?,
+        )
+        .with_prune_timer(Some(Arc::clone(&timer))),
+    );
+    let entry: Arc<dyn PrunedEntry> = connections.clone();
+    timer.register(Arc::downgrade(&entry));
+    connections.family.remember(AddressFamily::Ipv4);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let (slower, progress, _sender) = gated();
+    runtime.block_on(async { connections.adopt(slower) });
+    progress.mark_connected();
+    assert_eq!(connections.lock().open_http1_or_connecting(), 1);
+
+    drop(runtime);
+
+    assert!(connections.lock().spares.is_empty());
+    assert_eq!(connections.lock().open_http1_or_connecting(), 0);
+    assert!(connections.prune(Instant::now(), limit).empty);
+    timer.fire();
+    assert_eq!(connections.family.family(), None);
+    Ok(())
+}
+
 #[tokio::test(start_paused = true)]
-async fn the_prune_keeps_the_family_of_a_key_with_an_http2_connection() -> TestResult {
+async fn the_prune_counts_a_key_with_an_http2_connection_as_in_use() -> TestResult {
     let limit = Duration::from_secs(115);
     let connections = connections(bound(6)?)?;
-    connections.family.remember(AddressFamily::Ipv4);
     let (connection, _peer) = http2().await?;
     let Acquired::Http2 = reserve(&connections)?.finish(connection) else {
         return Err("an H2 connection was not leased as H2".into());
     };
 
-    assert_eq!(connections.prune(Instant::now(), limit), None);
-    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
+    let pruned = connections.prune(Instant::now(), limit);
+    assert_eq!(pruned.next, None);
+    assert!(
+        !pruned.empty,
+        "a key with an H2 connection counted as empty"
+    );
     Ok(())
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_prune_closes_expired_idle_http1_connections_and_forgets_the_family() -> TestResult {
+async fn the_prune_closes_expired_idle_http1_connections_and_leaves_the_key_empty() -> TestResult {
     let limit = Duration::from_secs(115);
     let connections = connections(bound(6)?)?;
-    connections.family.remember(AddressFamily::Ipv6);
     let (connection, _peer) = http1().await?;
     drop(reserve(&connections)?.finish(connection));
     assert_eq!(connections.counts(), (1, 0, 0));
 
-    assert_eq!(connections.prune(Instant::now(), limit), Some(limit));
-    assert_eq!(connections.family.family(), Some(AddressFamily::Ipv6));
+    let pruned = connections.prune(Instant::now(), limit);
+    assert_eq!(pruned.next, Some(limit));
+    assert!(!pruned.empty);
 
     tokio::time::advance(limit).await;
-    assert_eq!(connections.prune(Instant::now(), limit), None);
+    let pruned = connections.prune(Instant::now(), limit);
+    assert_eq!(pruned.next, None);
+    assert!(pruned.empty);
     assert_eq!(connections.counts(), (0, 0, 0));
-    assert_eq!(connections.family.family(), None);
     Ok(())
 }

@@ -7,17 +7,27 @@ use std::{
     time::Duration,
 };
 
+use phantom_net::tcp::AddressFamilyMemory;
 use tokio::{task::AbortHandle, time::Instant};
 use tracing::debug;
+
+/// What a prune of one pool key found.
+pub(super) struct Pruned {
+    /// The time the key's soonest expiring idle connection has left.
+    pub(super) next: Option<Duration>,
+    /// Whether the key has no connection, setup, or slower attempt left.
+    pub(super) empty: bool,
+}
 
 /// The connections of one pool key, as the prune timer sees them.
 pub(super) trait PrunedEntry: Send + Sync {
     /// Closes the key's idle H1 connections that have been idle `limit` or
-    /// longer as of `now`, and those the server closed; forgets the origin's
-    /// address family when the key has no connection, setup, or slower
-    /// attempt left; and returns the time its soonest expiring idle
-    /// connection has left.
-    fn prune(&self, now: Instant, limit: Duration) -> Option<Duration>;
+    /// longer as of `now`, and those the server closed.
+    fn prune(&self, now: Instant, limit: Duration) -> Pruned;
+
+    /// The address family memory the key shares with the other runtimes'
+    /// keys of its origin.
+    fn address_family(&self) -> &Arc<AddressFamilyMemory>;
 }
 
 /// One timer per client for the idle limit of
@@ -32,9 +42,10 @@ pub(super) trait PrunedEntry: Send + Sync {
 ///   `netwerk/protocol/http/nsHttpConnectionMgr.cpp:4075-4084`;
 ///   `nsHttpConnection::TimeToLive`,
 ///   `netwerk/protocol/http/nsHttpConnection.cpp:1009-1025`).
-/// - When it fires, every pool key closes its expired idle connections and
-///   forgets the address family of an origin left with no connection, and
-///   the timer is set again for the soonest expiry left, if any
+/// - When it fires, every pool key closes its expired idle connections, an
+///   origin whose keys on every runtime are left with no connection, setup,
+///   or slower attempt forgets its address family, and the timer is set
+///   again for the soonest expiry left, if any
 ///   (`nsHttpConnectionMgr.cpp:2572-2625`;
 ///   `netwerk/protocol/http/ConnectionEntry.cpp:470-503`).
 ///
@@ -44,8 +55,10 @@ pub(super) trait PrunedEntry: Send + Sync {
 /// only when the timer fires or a request comes, so its timer still fires
 /// then.
 ///
-/// The timer runs on Phantom's deadline service, so it needs no time driver
-/// in the caller's runtime; it is set only from within a Tokio runtime.
+/// The timer waits and prunes on Phantom's deadline service, not on a
+/// caller's runtime, so it needs no time driver, keeps running when the
+/// runtime that set it is dropped, and prunes the keys of every runtime,
+/// including the idle connections of a runtime that is gone.
 pub(crate) struct PruneTimer {
     limit: Duration,
     scheduled: bool,
@@ -104,7 +117,7 @@ impl PruneTimer {
             return;
         };
         let mut state = self.lock();
-        // A wake-up already due has fired or was lost with its runtime.
+        // A wake-up already due has fired or is firing.
         if state
             .wake_at
             .is_some_and(|wake_at| wake_at > now && wake_at <= at)
@@ -114,8 +127,9 @@ impl PruneTimer {
         self.arm(&mut state, at);
     }
 
-    /// Sets the timer to fire at `at`. It stays unset when no task could be
-    /// scheduled, so a later idle connection tries again.
+    /// Sets the timer to fire at `at`. It stays unset when the deadline
+    /// service could not schedule it, so a later idle connection tries
+    /// again.
     fn arm(self: &Arc<Self>, state: &mut TimerState, at: Instant) {
         if let Some(task) = state.task.take() {
             task.abort();
@@ -125,23 +139,18 @@ impl PruneTimer {
             state.wake_at = Some(at);
             return;
         }
-        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            debug!("idle connection timer not set outside a Tokio runtime");
-            return;
-        };
-        let Some(deadline) = phantom_net::deadline(at.saturating_duration_since(Instant::now()))
+        let timer = Arc::downgrade(self);
+        let Some(task) =
+            phantom_net::run_after(at.saturating_duration_since(Instant::now()), move || {
+                if let Some(timer) = timer.upgrade() {
+                    timer.fire();
+                }
+            })
         else {
             debug!("idle connection timer could not be scheduled");
             return;
         };
-        let timer = Arc::downgrade(self);
-        let task = runtime.spawn(async move {
-            deadline.await;
-            if let Some(timer) = timer.upgrade() {
-                timer.fire();
-            }
-        });
-        state.task = Some(task.abort_handle());
+        state.task = Some(task);
         state.wake_at = Some(at);
     }
 
@@ -155,11 +164,29 @@ impl PruneTimer {
             state.entries.clone()
         };
         let now = Instant::now();
-        let next = entries
-            .iter()
-            .filter_map(Weak::upgrade)
-            .filter_map(|entry| entry.prune(now, self.limit))
-            .min();
+        let mut next: Option<Duration> = None;
+        // Each memory, and whether every live key that shares it is empty.
+        let mut families: Vec<(Arc<AddressFamilyMemory>, bool)> = Vec::new();
+        for entry in entries.iter().filter_map(Weak::upgrade) {
+            let pruned = entry.prune(now, self.limit);
+            next = match (next, pruned.next) {
+                (Some(soonest), Some(left)) => Some(soonest.min(left)),
+                (soonest, left) => soonest.or(left),
+            };
+            let family = entry.address_family();
+            match families
+                .iter_mut()
+                .find(|(memory, _)| Arc::ptr_eq(memory, family))
+            {
+                Some((_, empty)) => *empty &= pruned.empty,
+                None => families.push((Arc::clone(family), pruned.empty)),
+            }
+        }
+        for (memory, empty) in families {
+            if empty {
+                memory.forget();
+            }
+        }
         let Some(next) = next else {
             return;
         };
@@ -196,18 +223,35 @@ fn whole_seconds(left: Duration) -> Duration {
 mod tests {
     use std::sync::{Arc, Mutex};
 
+    use phantom_net::tcp::AddressFamily;
+
     use super::*;
 
-    /// An entry that answers with a fixed time left and counts its prunes.
+    const WAIT: Duration = Duration::from_secs(10);
+
+    /// An entry that answers with a fixed time left and emptiness, and
+    /// counts its prunes.
     struct Entry {
         left: Mutex<Option<Duration>>,
+        empty: bool,
+        family: Arc<AddressFamilyMemory>,
         pruned: Mutex<Vec<Instant>>,
     }
 
     impl Entry {
         fn new(left: Option<Duration>) -> Arc<Self> {
+            Self::sharing(left, true, &Arc::default())
+        }
+
+        fn sharing(
+            left: Option<Duration>,
+            empty: bool,
+            family: &Arc<AddressFamilyMemory>,
+        ) -> Arc<Self> {
             Arc::new(Self {
                 left: Mutex::new(left),
+                empty,
+                family: Arc::clone(family),
                 pruned: Mutex::new(Vec::new()),
             })
         }
@@ -218,12 +262,32 @@ mod tests {
     }
 
     impl PrunedEntry for Entry {
-        fn prune(&self, now: Instant, _limit: Duration) -> Option<Duration> {
+        fn prune(&self, now: Instant, _limit: Duration) -> Pruned {
             if let Ok(mut pruned) = self.pruned.lock() {
                 pruned.push(now);
             }
-            self.left.lock().ok().and_then(|left| *left)
+            Pruned {
+                next: self.left.lock().ok().and_then(|left| *left),
+                empty: self.empty,
+            }
         }
+
+        fn address_family(&self) -> &Arc<AddressFamilyMemory> {
+            &self.family
+        }
+    }
+
+    /// Waits on the wall clock, as the deadline service keeps it, until
+    /// `entry` has been pruned.
+    fn wait_for_prune(entry: &Entry) -> bool {
+        let deadline = std::time::Instant::now() + WAIT;
+        while entry.prunes() == 0 {
+            if std::time::Instant::now() > deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        true
     }
 
     fn register(timer: &PruneTimer, entry: &Arc<Entry>) {
@@ -304,13 +368,54 @@ mod tests {
         assert_eq!(timer.wake_at(), None);
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn a_family_is_forgotten_only_when_every_runtime_key_of_its_origin_is_empty() {
+        let timer = PruneTimer::unscheduled(Duration::from_secs(115));
+        let shared = Arc::new(AddressFamilyMemory::new());
+        shared.remember(AddressFamily::Ipv4);
+        let gone_runtime = Entry::sharing(None, true, &shared);
+        let live_runtime = Entry::sharing(Some(Duration::from_secs(60)), false, &shared);
+        let other_origin = Arc::new(AddressFamilyMemory::new());
+        other_origin.remember(AddressFamily::Ipv6);
+        let other = Entry::sharing(None, true, &other_origin);
+        for entry in [&gone_runtime, &live_runtime, &other] {
+            register(&timer, entry);
+        }
+
+        timer.fire();
+        assert_eq!(shared.family(), Some(AddressFamily::Ipv4));
+        assert_eq!(other_origin.family(), None);
+
+        drop(live_runtime);
+        timer.fire();
+        assert_eq!(shared.family(), None);
+    }
+
     #[test]
-    fn a_timer_outside_a_runtime_stays_unset() {
-        let timer = PruneTimer::new(Duration::from_secs(115));
+    fn a_timer_set_outside_any_runtime_fires_on_the_deadline_service() {
+        let timer = PruneTimer::new(Duration::from_secs(1));
+        let entry = Entry::new(None);
+        register(&timer, &entry);
 
-        timer.idle_added(Duration::from_secs(115));
+        timer.idle_added(Duration::from_secs(1));
 
-        assert_eq!(timer.wake_at(), None);
+        assert!(timer.wake_at().is_some());
+        assert!(wait_for_prune(&entry), "the timer never fired");
+    }
+
+    #[test]
+    fn the_timer_fires_after_the_runtime_that_set_it_is_dropped() -> std::io::Result<()> {
+        let timer = PruneTimer::new(Duration::from_secs(1));
+        let entry = Entry::new(None);
+        register(&timer, &entry);
+        let first = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        first.block_on(async { timer.idle_added(Duration::from_secs(1)) });
+        drop(first);
+
+        assert!(wait_for_prune(&entry), "the timer died with its runtime");
+        Ok(())
     }
 
     #[tokio::test(start_paused = true)]

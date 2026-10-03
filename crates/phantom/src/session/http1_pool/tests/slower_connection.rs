@@ -167,6 +167,7 @@ fn timed(timer: &Arc<PruneTimer>) -> Result<Arc<EntryConnections>, Box<dyn std::
         bound(6)?,
         Some(timer.limit()),
         Some(Arc::clone(timer)),
+        Arc::default(),
     ))
 }
 
@@ -183,12 +184,15 @@ async fn the_prune_closes_a_connection_idle_for_the_limit() -> TestResult {
     assert_eq!(timer.wake_at(), Some(start + LIMIT));
 
     tokio::time::advance(LIMIT - Duration::from_millis(500)).await;
-    let left = connections.prune(Instant::now(), LIMIT);
-    assert_eq!(left, Some(Duration::from_millis(500)));
+    let pruned = connections.prune(Instant::now(), LIMIT);
+    assert_eq!(pruned.next, Some(Duration::from_millis(500)));
+    assert!(!pruned.empty);
     assert_eq!(connections.lock().idle.len(), 1);
 
     tokio::time::advance(Duration::from_millis(500)).await;
-    assert_eq!(connections.prune(Instant::now(), LIMIT), None);
+    let pruned = connections.prune(Instant::now(), LIMIT);
+    assert_eq!(pruned.next, None);
+    assert!(pruned.empty);
     assert!(connections.lock().idle.is_empty());
     Ok(())
 }
@@ -204,15 +208,15 @@ async fn the_prune_forgets_the_family_only_of_a_key_without_connections() -> Tes
     };
     let lease = reservation.into_lease(connection);
 
-    connections.prune(Instant::now(), LIMIT);
+    timer.fire();
     assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
 
     drop(lease);
-    connections.prune(Instant::now(), LIMIT);
+    timer.fire();
     assert_eq!(connections.family.family(), Some(AddressFamily::Ipv4));
 
     tokio::time::advance(LIMIT).await;
-    connections.prune(Instant::now(), LIMIT);
+    timer.fire();
     assert_eq!(connections.family.family(), None);
     Ok(())
 }
@@ -225,9 +229,34 @@ async fn a_key_with_a_slower_attempt_keeps_its_family() -> TestResult {
     let (slower, _progress, _finish) = gated();
     connections.adopt(slower);
 
-    connections.prune(Instant::now(), LIMIT);
+    timer.fire();
 
     assert_eq!(connections.family.family(), Some(AddressFamily::Ipv6));
+    Ok(())
+}
+
+/// A slower attempt whose runtime is dropped before it finishes leaves its
+/// key, so the key reports empty and the origin's family is forgotten.
+#[test]
+fn a_slower_attempt_dropped_with_its_runtime_leaves_the_key() -> TestResult {
+    let timer = PruneTimer::unscheduled(LIMIT);
+    let connections = timed(&timer)?;
+    connections.family.remember(AddressFamily::Ipv4);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let (slower, progress, _finish) = gated();
+    runtime.block_on(async { connections.adopt(slower) });
+    progress.mark_connected();
+    assert_eq!(connections.open(), 1);
+
+    drop(runtime);
+
+    assert!(connections.lock().spares.is_empty());
+    assert_eq!(connections.open(), 0);
+    assert!(connections.prune(Instant::now(), LIMIT).empty);
+    timer.fire();
+    assert_eq!(connections.family.family(), None);
     Ok(())
 }
 
@@ -249,5 +278,91 @@ async fn the_client_timer_prunes_every_pool_entry() -> TestResult {
     timer.fire();
 
     assert_eq!(entry.connections.family.family(), None);
+    Ok(())
+}
+
+/// A pool key per runtime, so a runtime's request never takes a connection
+/// another runtime drives: the first runtime's slower connection counts only
+/// toward its own key, and the second runtime's request opens a connection
+/// of its own. Admission and the address family stay per origin.
+#[test]
+fn a_slower_connection_stays_with_its_runtime_and_the_origin_state_is_shared() -> TestResult {
+    let pool = Http1Pool::new(bound(4)?, bound(6)?, std::num::NonZeroUsize::MIN);
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let key = || PoolKey::new(&origin, &Route::Direct, Http1ConnectionMode::TlsOrigin);
+    let first = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let second = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let (slower, progress, _finish) = gated();
+
+    let on_first = first.block_on(async {
+        let entry = pool.entry(key()).await;
+        entry.connections.adopt(slower);
+        entry
+    });
+    progress.mark_connected();
+    let on_second = second.block_on(async { pool.entry(key()).await });
+
+    assert!(!Arc::ptr_eq(&on_first, &on_second));
+    assert!(Arc::ptr_eq(&on_first.admission, &on_second.admission));
+    assert!(Arc::ptr_eq(
+        &on_first.connections.family,
+        &on_second.connections.family
+    ));
+    assert_eq!(on_first.connections.open(), 1);
+    assert_eq!(on_second.connections.open(), 0);
+    let Checkout::Reserved(_reservation) = on_second.connections.checkout(false) else {
+        return Err("a request claimed another runtime's slower connection".into());
+    };
+    Ok(())
+}
+
+/// The client's timer runs on the deadline service, so an idle connection
+/// on a second runtime still closes at its limit after the runtime that set
+/// the timer is gone. The deadline service keeps the wall clock, so the test
+/// uses a one-second limit.
+#[test]
+fn an_idle_connection_closes_after_the_runtime_that_set_the_timer_is_gone() -> TestResult {
+    let limit = Duration::from_secs(1);
+    let timer = PruneTimer::new(limit);
+    let pool = Http1Pool::new(bound(4)?, bound(6)?, std::num::NonZeroUsize::MIN)
+        .with_used_idle_timeout(Some(limit))
+        .with_prune_timer(Some(Arc::clone(&timer)));
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let key = || PoolKey::new(&origin, &Route::Direct, Http1ConnectionMode::TlsOrigin);
+    let first = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let second = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()?;
+    let idle_on = |runtime: &tokio::runtime::Runtime| {
+        runtime.block_on(async {
+            let entry = pool.entry(key()).await;
+            let (connection, peer) = connection().await?;
+            let Checkout::Reserved(reservation) = entry.connections.checkout(false) else {
+                return Err::<_, Box<dyn std::error::Error>>("the key leased a connection".into());
+            };
+            drop(reservation.into_lease(connection));
+            Ok((entry, peer))
+        })
+    };
+
+    let (_first_entry, _first_peer) = idle_on(&first)?;
+    let (second_entry, _second_peer) = idle_on(&second)?;
+    assert!(timer.wake_at().is_some());
+    drop(first);
+
+    let deadline = std::time::Instant::now() + WAIT;
+    while !second_entry.connections.lock().idle.is_empty() {
+        if std::time::Instant::now() > deadline {
+            return Err("the idle connection was never closed".into());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
     Ok(())
 }

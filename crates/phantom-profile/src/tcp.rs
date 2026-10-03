@@ -174,9 +174,9 @@ pub const MAX_TCP_BACKUP_TIMEOUT_SECONDS: u64 = 600;
 ///   fail, the most recent failure is returned. A primary attempt that fails
 ///   before the delay ends the connection without a backup.
 ///
-/// The pool entry of each origin and route remembers the address family of
-/// the first connection that succeeds, and later connections to it try that
-/// family alone, both attempts, the backup with
+/// A pool remembers, for each origin and route across every runtime, the
+/// address family of the first connection that succeeds, and later
+/// connections to it try that family alone, both attempts, the backup with
 /// [`Self::known_family_backup_timeout`] on each connect
 /// (`DnsAndConnectSocket.cpp:167-178`, `:1150-1164`, `:1295-1303`;
 /// `netwerk/protocol/http/ConnectionEntry.cpp:125-149`). An attempt whose

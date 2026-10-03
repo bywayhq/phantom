@@ -151,10 +151,11 @@ Supported:
   request: it counts toward the bound of the pool key of the runtime that
   opened it once connected, finishes its TLS handshake, and waits idle or
   goes to a request that claimed it. Once the first connection selects H2,
-  the slower one is closed. Each pool key remembers the address family of
-  its first connection, and later connections try that family alone,
-  falling back to the other when its addresses fail, until a prune of the
-  client's idle timer finds the key without a connection
+  the slower one is closed. Each pool remembers, for each origin and route,
+  the address family of its first connection, shared by every runtime's
+  key; later connections try that family alone, falling back to the other
+  when its addresses fail, until a prune of the client's idle timer finds
+  every key of the origin without a connection
   ([evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
 - The recipes `chromium::v154_tcp` (Windows and Linux), taken from browser
   source, and `firefox::v157_tcp` (Windows), taken from hook logs and source.
