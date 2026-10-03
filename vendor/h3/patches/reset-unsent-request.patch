@@ -1,0 +1,142 @@
+diff --git a/h3/src/client/connection.rs b/h3/src/client/connection.rs
+index 4a7c21ce..6d98535f 100644
+--- a/h3/src/client/connection.rs
++++ b/h3/src/client/connection.rs
+@@ -2,6 +2,7 @@
+ 
+ use std::{
+     marker::PhantomData,
++    ops::{Deref, DerefMut},
+     sync::{atomic::AtomicUsize, Arc},
+     task::{Context, Poll},
+ };
+@@ -295,17 +296,23 @@ where
+             let stream_id = quic::SendStream::send_id(&stream).into_inner();
+             let (command, encoded) = outbound_qpack::EncodeCommand::new(stream_id, fields);
+             let _ = permit.send(command);
+-            let encoded = encoded
+-                .await
+-                .map_err(|_| self.outbound_qpack_closed())?
+-                .map_err(|error| self.map_outbound_qpack_error(error))?;
+-            let outbound_qpack::Encoded { block, publication } = encoded;
+-            quic::SendStream::send_data(&mut stream, Frame::Headers(block))
+-                .map_err(|error| self.handle_quic_stream_error(error))?;
+-            publication.published();
+-            future::poll_fn(|cx| quic::SendStream::poll_ready(&mut stream, cx))
+-                .await
+-                .map_err(|error| self.handle_quic_stream_error(error))?;
++            let mut unsent = ResetUnsentRequest::new(&mut stream);
++            let written = async {
++                let encoded = encoded
++                    .await
++                    .map_err(|_| self.outbound_qpack_closed())?
++                    .map_err(|error| self.map_outbound_qpack_error(error))?;
++                let outbound_qpack::Encoded { block, publication } = encoded;
++                quic::SendStream::send_data(&mut *unsent, Frame::Headers(block))
++                    .map_err(|error| self.handle_quic_stream_error(error))?;
++                publication.published();
++                future::poll_fn(|cx| quic::SendStream::poll_ready(&mut *unsent, cx))
++                    .await
++                    .map_err(|error| self.handle_quic_stream_error(error))
++            }
++            .await;
++            unsent.keep();
++            written?;
+             stream
+         } else {
+             //= https://www.rfc-editor.org/rfc/rfc9114#section-4.1
+@@ -338,9 +345,10 @@ where
+                 });
+             }
+ 
+-            stream::write(&mut stream, Frame::Headers(block.freeze()))
+-                .await
+-                .map_err(|error| self.handle_quic_stream_error(error))?;
++            let mut unsent = ResetUnsentRequest::new(&mut stream);
++            let written = stream::write(&mut *unsent, Frame::Headers(block.freeze())).await;
++            unsent.keep();
++            written.map_err(|error| self.handle_quic_stream_error(error))?;
+             stream
+         };
+ 
+@@ -396,6 +404,80 @@ where
+     }
+ }
+ 
++/// Resets a request stream whose `send_request` future is dropped before its
++/// HEADERS frame is written
++///
++/// Quinn finishes a send stream that is dropped, so a `send_request` future
++/// dropped while its HEADERS frame waits for flow control would end the stream
++/// after a truncated frame, which RFC 9114 section 7.1 makes a connection
++/// error. The guard resets the stream and stops it with
++/// `H3_REQUEST_CANCELLED` (RFC 9114 section 8.1) instead, which ends only
++/// this stream. A write that completes, or fails, keeps the stream.
++struct ResetUnsentRequest<'a, S, B>
++where
++    S: quic::SendStream<B> + quic::RecvStream,
++    B: Buf,
++{
++    stream: &'a mut S,
++    kept: bool,
++    _buf: PhantomData<fn(B)>,
++}
++
++impl<'a, S, B> ResetUnsentRequest<'a, S, B>
++where
++    S: quic::SendStream<B> + quic::RecvStream,
++    B: Buf,
++{
++    fn new(stream: &'a mut S) -> Self {
++        Self {
++            stream,
++            kept: false,
++            _buf: PhantomData,
++        }
++    }
++
++    /// Keeps the stream once the HEADERS write has completed or failed
++    fn keep(mut self) {
++        self.kept = true;
++    }
++}
++
++impl<S, B> Deref for ResetUnsentRequest<'_, S, B>
++where
++    S: quic::SendStream<B> + quic::RecvStream,
++    B: Buf,
++{
++    type Target = S;
++
++    fn deref(&self) -> &S {
++        self.stream
++    }
++}
++
++impl<S, B> DerefMut for ResetUnsentRequest<'_, S, B>
++where
++    S: quic::SendStream<B> + quic::RecvStream,
++    B: Buf,
++{
++    fn deref_mut(&mut self) -> &mut S {
++        self.stream
++    }
++}
++
++impl<S, B> Drop for ResetUnsentRequest<'_, S, B>
++where
++    S: quic::SendStream<B> + quic::RecvStream,
++    B: Buf,
++{
++    fn drop(&mut self) {
++        if !self.kept {
++            let code = Code::H3_REQUEST_CANCELLED.value();
++            self.stream.reset(code);
++            self.stream.stop_sending(code);
++        }
++    }
++}
++
+ impl<T, B> Clone for SendRequest<T, B>
+ where
+     T: quic::OpenStreams<B> + Clone,

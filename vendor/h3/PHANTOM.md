@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.6`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.6`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.6`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.7`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.7`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.7`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -381,6 +381,28 @@ is buffered. `poll_finish` ends the stream without the GREASE frame that
 
 `patches/poll-send-data.patch` contains the engine and regression-test delta
 for this seam.
+
+## Cancelled request HEADERS
+
+`SendRequest::send_request` opens the request stream before it writes the
+HEADERS frame, and the stream is local to the future until it returns. Quinn
+finishes a send stream that is dropped, so dropping the future while the
+frame waits for flow-control credit ended the stream after a truncated frame,
+which RFC 9114 section 7.1 makes a connection error of type `H3_FRAME_ERROR`;
+the h3 server closes the connection for it.
+
+The opened stream now sits in a guard while its HEADERS frame is encoded and
+written. Dropping the future in that window resets the stream and stops its
+receive side with `H3_REQUEST_CANCELLED`, the code RFC 9114 section 8.1 gives
+a cancelled request and the one Phantom's request guard sends once
+`send_request` has returned, so only that stream ends. A write that completes
+or fails keeps upstream's behavior, as does an error found before the write,
+such as a field section above the peer's limit. Phantom's
+`http3::tests::connection::cancelling_a_request_mid_headers_resets_only_that_stream`
+holds the HEADERS frame behind a 1024-byte stream window, cancels the
+request, and checks that the server sees the reset and answers a later
+request on the same connection. `patches/reset-unsent-request.patch`
+contains this delta.
 
 The canonical source and test deltas are stored in the exact application order
 listed by `patches/series`. `PHANTOM.md`, the series file, the patch files, and

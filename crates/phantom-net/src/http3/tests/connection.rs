@@ -783,6 +783,80 @@ async fn cancelling_body_upload_resets_only_that_stream() -> TestResult<()> {
     join_server(server).await
 }
 
+/// A request cancelled while its HEADERS frame waits for stream credit is
+/// reset with `H3_REQUEST_CANCELLED`. Ending the stream instead would leave a
+/// truncated frame, which RFC 9114 section 7.1 makes a connection error, and
+/// the server would close the connection under the next request.
+#[tokio::test(flavor = "current_thread")]
+async fn cancelling_a_request_mid_headers_resets_only_that_stream() -> TestResult<()> {
+    // Less stream credit than the padded HEADERS frame needs, so the frame
+    // stays partly written until the server reads it.
+    const STREAM_WINDOW: u32 = 1024;
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let mut transport = quinn::TransportConfig::default();
+    transport.stream_receive_window(STREAM_WINDOW.into());
+    let (address, endpoint) =
+        super::server_endpoint_with_transport(&identity, "127.0.0.1:0".parse()?, transport)?;
+    let (stream_seen, stream_received) = oneshot::channel();
+    let (check_cancel, cancellation_requested) = oneshot::channel();
+    let (client_done, done_received) = oneshot::channel();
+
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let cancelled = connection
+            .accept()
+            .await?
+            .ok_or("client closed before sending a request")?;
+        let _ = stream_seen.send(());
+        let _ = cancellation_requested.await;
+        match cancelled.resolve_request().await {
+            Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                if code == h3::error::Code::H3_REQUEST_CANCELLED => {}
+            Ok(_) => return Err("the cancelled request arrived whole".into()),
+            Err(error) => return Err(format!("unexpected request cancellation: {error}").into()),
+        }
+
+        let (request, mut later) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/after-cancel");
+        send_response(&mut later, "reused").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+
+    let connection = timeout(
+        TEST_TIMEOUT,
+        super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+    )
+    .await
+    .map_err(|_| "HTTP/3 connection timed out")??;
+    let mut request = test_request(address.port(), "/cancel-headers")?;
+    request.headers_mut().insert(
+        "x-padding",
+        HeaderValue::from_str(&"0123456789".repeat(800))?,
+    );
+    let cancelled_connection = connection.clone();
+    let pending =
+        tokio::spawn(async move { cancelled_connection.send_request(request, None).await });
+    timeout(TEST_TIMEOUT, stream_received)
+        .await
+        .map_err(|_| "the server never saw the cancelled request")??;
+    pending.abort();
+    let _ = pending.await;
+    let _ = check_cancel.send(());
+
+    let later = timeout(
+        TEST_TIMEOUT,
+        connection.send_request(test_request(address.port(), "/after-cancel")?, None),
+    )
+    .await
+    .map_err(|_| "request after the cancelled HEADERS timed out")??;
+    assert_eq!(collect_body(later.into_body()).await?, "reused");
+
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn concurrent_request_bodies_complete_independently() -> TestResult<()> {
     let identity = TestIdentity::generate()?;

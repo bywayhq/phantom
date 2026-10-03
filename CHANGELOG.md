@@ -1803,6 +1803,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- An HTTP/3 request cancelled while its HEADERS frame waited for flow
+  control, for example by a response-head timeout or a dropped future, is
+  reset with `H3_REQUEST_CANCELLED`. Before, Quinn ended the stream after a
+  truncated frame, which RFC 9114 makes a connection error, so a conforming
+  server closed the connection and every request on it failed. The fix is
+  the vendored h3 patch `reset-unsent-request.patch`; `phantom-h3`,
+  `phantom-h3-datagram`, and `phantom-h3-quinn` move to `-phantom.7`.
 - A client used from more than one Tokio runtime no longer sends a request
   on a pooled connection that another runtime opened. Once that runtime was
   dropped, or no longer driven, as a current-thread runtime is after
