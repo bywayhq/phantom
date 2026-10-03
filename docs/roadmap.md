@@ -443,6 +443,8 @@ not carry its renames. Until then, depend on a pinned git revision
   `cargo deny check --all-features` reads it as a wildcard. An exact version
   removes the warning but means publishing `phantom-testkit` too, which the
   Phase 2 wire-assertion harness may need anyway.
+- Measure the public API with `cargo public-api`, and check each release
+  against the previous one with `cargo semver-checks`.
 
 ## Phase 3: Hardening
 
@@ -462,6 +464,16 @@ not carry its renames. Until then, depend on a pinned git revision
 - Broader fuzzing, sanitizers, lifecycle regressions, and soak tests,
   including a panic across a real BoringSSL callback in `phantom-quic-btls`
   and a fuzzing seam for HTTPS-record `h3` selection.
+- An async correctness audit: cancellation safety at every `select!` and
+  dropped future, no lock held across an `.await`, no detached task that
+  outlives its owner, no blocking call on a runtime thread, and `Send` bounds
+  on public futures.
+- A resource lifecycle audit: each per-client store's bound, what drop and
+  shutdown release, timers cancelled with their owner, and the threads and
+  runtimes the library starts.
+- A secrets audit: proxy credentials, cookies, and authorization values
+  kept out of `Debug` output and tracing fields, and parser limits against
+  oversized headers and decompression bombs.
 - Audit the vendored `h3` engine against Hyperium and the
   [`0x676e67/http3`](https://github.com/0x676e67/http3) fork before its next
   refresh: port the QPACK absolute-Base fix and Hyperium's buffered-write fix,
@@ -485,6 +497,9 @@ not carry its renames. Until then, depend on a pinned git revision
   bodies, SSE, and WebSocket workloads.
 - Optimize only measured bottlenecks, keeping the packet, frame, ordering,
   cancellation, and bounded-resource evidence.
+- Build health: compile time, generic code that monomorphizes per profile or
+  route, binary size of a minimal client, and dependencies that add build
+  time for little use.
 
 ## Phase 5: Architecture audit
 
