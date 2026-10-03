@@ -25,6 +25,7 @@ fn settings() -> Http2Settings {
         streams: Http2StreamSettings::default(),
         preface_ping_after: None,
         ping_timeout: None,
+        ping_failure_retries: 0,
     }
 }
 
@@ -95,6 +96,26 @@ fn ping_timeout_must_be_positive_and_needs_a_preface_ping() -> Result<(), Box<dy
     settings.ping_timeout = Some(Duration::MAX);
     assert_field(settings.validate(), "ping_timeout");
     Ok(())
+}
+
+#[test]
+fn ping_failure_retries_need_a_ping_timeout() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.ping_failure_retries = 2;
+    assert_field(settings.validate(), "ping_failure_retries");
+    settings.preface_ping_after = Some(Duration::from_secs(10));
+    settings.ping_timeout = Some(Duration::from_secs(10));
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn chromium_recipe_allows_two_ping_failure_retries_and_firefox_none() {
+    // `kMaxRetryAttempts`, `net/http/http_network_transaction.cc:106-108` at
+    // `154.0.8037.58`; Firefox 157 does not restart a transaction its
+    // session closed with `NS_ERROR_NET_TIMEOUT`.
+    assert_eq!(crate::chromium::v154_http2().ping_failure_retries, 2);
+    assert_eq!(crate::firefox::v157_http2().ping_failure_retries, 0);
 }
 
 #[test]

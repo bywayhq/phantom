@@ -232,6 +232,7 @@ async fn settings_without_a_preface_ping_send_none_after_read_idle() -> TestResu
         let mut settings = chromium::v154_http2();
         settings.preface_ping_after = None;
         settings.ping_timeout = None;
+        settings.ping_failure_retries = 0;
         let (mut peer, connection) = start(&settings).await?;
         let mut requests = JoinSet::new();
         request(&connection, &mut requests)?;

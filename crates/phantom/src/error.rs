@@ -400,6 +400,9 @@ enum RequestRetryability {
     ReusedConnectionClosed,
     /// The HTTP/2 or HTTP/3 peer reported that it did not process the request.
     Unprocessed,
+    /// The request's HTTP/2 connection closed itself after an unanswered
+    /// PING, before the response head.
+    Http2PingFailed,
 }
 
 impl RequestError {
@@ -799,11 +802,14 @@ impl RequestError {
     pub(crate) fn http2_stream(source: Http2Error) -> Self {
         let unprocessed = is_unprocessed_http2(&source);
         let closed_before_send = matches!(source, Http2Error::ReusedConnectionClosed);
+        let ping_failed = matches!(source, Http2Error::PingTimeout);
         let mut error = Self::http2(source.into());
         if unprocessed {
             error.retryability = RequestRetryability::Unprocessed;
         } else if closed_before_send {
             error.retryability = RequestRetryability::ReusedConnectionClosed;
+        } else if ping_failed {
+            error.retryability = RequestRetryability::Http2PingFailed;
         }
         error
     }
@@ -1052,6 +1058,13 @@ impl RequestError {
     /// caller.
     pub(crate) fn is_unprocessed_request(&self) -> bool {
         self.retryability == RequestRetryability::Unprocessed
+    }
+
+    /// Returns whether the request's HTTP/2 connection closed itself after an
+    /// unanswered PING before the response head; the profile's retry count,
+    /// the hop's budget, and the body are checked by the caller.
+    pub(crate) fn is_http2_ping_failure(&self) -> bool {
+        self.retryability == RequestRetryability::Http2PingFailed
     }
 
     /// Returns whether the request went out as HTTP/3 early data that the
@@ -1367,6 +1380,17 @@ mod tests {
         assert!(!closed.is_unprocessed_request());
         let sent = RequestError::http2_stream(Http2Error::PingTimeout);
         assert!(!sent.is_reused_connection_close());
+        assert!(!closed.is_http2_ping_failure());
+    }
+
+    #[test]
+    fn only_a_ping_timeout_is_a_ping_failure() {
+        let failed = RequestError::http2_stream(Http2Error::PingTimeout);
+        assert!(failed.is_http2_ping_failure());
+        assert!(!failed.is_unprocessed_request());
+        assert!(!failed.is_retryable_connection_setup());
+        let closed = RequestError::http1(Http1TlsError::Http1(Http1Error::ConnectionClosed));
+        assert!(!closed.is_http2_ping_failure());
     }
 
     #[test]

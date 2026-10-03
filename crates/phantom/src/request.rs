@@ -561,7 +561,7 @@ impl RequestBuilder {
         } = self;
         let route = route.as_ref().unwrap_or(&client.inner.route);
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
-        let mut replays = ReplayState::new();
+        let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
         ensure_request_supported(selection, route, &request)?;
         // A caller's preemptive field goes to the forward proxy, as it does on
         // CONNECT. On any other route it would reach the origin, and with

@@ -123,6 +123,10 @@ pub(crate) struct ClientInner {
     /// HTTP/2 connections each proxy route may open; one unless the caller
     /// opted into more.
     pub(crate) http2_proxy_connections_per_route: NonZeroUsize,
+    /// How many times per redirect hop a request is sent again after its
+    /// HTTP/2 connection's PING failed; see
+    /// [`phantom_profile::Http2Settings::ping_failure_retries`].
+    pub(crate) http2_ping_failure_retries: u8,
     /// Proxies that accepted Basic credentials, shared with the connectors.
     pub(crate) proxy_credentials: Option<ProxyCredentialCache>,
     /// Host overrides, the address resolver, and the address cache, shared
@@ -1825,6 +1829,10 @@ impl ClientBuilder {
                 .map(|template| template.http2_connections)
                 .unwrap_or_default(),
             http2_proxy_connections_per_route: self.http2_proxy_connections_per_route,
+            http2_ping_failure_retries: self
+                .profile
+                .http2()
+                .map_or(0, |settings| settings.ping_failure_retries),
             proxy_credentials: None,
             host_resolver: None,
             client_hints,

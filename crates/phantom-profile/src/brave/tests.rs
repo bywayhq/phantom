@@ -106,6 +106,7 @@ fn brave_154_http2_session_capture_matches_the_chromium_recipe()
         },
         preface_ping_after: None,
         ping_timeout: None,
+        ping_failure_retries: 0,
         ..settings
     };
     for run in observed {

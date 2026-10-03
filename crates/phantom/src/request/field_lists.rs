@@ -7,8 +7,8 @@
 //! The attempt that wins a race sends it as built, and so does every attempt
 //! that repeats a request the server did not answer: a graceful `GOAWAY`
 //! retry, a restart after rejected early data, a reused-connection replay, an
-//! unprocessed-request replay, and a race started again after a failed
-//! early-data handshake.
+//! unprocessed-request replay, a PING-failure resend, and a race started
+//! again after a failed early-data handshake.
 //!
 //! An attempt that follows a response builds and checks the lists again. The
 //! response may have stored cookies or requested client hints, and a

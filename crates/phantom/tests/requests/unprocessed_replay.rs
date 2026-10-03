@@ -297,11 +297,13 @@ async fn accept_tls(
 }
 
 /// A Chromium-recipe client whose preface PING follows 1 second without a
-/// read and closes the connection when unanswered for 2 seconds.
+/// read and closes the connection when unanswered for 2 seconds. It sends
+/// no request again after the PING fails, so only the retry policy could.
 fn short_ping_timeout_client(identity: &TestIdentity) -> TestResult<Client> {
     let mut http2 = chromium::v154_http2();
     http2.preface_ping_after = Some(Duration::from_secs(1));
     http2.ping_timeout = Some(Duration::from_secs(2));
+    http2.ping_failure_retries = 0;
     Ok(
         Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
             .add_root_certificate_der(identity.root_der.clone())

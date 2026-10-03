@@ -218,6 +218,10 @@ async fn send_once_exact(
                     }
                     return Err(error);
                 }
+                // The pool already retired the connection whose PING failed.
+                if begin_http2_ping_failure_replay(&error, &method, body, replays) {
+                    continue;
+                }
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_connection = true;
                     continue;
@@ -359,7 +363,8 @@ pub(super) async fn send_once_origin(
     let client_hint_origin = client_hint_origin(client, request);
     let mut restart_hints = RestartHints::default();
     let mut fresh_http1_connection = false;
-    let keeps_fields = may_replay_unanswered(retries, body);
+    let keeps_fields = may_replay_unanswered(retries, body)
+        || (replays.replays_http2_ping_failures() && body_is_replayable(body));
 
     loop {
         let prepared = prepare_attempt(
@@ -415,6 +420,13 @@ pub(super) async fn send_once_origin(
                 continue;
             }
             Err(error) => {
+                // The pool already retired the connection whose PING failed;
+                // the replacement is negotiated under the same selection
+                // rule.
+                if begin_http2_ping_failure_replay(&error, &method, body, replays) {
+                    fields = kept_fields;
+                    continue;
+                }
                 if begin_reused_connection_replay(&error, &method, body, retries, replays) {
                     fresh_http1_connection = true;
                     fields = kept_fields;
@@ -494,6 +506,41 @@ pub(super) fn begin_accept_ch_restart(
         reason = "accept_ch",
         "restarting request with the client hints its connection's ACCEPT_CH asks for"
     );
+}
+
+/// Whether `body` can be sent again on a replay: absent, or owned bytes.
+fn body_is_replayable(body: &RequestBodySource) -> bool {
+    matches!(
+        body,
+        RequestBodySource::Absent | RequestBodySource::Bytes(_)
+    )
+}
+
+/// Starts a replay after the request's HTTP/2 connection closed itself on an
+/// unanswered PING before the response head, while the hop has replays of
+/// the profile's [`phantom_profile::Http2Settings::ping_failure_retries`]
+/// left, as Chromium resends after `ERR_HTTP2_PING_FAILED`. It applies
+/// whatever the retry policy, and any method is eligible.
+///
+/// A one-shot streaming body was moved into the failed attempt, so it is
+/// never replayed and the original error is returned instead.
+fn begin_http2_ping_failure_replay(
+    error: &RequestError,
+    method: &Method,
+    body: &RequestBodySource,
+    replays: &mut ReplayState,
+) -> bool {
+    if !error.is_http2_ping_failure()
+        || !body_is_replayable(body)
+        || !replays.try_begin(ReplayClass::Http2PingFailure, method)
+    {
+        return false;
+    }
+    tracing::debug!(
+        reason = "http2_ping_failed",
+        "sending the request again after its connection's PING failed"
+    );
+    true
 }
 
 /// Starts the one replay after a reused HTTP/1.1 connection closed before

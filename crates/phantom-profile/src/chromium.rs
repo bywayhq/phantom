@@ -550,6 +550,17 @@ pub fn v154_http1() -> Http1Settings {
 /// `GOAWAY` with last stream ID 0, `PROTOCOL_ERROR`, and the debug data
 /// `Failed ping.` (`:2719-2738`) and fails every stream (`:2753`).
 ///
+/// A request the failure ended before its response head is sent again, at
+/// once and on another connection, up to twice per redirect hop.
+/// `HttpNetworkTransaction::HandleIOError` resends on
+/// `ERR_HTTP2_PING_FAILED` whatever the method until `retry_attempts_`
+/// reaches `kMaxRetryAttempts`, 2
+/// (`net/http/http_network_transaction.cc:106-108`, `:2073-2074`,
+/// `:2222-2233`, `:2329-2331`). The retained capture
+/// (`fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/ping-unanswered.txt`)
+/// shows the request sent once more with the same fields on a new
+/// connection right after the `GOAWAY`.
+///
 /// The returned value is an ordinary owned [`Http2Settings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
@@ -604,6 +615,7 @@ pub fn v154_http2() -> Http2Settings {
         },
         preface_ping_after: Some(Duration::from_secs(10)),
         ping_timeout: Some(Duration::from_secs(10)),
+        ping_failure_retries: 2,
     }
 }
 

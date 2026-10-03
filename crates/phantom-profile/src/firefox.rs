@@ -446,7 +446,10 @@ pub fn v157_http1() -> Http1Settings {
 /// No PING precedes a request on a read-idle connection. `Http2Session` sends
 /// a PING of its own only from its read-timeout tick and on a network change
 /// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_157_0_RELEASE`),
-/// which Phantom does not model.
+/// which Phantom does not model. When that PING goes unanswered, Firefox
+/// closes the session with `NS_ERROR_NET_TIMEOUT` (`:470-486`), which
+/// `nsHttpTransaction::Close` does not restart
+/// (`nsHttpTransaction.cpp:1546-1553`), so no request is sent again.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
     Http2Settings {
@@ -499,6 +502,7 @@ pub fn v157_http2() -> Http2Settings {
         },
         preface_ping_after: None,
         ping_timeout: None,
+        ping_failure_retries: 0,
     }
 }
 

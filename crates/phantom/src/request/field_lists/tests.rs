@@ -287,6 +287,60 @@ async fn a_refused_http2_stream_replay_builds_each_list_once() -> TestResult {
     .await?
 }
 
+/// A resend after the H2 connection's PING failed sends the lists of the
+/// failed attempt, built once for the hop.
+#[tokio::test]
+async fn a_ping_failure_resend_builds_each_list_once() -> TestResult {
+    timeout(TEST_TIMEOUT, async {
+        let identity = Identity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let origin = listener.local_addr()?;
+        // The connection whose PING fails selects h2 and the replacement
+        // http/1.1, so the resend sends the other list.
+        let acceptor = identity.acceptor_selecting(&[H2_ALPN, H1_ALPN])?;
+        let server = tokio::spawn(async move {
+            let mut silent = accept(&listener, &acceptor).await?;
+            accept_http2_preface(&mut silent).await?;
+            read_http2_headers(&mut silent, 1).await?;
+            // `:status: 200` is static table entry 8.
+            write_http2_frame(&mut silent, 0x1, 0x5, 1, &[0x88]).await?;
+            silent.flush().await?;
+            read_http2_headers(&mut silent, 3).await?;
+            // The PING goes unanswered until the client's GOAWAY.
+            while read_http2_frame(&mut silent).await?.0 != 0x7 {}
+            let mut replacement = accept(&listener, &acceptor).await?;
+            read_head(&mut replacement).await?;
+            replacement.write_all(OK_RESPONSE).await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((silent, replacement))
+        });
+        let mut http2 = chromium::v154_http2();
+        http2.preface_ping_after = Some(Duration::from_secs(1));
+        http2.ping_timeout = Some(Duration::from_secs(2));
+        let profile = ClientProfile::new(chromium::v154_tls()).with_http2(http2);
+        let client = client_builder(&identity, profile).build()?;
+        let first = client
+            .get_negotiated(&format!("https://{origin}/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        drop(first);
+        tokio::time::sleep(Duration::from_millis(1_500)).await;
+        counts::take();
+
+        let response = client
+            .get_negotiated(&format!("https://{origin}/"))?
+            .send()
+            .await?;
+
+        assert_eq!(counts::take(), NEGOTIATED_ONCE);
+        assert_eq!(protocol(&response)?, HttpProtocol::Http1);
+        assert_eq!(response.into_body().collect_with_limit(16).await?, "ok");
+        drop(server.await??);
+        Ok(())
+    })
+    .await?
+}
+
 #[tokio::test]
 async fn an_alternative_replay_after_a_rejected_request_builds_its_list_once() -> TestResult {
     timeout(TEST_TIMEOUT, async {

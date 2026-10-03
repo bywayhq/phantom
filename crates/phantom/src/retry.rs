@@ -38,8 +38,8 @@ mod retry_after;
 /// body; such a request returns the original error or response.
 ///
 /// A few replays are browser behavior rather than caller policy, so they run
-/// whatever the policy is and no policy budget counts them. Each repeats a
-/// request the server did not process:
+/// whatever the policy is and no policy budget counts them. All but the last
+/// repeat a request the server did not process:
 ///
 /// - The negotiated and exact HTTP/2 pools send a bodyless GET refused by
 ///   `GOAWAY(NO_ERROR)` once more on a replacement connection, once per
@@ -63,6 +63,12 @@ mod retry_after;
 ///   early data, as Firefox restarts it. A request that is not replay safe
 ///   waits for the server's answer before its body is used, so its body is
 ///   sent only on that new connection.
+/// - When an HTTP/2 connection closes itself over an unanswered PING before
+///   a request's response head, the request is sent again at once on another
+///   connection, up to
+///   [`Http2Settings::ping_failure_retries`](crate::profile::Http2Settings::ping_failure_retries)
+///   times per redirect hop, whatever its method, as Chromium resends after
+///   `ERR_HTTP2_PING_FAILED`. The server may have processed it.
 ///
 /// A delay or `Retry-After` limit must be small enough to add to the runtime
 /// clock. A client policy that exceeds it makes
@@ -142,7 +148,8 @@ impl RetryPolicy {
     /// connection after the connection closed itself over an unanswered PING
     /// ([`Http2Settings::ping_timeout`](crate::profile::Http2Settings::ping_timeout)),
     /// so that none of the request was sent. A request already sent when the
-    /// PING failed is not replayed.
+    /// PING failed is resent only under the profile's
+    /// [`Http2Settings::ping_failure_retries`](crate::profile::Http2Settings::ping_failure_retries).
     #[must_use]
     pub const fn with_reused_connection_replay(self, enabled: bool) -> Self {
         Self {

@@ -14,6 +14,21 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2Settings` gained the public field `ping_failure_retries: u8`.
+  `chromium::v154_http2`, and so every Chromium-family recipe, sets 2:
+  a request whose HTTP/2 connection closed itself after an unanswered PING
+  before the request's response head is sent again at once on another
+  connection, up to twice per redirect hop, whatever the method and the
+  retry policy, as Chrome 154 resends after `ERR_HTTP2_PING_FAILED`. A
+  negotiated request sends the field lists of the failed attempt; an exact
+  request builds its list again. Before, the request failed with
+  `Http2Error::PingTimeout`, which a one-shot streaming body still returns.
+  `firefox::v157_http2` sets 0, as Firefox 157 restarts no such request.
+  `Http2Settings::validate` rejects a value above 0 without `ping_timeout`
+  ([evidence](docs/explanation/validation.md#http2-preface-ping-evidence)).
+  Migrate: add `ping_failure_retries: 0` to an `Http2Settings` literal; set
+  it to 0 on a Chromium recipe to keep the old failure, and wherever such a
+  recipe's `ping_timeout` or `preface_ping_after` is cleared.
 - `firefox::v157_tcp` selects addresses with `TcpBackupConnection`, a
   250 ms delay and a 5-second backup timeout for a known family, and
   `firefox::v157_http1` sets `Http1IdleTimeout::ClosedOnTimer` with 115

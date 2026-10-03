@@ -207,6 +207,7 @@ impl<'a> SessionCapture<'a> {
             // A navigation on a fresh connection is never read-idle.
             preface_ping_after: None,
             ping_timeout: None,
+            ping_failure_retries: 0,
         })
     }
 }

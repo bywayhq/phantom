@@ -410,6 +410,29 @@ pub struct Http2Settings {
     /// open on it fails. `None` keeps a connection whose PING is never
     /// answered. A value requires [`Self::preface_ping_after`].
     pub ping_timeout: Option<Duration>,
+    /// How many times the `phantom` client sends a request again after its
+    /// connection's PING failed ([`Self::ping_timeout`]) before the
+    /// request's response head arrived.
+    ///
+    /// Each resend goes out at once on another connection, whatever the
+    /// method, when the request has no body or an owned one; a one-shot
+    /// streaming body is never sent again. A negotiated request sends the
+    /// field lists of the failed attempt, and an exact request builds its
+    /// list again, as for its other replays. The count is per redirect hop
+    /// and apart from the client's retry policy. `0` sends none, and a value
+    /// above 0 requires [`Self::ping_timeout`]. A `phantom-net` connection
+    /// only reports the failure.
+    ///
+    /// A client that must not send a request twice clears it:
+    ///
+    /// ```
+    /// use phantom_profile::chromium;
+    ///
+    /// let mut http2 = chromium::v154_http2();
+    /// http2.ping_failure_retries = 0;
+    /// assert!(http2.validate().is_ok());
+    /// ```
+    pub ping_failure_retries: u8,
 }
 
 impl Http2Settings {
@@ -434,6 +457,7 @@ impl Http2Settings {
 
         validate_streams(self.streams)?;
         validate_ping_timeout(self.preface_ping_after, self.ping_timeout)?;
+        validate_ping_failure_retries(self.ping_timeout, self.ping_failure_retries)?;
 
         if let Some(priority) = self.headers_priority {
             validate_priority(
@@ -471,6 +495,19 @@ fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Sett
         return Err(InvalidHttp2Settings::new(
             "streams.max_concurrent_streams_cap",
             "a stream limit cap must be at least 1",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_ping_failure_retries(
+    ping_timeout: Option<Duration>,
+    ping_failure_retries: u8,
+) -> Result<(), InvalidHttp2Settings> {
+    if ping_failure_retries > 0 && ping_timeout.is_none() {
+        return Err(InvalidHttp2Settings::new(
+            "ping_failure_retries",
+            "PING-failure retries apply only with a PING timeout; set ping_timeout",
         ));
     }
     Ok(())
