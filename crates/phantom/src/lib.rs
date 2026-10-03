@@ -47,9 +47,12 @@
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
 //! | `full` | All of the above |
 //! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
+//! | `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing |
 //!
 //! No feature is enabled by default. `full` leaves out `diagnostics`, because
-//! a key log holds secrets that decrypt the client's traffic.
+//! a key log holds secrets that decrypt the client's traffic, and
+//! `danger-disable-verification`, because it lets anyone on the path read and
+//! change the connection.
 //!
 //! # Further reading
 //!

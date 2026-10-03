@@ -8,9 +8,7 @@ use std::{
 
 use btls::ssl::{Ssl, SslAcceptor};
 use http_body_util::BodyExt;
-use phantom::{
-    Client, HttpProtocol, RequestErrorKind, ServerAuthentication, profile::ClientProfile,
-};
+use phantom::{HttpProtocol, RequestErrorKind};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -19,7 +17,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client, tls_settings};
+use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -123,6 +121,7 @@ async fn client_requests_reuse_one_connection() -> TestResult {
     .await
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn disabled_authentication_replaces_connections_without_session_resumption() -> TestResult {
     bounded(async {
@@ -149,9 +148,11 @@ async fn disabled_authentication_replaces_connections_without_session_resumption
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let client = Client::builder(ClientProfile::new(tls_settings()))
-            .server_authentication(ServerAuthentication::Disabled)
-            .build()?;
+        let client = phantom::Client::builder(phantom::profile::ClientProfile::new(
+            tls_support::tls_settings(),
+        ))
+        .server_authentication(phantom::ServerAuthentication::DangerDisabled)
+        .build()?;
         for path in ["first", "second"] {
             client
                 .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?

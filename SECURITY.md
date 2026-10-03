@@ -77,7 +77,7 @@ Out of scope, as normal bug reports:
   consequence; please file a bug with a bounded capture and exact client
   provenance;
 - behavior that only occurs after explicitly disabling certificate
-  verification with `ServerAuthentication::Disabled`; and
+  verification with `ServerAuthentication::DangerDisabled`; and
 - the test kit (`phantom-testkit`), examples, fuzz targets, and the capture
   and conformance scripts under `scripts/`, unless the issue affects library
   users.

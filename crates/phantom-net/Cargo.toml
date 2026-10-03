@@ -8,6 +8,8 @@ rust-version.workspace = true
 version.workspace = true
 
 [features]
+# `ServerAuthentication::DangerDisabled`, which accepts any server certificate.
+danger-disable-verification = []
 # HTTPS DNS record (RFC 9460) lookups through hickory-resolver.
 https-records = ["dep:hickory-resolver"]
 keylog = ["phantom-quic-btls/keylog"]
@@ -69,6 +71,10 @@ tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "rt-
 [[bench]]
 name = "transport"
 harness = false
+
+[[example]]
+name = "tls_anvil_client"
+required-features = ["danger-disable-verification"]
 
 # The workspace lints, except that unsafe code is denied rather than forbidden
 # so the private `windows_port_randomization` FFI module can allow it.

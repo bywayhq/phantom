@@ -17,7 +17,7 @@ use http::{HeaderMap, Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpConnectHeader, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route,
-    ServerAuthentication, profile::ClientProfile,
+    profile::ClientProfile,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, copy_bidirectional},
@@ -163,6 +163,7 @@ async fn streams_http1_through_verified_https_proxy() -> TestResult<()> {
     .await
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn disabled_proxy_authentication_still_verifies_the_origin() -> TestResult<()> {
     bounded(async {
@@ -191,7 +192,7 @@ async fn disabled_proxy_authentication_still_verifies_the_origin() -> TestResult
         ));
         let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = client_builder(&origin_identity, false)
-            .proxy_server_authentication(ServerAuthentication::Disabled)
+            .proxy_server_authentication(phantom::ServerAuthentication::DangerDisabled)
             .route(route)
             .build()?;
 
@@ -216,6 +217,7 @@ async fn disabled_proxy_authentication_still_verifies_the_origin() -> TestResult
     .await
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> TestResult<()> {
     bounded(async {
@@ -239,7 +241,7 @@ async fn disabled_proxy_authentication_does_not_authenticate_the_origin() -> Tes
         ));
         let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
         let client = Client::builder(ClientProfile::new(tls_settings()))
-            .proxy_server_authentication(ServerAuthentication::Disabled)
+            .proxy_server_authentication(phantom::ServerAuthentication::DangerDisabled)
             .route(route)
             .build()?;
 

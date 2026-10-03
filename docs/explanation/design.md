@@ -343,10 +343,12 @@ By default, Phantom verifies the certificate chain and hostname. Additional DER
 roots add to the bundled roots. HTTPS-proxy trust and origin trust are
 configured independently.
 
-`ServerAuthentication::Disabled` turns verification off explicitly, for
-controlled TLS conformance testing over TCP. It applies only to H1 and H2,
-cannot be combined with additional roots or HTTP/3, and does not change the
-profile's ClientHello.
+`ServerAuthentication::DangerDisabled` turns verification off explicitly, for
+controlled TLS conformance testing over TCP. It exists only with the
+non-default `danger-disable-verification` feature, so a configuration value
+cannot turn verification off in a build that did not opt in. It applies only
+to H1 and H2, cannot be combined with additional roots or HTTP/3, and does
+not change the profile's ClientHello.
 
 ### Dependency policy
 

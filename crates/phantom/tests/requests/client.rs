@@ -23,11 +23,8 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
-    RequestHeader, RequestTimeouts, RequestTrailerName, ResponseInfo, ServerAuthentication,
-    profile::{
-        ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
-        chromium,
-    },
+    RequestHeader, RequestTimeouts, RequestTrailerName, ResponseInfo,
+    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -1042,11 +1039,12 @@ fn invalid_http2_profile_has_stable_build_category() -> TestResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[test]
 fn contradictory_server_authentication_policy_fails_during_build() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let error = match Client::builder(ClientProfile::new(tls_settings()))
-        .server_authentication(ServerAuthentication::Disabled)
+        .server_authentication(phantom::ServerAuthentication::DangerDisabled)
         .add_root_certificate_der(identity.root_der)
         .build()
     {
@@ -1062,16 +1060,17 @@ fn contradictory_server_authentication_policy_fails_during_build() -> TestResult
     Ok(())
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[test]
 fn disabled_server_authentication_rejects_http3_during_build() -> TestResult<()> {
-    let http3 = Http3ClientSettings::new(
+    let http3 = phantom::profile::Http3ClientSettings::new(
         chromium::v154_http3_tls(),
         chromium::v154_quic(),
         chromium::v154_http3(),
         chromium::v154_http3_request(),
     );
     let error = match Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
-        .server_authentication(ServerAuthentication::Disabled)
+        .server_authentication(phantom::ServerAuthentication::DangerDisabled)
         .build()
     {
         Ok(_) => return Err("disabled authentication with HTTP/3 was accepted".into()),
@@ -1088,14 +1087,25 @@ fn client_builder_debug_reports_public_policy_without_secrets() {
         Some(value) => value,
         None => NonZeroUsize::MIN,
     };
+    // The one policy other than the default needs its feature.
+    #[cfg(feature = "danger-disable-verification")]
+    let (policy, shown) = (
+        phantom::ServerAuthentication::DangerDisabled,
+        "server_authentication: DangerDisabled",
+    );
+    #[cfg(not(feature = "danger-disable-verification"))]
+    let (policy, shown) = (
+        phantom::ServerAuthentication::WebPki,
+        "server_authentication: WebPki",
+    );
     let debug = format!(
         "{:?}",
         Client::builder(ClientProfile::new(tls_settings()))
-            .server_authentication(ServerAuthentication::Disabled)
+            .server_authentication(policy)
             .redirect_policy(RedirectPolicy::limited(SEVEN))
             .max_retained_http1_connections(SEVEN)
     );
-    assert!(debug.contains("server_authentication: Disabled"));
+    assert!(debug.contains(shown));
     assert!(debug.contains("redirect_policy: RedirectPolicy { maximum: Some(7) }"));
     assert!(debug.contains("max_retained_http1_connections: 7"));
 }

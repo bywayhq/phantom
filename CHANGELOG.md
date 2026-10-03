@@ -24,6 +24,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: add `min_record_ttl` to a `DnsCacheSettings` literal, such as
   `Duration::ZERO` to keep the record TTL as it is, or build from a recipe
   with `..chromium::v154_dns_cache()`.
+- `ServerAuthentication::Disabled` is now
+  `ServerAuthentication::DangerDisabled`, and exists only with the new
+  non-default `danger-disable-verification` feature of `phantom-http` and
+  `phantom-net`, which `full` leaves out. A runtime value, read from
+  configuration for example, could turn off certificate chain and name
+  checks in any build; a build must now opt in. The
+  `phantom-net` example `tls_anvil_client` requires the feature.
+  `ServerAuthentication::verifies` tells whether a policy verifies the
+  server. Migrate: enable `danger-disable-verification` and replace
+  `ServerAuthentication::Disabled` with
+  `ServerAuthentication::DangerDisabled`; replace a comparison with
+  `Disabled` by `!policy.verifies()`.
 - `TlsSettings` has a `close_notify` field: whether shutting down a TLS
   connection over TCP sends a `close_notify` alert before the TCP FIN. The
   Chromium-family recipes leave it unset and send only the FIN, as Chrome

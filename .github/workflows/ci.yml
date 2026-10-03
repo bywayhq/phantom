@@ -245,6 +245,7 @@ jobs:
           cargo clippy -p phantom-http --no-default-features --features serde --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features cookies,serde --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features diagnostics --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features danger-disable-verification --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features cookies,https-records --locked -- -D warnings
           cargo clippy -p phantom-http --all-features --locked -- -D warnings
           cargo clippy -p phantom-net --no-default-features --locked -- -D warnings
@@ -252,6 +253,7 @@ jobs:
           cargo clippy -p phantom-net --no-default-features --features qlog --locked -- -D warnings
           cargo clippy -p phantom-net --no-default-features --features keylog --locked -- -D warnings
           cargo clippy -p phantom-net --no-default-features --features https-records,qlog --locked -- -D warnings
+          cargo clippy -p phantom-net --no-default-features --features danger-disable-verification --locked -- -D warnings
           cargo clippy -p phantom-quic-btls --no-default-features --locked -- -D warnings
           cargo clippy -p phantom-quic-btls --no-default-features --features keylog --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --all-targets --locked -- -D warnings
@@ -452,12 +454,14 @@ jobs:
           cargo "+$MSRV" check -p phantom-http --no-default-features --features serde --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features diagnostics --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features danger-disable-verification --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,https-records --locked
           cargo "+$MSRV" check -p phantom-http --all-features --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features https-records --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features qlog --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features keylog --locked
           cargo "+$MSRV" check -p phantom-net --no-default-features --features https-records,qlog --locked
+          cargo "+$MSRV" check -p phantom-net --no-default-features --features danger-disable-verification --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features keylog --locked
           cargo "+$MSRV" check -p phantom-quic-btls --no-default-features --features server --locked
 

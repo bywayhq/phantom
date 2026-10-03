@@ -15,6 +15,7 @@ name = "phantom"
 [features]
 default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
+danger-disable-verification = ["phantom-net/danger-disable-verification"]
 diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
 full = ["cookies", "https-records", "serde", "sse", "websocket-deflate"]
 https-records = ["phantom-net/https-records"]

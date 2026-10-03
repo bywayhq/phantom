@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     settings.alps = None;
     let connector = Http1TlsConnector::new_with_server_authentication(
         &settings,
-        ServerAuthentication::Disabled,
+        ServerAuthentication::DangerDisabled,
     )?;
 
     let connection = tokio::time::timeout(

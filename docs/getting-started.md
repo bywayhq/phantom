@@ -167,11 +167,16 @@ No feature is enabled by default. Add them to the `phantom` line in
 | `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |
 | `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir`; not part of `full` |
+| `danger-disable-verification` | `ServerAuthentication::DangerDisabled`; not part of `full` |
 
 `diagnostics` writes a TLS key log, so you can decrypt a capture of your own
 connections in Wireshark, and a qlog file for each QUIC connection. A key log
 holds secrets that decrypt the client's traffic, so `full` leaves the feature
 out.
+
+`danger-disable-verification` adds a server-authentication policy that
+accepts any certificate, for TLS conformance testing. Anyone on the path can
+then read and change the connection, so `full` leaves it out too.
 
 To read the API reference offline, run
 `cargo doc -p phantom-http --all-features --no-deps --open` in a checkout of

@@ -615,8 +615,8 @@ impl ClientBuilder {
     /// Sets how TLS servers are authenticated.
     ///
     /// The default is [`ServerAuthentication::WebPki`]. Disabling
-    /// authentication is explicit and is supported for HTTP/1.1 and HTTP/2.
-    /// [`Self::build`] fails with
+    /// authentication takes the `danger-disable-verification` feature and is
+    /// supported for HTTP/1.1 and HTTP/2. [`Self::build`] fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// when disabled authentication is combined with additional roots or a
     /// profile that configures HTTP/3.
@@ -1563,9 +1563,7 @@ impl ClientBuilder {
                 .map_err(BuildError::invalid_proxy_connect_profile)?;
         }
 
-        // `ServerAuthentication` is public and non-exhaustive, so compare
-        // rather than match: phantom-net defines exactly these two policies.
-        let authentication_disabled = self.server_authentication == ServerAuthentication::Disabled;
+        let authentication_disabled = !self.server_authentication.verifies();
         if authentication_disabled {
             if !self.additional_roots.is_empty() {
                 return Err(BuildError::invalid_policy(
@@ -1579,8 +1577,7 @@ impl ClientBuilder {
             }
         }
 
-        let proxy_authentication_disabled =
-            self.proxy_server_authentication == ServerAuthentication::Disabled;
+        let proxy_authentication_disabled = !self.proxy_server_authentication.verifies();
         if proxy_authentication_disabled && !self.proxy_additional_roots.is_empty() {
             return Err(BuildError::invalid_policy(
                 "disabled proxy server authentication cannot be combined with proxy roots",
@@ -1976,7 +1973,7 @@ mod tests {
     use super::{Client, HttpProtocol};
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     use crate::BuildError;
-    use crate::{BuildErrorKind, HttpProxy, Route, ServerAuthentication};
+    use crate::{BuildErrorKind, HttpProxy, Route};
 
     #[test]
     fn connect_udp_proxy_connection_omits_resumption_additions() {
@@ -2240,11 +2237,12 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "danger-disable-verification")]
     #[test]
     fn disabled_proxy_authentication_rejects_proxy_roots() -> Result<(), &'static str> {
         let profile = ClientProfile::new(chromium::v154_tls());
         let error = Client::builder(profile)
-            .proxy_server_authentication(ServerAuthentication::Disabled)
+            .proxy_server_authentication(crate::ServerAuthentication::DangerDisabled)
             .add_proxy_root_certificate_der(b"unused".as_slice())
             .build()
             .err()

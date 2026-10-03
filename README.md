@@ -126,6 +126,7 @@ No Cargo feature is enabled by default:
 | `serde` | Serialization of saved cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |
 | `diagnostics` | TLS key logging and QUIC qlog files, for debugging your own connections; not part of `full` |
+| `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing; not part of `full` |
 
 ## What Phantom is not
 

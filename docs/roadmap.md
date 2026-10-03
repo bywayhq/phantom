@@ -358,8 +358,10 @@ Each of these needs no capture, because no named recipe may reach it
 Each starts from a proposal with acceptance criteria and, where it touches
 the wire, capture evidence.
 
-- A feature-gated `danger_accept_invalid_certs` for debugging through an
-  intercepting proxy; it skips chain verification and changes no wire field.
+- HTTP/3 with verification off. The `danger-disable-verification` feature's
+  `ServerAuthentication::DangerDisabled` already skips chain and name
+  verification over HTTP/1.1 and HTTP/2, for example to debug through an
+  intercepting proxy, and changes no wire field.
 - Digest proxy authentication.
 - SOCKS4 and SOCKS4a routes, which refuse HTTP/3 and the Alt-Svc upgrade
   before I/O.

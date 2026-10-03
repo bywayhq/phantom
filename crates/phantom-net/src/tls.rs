@@ -52,18 +52,33 @@ pub enum ServerAuthentication {
     /// Verify the certificate chain and the requested server name.
     #[default]
     WebPki,
-    /// Accept the server certificate without chain or name verification.
+    /// Accept any server certificate, without chain or name verification.
     ///
-    /// This is intended for controlled protocol conformance and diagnostics.
-    /// Server Name Indication is still sent.
-    Disabled,
+    /// Anyone on the path can then read and change the connection, and
+    /// receives the client certificate and every cookie sent on it. This is
+    /// for controlled protocol conformance and diagnostics only. Server Name
+    /// Indication is still sent. Requires the `danger-disable-verification`
+    /// feature.
+    #[cfg(feature = "danger-disable-verification")]
+    DangerDisabled,
 }
 
 impl ServerAuthentication {
-    const fn trace_name(self) -> &'static str {
+    /// Whether this policy verifies the server's certificate chain and name.
+    #[must_use]
+    pub const fn verifies(self) -> bool {
         match self {
-            Self::WebPki => "webpki",
-            Self::Disabled => "disabled",
+            Self::WebPki => true,
+            #[cfg(feature = "danger-disable-verification")]
+            Self::DangerDisabled => false,
+        }
+    }
+
+    const fn trace_name(self) -> &'static str {
+        if self.verifies() {
+            "webpki"
+        } else {
+            "disabled"
         }
     }
 }
@@ -153,13 +168,10 @@ impl TlsConnector {
         settings: &TlsSettings,
         server_authentication: ServerAuthentication,
     ) -> Result<Self, TlsError> {
-        match server_authentication {
-            ServerAuthentication::WebPki => Self::new(settings),
-            ServerAuthentication::Disabled => Self::build_with_roots(
-                settings,
-                ServerAuthentication::Disabled,
-                std::iter::empty::<&[u8]>(),
-            ),
+        if server_authentication.verifies() {
+            Self::new(settings)
+        } else {
+            Self::build_with_roots(settings, server_authentication, std::iter::empty::<&[u8]>())
         }
     }
 
@@ -348,9 +360,10 @@ impl TlsConnector {
         let mut builder = BoringConnector::bare_builder(SslMethod::tls())
             .map_err(|error| TlsError::backend("connector", error))?;
         builder.set_cert_store_builder(root_store);
-        builder.set_verify(match server_authentication {
-            ServerAuthentication::WebPki => SslVerifyMode::PEER,
-            ServerAuthentication::Disabled => SslVerifyMode::NONE,
+        builder.set_verify(if server_authentication.verifies() {
+            SslVerifyMode::PEER
+        } else {
+            SslVerifyMode::NONE
         });
         configuration::apply(&mut builder, settings)?;
 
@@ -376,8 +389,7 @@ impl TlsConnector {
             _ => None,
         };
 
-        let tickets_verifiable = settings.session_tickets
-            && matches!(server_authentication, ServerAuthentication::WebPki);
+        let tickets_verifiable = settings.session_tickets && server_authentication.verifies();
         let early_data = matches!(sessions, ClientSessions::Scoped)
             && tickets_verifiable
             && settings.tcp_early_data;
@@ -533,10 +545,7 @@ impl TlsConnector {
                 .configure()
                 .map_err(|error| TlsError::backend("handshake configuration", error))?;
             configuration.set_use_server_name_indication(true);
-            configuration.set_verify_hostname(matches!(
-                self.server_authentication,
-                ServerAuthentication::WebPki
-            ));
+            configuration.set_verify_hostname(self.server_authentication.verifies());
             configuration.set_enable_ech_grease(self.ech_grease);
             configuration::apply_ech_grease_payload_length(
                 &mut configuration,

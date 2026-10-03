@@ -229,6 +229,7 @@ async fn no_negotiated_alpn_proceeds_as_http1() -> TestResult<()> {
     .await
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn disabled_authentication_accepts_untrusted_name_mismatch_and_preserves_sni()
 -> TestResult<()> {
@@ -243,7 +244,7 @@ async fn disabled_authentication_accepts_untrusted_name_mismatch_and_preserves_s
 
         let connector = Http1TlsConnector::new_with_server_authentication(
             &tls_settings(),
-            ServerAuthentication::Disabled,
+            ServerAuthentication::DangerDisabled,
         )?;
         let tcp = TcpStream::connect(address).await?;
         let connection = connector.connect(tcp, "mismatch.phantom.test").await?;
@@ -264,6 +265,13 @@ fn webpki_is_the_default_server_authentication_policy() {
         ServerAuthentication::default(),
         ServerAuthentication::WebPki
     );
+}
+
+#[test]
+fn only_webpki_verifies_the_server() {
+    assert!(ServerAuthentication::WebPki.verifies());
+    #[cfg(feature = "danger-disable-verification")]
+    assert!(!ServerAuthentication::DangerDisabled.verifies());
 }
 
 #[tokio::test]

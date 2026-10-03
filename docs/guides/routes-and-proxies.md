@@ -171,7 +171,9 @@ fn private_roots(
   `add_proxy_root_certificate_der` and `proxy_server_authentication` apply to
   HTTPS proxies, including the outer connection of a CONNECT-UDP proxy.
   Added roots join the bundled roots.
-- `ServerAuthentication::Disabled` is for controlled conformance work.
+- `ServerAuthentication::DangerDisabled`, which the
+  `danger-disable-verification` feature adds, is for controlled conformance
+  work.
 - Building fails when disabled origin verification is combined with added
   origin roots or an H3 profile.
 - Building fails when disabled proxy verification is combined with added

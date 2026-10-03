@@ -86,8 +86,9 @@ impl Http2TlsConnector {
 
     /// Builds a connector with an explicit server-authentication policy.
     ///
-    /// [`ServerAuthentication::Disabled`] accepts unauthenticated server
-    /// certificates but continues to send Server Name Indication.
+    /// A policy that does not verify the server, which the
+    /// `danger-disable-verification` feature provides, accepts any server
+    /// certificate but continues to send Server Name Indication.
     pub fn new_with_server_authentication(
         tls: &TlsSettings,
         http2: &Http2Settings,
