@@ -117,6 +117,34 @@ async fn capture_client_hello_from_server_name(
     Ok(tokio::time::timeout(TEST_TIMEOUT, capture_task).await???)
 }
 
+/// Captures the ClientHello of one handshake that `connector` makes.
+async fn capture_connector_client_hello(
+    connector: &TlsConnector,
+) -> TestResult<ClientHelloCapture> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let capture = async {
+        let (mut stream, _) = listener.accept().await?;
+        capture_client_hello(
+            &mut stream,
+            Instant::now() + TEST_TIMEOUT,
+            CaptureLimits::new(32 * 1024, 40 * 1024, 4),
+        )
+        .await
+        .map_err(io::Error::other)
+    };
+    let handshake = async {
+        let tcp = tokio::net::TcpStream::connect(address).await?;
+        Ok::<_, io::Error>(connector.connect(TEST_SERVER_NAME, tcp).await.is_ok())
+    };
+    let (capture, completed) =
+        tokio::time::timeout(TEST_TIMEOUT, async { tokio::join!(capture, handshake) }).await?;
+    if completed? {
+        return Err("capture peer unexpectedly completed TLS".into());
+    }
+    Ok(capture?)
+}
+
 /// Captures one ClientHello from each of `connections` handshakes made by a
 /// single connector, so the samples expose its per-connection choices.
 async fn capture_client_hellos_from(

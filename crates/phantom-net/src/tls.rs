@@ -229,6 +229,28 @@ impl TlsConnector {
         connector
     }
 
+    /// Returns a clone, sharing this connector's TLS context and session
+    /// cache, that offers `protocols` by ALPN.
+    ///
+    /// The ALPS offer is kept only while its protocol stays in `protocols`,
+    /// as `WebSocketConnectionPolicy::http1_tls_settings` derives it. ALPN
+    /// and ALPS are set on each connection, not on the context, so a
+    /// connection from the clone sends the ClientHello of a connector built
+    /// from those settings, and can resume the sessions this connector's
+    /// connections were issued.
+    pub(crate) fn with_alpn_protocols(&self, protocols: &[Box<[u8]>]) -> Result<Self, TlsError> {
+        let mut connector = self.clone();
+        connector.alpn_wire = encode_alpn(protocols)?;
+        if connector.alps.as_ref().is_some_and(|alps| {
+            !protocols
+                .iter()
+                .any(|protocol| protocol.as_ref() == alps.protocol.as_ref())
+        }) {
+            connector.alps = None;
+        }
+        Ok(connector)
+    }
+
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
         let mut connector = self.clone();
         connector.session_cache = self

@@ -133,6 +133,56 @@ impl Http1TlsConnector {
         }
     }
 
+    /// Returns a clone, sharing this connector's TLS context and session
+    /// cache, that offers `protocols` by ALPN.
+    ///
+    /// The ALPS offer is kept only while its protocol stays in `protocols`,
+    /// as [`WebSocketConnectionPolicy::http1_tls_settings`] derives it, so a
+    /// connection from the clone sends the ClientHello of a connector built
+    /// from those settings. It can resume the TLS sessions this connector's
+    /// connections were issued, as Chrome 154 keys its session cache without
+    /// ALPN.
+    ///
+    /// [`WebSocketConnectionPolicy::http1_tls_settings`]: phantom_profile::WebSocketConnectionPolicy::http1_tls_settings
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError::MissingHttp1Alpn`] when `protocols` lacks
+    /// `http/1.1`, and [`Http1TlsError::Tls`] when the list cannot be encoded.
+    pub fn with_alpn_protocols(&self, protocols: &[Box<[u8]>]) -> Result<Self, Http1TlsError> {
+        if !protocols
+            .iter()
+            .any(|protocol| protocol.as_ref() == b"http/1.1")
+        {
+            return Err(Http1TlsError::MissingHttp1Alpn);
+        }
+        Ok(Self {
+            tls: self.tls.with_alpn_protocols(protocols)?,
+            tcp: self.tcp,
+            source: self.source.clone(),
+            host_resolver: self.host_resolver.clone(),
+            proxy_credentials: self.proxy_credentials.clone(),
+        })
+    }
+
+    /// An HTTP/1.1 connector over `tls`, which must offer `http/1.1`, with
+    /// the connection settings of another connector.
+    pub(crate) fn from_parts(
+        tls: TlsConnector,
+        tcp: Option<TcpSettings>,
+        source: Option<SourceBinding>,
+        host_resolver: Option<HostResolver>,
+        proxy_credentials: Option<ProxyCredentialCache>,
+    ) -> Self {
+        Self {
+            tls,
+            tcp,
+            source,
+            host_resolver,
+            proxy_credentials,
+        }
+    }
+
     /// Applies TCP socket options to every TCP connection this connector opens.
     ///
     /// The options cover direct origin connections and connections to HTTP

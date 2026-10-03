@@ -8,7 +8,12 @@ use std::{
 };
 
 use btls::ssl::{AlpnError, Ssl, SslVersion, select_next_proto};
-use phantom_profile::chromium::v154_tls;
+use phantom_profile::{
+    TlsSettings, WebSocketSettings,
+    chromium::{self, v154_tls},
+    firefox,
+};
+use phantom_testkit::tls::ClientHelloSummary;
 use tokio::task::JoinHandle;
 use tokio_btls::SslStream as BoringStream;
 use tracing::{
@@ -19,6 +24,7 @@ use tracing::{
     subscriber::Interest,
 };
 
+use super::capture_connector_client_hello;
 use crate::tls::{
     TlsConnector, TlsErrorKind, record_alps_negotiation,
     test_support::{
@@ -28,6 +34,103 @@ use crate::tls::{
 };
 
 const H2: &[u8] = b"h2";
+
+/// A connector cloned with a WebSocket policy's ALPN list sends the
+/// ClientHello of a connector built from
+/// `WebSocketConnectionPolicy::http1_tls_settings`: the same fields, with
+/// only `http/1.1` offered and Chrome's ALPS offer dropped with `h2`. Both
+/// ClientHellos are compared without GREASE values; Chrome permutes its
+/// extensions on each connection, so only Firefox's order is compared as
+/// sent.
+#[tokio::test]
+async fn a_connector_with_the_websocket_alpn_list_sends_the_policy_client_hello() -> TestResult<()>
+{
+    let recipes: [(TlsSettings, WebSocketSettings, bool); 2] = [
+        (v154_tls(), chromium::v154_websocket(), false),
+        (firefox::v157_tls(), firefox::v157_websocket(), true),
+    ];
+    for (tls, websocket, fixed_order) in recipes {
+        let policy = &websocket.connection;
+        let derived = TlsConnector::new(&tls)?.with_alpn_protocols(&policy.http1_alpn_protocols)?;
+        let built = TlsConnector::new(&policy.http1_tls_settings(&tls))?;
+        let derived = capture_connector_client_hello(&derived).await?.summary()?;
+        let built = capture_connector_client_hello(&built).await?.summary()?;
+
+        assert_eq!(derived.alpn_protocols(), [b"http/1.1".to_vec()]);
+        assert_eq!(built.alpn_protocols(), derived.alpn_protocols());
+        assert_eq!(Comparable::of(&derived), Comparable::of(&built));
+        if fixed_order {
+            assert_eq!(
+                without_grease(derived.extension_types()),
+                without_grease(built.extension_types())
+            );
+        }
+        for alps in [ALPS_OLD_CODEPOINT, ALPS_NEW_CODEPOINT] {
+            assert!(!derived.extension_types().contains(&alps));
+        }
+    }
+    Ok(())
+}
+
+const ALPS_OLD_CODEPOINT: u16 = 0x4469;
+const ALPS_NEW_CODEPOINT: u16 = 0x44cd;
+const ECH: u16 = 0xfe0d;
+
+/// The fields of a ClientHello that do not change between connections: its
+/// values without GREASE, its extensions and their lengths sorted, and its
+/// trust anchor IDs as a set. The GREASE ECH payload's length is left out,
+/// since `EchGreasePayloadLength::BackendDefault` draws it on each
+/// connection.
+#[derive(Debug, Eq, PartialEq)]
+struct Comparable {
+    cipher_suites: Vec<u16>,
+    extensions: Vec<(u16, usize)>,
+    supported_groups: Vec<u16>,
+    ec_point_formats: Vec<u8>,
+    signature_algorithms: Vec<u16>,
+    supported_versions: Vec<u16>,
+    key_share_groups: Vec<u16>,
+    trust_anchor_ids: Option<Vec<Vec<u8>>>,
+}
+
+impl Comparable {
+    fn of(summary: &ClientHelloSummary) -> Self {
+        let mut extensions = summary
+            .extension_layout()
+            .filter(|(extension, _)| !is_grease(*extension))
+            .map(|(extension, length)| (extension, if extension == ECH { 0 } else { length }))
+            .collect::<Vec<_>>();
+        extensions.sort_unstable();
+        let trust_anchor_ids = summary.requested_trust_anchor_ids().map(|ids| {
+            let mut ids = ids.to_vec();
+            ids.sort_unstable();
+            ids
+        });
+        Self {
+            cipher_suites: without_grease(summary.cipher_suites()),
+            extensions,
+            supported_groups: without_grease(summary.supported_groups()),
+            ec_point_formats: summary.ec_point_formats().to_vec(),
+            signature_algorithms: without_grease(summary.signature_algorithms()),
+            supported_versions: without_grease(summary.supported_versions()),
+            key_share_groups: without_grease(summary.key_share_groups()),
+            trust_anchor_ids,
+        }
+    }
+}
+
+fn without_grease(values: &[u16]) -> Vec<u16> {
+    values
+        .iter()
+        .copied()
+        .filter(|value| !is_grease(*value))
+        .collect()
+}
+
+/// RFC 8701 GREASE values: both bytes equal, each `0x?a`.
+const fn is_grease(value: u16) -> bool {
+    value & 0x0f0f == 0x0a0a && value >> 8 == value & 0xff
+}
 
 #[tokio::test]
 async fn absent_alps_is_distinct_from_negotiated_empty_settings() -> TestResult<()> {

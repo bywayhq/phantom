@@ -177,6 +177,27 @@ impl Http2TlsConnector {
         self.proxy_credentials.as_ref()
     }
 
+    /// An HTTP/2 connector over `tls`, which must offer `h2`, with the
+    /// validated `http2` settings and the connection settings of another
+    /// connector.
+    pub(crate) fn from_parts(
+        tls: TlsConnector,
+        http2: Http2Settings,
+        tcp: Option<TcpSettings>,
+        source: Option<SourceBinding>,
+        host_resolver: Option<HostResolver>,
+        proxy_credentials: Option<ProxyCredentialCache>,
+    ) -> Self {
+        Self {
+            tls,
+            http2,
+            tcp,
+            source,
+            host_resolver,
+            proxy_credentials,
+        }
+    }
+
     /// Returns the TCP socket options applied to new connections, if any.
     #[must_use]
     pub fn tcp_settings(&self) -> Option<&TcpSettings> {

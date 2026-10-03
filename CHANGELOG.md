@@ -786,6 +786,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `Http1TlsConnector::with_alpn_protocols`,
+  `Http1Or2TlsConnector::http1_connector`, and
+  `Http1Or2TlsConnector::http2_connector` return connectors that share the
+  source connector's TLS context and session cache. The first two offer
+  another ALPN list, keeping the ALPS offer only while its protocol stays
+  in it, so a connection resumes the source connector's tickets with the
+  ClientHello of `WebSocketConnectionPolicy::http1_tls_settings`.
 - `Http1IdleTimeout::ClosedOnTimer(duration)` closes an idle HTTP/1.1
   connection once it has been idle that long, checked when a request
   arrives and by one timer per client, as Firefox's connection manager

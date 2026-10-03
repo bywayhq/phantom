@@ -14,7 +14,7 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
-    http1::{Http1Connection, Http1Error},
+    http1::{Http1Connection, Http1Error, Http1TlsConnector, Http1TlsError},
     http2::{
         Http2Builder, Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected,
         translate_settings, validate_http2,
@@ -325,6 +325,54 @@ impl Http1Or2TlsConnector {
             host_resolver: self.host_resolver.clone(),
             proxy_credentials: self.proxy_credentials.clone(),
         }
+    }
+
+    /// Returns an HTTP/2 connector that shares this connector's TLS context,
+    /// session cache, HTTP/2 settings, and connection settings.
+    ///
+    /// A connection from it sends the same ClientHello as this connector's
+    /// and can resume the TLS sessions this connector's connections were
+    /// issued, so an HTTP/2 WebSocket opening resumes the tickets of the
+    /// origin's negotiated requests.
+    #[must_use]
+    pub fn http2_connector(&self) -> Http2TlsConnector {
+        Http2TlsConnector::from_parts(
+            self.tls.clone(),
+            self.http2.clone(),
+            self.tcp,
+            self.source.clone(),
+            self.host_resolver.clone(),
+            self.proxy_credentials.clone(),
+        )
+    }
+
+    /// Returns an HTTP/1.1 connector, sharing this connector's TLS context
+    /// and session cache, that offers `protocols` by ALPN.
+    ///
+    /// The ALPS offer is kept only while its protocol stays in `protocols`,
+    /// as [`WebSocketConnectionPolicy::http1_tls_settings`] derives it. A
+    /// connection from it can resume the TLS sessions this connector's
+    /// connections were issued, as Chrome 154 keys its session cache without
+    /// ALPN.
+    ///
+    /// [`WebSocketConnectionPolicy::http1_tls_settings`]: phantom_profile::WebSocketConnectionPolicy::http1_tls_settings
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError::MissingHttp1Alpn`] when `protocols` lacks
+    /// `http/1.1`, and [`Http1TlsError::Tls`] when the list cannot be encoded.
+    pub fn http1_connector(
+        &self,
+        protocols: &[Box<[u8]>],
+    ) -> Result<Http1TlsConnector, Http1TlsError> {
+        Http1TlsConnector::from_parts(
+            self.tls.clone(),
+            self.tcp,
+            self.source.clone(),
+            self.host_resolver.clone(),
+            self.proxy_credentials.clone(),
+        )
+        .with_alpn_protocols(protocols)
     }
 
     /// Returns a clone with a fresh isolated TLS session cache.
