@@ -334,26 +334,36 @@ fn scripted_dial(
 }
 
 /// A reset connect ends the Firefox recipe's attempt at the first address,
-/// as only a refusal or timeout moves Firefox on, while the Chromium
-/// recipe's racing and the default sequential selection try the next one.
+/// before its backup starts, as only a refusal or timeout moves Firefox on,
+/// while the Chromium recipe's racing and the default sequential selection
+/// try the next one.
 #[tokio::test(flavor = "current_thread")]
 async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -> TestResult {
     let first: std::net::SocketAddr = "192.0.2.1:443".parse()?;
     let second: std::net::SocketAddr = "192.0.2.2:443".parse()?;
 
-    let TcpAddressSelection::Sequential(advance) =
+    let TcpAddressSelection::Backup(backup) =
         phantom_profile::firefox::v157_tcp().address_selection
     else {
-        return Err("the Firefox recipe is not sequential".into());
+        return Err("the Firefox recipe has no backup connection".into());
+    };
+    let plan = super::backup_connection::Plan {
+        family: None,
+        known_family_backup_timeout: backup.known_family_backup_timeout,
     };
     let dialed = std::cell::RefCell::new(Vec::new());
-    let error =
-        match connect_sequentially(vec![first, second], advance, scripted_dial(first, &dialed))
-            .await
-        {
-            Ok(address) => return Err(format!("connected to {address}").into()),
-            Err(error) => error,
-        };
+    let mut dial = scripted_dial(first, &dialed);
+    let attempt = super::backup_connection::connect(
+        vec![first, second],
+        plan,
+        std::future::pending::<()>(),
+        |address, _timeout| dial(address),
+        std::time::Instant::now(),
+    );
+    let error = match attempt.await {
+        Ok(won) => return Err(format!("connected to {}", won.connected.address).into()),
+        Err(error) => error,
+    };
     assert_eq!(error.kind(), io::ErrorKind::ConnectionReset);
     assert_eq!(*dialed.borrow(), [first]);
 

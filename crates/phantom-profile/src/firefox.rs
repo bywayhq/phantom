@@ -30,7 +30,7 @@ use crate::{
     },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::{
-        TcpAddressAdvance, TcpAddressSelection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
+        TcpAddressSelection, TcpBackupConnection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
         TcpSettings,
     },
     tls::{
@@ -236,35 +236,47 @@ pub fn v157_tls() -> TlsSettings {
 ///   restarts the short-lived period (`:686`), an idle pooled connection
 ///   stays short-lived (`:1411-1414`), HTTP/2 disables keepalive
 ///   (`:405-406`), and a WebSocket upgrade switches at once (`:1303-1320`).
-/// - The addresses are tried one at a time in resolver order, and an attempt
-///   moves to the next address only after a refused, unreachable, or
-///   timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`,
-///   `:1747-1755`).
+/// - Addresses are chosen as [`TcpBackupConnection`] describes. Release
+///   builds keep the newer Happy Eyeballs behind the nightly-only
+///   `network.http.happy_eyeballs_enabled`
+///   (`modules/libpref/init/StaticPrefList.yaml:17153-17156`), so
+///   `DnsAndConnectSocket` opens an IPv4 backup attempt 250 ms after a first
+///   attempt that has not connected (`modules/libpref/init/all.js:1205`,
+///   `:1237`; `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`,
+///   `:222-225`, `:242-265`, `:307-329`), keeps the slower attempt's
+///   connection, and pools it (`:671-745`). Once an origin's address family
+///   is known, both attempts use it alone and each backup connect gets
+///   `network.http.fallback-connection-timeout`, 5 seconds
+///   (`modules/libpref/init/all.js:1220`; `DnsAndConnectSocket.cpp:167-178`,
+///   `:1295-1303`). An attempt moves to its next address only after a
+///   refused, unreachable, or timed-out connect
+///   (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`). In the
+///   hook logs the backup started 254 to 260 ms after a slow first attempt,
+///   the first attempt's slower connection carried a later request, and
+///   every later connection tried IPv4 alone.
 /// - No socket in the hook logs sets `SO_RANDOMIZE_PORT`, so Windows gives
 ///   each connection the next free local port, and
 ///   [`TcpSettings::port_randomization`] is `None`.
 ///
 /// Not modeled:
 ///
-/// - Release builds keep Happy Eyeballs behind the nightly-only
-///   `network.http.happy_eyeballs_enabled`
-///   (`modules/libpref/init/StaticPrefList.yaml:17153-17156`) and open a
-///   backup attempt 250 ms after a first attempt that has not connected,
-///   restricted to IPv4 while no address family is learned
-///   (`modules/libpref/init/all.js:1205`, `:1237`;
-///   `netwerk/protocol/http/DnsAndConnectSocket.cpp:179-186`, `:222-225`,
-///   `:242-265`, `:307-329`). Firefox then keeps the slower attempt's
-///   connection, finishes its TLS handshake, and pools it
-///   (`DnsAndConnectSocket.cpp:695-743`).
-///   [`TcpBackupConnection`](crate::tcp::TcpBackupConnection) opens the
-///   backup but closes the slower attempt, which a server sees as a
-///   connection ended without a request, so this recipe does not use it.
-/// - Firefox records the address family of each connection it opens for an
-///   origin and resolves only that family afterwards, while the origin's
-///   connection entry exists
-///   (`netwerk/protocol/http/DnsAndConnectSocket.cpp:167-178`, `:1150-1164`;
-///   `netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). Phantom
-///   tries every address on every connection.
+/// - Firefox keeps the slower connection, and remembers the address family,
+///   on every connection entry (`DnsAndConnectSocket.cpp:671-745`). Phantom
+///   does so only for direct HTTP/1.1 and negotiated requests. Connections
+///   to a proxy, WebSocket connections, exact HTTP/2 requests, and
+///   connections that offer ECH from HTTPS records start the backup, close
+///   the slower attempt, and neither use nor learn the family.
+/// - Firefox marks an address that failed to connect as unusable in its
+///   cached DNS record and skips it on later connections
+///   (`netwerk/base/nsSocketTransport2.cpp:1742-1745`); Phantom tries it
+///   again.
+/// - Firefox remembers an origin's address family until a prune finds its
+///   connection entry empty
+///   (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). Phantom
+///   prunes on the timer of [`Http1IdleTimeout::ClosedOnTimer`], which notices
+///   a server's close of an idle connection only when it fires; Firefox
+///   notices at once and can stop its timer, so it may remember a family
+///   longer.
 /// - On Windows Firefox also sets `SO_LINGER` to `{1, 0}`
 ///   (`netwerk/base/nsSocketTransport2.cpp:1473-1485`), but it shuts the
 ///   socket down with `SD_BOTH` before closing it
@@ -289,9 +301,10 @@ pub fn v157_tcp() -> TcpSettings {
             short_lived_time: Duration::from_secs(60),
             probe_count: 10,
         }),
-        address_selection: TcpAddressSelection::Sequential(
-            TcpAddressAdvance::AfterRefusalOrTimeout,
-        ),
+        address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
+            delay: Duration::from_millis(250),
+            known_family_backup_timeout: Some(Duration::from_secs(5)),
+        }),
         port_randomization: None,
     }
 }
@@ -352,21 +365,23 @@ pub fn v157_dns_cache() -> DnsCacheSettings {
 /// by `network.http.max-urgent-start-excessive-connections-per-host`, 3
 /// (`modules/libpref/init/all.js:1155-1157`).
 ///
-/// Firefox's idle limit is not modeled either, so an idle connection stays
-/// reusable until the server closes it. Firefox reuses a connection only
-/// while it has been idle less than `network.http.keep-alive.timeout`, 115
-/// seconds (`modules/libpref/init/all.js:1136`;
-/// `netwerk/protocol/http/nsHttpConnection.cpp:965-983`), or the `timeout`
-/// of the response's `Keep-Alive` field when it names one (`:1120-1129`).
-/// It also closes a connection on a timer once that time passes, with no
-/// request pending (`nsHttpConnection::TimeToLive`, `:1009-1026`;
-/// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258`, `:1027-1030`,
-/// `:2572-2605`), which no [`Http1IdleTimeout`] variant models yet.
+/// Firefox reuses a connection only while it has been idle less than
+/// `network.http.keep-alive.timeout`, 115 seconds
+/// (`modules/libpref/init/all.js:1136`;
+/// `netwerk/protocol/http/nsHttpConnection.cpp:965-983`), and closes it on a
+/// timer once that time passes, with no request pending
+/// (`nsHttpConnection::TimeToLive`, `:1009-1025`;
+/// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258-271`, `:2572-2625`,
+/// `:4075-4084`), which [`Http1IdleTimeout::ClosedOnTimer`] models. In the
+/// Firefox 157 socket hook logs it closed an idle connection 115.5 seconds
+/// after its last response, and the server read a FIN. Firefox also honors
+/// the `timeout` of a response's `Keep-Alive` field (`:1120-1129`), which
+/// Phantom ignores.
 #[must_use]
 pub fn v157_http1() -> Http1Settings {
     Http1Settings {
         max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
-        idle_timeout: Http1IdleTimeout::Unlimited,
+        idle_timeout: Http1IdleTimeout::ClosedOnTimer(Duration::from_secs(115)),
     }
 }
 

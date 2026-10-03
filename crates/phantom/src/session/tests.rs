@@ -44,14 +44,9 @@ fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn st
     let chromium_client =
         Client::builder(profile(chromium::v154_http3_tls()).with_http1(chromium::v154_http1()))
             .build()?;
-    let firefox = Client::builder(profile(chromium::v154_http3_tls()).with_http1(
-        phantom_profile::Http1Settings {
-            max_connections_per_origin: nonzero(6),
-            idle_timeout: phantom_profile::Http1IdleTimeout::ClosedOnTimer(Duration::from_secs(
-                115,
-            )),
-        },
-    ))
+    let firefox = Client::builder(
+        profile(chromium::v154_http3_tls()).with_http1(phantom_profile::firefox::v157_http1()),
+    )
     .build()?;
 
     let timeout = Some(Duration::from_secs(300));

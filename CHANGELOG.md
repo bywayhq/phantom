@@ -14,6 +14,26 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `firefox::v157_tcp` selects addresses with `TcpBackupConnection`, a
+  250 ms delay and a 5-second backup timeout for a known family, and
+  `firefox::v157_http1` sets `Http1IdleTimeout::ClosedOnTimer` with 115
+  seconds, as Firefox 157 does
+  ([evidence](docs/explanation/validation.md#firefox-socket-hook-evidence)).
+  A Firefox profile now opens an IPv4 backup attempt 250 ms after a slow
+  first attempt, keeps the slower connection on direct HTTP/1.1 and
+  negotiated requests, connects to the family that worked, and closes an
+  idle HTTP/1.1 connection 115 to 116 seconds after its last response;
+  before, it tried the addresses one at a time and kept an idle connection
+  until the server closed it. For a Firefox profile, connections to a
+  proxy, WebSocket connections, exact HTTP/2 requests, and connections that
+  offer ECH from HTTPS records now start the backup as well but close the
+  slower attempt, where before they tried the addresses one at a time; they
+  neither use nor learn the origin's address family. Chromium-family
+  profiles keep their behavior. Migrate: to keep the old Firefox behavior,
+  set `address_selection` of `firefox::v157_tcp()` to
+  `TcpAddressSelection::Sequential(TcpAddressAdvance::AfterRefusalOrTimeout)`
+  and `idle_timeout` of `firefox::v157_http1()` to
+  `Http1IdleTimeout::Unlimited`.
 - `TcpBackupConnection` gained the public field
   `known_family_backup_timeout` (`Option<Duration>`), whole seconds up to
   the new `phantom_profile::tcp::MAX_TCP_BACKUP_TIMEOUT_SECONDS`, 600. Once

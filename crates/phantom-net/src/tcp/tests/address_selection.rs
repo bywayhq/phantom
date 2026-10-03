@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_profile::{TcpAddressSelection, TcpBackupConnection, TcpSettings, chromium, firefox};
+use phantom_profile::{TcpAddressAdvance, TcpAddressSelection, TcpSettings, chromium, firefox};
 use tokio::net::TcpListener;
 
 use super::{super::connect_resolved, TestResult};
@@ -25,14 +25,12 @@ async fn ipv4_listener_only() -> TestResult<Option<(TcpListener, SocketAddr, Soc
     Ok(Some((listener, ipv6, ipv4)))
 }
 
-/// The Firefox recipe with an IPv4 backup attempt 250 ms in, which the
-/// recipe itself leaves out.
-fn backup_profile() -> TcpSettings {
+/// The Firefox recipe trying one address at a time, without its backup.
+fn sequential_profile() -> TcpSettings {
     TcpSettings {
-        address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
-            delay: Duration::from_millis(250),
-            known_family_backup_timeout: None,
-        }),
+        address_selection: TcpAddressSelection::Sequential(
+            TcpAddressAdvance::AfterRefusalOrTimeout,
+        ),
         ..firefox::v157_tcp()
     }
 }
@@ -48,7 +46,11 @@ async fn timed_connect(
 
 #[tokio::test(flavor = "current_thread")]
 async fn every_selection_reaches_ipv4_when_ipv6_is_refused() -> TestResult {
-    for settings in [firefox::v157_tcp(), backup_profile(), chromium::v154_tcp()] {
+    for settings in [
+        sequential_profile(),
+        firefox::v157_tcp(),
+        chromium::v154_tcp(),
+    ] {
         // A taken `[::1]` port or a host without IPv6 loopback skips this
         // selection only.
         let Some((_listener, ipv6, ipv4)) = ipv4_listener_only().await? else {
@@ -68,7 +70,7 @@ async fn every_selection_reaches_ipv4_when_ipv6_is_refused() -> TestResult {
 #[tokio::test(flavor = "current_thread")]
 async fn the_second_attempt_starts_after_each_selections_delay() -> TestResult {
     for (settings, delay) in [
-        (backup_profile(), Duration::from_millis(250)),
+        (firefox::v157_tcp(), Duration::from_millis(250)),
         (chromium::v154_tcp(), Duration::from_millis(300)),
     ] {
         // A taken `[::1]` port or a host without IPv6 loopback skips this
@@ -107,7 +109,7 @@ async fn only_racing_takes_a_second_ipv6_address_early() -> TestResult {
     };
     let listening = listener.local_addr()?;
 
-    let (peer, elapsed) = timed_connect(vec![refused, listening], backup_profile()).await?;
+    let (peer, elapsed) = timed_connect(vec![refused, listening], firefox::v157_tcp()).await?;
     assert_eq!(peer, listening);
     assert!(elapsed >= Duration::from_secs(1), "backup: {elapsed:?}");
 

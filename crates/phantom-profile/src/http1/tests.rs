@@ -25,12 +25,15 @@ fn chromium_154_stops_reusing_a_connection_idle_300_seconds() {
 }
 
 #[test]
-fn firefox_157_keeps_an_idle_connection_until_the_server_closes_it() {
-    // Firefox's 115-second `network.http.keep-alive.timeout` is not modeled.
+fn firefox_157_closes_a_connection_idle_115_seconds_on_a_timer() {
+    // `network.http.keep-alive.timeout`, `modules/libpref/init/all.js:1136`
+    // at `FIREFOX_157_0_RELEASE`.
+    let timeout = firefox::v157_http1().idle_timeout;
     assert_eq!(
-        firefox::v157_http1().idle_timeout,
-        crate::Http1IdleTimeout::Unlimited
+        timeout,
+        crate::Http1IdleTimeout::ClosedOnTimer(std::time::Duration::from_secs(115))
     );
+    assert_eq!(timeout.checked_on_request(), timeout.closed_on_timer());
 }
 
 #[test]

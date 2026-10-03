@@ -1,13 +1,15 @@
 //! Replays the Frida hook logs under `fixtures/socket-hooks/firefox/` against
-//! the Firefox TCP and address cache recipes and the default UDP settings.
+//! the Firefox TCP, HTTP/1.1, and address cache recipes and the default UDP
+//! settings.
 //! The logs record what the parent process of Firefox 157.0 did on Windows
 //! 11; `scripts/capture/firefox_socket_hooks.py` wrote them.
 
 use std::time::Duration;
 
-use super::{v157_dns_cache, v157_tcp};
+use super::{v157_dns_cache, v157_http1, v157_tcp};
 use crate::{
-    tcp::{TcpAddressAdvance, TcpAddressSelection, TcpKeepalivePolicy, TcpKeepaliveSchedule},
+    http1::Http1IdleTimeout,
+    tcp::{TcpAddressSelection, TcpBackupConnection, TcpKeepalivePolicy, TcpKeepaliveSchedule},
     udp::UdpSettings,
 };
 
@@ -304,6 +306,33 @@ fn firefox_keeps_an_idle_pooled_connection_short_lived() -> TestResult {
     Ok(())
 }
 
+/// Firefox closed the idle connection between 115 and 116 seconds after its
+/// last response, the recipe's timer limit and the second its timer may take
+/// past it, and the origin read a FIN.
+#[test]
+fn firefox_closes_an_idle_connection_on_its_115_second_timer() -> TestResult {
+    let Http1IdleTimeout::ClosedOnTimer(limit) = v157_http1().idle_timeout else {
+        return Err(format!(
+            "recipe idle timeout is {:?}",
+            v157_http1().idle_timeout
+        ));
+    };
+    let limit = millis(limit);
+    assert_eq!(limit, 115_000);
+    let connection = numbered(HTTP1_IDLE, 0, "server_connection_")
+        .first()
+        .copied()
+        .ok_or("no server connection")?;
+    let idle = connection
+        .split(',')
+        .find_map(|part| part.strip_prefix("idle_before_close_ms:"))
+        .ok_or("no idle time")?;
+    let idle = number(idle)?;
+    assert!((limit..limit + 1_000).contains(&idle), "idle {idle} ms");
+    assert!(connection.contains("close:fin"), "{connection}");
+    Ok(())
+}
+
 /// HTTP/2 turned keepalive off right after the handshake, and nothing
 /// turned it on again.
 #[test]
@@ -341,18 +370,20 @@ fn firefox_switches_a_websocket_connection_to_long_lived_at_once() -> TestResult
     Ok(())
 }
 
-/// Not modeled: with `[::1]` refused slowly and `127.0.0.1` listening,
-/// every run started an IPv4 backup 250 ms after the first attempt, and the
-/// first attempt moved to `127.0.0.1` only when `[::1]` was refused. The
-/// recipe tries the addresses in order, because `TcpBackupConnection`
-/// closes the slower attempt that Firefox keeps.
+fn backup() -> Result<TcpBackupConnection, String> {
+    match v157_tcp().address_selection {
+        TcpAddressSelection::Backup(backup) => Ok(backup),
+        other => Err(format!("recipe address selection is {other:?}")),
+    }
+}
+
+/// With `[::1]` refused slowly and `127.0.0.1` listening, every run started
+/// an IPv4 backup the recipe's 250 ms after the first attempt, and the first
+/// attempt moved to `127.0.0.1` only when `[::1]` was refused.
 #[test]
 fn firefox_starts_an_ipv4_backup_250_ms_after_a_slow_first_attempt() -> TestResult {
-    assert_eq!(
-        v157_tcp().address_selection,
-        TcpAddressSelection::Sequential(TcpAddressAdvance::AfterRefusalOrTimeout)
-    );
-    let delay = 250;
+    let delay = millis(backup()?.delay);
+    assert_eq!(delay, 250);
     let slack = millis(Duration::from_millis(60));
     let runs = run_count(BACKUP)?;
     assert_eq!(runs, 5);
@@ -380,8 +411,11 @@ fn firefox_starts_an_ipv4_backup_250_ms_after_a_slow_first_attempt() -> TestResu
     Ok(())
 }
 
-/// Not modeled: Firefox kept the slower attempt's connection, used it for a
-/// later request, and gave it a two-second probe interval, its setup time.
+/// Firefox kept the slower attempt's connection, used it for a later
+/// request, and gave it a two-second probe interval, its setup time counted
+/// from the start of the first attempt, as the recipe's schedule does for
+/// the connection a `TcpBackupConnection` keeps. Being plaintext, the
+/// connection set no keepalive until that request.
 #[test]
 fn firefox_keeps_the_slower_connection_with_its_setup_time_interval() -> TestResult {
     for run in 0..run_count(BACKUP)? {
@@ -403,11 +437,16 @@ fn firefox_keeps_the_slower_connection_with_its_setup_time_interval() -> TestRes
     Ok(())
 }
 
-/// Not modeled: once a connection to the origin succeeded over IPv4,
-/// Firefox's later connections to it, also after the origin closed every
-/// connection, tried `127.0.0.1` alone. Phantom tries both families again.
+/// Once a connection to the origin succeeded over IPv4, Firefox's later
+/// connections to it, also 2 s after the origin closed every connection,
+/// tried `127.0.0.1` alone, as a `TcpBackupConnection` does while its pool
+/// entry remembers the family.
 #[test]
 fn firefox_remembers_the_address_family_of_an_origin() -> TestResult {
+    assert_eq!(
+        backup()?.known_family_backup_timeout,
+        Some(Duration::from_secs(5))
+    );
     for run in 0..run_count(BACKUP)? {
         let sockets = sockets(BACKUP, run)?;
         assert_eq!(sockets.len(), 5, "run {run}");

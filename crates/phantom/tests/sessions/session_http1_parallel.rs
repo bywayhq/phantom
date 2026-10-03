@@ -497,3 +497,65 @@ fn custom_profile_carries_its_own_http1_bound() -> TestResult {
     assert!(format!("{client:?}").contains("max_concurrent_http1_requests_per_origin: 3"));
     Ok(())
 }
+
+/// On Windows a refused loopback connect takes about two seconds, so a
+/// Firefox profile's attempt to `[::1]`, where nothing listens, is still
+/// pending when its IPv4 backup connects 250 ms in and carries the first
+/// request. The first attempt then moves to `127.0.0.1` as well, and the pool
+/// keeps that slower connection idle without a request, as Firefox 157 did
+/// in its hook logs: the next two requests share the two connections and no
+/// third one opens.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests() -> TestResult {
+    bounded(async {
+        let mut server = Server::start().await?;
+        let port = server.address.port();
+        // `[::1]` at the same port stays bound without listening, so its
+        // connect is refused; a host without IPv6 loopback skips the test.
+        let unlistened = tokio::net::TcpSocket::new_v6()?;
+        match unlistened.bind(SocketAddr::new(std::net::Ipv6Addr::LOCALHOST.into(), port)) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AddrNotAvailable => {
+                eprintln!("skipped: this host has no IPv6 loopback address");
+                return Ok(());
+            }
+            Err(error) => return Err(error.into()),
+        }
+        let client = builder(
+            profile()
+                .with_http1(firefox::v157_http1())
+                .with_tcp(firefox::v157_tcp()),
+        )
+        .resolve(
+            "origin.phantom.test",
+            [
+                std::net::Ipv6Addr::LOCALHOST.into(),
+                Ipv4Addr::LOCALHOST.into(),
+            ],
+        )
+        .build()?;
+        let uri = |path: &str| format!("http://origin.phantom.test:{port}/{path}");
+
+        finish(hold(&client, &uri("first")).await?).await?;
+        assert_eq!(server.next().await?, Event::Accepted(0));
+        assert_eq!(server.next_request().await?, (0, "first".to_owned()));
+        // The slower attempt connects with no request once `[::1]` refuses.
+        assert_eq!(server.next().await?, Event::Accepted(1));
+
+        let second = hold(&client, &uri("second")).await?;
+        let third = hold(&client, &uri("third")).await?;
+        let mut used = [
+            server.next_request().await?.0,
+            server.next_request().await?.0,
+        ];
+        used.sort_unstable();
+        assert_eq!(used, [0, 1]);
+        server.assert_quiet().await?;
+        finish(second).await?;
+        finish(third).await?;
+        drop(unlistened);
+        Ok(())
+    })
+    .await
+}
