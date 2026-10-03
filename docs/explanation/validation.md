@@ -44,7 +44,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs and Firefox's grace period not modeled |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()` only; WebSocket openings not adjusted |
-| [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, plus loopback tests against BoringSSL H2 and QUIC servers | No capture of a Chrome restart |
+| [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, two Chrome 154.0.8037.97 captures of a navigation that restarted, plus loopback tests against BoringSSL H2 and QUIC servers | H2 only; no capture over HTTP/3 |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 157 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin |
 | [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures | No subprotocols, H3, proxies, macOS, or Safari |
@@ -53,7 +53,8 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
 | [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source, a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom, and one of Chrome 154.0.8037.97 closing a connection whose PING went unanswered | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
 | [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
-| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; several listed differences from Chromium |
+| [Idle PING, revalidation, and uploads](#idle-ping-revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures | One run per scenario; recorded for future work, no recipe uses them yet |
+| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; Phantom keeps one alternative per origin; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
 | [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; no network partitions in Phantom |
@@ -2806,8 +2807,34 @@ request is not written; it starts again with the hints it lacked after
 `Accept` and before `Sec-Fetch-Site`, as Chromium 154 restarts a navigation.
 A `fetch` goes out as built.
 
-Evidence: Chromium source at tag `154.0.8037.58`; no capture shows a
-restart.
+Evidence: Chromium source at tag `154.0.8037.58`, and two captures of
+headless Chrome 154.0.8037.97 on Windows 11 (10.0.26200), retained as
+[`alps-accept-ch.txt`](../../fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/alps-accept-ch.txt)
+and
+[`alps-accept-ch-reordered.txt`](../../fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/alps-accept-ch-reordered.txt).
+[`alps_accept_ch.py`](../../scripts/capture/README.md#alps-accept_ch-restart)
+serves the page over HTTP/2 from a BoringSSL origin whose ALPS carries an
+`ACCEPT_CH` frame for its own origin, and reads Chrome's NetLog. The page
+fetches `/fetch` and then `/done`.
+
+- With `ACCEPT_CH` naming `Sec-CH-UA-Arch, Sec-CH-UA-Platform-Version`, the
+  navigation's first URL request ended at
+  `URL_REQUEST_DELEGATE_CONNECTED` with `ERR_ABORTED` (-3) and sent no
+  headers. A second URL request for `/` sent them on the same connection,
+  and the server received one request for `/`, carrying both hints right
+  after `accept`: `... user-agent, accept, sec-ch-ua-arch,
+  sec-ch-ua-platform-version, sec-fetch-site ...`.
+- With the frame naming `Sec-CH-UA-Platform-Version, Sec-CH-UA-Model,
+  Sec-CH-UA-Arch`, the restarted request carried `sec-ch-ua-arch,
+  sec-ch-ua-platform-version, sec-ch-ua-model` after `accept`: Chrome's own
+  hint order, which the Chromium client-hint recipes list in the same order,
+  not the frame's.
+- The `fetch` requests on the same connection went out once, without the
+  hints, in both runs.
+
+Phantom's restart matches: one request on the wire, the hints the
+navigation lacked right after `Accept` in the profile's order, and no change
+to a `fetch`.
 
 | Step | Chromium source |
 | --- | --- |
@@ -2862,13 +2889,18 @@ The first five are in `crates/phantom/tests/requests/client_hints.rs`, the
 others in `crates/phantom/src`. Byte-for-byte replays of the captured
 requests, which carry no ALPS `ACCEPT_CH`, are unchanged.
 
-How to reproduce: read the cited files at the tag above, and run the listed
-tests.
+How to reproduce: read the cited files at the tag above, run the listed
+tests, and capture as
+[ALPS `ACCEPT_CH` restart](../../scripts/capture/README.md#alps-accept_ch-restart)
+describes; each run took under 2 seconds.
 
 Limits:
 
-- No capture of Chrome restarting a request exists, so which fields the
-  restarted navigation rebuilds, and where its hints go, rest on source.
+- The captures cover HTTP/2. The restart over HTTP/3 rests on source and the
+  loopback test.
+- The captured navigation lacked every hint the frame named; a navigation
+  that lacks some of them, or whose origin stored hints through `Accept-CH`
+  first, rests on source.
 - The test servers send `ACCEPT_CH` only through ALPS; frames sent after the
   handshake are not supported.
 
@@ -3675,6 +3707,50 @@ Limits:
   `firefox_android::v156_tls`, which sets it, rests on desktop Firefox 157
   and NSS's `ssl_SecureClose`.
 
+### Idle PING, revalidation, and upload evidence
+
+What is recorded: three browser behaviors that no recipe models yet, from
+the same `http_lifecycle.py` captures of Chrome 154.0.8037.97 and Firefox
+157.0, one run each, retained under `fixtures/lifecycle/`.
+
+- Firefox's read-timeout PING (`idle-ping`, Firefox only): the page
+  fetched `/a` over HTTP/2, left the connection idle for 75 seconds, then
+  fetched `/b`. Firefox sent one PING with payload `0000000000000000` on the
+  idle pooled connection 59.9 seconds after the server's last frame, and no
+  other in that time; a trial run, not retained, sent it after 60.2
+  seconds. That is
+  `network.http.http2.ping-threshold`, 58 seconds, plus the connection
+  manager's timer tick (`Http2Session::ReadTimeoutTick`,
+  `netwerk/protocol/http/Http2Session.cpp:436-503` at
+  `FIREFOX_157_0_RELEASE`). The run took 81 seconds.
+  `firefox::v157_http2` sends no PING.
+- Revalidation (`revalidate`): the page fetched four resources twice
+  each with the default cache mode. Three carried `Cache-Control: no-cache`
+  with an `ETag`, a `Last-Modified`, or both; the server answered a second
+  request with a matching validator with `304`. Both browsers sent
+  `If-None-Match` with the `ETag` and `If-Modified-Since` with the
+  `Last-Modified` value, and the page saw status 200 with the cached body.
+  Chrome put the validators after `accept-language` and before `priority`,
+  `if-none-match` first; Firefox put them after `sec-fetch-site` and before
+  `priority`, `if-modified-since` first when both were sent. A resource with
+  only a year-old `Last-Modified` and no `Cache-Control` was served from the
+  cache with no second request, in both browsers.
+- Uploads (`upload-h1`, `upload-h2`): a 100-byte `fetch` POST, 1 MiB
+  string and `Blob` bodies, a 1 MiB multipart `FormData`, and a form that
+  submitted a 1 MiB file into an iframe, over HTTP/1.1 and over HTTP/2.
+  Neither browser sent `Expect: 100-continue` on any of them; each body
+  carried `Content-Length`.
+
+How to reproduce: the commands in
+[Connection lifecycle](../../scripts/capture/README.md#connection-lifecycle);
+each `revalidate` and `upload` run took 1 to 2 seconds.
+
+Limits:
+
+- One run per scenario, headless, on one Windows host; Edge, Brave, and
+  Opera were not captured.
+- Phantom has no HTTP cache, so revalidation fields come from the caller.
+
 ### Alt-Svc racing evidence
 
 What is claimed: Phantom's opt-in `AltSvcPolicy::race` follows Chrome's
@@ -3741,6 +3817,25 @@ new connection instead of being cancelled, while the alternative was still the
 bound job; and in two `quic-bad-certificate` runs the first race after learning
 was the `/hold` image rather than `/r/r1`, so the tool aggregated those runs
 separately.
+
+Chrome 154.0.8037.97 was also captured against an origin that lists two
+`h3` alternatives, a QUIC-only listener on a port of its own first and the
+origin's own port second, three runs per scenario, retained under
+[`fixtures/alt-svc/chrome/154.0.8037.97/windows-11-26200/`](../../fixtures/alt-svc/chrome/154.0.8037.97/windows-11-26200/):
+
+- `two-alternatives`, both serving: every race used the first alternative,
+  and the second received no datagram, 3/3. Chrome does not race the
+  alternatives against each other.
+- `first-alternative-blackholed`: the first race used the first alternative,
+  which lost to TCP and was marked broken for 299 to 300 seconds. The next new
+  connection's alternative job connected to the second alternative, and
+  later requests were bound to that QUIC session, 3/3.
+
+So Chrome uses the first alternative that is not broken, in the order the
+field lists them, as `GetAlternativeServiceInfoInternal` reads them
+(`net/http/http_stream_factory_job_controller.cc`). Phantom keeps only the
+first `h3` entry of a field and does not fall back to the next one. The two
+scenarios took 57 seconds together.
 
 Phantom's policy, as [Coverage](../reference/coverage.md#http3) states it,
 follows these rows: alternative setup first, origin setup after the caller's
@@ -3822,6 +3917,8 @@ Limits, as differences from Chromium:
   change. It races one alternative: a stored Alt-Svc alternative replaces an
   HTTPS-record one, where Chromium runs both jobs unless they name the same
   location.
+- Phantom stores only the first `h3` entry of an `Alt-Svc` field. Chrome
+  moves to the next listed alternative once the first is broken.
 - A background alternative keeps its H3 admission permit for the origin and
   route until it ends.
 

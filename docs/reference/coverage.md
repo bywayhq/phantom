@@ -526,8 +526,9 @@ Planned:
 - Nonempty local H3 application settings.
 - Repeated packet differentials against fresh browsers.
 - Datagram APIs for specific extensions.
-- Alt-Svc racing across multiple alternatives, and a racing delay derived
-  from RTT.
+- Moving to the next alternative an `Alt-Svc` field lists once the first
+  is broken, as Chrome 154 does; Phantom keeps the first only. A racing
+  delay derived from RTT.
 - Encrypted Client Hello on an Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does; Phantom's address lookups go through the operating system.

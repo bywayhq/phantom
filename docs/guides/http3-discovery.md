@@ -167,7 +167,9 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   does, and `ech_from_https_records = false` on the profile's H3 TLS
   settings sends GREASE.
 - Not implemented: racing more than one alternative (a stored Alt-Svc
-  alternative is used instead of an HTTPS-record one), persisting
+  alternative is used instead of an HTTPS-record one), moving to the next
+  alternative an `Alt-Svc` field lists once the first is broken, as Chrome
+  does (Phantom keeps the first), persisting
   brokenness or clearing it on a network change, an RTT-derived racing
   delay, and proxy-route snapshots.
 

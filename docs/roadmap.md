@@ -100,9 +100,10 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 - Client hints fixed per request on every protocol, as Chromium sets them
   before it chooses a connection. On HTTP/2 and HTTP/3, a connection whose
   ALPS `ACCEPT_CH` names a hint a navigation lacks restarts it with the hint
-  before anything is sent, as Chromium 154 does; a `fetch` goes out as
-  built
-  ([Fields of a repeated attempt](explanation/design.md#fields-of-a-repeated-attempt)).
+  right after `Accept` before anything is sent, as a Chrome 154 capture
+  shows; a `fetch` goes out as built
+  ([Fields of a repeated attempt](explanation/design.md#fields-of-a-repeated-attempt),
+  [ALPS `ACCEPT_CH` restart evidence](explanation/validation.md#alps-accept_ch-restart-evidence)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
 - A local source address per address family and, on Linux and Android, an
@@ -249,32 +250,35 @@ anything does.
   (`netwerk/protocol/http/TlsHandshaker.cpp:134-137`); no capture resumed a
   WebSocket opening. Phantom offers no early data on either.
 - Chromium's retry of a request whose session ended with
-  `ERR_HTTP2_PING_FAILED`: up to twice on a new connection, whatever the
-  method. Evidence: source only
+  `ERR_HTTP2_PING_FAILED`. Evidence: a Chrome 154 capture shows the request
+  sent again at once on a new connection with the same fields, and source
+  allows up to two such retries, whatever the method
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence));
-  Phantom closes the connection as Chromium does but fails the request.
+  Phantom closes the connection as Chrome does but fails the request.
   Blocker: a replay class for requests the client cannot show were
   unprocessed, which the unprocessed-replay policy does not cover.
-- Firefox's read-timeout `PING`. Evidence: source only; `Http2Session`
-  sends a `PING` after `network.http.http2.ping-threshold`, 58 seconds,
-  without a read (`Http2Session.cpp:436-503` at `FIREFOX_157_0_RELEASE`).
-  Blocker: a capture showing whether an idle pooled Firefox connection
-  receives the timer tick.
-- Revalidation with `If-None-Match` or `If-Modified-Since` and `304`
-  handling. Evidence: none. Blocker: a capture of what Chrome and Firefox
-  send on a second fetch, before any cache is written.
-- `Expect: 100-continue`. Evidence: none; whether a browser sends it, and on
-  which uploads, is unknown.
-- An origin that advertises more than one alternative. Phantom uses one.
-  Blocker: a capture of such an origin, which decides whether Chrome races
-  them, picks one by rule, or tries them in order.
-- Capture evidence for the ALPS `ACCEPT_CH` restart. Phantom fixes a
-  request's client hints when it builds its lists and restarts a navigation
-  when its connection's `ACCEPT_CH` names a hint it lacks, from Chromium
-  source ([Design](explanation/design.md#fields-of-a-repeated-attempt)).
-  Blocker: a capture of a Chrome navigation whose connection's `ACCEPT_CH`
-  adds a hint, to confirm which fields the restarted request rebuilds and
-  where its hints go, which Chromium source places after `Accept`.
+- Firefox's read-timeout `PING` in `firefox::v157_http2`. Evidence: a
+  Firefox 157 capture shows one `PING` with payload 0 on an idle pooled
+  HTTP/2 connection about 60 seconds after its last read, from
+  `network.http.http2.ping-threshold`, 58 seconds, and the connection
+  manager's tick
+  ([Idle PING evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)).
+  Blocker: a per-connection idle timer in the HTTP/2 driver, and Firefox's
+  handling of an unanswered `PING`, which no capture shows.
+- Revalidation fields in template order. Evidence: Chrome 154 and Firefox
+  157 send `If-None-Match` and `If-Modified-Since` on a second fetch of a
+  resource with `no-cache` and show the page the cached body after a `304`;
+  Chrome puts them after `Accept-Language`, `If-None-Match` first, and
+  Firefox after `Sec-Fetch-Site`, `If-Modified-Since` first
+  ([Revalidation evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)).
+  Phantom has no HTTP cache, so a caller sends the fields, and the templates
+  have no slot for them. Blocker: template slots for the two fields.
+- The next Alt-Svc alternative after a broken one. Evidence: Chrome 154
+  uses the first alternative a field lists, races no other, and moves to the
+  next once the first is broken
+  ([Alt-Svc racing evidence](explanation/validation.md#alt-svc-racing-evidence));
+  Phantom stores only the first. Blocker: the Alt-Svc store and its
+  snapshots must keep every listed alternative, with brokenness for each.
 
 #### Discovery, DNS, and ECH
 
@@ -307,7 +311,10 @@ Each of these needs no capture, because no named recipe may reach it
 - A caller-pinned Alt-Svc alternative, which needs no TLS stream to learn
   from and so could work on CONNECT-UDP.
 - Racing more than one alternative, bounded and chosen by the caller.
-- `Expect: 100-continue` and caller-owned conditional-request validators.
+- `Expect: 100-continue`, which neither Chrome 154 nor Firefox 157 sends on
+  any `fetch`, `FormData`, or form upload
+  ([Upload evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)),
+  and caller-owned conditional-request validators.
 - A buffered request body that a retry may replay.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
