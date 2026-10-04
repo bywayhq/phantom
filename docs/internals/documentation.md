@@ -62,13 +62,14 @@ Every page under `docs/` except reference tables opens like this:
 ```markdown
 # Page title
 
-One or two sentences: what the reader can do or learn here.
+One or two sentences: what the reader can do here, in plain words.
 
-> For builders who have read [Getting started](../getting-started.md).
+> Read [Getting started](../getting-started.md) first.
 ```
 
-The quoted line names the reader and at most one prerequisite. Use the reader
-names from the table above.
+The opening sentences use no glossary terms. The quoted line names a
+prerequisite only when the page needs one; say it the way you would to a
+colleague ("If fingerprinting is new to you, start with ...").
 
 Every page ends with a `## Next` section of one to three links, each with a
 few words on why the reader would go there.
@@ -81,14 +82,14 @@ A guide is a set of tasks. Each task section:
    proxy", not a feature name such as "SOCKS5";
 2. states the goal in one sentence;
 3. shows a complete, compiling example;
-4. adds at most one short list of what the reader must know to use it
-   correctly.
+4. adds at most one caveat, and only one a typical reader will hit.
 
-Details that a reader needs only when something goes wrong go in a final
-`## Limits` section of the guide, as short bullets. Exhaustive defaults go in
+Everything else lives elsewhere. Error kinds, "fails before any I/O", and
+exact validation ranges belong in rustdoc. Exhaustive defaults go in
 [Defaults and limits](../reference/limits.md). Why Phantom chose a behavior
-goes in [Design](../explanation/design.md). Evidence goes in
-[Validation](../explanation/validation.md).
+goes in [Design](../explanation/design.md). Where a recipe came from goes in
+[Validation](../explanation/validation.md). A guide's `## Limits` section, if
+it has one, keeps three or four bullets that would surprise a reader.
 
 Aim for guides under 200 lines. A longer guide usually holds reference or
 explanation content that belongs elsewhere.
@@ -106,9 +107,27 @@ explanation content that belongs elsewhere.
 
 ## Prose
 
-Write plain, specific sentences. One idea per sentence, active voice, present
-tense. Use the same word for the same thing on every page. Give numbers,
-names, and conditions instead of adjectives.
+Write the way a colleague explains something at a whiteboard: plainly, to
+"you", in short sentences. Look at the READMEs of reqwest, axum, tokio and
+curl-impersonate for the tone.
+
+- Open with what the reader can do, not with how Phantom is built.
+- One idea per sentence, active voice, present tense. Keep sentences under
+  about 25 words, and do not chain conditions with semicolons in the README
+  or the guides.
+- Use the common word: "header", not "field"; "page load", not "navigation";
+  "handshake", not "ClientHello", outside the fingerprinting and specialist
+  pages. When you need a special term, explain it in plain words the first
+  time; a glossary link alone is not enough.
+- Say what Phantom does. Do not write defensive asides about what it never
+  does, unless a reader would otherwise expect it.
+- Do not narrate where a fact came from ("from captures", "from browser
+  source", "hook logs", "checked against"). State the fact. The evidence
+  lives in Validation and Coverage, and the README links there once.
+- Feature lists and table rows are short noun phrases with no conditions.
+- One stability warning, at the top of the README. Guides do not repeat it.
+- Contractions are fine. Use the same word for the same thing on every page,
+  and give numbers and names instead of adjectives.
 
 Do not write these:
 
@@ -127,8 +146,8 @@ Do not write these:
 - Claims that cannot be checked, such as "undetectable", "fast", or "battle-tested".
 <!-- docs-check: allow-end -->
 
-Say what Phantom does not do as plainly as what it does. A limit stated next
-to the feature saves the reader a failed attempt.
+Say what Phantom does not do when a reader would reasonably expect it, once,
+where they would hit it. Do not list every edge case on every page.
 
 For anything these rules do not settle, follow the
 [Google developer documentation style guide](https://developers.google.com/style).
@@ -146,9 +165,11 @@ For anything these rules do not settle, follow the
 
 - Describe only behavior that exists today. Planned work belongs in the
   [roadmap](../roadmap.md) or the planned lists in Coverage.
-- Every claim about matching a browser needs evidence in Validation. Do not
-  add a claim without it.
-- When you move a fact, move it; do not drop it. Removing repetition is fine.
+- Every claim about matching a browser needs evidence in Validation. This is
+  a rule for reviewers; the reader-facing page states the claim without the
+  evidence trail.
+- Cut what a page's reader does not need. If the fact matters, make sure the
+  reference or Validation page has it.
 - If two pages state the same limit, one of them should link to the other.
 - A statement about another project, or a table that summarizes browser
   coverage, carries the date it was last checked.
