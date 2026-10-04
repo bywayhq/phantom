@@ -599,6 +599,70 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
     .await
 }
 
+/// An alternative whose certificate the client does not trust fails its
+/// handshake while another raced alternative carries the request; it is
+/// marked broken, so the next request does not race it.
+#[tokio::test]
+async fn a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again()
+-> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ]),
+            ),
+        )
+        .await?;
+        let untrusted = UntrustedAlternative::spawn()?;
+        let client = client_builder(&identity)?
+            .alt_svc_policy(capped_race(
+                Duration::from_secs(30),
+                Duration::from_secs(4),
+                2,
+            )?)
+            .build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &fixture,
+            &[untrusted.port, fixture.alternative_address().port()],
+        )?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http3);
+        assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
+        // Whether it failed before the winner connected or afterwards in the
+        // background, the untrusted alternative is marked broken.
+        wait_until(|| Ok(untrusted.attempts() == 1)).await?;
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http3);
+        assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(untrusted.attempts(), 1);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_connections, 0);
+        assert_eq!(observed.alternative_connections, 1);
+        Ok(())
+    })
+    .await
+}
+
 /// When every raced alternative is blackholed, the origin carries the
 /// request after its delay and each alternative is marked broken once its
 /// setup limit ends it.
@@ -1502,6 +1566,46 @@ impl Blackhole {
 }
 
 impl Drop for Blackhole {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+/// A QUIC listener with a certificate no test client trusts, which counts
+/// the connection attempts it receives.
+struct UntrustedAlternative {
+    port: u16,
+    attempts: Arc<AtomicUsize>,
+    task: JoinHandle<()>,
+}
+
+impl UntrustedAlternative {
+    fn spawn() -> TestResult<Self> {
+        let untrusted =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
+        let (address, endpoint) = h3_support::server_endpoint(&untrusted)?;
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&attempts);
+        let task = tokio::spawn(async move {
+            while let Some(incoming) = endpoint.accept().await {
+                counter.fetch_add(1, Ordering::SeqCst);
+                // The client rejects the certificate, so the handshake fails.
+                drop(tokio::spawn(async move { incoming.await.is_err() }));
+            }
+        });
+        Ok(Self {
+            port: address.port(),
+            attempts,
+            task,
+        })
+    }
+
+    fn attempts(&self) -> usize {
+        self.attempts.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for UntrustedAlternative {
     fn drop(&mut self) {
         self.task.abort();
     }

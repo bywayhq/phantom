@@ -611,3 +611,27 @@ fn a_raced_early_win_is_confirmed_marked_or_raced_again_by_its_handshake() {
         EarlyWinStep::MarkRecentlyBroken
     );
 }
+
+#[test]
+fn a_race_started_again_keeps_each_alternative_with_its_own_list() {
+    use super::retain_raced;
+
+    let (alternatives, lists) = retain_raced(
+        vec!["first", "second", "third"],
+        Some(Box::from(["first list", "second list", "third list"])),
+        &[true, false, true],
+    );
+    assert_eq!(alternatives, ["first", "third"]);
+    assert_eq!(lists.as_deref(), Some(&["first list", "third list"][..]));
+
+    // A race that kept no lists builds them again for what remains.
+    let (alternatives, lists) = retain_raced(vec![1, 2], None::<Box<[&str]>>, &[false, true]);
+    assert_eq!(alternatives, [2]);
+    assert!(lists.is_none());
+
+    // Every alternative may be left out.
+    let (alternatives, lists) =
+        retain_raced(vec!["only"], Some(Box::from(["only list"])), &[false]);
+    assert!(alternatives.is_empty());
+    assert_eq!(lists.as_deref(), Some(&[][..]));
+}

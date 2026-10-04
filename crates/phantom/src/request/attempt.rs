@@ -326,14 +326,14 @@ async fn send_once_negotiated(
         NegotiatedPlan::Alternative(alternative) => {
             send_once_alt_svc(client, request, attempt, route, lifecycle, alternative).await
         }
-        NegotiatedPlan::Race(alternative, race, lookup) => {
+        NegotiatedPlan::Race(alternatives, race, lookup) => {
             send_once_raced(
                 client,
                 request,
                 attempt,
                 route,
                 lifecycle,
-                alternative,
+                alternatives,
                 race,
                 lookup,
                 None,

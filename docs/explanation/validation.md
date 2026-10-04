@@ -4142,7 +4142,8 @@ and 1061-1065 at 154.0.8037.58). A new field replaces the list
 expires on its own `ma` (lines 841-844), and brokenness is kept per
 alternative, outside the list (`net/http/broken_alternative_services.cc`
 lines 67-74). Phantom keeps the `h3` entries of a field in order, up to
-eight, and selects the first that is not broken.
+eight, and by default selects the first that is not broken; a caller cap
+of up to three selects that many, distinct and not broken, in field order.
 `race_uses_the_first_listed_alternative_and_never_dials_the_second` and
 `race_moves_to_the_next_alternative_once_the_first_is_broken`, in
 `crates/phantom/tests/http3/alt_svc_race.rs`, reproduce the two scenarios.
@@ -4150,12 +4151,12 @@ The two scenarios took 57 seconds together.
 
 Phantom's policy, as [Coverage](../reference/coverage.md#http3) states it,
 follows these rows: alternative setup first, origin setup after the caller's
-delay or at once when the alternative fails or a reusable pooled H2
+delay or at once when every raced alternative fails or a reusable pooled H2
 connection exists (`existing-h2-session`), one dispatch on the winner, and a
 4-second limit on each alternative attempt. Beyond that summary:
 
 - Reaching the 4-second limit marks the alternative broken, matching the
-  blackhole rows. Nothing is marked when both candidates fail, and a broken
+  blackhole rows. Nothing is marked when every candidate fails, and a broken
   alternative is not raced.
 - A raced setup offers early data when the client does. Chromium's QUIC
   attempt requires handshake confirmation only when QUIC to the request
@@ -4204,14 +4205,15 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 
 | Tests | What they cover |
 | --- | --- |
-| Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of every attempt, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores) |
-| Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear`; every listed `h3` alternative kept in field order up to eight, the first one not broken selected, a return to the first when its broken period ends, each alternative's own expiry, and a new field replacing the list without clearing brokenness |
+| Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of every attempt, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores); with several alternatives, one permit per candidate, a later alternative winning with the others returned in race order, the origin keeping its delay until every alternative has failed, and a race started again keeping each alternative with its own HTTP/3 list |
+| Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear`; every listed `h3` alternative kept in field order up to eight, the first one not broken selected, a return to the first when its broken period ends, each alternative's own expiry, and a new field replacing the list without clearing brokenness; up to N distinct alternatives that are not broken selected in field order (`a_race_selects_distinct_alternatives_that_are_not_broken_in_field_order`) |
 | Unit tests with a paused clock: H3 connect turns | One location waits only for its own turn |
 | Loopback, `crates/phantom/tests/http3/alt_svc_race.rs`, real client pools | The default sequential terminal failure; one dispatch per request, with background pooling of the losing alternative; a one-shot streaming body sent only by the winner; route preservation |
 | Same file: blackholed alternative | Under a short connect timeout it loses after the origin delay. With default timeouts it stops at the 4 s limit, is marked broken, and is not raced again, while a second race queued behind it never opens a QUIC connection |
 | Same file: other candidates | Exact H3 to the origin does not wait for a background alternative setup; an available H2 connection skips a 5 s origin delay |
 | Same file: listed alternatives | The second listed alternative receives nothing while the first works; once the first is broken, the next request is bound to the origin while the second connects, and the request after uses it; under the sequential policy a failed alternative, and one that answers `421`, leaves the list and the next request uses the next one |
 | Same file: admission | With one H3 admission per origin, the alternative's permit is released after a win, after cancellation, and at the 4 s limit of a background setup, while a race still waiting for admission gives its place back |
+| Same file: several alternatives (`with_max_alternatives`) | With two raced, the one that connects carries the request with an `Alt-Used` naming it, and a blackholed one is broken at its limit (`two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used`); one that fails its handshake is broken and not raced again (`a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again`); the origin wins over two blackholed ones and both are broken (`origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken`); with one H3 admission the waiting second is cancelled unmarked and dialed by a later race (`an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked`); build rejects more than three |
 
 How to reproduce: `scripts/capture/alt_svc_race.py --browser chrome --repeat
 10`, and `--scenario broken-backoff --repeat 2`.
@@ -4226,8 +4228,9 @@ Limits, as differences from Chromium:
 - Phantom cancels a losing origin setup instead of keeping its connection
   idle.
 - Phantom does not persist brokenness and does not reset it on a network
-  change. It races one alternative: a stored Alt-Svc alternative replaces an
-  HTTPS-record one, where Chromium runs both jobs unless they name the same
+  change. It races one alternative by default, as Chromium does, and up to
+  three under a caller cap, which no browser does. Stored Alt-Svc
+  alternatives replace an HTTPS-record one, where Chromium runs both jobs unless they name the same
   location. With every stored alternative broken, Phantom uses the origin
   alone, where Chromium still runs its `DNS_ALPN_H3` job when QUIC to the
   origin's own location is not broken
@@ -4247,6 +4250,12 @@ Limits, as differences from Chromium:
   have, so is one whose setup failed.
 - A background alternative keeps its H3 admission permit for the origin and
   route until it ends.
+- Under a caller cap above one, an alternative that fails while another
+  alternative carries the request is marked broken once the winner's
+  handshake completes. Chromium marks an alternative broken only when the
+  origin wins against it, and never races two alternatives, so this is
+  Phantom's choice. A request raced again after a failed early handshake
+  leaves out the alternatives that failed and any now broken.
 
 ### Alt-Svc HTTP/3 upgrade evidence
 

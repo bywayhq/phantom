@@ -37,22 +37,26 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 - Chrome races only the first alternative that is not broken, and so does
   the default. `AltSvcRace::with_max_alternatives` races up to three at
   once, in field order and skipping broken ones; the request goes to the
-  first to connect, with an `Alt-Used` field that names it. Each setup needs
-  its own H3 admission, so with `max_concurrent_http3_requests_per_origin`
-  at 1 the later ones wait and are cancelled when another candidate wins.
+  first to connect, with an [`Alt-Used`](../reference/glossary.md#alt-used)
+  field that names it. Each setup needs its own H3 admission, so with
+  `max_concurrent_http3_requests_per_origin` at 1 the later ones wait and
+  are cancelled when another candidate wins.
 - The request is sent once, on the winner, and `ResponseInfo` reports the
   winner's protocol. Later retries and replays stay on that protocol.
 - The fields for every candidate are built and checked before any setup
   starts, and the winner sends them as built, so a cookie stored during the
   race reaches the next request
   ([fields of a repeated attempt](../explanation/design.md#fields-of-a-repeated-attempt)).
-- An alternative that fails while another candidate wins is marked broken
-  and not raced until the backoff ends. `CHROMIUM_153` is 300 seconds,
-  doubling per failure, capped at two days; a successful alternative
-  connection resets it. Meanwhile the next alternative the field listed is raced, as Chrome
+- An alternative that fails while the origin wins is marked broken and not
+  raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling per
+  failure, capped at two days; a successful alternative connection resets
+  it. Meanwhile the next alternative the field listed is raced, as Chrome
   does; with every one broken, the origin is used alone, without the
   HTTPS-record lookup Chrome would still race. When every candidate fails,
   Phantom returns the origin's error.
+- Chrome never races two alternatives, so marking one that fails while
+  another alternative wins is Phantom's choice: it happens once the
+  winner's handshake has completed.
 - A raced alternative offers early data when the client does, as Chrome's
   does, so a resumed alternative can win at once and send a replay-safe
   request as early data. It does not after QUIC to the origin's own host and

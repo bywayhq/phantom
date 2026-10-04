@@ -260,9 +260,9 @@ pub(super) async fn send_once_raced(
             tracing::debug!(
                 outcome = "alternative",
                 alternative = index,
-                "Alt-Svc race chose an alternative"
+                "Alt-Svc race chose the alternative"
             );
-            let marked_broken = settle_losers(
+            let failed = settle_losers(
                 client,
                 request,
                 route,
@@ -278,6 +278,8 @@ pub(super) async fn send_once_raced(
                 // `race_setup` returns the index of one of `alternatives`.
                 let winner = &alternatives[index];
                 client.confirm_alt_svc(&request.endpoint, route, winner);
+                mark_failed_broken(client, request, route, &alternatives, &failed, race);
+                let winner_fields = fields.http3.into_vec().into_iter().nth(index);
                 return send_on_alternative(
                     client,
                     request,
@@ -286,7 +288,7 @@ pub(super) async fn send_once_raced(
                     lifecycle,
                     winner,
                     Some(leased),
-                    fields.http3.into_vec().into_iter().nth(index),
+                    winner_fields,
                     &mut false,
                 )
                 .await;
@@ -302,7 +304,7 @@ pub(super) async fn send_once_raced(
                 lifecycle,
                 EarlyWin {
                     alternatives,
-                    marked_broken,
+                    failed,
                     index,
                     race,
                     leased,
@@ -314,7 +316,7 @@ pub(super) async fn send_once_raced(
         }
         RaceOutcome::Origin { leased, losers } => {
             tracing::debug!(outcome = "origin", "Alt-Svc race chose the origin");
-            settle_losers(
+            let failed = settle_losers(
                 client,
                 request,
                 route,
@@ -323,6 +325,7 @@ pub(super) async fn send_once_raced(
                 race,
                 losers,
             );
+            mark_failed_broken(client, request, route, &alternatives, &failed, race);
             send_once_origin(
                 client,
                 request,
@@ -340,11 +343,11 @@ pub(super) async fn send_once_raced(
 /// Settles the alternatives that lost a race, given in race order with
 /// `connecting` set once each held its location's connect turn.
 ///
-/// One that failed while another candidate won is marked broken, one still
-/// connecting continues in the background, and one still waiting for
-/// admission or for its location's connect turn has done no network work and
-/// is cancelled rather than orphaned. Returns, in race order, which ones were
-/// marked broken.
+/// One still connecting continues in the background, and one still waiting
+/// for admission or for its location's connect turn has done no network work
+/// and is cancelled rather than orphaned. Returns, in race order, which ones
+/// failed in a way that breaks an alternative; the caller marks them with
+/// [`mark_failed_broken`] once the winner is known to work.
 fn settle_losers<F>(
     client: &Client,
     request: &ResolvedRequest,
@@ -357,24 +360,16 @@ fn settle_losers<F>(
 where
     F: Future<Output = Result<Http3Lease, RequestError>> + Send + ?Sized + 'static,
 {
-    let mut marked_broken = vec![false; alternatives.len()];
-    for (((loser, alternative), connecting), marked) in losers
+    let mut failed = vec![false; alternatives.len()];
+    for (((loser, alternative), connecting), failed) in losers
         .into_iter()
         .zip(alternatives)
         .zip(connecting)
-        .zip(&mut marked_broken)
+        .zip(&mut failed)
     {
         match loser {
-            Candidate::Failed(error) if invalidates_alternative(&error) => {
-                client.mark_alt_svc_broken(
-                    &request.endpoint,
-                    route,
-                    alternative,
-                    race.broken_backoff(),
-                );
-                *marked = true;
-            }
-            Candidate::Failed(_) | Candidate::Taken => {}
+            Candidate::Failed(error) => *failed = invalidates_alternative(&error),
+            Candidate::Taken => {}
             Candidate::Pending(setup) if connecting.load(Ordering::Acquire) => {
                 continue_alternative(
                     client.clone(),
@@ -388,7 +383,55 @@ where
             Candidate::Pending(_) => {}
         }
     }
-    marked_broken
+    failed
+}
+
+/// Marks broken each of `alternatives` that `failed` names, after the
+/// origin or another alternative carried the request.
+///
+/// Chromium marks an alternative broken when the origin wins against it. It
+/// never races two alternatives, so marking a failed alternative when
+/// another alternative wins is Phantom's choice for a race of several, made
+/// only once the winner's handshake has completed.
+fn mark_failed_broken(
+    client: &Client,
+    request: &ResolvedRequest,
+    route: &Route,
+    alternatives: &[AlternativeTarget],
+    failed: &[bool],
+    race: AltSvcRace,
+) {
+    for (alternative, _) in alternatives
+        .iter()
+        .zip(failed)
+        .filter(|(_, failed)| **failed)
+    {
+        client.mark_alt_svc_broken(&request.endpoint, route, alternative, race.broken_backoff());
+    }
+}
+
+/// Keeps the alternatives at the positions `keep` names and, when the race
+/// kept its HTTP/3 lists, the list at each of those positions, so the `n`th
+/// alternative still sends the `n`th list.
+fn retain_raced<A, L>(
+    alternatives: Vec<A>,
+    lists: Option<Box<[L]>>,
+    keep: &[bool],
+) -> (Vec<A>, Option<Box<[L]>>) {
+    let alternatives = alternatives
+        .into_iter()
+        .zip(keep)
+        .filter_map(|(alternative, keep)| keep.then_some(alternative))
+        .collect();
+    let lists = lists.map(|lists| {
+        lists
+            .into_vec()
+            .into_iter()
+            .zip(keep)
+            .filter_map(|(list, keep)| keep.then_some(list))
+            .collect()
+    });
+    (alternatives, lists)
 }
 
 /// A raced alternative that won while its handshake, resumed with early
@@ -396,9 +439,9 @@ where
 struct EarlyWin {
     /// Every raced alternative, in race order.
     alternatives: Vec<AlternativeTarget>,
-    /// Which of `alternatives` the race marked broken; a race started again
-    /// leaves them out.
-    marked_broken: Vec<bool>,
+    /// Which of `alternatives` failed as losers: marked broken once the
+    /// winner's handshake completes, and left out of a race started again.
+    failed: Vec<bool>,
     /// The winner's position in `alternatives`.
     index: usize,
     race: AltSvcRace,
@@ -409,8 +452,13 @@ struct EarlyWin {
 
 /// Sends the request on a raced alternative that won while its handshake,
 /// resumed with early data, was still running; then confirms the
-/// alternative, marks QUIC to the origin recently broken, or races every
-/// alternative again, as `after_early_win` decides.
+/// alternative, marks QUIC to the origin recently broken, or races the
+/// alternatives again, as `after_early_win` decides.
+///
+/// The race's failed losers are marked broken only when the winner's
+/// handshake completes. A race started again leaves them out, and any
+/// alternative the store now reports broken, such as an orphaned setup that
+/// failed meanwhile; with none left the origin is used alone.
 ///
 /// A race started again sends the race's lists again when no attempt on the
 /// alternative got a response. A failed handshake starts it, but an
@@ -456,7 +504,7 @@ async fn send_after_early_win(
     } = lifecycle;
     let EarlyWin {
         alternatives,
-        marked_broken,
+        failed,
         index,
         race,
         leased,
@@ -469,6 +517,7 @@ async fn send_after_early_win(
     // Only a request that may be raced again keeps its HTTP/3 lists.
     let kept_http3 = races_again(winner.allows_early_data(), replayable).then(|| http3.clone());
     let mut responded = false;
+    let winner_fields = http3.into_vec().into_iter().nth(index);
     let result = send_on_alternative(
         client,
         request,
@@ -487,7 +536,7 @@ async fn send_after_early_win(
         },
         winner,
         Some(leased),
-        http3.into_vec().into_iter().nth(index),
+        winner_fields,
         &mut responded,
     )
     .await;
@@ -510,6 +559,7 @@ async fn send_after_early_win(
         EarlyWinStep::Return => return result,
         EarlyWinStep::Confirm => {
             client.confirm_alt_svc(&request.endpoint, route, winner);
+            mark_failed_broken(client, request, route, &alternatives, &failed, race);
             return result;
         }
         EarlyWinStep::MarkRecentlyBroken => {
@@ -524,23 +574,19 @@ async fn send_after_early_win(
         outcome = "handshake_failed",
         "raced alternative failed its handshake after early data; racing again"
     );
-    // The winner was never marked, so at least one alternative remains.
-    let kept: Vec<bool> = marked_broken.iter().map(|marked| !marked).collect();
+    let keep: Vec<bool> = alternatives
+        .iter()
+        .zip(&failed)
+        .map(|(alternative, failed)| {
+            !failed && !client.alt_svc_is_broken(&request.endpoint, route, alternative)
+        })
+        .collect();
+    let (alternatives, kept_http3) =
+        retain_raced(alternatives, kept_http3.filter(|_| !responded), &keep);
     let alternatives = alternatives
         .into_iter()
-        .zip(&kept)
-        .filter(|(_, kept)| **kept)
-        .map(|(alternative, _)| alternative.without_early_data())
+        .map(AlternativeTarget::without_early_data)
         .collect();
-    let kept_http3 = kept_http3.filter(|_| !responded).map(|http3| {
-        http3
-            .into_vec()
-            .into_iter()
-            .zip(&kept)
-            .filter(|(_, kept)| **kept)
-            .map(|(fields, _)| fields)
-            .collect::<Box<[_]>>()
-    });
     Box::pin(send_once_raced(
         client,
         request,
@@ -1081,7 +1127,8 @@ where
         }
         if all_failed && origin.is_none() {
             // Every candidate failed; nothing is marked broken, because
-            // Chromium reports brokenness only when the origin succeeds.
+            // Chromium reports brokenness only when the origin succeeds, and
+            // Phantom marks a failed alternative only once a candidate wins.
             if let Some(error) = origin_error.take() {
                 return Poll::Ready(Err(error));
             }

@@ -494,7 +494,6 @@ impl AltSvcStore {
     }
 
     /// Returns whether `location` is in a broken period for `origin` and `route`.
-    #[cfg(feature = "https-records")]
     pub(super) fn is_broken(
         &self,
         origin: &Endpoint,
@@ -523,7 +522,6 @@ impl AltSvcStore {
             .any(|record| &record.key == key && &record.location == location)
     }
 
-    #[cfg(any(test, feature = "https-records"))]
     fn is_broken_at(&self, key: &StoreKey, location: &AltSvcLocation, now: Instant) -> bool {
         self.lock_broken()
             .iter()
@@ -619,7 +617,9 @@ impl AltSvcStore {
         // Chromium takes the first alternative in field order that is not
         // broken (`HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal`,
         // `net/http/http_stream_factory_job_controller.cc` lines 1412-1433
-        // and 1505-1508 at 154.0.8037.58). When every one is broken,
+        // and 1505-1508 at 154.0.8037.58); Phantom takes the first `max`
+        // such alternatives, each distinct location once, so the default
+        // `max` of 1 matches Chromium. When every one is broken,
         // Chromium returns none; Phantom returns the first, marked broken,
         // so a race goes to the origin alone and a sequential request still
         // uses it.

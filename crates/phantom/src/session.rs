@@ -570,6 +570,20 @@ impl Client {
         }
     }
 
+    /// Returns whether `alternative` is in a broken period for `endpoint`
+    /// and `route`.
+    pub(crate) fn alt_svc_is_broken(
+        &self,
+        endpoint: &crate::authority::Endpoint,
+        route: &crate::Route,
+        alternative: &alt_svc::AlternativeTarget,
+    ) -> bool {
+        self.state
+            .alt_svc
+            .as_ref()
+            .is_some_and(|store| store.is_broken(endpoint, route, alternative.location()))
+    }
+
     /// Records that a raced alternative that sent early data then failed its
     /// handshake, so later raced setups for the origin send no early data.
     pub(crate) fn mark_origin_quic_recently_broken(

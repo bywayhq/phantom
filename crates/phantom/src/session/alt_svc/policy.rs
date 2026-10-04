@@ -101,9 +101,7 @@ impl AltSvcPolicy {
 /// candidate to finish setup carries the request.
 ///
 /// One alternative is raced by default: the first one the field listed that
-/// is not broken. That is what Chrome does: in the `two-alternatives`
-/// capture of Chrome 154, which `docs/explanation/validation.md` describes,
-/// the second alternative received no datagram.
+/// is not broken, as Chrome 154 does.
 /// [`AltSvcRace::with_max_alternatives`] races more of them at once, which is
 /// caller policy rather than browser behavior.
 ///
@@ -122,12 +120,17 @@ impl AltSvcPolicy {
 /// Without a Tokio runtime handle the unfinished setup is dropped, and
 /// nothing is pooled or marked.
 ///
-/// An alternative that fails while another candidate succeeds is marked
-/// broken for [`AltSvcBrokenBackoff`] and is not raced again until that
-/// period ends. Meanwhile the next alternative the field listed is raced, as
-/// Chrome does. With every listed alternative broken the origin is used
-/// alone, without the HTTPS-record lookup Chrome would still race. When
-/// every candidate fails, nothing is marked.
+/// An alternative that fails while the origin succeeds is marked broken for
+/// [`AltSvcBrokenBackoff`] and is not raced again until that period ends.
+/// Meanwhile the next alternative the field listed is raced, as Chrome does.
+/// With every listed alternative broken the origin is used alone, without
+/// the HTTPS-record lookup Chrome would still race. When every candidate
+/// fails, nothing is marked.
+///
+/// When several alternatives race and one of them wins, a failed one is
+/// marked broken too, once the winner's handshake has completed. Chrome
+/// never races two alternatives, so this is Phantom's choice for the caller
+/// policy, not browser behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: Duration,
@@ -178,13 +181,14 @@ impl AltSvcRace {
     /// 3.
     ///
     /// The default is 1, the first alternative the field listed that is not
-    /// broken, which is what Chrome races. A larger value is caller policy
+    /// broken, as Chrome 154 races. A larger value is caller policy
     /// that no browser shows on the wire: it starts QUIC setup to up to that
     /// many alternatives together, distinct and not broken, in field order,
     /// and sends the request on whichever finishes setup first, with an
     /// `Alt-Used` field that names it. The origin still waits for
     /// `origin_delay`, and starts early only when every raced alternative has
-    /// failed.
+    /// failed. An alternative that fails while another one wins is marked
+    /// broken once the winner's handshake has completed.
     ///
     /// Every raced setup needs its own HTTP/3 admission for the origin. With
     /// [`ClientBuilder::max_concurrent_http3_requests_per_origin`](crate::ClientBuilder::max_concurrent_http3_requests_per_origin)
@@ -349,6 +353,13 @@ mod tests {
             .err()
             .ok_or("four alternatives must be rejected")?;
         assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+        // The message states the cap that `validate` applies.
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("at most {MAX_RACED_ALTERNATIVES} alternatives")),
+            "{error}"
+        );
         Ok(())
     }
 }

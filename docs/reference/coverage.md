@@ -522,11 +522,13 @@ Supported lifecycle:
   behind the `diagnostics` feature.
 - Opt-in Alt-Svc racing (`AltSvcPolicy::race`):
   - QUIC setup to the alternative starts first. H1/H2 setup to the origin
-    starts after a delay the caller sets, or at once if the alternative fails
-    or a reusable pooled H2 connection exists.
+    starts after a delay the caller sets, or at once if every raced
+    alternative fails or a reusable pooled H2 connection exists.
   - One alternative is raced, as in Chromium 154. A caller can race up to
     three at once (`AltSvcRace::with_max_alternatives`), which no browser
-    does; the request carries an `Alt-Used` field naming the winner.
+    does; the request carries an `Alt-Used` field naming the winner, and a
+    failed alternative is marked broken once the winner's handshake
+    completes.
   - The request is dispatched once, on the winner.
   - Alternative setup is limited to 4 seconds.
   - A losing alternative keeps connecting in the background and is then
