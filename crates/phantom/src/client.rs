@@ -1897,6 +1897,7 @@ impl ClientBuilder {
             inner.bind_host_resolver(resolver);
         }
         inner.bind_http2_proxy_pools();
+        self.options.apply_http3_early_data(&mut inner);
         Ok(self.options.into_client(Arc::new(inner)))
     }
 }

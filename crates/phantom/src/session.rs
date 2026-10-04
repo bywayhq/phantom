@@ -250,15 +250,15 @@ impl ClientOptions {
         self.alt_svc_policy.validate()
     }
 
-    /// Builds a client over `inner` once [`Self::validate_policies`] and
-    /// [`Self::validate_transport`] have accepted these options for it.
+    /// Applies an HTTP/3 early-data choice to `inner`'s HTTP/3 connector,
+    /// once [`Self::validate_transport`] has accepted it.
     ///
-    /// An HTTP/3 early-data choice replaces the connector with a clone that
-    /// shares its TLS context, key log, qlog directory, and host resolver.
-    pub(crate) fn into_client(self, mut inner: Arc<ClientInner>) -> Client {
+    /// The choice replaces the connector with a clone that shares its TLS
+    /// context, key log, qlog directory, and host resolver. Connectors
+    /// cloned from it afterwards keep the choice.
+    pub(crate) fn apply_http3_early_data(&self, inner: &mut ClientInner) {
         if let Some(enabled) = self.http3_early_data {
-            let transport = Arc::make_mut(&mut inner);
-            transport.http3 = transport.http3.as_deref().map(|connector| {
+            inner.http3 = inner.http3.as_deref().map(|connector| {
                 Arc::new(if enabled {
                     connector.with_early_data()
                 } else {
@@ -266,6 +266,12 @@ impl ClientOptions {
                 })
             });
         }
+    }
+
+    /// Builds a client over `inner` once [`Self::validate_policies`] and
+    /// [`Self::validate_transport`] have accepted these options for it and
+    /// [`Self::apply_http3_early_data`] has applied them to it.
+    pub(crate) fn into_client(self, inner: Arc<ClientInner>) -> Client {
         let state = self.build(&inner);
         Client { inner, state }
     }
