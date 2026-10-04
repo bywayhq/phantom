@@ -122,6 +122,13 @@ async fn ignore_ping(mut stream: SslStream<TcpStream>) -> TestResult<()> {
     write_frame(&mut stream, HEADERS, END_STREAM_AND_HEADERS, 1, &[0x88]).await?;
     stream.flush().await?;
     read_request_headers(&mut stream, 3).await?;
+    require_failed_ping(stream).await
+}
+
+/// Reads the PING that follows request HEADERS without answering it, and
+/// requires the client's `GOAWAY(0, PROTOCOL_ERROR, "Failed ping.")`. Any
+/// frame after them is read and dropped.
+async fn require_failed_ping(mut stream: SslStream<TcpStream>) -> TestResult<()> {
     let ping = read_frame(&mut stream).await?;
     if (ping.kind, ping.flags) != (PING, 0) {
         return Err("the request HEADERS were not followed by a PING".into());
@@ -226,6 +233,82 @@ where
     first.into_body().collect().await?;
     tokio::time::sleep(IDLE).await;
     Ok(request.await)
+}
+
+/// The resends one request gets before it fails: the recipe's
+/// `ping_failure_retries`.
+const PING_FAILURE_RETRIES: u8 = 2;
+
+/// A Chromium-recipe client that follows every request's HEADERS with a
+/// PING, since its connections are always read-idle for longer than zero,
+/// and closes the connection when the PING goes unanswered for 500 ms.
+fn every_request_pings_client(identity: &TestIdentity) -> TestResult<Client> {
+    let mut http2 = chromium::v154_http2();
+    http2.preface_ping_after = Some(Duration::ZERO);
+    http2.ping_timeout = Some(Duration::from_millis(500));
+    assert_eq!(http2.ping_failure_retries, PING_FAILURE_RETRIES);
+    Ok(
+        Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?,
+    )
+}
+
+#[tokio::test]
+async fn a_request_is_sent_again_at_most_twice_after_ping_failures() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H2_ALPN)?;
+        let (client_done, done_received) = oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            // The first attempt and each resend fail their PING.
+            for _ in 0..=PING_FAILURE_RETRIES {
+                let mut stream = accept_tls(&listener, &acceptor).await?;
+                accept_client_preface(&mut stream).await?;
+                read_request_headers(&mut stream, 1).await?;
+                require_failed_ping(stream).await?;
+            }
+            let finished = tokio::select! {
+                biased;
+                accepted = listener.accept() => {
+                    accepted?;
+                    false
+                }
+                completed = done_received => {
+                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    true
+                }
+            };
+            Ok::<_, Box<dyn Error + Send + Sync>>(finished)
+        });
+
+        let client = every_request_pings_client(&identity)?;
+        let error = match client
+            .request(
+                HttpProtocol::Http2,
+                Method::GET,
+                &format!("https://{address}/limited"),
+            )?
+            .send()
+            .await
+        {
+            Ok(_) => return Err("a request whose every PING failed got a response".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Http2);
+        assert!(
+            source_chain_has_ping_timeout(&error),
+            "missing Http2Error::PingTimeout: {error:?}"
+        );
+        client_done
+            .send(())
+            .map_err(|_| "server stopped before client completion")?;
+        assert!(server.await??, "the client sent the request a fourth time");
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]
