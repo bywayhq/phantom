@@ -37,6 +37,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `alt_used: Http3AltUsed::Omit` to send none; to keep sending it with the
   Chromium recipe, set `alt_used = Http3AltUsed::Append` on the value
   `chromium::v154_http3_request` returns.
+- `TlsSettings` gained the public field `session_ticket_order`, of the new
+  `#[non_exhaustive]` enum `SessionTicketOrder`, so struct literals that
+  name every field no longer compile. It picks the TLS ticket a new TCP
+  connection presents and the one a full origin evicts. `NewestFirst` keeps
+  the previous behavior. `OldestConnectionFirst` presents a ticket of the
+  connection whose first ticket was stored earliest, the last one stored
+  first, and evicts that ticket from a full origin, as Firefox 157's source
+  orders its tickets
+  ([evidence](docs/explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  The Chromium-family recipes set `NewestFirst`; `firefox::v157_tls` and
+  `firefox_android::v156_tls` set `OldestConnectionFirst`. Migrate: add
+  `session_ticket_order: SessionTicketOrder::NewestFirst` to a
+  `TlsSettings` literal to keep the previous behavior, or copy it from
+  `chromium::v154_tls` or `firefox::v157_tls`.
 - `WebSocketConnectionPolicy` gained the public field
   `proxied_http2_session`, of the new `#[non_exhaustive]` enum
   `WebSocketProxiedSession`, so struct literals that name every field no
@@ -1662,6 +1676,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   request to an Alt-Svc alternative or to a pinned alternative, as Chrome
   154's captures and source show it never does. Before, every profile sent
   the field there. `firefox::v157_http3_request` still sends it.
+- Wire change for the Firefox TLS recipe over TCP: `firefox::v157_tls` and
+  `firefox_android::v156_tls` now present a ticket of the connection whose
+  tickets were stored earliest, the last one stored first, where before
+  they presented the newest ticket. After a WebSocket opening, a
+  Firefox-profile request therefore resumes a ticket of the page's
+  connection, as Firefox 157 did in every `websocket-http1` capture run,
+  instead of one the WebSocket's connection was issued. A full origin now
+  evicts the ticket that would be presented next instead of the oldest.
 - Wire change for the Chromium and Firefox WebSocket recipes on proxy
   routes: `chromium::v154_websocket`, `chrome_android::v154_websocket`,
   `brave_android::v153_websocket`, and `firefox::v157_websocket` now open a

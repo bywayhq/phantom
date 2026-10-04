@@ -1,8 +1,8 @@
 # Profile reference
 
-Lookup tables for profile components, built-in recipes, TCP and UDP socket
-options, HTTP/1.1 connections, idle HTTP/2 connections, request templates,
-required caller fields, and client hints. For how to
+Lookup tables for profile components, built-in recipes, TLS ticket order,
+TCP and UDP socket options, HTTP/1.1 connections, idle HTTP/2 connections,
+request templates, required caller fields, and client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
 > For builders and specialists looking up a recipe or template detail.
@@ -160,6 +160,28 @@ order is chosen. Every variant sends the same IDs; only the order changes.
   order from a Chromium 152 hash-table seed; the recipes send only the
   orders the captures hold
   ([Validation](../explanation/validation.md#opera-136-trust-anchor-id-order)).
+
+## TLS session ticket order
+
+`TlsSettings::session_ticket_order` holds a `SessionTicketOrder`, which
+picks the stored TLS session ticket a new TCP connection to an origin
+presents, and the one a full origin evicts when it stores another.
+`session_tickets_per_origin` sets how many an origin keeps. QUIC
+connections ignore both.
+
+| Variant | Presents | Evicts | Recipes |
+| --- | --- | --- | --- |
+| `NewestFirst` | The ticket stored last | The ticket stored first | Chromium-family `*_tls`, which keep 2 |
+| `OldestConnectionFirst` | A ticket of the connection whose first ticket was stored earliest; of its tickets, the one stored last | The ticket it would present next | `firefox::v157_tls` and `firefox_android::v156_tls`, which keep 8 |
+
+- A ticket is stored once the handshake that delivered it has
+  authenticated the server. Each TLS 1.3 ticket is presented once.
+- A TLS 1.2 session that a connection resumed without a new ticket is
+  stored again, as the only ticket of that connection.
+- Firefox orders tickets by the millisecond it processed each one, so its
+  order can differ from `OldestConnectionFirst` when one connection's
+  tickets straddle two ticks or two connections' tickets interleave
+  ([Validation](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 
 ## TCP socket options
 

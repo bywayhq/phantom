@@ -1,19 +1,23 @@
-use std::pin::Pin;
+use std::{net::SocketAddr, pin::Pin};
 
-use btls::ssl::{Ssl, SslAcceptor, SslVersion};
-use phantom_profile::{TlsSettings, TlsVersion, chromium::v154_tls};
+use btls::ssl::{ScopedSslSession, Ssl, SslAcceptor, SslVersion};
+use phantom_profile::{TlsSettings, TlsVersion, chromium::v154_tls, firefox::v157_tls};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
+    task::JoinHandle,
 };
 use tokio_btls::SslStream;
 
 use crate::tls::{
-    ClientCertificate, TlsConnector, TlsErrorKind,
+    ClientCertificate, TlsConnector, TlsErrorKind, TlsStream,
+    session_cache::TlsSessionCache,
     test_support::{
         TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn, connect_local,
     },
 };
+
+type ServerResult = Result<Vec<bool>, Box<dyn std::error::Error + Send + Sync>>;
 
 /// Three servers with separate ticket keys give three TLS 1.3 tickets that
 /// each resume only against their own server. Stored oldest first under a
@@ -87,6 +91,134 @@ async fn a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first() -> 
     for (_, server) in servers {
         let server_resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
         assert_eq!(server_resumed.first(), Some(&false));
+    }
+    Ok(())
+}
+
+/// With the Firefox order, a connection presents a ticket of the connection
+/// whose tickets were stored first. Servers A and B have separate ticket
+/// keys, so a ticket resumes only against its issuer. A's connection stores
+/// two tickets; B's connection presents one of them, which B rejects, and
+/// stores two of B's. A's other ticket comes out first, then B's two.
+#[tokio::test]
+async fn the_firefox_order_takes_the_earliest_connections_tickets_first() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let (server_a, a) = ticket_server(&identity, 2).await?;
+    let (server_b, b) = ticket_server(&identity, 3).await?;
+
+    drop(connect_and_read(&connector, server_a, false).await?);
+    assert_eq!(cache.len(), 2);
+    drop(connect_and_read(&connector, server_b, false).await?);
+    assert_eq!(cache.len(), 3);
+
+    let mut tickets = Vec::new();
+    while let Some(ticket) = cache.take(TEST_SERVER_NAME) {
+        tickets.push(ticket);
+    }
+    assert_eq!(tickets.len(), 3);
+    for (ticket, server) in tickets.into_iter().zip([server_a, server_b, server_b]) {
+        resume_alone(&connector, &cache, ticket, server).await?;
+    }
+
+    assert_eq!(
+        tokio::time::timeout(TEST_TIMEOUT, a).await???,
+        [false, true]
+    );
+    assert_eq!(
+        tokio::time::timeout(TEST_TIMEOUT, b).await???,
+        [false, true, true]
+    );
+    Ok(())
+}
+
+/// Tickets of two connections stored interleaved keep each connection's
+/// order: connection X stores A's ticket, connection Y stores C's, then X
+/// stores B's. The Firefox order takes X's tickets first, the one stored
+/// last first, then Y's: B, A, C. The newest-first order would take C
+/// second.
+#[tokio::test]
+async fn the_firefox_order_keeps_interleaved_connections_apart() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let mut servers = Vec::new();
+    let mut tickets = Vec::new();
+    for _ in 0..3 {
+        let (address, server) = ticket_server(&identity, 2).await?;
+        tickets.push(one_ticket(&connector, &cache, address).await?);
+        servers.push((address, server));
+    }
+    let [ticket_a, ticket_b, ticket_c] =
+        <[ScopedSslSession; 3]>::try_from(tickets).map_err(|_| "expected three tickets")?;
+
+    let x = cache.begin_handshake(TEST_SERVER_NAME);
+    let y = cache.begin_handshake(TEST_SERVER_NAME);
+    assert_eq!(x.commit_authenticated(), 0);
+    assert_eq!(y.commit_authenticated(), 0);
+    x.capture(Ok(ticket_a));
+    y.capture(Ok(ticket_c));
+    x.capture(Ok(ticket_b));
+    assert_eq!(cache.len(), 3);
+
+    let mut taken = Vec::new();
+    while let Some(ticket) = cache.take(TEST_SERVER_NAME) {
+        taken.push(ticket);
+    }
+    assert_eq!(taken.len(), 3);
+    for (ticket, index) in taken.into_iter().zip([1, 0, 2]) {
+        resume_alone(&connector, &cache, ticket, servers[index].0).await?;
+    }
+    for (_, server) in servers {
+        let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        assert_eq!(resumed, [false, true]);
+    }
+    Ok(())
+}
+
+/// Storing a ticket in a full origin evicts the ticket the Firefox order
+/// would take next. Under a bound of three, X stores A's and then B's ticket
+/// around Y's C; storing D's ticket evicts B's, the last ticket of the
+/// earliest connection, where the newest-first order evicts A's. A, C, and D
+/// remain, in that order.
+#[tokio::test]
+async fn a_full_origin_evicts_the_ticket_the_firefox_order_takes_next() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let mut settings = v157_tls();
+    settings.session_tickets_per_origin = 3;
+    let (connector, cache) = isolated_connector(&identity, &settings)?;
+    let mut servers = Vec::new();
+    let mut tickets = Vec::new();
+    // B's server never sees its ticket again.
+    for connections in [2, 1, 2, 2] {
+        let (address, server) = ticket_server(&identity, connections).await?;
+        tickets.push(one_ticket(&connector, &cache, address).await?);
+        servers.push((address, server));
+    }
+    let [ticket_a, ticket_b, ticket_c, ticket_d] =
+        <[ScopedSslSession; 4]>::try_from(tickets).map_err(|_| "expected four tickets")?;
+
+    let x = cache.begin_handshake(TEST_SERVER_NAME);
+    let y = cache.begin_handshake(TEST_SERVER_NAME);
+    assert_eq!(x.commit_authenticated(), 0);
+    assert_eq!(y.commit_authenticated(), 0);
+    x.capture(Ok(ticket_a));
+    y.capture(Ok(ticket_c));
+    x.capture(Ok(ticket_b));
+    cache.restore(TEST_SERVER_NAME, ticket_d);
+    assert_eq!(cache.len(), 3);
+
+    let mut taken = Vec::new();
+    while let Some(ticket) = cache.take(TEST_SERVER_NAME) {
+        taken.push(ticket);
+    }
+    assert_eq!(taken.len(), 3);
+    for (ticket, index) in taken.into_iter().zip([0, 2, 3]) {
+        resume_alone(&connector, &cache, ticket, servers[index].0).await?;
+    }
+    for (index, (_, server)) in servers.into_iter().enumerate() {
+        let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        let expected: &[bool] = if index == 1 { &[false] } else { &[false, true] };
+        assert_eq!(resumed, expected);
     }
     Ok(())
 }
@@ -270,6 +402,89 @@ async fn client_certificate_connector_does_not_offer_sessions_learned_without_it
 
     let server_resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
     assert_eq!(server_resumed, [false, false, true]);
+    Ok(())
+}
+
+fn isolated_connector(
+    identity: &TestIdentity,
+    settings: &TlsSettings,
+) -> TestResult<(TlsConnector, TlsSessionCache)> {
+    let connector = TlsConnector::new_with_roots(settings, [identity.root_der()])?
+        .with_isolated_session_cache();
+    let cache = connector
+        .session_cache
+        .clone()
+        .ok_or("isolated connector omitted its session cache")?;
+    Ok((connector, cache))
+}
+
+/// Serves `connections` TLS connections on a new loopback listener with an
+/// acceptor of its own, and so ticket keys of its own. Each connection
+/// writes one byte after the server's tickets and waits for the client to
+/// close. The task returns whether each connection resumed.
+async fn ticket_server(
+    identity: &TestIdentity,
+    connections: usize,
+) -> TestResult<(SocketAddr, JoinHandle<ServerResult>)> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(TestServerAlpn::H2)?;
+    let server = tokio::spawn(async move {
+        let mut resumed = Vec::new();
+        for _ in 0..connections {
+            let mut stream = accept_tls_from(&listener, &acceptor).await?;
+            resumed.push(stream.ssl().session_reused());
+            stream.write_all(b"x").await?;
+            stream.flush().await?;
+            let mut rest = Vec::new();
+            // The client closes or resets the connection when it drops it.
+            let _ = stream.read_to_end(&mut rest).await;
+        }
+        Ok(resumed)
+    });
+    Ok((address, server))
+}
+
+/// Connects, checks whether the connection resumed, and reads the server's
+/// first byte, which processes the tickets sent before it.
+async fn connect_and_read(
+    connector: &TlsConnector,
+    address: SocketAddr,
+    resumed: bool,
+) -> TestResult<TlsStream<TcpStream>> {
+    let mut stream = connect_local(connector, address, TEST_SERVER_NAME).await??;
+    assert_eq!(stream.session_reused(), resumed);
+    let mut byte = [0_u8; 1];
+    tokio::time::timeout(TEST_TIMEOUT, stream.read_exact(&mut byte)).await??;
+    Ok(stream)
+}
+
+/// Makes a full handshake with the server at `address` and returns one of
+/// its tickets, leaving the cache empty.
+async fn one_ticket(
+    connector: &TlsConnector,
+    cache: &TlsSessionCache,
+    address: SocketAddr,
+) -> TestResult<ScopedSslSession> {
+    drop(connect_and_read(connector, address, false).await?);
+    let ticket = cache
+        .take(TEST_SERVER_NAME)
+        .ok_or("the server's tickets were not stored")?;
+    while cache.take(TEST_SERVER_NAME).is_some() {}
+    Ok(ticket)
+}
+
+/// Connects with `ticket` as the cache's only ticket, checks that the
+/// connection resumed, and empties the cache again.
+async fn resume_alone(
+    connector: &TlsConnector,
+    cache: &TlsSessionCache,
+    ticket: ScopedSslSession,
+    address: SocketAddr,
+) -> TestResult<()> {
+    cache.restore(TEST_SERVER_NAME, ticket);
+    drop(connect_and_read(connector, address, true).await?);
+    while cache.take(TEST_SERVER_NAME).is_some() {}
     Ok(())
 }
 

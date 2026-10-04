@@ -61,6 +61,7 @@ fn minimal_settings() -> TlsSettings {
         certificate_compression: Vec::new(),
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,
@@ -172,13 +173,29 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
         crate::edge::v154_tls(),
         crate::brave::v154_tls(),
         crate::opera::v136_tls(),
+        crate::chrome_android::v154_tls(),
+        crate::edge_android::v153_tls(),
+        crate::brave_android::v153_tls(),
+        crate::opera_android::v102_tls(),
     ] {
         assert_eq!(settings.session_tickets_per_origin, 2);
+        assert_eq!(
+            settings.session_ticket_order,
+            SessionTicketOrder::NewestFirst
+        );
         assert!(settings.session_ticket_extension_when_resuming);
     }
-    let firefox = crate::firefox::v157_tls();
-    assert_eq!(firefox.session_tickets_per_origin, 8);
-    assert!(!firefox.session_ticket_extension_when_resuming);
+    for firefox in [
+        crate::firefox::v157_tls(),
+        crate::firefox_android::v156_tls(),
+    ] {
+        assert_eq!(firefox.session_tickets_per_origin, 8);
+        assert_eq!(
+            firefox.session_ticket_order,
+            SessionTicketOrder::OldestConnectionFirst
+        );
+        assert!(!firefox.session_ticket_extension_when_resuming);
+    }
 }
 
 #[test]

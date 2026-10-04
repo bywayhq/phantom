@@ -2,7 +2,7 @@
 
 use phantom_profile::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-    NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+    NamedGroup, SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion,
 };
 
 use super::{capture_client_hello_from, client_hello_fixture};
@@ -117,6 +117,7 @@ fn capability_settings() -> TlsSettings {
         ],
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

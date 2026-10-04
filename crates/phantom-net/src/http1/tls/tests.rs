@@ -11,7 +11,8 @@ use std::{
 
 use http_body_util::BodyExt;
 use phantom_profile::{
-    CipherSuite, ClientHelloExtensionOrder, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
+    CipherSuite, ClientHelloExtensionOrder, NamedGroup, SessionTicketOrder, SignatureScheme,
+    TlsSettings, TlsVersion,
 };
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
@@ -896,6 +897,7 @@ fn tls_settings() -> TlsSettings {
         certificate_compression: Vec::new(),
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

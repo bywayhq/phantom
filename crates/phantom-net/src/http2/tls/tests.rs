@@ -13,8 +13,8 @@ use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom_profile::{
-    AlpsSettings, CipherSuite, ClientHelloExtensionOrder, NamedGroup, SignatureScheme, TlsSettings,
-    TlsVersion, chromium::v154_http2,
+    AlpsSettings, CipherSuite, ClientHelloExtensionOrder, NamedGroup, SessionTicketOrder,
+    SignatureScheme, TlsSettings, TlsVersion, chromium::v154_http2,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, duplex},
@@ -616,6 +616,7 @@ fn tls_settings() -> TlsSettings {
         certificate_compression: Vec::new(),
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

@@ -5436,11 +5436,15 @@ With a ticket that permits early data, a direct Firefox-profile connection
 offers `early_data` where Firefox does and sends replay-safe requests as early
 data, including a WebSocket opening's HTTP/1.1 Upgrade GET; the
 Chromium-family recipes never offer it. Phantom keeps as many tickets per
-origin as the browser did, presents the newest first, and uses each once. A
-`Client` WebSocket opening shares the tickets of its origin's request pool,
-so it resumes a ticket an earlier request was issued, as Firefox's
-WebSocket connections did. A later request resumes one the opening was
-issued, which Chrome 154's session cache allows; no capture shows it.
+origin as the browser did and uses each once. The Chromium-family recipes
+present the newest ticket first. The Firefox recipe presents the tickets of
+the connection that stored its tickets earliest, the last one stored first,
+as Firefox's source orders them. A `Client` WebSocket opening shares the
+tickets of its origin's request pool, so it resumes a ticket an earlier
+request was issued, as Firefox's WebSocket connections did. A later
+Firefox-profile request resumes another ticket of that earlier connection,
+as Firefox's did. A later Chromium-profile request resumes one the opening
+was issued, which Chrome 154's session cache allows; no capture shows it.
 
 Evidence: `fixtures/tls/<browser>/<version>/windows-11-26200/` retains nine
 `resumption-<scenario>.txt` fixtures, three runs each, for headless Chrome
@@ -5468,16 +5472,24 @@ Observed:
 | A resumed connection that opens a WebSocket (`websocket`, `websocket-http1`) | Not captured | Offers `early_data` in 3 of 3 runs over each protocol. Over HTTP/1.1 the Upgrade GET arrives in early data, 563 bytes each time. Over HTTP/2 the early data is 70 bytes: the preface, SETTINGS, and WINDOW_UPDATE; the extended CONNECT follows the handshake |
 | Tickets used of eight issued by one connection (`issue-once`) | 2 of 8 in every run: the newest, then the one before it | 8 of 8 in every run, each once; newest first in 2 of 3 runs |
 | Ticket presented twice | Never | Never |
+| Ticket the request after the WebSocket offered (`websocket-http1`) | Not captured | One the page's connection was issued, in 3 of 3 runs, although the WebSocket's connection had been issued two since |
+| First ticket offered of those one connection was issued, across the Windows and macOS Firefox captures | Not compared | The last one issued, for 58 of the 69 connections whose tickets a later connection offered |
 | Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Two resumed in every run, each with its own ticket |
 | First connection to the same host on another port (`origins`) | No ticket offered, in every run | No ticket offered, in every run |
 | A `top.partition.test` page fetching the origin (`partition`) | No ticket offered; back on the origin's own page, a ticket learned before the switch | The same |
 
-The Chromium-family browsers always presented the newest ticket they held;
-Firefox's choice between the two tickets of one connection varied. Some
-connections carried no request: the Chromium-family browsers often open a
-first connection that closes before the navigation. Firefox sometimes made a
-full handshake although earlier connections had received tickets, in 6 of
-its 24 `sequential` and `sequential-http1` connections from the fourth on.
+The Chromium-family browsers always presented the newest ticket they held.
+Some connections carried no request: the Chromium-family browsers often open
+a first connection that closes before the navigation. In every Firefox
+`sequential` and `sequential-http1` run, the fourth connection made a full
+handshake although earlier connections had been issued tickets (6 of the 24
+connections from the fourth on). The first connection's two tickets went to
+the second and third connections, and no later connection offered a ticket
+those two were issued. Firefox closed the second, third, fifth, and seventh
+connection of each run within 0.3 ms of the server completing the
+handshake, and no later connection offered a ticket any of them was issued.
+Every ticket a later connection offered came from a connection that stayed
+open at least 0.4 ms after its handshake.
 
 Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
 
@@ -5518,13 +5530,58 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   connections at once. With `chromium::v154_tls` two resume and one makes a
   full handshake, because only the two newest tickets remain; with
   `firefox::v157_tls` all three resume.
+- In `crates/phantom-net/src/tls/tests/session_cache.rs`, loopback servers
+  with separate ticket keys issue tickets that resume only against their
+  own server, so a resumption shows which ticket a `firefox::v157_tls`
+  connector took.
+  `the_firefox_order_takes_the_earliest_connections_tickets_first` stores
+  two tickets from server A, then connects to server B, which rejects the
+  A ticket offered and issues two; the next tickets taken resume against A,
+  then B, then B.
+  `the_firefox_order_keeps_interleaved_connections_apart` stores tickets of
+  two connections interleaved and takes the earlier connection's last
+  ticket first, then its first, then the other connection's.
+  `a_full_origin_evicts_the_ticket_the_firefox_order_takes_next` shows a
+  full origin evicting that last ticket, where
+  `a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first`
+  shows the Chromium order.
 
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
-(2 for the Chromium family, 8 for Firefox), the `session_ticket` choice as
+(2 for the Chromium family, 8 for Firefox), the order as
+`TlsSettings::session_ticket_order`, the `session_ticket` choice as
 `TlsSettings::session_ticket_extension_when_resuming`, and early data as
 `TlsSettings::tcp_early_data`, set by `firefox::v157_tls` and, from source,
 by `firefox_android::v156_tls`
 ([Firefox for Android](#firefox-for-android-156-recipe)).
+
+The Firefox order follows Firefox 157's source at tag
+`FIREFOX_157_0_RELEASE`:
+
+- NSS hands every TLS 1.3 ticket to Firefox's resumption-token callback,
+  which stores it in `SSLTokensCache` under the connection's peer ID
+  (`security/nss/lib/ssl/sslnonce.c:1144-1196` and `1209-1212`;
+  `StoreResumptionToken`, `security/manager/ssl/nsNSSIOLayer.cpp:1738-1760`,
+  registered at line 1879). The peer ID is the host and port, the
+  connection's flags, and its origin attributes
+  (`NSSSocketControl::GetPeerId`,
+  `security/manager/ssl/NSSSocketControl.cpp:659-688`), so a WebSocket
+  connection's tickets join the page's.
+- Each token expires two days after NSS processed its ticket, whatever
+  lifetime the server gave (`security/nss/lib/ssl/ssl3con.c:12774-12775`).
+- `TokenCacheEntry::AddRecord` keeps a peer's records sorted by expiry,
+  inserting a record after the last one that expires strictly earlier, so
+  a record that ties goes before the records it ties with. A peer holds at
+  most `network.ssl_tokens_cache_records_per_entry` records, 10 by default
+  (`modules/libpref/init/StaticPrefList.yaml:15997-16000`); when it is
+  full, the first record is removed before the new one goes in. `Get`
+  returns the first record, and taking it removes it
+  (`netwerk/base/SSLTokensCache.cpp:333-350`, `364-367`, and `992-1047`).
+
+So Firefox offers the ticket it processed earliest. Tickets processed in
+the same clock tick tie, and the one processed later goes first, which is
+why the last ticket a connection was issued usually went first. One
+`issue-once` run offered tickets 4, 3, 2, 1, 0, 7, 6, 5: the order this
+rule gives when tickets 0 to 4 and 5 to 7 were processed in two ticks.
 
 Early data follows Firefox 157's source at tag `FIREFOX_157_0_RELEASE` where
 no capture shows the behavior, since every capture server accepted early
@@ -5617,7 +5674,14 @@ data has arrived:
   and WINDOW_UPDATE as early data, and no HEADERS.
   `a_firefox_upgrade_after_an_http1_request_travels_as_early_data` replays
   `websocket-http1` with an exact HTTP/1.1 opening: the Upgrade GET arrives
-  as early data. `a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request`
+  as early data. `a_firefox_request_after_an_upgrade_resumes_the_page_ticket`
+  replays that capture's order: the WebSocket's server has other ticket keys
+  than the page's, and the `/done` request after the opening resumes the
+  page's other ticket and sends its GET as early data;
+  `a_chromium_request_after_an_upgrade_presents_the_upgrade_ticket` shows
+  the Chromium-profile request offering the WebSocket connection's ticket
+  instead and making a full handshake.
+  `a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request`
   shows a Chromium-profile Upgrade connection that offers only `http/1.1`
   resuming the ticket of an `h2` connection without early data, as
   Chrome 154's session cache, keyed by host and port, network anonymization
@@ -5635,7 +5699,8 @@ data has arrived:
   ticket without offering early data, since the ticket's ALPN protocol is
   not in its offer, and
   `a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change`
-  the restart after a later request resumes that Upgrade's ticket.
+  the restart after a later request resumes such an Upgrade's ticket, once
+  two Upgrades have used the page's two tickets.
   `a_connector_with_the_websocket_alpn_list_sends_the_policy_client_hello`
   in `crates/phantom-net/src/tls/tests/alps.rs` shows that the Upgrade
   connection's ClientHello is the one the policy's TLS settings build.
@@ -5671,13 +5736,11 @@ Limits:
   `Client` WebSocket opening takes its tickets from one request pool, the
   negotiated pool for a profile-policy opening and the exact pool of its
   protocol otherwise, and from the pool key of the current Tokio runtime,
-  as requests do. After `websocket-http1`'s opening, Firefox's `/done`
-  request resumed a ticket the page's connection was issued, where Phantom
-  presents the newest ticket it holds, one the WebSocket's connection was
-  issued ([roadmap](../roadmap.md)). When that ticket came from an Upgrade
-  connection that offered only `http/1.1`, a Firefox-profile negotiated
-  request sends its GET as early data under `http/1.1`, and a server that
-  selects `h2` rejects it, so the request starts again on a full handshake. Firefox's profile-policy opening
+  as requests do. Once the tickets of earlier connections are used, a
+  Firefox-profile negotiated request can resume a ticket of an Upgrade
+  connection that offered only `http/1.1`. It then sends its GET as early
+  data under `http/1.1`, and a server that selects `h2` rejects it, so the
+  request starts again on a full handshake. Firefox's profile-policy opening
   in `websocket-http1` offered `h2` and `http/1.1` and sent an Upgrade
   when the server selected `http/1.1`; Phantom's opening without an
   HTTP/2 session takes a new HTTP/2 connection and fails when the server
@@ -5698,9 +5761,14 @@ Limits:
 - The early data's record boundaries are BoringSSL's, not NSS's.
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.
-- Firefox's order among the tickets it holds varied between runs; Phantom
-  presents the newest first. Firefox held all eight tickets it was given, so
-  its true limit may be higher than the recipe's eight.
+- Firefox orders its tickets by the millisecond it processed each one;
+  Phantom orders the Firefox recipe's tickets by connection and, within a
+  connection, last stored first. The orders differ when one connection's
+  tickets were processed in different ticks, as in one `issue-once` run, and
+  when the tickets of connections open at once interleave in time: Phantom
+  keeps each connection's tickets together, ordered by when its first
+  ticket was stored. Firefox held all eight tickets it was given, so its
+  true limit may be higher than the recipe's eight.
 - Loopback, headless, and HTTP/1.1 or HTTP/2 only. The captures cannot show
   how long a browser keeps a ticket; every ticket was valid for one day.
 

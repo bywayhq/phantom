@@ -35,8 +35,8 @@ use crate::{
     },
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-        EchGreaseAead, EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsSettings,
-        TlsVersion,
+        EchGreaseAead, EchGreasePayloadLength, NamedGroup, SessionTicketOrder, SignatureScheme,
+        TlsSettings, TlsVersion,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
@@ -102,7 +102,16 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// captures. A resumed ClientHello omits the empty `session_ticket`
 /// extension and adds `pre_shared_key` last. Firefox used each of the eight
 /// tickets one connection issued, once, so the recipe keeps up to eight per
-/// origin, the TCP cache's bound. When a ticket permits early data, a direct
+/// origin, the TCP cache's bound. It presents them
+/// [`SessionTicketOrder::OldestConnectionFirst`], from source: Firefox keeps
+/// each peer's tickets sorted by expiry, which NSS sets to the time it
+/// processed the ticket plus two days, and offers the first
+/// (`TokenCacheEntry::AddRecord` and `Get`,
+/// `netwerk/base/SSLTokensCache.cpp:333-367`, and
+/// `security/nss/lib/ssl/ssl3con.c:12774-12775`). In every
+/// `resumption-websocket-http1` run, the request after the WebSocket resumed
+/// a ticket of the page's connection, not of the WebSocket's. When a ticket
+/// permits early data, a direct
 /// connection also offers `early_data`, between `key_share` and
 /// `supported_versions`, and sends replay-safe requests in it
 /// ([`TlsSettings::tcp_early_data`]), as Firefox does on every such
@@ -175,6 +184,7 @@ pub fn v157_tls() -> TlsSettings {
         ],
         session_tickets: true,
         session_tickets_per_origin: 8,
+        session_ticket_order: SessionTicketOrder::OldestConnectionFirst,
         session_ticket_extension_when_resuming: false,
         tcp_early_data: true,
         record_size_limit: Some(16_385),

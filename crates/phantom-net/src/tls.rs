@@ -35,7 +35,10 @@ use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
-use self::{early_data::EarlyData, session_cache::TlsSessionCache};
+use self::{
+    early_data::EarlyData,
+    session_cache::{TicketOrder, TlsSessionCache},
+};
 
 mod client_certificate;
 mod compression;
@@ -101,6 +104,7 @@ pub(crate) struct TlsConnector {
     close_notify: bool,
     scoped_sessions_enabled: bool,
     session_tickets_per_origin: u8,
+    session_ticket_order: TicketOrder,
     session_ticket_extension_when_resuming: bool,
     /// `TlsSettings::tcp_early_data`, kept only when scoped sessions keep the
     /// early-data capability their server granted.
@@ -253,9 +257,9 @@ impl TlsConnector {
 
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
         let mut connector = self.clone();
-        connector.session_cache = self
-            .scoped_sessions_enabled
-            .then(|| TlsSessionCache::new(self.session_tickets_per_origin));
+        connector.session_cache = self.scoped_sessions_enabled.then(|| {
+            TlsSessionCache::new(self.session_tickets_per_origin, self.session_ticket_order)
+        });
         connector
     }
 
@@ -430,6 +434,10 @@ impl TlsConnector {
             }
             ClientSessions::Scoped | ClientSessions::External(_) => false,
         };
+        let session_ticket_order = TicketOrder::from_profile(settings.session_ticket_order)
+            .ok_or_else(|| {
+                TlsError::unsupported("session_ticket_order", settings.session_ticket_order)
+            })?;
 
         #[cfg(feature = "keylog")]
         let key_log = key_log::KeyLogSlot::default();
@@ -454,6 +462,7 @@ impl TlsConnector {
             close_notify: settings.close_notify,
             scoped_sessions_enabled,
             session_tickets_per_origin: settings.session_tickets_per_origin,
+            session_ticket_order,
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
             early_data,
             session_cache: None,

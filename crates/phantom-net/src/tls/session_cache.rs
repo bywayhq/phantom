@@ -1,4 +1,5 @@
 use std::{
+    cmp::Reverse,
     collections::VecDeque,
     sync::{Arc, Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
@@ -8,6 +9,7 @@ use btls::{
     error::ErrorStack,
     ssl::{ScopedSslSession, SslSessionScope},
 };
+use phantom_profile::SessionTicketOrder;
 use tracing::debug;
 
 const MAX_SESSIONS: usize = 8;
@@ -29,6 +31,9 @@ pub(super) struct TlsSessionCapture {
 struct CaptureState {
     authenticated: bool,
     pending: Vec<ScopedSslSession>,
+    /// The connection's batch, assigned when its first session is stored.
+    batch: Option<u64>,
+    next_sequence: u32,
 }
 
 struct CacheInner {
@@ -37,7 +42,15 @@ struct CacheInner {
     /// hostname within this cache, whatever the port. The `phantom` client
     /// makes one cache per origin and route, so there it bounds one origin.
     per_hostname: usize,
-    sessions: Mutex<VecDeque<CachedSession>>,
+    order: TicketOrder,
+    store: Mutex<Store>,
+}
+
+#[derive(Default)]
+struct Store {
+    /// Sessions in the order they were stored.
+    sessions: VecDeque<CachedSession>,
+    next_batch: u64,
 }
 
 /// A session with the verified hostname that authenticated it.
@@ -47,15 +60,44 @@ struct CacheInner {
 struct CachedSession {
     hostname: Arc<str>,
     session: ScopedSslSession,
+    arrival: Arrival,
+}
+
+/// The connector's `TlsSettings::session_ticket_order`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TicketOrder {
+    NewestFirst,
+    OldestConnectionFirst,
+}
+
+impl TicketOrder {
+    /// Returns `None` for an order this cache does not implement.
+    pub(super) const fn from_profile(order: SessionTicketOrder) -> Option<Self> {
+        match order {
+            SessionTicketOrder::NewestFirst => Some(Self::NewestFirst),
+            SessionTicketOrder::OldestConnectionFirst => Some(Self::OldestConnectionFirst),
+            _ => None,
+        }
+    }
+}
+
+/// When a session was stored: `batch` numbers connections in the order
+/// their first session was stored, and `sequence` numbers a connection's
+/// sessions in the order they were stored.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Arrival {
+    batch: u64,
+    sequence: u32,
 }
 
 impl TlsSessionCache {
-    pub(super) fn new(per_hostname: u8) -> Self {
+    pub(super) fn new(per_hostname: u8, order: TicketOrder) -> Self {
         Self {
             inner: Arc::new(CacheInner {
                 scope: SslSessionScope::default(),
                 per_hostname: usize::from(per_hostname).clamp(1, MAX_SESSIONS),
-                sessions: Mutex::default(),
+                order,
+                store: Mutex::default(),
             }),
         }
     }
@@ -68,45 +110,66 @@ impl TlsSessionCache {
         }
     }
 
-    fn insert(&self, hostname: Arc<str>, session: ScopedSslSession) {
+    /// Stores `session` as number `sequence` of `batch`, or as the first
+    /// session of a new batch, and returns its batch.
+    fn insert(
+        &self,
+        hostname: Arc<str>,
+        session: ScopedSslSession,
+        batch: Option<u64>,
+        sequence: u32,
+    ) -> u64 {
         let now = unix_time();
-        let mut sessions = self.sessions();
-        prune_expired(&mut sessions, now);
+        let mut store = self.store();
+        let batch = batch.unwrap_or_else(|| {
+            let batch = store.next_batch;
+            store.next_batch += 1;
+            batch
+        });
+        let sessions = &mut store.sessions;
+        prune_expired(sessions, now);
         let stored = sessions
             .iter()
             .filter(|cached| hostnames_match(&cached.hostname, &hostname))
             .count();
         if stored >= self.inner.per_hostname
-            && let Some(oldest) = sessions
-                .iter()
-                .position(|cached| hostnames_match(&cached.hostname, &hostname))
+            && let Some(evicted) =
+                eviction_position(self.inner.order, arrivals_for(sessions, &hostname))
         {
-            sessions.remove(oldest);
+            sessions.remove(evicted);
         } else if sessions.len() == MAX_SESSIONS {
             sessions.pop_front();
         }
-        sessions.push_back(CachedSession { hostname, session });
+        sessions.push_back(CachedSession {
+            hostname,
+            session,
+            arrival: Arrival { batch, sequence },
+        });
+        batch
     }
 
-    /// Removes the most recent unexpired session for `hostname`.
+    /// Removes the unexpired session for `hostname` that the cache's order
+    /// presents next.
     pub(super) fn take(&self, hostname: &str) -> Option<ScopedSslSession> {
         let now = unix_time();
-        let mut sessions = self.sessions();
-        prune_expired(&mut sessions, now);
-        let position = sessions
-            .iter()
-            .rposition(|cached| hostnames_match(&cached.hostname, hostname))?;
+        let mut store = self.store();
+        let sessions = &mut store.sessions;
+        prune_expired(sessions, now);
+        let position = next_position(self.inner.order, arrivals_for(sessions, hostname))?;
         sessions.remove(position).map(|cached| cached.session)
     }
 
     /// Removes every session for `hostname`.
     pub(super) fn forget(&self, hostname: &str) {
-        self.sessions()
+        self.store()
+            .sessions
             .retain(|cached| !hostnames_match(&cached.hostname, hostname));
     }
 
+    /// Stores again a reusable session that a connection resumed without
+    /// receiving a new one, as the only session of a new batch.
     pub(super) fn restore(&self, hostname: &str, session: ScopedSslSession) {
-        self.insert(hostname.into(), session);
+        self.insert(hostname.into(), session, None, 0);
     }
 
     pub(super) fn scope(&self) -> &SslSessionScope {
@@ -115,12 +178,12 @@ impl TlsSessionCache {
 
     #[cfg(test)]
     pub(super) fn len(&self) -> usize {
-        self.sessions().len()
+        self.store().sessions.len()
     }
 
-    fn sessions(&self) -> MutexGuard<'_, VecDeque<CachedSession>> {
+    fn store(&self) -> MutexGuard<'_, Store> {
         self.inner
-            .sessions
+            .store
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -136,32 +199,84 @@ impl TlsSessionCapture {
             }
         };
 
-        let mut state = self
-            .state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut state = self.state();
         if state.authenticated {
-            drop(state);
-            self.cache.insert(Arc::clone(&self.hostname), session);
+            self.store(&mut state, session);
         } else {
             state.pending.push(session);
         }
     }
 
     pub(super) fn commit_authenticated(&self) -> usize {
-        let pending = {
-            let mut state = self
-                .state
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            state.authenticated = true;
-            std::mem::take(&mut state.pending)
-        };
+        let mut state = self.state();
+        state.authenticated = true;
+        let pending = std::mem::take(&mut state.pending);
         let count = pending.len();
         for session in pending {
-            self.cache.insert(Arc::clone(&self.hostname), session);
+            self.store(&mut state, session);
         }
         count
+    }
+
+    /// Stores `session` as this connection's next session. The capture's
+    /// lock is held across the cache's, never the reverse, so a connection's
+    /// sessions keep their order.
+    fn store(&self, state: &mut CaptureState, session: ScopedSslSession) {
+        let batch = self.cache.insert(
+            Arc::clone(&self.hostname),
+            session,
+            state.batch,
+            state.next_sequence,
+        );
+        state.batch = Some(batch);
+        state.next_sequence = state.next_sequence.saturating_add(1);
+    }
+
+    fn state(&self) -> MutexGuard<'_, CaptureState> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+/// The position and arrival of each session stored for `hostname`, in the
+/// order they were stored.
+fn arrivals_for<'a>(
+    sessions: &'a VecDeque<CachedSession>,
+    hostname: &'a str,
+) -> impl Iterator<Item = (usize, Arrival)> + 'a {
+    sessions
+        .iter()
+        .enumerate()
+        .filter(move |(_, cached)| hostnames_match(&cached.hostname, hostname))
+        .map(|(position, cached)| (position, cached.arrival))
+}
+
+/// Returns the position of the session `order` presents next, from one
+/// hostname's sessions in the order they were stored.
+fn next_position(
+    order: TicketOrder,
+    arrivals: impl Iterator<Item = (usize, Arrival)>,
+) -> Option<usize> {
+    match order {
+        TicketOrder::NewestFirst => arrivals.last().map(|(position, _)| position),
+        TicketOrder::OldestConnectionFirst => arrivals
+            .min_by_key(|(_, arrival)| (arrival.batch, Reverse(arrival.sequence)))
+            .map(|(position, _)| position),
+    }
+}
+
+/// Returns the position of the session that storing one more evicts from a
+/// full hostname: the oldest for `NewestFirst`, and for
+/// `OldestConnectionFirst` the one `next_position` presents, as Firefox
+/// evicts the record it would offer.
+fn eviction_position(
+    order: TicketOrder,
+    mut arrivals: impl Iterator<Item = (usize, Arrival)>,
+) -> Option<usize> {
+    match order {
+        TicketOrder::NewestFirst => arrivals.next().map(|(position, _)| position),
+        TicketOrder::OldestConnectionFirst => next_position(order, arrivals),
     }
 }
 

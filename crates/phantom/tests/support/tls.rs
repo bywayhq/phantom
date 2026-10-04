@@ -8,8 +8,8 @@ use btls::{
 use phantom::{
     Client, ClientBuilder,
     profile::{
-        CipherSuite, ClientHelloExtensionOrder, ClientProfile, NamedGroup, SignatureScheme,
-        TlsSettings, TlsVersion, chromium,
+        CipherSuite, ClientHelloExtensionOrder, ClientProfile, NamedGroup, SessionTicketOrder,
+        SignatureScheme, TlsSettings, TlsVersion, chromium,
     },
 };
 use rcgen::{
@@ -57,6 +57,7 @@ pub(crate) fn tls_settings() -> TlsSettings {
         certificate_compression: Vec::new(),
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

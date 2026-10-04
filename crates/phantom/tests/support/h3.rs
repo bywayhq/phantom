@@ -4,7 +4,7 @@ use bytes::Bytes;
 use http::Request;
 use phantom::profile::{
     CipherSuite, ClientHelloExtensionOrder, Http3AltUsed, Http3ClientSettings, NamedGroup,
-    SignatureScheme, TlsSettings, TlsVersion, chromium,
+    SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, chromium,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
@@ -48,6 +48,7 @@ pub(crate) fn client_tls_settings() -> TlsSettings {
         certificate_compression: Vec::new(),
         session_tickets: false,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

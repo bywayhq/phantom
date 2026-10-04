@@ -294,6 +294,121 @@ async fn a_firefox_upgrade_after_an_http1_request_travels_as_early_data() -> Tes
     .await
 }
 
+/// Follows the order of Firefox 157's `websocket-http1` capture: the
+/// request after the WebSocket resumed a ticket of the page's connection,
+/// not of the WebSocket's. The page's and the request's connections reach
+/// acceptor A and the WebSocket's reaches acceptor B, whose ticket keys
+/// differ, so the request resumes only with one of the page's tickets.
+#[tokio::test]
+async fn a_firefox_request_after_an_upgrade_resumes_the_page_ticket() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let hellos = Hellos::default();
+        let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+        let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
+
+            let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
+            assert!(!socket.stream.ssl().session_reused());
+            serve_upgrade(socket, "/socket").await?;
+
+            let done = accept(&listener, &page_acceptor, SERVER_DELAY).await?;
+            let early = done.early_bytes();
+            assert!(done.stream.ssl().session_reused());
+            assert!(done.stream.ssl().early_data_accepted());
+            serve_http1(done).await?;
+            let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
+        });
+
+        let client = firefox_client(&identity)?;
+        exchange_around_an_upgrade(&client, address).await?;
+
+        let early = server.await??;
+        assert!(early.starts_with(b"GET /done HTTP/1.1\r\n"));
+        assert_eq!(
+            hellos.take(),
+            [
+                hello(false, false, &["h2", "http/1.1"]),
+                hello(true, true, &["h2", "http/1.1"]),
+                hello(true, true, &["h2", "http/1.1"]),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// The Chromium twin of the test above: Chrome presents its newest ticket,
+/// one the WebSocket's connection was issued, and keeps two, so the
+/// request offers B's ticket to A and makes a full handshake.
+#[tokio::test]
+async fn a_chromium_request_after_an_upgrade_presents_the_upgrade_ticket() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let hellos = Hellos::default();
+        let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+        let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
+
+            let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
+            assert!(!socket.stream.ssl().session_reused());
+            serve_upgrade(socket, "/socket").await?;
+
+            let done = accept(&listener, &page_acceptor, Duration::ZERO).await?;
+            assert!(!done.stream.ssl().session_reused());
+            serve_http1(done).await
+        });
+
+        let client = chromium_client(&identity)?;
+        exchange_around_an_upgrade(&client, address).await?;
+
+        server.await??;
+        assert_eq!(
+            hellos.take(),
+            [
+                hello(false, false, &["h2", "http/1.1"]),
+                hello(true, false, &["h2", "http/1.1"]),
+                hello(true, false, &["h2", "http/1.1"]),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// Sends an exact HTTP/1.1 request, opens and drops a WebSocket, and sends
+/// another exact HTTP/1.1 request to `/done`, as the `websocket-http1`
+/// capture's page does.
+async fn exchange_around_an_upgrade(
+    client: &Client,
+    address: std::net::SocketAddr,
+) -> TestResult<()> {
+    get(
+        client,
+        Some(HttpProtocol::Http1),
+        &format!("https://{address}/"),
+    )
+    .await?;
+    let socket = client
+        .websocket(&format!("wss://{address}/socket"))?
+        .connect()
+        .await?;
+    drop(socket);
+    get(
+        client,
+        Some(HttpProtocol::Http1),
+        &format!("https://{address}/done"),
+    )
+    .await
+}
+
 /// Chrome's WebSocket connection offers only `http/1.1` but resumes the
 /// ticket of the origin's `h2` connection: its session cache is keyed by
 /// host, port, and partition, not by ALPN.
@@ -529,10 +644,11 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
     .await
 }
 
-/// After that Upgrade the newest ticket is the one its `http/1.1`
-/// connection was issued. A later negotiated request resumes it and sends
-/// its GET as early data under `http/1.1`; a server that selects `h2`
-/// rejects the early data, and the request starts again on a full
+/// Two such Upgrades use the `h2` page connection's two tickets, so the
+/// tickets of the earliest connection left are those the first Upgrade's
+/// `http/1.1` connection was issued. A later negotiated request resumes one
+/// and sends its GET as early data under `http/1.1`; a server that selects
+/// `h2` rejects the early data, and the request starts again on a full
 /// handshake, as after any such ALPN change.
 #[tokio::test]
 async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change() -> TestResult<()>
@@ -546,11 +662,11 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
         let (page_closed, wait_for_page_close) = oneshot::channel();
         let server = tokio::spawn(async move {
             let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
-            serve_upgrade(
-                accept(&listener, &acceptor, Duration::ZERO).await?,
-                "/socket",
-            )
-            .await?;
+            for _ in 0..2 {
+                let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
+                assert!(socket.stream.ssl().session_reused());
+                serve_upgrade(socket, "/socket").await?;
+            }
             page.close().await?;
             page_closed
                 .send(())
@@ -573,11 +689,13 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
 
         let client = firefox_client(&identity)?;
         get(&client, None, &format!("https://{address}/")).await?;
-        let socket = client
-            .websocket_with_profile_policy(&format!("wss://{address}/socket"))?
-            .connect()
-            .await?;
-        drop(socket);
+        for _ in 0..2 {
+            let socket = client
+                .websocket_with_profile_policy(&format!("wss://{address}/socket"))?
+                .connect()
+                .await?;
+            drop(socket);
+        }
         if wait_for_page_close.await.is_err() {
             server.await??;
             return Err("server stopped before closing the page's connection".into());
@@ -590,6 +708,7 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
             hellos.take(),
             [
                 hello(false, false, &["h2", "http/1.1"]),
+                hello(true, false, &["http/1.1"]),
                 hello(true, false, &["http/1.1"]),
                 hello(true, true, &["h2", "http/1.1"]),
                 hello(false, false, &["h2", "http/1.1"]),

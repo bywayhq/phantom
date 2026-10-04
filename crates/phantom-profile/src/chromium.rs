@@ -31,8 +31,8 @@ use crate::{
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder,
-        EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsSettings, TlsVersion,
-        TrustAnchorIds,
+        EchGreasePayloadLength, NamedGroup, SessionTicketOrder, SignatureScheme, TlsSettings,
+        TlsVersion, TrustAnchorIds,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -224,7 +224,8 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 ///
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. Chrome kept the two newest tickets for an origin, presented the
-/// newest first, and used each once; a resumed ClientHello adds only
+/// newest first ([`SessionTicketOrder::NewestFirst`]), and used each once; a
+/// resumed ClientHello adds only
 /// `pre_shared_key`, last, and never offers early data over TCP.
 ///
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
@@ -281,6 +282,7 @@ pub fn v154_tls() -> TlsSettings {
         certificate_compression: vec![CertificateCompression::Brotli],
         session_tickets: true,
         session_tickets_per_origin: 2,
+        session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
         record_size_limit: None,

@@ -429,6 +429,32 @@ impl TrustAnchorIds {
     }
 }
 
+/// Which stored TLS session ticket for an origin a new TCP connection
+/// presents, and which one storing a ticket evicts from a full origin.
+///
+/// Tickets are ordered by when Phantom stored them, once the handshake that
+/// delivered them has authenticated the server. A TLS 1.2 session that a
+/// connection resumed without receiving a new ticket is stored again, as
+/// the only ticket of that connection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SessionTicketOrder {
+    /// Presents the ticket stored last, and evicts the origin's ticket
+    /// stored first, as Chrome 154 does.
+    NewestFirst,
+    /// Presents a ticket of the connection whose first ticket was stored
+    /// earliest and, among that connection's tickets, the one stored last.
+    /// Storing a ticket in a full origin evicts the ticket it would present
+    /// next.
+    ///
+    /// This follows Firefox 157, which keeps an origin's tickets sorted by
+    /// the time it processed each one, presents the earliest, and evicts the
+    /// earliest when the origin is full. Tickets processed in the same clock
+    /// tick tie, and a tie puts the one processed later first, so the
+    /// tickets one connection receives together go last-received first.
+    OldestConnectionFirst,
+}
+
 /// Ordered TLS settings independent of the concrete TLS backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TlsSettings {
@@ -465,17 +491,25 @@ pub struct TlsSettings {
     pub session_tickets: bool,
     /// Most TLS session tickets kept for one origin on connections over TCP.
     ///
-    /// A new connection presents the newest ticket it has for the origin,
-    /// and each TLS 1.3 ticket is used at most once. When the origin already
-    /// has this many, storing a ticket evicts that origin's oldest. It must be
-    /// between 1 and 8 when [`Self::session_tickets`] is enabled. QUIC
-    /// connections keep their own tickets under a separate bound.
+    /// A new connection presents the ticket [`Self::session_ticket_order`]
+    /// selects, and each TLS 1.3 ticket is used at most once. When the
+    /// origin already has this many, storing a ticket evicts the one that
+    /// order names. It must be between 1 and 8 when
+    /// [`Self::session_tickets`] is enabled. QUIC connections keep their own
+    /// tickets under a separate bound.
     ///
     /// The `phantom` client keeps one cache per origin and route, so the
     /// bound applies per origin there; a `phantom-net` connector built with
     /// `with_isolated_session_cache` applies it per server name, across
     /// ports.
     pub session_tickets_per_origin: u8,
+    /// Which of an origin's TLS session tickets a new connection over TCP
+    /// presents, and which one a full origin evicts.
+    ///
+    /// The Chromium-family recipes set [`SessionTicketOrder::NewestFirst`]
+    /// and the Firefox recipes [`SessionTicketOrder::OldestConnectionFirst`].
+    /// QUIC connections ignore it.
+    pub session_ticket_order: SessionTicketOrder,
     /// Whether a ClientHello that offers a TLS 1.3 ticket over TCP keeps the
     /// empty `session_ticket` extension.
     ///
