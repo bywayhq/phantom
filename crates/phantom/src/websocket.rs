@@ -266,7 +266,8 @@ impl WebSocketRequestBuilder {
     /// Overrides the client's route for this connection.
     ///
     /// A route that cannot carry the WebSocket's scheme and protocol, such as
-    /// a CONNECT-UDP route, makes [`Self::connect`] fail before I/O with
+    /// a CONNECT-UDP route for HTTP/1.1 or HTTP/2, or an HTTP proxy for
+    /// HTTP/3, makes [`Self::connect`] fail before I/O with
     /// [`WebSocketErrorKind::UnsupportedRoute`].
     pub fn route(mut self, route: Route) -> Self {
         self.route = Some(route);
@@ -326,8 +327,11 @@ impl WebSocketRequestBuilder {
     /// one to the same origin and route or opening one directly, through a
     /// SOCKS5 UDP association, or through a CONNECT-UDP proxy; it has the
     /// same requirements and holds a per-origin pool admission until the
-    /// stream ends. No profile recipe has HTTP/3 opening fields, so HTTP/3
-    /// is for servers the caller controls, not for a browser fingerprint.
+    /// WebSocket is dropped or ends; while it does, a request beyond the
+    /// origin's limit waits, and one beyond the waiting bound fails with
+    /// [`WebSocketErrorKind::Capacity`]. No profile recipe has HTTP/3 opening
+    /// fields, so HTTP/3 is for servers the caller controls, not for a
+    /// browser fingerprint.
     ///
     /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
     /// [`RetryPolicy`](crate::RetryPolicy), and

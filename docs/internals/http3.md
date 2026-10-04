@@ -135,8 +135,10 @@ protocol today. The `phantom-http` facade exposes it through
 `Client::websocket_with_protocol` with `HttpProtocol::Http3`, which admits
 the opening to the client's HTTP/3 pool, leases a pooled connection or opens
 one, and sends the request with `Http3Lease::send_extended_connect` in
-`crates/phantom/src/session/http3_pool.rs`. The accepted stream retains the
-lease's stream count and admission permit until it completes or drops.
+`crates/phantom/src/session/http3_pool.rs`. A connection it opens offers
+early data when the client does, as an exact H3 request's does, and the
+CONNECT waits for the handshake. The accepted stream retains the lease's
+stream count and admission permit until it completes or drops.
 
 Request:
 

@@ -19,8 +19,9 @@ use crate::RequestError;
 /// Only a failure that happened before any byte of the opening reached the
 /// origin is retried: a failed name lookup, a refused or failed TCP connect
 /// to the origin or proxy, a SOCKS5 proxy that could not connect or
-/// resolve, and over HTTP/3 a QUIC connection or CONNECT-UDP proxy that
-/// could not be reached. The same failures are the retryable
+/// resolve, and over HTTP/3 a QUIC connection attempt that the origin
+/// refused or that was lost or timed out, or a CONNECT-UDP proxy that could
+/// not be resolved or reached. The same failures are the retryable
 /// connection-setup class of
 /// [`RetryPolicy`](crate::RetryPolicy). TLS, proxy authentication or
 /// rejection, the opening exchange, a

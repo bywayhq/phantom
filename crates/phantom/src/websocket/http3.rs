@@ -140,7 +140,14 @@ impl WebSocketRequestBuilder {
                 Http3TransportTarget::for_origin(endpoint),
                 timeout_budget,
                 &mut retries,
-                Http3SetupControl::default(),
+                // A new connection resumes as an ordinary exact H3 request's
+                // would, so a pooled connection's ClientHello does not depend
+                // on which caller opened it. The CONNECT is not replay-safe
+                // and still waits for the handshake.
+                Http3SetupControl {
+                    early_data: connector.sends_early_data(),
+                    ..Http3SetupControl::default()
+                },
             )
             .await
             .map_err(WebSocketError::request)?;

@@ -586,7 +586,10 @@ driver.
 An exact-protocol H3 WebSocket, in contrast, is a stream on the client's
 pooled H3 connection to the origin and route. Every exact H3 request already
 shares that connection, so the WebSocket follows it rather than opening a
-QUIC connection that no ordinary request would open.
+QUIC connection that no ordinary request would open. A connection the
+WebSocket opens is set up as an ordinary request's would be, offering early
+data when the client does, so its handshake does not show which caller
+opened it; the CONNECT, which is not replay-safe, waits for the handshake.
 
 WebSocket connections never enter the client's ordinary HTTP pool, except as
 one stream on a pooled H2 session under a profile policy or on a pooled H3

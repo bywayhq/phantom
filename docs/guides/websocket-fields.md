@@ -84,15 +84,20 @@ async fn open_h3() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- No browser opens a WebSocket over HTTP/3, so no recipe sets this order or
-  has HTTP/3 opening fields. The order above is a choice, not a capture.
+- No browser opens a WebSocket over HTTP/3, so no
+  [recipe](../reference/glossary.md#recipe) sets this order or has HTTP/3
+  opening fields
+  ([why](../explanation/design.md#recorded-browser-behavior-is-the-specification)).
+  No capture backs the order above; use the one your server expects.
   Without an order, `connect` fails with `ProtocolUnavailable` before I/O.
 - The opening starts from the built-in H2 template, `sec-websocket-version:
-  13` plus the cookie and compression placeholders. `header` appends
-  lowercase fields; `headers` replaces the template under the H2 rules.
+  13` plus the cookie and compression placeholders. `header` appends a
+  field whose name must be lowercase; an uppercase name fails before I/O.
+  `headers` replaces the template under the H2 rules.
 - The WebSocket is a stream on the client's pooled H3 connection to the
-  origin and route, shared with exact H3 requests, and holds one of the
-  origin's pool slots until it ends. It runs direct, over SOCKS5, or through
+  origin and [route](../reference/glossary.md#route), shared with
+  [exact](../reference/glossary.md#exact-protocol) H3 requests, and holds
+  one of the origin's pool slots until it is dropped. It runs direct, over SOCKS5, or through
   CONNECT-UDP; `ws://` and HTTP proxies fail before I/O.
 - A server that does not enable extended CONNECT fails the connect with
   `WebSocketErrorKind::Http3` before a stream is sent. Nothing falls back to

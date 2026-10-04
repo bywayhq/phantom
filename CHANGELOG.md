@@ -833,7 +833,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `ProtocolUnavailable`. The opening is a new stream on the client's pooled
   HTTP/3 connection to the origin and route, direct, over SOCKS5 UDP
   ASSOCIATE, or through a CONNECT-UDP proxy, and holds one per-origin pool
-  admission until it ends. The profile needs
+  admission until it is dropped or ends. The profile needs
   `Http3RequestSettings::extended_connect_pseudo_header_order`, which no
   named recipe sets, and the opening starts from the built-in H2 field
   template. A peer that does not enable extended CONNECT fails with the new

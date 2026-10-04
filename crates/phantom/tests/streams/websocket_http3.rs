@@ -1,64 +1,55 @@
 //! HTTP/3 WebSocket extended CONNECT (RFC 9220) integration tests.
 //!
 //! The origin speaks raw HTTP/3 over `quinn` so the tests see the request's
-//! field section as the client encoded it and how each stream ended. It
-//! announces no QPACK dynamic table, so every field section decodes alone.
+//! field section as the client encoded it and how each stream ended.
+
+mod origin;
 
 use crate::support::h3 as h3_support;
 use crate::support::masque as masque_support;
 use crate::support::socks5_udp as socks5_udp_support;
 use crate::support::tls as tls_support;
-use crate::support::websocket as websocket_support;
 
 use std::{
+    collections::HashMap,
     future::Future,
     net::{Ipv4Addr, SocketAddr},
-    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    num::NonZeroUsize,
+    sync::{Arc, Mutex, PoisonError},
     time::Duration,
 };
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use http::{StatusCode, Version};
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestHeader, Route,
-    Socks5Proxy, WebSocket, WebSocketErrorKind, WebSocketMessage,
+    Socks5Proxy, TimeoutPhase, WebSocket, WebSocketErrorKind, WebSocketMessage,
+    WebSocketRetryPolicy,
     profile::{
         ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3RequestSettings, chromium,
     },
 };
-use tokio::{
-    io::{AsyncWriteExt, DuplexStream},
-    net::TcpListener,
-    sync::oneshot,
-    task::JoinHandle,
-    time::timeout,
-};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio::{net::TcpListener, net::UdpSocket, task::JoinHandle, time::timeout};
 
 use h3_support::{client_settings, server_endpoint};
 use masque_support::{
     MasqueProxy, MasqueStreamProxy, ProxyMode, StreamLeg, StreamMode, extended_request_settings,
 };
+use origin::{Answer, Behavior, Ending, Origin, SendEnding};
 use socks5_udp_support::{
     forward_one_remote_dns_socks5_udp_associate, forward_one_socks5_udp_associate,
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
-use websocket_support::{ClientFrame, append_server_frame, append_server_frame_with_rsv1};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// A name only the SOCKS5 proxy resolves, for `socks5h://`.
 const REMOTE_ORIGIN: &str = "origin.phantom.invalid";
-const POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// RFC 9114, section 8.1.
 const H3_REQUEST_CANCELLED: u64 = 0x10c;
-const DATA_FRAME: u64 = 0x00;
-const HEADERS_FRAME: u64 = 0x01;
-const SETTINGS_FRAME: u64 = 0x04;
-/// RFC 9220, section 3.
-const SETTINGS_ENABLE_CONNECT_PROTOCOL: u64 = 0x08;
-/// "hello" compressed with a raw DEFLATE block, as RFC 7692 section 7.2.3.1
-/// shows it.
-const COMPRESSED_HELLO: &[u8] = &[0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00];
+/// Long enough for a request that could run to have reached the origin.
+const ADMISSION_WAIT: Duration = Duration::from_millis(200);
 
 #[tokio::test]
 async fn http3_websocket_sends_ordered_extended_connect_and_echoes_messages() -> TestResult<()> {
@@ -101,7 +92,7 @@ async fn http3_websocket_sends_ordered_extended_connect_and_echoes_messages() ->
 }
 
 #[tokio::test]
-async fn closing_an_http3_websocket_ends_its_stream_with_fin() -> TestResult<()> {
+async fn closing_an_http3_websocket_ends_both_directions_with_fin() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::spawn(&identity, Behavior::ECHO)?;
@@ -114,8 +105,11 @@ async fn closing_an_http3_websocket_ends_its_stream_with_fin() -> TestResult<()>
         socket.close(None).await?;
         assert_eq!(socket.receive().await?, WebSocketMessage::Close(None));
 
+        // The origin ends its side with FIN right after echoing Close; the
+        // client ends its own once the reply arrived.
         assert_eq!(origin.next_ending().await?, Ending::Finished);
         drop(socket);
+        assert_eq!(origin.next_send_ending().await?, SendEnding::Acknowledged);
         Ok(())
     })
     .await
@@ -142,6 +136,10 @@ async fn dropping_an_http3_websocket_cancels_only_its_stream() -> TestResult<()>
         assert_eq!(
             origin.next_ending().await?,
             Ending::Reset(H3_REQUEST_CANCELLED)
+        );
+        assert_eq!(
+            origin.next_send_ending().await?,
+            SendEnding::Stopped(H3_REQUEST_CANCELLED)
         );
         // The connection outlives the cancelled stream and stays pooled.
         ordinary_get(&client, &origin).await?;
@@ -185,13 +183,7 @@ async fn http3_websocket_needs_a_peer_that_enables_extended_connect() -> TestRes
 async fn rejected_http3_websocket_returns_the_response_with_its_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(
-            &identity,
-            Behavior {
-                extended_connect: true,
-                answer: Answer::Reject,
-            },
-        )?;
+        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Reject))?;
         let client = client(&identity)?;
 
         let error = match client
@@ -298,6 +290,191 @@ async fn http3_websocket_reuses_the_pooled_connection_of_an_ordinary_request() -
 
         assert_eq!(origin.connections(), 1);
         assert_eq!(origin.methods(), ["GET", "CONNECT", "GET"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn an_open_http3_websocket_holds_its_origin_admission_until_dropped() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        let client = client_builder(&identity, extended_request_settings())
+            .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
+            .build()?;
+        let mut socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/held"))?
+            .connect()
+            .await?;
+        assert_echoes(&mut socket).await?;
+
+        let waiting = tokio::spawn({
+            let client = client.clone();
+            let uri = format!("https://{}/ordinary", origin.address);
+            async move { get_body(&client, &uri).await }
+        });
+        tokio::time::sleep(ADMISSION_WAIT).await;
+        assert!(
+            !waiting.is_finished(),
+            "a GET ran beside the open WebSocket"
+        );
+        assert_eq!(origin.methods(), ["CONNECT"]);
+
+        drop(socket);
+        assert_eq!(waiting.await??, "ordinary");
+        assert_eq!(origin.methods(), ["CONNECT", "GET"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn an_http3_websocket_fails_with_capacity_when_the_origin_queue_is_full() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        let client = client_builder(&identity, extended_request_settings())
+            .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
+            .max_pending_http3_requests_per_origin(NonZeroUsize::MIN)
+            .build()?;
+        let socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/held"))?
+            .connect()
+            .await?;
+        let waiting = tokio::spawn({
+            let client = client.clone();
+            let uri = format!("https://{}/ordinary", origin.address);
+            async move { get_body(&client, &uri).await }
+        });
+        tokio::time::sleep(ADMISSION_WAIT).await;
+
+        let error = match client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/second"))?
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("a WebSocket passed a full origin queue".into()),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), WebSocketErrorKind::Capacity);
+        drop(socket);
+        assert_eq!(waiting.await??, "ordinary");
+        assert_eq!(origin.methods(), ["CONNECT", "GET"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http3_websocket_retry_policy_retries_a_refused_quic_handshake() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        // The first two attempts are refused with CONNECTION_REFUSED.
+        let origin = Origin::serve(server_endpoint(&identity)?, Behavior::ECHO, 2);
+        let client = client(&identity)?;
+
+        let error = match client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/once"))?
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("a refused handshake opened a WebSocket".into()),
+            Err(error) => error,
+        };
+        assert_ne!(error.kind(), WebSocketErrorKind::Timeout);
+        assert_eq!(origin.attempts(), 1);
+
+        let mut socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/retried"))?
+            .retry_policy(WebSocketRetryPolicy::connection_failures(
+                NonZeroUsize::MIN,
+                Duration::from_millis(50),
+            ))
+            .connect()
+            .await?;
+        assert_echoes(&mut socket).await?;
+        assert_eq!(origin.attempts(), 3);
+        assert_eq!(origin.connections(), 1);
+        assert_eq!(origin.methods(), ["CONNECT"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn http3_websocket_handshake_timeout_cancels_only_its_stream() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Withhold))?;
+        let client = client(&identity)?;
+
+        let error = match client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/silent"))?
+            .handshake_timeout(Some(Duration::from_millis(300)))
+            .connect()
+            .await
+        {
+            Ok(_) => return Err("a withheld response opened a WebSocket".into()),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), WebSocketErrorKind::Timeout);
+        assert_eq!(
+            error.timeout_phase(),
+            Some(TimeoutPhase::WebSocketHandshake)
+        );
+        assert_eq!(
+            origin.next_ending().await?,
+            Ending::Reset(H3_REQUEST_CANCELLED)
+        );
+        // The pooled connection stays usable.
+        ordinary_get(&client, &origin).await?;
+        assert_eq!(origin.connections(), 1);
+        Ok(())
+    })
+    .await
+}
+
+/// A resumed connection that an HTTP/3 WebSocket opens offers early data as
+/// one that an ordinary exact HTTP/3 request opens does, so a pooled
+/// connection's handshake does not depend on which caller opened it.
+#[tokio::test]
+async fn a_resumed_connection_opened_by_an_http3_websocket_sends_early_data() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let endpoint = h3_support::quic_server(
+            early_data_server(&identity)?,
+            (Ipv4Addr::LOCALHOST, 0).into(),
+        )?;
+        let origin = Origin::serve((endpoint.local_addr()?, endpoint), Behavior::ECHO, 0);
+        let (relay, zero_rtt, relay_task) = zero_rtt_relay(origin.address).await?;
+        let client = early_data_client(&identity)?;
+
+        // A full handshake that earns a ticket, then a GET and a WebSocket
+        // that each open a resumed connection.
+        get_body(&client, &format!("https://{relay}/ticket")).await?;
+        origin.close_connections().await;
+        get_body(&client, &format!("https://{relay}/resumed")).await?;
+        origin.close_connections().await;
+        let mut socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &format!("wss://{relay}/resumed"))?
+            .connect()
+            .await?;
+        assert_echoes(&mut socket).await?;
+
+        assert_eq!(origin.connections(), 3);
+        assert_eq!(
+            zero_rtt
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone(),
+            [false, true, true],
+            "connections that sent 0-RTT packets, in order"
+        );
+        drop(socket);
+        relay_task.abort();
         Ok(())
     })
     .await
@@ -430,13 +607,7 @@ async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs()
 async fn http3_websocket_negotiates_and_transfers_compressed_messages() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(
-            &identity,
-            Behavior {
-                extended_connect: true,
-                answer: Answer::Deflate,
-            },
-        )?;
+        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Deflate))?;
         let client = client(&identity)?;
 
         let mut socket = client
@@ -487,6 +658,12 @@ async fn assert_echoes(socket: &mut WebSocket) -> TestResult<()> {
         .await?;
     assert_eq!(socket.receive().await?, WebSocketMessage::Binary(binary));
     Ok(())
+}
+
+async fn get_body(client: &Client, uri: &str) -> TestResult<Bytes> {
+    let response = client.get(HttpProtocol::Http3, uri)?.send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    Ok(response.into_body().collect().await?.to_bytes())
 }
 
 async fn ordinary_get(client: &Client, origin: &Origin) -> TestResult<()> {
@@ -541,356 +718,163 @@ where
         .map_err(|_| "HTTP/3 WebSocket test exceeded its deadline")?
 }
 
-/// How the origin's request stream ended.
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Ending {
-    Finished,
-    Reset(u64),
-    Failed(String),
+/// A QUIC server configuration whose session tickets permit early data.
+fn early_data_server(identity: &TestIdentity) -> TestResult<quinn::ServerConfig> {
+    let certificate = CertificateDer::from(identity.leaf_der().to_vec());
+    let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        identity.private_key_der().to_vec(),
+    ));
+    let mut tls = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], private_key)?;
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+    // QUIC permits only 0 or 0xffffffff here (RFC 9001, section 4.6.1).
+    tls.max_early_data_size = u32::MAX;
+    let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
+    Ok(quinn::ServerConfig::with_crypto(Arc::new(crypto)))
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Answer {
-    /// Accept with 200 and echo text and binary messages and the Close frame.
-    Echo,
-    /// Answer 403 with a body.
-    Reject,
-    /// Accept with a `permessage-deflate` selection, send one compressed
-    /// message, and record the client's frames.
-    Deflate,
+/// A client with QUIC session tickets and HTTP/3 early data enabled.
+fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
+    let base = client_settings();
+    let mut quic_tls = base.tls().clone();
+    quic_tls.session_tickets = true;
+    let http3 = Http3ClientSettings::new(
+        quic_tls,
+        base.quic_transport().clone(),
+        base.http3().clone(),
+        extended_request_settings(),
+    );
+    let mut tcp_tls = tls_settings();
+    tcp_tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+    Ok(
+        Client::builder(ClientProfile::new(tcp_tls).with_http3(http3))
+            .add_root_certificate_der(identity.root_der.clone())
+            .http3_early_data(true)
+            .build()?,
+    )
 }
 
-#[derive(Clone, Copy, Debug)]
-struct Behavior {
-    /// Whether SETTINGS carry `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1`.
-    extended_connect: bool,
-    answer: Answer,
-}
+/// Whether each client connection has sent a 0-RTT packet, in the order
+/// the connections first reached the relay.
+type ZeroRttLog = Arc<Mutex<Vec<bool>>>;
 
-impl Behavior {
-    const ECHO: Self = Self {
-        extended_connect: true,
-        answer: Answer::Echo,
-    };
-}
-
-#[derive(Default)]
-struct Log {
-    connections: usize,
-    requests: Vec<Vec<(String, Vec<u8>)>>,
-    endings: Vec<Ending>,
-    frames: Vec<ClientFrame>,
-}
-
-/// A raw HTTP/3 origin on a loopback QUIC endpoint; aborted on drop.
-struct Origin {
-    address: SocketAddr,
-    log: Arc<Mutex<Log>>,
-    task: JoinHandle<()>,
-}
-
-impl Origin {
-    fn spawn(identity: &TestIdentity, behavior: Behavior) -> TestResult<Self> {
-        let (address, endpoint) = server_endpoint(identity)?;
-        let log = Arc::new(Mutex::new(Log::default()));
-        let task_log = Arc::clone(&log);
-        let task = tokio::spawn(async move {
-            while let Some(incoming) = endpoint.accept().await {
-                let log = Arc::clone(&task_log);
-                tokio::spawn(async move {
-                    let Ok(connection) = incoming.await else {
+/// Relays UDP between clients and `server`, one upstream socket per client
+/// address, and records which client connections sent 0-RTT packets.
+async fn zero_rtt_relay(
+    server: SocketAddr,
+) -> TestResult<(SocketAddr, ZeroRttLog, JoinHandle<()>)> {
+    let front = Arc::new(phantom_testkit::udp::bind_tokio(
+        (Ipv4Addr::LOCALHOST, 0).into(),
+    )?);
+    let address = front.local_addr()?;
+    let log: ZeroRttLog = Arc::default();
+    let task_log = Arc::clone(&log);
+    let task = tokio::spawn(async move {
+        let mut upstreams: HashMap<SocketAddr, (usize, Arc<UdpSocket>)> = HashMap::new();
+        let mut datagram = vec![0; 65_535];
+        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
+            let (index, upstream) = match upstreams.get(&client) {
+                Some((index, upstream)) => (*index, Arc::clone(upstream)),
+                None => {
+                    let Ok(upstream) =
+                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
+                    else {
                         return;
                     };
-                    lock(&log).connections += 1;
-                    let _ = serve_connection(connection, behavior, log).await;
-                });
-            }
-        });
-        Ok(Self { address, log, task })
-    }
-
-    fn uri(&self, path_and_query: &str) -> String {
-        format!("wss://{}{path_and_query}", self.address)
-    }
-
-    fn connections(&self) -> usize {
-        lock(&self.log).connections
-    }
-
-    fn requests(&self) -> Vec<Vec<(String, Vec<u8>)>> {
-        lock(&self.log).requests.clone()
-    }
-
-    fn methods(&self) -> Vec<String> {
-        self.requests()
-            .iter()
-            .filter_map(|fields| {
-                fields
-                    .iter()
-                    .find(|(name, _)| name == ":method")
-                    .map(|(_, value)| String::from_utf8_lossy(value).into_owned())
-            })
-            .collect()
-    }
-
-    async fn next_ending(&self) -> TestResult<Ending> {
-        loop {
-            if let Some(ending) = lock(&self.log).endings.first().cloned() {
-                return Ok(ending);
-            }
-            tokio::time::sleep(POLL_INTERVAL).await;
-        }
-    }
-
-    #[cfg(feature = "websocket-deflate")]
-    async fn next_frame(&self) -> TestResult<ClientFrame> {
-        loop {
-            {
-                let mut log = lock(&self.log);
-                if !log.frames.is_empty() {
-                    return Ok(log.frames.remove(0));
+                    if upstream.connect(server).await.is_err() {
+                        return;
+                    }
+                    let upstream = Arc::new(upstream);
+                    let index = {
+                        let mut log = task_log.lock().unwrap_or_else(PoisonError::into_inner);
+                        log.push(false);
+                        log.len() - 1
+                    };
+                    upstreams.insert(client, (index, Arc::clone(&upstream)));
+                    tokio::spawn(forward_replies(
+                        Arc::clone(&upstream),
+                        Arc::clone(&front),
+                        client,
+                    ));
+                    (index, upstream)
                 }
+            };
+            if carries_zero_rtt(&datagram[..len]) {
+                task_log.lock().unwrap_or_else(PoisonError::into_inner)[index] = true;
             }
-            tokio::time::sleep(POLL_INTERVAL).await;
+            let _ = upstream.send(&datagram[..len]).await;
         }
-    }
-}
-
-impl Drop for Origin {
-    fn drop(&mut self) {
-        self.task.abort();
-    }
-}
-
-fn lock(log: &Mutex<Log>) -> MutexGuard<'_, Log> {
-    log.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-async fn serve_connection(
-    connection: quinn::Connection,
-    behavior: Behavior,
-    log: Arc<Mutex<Log>>,
-) -> TestResult<()> {
-    let mut settings = Vec::new();
-    if behavior.extended_connect {
-        put_varint(&mut settings, SETTINGS_ENABLE_CONNECT_PROTOCOL);
-        put_varint(&mut settings, 1);
-    }
-    // Stream type 0x00 is the control stream (RFC 9114, section 6.2.1); it
-    // must stay open for the connection's lifetime.
-    let mut control = connection.open_uni().await?;
-    let mut opening = vec![0x00];
-    put_frame(&mut opening, SETTINGS_FRAME, &settings);
-    control.write_all(&opening).await?;
-    loop {
-        let (send, recv) = connection.accept_bi().await?;
-        let log = Arc::clone(&log);
-        tokio::spawn(async move {
-            let _ = serve_stream(send, recv, behavior.answer, log).await;
-        });
-    }
-}
-
-async fn serve_stream(
-    mut send: quinn::SendStream,
-    mut recv: quinn::RecvStream,
-    answer: Answer,
-    log: Arc<Mutex<Log>>,
-) -> TestResult<()> {
-    let mut section = loop {
-        match next_frame(&mut recv).await {
-            Ok(Some((HEADERS_FRAME, payload))) => break Bytes::from(payload),
-            Ok(Some(_)) => {}
-            Ok(None) | Err(_) => return Err("request stream ended before HEADERS".into()),
-        }
-    };
-    let fields = h3::qpack::decode_stateless(&mut section, u64::MAX)?
-        .fields
-        .into_iter()
-        .map(|field| {
-            (
-                String::from_utf8_lossy(&field.name).into_owned(),
-                field.value.into_owned(),
-            )
-        })
-        .collect::<Vec<_>>();
-    let value = |name: &str| {
-        fields
-            .iter()
-            .find(|(candidate, _)| candidate == name)
-            .map(|(_, value)| String::from_utf8_lossy(value).into_owned())
-    };
-    let method = value(":method");
-    let protocol = value("sec-websocket-protocol");
-    lock(&log).requests.push(fields.clone());
-
-    if method.as_deref() != Some("CONNECT") {
-        write_headers(&mut send, &[(":status", "200")]).await?;
-        write_frame(&mut send, DATA_FRAME, b"ordinary").await?;
-        send.finish()?;
-        return Ok(());
-    }
-    match answer {
-        Answer::Reject => {
-            write_headers(&mut send, &[(":status", "403")]).await?;
-            write_frame(&mut send, DATA_FRAME, b"forbidden").await?;
-            send.finish()?;
-            return Ok(());
-        }
-        Answer::Echo => {
-            let selected = protocol
-                .as_deref()
-                .and_then(|offer| offer.split(',').next())
-                .map(str::trim)
-                .map(str::to_owned);
-            let mut head = vec![(":status", "200")];
-            if let Some(selected) = selected.as_deref() {
-                head.push(("sec-websocket-protocol", selected));
-            }
-            write_headers(&mut send, &head).await?;
-        }
-        Answer::Deflate => {
-            write_headers(
-                &mut send,
-                &[
-                    (":status", "200"),
-                    (
-                        "sec-websocket-extensions",
-                        "permessage-deflate; server_no_context_takeover; client_max_window_bits=8",
-                    ),
-                ],
-            )
-            .await?;
-            let mut frame = Vec::new();
-            append_server_frame_with_rsv1(&mut frame, true, true, 0x1, COMPRESSED_HELLO);
-            write_frame(&mut send, DATA_FRAME, &frame).await?;
-        }
-    }
-
-    let (mut reader, writer) = tokio::io::duplex(64 * 1024);
-    let (ended, ending) = oneshot::channel();
-    tokio::spawn(async move {
-        let _ = ended.send(pump_data(recv, writer).await);
     });
-    while let Ok(frame) = websocket_support::read_client_frame(&mut reader).await {
-        let opcode = frame.opcode;
-        if answer == Answer::Deflate {
-            lock(&log).frames.push(frame);
-            continue;
-        }
-        let mut reply = Vec::new();
-        append_server_frame(&mut reply, true, opcode, &frame.payload);
-        write_frame(&mut send, DATA_FRAME, &reply).await?;
-        if opcode == 0x8 {
-            break;
-        }
-    }
-    let ending = ending
-        .await
-        .unwrap_or_else(|_| Ending::Failed("DATA pump stopped".into()));
-    lock(&log).endings.push(ending.clone());
-    if ending == Ending::Finished {
-        send.finish()?;
-    }
-    Ok(())
+    Ok((address, log, task))
 }
 
-/// Copies the payload of each DATA frame into `writer` until the stream
-/// ends, and reports how it ended.
-async fn pump_data(mut recv: quinn::RecvStream, mut writer: DuplexStream) -> Ending {
-    loop {
-        match next_frame(&mut recv).await {
-            Ok(Some((DATA_FRAME, payload))) => {
-                if writer.write_all(&payload).await.is_err() {
-                    // The reader stopped; keep draining to see the ending.
-                }
-            }
-            Ok(Some(_)) => {}
-            Ok(None) => return Ending::Finished,
-            Err(ending) => return ending,
-        }
+async fn forward_replies(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
+    let mut datagram = vec![0; 65_535];
+    while let Ok(len) = upstream.recv(&mut datagram).await {
+        let _ = front.send_to(&datagram[..len], client).await;
     }
 }
 
-/// Reads one HTTP/3 frame, or `None` at a FIN between frames.
-async fn next_frame(recv: &mut quinn::RecvStream) -> Result<Option<(u64, Vec<u8>)>, Ending> {
-    let mut first = [0];
-    match recv.read(&mut first).await {
-        Ok(Some(1)) => {}
-        Ok(Some(_)) => return Err(Ending::Failed("empty read".into())),
-        Ok(None) => return Ok(None),
-        Err(error) => return Err(read_ending(error)),
+/// Returns whether a client datagram holds a 0-RTT packet among its
+/// coalesced long-header packets (RFC 9000, section 17.2; RFC 9369,
+/// section 3.2 for QUIC version 2's packet types).
+fn carries_zero_rtt(mut datagram: &[u8]) -> bool {
+    while let Some(&first) = datagram.first() {
+        if first & 0x80 == 0 {
+            return false;
+        }
+        let Some(rest) = long_header_packet(datagram) else {
+            return false;
+        };
+        match rest {
+            LongPacket::ZeroRtt => return true,
+            LongPacket::Other(next) => datagram = next,
+        }
     }
-    let frame_type = read_varint_after(recv, first[0]).await?;
-    let mut length = [0];
-    read_exact(recv, &mut length).await?;
-    let length = read_varint_after(recv, length[0]).await?;
-    let mut payload =
-        vec![0; usize::try_from(length).map_err(|_| Ending::Failed("frame too long".into()))?];
-    read_exact(recv, &mut payload).await?;
-    Ok(Some((frame_type, payload)))
+    false
 }
 
-async fn read_varint_after(recv: &mut quinn::RecvStream, first: u8) -> Result<u64, Ending> {
+enum LongPacket<'a> {
+    ZeroRtt,
+    /// Another packet type, followed by these coalesced bytes.
+    Other(&'a [u8]),
+}
+
+fn long_header_packet(packet: &[u8]) -> Option<LongPacket<'_>> {
+    let first = *packet.first()?;
+    let version = u32::from_be_bytes(packet.get(1..5)?.try_into().ok()?);
+    let (initial, zero_rtt) = match version {
+        0x0000_0001 => (0, 1),
+        0x6b33_43cf => (1, 2),
+        _ => return None,
+    };
+    let kind = (first >> 4) & 0x03;
+    if kind == zero_rtt {
+        return Some(LongPacket::ZeroRtt);
+    }
+    let mut at = 5;
+    let destination = usize::from(*packet.get(at)?);
+    at += 1 + destination;
+    let source = usize::from(*packet.get(at)?);
+    at += 1 + source;
+    if kind == initial {
+        let (token, width) = varint(packet.get(at..)?)?;
+        at += width + token;
+    }
+    let (length, width) = varint(packet.get(at..)?)?;
+    Some(LongPacket::Other(packet.get(at + width + length..)?))
+}
+
+/// Reads a QUIC variable-length integer and returns it with its width.
+fn varint(bytes: &[u8]) -> Option<(usize, usize)> {
+    let first = *bytes.first()?;
     let width = 1_usize << (first >> 6);
-    let mut encoded = [0; 8];
-    encoded[0] = first & 0x3f;
-    read_exact(recv, &mut encoded[1..width]).await?;
-    Ok(encoded[..width]
+    let encoded = bytes.get(..width)?;
+    let value = encoded[1..]
         .iter()
-        .fold(0, |value, byte| (value << 8) | u64::from(*byte)))
-}
-
-async fn read_exact(recv: &mut quinn::RecvStream, buffer: &mut [u8]) -> Result<(), Ending> {
-    recv.read_exact(buffer).await.map_err(|error| match error {
-        quinn::ReadExactError::FinishedEarly(_) => Ending::Failed("frame cut short".into()),
-        quinn::ReadExactError::ReadError(error) => read_ending(error),
-    })
-}
-
-fn read_ending(error: quinn::ReadError) -> Ending {
-    match error {
-        quinn::ReadError::Reset(code) => Ending::Reset(code.into_inner()),
-        error => Ending::Failed(error.to_string()),
-    }
-}
-
-async fn write_headers(send: &mut quinn::SendStream, fields: &[(&str, &str)]) -> TestResult<()> {
-    let fields = fields
-        .iter()
-        .map(|(name, value)| h3::qpack::HeaderField::new(*name, *value))
-        .collect::<Vec<_>>();
-    let mut block = BytesMut::new();
-    h3::qpack::encode_stateless(&mut block, &fields)?;
-    write_frame(send, HEADERS_FRAME, &block).await
-}
-
-async fn write_frame(
-    send: &mut quinn::SendStream,
-    frame_type: u64,
-    payload: &[u8],
-) -> TestResult<()> {
-    let mut frame = Vec::with_capacity(payload.len() + 16);
-    put_frame(&mut frame, frame_type, payload);
-    send.write_all(&frame).await?;
-    Ok(())
-}
-
-fn put_frame(output: &mut Vec<u8>, frame_type: u64, payload: &[u8]) {
-    put_varint(output, frame_type);
-    put_varint(output, payload.len() as u64);
-    output.extend_from_slice(payload);
-}
-
-/// Appends `value` as a QUIC variable-length integer (RFC 9000, section 16).
-fn put_varint(output: &mut Vec<u8>, value: u64) {
-    if value < 1 << 6 {
-        output.push(value as u8);
-    } else if value < 1 << 14 {
-        output.extend_from_slice(&((value as u16) | 0x4000).to_be_bytes());
-    } else if value < 1 << 30 {
-        output.extend_from_slice(&((value as u32) | 0x8000_0000).to_be_bytes());
-    } else {
-        output.extend_from_slice(&(value | 0xc000_0000_0000_0000).to_be_bytes());
-    }
+        .fold(u64::from(first & 0x3f), |value, byte| {
+            (value << 8) | u64::from(*byte)
+        });
+    Some((usize::try_from(value).ok()?, width))
 }
