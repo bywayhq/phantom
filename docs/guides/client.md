@@ -119,9 +119,9 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
   [apply a captured request template](request-templates.md#apply-a-captured-request-template).
 - An owned body can be sent again for a redirect or replay. A streaming body
   (`streaming_body`, any `http_body::Body<Data = Bytes>`) is sent at most
-  once. Phantom checks a `Content-Length` you supply against the body; an
-  unknown-length streaming body is chunked on H1 and has no `Content-Length`
-  on H2 and H3.
+  once, unless [buffered](redirects.md#send-a-streaming-body-again). A
+  `Content-Length` you supply is checked against the body; an unknown-length
+  streaming body is chunked on H1 and has no `Content-Length` on H2 and H3.
 - Trailers keep order, interleaved duplicates, and sensitivity on every
   protocol; H1 also keeps name spelling and writes the `Trailer` field. H2,
   H3, and negotiated requests require lowercase trailer names.
@@ -179,9 +179,9 @@ fn client_with_certificate(
   total timers once the stream is open ([SSE](sse.md)).
 - A CONNECT-UDP route rejects negotiated requests before I/O; an HTTP proxy
   route carries them but never upgrades them to H3.
-- A redirect resends an owned body only when it keeps the method
-  ([Redirects](redirects.md)); a streaming body that must be sent again
-  fails with `RequestErrorKind::RequestBody`.
+- A redirect resends an owned or buffered body only when it keeps the method
+  ([Redirects](redirects.md)); a one-shot body fails with
+  `RequestErrorKind::RequestBody`.
 - An invalid or forbidden trailer fails before I/O and before the body is
   read. If the body fails, no trailers are sent.
 - One client certificate serves every origin the client reaches; for

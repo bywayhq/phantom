@@ -558,6 +558,42 @@ async fn unprocessed_replay_refuses_one_shot_streaming_body() -> TestResult {
 }
 
 #[tokio::test]
+async fn refused_stream_replays_a_buffered_streaming_body() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let server = ScriptedHttp2Server::start(
+            &identity,
+            vec![
+                Script::Serve(vec![Reply::Refuse]),
+                Script::Serve(vec![Reply::Status(201)]),
+            ],
+        )
+        .await?;
+
+        let client = http2_client(&identity)?;
+        let response = client
+            .request(HttpProtocol::Http2, Method::POST, &server.url("/orders"))?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+            .retry_policy(replay_policy(1)?)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        response.into_body().collect().await?;
+        drop(client);
+
+        assert_eq!(
+            server.finish().await?,
+            [
+                Observed::new(0, Method::POST, "/orders", b""),
+                Observed::new(1, Method::POST, "/orders", b"payload"),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn unprocessed_replay_budget_is_bounded_across_redirects() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;

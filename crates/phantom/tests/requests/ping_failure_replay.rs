@@ -285,6 +285,36 @@ async fn a_ping_failure_sends_a_post_with_its_owned_body_again() -> TestResult {
     .await
 }
 
+/// A buffered streaming body within its limit is sent again like an owned
+/// one.
+#[tokio::test]
+async fn a_ping_failure_sends_a_buffered_streaming_body_again() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let server = Server::start(&identity, true).await?;
+        let client = short_ping_timeout_client(&identity)?;
+        let request = client
+            .request(HttpProtocol::Http2, Method::POST, &server.url("/b"))?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+            .send();
+        let response = after_an_idle_connection(&client, &server, request).await??;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        drop(client);
+
+        assert_eq!(
+            server.finish().await?,
+            Some(Observed {
+                method: Method::POST,
+                path: "/b".to_owned(),
+                body: b"payload".to_vec(),
+            })
+        );
+        Ok(())
+    })
+    .await
+}
+
 #[tokio::test]
 async fn a_negotiated_request_is_sent_again_after_a_ping_failure() -> TestResult {
     bounded(async {

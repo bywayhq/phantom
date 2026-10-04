@@ -22,6 +22,7 @@ mod alt_svc_attempt;
 mod attempt;
 mod field_lists;
 mod replay;
+mod replay_buffer;
 pub(crate) mod secure_context;
 pub(crate) mod template;
 
@@ -29,6 +30,7 @@ pub use template::PreparedRequestTemplate;
 
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
+use replay_buffer::{NoReplay, ReplayBuffer};
 
 /// Builder for one request with an owned, streaming, or absent body.
 ///
@@ -250,7 +252,9 @@ impl RequestBuilder {
     ///
     /// This body is not replayable. A redirect, client-hint retry, or other
     /// policy that requires a second body-bearing attempt returns a typed
-    /// request-body error before starting that attempt. Trailer frames emitted
+    /// request-body error before starting that attempt;
+    /// [`Self::buffered_streaming_body`] keeps the body so it can be sent
+    /// again. Trailer frames emitted
     /// by the source remain unsupported; use [`Self::streaming_body_with_trailers`]
     /// when the body produces trailers, or [`Self::trailers`] for static ones.
     pub fn streaming_body<B>(mut self, body: B) -> Self
@@ -284,6 +288,60 @@ impl RequestBuilder {
             body,
             trailer_names,
         )));
+        self
+    }
+
+    /// Sets a pull-driven request body that a later attempt of this request
+    /// may send again, keeping at most `maximum_bytes` of its data.
+    ///
+    /// The body streams as [`Self::streaming_body`] does, and each data frame
+    /// is kept as it is sent, so the first attempt is not delayed. When a
+    /// redirect, retry, or replay needs another attempt, that attempt sends
+    /// the kept frames with the same frame boundaries and then reads on from
+    /// the body where the last attempt stopped. Each replay keeps its own
+    /// method and policy rules: the Chromium recipes' resend after a failed
+    /// HTTP/2 PING, for one, sends any method again, so a server may receive
+    /// a `POST` twice.
+    ///
+    /// Once more than `maximum_bytes` of data has been read, the kept frames
+    /// are freed and the body is one-shot: the attempt in progress still
+    /// sends all of it, and a later attempt fails with
+    /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody),
+    /// or, for a replay after a failure, the request returns that failure.
+    /// The limit counts data bytes; a kept frame holds the buffer its bytes
+    /// come from. Once [`Self::send`] returns, the kept frames are freed, at
+    /// once or, while an attempt is still uploading, as it sends them.
+    pub fn buffered_streaming_body<B>(mut self, body: B, maximum_bytes: usize) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        self.body = RequestBodySource::Buffered(ReplayBuffer::new(body, Vec::new(), maximum_bytes));
+        self.body_declares_alt_used_trailer = false;
+        self
+    }
+
+    /// Sets a pull-driven request body with a declared terminal trailer
+    /// frame that a later attempt may send again, keeping at most
+    /// `maximum_bytes` of its data.
+    ///
+    /// `trailer_names` is declared as for
+    /// [`Self::streaming_body_with_trailers`], and the body is kept and sent
+    /// again as for [`Self::buffered_streaming_body`]. The trailer frame is
+    /// kept too and does not count toward `maximum_bytes`.
+    pub fn buffered_streaming_body_with_trailers<B>(
+        mut self,
+        body: B,
+        trailer_names: Vec<RequestTrailerName>,
+        maximum_bytes: usize,
+    ) -> Self
+    where
+        B: Body<Data = Bytes> + Send + 'static,
+        B::Error: StdError + Send + Sync + 'static,
+    {
+        self.body_declares_alt_used_trailer = declares_alt_used_trailer(&trailer_names);
+        self.body =
+            RequestBodySource::Buffered(ReplayBuffer::new(body, trailer_names, maximum_bytes));
         self
     }
 
@@ -802,16 +860,34 @@ fn contains_caller_alt_used(
         || body_declares_alt_used_trailer
 }
 
+/// A request body whose framing an attempt's fields are built from, owned
+/// for this purpose or borrowed from the request.
+pub(crate) enum RequestBodyFraming<'a> {
+    Owned(RequestBody),
+    Borrowed(&'a RequestBody),
+}
+
+impl RequestBodyFraming<'_> {
+    pub(crate) const fn body(&self) -> &RequestBody {
+        match self {
+            Self::Owned(body) => body,
+            Self::Borrowed(body) => body,
+        }
+    }
+}
+
 pub(crate) enum RequestBodySource {
     Absent,
     Bytes(Bytes),
     Streaming(Option<RequestBody>),
+    Buffered(ReplayBuffer),
 }
 
 impl RequestBodySource {
     fn has_trailers(&self) -> bool {
         match self {
             Self::Streaming(Some(body)) => body.metadata().has_trailers(),
+            Self::Buffered(body) => body.has_trailers(),
             Self::Absent | Self::Bytes(_) | Self::Streaming(None) => false,
         }
     }
@@ -824,6 +900,38 @@ impl RequestBodySource {
                 .take()
                 .map(Some)
                 .ok_or_else(RequestError::request_body_not_replayable),
+            Self::Buffered(body) => body
+                .next_attempt()
+                .map(Some)
+                .map_err(|reason| match reason {
+                    NoReplay::Failed => RequestError::request_body_not_replayable(),
+                    NoReplay::Exhausted => RequestError::request_body_replay_limit(),
+                }),
+        }
+    }
+
+    /// Returns whether another attempt could send this body: absent, owned
+    /// bytes, or a buffered body within its limit whose source has not
+    /// failed.
+    pub(crate) fn can_replay(&self) -> bool {
+        match self {
+            Self::Absent | Self::Bytes(_) => true,
+            Self::Streaming(_) => false,
+            Self::Buffered(body) => body.no_replay().is_none(),
+        }
+    }
+
+    /// Returns a body with this source's framing for building an attempt's
+    /// fields without starting an attempt, or `None` without a body.
+    pub(crate) fn framing(&self) -> Result<Option<RequestBodyFraming<'_>>, RequestError> {
+        match self {
+            Self::Absent => Ok(None),
+            Self::Bytes(bytes) => Ok(Some(RequestBodyFraming::Owned(RequestBody::from_bytes(
+                bytes.clone(),
+            )))),
+            Self::Streaming(Some(body)) => Ok(Some(RequestBodyFraming::Borrowed(body))),
+            Self::Streaming(None) => Err(RequestError::request_body_not_replayable()),
+            Self::Buffered(body) => Ok(Some(RequestBodyFraming::Owned(body.metadata_body()))),
         }
     }
 
@@ -832,8 +940,9 @@ impl RequestBodySource {
     }
 
     /// Takes back a streaming body that an attempt returned unpolled, so the
-    /// next attempt sends it. Owned bytes are copied for each attempt and
-    /// need nothing back.
+    /// next attempt sends it. Owned bytes are copied for each attempt and a
+    /// buffered body starts each attempt over, so neither needs anything
+    /// back.
     pub(crate) fn restore(&mut self, body: Option<RequestBody>) {
         if let (Self::Streaming(slot @ None), Some(body)) = (&mut *self, body) {
             *slot = Some(body);
@@ -844,7 +953,7 @@ impl RequestBodySource {
     pub(crate) fn replayable_bytes(&self) -> Option<&Bytes> {
         match self {
             Self::Bytes(body) => Some(body),
-            Self::Absent | Self::Streaming(_) => None,
+            Self::Absent | Self::Streaming(_) | Self::Buffered(_) => None,
         }
     }
 
@@ -853,6 +962,7 @@ impl RequestBodySource {
             Self::Absent | Self::Streaming(None) => None,
             Self::Bytes(body) => Some(body.len() as u64),
             Self::Streaming(Some(body)) => body.metadata().exact_length(),
+            Self::Buffered(body) => body.exact_length(),
         }
     }
 
@@ -861,6 +971,7 @@ impl RequestBodySource {
             Self::Absent => "absent",
             Self::Bytes(_) => "bytes",
             Self::Streaming(_) => "stream",
+            Self::Buffered(_) => "buffered",
         }
     }
 }
@@ -1081,6 +1192,85 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+    }
+
+    /// Reads one attempt's body to its end or first error.
+    fn drain(body: &mut RequestBody) -> Result<Vec<u8>, ()> {
+        use http_body::Body as _;
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        let mut sent = Vec::new();
+        loop {
+            match std::pin::Pin::new(&mut *body).poll_frame(&mut context) {
+                std::task::Poll::Ready(Some(Ok(frame))) => {
+                    if let Ok(data) = frame.into_data() {
+                        sent.extend_from_slice(&data);
+                    }
+                }
+                std::task::Poll::Ready(Some(Err(_))) => return Err(()),
+                std::task::Poll::Ready(None) => return Ok(sent),
+                std::task::Poll::Pending => return Err(()),
+            }
+        }
+    }
+
+    #[test]
+    fn a_buffered_body_is_replayable_within_its_limit_and_not_past_it() {
+        let full = |bytes: &'static [u8]| http_body_util::Full::new(Bytes::from_static(bytes));
+        let mut within =
+            RequestBodySource::Buffered(super::ReplayBuffer::new(full(b"payload"), Vec::new(), 7));
+        for _ in 0..2 {
+            let Ok(Some(mut attempt)) = within.next_attempt() else {
+                panic!("a buffered body within its limit was refused");
+            };
+            assert_eq!(drain(&mut attempt), Ok(b"payload".to_vec()));
+            assert!(within.can_replay());
+        }
+
+        let mut past =
+            RequestBodySource::Buffered(super::ReplayBuffer::new(full(b"payload"), Vec::new(), 6));
+        let Ok(Some(mut attempt)) = past.next_attempt() else {
+            panic!("the first attempt was refused");
+        };
+        assert_eq!(drain(&mut attempt), Ok(b"payload".to_vec()));
+        assert!(!past.can_replay());
+        let error = match past.next_attempt() {
+            Ok(_) => panic!("a body past its limit was sent again"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert!(error.to_string().contains("replay limit"));
+    }
+
+    /// A body whose first poll fails.
+    struct Failing;
+
+    impl http_body::Body for Failing {
+        type Data = Bytes;
+        type Error = std::io::Error;
+
+        fn poll_frame(
+            self: std::pin::Pin<&mut Self>,
+            _context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, std::io::Error>>> {
+            std::task::Poll::Ready(Some(Err(std::io::Error::other("source failed"))))
+        }
+    }
+
+    #[test]
+    fn a_buffered_body_whose_source_failed_is_not_sent_again() {
+        let mut body =
+            RequestBodySource::Buffered(super::ReplayBuffer::new(Failing, Vec::new(), 64));
+        let Ok(Some(mut attempt)) = body.next_attempt() else {
+            panic!("the first attempt was refused");
+        };
+        assert_eq!(drain(&mut attempt), Err(()));
+        assert!(!body.can_replay());
+        let error = match body.next_attempt() {
+            Ok(_) => panic!("a failed body was sent again"),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert!(error.to_string().contains("one-shot"));
     }
 
     #[test]

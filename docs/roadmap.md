@@ -131,7 +131,8 @@ Counts in the later phases come from a read-only review of `main` at
 - Redirects, the cookie jar, and cookie snapshots
   ([Redirects](guides/redirects.md), [Cookies](guides/cookies.md)).
 - Connection-setup retries, reused-connection replay, unprocessed-request
-  replay, and status retries ([Retries and replays](guides/retries.md)).
+  replay, and status retries ([Retries and replays](guides/retries.md)), and
+  a buffered streaming body that a redirect or replay can send again.
 - Field lists built once: a negotiated request builds and checks its
   HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
   once per redirect hop before any I/O. The race's winner and every replay
@@ -354,7 +355,6 @@ Each of these needs no capture, because no named recipe may reach it
   any `fetch`, `FormData`, or form upload
   ([Upload evidence](explanation/validation.md#revalidation-and-upload-evidence)),
   and caller-owned conditional-request validators.
-- A buffered request body that a retry may replay.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
   `IP_UNICAST_IF`), and a client certificate chosen per origin.

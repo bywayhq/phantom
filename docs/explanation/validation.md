@@ -6250,6 +6250,23 @@ Status-retry regressions in `crates/phantom/tests/requests/status_retry.rs` run 
 H1 loopback servers, including one negotiated request that selects H1. The
 retry loop sits above the transports, so H2 and H3 use the same code.
 
+A buffered streaming body within its limit is sent again by a `307`
+redirect (`redirects.rs`), a reused-connection replay
+(`stale_connection_replay.rs`), an unprocessed replay
+(`unprocessed_replay.rs`), the PING-failure resend
+(`ping_failure_replay.rs`), and a status retry (`status_retry.rs`), all in
+`crates/phantom/tests/requests/`, and after a proxy's Basic `407` challenge
+(`crates/phantom/tests/proxies/forward_proxy.rs`); a chunked body of three
+frames is replayed with the same head. The `Critical-CH` retry takes its
+next attempt through the same body source, with no test of its own. One past
+its limit is sent in full once and the redirect then fails with
+`RequestErrorKind::RequestBody`. Unit tests in
+`crates/phantom/src/request/replay_buffer/tests.rs` cover a replay that
+sends the kept frames and reads on from the source, the inclusive limit,
+a replay that crosses it, the exact length on every attempt, trailers, a
+failed source, a source that is not ready, and freeing the kept frames once
+the request is done.
+
 Limits:
 
 - These tests prove lifecycle and routing behavior, not browser retry policy.

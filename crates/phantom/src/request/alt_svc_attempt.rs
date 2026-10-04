@@ -10,7 +10,7 @@ use std::{
 };
 
 use super::{
-    RequestBodySource, ResolvedRequest,
+    ResolvedRequest,
     attempt::{
         AttemptLifecycle, AttemptOutcome, AttemptPath, AttemptRequest, DispatchOutcome,
         begin_accept_ch_restart, begin_status_retry, begin_unprocessed_replay, client_hint_origin,
@@ -380,10 +380,7 @@ async fn send_after_early_win(
         replays,
     } = lifecycle;
     let RacedFields { http3, negotiated } = fields;
-    let replayable = matches!(
-        &*body,
-        RequestBodySource::Absent | RequestBodySource::Bytes(_)
-    );
+    let replayable = body.can_replay();
     // Only a request that may be raced again keeps its HTTP/3 list.
     let kept_http3 =
         races_again(alternative.allows_early_data(), replayable).then(|| http3.clone());
@@ -423,7 +420,8 @@ async fn send_after_early_win(
         handshake_failed.ok(),
         result.is_ok(),
         alternative.allows_early_data(),
-        replayable,
+        // A buffered body may have passed its limit during the attempt.
+        replayable && body.can_replay(),
     ) {
         EarlyWinStep::Return => return result,
         EarlyWinStep::Confirm => {
@@ -531,7 +529,7 @@ const fn after_early_win(
 /// Only a race that allowed early data is retried, and the retry allows
 /// none, so a request is raced again at most once, even when the retry wins
 /// on a pooled connection whose own early data is still unanswered. The body
-/// must be replayable: absent or owned bytes.
+/// must be one that can be sent again.
 const fn races_again(allowed_early_data: bool, replayable: bool) -> bool {
     allowed_early_data && replayable
 }

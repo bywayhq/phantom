@@ -286,6 +286,36 @@ async fn status_retry_skips_non_idempotent_methods() -> TestResult {
 }
 
 #[tokio::test]
+async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
+    let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
+    let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
+
+    let response = client
+        .request(
+            HttpProtocol::Http1,
+            Method::PUT,
+            &server.url("http", "/upload"),
+        )?
+        .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+        .send()
+        .await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let received = server.received();
+    assert_eq!(
+        request_lines(&received),
+        ["PUT /upload HTTP/1.1", "PUT /upload HTTP/1.1"]
+    );
+    for head in &received {
+        assert!(
+            head.to_ascii_lowercase()
+                .contains("\r\ncontent-length: 7\r\n")
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn status_retry_with_streaming_body_returns_original_response() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
     let client = retrying_client(status_retry(2, Duration::ZERO)?)?;

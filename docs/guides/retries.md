@@ -15,7 +15,7 @@ policy, so no browser recipe includes them apart from the PING resend below.
 | --- | --- | --- | --- |
 | Connection-setup retry | Off | `RetryPolicy::connection_failures` | Setup failed before any request byte was sent |
 | Graceful `GOAWAY` replay | Always on | Not configurable | A bodyless H2 GET refused by `GOAWAY(NO_ERROR)` |
-| PING-failure resend | 2 per hop in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` | An H2 connection closed itself on an unanswered PING before the response head; any method, no streaming body |
+| PING-failure resend | 2 per hop in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` | An H2 connection closed itself on an unanswered PING before the response head; any method, no one-shot body |
 | Reused-connection replay | Off | `with_reused_connection_replay` | An H1 keep-alive connection closed before any response byte |
 | Unprocessed-request replay | Off | `with_unprocessed_replay` | The H2 or H3 peer reported it did not process the request |
 | Status retry | Off | `with_status_retry` | The status is 408, 425, 429, 500, 502, 503, or 504 |
@@ -23,6 +23,7 @@ policy, so no browser recipe includes them apart from the PING resend below.
 
 Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407` challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
 and one `Critical-CH` retry when the profile has client hints ([Send client hints](request-templates.md#send-client-hints)).
+A streaming body is sent again only when [buffered](redirects.md#send-a-streaming-body-again).
 
 ## Retry when a connection fails to open
 
@@ -82,7 +83,7 @@ over the same route when all of these hold:
 - that connection closed or was reset before any byte of the new response;
 - the method is idempotent (RFC 9110, section 9.2.2: GET, HEAD, OPTIONS,
   TRACE, PUT, or DELETE); and
-- the body is absent or owned bytes.
+- the body is absent, owned bytes, or a buffered stream within its limit.
 
 Chrome 154 restarts such a request once on a new connection
 ([evidence](../explanation/validation.md#sse-browser-reconnect-evidence)); it
@@ -146,8 +147,8 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
   constant delay. It accepts only 408, 425, 429, 500, 502, 503, and 504; any
   other status, including 421, or an empty list returns `StatusRetryError`.
 - A response is retried only when its status is listed, the method is
-  idempotent, and the body is absent or owned bytes. Otherwise it is returned
-  unchanged. When the budget runs out, Phantom returns the last response.
+  idempotent, and the body is absent, owned, or buffered within its limit.
+  Otherwise it is returned unchanged. When the budget runs out, Phantom returns the last response.
 - `honor_retry_after(maximum)` uses a valid `Retry-After` (delta-seconds or
   an IMF-fixdate read against the system clock, RFC 9110 section 10.2.3)
   instead of the constant delay. A requested delay above `maximum` returns
@@ -170,7 +171,7 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
   trailers, or a second `GOAWAY` returns the typed H2 error. It runs first
   and does not use the unprocessed-replay budget.
 - Reused-connection replay returns the original typed H1 error for a fresh
-  connection, a failure after any response byte, a streaming body, POST or
+  connection, a failure after any response byte, a one-shot body, POST or
   PATCH, and a second close. It runs at most once per hop, with no delay and
   outside the setup-retry budget; a negotiated replay goes through admission
   and ALPN again.
@@ -178,7 +179,7 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
   `GOAWAY` last-stream-id, which fails with a transport error when the
   connection closes, or an H3 stream already open when `GOAWAY` arrived: the
   H3 backend does not expose the identifier needed to prove it unprocessed. A
-  streaming body returns the original error without another connection.
+  one-shot body returns the original error without another connection.
 - Status retry runs after proxy `407` and `Critical-CH` handling. The
   intermediate response updates cookies, client hints, and Alt-Svc, then its
   body is dropped unread, which retires an incomplete H1 connection or

@@ -207,12 +207,7 @@ async fn send_once_exact(
                 // close before the response does not show that the proxy did
                 // not forward a POST, so its error is returned instead.
                 if replays_on_challenged && error.is_reused_connection_close() {
-                    if method.is_idempotent()
-                        && matches!(
-                            body,
-                            RequestBodySource::Absent | RequestBodySource::Bytes(_)
-                        )
-                    {
+                    if method.is_idempotent() && body.can_replay() {
                         fresh_connection = true;
                         continue;
                     }
@@ -364,7 +359,7 @@ pub(super) async fn send_once_origin(
     let mut restart_hints = RestartHints::default();
     let mut fresh_http1_connection = false;
     let keeps_fields = may_replay_unanswered(retries, body)
-        || (replays.replays_http2_ping_failures() && body_is_replayable(body));
+        || (replays.replays_http2_ping_failures() && body.can_replay());
 
     loop {
         let prepared = prepare_attempt(
@@ -480,10 +475,7 @@ pub(super) fn may_replay_unanswered(
     body: &RequestBodySource,
 ) -> bool {
     (retries.replays_reused_connections() || retries.replays_unprocessed_requests())
-        && matches!(
-            body,
-            RequestBodySource::Absent | RequestBodySource::Bytes(_)
-        )
+        && body.can_replay()
 }
 
 /// Starts the request again with the hints its connection's ALPS
@@ -508,22 +500,14 @@ pub(super) fn begin_accept_ch_restart(
     );
 }
 
-/// Whether `body` can be sent again on a replay: absent, or owned bytes.
-fn body_is_replayable(body: &RequestBodySource) -> bool {
-    matches!(
-        body,
-        RequestBodySource::Absent | RequestBodySource::Bytes(_)
-    )
-}
-
 /// Starts a replay after the request's HTTP/2 connection closed itself on an
 /// unanswered PING before the response head, while the hop has replays of
 /// the profile's [`phantom_profile::Http2Settings::ping_failure_retries`]
 /// left, as Chromium resends after `ERR_HTTP2_PING_FAILED`. It applies
 /// whatever the retry policy, and any method is eligible.
 ///
-/// A one-shot streaming body was moved into the failed attempt, so it is
-/// never replayed and the original error is returned instead.
+/// A body that cannot be sent again, one-shot or buffered past its limit, is
+/// never replayed, and the original error is returned instead.
 fn begin_http2_ping_failure_replay(
     error: &RequestError,
     method: &Method,
@@ -531,7 +515,7 @@ fn begin_http2_ping_failure_replay(
     replays: &mut ReplayState,
 ) -> bool {
     if !error.is_http2_ping_failure()
-        || !body_is_replayable(body)
+        || !body.can_replay()
         || !replays.try_begin(ReplayClass::Http2PingFailure, method)
     {
         return false;
@@ -546,8 +530,8 @@ fn begin_http2_ping_failure_replay(
 /// Starts the one replay after a reused HTTP/1.1 connection closed before
 /// any response byte, when policy, method, and body permit it.
 ///
-/// A one-shot streaming body was moved into the failed attempt, so it is
-/// never replayed and the original error is returned instead.
+/// A body that cannot be sent again, one-shot or buffered past its limit, is
+/// never replayed, and the original error is returned instead.
 fn begin_reused_connection_replay(
     error: &RequestError,
     method: &Method,
@@ -557,10 +541,7 @@ fn begin_reused_connection_replay(
 ) -> bool {
     if !retries.replays_reused_connections()
         || !error.is_reused_connection_close()
-        || !matches!(
-            body,
-            RequestBodySource::Absent | RequestBodySource::Bytes(_)
-        )
+        || !body.can_replay()
         || !replays.try_begin(ReplayClass::ReusedConnection, method)
     {
         return false;
@@ -573,8 +554,8 @@ fn begin_reused_connection_replay(
 /// process the request, when policy, remaining request-scoped budget, and body
 /// permit it. Any method is eligible.
 ///
-/// A one-shot streaming body was moved into the refused attempt, so it is
-/// never replayed and the original error is returned before another
+/// A body that cannot be sent again, one-shot or buffered past its limit, is
+/// never replayed, and the original error is returned before another
 /// connection is opened.
 pub(super) fn begin_unprocessed_replay(
     error: &RequestError,
@@ -585,10 +566,7 @@ pub(super) fn begin_unprocessed_replay(
 ) -> bool {
     if !error.is_unprocessed_request()
         || !retries.unprocessed_replay_available()
-        || !matches!(
-            body,
-            RequestBodySource::Absent | RequestBodySource::Bytes(_)
-        )
+        || !body.can_replay()
         || !replays.try_begin(ReplayClass::Unprocessed, method)
     {
         return false;
@@ -604,8 +582,8 @@ pub(super) fn begin_unprocessed_replay(
 ///
 /// The caller drops the intermediate response body unread: an incomplete
 /// HTTP/1.1 body retires its connection, and an H2 or H3 body cancels its
-/// stream. A one-shot streaming body was moved into the first attempt, so the
-/// response is returned instead.
+/// stream. A body that cannot be sent again, one-shot or buffered past its
+/// limit, leaves the response returned instead.
 pub(super) fn begin_status_retry(
     response: &Response<ResponseBody>,
     method: &Method,
@@ -624,11 +602,7 @@ pub(super) fn begin_status_retry(
     {
         return None;
     }
-    if !matches!(
-        body,
-        RequestBodySource::Absent | RequestBodySource::Bytes(_)
-    ) || !replays.try_begin(ReplayClass::Status, method)
-    {
+    if !body.can_replay() || !replays.try_begin(ReplayClass::Status, method) {
         return None;
     }
     retries.record_status_retry(status, delay);

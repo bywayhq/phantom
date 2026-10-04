@@ -480,6 +480,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn request_body_replay_limit() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestBody,
+            "buffered request body exceeded its replay limit and cannot be sent again",
+        )
+    }
+
     pub(crate) fn response_body_limit() -> Self {
         Self::without_source(
             RequestErrorKind::ResponseBodyLimit,

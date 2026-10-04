@@ -408,6 +408,65 @@ async fn unusable_basic_challenge_is_proxy_error_without_retry() -> TestResult<(
 }
 
 #[tokio::test]
+async fn buffered_streaming_body_is_replayed_after_basic_challenge() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let proxy = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await?;
+            let mut requests = Vec::new();
+            for response in [
+                &b"HTTP/1.1 407 Proxy Authentication Required\r\n\
+                   Proxy-Authenticate: Basic realm=stream\r\n\
+                   Content-Length: 0\r\n\r\n"[..],
+                &b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"[..],
+            ] {
+                let head = read_head(&mut stream).await?;
+                let mut body = [0_u8; 7];
+                stream.read_exact(&mut body).await?;
+                stream.write_all(response).await?;
+                requests.push((head, body));
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
+        });
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
+        );
+        let response = client_builder(&identity, false)
+            .route(route)
+            .build()?
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                "http://origin.test/upload",
+            )?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 7)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+
+        let requests = proxy.await??;
+        assert_eq!(requests.len(), 2);
+        assert!(!contains_ascii_case_insensitive(
+            &requests[0].0,
+            b"proxy-authorization"
+        ));
+        assert!(contains_ascii_case_insensitive(
+            &requests[1].0,
+            b"proxy-authorization: basic"
+        ));
+        for (_, body) in &requests {
+            assert_eq!(body, b"payload");
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn one_shot_streaming_body_is_not_replayed_after_basic_challenge() -> TestResult<()> {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

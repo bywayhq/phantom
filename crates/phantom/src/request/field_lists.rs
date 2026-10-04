@@ -22,7 +22,7 @@ use http::Method;
 use phantom_net::request::{RequestBody, RequestHeader};
 
 use super::{
-    RequestBodySource, ResolvedRequest,
+    RequestBodyFraming, ResolvedRequest,
     attempt::{AttemptRequest, attempt_client_hints, attempt_headers, client_hint_origin},
 };
 use crate::{
@@ -58,18 +58,8 @@ pub(super) fn raced(
     if client.inner.http3.is_none() {
         return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
     }
-    let owned_body;
-    let body = match &*attempt.body {
-        RequestBodySource::Absent => None,
-        RequestBodySource::Bytes(bytes) => {
-            owned_body = RequestBody::from_bytes(bytes.clone());
-            Some(&owned_body)
-        }
-        RequestBodySource::Streaming(Some(body)) => Some(body),
-        RequestBodySource::Streaming(None) => {
-            return Err(RequestError::request_body_not_replayable());
-        }
-    };
+    let framing = attempt.body.framing()?;
+    let body = framing.as_ref().map(RequestBodyFraming::body);
     let hint_origin = client_hint_origin(client, request);
     // A race starts a request, so no connection has restarted it yet.
     let no_restart = RestartHints::default();

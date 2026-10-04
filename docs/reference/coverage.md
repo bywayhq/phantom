@@ -640,7 +640,8 @@ Supported:
 - A bounded retry after a graceful H2 `GOAWAY`, for exact and negotiated H2.
 - Opt-in replay of unprocessed requests: H2 `REFUSED_STREAM` or `GOAWAY` above
   the stream, and H3 `H3_REQUEST_REJECTED` or `GOAWAY` before the stream
-  opened. It applies to any method with no body or an owned body, and replays
+  opened. It applies to any method with no body, an owned body, or a buffered
+  streaming body within its limit, and replays
   on a different connection with the same route and protocol.
 - Bounded retention of TLS tickets for H1/H2 and of QUIC tickets for H3,
   partitioned by exact origin and route.

@@ -52,7 +52,7 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   request as early data. It does not after QUIC to the origin's own host and
   port failed a race or a handshake, until that location connects again. A
   request whose early handshake fails is raced once more without early data
-  when it has no body or an owned body.
+  when its body is absent, owned, or buffered within its limit.
 - Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
 
 ## Find HTTP/3 through HTTPS DNS records

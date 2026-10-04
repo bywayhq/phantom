@@ -194,6 +194,108 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
 }
 
 #[tokio::test]
+async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for response in [
+                &b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /final\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"[..],
+                &b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n"[..],
+            ] {
+                let mut stream = accept_tls(&listener, &acceptor).await?;
+                let head = tls_support::read_head(&mut stream).await?;
+                let mut body = [0_u8; 7];
+                stream.read_exact(&mut body).await?;
+                stream.write_all(response).await?;
+                stream.flush().await?;
+                requests.push((head, body));
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(requests)
+        });
+
+        let client = client_builder(&identity, false)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/start"),
+            )?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 7)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        drop(client);
+
+        let requests = server.await??;
+        assert_eq!(requests.len(), 2);
+        for ((head, body), path) in requests.iter().zip(["/start", "/final"]) {
+            assert!(head.starts_with(format!("POST {path} HTTP/1.1\r\n").as_bytes()));
+            let head = String::from_utf8_lossy(head).to_ascii_lowercase();
+            assert!(head.contains("\r\ncontent-length: 7\r\n"), "{head}");
+            assert_eq!(body, b"payload");
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn body_preserving_redirect_rejects_a_buffered_stream_past_its_limit() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut first = accept_tls(&listener, &acceptor).await?;
+            tls_support::read_head(&mut first).await?;
+            let mut body = [0_u8; 7];
+            first.read_exact(&mut body).await?;
+            first
+                .write_all(
+                    b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n",
+                )
+                .await?;
+            first.flush().await?;
+            let second = timeout(Duration::from_millis(100), listener.accept()).await;
+            Ok::<_, Box<dyn Error + Send + Sync>>((body, second.is_err()))
+        });
+
+        let client = client_builder(&identity, false)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let error = match client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("https://{address}/start"),
+            )?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 6)
+            .send()
+            .await
+        {
+            Ok(_) => return Err("a body past its replay limit was sent again".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+
+        // The first attempt still sent the whole body.
+        let (body, no_second_request) = server.await??;
+        assert_eq!(&body, b"payload");
+        assert!(no_second_request);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;

@@ -726,8 +726,9 @@ by default. On a forwarded request it takes the request template's slot for
 that attempt, which can differ between the replay after a `407` and a first
 attempt with remembered credentials, as it does in Firefox; without such a
 slot it follows the caller's fields and precedes generated framing. Owned
-bodies and static trailers can be replayed; a one-shot streaming body fails
-before Phantom opens a retry connection. This lifecycle never changes the
+bodies, buffered streaming bodies within their limit, and static trailers
+can be replayed; a one-shot streaming body fails before Phantom opens a retry
+connection. This lifecycle never changes the
 selected protocol or route, and never falls back to a direct connection.
 
 ### Shared HTTP/2 proxy connections

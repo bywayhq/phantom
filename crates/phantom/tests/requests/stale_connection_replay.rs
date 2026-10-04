@@ -171,6 +171,109 @@ async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
 }
 
 #[tokio::test]
+async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let stale = serve_stale_connection(&listener).await?;
+            let (mut replacement, _) = listener.accept().await?;
+            let replayed = read_request(&mut replacement).await?;
+            replacement.write_all(REPLAY_RESPONSE).await?;
+            replacement.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
+        });
+        let client = replaying_client()?;
+
+        prime(&client, &format!("http://{address}/prime")).await?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &format!("http://{address}/upload"),
+            )?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+            .send()
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        response.into_body().collect().await?;
+        let (stale, replayed) = server.await??;
+        assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
+        assert_eq!(stale.framed_body, b"payload");
+        assert_eq!(replayed, stale);
+        Ok(())
+    })
+    .await
+}
+
+/// A streaming body of several frames and no known length.
+struct Chunks(std::collections::VecDeque<Bytes>);
+
+impl http_body::Body for Chunks {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: std::pin::Pin<&mut Self>,
+        _context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, std::io::Error>>> {
+        std::task::Poll::Ready(
+            self.0
+                .pop_front()
+                .map(|chunk| Ok(http_body::Frame::data(chunk))),
+        )
+    }
+}
+
+#[tokio::test]
+async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestResult {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let stale = serve_stale_connection(&listener).await?;
+            let (mut replacement, _) = listener.accept().await?;
+            let replayed = read_request(&mut replacement).await?;
+            replacement.write_all(REPLAY_RESPONSE).await?;
+            replacement.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
+        });
+        let client = replaying_client()?;
+
+        prime(&client, &format!("http://{address}/prime")).await?;
+        let chunks = Chunks(
+            [&b"pay"[..], b"lo", b"ad"]
+                .into_iter()
+                .map(Bytes::from_static)
+                .collect(),
+        );
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &format!("http://{address}/upload"),
+            )?
+            .buffered_streaming_body(chunks, 64)
+            .send()
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        response.into_body().collect().await?;
+        let (stale, replayed) = server.await??;
+        let head = String::from_utf8_lossy(&stale.head).to_ascii_lowercase();
+        assert!(
+            head.contains("\r\ntransfer-encoding: chunked\r\n"),
+            "{head}"
+        );
+        assert_eq!(stale.framed_body, b"payload");
+        assert_eq!(replayed, stale);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
 async fn stale_reuse_replay_is_bounded() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;

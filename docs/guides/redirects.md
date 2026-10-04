@@ -47,6 +47,28 @@ async fn follow() -> Result<(), Box<dyn std::error::Error>> {
   Every hop keeps the route and protocol rule, one total timeout, and one
   retry budget.
 
+## Send a streaming body again
+
+Keep a streaming body as it is sent, so a 307 or 308 redirect or a replay can
+send it again.
+
+- `RequestBuilder::buffered_streaming_body(body, maximum_bytes)` streams the
+  body as `streaming_body` does and keeps up to `maximum_bytes` of its data as
+  it goes, so the first attempt is not delayed;
+  `buffered_streaming_body_with_trailers` keeps the trailer frame too.
+- A redirect that keeps the method, the proxy-authentication and `Critical-CH`
+  replays, and the reused-connection, unprocessed-request, PING-failure, and
+  status replays in [Retries and replays](retries.md) send the kept frames
+  with the same boundaries and then read on from the body.
+- Each class keeps its own method rule, so the PING-failure resend of the
+  Chromium recipes can send a buffered `POST` twice.
+- Past the limit the kept frames are freed and the body is one-shot: the
+  attempt in progress still sends all of it, and a later attempt fails with
+  `RequestErrorKind::RequestBody` or returns the earlier failure. The limit
+  counts data bytes; a kept frame holds the buffer its bytes come from.
+- Once `send` returns, the kept frames are freed, at once or, while an
+  attempt is still uploading, as it sends them.
+
 ## Limits
 
 - Each hop is checked against the request's protocol and route before it is
@@ -57,8 +79,9 @@ async fn follow() -> Result<(), Box<dyn std::error::Error>> {
 - A redirect target that is not `http://` or `https://`, more than one
   `Location`, an invalid location, or running out of redirects fails with
   `RequestErrorKind::Redirect`; the redirect response is not returned. A 307
-  or 308 with a one-shot streaming body fails with
-  `RequestErrorKind::RequestBody`.
+  or 308 with a one-shot streaming body, or a buffered one past its limit,
+  fails with `RequestErrorKind::RequestBody`; a buffered one within its limit
+  is sent again ([above](#send-a-streaming-body-again)).
 
 ## Next
 

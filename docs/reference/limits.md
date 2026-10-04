@@ -14,6 +14,7 @@ policies that stay off until you enable them.
 | Redirects | Not followed | `RedirectPolicy::limited` |
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
+| Sending a streaming request body again | Never | `RequestBuilder::buffered_streaming_body`, which keeps up to the bytes you set until `send` returns |
 | WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |

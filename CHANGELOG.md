@@ -827,6 +827,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestBuilder::buffered_streaming_body` and
+  `buffered_streaming_body_with_trailers` send a streaming body that a later
+  attempt of the request may send again. Up to the caller's byte limit is
+  kept as the body is sent, so the first attempt is not delayed; a redirect,
+  reused-connection, unprocessed, PING-failure, proxy-authentication,
+  `Critical-CH`, or status retry then sends the kept frames and reads on
+  from the body. Past the limit the body is sent once, as `streaming_body`
+  does, and a later attempt fails with `RequestErrorKind::RequestBody`
+  ([guide](docs/guides/redirects.md#send-a-streaming-body-again)).
 - `chromium::v154_windows_fetch_template`,
   `chromium::v154_macos_fetch_template`,
   `firefox::v157_windows_fetch_template`, and
