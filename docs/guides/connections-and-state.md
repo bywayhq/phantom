@@ -141,9 +141,11 @@ fn bound_client() -> Result<Client, BuildError> {
   the TCP legs of CONNECT-UDP), the UDP socket of a QUIC connection to an
   origin or a CONNECT-UDP proxy, and the UDP socket of a SOCKS5
   association. Name resolution is not bound.
-- `interface("eth0")` binds with `SO_BINDTODEVICE` on Linux and Android.
-  Other platforms fail `build` with `BuildErrorKind::InvalidPolicy`
-  ([Limits](#limits)).
+- `interface("eth0")` binds each socket to that interface on Linux,
+  Android, macOS, iOS, and Windows, where the name is an alias such as
+  `Ethernet` or an NDIS name such as `ethernet_32768`. A name no interface
+  has, or another platform, fails `build` with
+  `BuildErrorKind::InvalidPolicy` ([Limits](#limits)).
 - No field of the ClientHello or the HTTP/2 and HTTP/3 fingerprints changes.
 
 ## Clear what a client has learned
@@ -183,9 +185,12 @@ fn forget(client: &Client) {
 
 ## Limits
 
-- Interface binding by name needs `SO_BINDTODEVICE`. macOS, iOS, and Windows
-  have no binding by name in Phantom. Linux kernels before 5.7 allow it only
-  with `CAP_NET_RAW`.
+- Interface binding uses `SO_BINDTODEVICE` on Linux and Android,
+  `IP_BOUND_IF` on macOS and iOS, and `IP_UNICAST_IF` on Windows, which
+  picks the interface for outgoing packets only. Linux kernels before 5.7
+  allow it only with `CAP_NET_RAW`.
+- A `local_address` used with `interface` must belong to that interface;
+  Phantom does not check that the two agree.
 
 ## Next
 

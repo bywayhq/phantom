@@ -25,8 +25,8 @@ mod on_windows {
     use super::super::{TestResult, sets_random_port};
     use crate::{
         SourceBinding,
+        socket_ffi::port_randomization,
         tcp::{ProfileTcpStream, connect},
-        windows_port_randomization,
     };
 
     /// Opens `count` connections to a loopback listener one after another and
@@ -46,7 +46,7 @@ mod on_windows {
     }
 
     fn random_port(stream: &ProfileTcpStream) -> TestResult<bool> {
-        Ok(windows_port_randomization::is_enabled(stream.as_socket())?)
+        Ok(port_randomization::is_enabled(stream.as_socket())?)
     }
 
     /// Whether some pair of successive local ports lies far apart. Windows
@@ -95,7 +95,7 @@ mod on_windows {
         if sets_random_port(settings) {
             return true;
         }
-        let build = windows_port_randomization::windows_version()
+        let build = port_randomization::windows_version()
             .map_or_else(|| "unknown".to_owned(), |version| version.build.to_string());
         let minimum = settings
             .port_randomization
@@ -120,7 +120,7 @@ mod on_windows {
     fn a_bound_socket_rejects_port_randomization() -> TestResult {
         let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
         socket.bind(&std::net::SocketAddr::from((Ipv4Addr::LOCALHOST, 0)).into())?;
-        let error = match windows_port_randomization::enable(socket.as_socket()) {
+        let error = match port_randomization::enable(socket.as_socket()) {
             Ok(()) => return Err("a bound socket took SO_RANDOMIZE_PORT".into()),
             Err(error) => error,
         };
@@ -129,19 +129,19 @@ mod on_windows {
         }
         // WSAEINVAL.
         assert_eq!(error.raw_os_error(), Some(10_022));
-        assert!(!windows_port_randomization::is_enabled(socket.as_socket())?);
+        assert!(!port_randomization::is_enabled(socket.as_socket())?);
         Ok(())
     }
 
     #[test]
     fn an_unbound_socket_takes_port_randomization() -> TestResult {
         let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
-        match windows_port_randomization::enable(socket.as_socket()) {
+        match port_randomization::enable(socket.as_socket()) {
             Ok(()) => {}
             Err(error) if lacks_the_option(&error) => return Ok(()),
             Err(error) => return Err(error.into()),
         }
-        assert!(windows_port_randomization::is_enabled(socket.as_socket())?);
+        assert!(port_randomization::is_enabled(socket.as_socket())?);
         Ok(())
     }
 

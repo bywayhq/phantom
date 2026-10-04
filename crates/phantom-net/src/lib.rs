@@ -14,11 +14,13 @@
 //! `https-records` feature adds [`dns`], HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
-//! All `unsafe` code is confined to the private `windows_port_randomization`
-//! module, a Windows-only FFI boundary that sets Winsock's
-//! `SO_RANDOMIZE_PORT` on TCP and UDP sockets. The rest of the crate denies
-//! `unsafe_code`, and every unsafe block in that module carries a `SAFETY`
-//! comment required by `clippy::undocumented_unsafe_blocks`.
+//! All `unsafe` code is confined to the private `socket_ffi` module, the
+//! socket FFI boundary that sets Winsock's `SO_RANDOMIZE_PORT` on Windows and
+//! looks up network interfaces by name for [`SourceBinding`]: with
+//! `if_nametoindex` on Linux, Android, and Apple platforms, and with the IP
+//! Helper LUID conversions and `IP_UNICAST_IF` on Windows. The rest of the
+//! crate denies `unsafe_code`, and every unsafe block in that module carries
+//! a `SAFETY` comment required by `clippy::undocumented_unsafe_blocks`.
 
 #![deny(unsafe_code)]
 
@@ -40,15 +42,21 @@ pub mod proxy;
 pub mod request;
 mod response;
 mod shutdown_timer;
+// Raw libc, Winsock, IP Helper, and ntdll access is isolated here so safe code
+// cannot grow new unsafe operations without crossing an explicit, reviewable
+// module boundary.
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[allow(unsafe_code, reason = "private socket FFI boundary")]
+mod socket_ffi;
 pub mod source_binding;
 pub mod tcp;
 pub(crate) mod tls;
 mod udp;
-// Raw Winsock and ntdll access is isolated here so safe code cannot grow new
-// unsafe operations without crossing an explicit, reviewable module boundary.
-#[cfg(windows)]
-#[allow(unsafe_code, reason = "private Windows socket FFI boundary")]
-mod windows_port_randomization;
 
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};

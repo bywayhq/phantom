@@ -3,14 +3,28 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
+use socket2::Domain;
 use tokio::net::TcpListener;
 
-use super::SourceBinding;
+use super::{INTERFACE_NAME_LIMIT, InterfaceNameLimit, SourceBinding, unicast_interface_value};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 const IPV4_LOOPBACK: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 const IPV6_LOOPBACK: IpAddr = IpAddr::V6(Ipv6Addr::LOCALHOST);
+
+/// The name of the loopback interface, on the platforms that bind an
+/// interface by name. On Windows it is the NDIS name, which every host has
+/// whatever its display language; its alias is localized.
+#[cfg(any(target_os = "android", target_os = "linux"))]
+const LOOPBACK_INTERFACE: &str = "lo";
+#[cfg(target_vendor = "apple")]
+const LOOPBACK_INTERFACE: &str = "lo0";
+#[cfg(windows)]
+const LOOPBACK_INTERFACE: &str = "loopback_0";
+
+/// A well-formed name that no test host gives an interface.
+const UNKNOWN_INTERFACE: &str = "phantom-none0";
 
 #[test]
 fn addresses_of_each_family_are_kept_apart() {
@@ -54,7 +68,11 @@ fn validate_rejects_addresses_that_cannot_be_a_source() {
 
 #[test]
 fn validate_rejects_malformed_interface_names() {
-    for name in ["", "a\0b", "sixteen-bytes-xx"] {
+    let too_long = match INTERFACE_NAME_LIMIT {
+        InterfaceNameLimit::Ifnamsiz => "a".repeat(16),
+        InterfaceNameLimit::IfMaxStringSize => "a".repeat(257),
+    };
+    for name in ["", "a\0b", &too_long] {
         let error = SourceBinding::new().with_interface(name).validate();
         assert_eq!(
             error.map_err(|error| error.field()),
@@ -65,14 +83,86 @@ fn validate_rejects_malformed_interface_names() {
 }
 
 #[test]
-fn interface_binding_is_accepted_only_where_the_platform_has_it() {
-    let result = SourceBinding::new().with_interface("lo").validate();
+fn ifnamsiz_counts_bytes_up_to_fifteen() {
+    let limit = InterfaceNameLimit::Ifnamsiz;
 
-    if cfg!(any(target_os = "android", target_os = "linux")) {
+    assert_eq!(limit.check("fifteen-bytes-x"), Ok(()));
+    assert!(limit.check("sixteen-bytes-xx").is_err());
+    // Eight two-byte characters are 16 bytes.
+    assert!(limit.check(&"é".repeat(8)).is_err());
+    assert!(limit.check("").is_err());
+    assert!(limit.check("a\0b").is_err());
+}
+
+#[test]
+fn windows_names_count_utf16_code_units_up_to_256() {
+    let limit = InterfaceNameLimit::IfMaxStringSize;
+
+    assert_eq!(limit.check(&"a".repeat(256)), Ok(()));
+    assert!(limit.check(&"a".repeat(257)).is_err());
+    // 200 two-byte characters are 400 bytes but 200 code units, and 129
+    // characters outside the Basic Multilingual Plane are 258 code units.
+    assert_eq!(limit.check(&"é".repeat(200)), Ok(()));
+    assert!(limit.check(&"\u{1F310}".repeat(129)).is_err());
+    assert_eq!(limit.check("Wi-Fi 2"), Ok(()));
+    assert!(limit.check("").is_err());
+    assert!(limit.check("a\0b").is_err());
+}
+
+#[test]
+fn interface_binding_is_accepted_only_where_the_platform_has_it() {
+    let result = SourceBinding::new().with_interface("eth0").validate();
+
+    if cfg!(any(
+        target_os = "android",
+        target_os = "linux",
+        target_vendor = "apple",
+        windows
+    )) {
         assert_eq!(result, Ok(()));
     } else {
         assert_eq!(result.map_err(|error| error.field()), Err("interface"));
     }
+}
+
+#[test]
+fn unicast_interface_value_is_network_order_for_ipv4_and_host_order_for_ipv6() {
+    assert_eq!(
+        unicast_interface_value(0x0102_0304, Domain::IPV4),
+        [1, 2, 3, 4]
+    );
+    assert_eq!(
+        unicast_interface_value(0x0102_0304, Domain::IPV6),
+        0x0102_0304_u32.to_ne_bytes()
+    );
+}
+
+#[test]
+fn a_binding_without_an_interface_passes_the_interface_check() {
+    assert_eq!(SourceBinding::new().check_interface(), Ok(()));
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[test]
+fn the_interface_check_finds_the_loopback_interface() {
+    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
+
+    assert_eq!(binding.check_interface(), Ok(()));
+}
+
+#[test]
+fn the_interface_check_rejects_a_name_no_interface_has() {
+    let binding = SourceBinding::new().with_interface(UNKNOWN_INTERFACE);
+
+    assert_eq!(
+        binding.check_interface().map_err(|error| error.field()),
+        Err("interface")
+    );
 }
 
 #[test]
@@ -153,11 +243,16 @@ async fn tcp_bind_to_a_foreign_address_fails_before_connecting() -> TestResult {
     Ok(())
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
 #[tokio::test(flavor = "current_thread")]
 async fn tcp_connection_binds_to_the_loopback_interface() -> TestResult {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
-    let binding = SourceBinding::new().with_interface("lo");
+    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
 
     let stream = match crate::tcp::connect_resolved(
         vec![listener.local_addr()?],
@@ -168,15 +263,161 @@ async fn tcp_connection_binds_to_the_loopback_interface() -> TestResult {
     .await
     {
         Ok(stream) => stream,
-        // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
-        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => {
-            eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
-            return Ok(());
-        }
+        Err(error) if kernel_refuses_binding(&error) => return Ok(()),
         Err(error) => return Err(error.into()),
     };
 
-    let device = socket2::SockRef::from(&stream).device()?;
-    assert_eq!(device.as_deref(), Some(&b"lo"[..]));
+    assert_bound_to_loopback(&socket2::SockRef::from(&stream), Domain::IPV4)
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[test]
+fn udp_socket_binds_to_the_loopback_interface() -> TestResult {
+    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
+
+    let socket = match crate::udp::bind_socket(
+        SocketAddr::new(IPV4_LOOPBACK, 443),
+        SocketAddr::new(IPV4_LOOPBACK, 0),
+        Some(&binding),
+        None,
+    ) {
+        Ok(socket) => socket,
+        Err(error) if kernel_refuses_binding(&error) => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+
+    assert_bound_to_loopback(&socket2::SockRef::from(&socket), Domain::IPV4)
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[tokio::test(flavor = "current_thread")]
+async fn a_socket_cannot_bind_to_an_interface_no_host_has() -> TestResult {
+    let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
+    let binding = SourceBinding::new().with_interface(UNKNOWN_INTERFACE);
+
+    let result = crate::tcp::connect_resolved(
+        vec![listener.local_addr()?],
+        None,
+        Some(&binding),
+        std::time::Instant::now(),
+    )
+    .await;
+
+    let error = result.map(drop).err().ok_or("the connection succeeded")?;
+    let message = error.to_string();
+    assert!(message.contains(UNKNOWN_INTERFACE), "{message}");
+    if !cfg!(any(target_os = "android", target_os = "linux")) {
+        assert_eq!(error.kind(), io::ErrorKind::NotFound, "{message}");
+    }
+    Ok(())
+}
+
+/// Binding by index, the Apple path, also runs on Linux, where socket2 sets
+/// `SO_BINDTOIFINDEX`.
+#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+#[test]
+fn binding_by_index_sets_the_interface_index() -> TestResult {
+    let socket = socket2::Socket::new(Domain::IPV4, socket2::Type::STREAM, None)?;
+    let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+
+    match super::bind_to_interface_index(&(&socket).into(), LOOPBACK_INTERFACE, Domain::IPV4) {
+        Ok(()) => {}
+        Err(error) if kernel_refuses_binding(&error) => return Ok(()),
+        Err(error) => return Err(error.into()),
+    }
+
+    assert_eq!(socket.device_index_v4()?, Some(index));
+    Ok(())
+}
+
+#[cfg(target_vendor = "apple")]
+#[test]
+fn an_ipv6_socket_binds_to_the_loopback_interface_by_index() -> TestResult {
+    let socket = socket2::Socket::new(Domain::IPV6, socket2::Type::DGRAM, None)?;
+    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
+
+    binding.bind_interface(&(&socket).into(), Domain::IPV6)?;
+
+    let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+    assert_eq!(socket.device_index_v6()?, Some(index));
+    Ok(())
+}
+
+#[cfg(windows)]
+#[test]
+fn an_ipv6_socket_sets_the_unicast_interface_in_host_order() -> TestResult {
+    use std::os::windows::io::AsSocket;
+
+    let socket = socket2::Socket::new(Domain::IPV6, socket2::Type::DGRAM, None)?;
+    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
+
+    binding.bind_interface(&(&socket).into(), Domain::IPV6)?;
+
+    let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+    assert_eq!(
+        crate::socket_ffi::interface::unicast_interface(socket.as_socket(), Domain::IPV6)?,
+        index.get().to_ne_bytes()
+    );
+    Ok(())
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+/// Whether `error` is Linux refusing to bind a socket to an interface; prints
+/// a skip line when it is. Linux before 5.7 lets only `CAP_NET_RAW` bind to
+/// an interface.
+fn kernel_refuses_binding(error: &io::Error) -> bool {
+    let refuses = cfg!(any(target_os = "android", target_os = "linux"))
+        && error.kind() == io::ErrorKind::PermissionDenied;
+    if refuses {
+        eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
+    }
+    refuses
+}
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+fn assert_bound_to_loopback(socket: &socket2::SockRef<'_>, _domain: Domain) -> TestResult {
+    assert_eq!(
+        socket.device()?.as_deref(),
+        Some(LOOPBACK_INTERFACE.as_bytes())
+    );
+    Ok(())
+}
+
+#[cfg(target_vendor = "apple")]
+fn assert_bound_to_loopback(socket: &socket2::SockRef<'_>, domain: Domain) -> TestResult {
+    let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+    let bound = if domain == Domain::IPV6 {
+        socket.device_index_v6()?
+    } else {
+        socket.device_index_v4()?
+    };
+    assert_eq!(bound, Some(index));
+    Ok(())
+}
+
+#[cfg(windows)]
+fn assert_bound_to_loopback(socket: &socket2::SockRef<'_>, domain: Domain) -> TestResult {
+    use std::os::windows::io::AsSocket;
+
+    let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+    assert_eq!(
+        crate::socket_ffi::interface::unicast_interface(socket.as_socket(), domain)?,
+        unicast_interface_value(index.get(), domain)
+    );
     Ok(())
 }

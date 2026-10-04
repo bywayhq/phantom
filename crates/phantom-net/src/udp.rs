@@ -44,7 +44,7 @@ pub(crate) fn bind_socket(
         apply_options(&socket, settings)?;
     }
     if let Some(source) = source {
-        source.bind_interface(&SockRef::from(&socket))?;
+        source.bind_interface(&SockRef::from(&socket), Domain::for_address(local))?;
     }
     // A socket whose bind failed is still unbound and keeps its options, so
     // the retry binds it again rather than opening another.
@@ -77,7 +77,7 @@ fn apply_options(socket: &Socket, settings: UdpSettings) -> io::Result<()> {
 fn randomize_port(socket: &Socket) -> io::Result<()> {
     use std::os::windows::io::AsSocket;
 
-    crate::windows_port_randomization::enable(socket.as_socket()).map_err(|error| {
+    crate::socket_ffi::port_randomization::enable(socket.as_socket()).map_err(|error| {
         io::Error::new(
             error.kind(),
             format!("failed to set the profile's SO_RANDOMIZE_PORT UDP socket option: {error}"),
@@ -151,7 +151,7 @@ pub(crate) mod observed {
     fn random_port(socket: &Socket) -> bool {
         use std::os::windows::io::AsSocket;
 
-        crate::windows_port_randomization::is_enabled(socket.as_socket()).unwrap_or(false)
+        crate::socket_ffi::port_randomization::is_enabled(socket.as_socket()).unwrap_or(false)
     }
 
     #[cfg(not(windows))]

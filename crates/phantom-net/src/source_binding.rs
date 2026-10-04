@@ -2,23 +2,76 @@
 //!
 //! A [`SourceBinding`] is a caller option, not part of any browser recipe:
 //! without one, every socket keeps the operating system's choice of source
-//! address and interface.
+//! address and interface. Each platform binds an interface with its own
+//! socket option, set before the socket binds an address or connects:
+//!
+//! | Platform | Option | Name |
+//! | --- | --- | --- |
+//! | Linux, Android | `SO_BINDTODEVICE` | Up to 15 bytes, such as `eth0` |
+//! | macOS, iOS, and other Apple platforms | `IP_BOUND_IF`, `IPV6_BOUND_IF` | Up to 15 bytes, such as `en0` |
+//! | Windows | `IP_UNICAST_IF`, `IPV6_UNICAST_IF` | An alias, such as `Ethernet`, or an NDIS name, such as `ethernet_32768`; up to 256 UTF-16 code units |
+//!
+//! Apple platforms and Windows take an interface index, which each socket
+//! looks up from the name when it binds.
 
 use std::{
     error::Error,
     fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    num::NonZeroU32,
 };
 
-use socket2::SockRef;
+use socket2::{Domain, SockRef};
 use tokio::net::TcpSocket;
 
-/// The longest interface name the platform accepts, without its terminating
-/// NUL (`IFNAMSIZ` is 16 on Linux and Android).
-const MAX_INTERFACE_NAME_BYTES: usize = 15;
-
 /// Whether this platform can bind a socket to an interface by name.
-const INTERFACE_BINDING: bool = cfg!(any(target_os = "android", target_os = "linux"));
+const INTERFACE_BINDING: bool = cfg!(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+));
+
+/// This platform's limit on the length of an interface name.
+const INTERFACE_NAME_LIMIT: InterfaceNameLimit = if cfg!(windows) {
+    InterfaceNameLimit::IfMaxStringSize
+} else {
+    InterfaceNameLimit::Ifnamsiz
+};
+
+/// A platform's limit on the length of an interface name, without its
+/// terminating NUL.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InterfaceNameLimit {
+    /// `IFNAMSIZ`, 16 bytes on Linux, Android, and Apple platforms, holds 15
+    /// bytes and the NUL.
+    Ifnamsiz,
+    /// Windows' `IF_MAX_STRING_SIZE`: 256 UTF-16 code units, for an interface
+    /// alias or NDIS name.
+    IfMaxStringSize,
+}
+
+impl InterfaceNameLimit {
+    /// Checks that `name` is not empty, holds no NUL, and fits this limit.
+    fn check(self, name: &str) -> Result<(), InvalidSourceBinding> {
+        let (length, maximum, message) = match self {
+            Self::Ifnamsiz => (
+                name.len(),
+                15,
+                "an interface name must be 1 to 15 bytes without NUL",
+            ),
+            Self::IfMaxStringSize => (
+                name.encode_utf16().count(),
+                256,
+                "an interface name must be 1 to 256 UTF-16 code units without NUL",
+            ),
+        };
+        if length == 0 || length > maximum || name.contains('\0') {
+            return Err(InvalidSourceBinding::new("interface", message));
+        }
+        Ok(())
+    }
+}
 
 /// The local address, per address family, and the network interface that
 /// outgoing TCP and UDP sockets bind to before they connect or send.
@@ -32,9 +85,14 @@ const INTERFACE_BINDING: bool = cfg!(any(target_os = "android", target_os = "lin
 /// leaving from an unbound socket. A binding with no address leaves the source
 /// address to the operating system.
 ///
-/// An interface name binds each socket to that interface with
-/// `SO_BINDTODEVICE`, on Linux and Android only; elsewhere
-/// [`Self::validate`] rejects it. Name resolution is not bound.
+/// An interface name binds each socket to that interface before the socket
+/// binds an address or connects, on Linux, Android, Apple platforms, and
+/// Windows, with the options the [module documentation](self) lists;
+/// elsewhere [`Self::validate`] rejects it. On Windows the option chooses
+/// the interface of the socket's outgoing unicast packets only, and does not
+/// filter what the socket receives. An address set alongside the interface
+/// must belong to that interface; Phantom does not check that the two agree.
+/// Name resolution is not bound.
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct SourceBinding {
     ipv4: Option<Ipv4Addr>,
@@ -95,8 +153,9 @@ impl SourceBinding {
     ///
     /// Returns [`InvalidSourceBinding`] when an address is unspecified,
     /// multicast, or the IPv4 broadcast address; when the interface name is
-    /// empty, holds a NUL byte, or is longer than 15 bytes; or when this
-    /// platform cannot bind a socket to an interface by name.
+    /// empty, holds a NUL byte, or is longer than 15 bytes (256 UTF-16 code
+    /// units on Windows); or when this platform cannot bind a socket to an
+    /// interface by name.
     pub fn validate(&self) -> Result<(), InvalidSourceBinding> {
         if let Some(address) = self.ipv4
             && (address.is_unspecified() || address.is_multicast() || address.is_broadcast())
@@ -115,20 +174,38 @@ impl SourceBinding {
             ));
         }
         if let Some(name) = &self.interface {
-            if name.is_empty() || name.len() > MAX_INTERFACE_NAME_BYTES || name.contains('\0') {
-                return Err(InvalidSourceBinding::new(
-                    "interface",
-                    "an interface name must be 1 to 15 bytes without NUL",
-                ));
-            }
+            INTERFACE_NAME_LIMIT.check(name)?;
             if !INTERFACE_BINDING {
-                return Err(InvalidSourceBinding::new(
-                    "interface",
-                    "this platform cannot bind a socket to an interface by name",
-                ));
+                return Err(InvalidSourceBinding::unsupported_interface());
             }
         }
         Ok(())
+    }
+
+    /// Checks that this host has the network interface the binding names.
+    ///
+    /// [`Self::validate`] checks the name without I/O. This looks it up, as
+    /// each socket does again when it binds, so that a name no interface has
+    /// fails before any connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidSourceBinding`] for the `interface` field when no
+    /// network interface on this host has the name, or when this platform
+    /// cannot bind a socket to an interface by name.
+    pub fn check_interface(&self) -> Result<(), InvalidSourceBinding> {
+        let Some(name) = &self.interface else {
+            return Ok(());
+        };
+        if !INTERFACE_BINDING {
+            return Err(InvalidSourceBinding::unsupported_interface());
+        }
+        interface_index(name).map(drop).map_err(|_| {
+            InvalidSourceBinding::new(
+                "interface",
+                "no network interface on this host has this name",
+            )
+        })
     }
 
     /// Returns whether a socket to `remote` can bind as this binding says.
@@ -185,7 +262,7 @@ impl SourceBinding {
         if !self.permits(&remote) {
             return Err(no_bound_family());
         }
-        self.bind_interface(&SockRef::from(socket))?;
+        self.bind_interface(&SockRef::from(socket), Domain::for_address(remote))?;
         match self.address_for(&remote) {
             Some(address) => socket
                 .bind(SocketAddr::new(address, 0))
@@ -209,31 +286,145 @@ impl SourceBinding {
             .map_or(default_local, |address| SocketAddr::new(address, 0)))
     }
 
-    /// Binds `socket` to this binding's interface, if it names one.
+    /// Binds `socket`, of family `domain`, to this binding's interface with
+    /// `SO_BINDTODEVICE`, if the binding names one.
     #[cfg(any(target_os = "android", target_os = "linux"))]
-    pub(crate) fn bind_interface(&self, socket: &SockRef<'_>) -> io::Result<()> {
+    pub(crate) fn bind_interface(&self, socket: &SockRef<'_>, _domain: Domain) -> io::Result<()> {
         let Some(name) = &self.interface else {
             return Ok(());
         };
-        socket.bind_device(Some(name.as_bytes())).map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!("failed to bind a socket to interface {name:?}: {error}"),
-            )
-        })
+        socket
+            .bind_device(Some(name.as_bytes()))
+            .map_err(|error| interface_error(name, error))
     }
 
-    /// Binds `socket` to this binding's interface, if it names one.
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
-    pub(crate) fn bind_interface(&self, _socket: &SockRef<'_>) -> io::Result<()> {
+    /// Binds `socket`, of family `domain`, to this binding's interface with
+    /// `IP_BOUND_IF` or `IPV6_BOUND_IF`, if the binding names one.
+    #[cfg(target_vendor = "apple")]
+    pub(crate) fn bind_interface(&self, socket: &SockRef<'_>, domain: Domain) -> io::Result<()> {
+        let Some(name) = &self.interface else {
+            return Ok(());
+        };
+        bind_to_interface_index(socket, name, domain).map_err(|error| interface_error(name, error))
+    }
+
+    /// Binds `socket`, of family `domain`, to this binding's interface with
+    /// `IP_UNICAST_IF` or `IPV6_UNICAST_IF`, if the binding names one.
+    #[cfg(windows)]
+    pub(crate) fn bind_interface(&self, socket: &SockRef<'_>, domain: Domain) -> io::Result<()> {
+        use std::os::windows::io::AsSocket;
+
+        let Some(name) = &self.interface else {
+            return Ok(());
+        };
+        crate::socket_ffi::interface::index(name)
+            .and_then(|index| {
+                crate::socket_ffi::interface::set_unicast_interface(
+                    socket.as_socket(),
+                    domain,
+                    index,
+                )
+            })
+            .map_err(|error| interface_error(name, error))
+    }
+
+    /// Fails when the binding names an interface: this platform cannot bind
+    /// a socket to one by name.
+    #[cfg(not(any(
+        target_os = "android",
+        target_os = "linux",
+        target_vendor = "apple",
+        windows
+    )))]
+    pub(crate) fn bind_interface(&self, _socket: &SockRef<'_>, _domain: Domain) -> io::Result<()> {
         match &self.interface {
             None => Ok(()),
-            Some(_) => Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                "this platform cannot bind a socket to an interface by name",
-            )),
+            Some(_) => Err(unsupported_interface_binding()),
         }
     }
+}
+
+/// Returns the index of the network interface named `name`.
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+fn interface_index(name: &str) -> io::Result<NonZeroU32> {
+    crate::socket_ffi::interface::index(name)
+}
+
+/// Fails: this platform cannot bind a socket to an interface by name.
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+)))]
+fn interface_index(_name: &str) -> io::Result<NonZeroU32> {
+    Err(unsupported_interface_binding())
+}
+
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+)))]
+fn unsupported_interface_binding() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::Unsupported,
+        "this platform cannot bind a socket to an interface by name",
+    )
+}
+
+/// Binds `socket` to the interface named `name` by its index, with
+/// `IP_BOUND_IF` or `IPV6_BOUND_IF` as socket2 sets them on Apple platforms.
+///
+/// Linux test builds compile this too, where socket2 sets `SO_BINDTOIFINDEX`
+/// for both families, so that the Apple path is type-checked and run off
+/// Apple hosts.
+#[cfg(any(target_vendor = "apple", all(test, target_os = "linux")))]
+fn bind_to_interface_index(socket: &SockRef<'_>, name: &str, domain: Domain) -> io::Result<()> {
+    let index = Some(crate::socket_ffi::interface::index(name)?);
+    if domain == Domain::IPV6 {
+        socket.bind_device_by_index_v6(index)
+    } else {
+        socket.bind_device_by_index_v4(index)
+    }
+}
+
+/// Encodes interface `index` as the value of Windows' `IP_UNICAST_IF` for an
+/// IPv4 socket, in network byte order, or of `IPV6_UNICAST_IF` for an IPv6
+/// socket, in host byte order, as Microsoft's `IPPROTO_IP` and
+/// `IPPROTO_IPV6` socket option references specify.
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "only Windows sets the option; tests check the encoding everywhere"
+    )
+)]
+pub(crate) fn unicast_interface_value(index: u32, domain: Domain) -> [u8; 4] {
+    if domain == Domain::IPV6 {
+        index.to_ne_bytes()
+    } else {
+        index.to_be_bytes()
+    }
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+fn interface_error(name: &str, error: io::Error) -> io::Error {
+    io::Error::new(
+        error.kind(),
+        format!("failed to bind a socket to interface {name:?}: {error}"),
+    )
 }
 
 fn no_bound_family() -> io::Error {
@@ -260,6 +451,13 @@ pub struct InvalidSourceBinding {
 impl InvalidSourceBinding {
     const fn new(field: &'static str, message: &'static str) -> Self {
         Self { field, message }
+    }
+
+    const fn unsupported_interface() -> Self {
+        Self::new(
+            "interface",
+            "this platform cannot bind a socket to an interface by name",
+        )
     }
 
     /// Returns the rejected field: `ipv4_address`, `ipv6_address`, or

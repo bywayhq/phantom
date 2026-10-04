@@ -544,7 +544,7 @@ fn randomize_port(socket: &socket2::Socket, randomization: TcpPortRandomization)
     if !host_reaches_build(randomization.minimum_windows_build)? {
         return Ok(());
     }
-    crate::windows_port_randomization::enable(socket.as_socket())
+    crate::socket_ffi::port_randomization::enable(socket.as_socket())
         .map_err(|error| option_error("SO_RANDOMIZE_PORT", error))
 }
 
@@ -561,16 +561,15 @@ fn randomize_port(
 /// or a later major version. The version is read once.
 #[cfg(windows)]
 fn host_reaches_build(minimum_build: u32) -> io::Result<bool> {
-    static HOST: std::sync::OnceLock<Option<crate::windows_port_randomization::WindowsVersion>> =
-        std::sync::OnceLock::new();
-    let version = HOST
-        .get_or_init(crate::windows_port_randomization::windows_version)
-        .ok_or_else(|| {
-            option_error(
-                "SO_RANDOMIZE_PORT",
-                io::Error::other("could not read the Windows version"),
-            )
-        })?;
+    use crate::socket_ffi::port_randomization::{WindowsVersion, windows_version};
+
+    static HOST: std::sync::OnceLock<Option<WindowsVersion>> = std::sync::OnceLock::new();
+    let version = HOST.get_or_init(windows_version).ok_or_else(|| {
+        option_error(
+            "SO_RANDOMIZE_PORT",
+            io::Error::other("could not read the Windows version"),
+        )
+    })?;
     Ok(reaches_build(version.major, version.build, minimum_build))
 }
 
@@ -816,7 +815,7 @@ pub(crate) mod observed {
     fn random_port(stream: &TcpStream) -> bool {
         use std::os::windows::io::AsSocket;
 
-        crate::windows_port_randomization::is_enabled(stream.as_socket()).unwrap_or(false)
+        crate::socket_ffi::port_randomization::is_enabled(stream.as_socket()).unwrap_or(false)
     }
 
     #[cfg(not(windows))]

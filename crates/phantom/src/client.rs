@@ -984,15 +984,29 @@ impl ClientBuilder {
     /// Binds every socket this client opens to the network interface `name`.
     ///
     /// Off by default. The binding covers the same sockets as
-    /// [`local_address`](Self::local_address), with `SO_BINDTODEVICE`, and
-    /// leaves the source address to the operating system unless
-    /// `local_address` also sets one. It is available on Linux and Android.
+    /// [`local_address`](Self::local_address), and leaves the source address
+    /// to the operating system unless `local_address` also sets one, which
+    /// must then be an address of this interface: Phantom does not check
+    /// that the two agree. Name resolution is not bound. Each socket is bound
+    /// before it binds an address or connects:
+    ///
+    /// - on Linux and Android with `SO_BINDTODEVICE`;
+    /// - on macOS, iOS, and the other Apple platforms with `IP_BOUND_IF` or
+    ///   `IPV6_BOUND_IF`, by the interface's index;
+    /// - on Windows with `IP_UNICAST_IF` or `IPV6_UNICAST_IF`, by the index
+    ///   of the interface whose alias, such as `Ethernet`, or NDIS name, such
+    ///   as `ethernet_32768`, is `name`. The option picks the interface for
+    ///   the socket's outgoing packets only.
+    ///
     /// [`build`](Self::build) fails with
     /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) on other
-    /// platforms, and when `name` is empty, holds a NUL byte, or is longer
-    /// than 15 bytes. Linux kernels before 5.7 let only a process with
-    /// `CAP_NET_RAW` bind a socket to an interface; there each connection
-    /// fails when its socket binds.
+    /// platforms; when `name` is empty, holds a NUL byte, or is longer than
+    /// 15 bytes (256 UTF-16 code units on Windows); and when no network
+    /// interface on this host has the name. Each socket looks the name up
+    /// again, so an interface that goes away after `build` fails each
+    /// connection when its socket binds. Linux kernels before 5.7 let only a
+    /// process with `CAP_NET_RAW` bind a socket to an interface; there each
+    /// connection fails when its socket binds.
     #[must_use]
     pub fn interface(mut self, name: &str) -> Self {
         self.source_binding = self.source_binding.with_interface(name);
@@ -1555,6 +1569,7 @@ impl ClientBuilder {
         }
         self.source_binding
             .validate()
+            .and_then(|()| self.source_binding.check_interface())
             .map_err(BuildError::invalid_source_binding)?;
         if let Some(certificate) = &self.client_certificate {
             let http3_tls = self.profile.http3().map(|settings| settings.tls());

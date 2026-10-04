@@ -12,7 +12,7 @@ use std::{
 use phantom_profile::{UdpSettings, chromium};
 
 use super::{IPV4_LOOPBACK, TestResult};
-use crate::{SourceBinding, udp::bind_socket, windows_port_randomization};
+use crate::{SourceBinding, socket_ffi::port_randomization, udp::bind_socket};
 
 /// Binds `count` sockets that send to one loopback peer, one after another,
 /// and keeps them all open.
@@ -31,7 +31,7 @@ fn sockets(
 }
 
 fn random_port(socket: &std::net::UdpSocket) -> TestResult<bool> {
-    Ok(windows_port_randomization::is_enabled(socket.as_socket())?)
+    Ok(port_randomization::is_enabled(socket.as_socket())?)
 }
 
 /// Whether some pair of successive local ports lies far apart. Windows
@@ -78,7 +78,7 @@ fn sockets_without_udp_settings_leave_port_randomization_off() -> TestResult {
 fn a_bound_udp_socket_rejects_port_randomization() -> TestResult {
     let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
     socket.bind(&SocketAddr::from((Ipv4Addr::LOCALHOST, 0)).into())?;
-    let error = match windows_port_randomization::enable(socket.as_socket()) {
+    let error = match port_randomization::enable(socket.as_socket()) {
         Ok(()) => return Err("a bound socket took SO_RANDOMIZE_PORT".into()),
         Err(error) => error,
     };
@@ -87,19 +87,19 @@ fn a_bound_udp_socket_rejects_port_randomization() -> TestResult {
     }
     // WSAEINVAL.
     assert_eq!(error.raw_os_error(), Some(10_022));
-    assert!(!windows_port_randomization::is_enabled(socket.as_socket())?);
+    assert!(!port_randomization::is_enabled(socket.as_socket())?);
     Ok(())
 }
 
 #[test]
 fn an_unbound_udp_socket_takes_port_randomization() -> TestResult {
     let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-    match windows_port_randomization::enable(socket.as_socket()) {
+    match port_randomization::enable(socket.as_socket()) {
         Ok(()) => {}
         Err(error) if lacks_the_option(&error) => return Ok(()),
         Err(error) => return Err(error.into()),
     }
-    assert!(windows_port_randomization::is_enabled(socket.as_socket())?);
+    assert!(port_randomization::is_enabled(socket.as_socket())?);
     Ok(())
 }
 

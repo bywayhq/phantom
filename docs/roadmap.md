@@ -164,8 +164,9 @@ Counts in the later phases come from a read-only review of `main` at
   [ALPS `ACCEPT_CH` restart evidence](explanation/validation.md#alps-accept_ch-restart-evidence)).
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
-- A local source address per address family and, on Linux and Android, an
-  interface binding for every TCP and QUIC socket, and a client certificate
+- A local source address per address family and an interface binding by
+  name, on Linux, Android, macOS, iOS, and Windows, for every TCP and QUIC
+  socket, and a client certificate
   sent over TCP and QUIC when a server requests one, each off by default
   ([Send connections from a chosen local address](guides/connections-and-state.md#send-connections-from-a-chosen-local-address),
   [Present a client certificate](guides/client.md#present-a-client-certificate)).
@@ -361,8 +362,7 @@ Each of these needs no capture, because no named recipe may reach it
 ([standing rules](#standing-rules)).
 
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
-- Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
-  `IP_UNICAST_IF`), and a client certificate chosen per origin.
+- A client certificate chosen per origin.
 
 ### Proposed after Phase 1
 

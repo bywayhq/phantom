@@ -1,26 +1,24 @@
 //! Windows source-port randomization through Winsock's `SO_RANDOMIZE_PORT`.
 //!
-//! This module is the crate's only FFI boundary and the only code in it that
-//! may use `unsafe`. No safe Rust API sets the option: socket2 0.6.5 has no
-//! method for it, and its general `setsockopt` is private. The module calls
-//! Winsock and ntdll through the `windows-sys` declarations instead, and
-//! keeps each call in its own block with the invariants it relies on.
+//! No safe Rust API sets the option: socket2 0.6.5 has no method for it, and
+//! its general `setsockopt` is private. The module calls Winsock and ntdll
+//! through the `windows-sys` declarations instead, and keeps each call in its
+//! own block with the invariants it relies on.
 
-use std::{
-    io,
-    os::windows::io::{AsRawSocket, BorrowedSocket},
-};
+use std::{io, os::windows::io::BorrowedSocket};
 
 use windows_sys::{
     Wdk::System::SystemServices::RtlGetVersion,
     Win32::{
         Foundation::STATUS_SUCCESS,
         Networking::WinSock::{
-            SO_RANDOMIZE_PORT, SOCKET, SOCKET_ERROR, SOL_SOCKET, WSAENOPROTOOPT, setsockopt,
+            SO_RANDOMIZE_PORT, SOCKET_ERROR, SOL_SOCKET, WSAENOPROTOOPT, setsockopt,
         },
         System::SystemInformation::OSVERSIONINFOW,
     },
 };
+
+use super::raw_socket;
 
 /// The Windows version that [`RtlGetVersion`] reports.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -118,11 +116,6 @@ pub(crate) fn windows_version() -> Option<WindowsVersion> {
         major: info.dwMajorVersion,
         build: info.dwBuildNumber,
     })
-}
-
-fn raw_socket(socket: BorrowedSocket<'_>) -> io::Result<SOCKET> {
-    SOCKET::try_from(socket.as_raw_socket())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "socket handle out of range"))
 }
 
 fn option_length() -> io::Result<i32> {

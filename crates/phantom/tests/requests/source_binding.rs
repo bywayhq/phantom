@@ -24,6 +24,22 @@ const NO_CONNECTION_WINDOW: Duration = Duration::from_millis(200);
 const IPV4_LOOPBACK: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 const IPV6_LOOPBACK: IpAddr = IpAddr::V6(Ipv6Addr::LOCALHOST);
 
+/// The loopback interface's name, on the platforms that bind an interface by
+/// name: on Windows its NDIS name, which no display language changes.
+#[cfg(any(target_os = "android", target_os = "linux"))]
+const LOOPBACK_INTERFACE: &str = "lo";
+#[cfg(target_vendor = "apple")]
+const LOOPBACK_INTERFACE: &str = "lo0";
+#[cfg(windows)]
+const LOOPBACK_INTERFACE: &str = "loopback_0";
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+)))]
+const LOOPBACK_INTERFACE: &str = "lo0";
+
 /// A Chromium profile, so connections race IPv6 against IPv4.
 fn profile() -> ClientProfile {
     ClientProfile::new(chromium::v154_tls()).with_tcp(chromium::v154_tcp())
@@ -323,9 +339,16 @@ fn an_address_that_cannot_be_a_source_is_an_invalid_policy() -> Result<(), &'sta
 
 #[test]
 fn interface_binding_builds_only_where_the_platform_has_it() {
-    let result = Client::builder(profile()).interface("lo").build();
+    let result = Client::builder(profile())
+        .interface(LOOPBACK_INTERFACE)
+        .build();
 
-    if cfg!(any(target_os = "linux", target_os = "android")) {
+    if cfg!(any(
+        target_os = "android",
+        target_os = "linux",
+        target_vendor = "apple",
+        windows
+    )) {
         assert!(result.is_ok());
     } else {
         assert_eq!(
@@ -335,19 +358,36 @@ fn interface_binding_builds_only_where_the_platform_has_it() {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[test]
+fn an_interface_no_host_has_is_an_invalid_policy() {
+    let result = Client::builder(profile())
+        .interface("phantom-none0")
+        .build();
+
+    assert_eq!(
+        result.err().map(|error| error.kind()),
+        Some(BuildErrorKind::InvalidPolicy)
+    );
+}
+
+#[cfg(any(target_os = "linux", target_vendor = "apple", windows))]
 #[tokio::test]
 async fn interface_binding_reaches_a_loopback_origin() -> TestResult<()> {
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let address = listener.local_addr()?;
-    let client = Client::builder(profile()).interface("lo").build()?;
+    let client = Client::builder(profile())
+        .interface(LOOPBACK_INTERFACE)
+        .build()?;
     let server =
         tokio::spawn(async move { answer_one(&listener).await.map_err(|e| e.to_string()) });
 
     match timeout(TEST_TIMEOUT, get(&client, format!("http://{address}/"))).await? {
         Ok(()) => {}
         // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
-        Err(error) if io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) => {
+        Err(error)
+            if cfg!(target_os = "linux")
+                && io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) =>
+        {
             eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
             server.abort();
             return Ok(());
