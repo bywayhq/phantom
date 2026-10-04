@@ -731,8 +731,18 @@ pub(super) fn prepare_attempt<'a>(
     body: &mut RequestBodySource,
 ) -> Result<PreparedAttempt<'a>, RequestError> {
     let client_hints = attempt_client_hints(client, request, client_hint_origin, restart_hints);
-    let body = body.next_attempt()?;
+    let body = body
+        .next_attempt()?
+        .map(|body| with_continue_wait(body, request));
     Ok(PreparedAttempt { client_hints, body })
+}
+
+/// Arms an attempt's body to wait for `100 Continue` when the request asks.
+fn with_continue_wait(body: RequestBody, request: &ResolvedRequest) -> RequestBody {
+    match request.expect_continue {
+        Some(wait) => body.expect_continue(wait),
+        None => body,
+    }
 }
 
 /// Returns the client-hint context of one attempt, which places automatic

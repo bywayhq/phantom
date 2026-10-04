@@ -15,6 +15,7 @@ policies that stay off until you enable them.
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
 | Sending a streaming request body again | Never | `RequestBuilder::buffered_streaming_body`, which keeps up to the bytes you set until `send` returns |
+| Waiting for `100 Continue` before a request body | No `Expect` field; the body follows the head | `RequestBuilder::expect_continue(wait)` |
 | WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
@@ -151,6 +152,7 @@ closes, or sends; the last column says which.
 | Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`; no limit for Firefox or without a recipe | Chromium 154 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
 | HTTP/2 idle PING | After 58 seconds without a read, failing after 8 more, in `firefox::v157_http2`; none in `chromium::v154_http2` | Firefox 157 source and capture | `Http2Settings::idle_ping_after`, `idle_ping_timeout` | Yes: PING frame |
+| Wait for `100 Continue` before a request body | None (no `Expect` field) | RFC 9110 | `RequestBuilder::expect_continue` | Yes: when the body is sent |
 | SSE reconnect delay | 3 seconds, or the server's `retry` | Phantom | `initial_retry`, `min_retry` | Yes |
 | Resend after a stale keep-alive connection closes | Immediate, when enabled | Chrome | `RetryPolicy::with_reused_connection_replay` | Yes |
 | H2 and H3 driver shutdown after the last handle drops | 1 second | Phantom | Not configurable | Yes: close timing |

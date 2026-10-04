@@ -6,15 +6,15 @@ use h3::ext::{OrderedHeaders, Protocol, RequestPseudoHeader, RequestPseudoHeader
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
-        CONNECTION, CONTENT_LENGTH, COOKIE, HOST, HeaderName, TE, TRAILER, TRANSFER_ENCODING,
-        UPGRADE,
+        CONNECTION, CONTENT_LENGTH, COOKIE, EXPECT, HOST, HeaderName, TE, TRAILER,
+        TRANSFER_ENCODING, UPGRADE,
     },
     uri::{Authority, Scheme},
 };
 use phantom_profile::{Http3CookieCrumbs, Http3PseudoHeader, Http3RequestSettings};
 
 use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
-use crate::request::{RequestBody, RequestBodyMetadata};
+use crate::request::{RequestBody, RequestBodyMetadata, is_continue_expectation};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -614,6 +614,21 @@ impl ValidatedHeaders {
             && body_len != 0
         {
             headers.push(RequestHeader::new("content-length", body_len.to_string()));
+        }
+        if metadata
+            .and_then(RequestBodyMetadata::continue_wait)
+            .is_some()
+        {
+            // A caller's own field takes the expectation's place; it must
+            // say what the request then does.
+            let mut expectations = headers
+                .iter()
+                .filter(|header| header.name().eq_ignore_ascii_case(EXPECT.as_str()));
+            match (expectations.next(), expectations.next()) {
+                (None, _) => headers.push(RequestHeader::new("expect", "100-continue")),
+                (Some(header), None) if is_continue_expectation(header.value()) => {}
+                _ => return Err(invalid("HTTP/3 request expect field is not 100-continue")),
+            }
         }
         if headers.len() > MAX_REQUEST_HEADERS {
             return Err(invalid("HTTP/3 request has too many headers"));

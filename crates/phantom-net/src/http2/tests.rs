@@ -120,6 +120,7 @@ mod connection;
 mod continuation_matrix;
 mod driver_lifecycle;
 mod driver_shutdown;
+mod expect_continue;
 mod extended_connect;
 mod hpack_replay;
 mod hpack_transitions;

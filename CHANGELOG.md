@@ -827,6 +827,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestBuilder::expect_continue(wait)` sends `Expect: 100-continue` and
+  holds a nonempty body until the server answers `100 Continue` or `wait`
+  ends, on H1, H2, H3, and negotiated requests and on every attempt. A
+  final response that comes first, such as `417`, is returned and the body
+  is not sent: the H1 connection closes, and an H2 or H3 stream is
+  cancelled. A caller's own `Expect` field keeps its position and must be
+  `100-continue`. In `phantom-net`, `RequestBody::expect_continue` and
+  `RequestBodyMetadata::continue_wait` do the same for a transport request
+  ([guide](docs/guides/responses.md#let-the-server-answer-before-the-body)).
 - `RequestBuilder::buffered_streaming_body` and
   `buffered_streaming_body_with_trailers` send a streaming body that a later
   attempt of the request may send again. Up to the caller's byte limit is

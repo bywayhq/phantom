@@ -512,7 +512,7 @@ impl Http3Connection {
             let mut pending = PendingRequest::new(stream);
             let response = {
                 let (_, recv) = pending.streams_mut()?;
-                receive_response(recv, datagrams.as_mut()).await
+                receive_response(recv, datagrams.as_mut(), None).await
             };
             let response = match response {
                 Ok(response) => response,
@@ -644,7 +644,7 @@ impl Http3Connection {
         let mut pending = PendingRequest::new(stream);
         let response = {
             let (_, recv) = pending.streams_mut()?;
-            receive_response(recv, None).await
+            receive_response(recv, None, None).await
         };
         let response = match response {
             Ok(response) => response,
@@ -767,7 +767,7 @@ pub(super) enum ConnectUdpExchange {
 async fn exchange(
     send: &mut RequestSend,
     recv: &mut RequestRecvStream,
-    body: Option<RequestBody>,
+    mut body: Option<RequestBody>,
     trailers: Option<super::request::PreparedTrailers>,
     datagrams: Option<&mut super::DatagramMonitor>,
 ) -> Result<Response<()>, ResponseHeadError> {
@@ -775,16 +775,24 @@ async fn exchange(
         if let RequestSend::Stream(stream) = send {
             stream.finish().await.map_err(ResponseHeadError::Stream)?;
         }
-        return receive_response(recv, datagrams).await;
+        return receive_response(recv, datagrams, None).await;
     }
 
+    let continue_signal = body.as_mut().and_then(RequestBody::arm_continue);
     send.start_upload(body, trailers);
-    let mut response = pin!(receive_response(recv, datagrams));
+    let mut response = pin!(receive_response(recv, datagrams, continue_signal.as_ref()));
     tokio::select! {
         biased;
         // RFC 9114 section 4.1: a response can precede the end of the request.
-        // The upload stays in `send` and continues beside the response body.
-        response = &mut response => response,
+        // The upload stays in `send` and continues beside the response body,
+        // unless it was still waiting for `100 Continue`: it is then never
+        // sent, and the stream is reset when the response is read.
+        response = &mut response => {
+            if let Some(signal) = &continue_signal {
+                signal.abandon();
+            }
+            response
+        }
         uploaded = send.uploaded() => match uploaded {
             Ok(()) => response.await,
             Err(UploadError::Body(error)) => Err(ResponseHeadError::RequestBody(error)),

@@ -1072,9 +1072,12 @@ fn decode_accept_ch(peer_settings: &[u8]) -> Result<AcceptCh, Http3Error> {
     Ok(accept_ch)
 }
 
+/// Reads the final response head, skipping interim responses; an interim
+/// `100` releases a body that waits for it.
 async fn receive_response(
     stream: &mut RequestRecvStream,
     mut datagrams: Option<&mut DatagramMonitor>,
+    continue_signal: Option<&crate::request::ContinueSignal>,
 ) -> Result<Response<()>, ResponseHeadError> {
     let mut informational = 0;
     loop {
@@ -1085,6 +1088,11 @@ async fn receive_response(
         }
         if !response.status().is_informational() {
             return Ok(response);
+        }
+        if response.status() == http::StatusCode::CONTINUE
+            && let Some(signal) = continue_signal
+        {
+            signal.proceed();
         }
         informational += 1;
         if informational > MAX_INFORMATIONAL_RESPONSES {

@@ -133,6 +133,9 @@ Counts in the later phases come from a read-only review of `main` at
 - Connection-setup retries, reused-connection replay, unprocessed-request
   replay, and status retries ([Retries and replays](guides/retries.md)), and
   a buffered streaming body that a redirect or replay can send again.
+- An opt-in `Expect: 100-continue` with a caller-set wait, which neither
+  Chrome 154 nor Firefox 157 sends on any upload
+  ([Let the server answer before the body](guides/responses.md#let-the-server-answer-before-the-body)).
 - Field lists built once: a negotiated request builds and checks its
   HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
   once per redirect hop before any I/O. The race's winner and every replay
@@ -351,10 +354,6 @@ Each of these needs no capture, because no named recipe may reach it
 - A caller-pinned Alt-Svc alternative, which needs no TLS stream to learn
   from and so could work on CONNECT-UDP.
 - Racing more than one alternative, bounded and chosen by the caller.
-- `Expect: 100-continue`, which neither Chrome 154 nor Firefox 157 sends on
-  any `fetch`, `FormData`, or form upload
-  ([Upload evidence](explanation/validation.md#revalidation-and-upload-evidence)),
-  and caller-owned conditional-request validators.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
   `IP_UNICAST_IF`), and a client certificate chosen per origin.

@@ -5,13 +5,14 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
         AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE, TRAILER,
-        TRANSFER_ENCODING, UPGRADE,
+        CONTENT_TYPE, EXPECT, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE,
+        TRAILER, TRANSFER_ENCODING, UPGRADE,
     },
     uri::Authority,
 };
 
 use super::{Http2Error, OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
+use crate::request::is_continue_expectation;
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -278,6 +279,8 @@ impl ValidatedHeaders {
         let mut content_length_index = None;
         let exact_length = body.and_then(RequestBodyMetadata::exact_length);
         let expected_content_length = exact_length.unwrap_or(0).to_string();
+        let expects_continue = body.and_then(RequestBodyMetadata::continue_wait).is_some();
+        let mut expect_index = None;
         for (index, header) in headers.into_iter().enumerate() {
             total_bytes = total_bytes
                 .checked_add(header.name().len())
@@ -321,6 +324,16 @@ impl ValidatedHeaders {
                 if value.as_bytes() != expected_content_length.as_bytes() {
                     return Err(Http2Error::InvalidContentLength { index });
                 }
+            } else if name == EXPECT && expects_continue {
+                // A caller's own field takes the expectation's place; it
+                // must say what the request then does.
+                if expect_index.is_some() || !is_continue_expectation(value.as_bytes()) {
+                    return Err(Http2Error::InvalidHeaderValue {
+                        index,
+                        name: header.name().into(),
+                    });
+                }
+                expect_index = Some(index);
             } else if is_forbidden_header(&name) {
                 return Err(Http2Error::ForbiddenHeader {
                     name: header.name().into(),
@@ -354,6 +367,30 @@ impl ValidatedHeaders {
             let value = HeaderValue::from_bytes(expected_content_length.as_bytes())
                 .map_err(|_| Http2Error::InvalidContentLength { index: count - 1 })?;
             ordered.push((CONTENT_LENGTH, value));
+        }
+
+        if expects_continue && expect_index.is_none() {
+            let count = ordered.len() + 1;
+            if count > MAX_REQUEST_HEADERS {
+                return Err(Http2Error::TooManyHeaders {
+                    count,
+                    maximum: MAX_REQUEST_HEADERS,
+                });
+            }
+            let value = HeaderValue::from_static("100-continue");
+            total_bytes = total_bytes
+                .checked_add(EXPECT.as_str().len() + value.len())
+                .ok_or(Http2Error::HeadersTooLarge {
+                    bytes: usize::MAX,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                })?;
+            if total_bytes > MAX_REQUEST_HEADER_BYTES {
+                return Err(Http2Error::HeadersTooLarge {
+                    bytes: total_bytes,
+                    maximum: MAX_REQUEST_HEADER_BYTES,
+                });
+            }
+            ordered.push((EXPECT, value));
         }
 
         Ok(Self { ordered })

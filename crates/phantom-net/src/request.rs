@@ -5,6 +5,7 @@ use std::{
     fmt,
     pin::Pin,
     task::{Context, Poll},
+    time::Duration,
 };
 
 use bytes::Bytes;
@@ -17,6 +18,11 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt as _, combinators::UnsyncBoxBody};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
+
+mod continue_gate;
+
+use continue_gate::ContinueGate;
+pub(crate) use continue_gate::ContinueSignal;
 
 const MAX_REQUEST_TRAILERS: usize = 100;
 const MAX_REQUEST_TRAILER_BYTES: usize = 32 * 1024;
@@ -140,6 +146,7 @@ impl StdError for RequestBodyError {
 pub struct RequestBodyMetadata {
     exact_length: Option<u64>,
     has_trailers: bool,
+    continue_wait: Option<Duration>,
 }
 
 impl RequestBodyMetadata {
@@ -153,6 +160,16 @@ impl RequestBodyMetadata {
     #[must_use]
     pub const fn has_trailers(self) -> bool {
         self.has_trailers
+    }
+
+    /// Returns how long the request waits for `100 Continue` before it
+    /// sends the body, when it sends `Expect: 100-continue`.
+    ///
+    /// It is `None` without [`RequestBody::expect_continue`], and for a body
+    /// whose exact length is zero, which never carries the expectation.
+    #[must_use]
+    pub const fn continue_wait(self) -> Option<Duration> {
+        self.continue_wait
     }
 }
 
@@ -201,6 +218,8 @@ pub struct RequestBody {
     ordered_trailers: Option<Vec<RequestHeader>>,
     emitted: u64,
     finished: bool,
+    continue_wait: Option<Duration>,
+    gate: Option<ContinueGate>,
 }
 
 impl RequestBody {
@@ -221,6 +240,8 @@ impl RequestBody {
             ordered_trailers: None,
             emitted: 0,
             finished: false,
+            continue_wait: None,
+            gate: None,
         }
     }
 
@@ -247,13 +268,44 @@ impl RequestBody {
         Self::streaming(http_body_util::Full::new(body))
     }
 
+    /// Sends `Expect: 100-continue` with this body and holds the body until
+    /// the server answers `100 Continue` or `wait` has passed since the
+    /// request head was written (RFC 9110, section 10.1.1).
+    ///
+    /// When a final response arrives while the body still waits, the body is
+    /// not sent: an HTTP/2 or HTTP/3 stream is then cancelled once the
+    /// response is read, and an HTTP/1.1 connection is closed. A body whose
+    /// exact length is zero carries no expectation and is sent at once. A
+    /// `wait` too long for the clock to represent has no end of its own, so
+    /// only the server's answer ends it.
+    ///
+    /// The generated field follows every other field. A request field named
+    /// `Expect` takes its place instead and must be the only one, with the
+    /// value `100-continue`; otherwise preparing the request fails with an
+    /// invalid-header error before any I/O, on every protocol.
+    #[must_use]
+    pub fn expect_continue(mut self, wait: Duration) -> Self {
+        self.continue_wait = Some(wait);
+        self
+    }
+
     /// Returns framing metadata without polling the body.
     #[must_use]
     pub fn metadata(&self) -> RequestBodyMetadata {
         RequestBodyMetadata {
             exact_length: self.exact_length,
             has_trailers: !self.trailer_names.is_empty(),
+            continue_wait: self.continue_wait.filter(|_| self.exact_length != Some(0)),
         }
+    }
+
+    /// Arms the wait for `100 Continue` for this attempt, when the body
+    /// sends the expectation, and returns the connection's side of it.
+    pub(crate) fn arm_continue(&mut self) -> Option<ContinueSignal> {
+        let wait = self.metadata().continue_wait()?;
+        let (gate, signal) = ContinueGate::new(wait);
+        self.gate = Some(gate);
+        Some(signal)
     }
 
     pub(crate) fn trailer_names(&self) -> &[RequestTrailerName] {
@@ -274,6 +326,7 @@ impl fmt::Debug for RequestBody {
             .field("has_ordered_trailers", &self.ordered_trailers.is_some())
             .field("emitted", &self.emitted)
             .field("finished", &self.finished)
+            .field("continue_wait", &self.continue_wait)
             .finish_non_exhaustive()
     }
 }
@@ -288,6 +341,12 @@ impl Body for RequestBody {
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         if self.finished {
             return Poll::Ready(None);
+        }
+        if let Some(gate) = &mut self.gate {
+            if gate.poll_release(context).is_pending() {
+                return Poll::Pending;
+            }
+            self.gate = None;
         }
         match Pin::new(&mut self.inner).poll_frame(context) {
             Poll::Pending => Poll::Pending,
@@ -362,6 +421,12 @@ impl Body for RequestBody {
             None => self.inner.size_hint(),
         }
     }
+}
+
+/// Returns whether an `Expect` field value is `100-continue`, the only
+/// expectation RFC 9110, section 10.1.1, defines.
+pub(crate) fn is_continue_expectation(value: &[u8]) -> bool {
+    value.trim_ascii().eq_ignore_ascii_case(b"100-continue")
 }
 
 fn order_body_trailers(

@@ -708,6 +708,7 @@ mod early_data;
 mod early_streams;
 #[cfg(feature = "https-records")]
 mod ech;
+mod expect_continue;
 mod extended_connect;
 mod firefox;
 mod profile;

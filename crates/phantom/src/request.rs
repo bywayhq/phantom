@@ -345,6 +345,33 @@ impl RequestBuilder {
         self
     }
 
+    /// Sends `Expect: 100-continue` with the body and holds the body until
+    /// the server answers `100 Continue`, or until `wait` has passed since
+    /// the request head was written (RFC 9110, section 10.1.1). Off by
+    /// default; neither Chrome 154 nor Firefox 157 sends the expectation.
+    /// A `wait` too large to add to the runtime clock fails before any I/O
+    /// with [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
+    ///
+    /// Every attempt of the request waits again, including a redirect that
+    /// keeps the body. A request without a body, or with a body of known
+    /// length zero, sends no expectation. A field of yours named `Expect` takes the
+    /// generated field's position and must be `100-continue`; another value
+    /// fails before any I/O with
+    /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader).
+    /// Otherwise the field follows every other field.
+    ///
+    /// When a final response arrives while the body still waits, such as
+    /// `417 Expectation Failed` or a `401`, it is returned and the body is
+    /// not sent: an HTTP/2 or
+    /// HTTP/3 stream is then cancelled once the response is read, and an
+    /// HTTP/1.1 connection is closed. Phantom does not send the request
+    /// again without the expectation. The wait counts toward the response
+    /// head and total timeouts.
+    pub fn expect_continue(mut self, wait: std::time::Duration) -> Self {
+        self.request.expect_continue = Some(wait);
+        self
+    }
+
     /// Overrides the client's route for this request.
     ///
     /// Without this call the request uses the route set by
@@ -552,6 +579,24 @@ impl RequestBuilder {
         {
             return Err(RequestError::authority_header());
         }
+        if let Some(wait) = self.request.expect_continue {
+            if std::time::Instant::now().checked_add(wait).is_none() {
+                return Err(RequestError::invalid_timeout());
+            }
+            let mut expectations = self
+                .headers
+                .iter()
+                .filter(|header| header.name().eq_ignore_ascii_case("expect"));
+            if let Some(first) = expectations.next()
+                && (expectations.next().is_some()
+                    || !first
+                        .value()
+                        .trim_ascii()
+                        .eq_ignore_ascii_case(b"100-continue"))
+            {
+                return Err(RequestError::expectation_header());
+            }
+        }
         if self.client.alt_svc_enabled()
             && contains_caller_alt_used(
                 &self.headers,
@@ -617,6 +662,7 @@ impl RequestBuilder {
             response_body_timeouts,
             body_declares_alt_used_trailer: _,
         } = self;
+        let body = body.with_continue_wait(request.expect_continue);
         let route = route.as_ref().unwrap_or(&client.inner.route);
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
@@ -746,8 +792,10 @@ impl RequestBuilder {
                     if !same_origin {
                         template = template.map(|template| template.without_credentials());
                     }
+                    let expect_continue = resolved.expect_continue;
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                     resolved.template = template;
+                    resolved.expect_continue = expect_continue;
                 }
             }
         }
@@ -923,15 +971,38 @@ impl RequestBodySource {
 
     /// Returns a body with this source's framing for building an attempt's
     /// fields without starting an attempt, or `None` without a body.
-    pub(crate) fn framing(&self) -> Result<Option<RequestBodyFraming<'_>>, RequestError> {
+    ///
+    /// `continue_wait` arms an owned or buffered body as its attempts are;
+    /// a one-shot body was armed when the request started.
+    pub(crate) fn framing(
+        &self,
+        continue_wait: Option<std::time::Duration>,
+    ) -> Result<Option<RequestBodyFraming<'_>>, RequestError> {
+        let armed = |body: RequestBody| match continue_wait {
+            Some(wait) => body.expect_continue(wait),
+            None => body,
+        };
         match self {
             Self::Absent => Ok(None),
-            Self::Bytes(bytes) => Ok(Some(RequestBodyFraming::Owned(RequestBody::from_bytes(
-                bytes.clone(),
+            Self::Bytes(bytes) => Ok(Some(RequestBodyFraming::Owned(armed(
+                RequestBody::from_bytes(bytes.clone()),
             )))),
             Self::Streaming(Some(body)) => Ok(Some(RequestBodyFraming::Borrowed(body))),
             Self::Streaming(None) => Err(RequestError::request_body_not_replayable()),
-            Self::Buffered(body) => Ok(Some(RequestBodyFraming::Owned(body.metadata_body()))),
+            Self::Buffered(body) => {
+                Ok(Some(RequestBodyFraming::Owned(armed(body.metadata_body()))))
+            }
+        }
+    }
+
+    /// Arms a one-shot body to wait for `100 Continue`. Owned and buffered
+    /// bodies make a new body for each attempt, which is armed then.
+    fn with_continue_wait(self, wait: Option<std::time::Duration>) -> Self {
+        match (self, wait) {
+            (Self::Streaming(Some(body)), Some(wait)) => {
+                Self::Streaming(Some(body.expect_continue(wait)))
+            }
+            (body, _) => body,
         }
     }
 
@@ -1066,6 +1137,9 @@ struct ResolvedRequest {
     target: OriginForm,
     absolute_target: AbsoluteForm,
     template: Option<PreparedRequestTemplate>,
+    /// How long each attempt waits for `100 Continue` before it sends a
+    /// body, when it sends `Expect: 100-continue`.
+    expect_continue: Option<std::time::Duration>,
 }
 
 impl ResolvedRequest {
@@ -1093,6 +1167,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            expect_continue: None,
         })
     }
 
@@ -1133,6 +1208,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            expect_continue: None,
         })
     }
 }

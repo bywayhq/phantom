@@ -869,7 +869,7 @@ impl Http2Connection {
     pub(super) async fn send_prepared_request(
         &self,
         request: Request<()>,
-        body: Option<RequestBody>,
+        mut body: Option<RequestBody>,
         trailers: Option<PreparedRequestTrailers>,
     ) -> Result<Response<Http2Body>, Http2Error> {
         let method = request.method().clone();
@@ -901,6 +901,7 @@ impl Http2Connection {
                 .await
                 .map_err(Http2Error::before_send)?;
             let end_of_stream = body.is_none() && trailers.is_none();
+            let continue_signal = body.as_mut().and_then(RequestBody::arm_continue);
             let (response, reset) = sender
                 .send_request(request, end_of_stream)
                 .map_err(Http2Error::before_send)?;
@@ -909,10 +910,34 @@ impl Http2Connection {
                 (RequestStream::Complete(reset), None)
             } else {
                 let mut upload = upload_request_body(reset, body, trailers);
+                // An interim `100` releases a body that waits for it. Both
+                // are read from the stream in this task, which holds the
+                // stream's one receive waker.
+                let response_head = std::future::poll_fn(|context| {
+                    if let Some(signal) = &continue_signal {
+                        loop {
+                            match response.as_mut().poll_informational(context) {
+                                Poll::Ready(Some(Ok(interim))) => {
+                                    if interim.status() == http::StatusCode::CONTINUE {
+                                        signal.proceed();
+                                    }
+                                }
+                                Poll::Ready(Some(Err(error))) => return Poll::Ready(Err(error)),
+                                Poll::Ready(None) | Poll::Pending => break,
+                            }
+                        }
+                    }
+                    response.as_mut().poll(context)
+                });
                 tokio::select! {
                     biased;
-                    result = &mut response => {
+                    result = response_head => {
                         let early = result.map_err(Http2Error::protocol)?;
+                        // A final response that came before a body waiting
+                        // for `100 Continue` leaves the body unsent.
+                        if let Some(signal) = &continue_signal {
+                            signal.abandon();
+                        }
                         // RFC 9113 section 8.1: only a complete response lets
                         // the client stop sending. Otherwise the server may
                         // still read the body, so the upload continues.

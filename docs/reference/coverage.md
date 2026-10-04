@@ -576,6 +576,9 @@ Supported:
 - Ordered [trailers](glossary.md#trailers), either static or produced by a
   declared streaming body, on exact H1/H2/H3 and negotiated requests.
 - Streaming bodies, owned-byte or pull-driven.
+- An opt-in `Expect: 100-continue` on exact H1/H2/H3 and negotiated
+  requests, which holds a nonempty body until `100 Continue` or a
+  caller-set wait ends, and withholds it when a final response comes first.
 - Default and per-request connection retry policies for exact H1/H2/H3 setup
   and for TCP setup of negotiated requests before ALPN.
 - Opt-in status retry for idempotent requests on 408, 425, 429, and 5xx

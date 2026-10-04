@@ -30,7 +30,7 @@ use super::{
 };
 use crate::{
     http1::Http1TlsError,
-    request::{RequestBody, RequestBodyError},
+    request::{ContinueSignal, RequestBody, RequestBodyError},
     tcp::TcpKeepaliveControl,
     tls::{EarlyDataFailure, EarlyDataWait, TlsError},
 };
@@ -329,6 +329,7 @@ impl Http1Connection {
                 return Err(Http1Error::Protocol(error));
             }
             let request_allows_reuse = prepared.allows_reuse();
+            let continue_signal = prepared.continue_signal().cloned();
             let response_future = sender.try_send_request(prepared.into_request());
             let mut in_flight = InFlightGuard::new(&self.inner);
             let response = match response_future.await {
@@ -364,7 +365,15 @@ impl Http1Connection {
                 return Err(Http1Error::AmbiguousResponseFraming);
             }
 
-            let reusable = request_allows_reuse && response_allows_reuse(&method, &response);
+            // A final response that came before the body was sent leaves the
+            // body unsent, and the server may still wait for it, so the
+            // connection is closed once the response is read (RFC 9110,
+            // section 10.1.1).
+            let body_withheld = continue_signal
+                .as_ref()
+                .is_some_and(ContinueSignal::abandon);
+            let reusable =
+                request_allows_reuse && !body_withheld && response_allows_reuse(&method, &response);
             if !reusable {
                 self.inner.reusable.store(false, Ordering::Release);
             }

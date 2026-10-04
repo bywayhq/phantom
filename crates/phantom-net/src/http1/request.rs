@@ -11,18 +11,19 @@ use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
     header::{
         AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE, TRAILER,
-        TRANSFER_ENCODING, UPGRADE,
+        CONTENT_TYPE, EXPECT, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE,
+        TRAILER, TRANSFER_ENCODING, UPGRADE,
     },
 };
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::Empty;
 use wreq_proto::ext::{
-    OnPreserveHeaderCallback, OnPreserveTrailerCallback, on_preserve_header, on_preserve_trailer,
+    OnPreserveHeaderCallback, OnPreserveTrailerCallback, on_informational, on_preserve_header,
+    on_preserve_trailer,
 };
 
 use super::{AbsoluteForm, Http1Error, OriginForm, RequestHeader};
-use crate::request::{RequestBody, RequestBodyMetadata};
+use crate::request::{ContinueSignal, RequestBody, RequestBodyMetadata, is_continue_expectation};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -35,6 +36,9 @@ pub(super) struct PreparedRequest {
     body_len: Option<u64>,
     has_body: bool,
     replay_safe: bool,
+    /// The connection's side of the wait for `100 Continue`, when the
+    /// request sends `Expect: 100-continue`.
+    continue_signal: Option<ContinueSignal>,
 }
 
 struct PreparedBody {
@@ -282,7 +286,7 @@ impl PreparedRequest {
             return Err(Http1Error::ConnectUnsupported);
         }
         let PreparedBody {
-            body,
+            mut body,
             has_body,
             metadata,
         } = body;
@@ -291,6 +295,7 @@ impl PreparedRequest {
         let headers = ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
         let static_trailer_marker = trailers.as_ref().is_some_and(|trailers| !trailers.dynamic);
         let replay_safe = crate::request::is_replay_safe(&method, has_body, trailers.is_some());
+        let continue_signal = if has_body { body.arm_continue() } else { None };
         let mut request = Request::new(Http1RequestBody::new(body, static_trailer_marker));
         *request.method_mut() = method;
         *request.uri_mut() = target;
@@ -302,13 +307,26 @@ impl PreparedRequest {
         if let Some(trailers) = trailers {
             on_preserve_trailer(&mut request, trailers);
         }
+        if let Some(signal) = continue_signal.clone() {
+            on_informational(&mut request, move |response| {
+                if response.status() == http::StatusCode::CONTINUE {
+                    signal.proceed();
+                }
+            });
+        }
         Ok(Self {
             request,
             allows_reuse,
             body_len,
             has_body,
             replay_safe,
+            continue_signal,
         })
+    }
+
+    /// Returns the connection's side of the wait for `100 Continue`.
+    pub(super) const fn continue_signal(&self) -> Option<&ContinueSignal> {
+        self.continue_signal.as_ref()
     }
 
     pub(super) fn method(&self) -> &Method {
@@ -460,6 +478,8 @@ impl ValidatedHeaders {
         };
         let has_trailers = trailers.is_some();
         let unknown_body = body.is_some_and(|metadata| metadata.exact_length().is_none());
+        let expects_continue = body.and_then(RequestBodyMetadata::continue_wait).is_some();
+        let mut expect_index = None;
         let mut semantic = Vec::with_capacity(headers.len());
         let mut ordered = Vec::with_capacity(headers.len());
 
@@ -535,6 +555,16 @@ impl ValidatedHeaders {
                         declared_trailers.push(declared);
                     }
                 }
+            } else if name == EXPECT && expects_continue {
+                // A caller's own field takes the expectation's place; it
+                // must say what the request then does.
+                if expect_index.is_some() || !is_continue_expectation(value.as_bytes()) {
+                    return Err(Http1Error::InvalidHeaderValue {
+                        index,
+                        name: header.name().into(),
+                    });
+                }
+                expect_index = Some(index);
             } else if name == CONNECTION
                 && ["host", "content-length", "transfer-encoding", "trailer"]
                     .into_iter()
@@ -602,6 +632,17 @@ impl ValidatedHeaders {
                 TRAILER,
                 b"Trailer",
                 declaration,
+            )?;
+        }
+
+        if expects_continue && expect_index.is_none() {
+            append_generated_header(
+                &mut semantic,
+                &mut ordered,
+                &mut total_bytes,
+                EXPECT,
+                b"Expect",
+                HeaderValue::from_static("100-continue"),
             )?;
         }
 

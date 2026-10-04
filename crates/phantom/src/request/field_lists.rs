@@ -58,7 +58,7 @@ pub(super) fn raced(
     if client.inner.http3.is_none() {
         return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
     }
-    let framing = attempt.body.framing()?;
+    let framing = attempt.body.framing(request.expect_continue)?;
     let body = framing.as_ref().map(RequestBodyFraming::body);
     let hint_origin = client_hint_origin(client, request);
     // A race starts a request, so no connection has restarted it yet.

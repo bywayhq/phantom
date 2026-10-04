@@ -552,6 +552,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn expectation_header() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidHeader,
+            "a request that waits for 100 Continue may carry only one Expect field, of 100-continue",
+        )
+    }
+
     pub(crate) fn request_template_protocol() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,

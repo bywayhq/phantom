@@ -1,7 +1,8 @@
 # Responses and errors
 
 Read a response's fields in wire order, find out what happened on the wire,
-collect a bounded body, and sort failures by kind.
+collect a bounded body, sort failures by kind, and let a server answer
+before a body is sent.
 
 > For builders who have read [Using the client](client.md).
 
@@ -62,10 +63,49 @@ fn classify(error: &RequestError) -> &'static str {
 - Messages and debug output leave out credentials, cookies, payloads, and
   endpoints. To investigate further, use bounded tracing or diagnostics.
 
+## Let the server answer before the body
+
+Send `Expect: 100-continue` so a server can refuse a large body before any
+of it is sent.
+
+```rust
+use std::time::Duration;
+
+use phantom::{Client, HttpProtocol, Method};
+
+async fn upload(client: &Client, file: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .request(HttpProtocol::Http1, Method::PUT, "https://example.com/upload")?
+        .body(file)
+        .expect_continue(Duration::from_secs(1))
+        .send()
+        .await?;
+    if response.status().as_u16() == 417 {
+        // Unless the wait had ended, the body was not sent; send the request
+        // again without the expectation.
+    }
+    Ok(())
+}
+```
+
+- The body waits until the server answers `100 Continue` or the wait ends,
+  on every protocol and on every attempt, including a redirect that keeps
+  the body. The wait counts toward the response head and total timeouts.
+- Phantom appends `Expect: 100-continue` after every other field. A field
+  of yours named `Expect` keeps its position and must be `100-continue`;
+  another value fails before I/O with `RequestErrorKind::InvalidHeader`.
+- A request without a body, or with a body of known length zero, sends no
+  expectation. No recipe sends one
+  ([evidence](../explanation/validation.md#revalidation-and-upload-evidence)).
+
 ## Limits
 
 - Dropping an unfinished H1 body can close its connection; dropping an H2 or
   H3 body cancels its stream.
+- A final response that arrives while the body still waits, such as `401`
+  or `417`, is returned and the body is never sent; Phantom does not repeat
+  the request. An H1 connection then closes, and an H2 or H3 stream is
+  cancelled.
 
 ## Next
 
