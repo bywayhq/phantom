@@ -8,17 +8,18 @@
 //! | Platform | Option | Name |
 //! | --- | --- | --- |
 //! | Linux, Android | `SO_BINDTODEVICE` | Up to 15 bytes, such as `eth0` |
-//! | macOS, iOS, and other Apple platforms | `IP_BOUND_IF`, `IPV6_BOUND_IF` | Up to 15 bytes, such as `en0` |
+//! | macOS | `IP_BOUND_IF`, `IPV6_BOUND_IF` | Up to 15 bytes, such as `en0` |
 //! | Windows | `IP_UNICAST_IF`, `IPV6_UNICAST_IF` | An alias, such as `Ethernet`, or an NDIS name, such as `ethernet_32768`; up to 256 UTF-16 code units |
 //!
-//! Apple platforms and Windows take an interface index, which each socket
-//! looks up from the name when it binds.
+//! macOS and Windows take an interface index, which each socket looks up
+//! from the name when it binds, so a name no interface has fails that
+//! socket with [`io::ErrorKind::NotFound`]. The macOS code also compiles for
+//! iOS and the other Apple platforms, where no test runs it.
 
 use std::{
     error::Error,
     fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    num::NonZeroU32,
 };
 
 use socket2::{Domain, SockRef};
@@ -86,8 +87,8 @@ impl InterfaceNameLimit {
 /// address to the operating system.
 ///
 /// An interface name binds each socket to that interface before the socket
-/// binds an address or connects, on Linux, Android, Apple platforms, and
-/// Windows, with the options the [module documentation](self) lists;
+/// binds an address or connects, on Linux, Android, macOS, and Windows, with
+/// the options the [module documentation](self) lists;
 /// elsewhere [`Self::validate`] rejects it. On Windows the option chooses
 /// the interface of the socket's outgoing unicast packets only, and does not
 /// filter what the socket receives. An address set alongside the interface
@@ -176,36 +177,13 @@ impl SourceBinding {
         if let Some(name) = &self.interface {
             INTERFACE_NAME_LIMIT.check(name)?;
             if !INTERFACE_BINDING {
-                return Err(InvalidSourceBinding::unsupported_interface());
+                return Err(InvalidSourceBinding::new(
+                    "interface",
+                    "this platform cannot bind a socket to an interface by name",
+                ));
             }
         }
         Ok(())
-    }
-
-    /// Checks that this host has the network interface the binding names.
-    ///
-    /// [`Self::validate`] checks the name without I/O. This looks it up, as
-    /// each socket does again when it binds, so that a name no interface has
-    /// fails before any connection.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`InvalidSourceBinding`] for the `interface` field when no
-    /// network interface on this host has the name, or when this platform
-    /// cannot bind a socket to an interface by name.
-    pub fn check_interface(&self) -> Result<(), InvalidSourceBinding> {
-        let Some(name) = &self.interface else {
-            return Ok(());
-        };
-        if !INTERFACE_BINDING {
-            return Err(InvalidSourceBinding::unsupported_interface());
-        }
-        interface_index(name).map(drop).map_err(|_| {
-            InvalidSourceBinding::new(
-                "interface",
-                "no network interface on this host has this name",
-            )
-        })
     }
 
     /// Returns whether a socket to `remote` can bind as this binding says.
@@ -339,53 +317,25 @@ impl SourceBinding {
     pub(crate) fn bind_interface(&self, _socket: &SockRef<'_>, _domain: Domain) -> io::Result<()> {
         match &self.interface {
             None => Ok(()),
-            Some(_) => Err(unsupported_interface_binding()),
+            Some(_) => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "this platform cannot bind a socket to an interface by name",
+            )),
         }
     }
-}
-
-/// Returns the index of the network interface named `name`.
-#[cfg(any(
-    target_os = "android",
-    target_os = "linux",
-    target_vendor = "apple",
-    windows
-))]
-fn interface_index(name: &str) -> io::Result<NonZeroU32> {
-    crate::socket_ffi::interface::index(name)
-}
-
-/// Fails: this platform cannot bind a socket to an interface by name.
-#[cfg(not(any(
-    target_os = "android",
-    target_os = "linux",
-    target_vendor = "apple",
-    windows
-)))]
-fn interface_index(_name: &str) -> io::Result<NonZeroU32> {
-    Err(unsupported_interface_binding())
-}
-
-#[cfg(not(any(
-    target_os = "android",
-    target_os = "linux",
-    target_vendor = "apple",
-    windows
-)))]
-fn unsupported_interface_binding() -> io::Error {
-    io::Error::new(
-        io::ErrorKind::Unsupported,
-        "this platform cannot bind a socket to an interface by name",
-    )
 }
 
 /// Binds `socket` to the interface named `name` by its index, with
 /// `IP_BOUND_IF` or `IPV6_BOUND_IF` as socket2 sets them on Apple platforms.
 ///
-/// Linux test builds compile this too, where socket2 sets `SO_BINDTOIFINDEX`
-/// for both families, so that the Apple path is type-checked and run off
-/// Apple hosts.
-#[cfg(any(target_vendor = "apple", all(test, target_os = "linux")))]
+/// Linux and Android test builds compile this too, where socket2 sets
+/// `SO_BINDTOIFINDEX` for both families, so that the Apple path is
+/// type-checked and run off Apple hosts. Their production builds bind by
+/// name instead and never compile it.
+#[cfg(any(
+    target_vendor = "apple",
+    all(test, any(target_os = "android", target_os = "linux"))
+))]
 fn bind_to_interface_index(socket: &SockRef<'_>, name: &str, domain: Domain) -> io::Result<()> {
     let index = Some(crate::socket_ffi::interface::index(name)?);
     if domain == Domain::IPV6 {
@@ -451,13 +401,6 @@ pub struct InvalidSourceBinding {
 impl InvalidSourceBinding {
     const fn new(field: &'static str, message: &'static str) -> Self {
         Self { field, message }
-    }
-
-    const fn unsupported_interface() -> Self {
-        Self::new(
-            "interface",
-            "this platform cannot bind a socket to an interface by name",
-        )
     }
 
     /// Returns the rejected field: `ipv4_address`, `ipv6_address`, or

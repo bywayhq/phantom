@@ -137,11 +137,6 @@ fn unicast_interface_value_is_network_order_for_ipv4_and_host_order_for_ipv6() {
     );
 }
 
-#[test]
-fn a_binding_without_an_interface_passes_the_interface_check() {
-    assert_eq!(SourceBinding::new().check_interface(), Ok(()));
-}
-
 #[cfg(any(
     target_os = "android",
     target_os = "linux",
@@ -149,20 +144,19 @@ fn a_binding_without_an_interface_passes_the_interface_check() {
     windows
 ))]
 #[test]
-fn the_interface_check_finds_the_loopback_interface() {
-    let binding = SourceBinding::new().with_interface(LOOPBACK_INTERFACE);
+fn interface_lookup_finds_loopback_and_reports_an_unknown_name_as_not_found() -> TestResult {
+    crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
 
-    assert_eq!(binding.check_interface(), Ok(()));
-}
+    let error = crate::socket_ffi::interface::index(UNKNOWN_INTERFACE)
+        .err()
+        .ok_or("an unknown interface name was found")?;
 
-#[test]
-fn the_interface_check_rejects_a_name_no_interface_has() {
-    let binding = SourceBinding::new().with_interface(UNKNOWN_INTERFACE);
-
+    assert_eq!(error.kind(), io::ErrorKind::NotFound);
     assert_eq!(
-        binding.check_interface().map_err(|error| error.field()),
-        Err("interface")
+        error.to_string(),
+        "no network interface on this host has this name"
     );
+    Ok(())
 }
 
 #[test]
@@ -322,9 +316,9 @@ async fn a_socket_cannot_bind_to_an_interface_no_host_has() -> TestResult {
     Ok(())
 }
 
-/// Binding by index, the Apple path, also runs on Linux, where socket2 sets
-/// `SO_BINDTOIFINDEX`.
-#[cfg(any(target_vendor = "apple", target_os = "linux"))]
+/// Binding by index, the Apple path, also runs on Linux and Android, where
+/// socket2 sets `SO_BINDTOIFINDEX`.
+#[cfg(any(target_os = "android", target_os = "linux", target_vendor = "apple"))]
 #[test]
 fn binding_by_index_sets_the_interface_index() -> TestResult {
     let socket = socket2::Socket::new(Domain::IPV4, socket2::Type::STREAM, None)?;
@@ -371,15 +365,15 @@ fn an_ipv6_socket_sets_the_unicast_interface_in_host_order() -> TestResult {
     Ok(())
 }
 
+/// Whether `error` is Linux refusing to bind a socket to an interface; prints
+/// a skip line when it is. Linux before 5.7 lets only `CAP_NET_RAW` bind to
+/// an interface. Always false off Linux and Android.
 #[cfg(any(
     target_os = "android",
     target_os = "linux",
     target_vendor = "apple",
     windows
 ))]
-/// Whether `error` is Linux refusing to bind a socket to an interface; prints
-/// a skip line when it is. Linux before 5.7 lets only `CAP_NET_RAW` bind to
-/// an interface.
 fn kernel_refuses_binding(error: &io::Error) -> bool {
     let refuses = cfg!(any(target_os = "android", target_os = "linux"))
         && error.kind() == io::ErrorKind::PermissionDenied;
@@ -415,9 +409,10 @@ fn assert_bound_to_loopback(socket: &socket2::SockRef<'_>, domain: Domain) -> Te
     use std::os::windows::io::AsSocket;
 
     let index = crate::socket_ffi::interface::index(LOOPBACK_INTERFACE)?;
+    // Windows returns IP_UNICAST_IF in host order, though it takes network order.
     assert_eq!(
         crate::socket_ffi::interface::unicast_interface(socket.as_socket(), domain)?,
-        unicast_interface_value(index.get(), domain)
+        index.get().to_ne_bytes()
     );
     Ok(())
 }

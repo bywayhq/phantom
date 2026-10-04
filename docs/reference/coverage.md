@@ -684,8 +684,8 @@ Supported:
 - A caller source binding, off by default: one local address per address
   family for every TCP and QUIC socket, to origins and proxies, skipping
   resolved addresses of a family without one; and an interface bound by
-  name, with `SO_BINDTODEVICE` on Linux and Android, `IP_BOUND_IF` on macOS
-  and iOS, and `IP_UNICAST_IF` on Windows. See
+  name, with `SO_BINDTODEVICE` on Linux and Android, `IP_BOUND_IF` on macOS,
+  and `IP_UNICAST_IF` on Windows. See
   [Send connections from a chosen local address](../guides/connections-and-state.md#send-connections-from-a-chosen-local-address).
 - A caller TLS client certificate for origins over TCP and QUIC, off by
   default, sent only in answer to a `CertificateRequest`, with an unchanged

@@ -23,9 +23,8 @@ correctness, the brief, or a stated rule:
    ordering; configuration exposed without being applied and tested.
 3. Safety: new `unsafe` outside the two audited FFI modules (the
    `phantom-quic-btls` backend and `phantom-net`'s `socket_ffi`), or an
-   unsafe block there without a
-   `SAFETY` comment;
-   panics on recoverable input or network failures.
+   unsafe block there without a `SAFETY` comment; panics on recoverable
+   input or network failures.
 4. Vendor: edits under `vendor/` that are not reflected in `patches/series`,
    a publish-identity patch that is not last, or version pins that disagree
    with the root `Cargo.toml`.

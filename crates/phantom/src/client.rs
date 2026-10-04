@@ -991,8 +991,8 @@ impl ClientBuilder {
     /// before it binds an address or connects:
     ///
     /// - on Linux and Android with `SO_BINDTODEVICE`;
-    /// - on macOS, iOS, and the other Apple platforms with `IP_BOUND_IF` or
-    ///   `IPV6_BOUND_IF`, by the interface's index;
+    /// - on macOS with `IP_BOUND_IF` or `IPV6_BOUND_IF`, by the interface's
+    ///   index;
     /// - on Windows with `IP_UNICAST_IF` or `IPV6_UNICAST_IF`, by the index
     ///   of the interface whose alias, such as `Ethernet`, or NDIS name, such
     ///   as `ethernet_32768`, is `name`. The option picks the interface for
@@ -1000,13 +1000,15 @@ impl ClientBuilder {
     ///
     /// [`build`](Self::build) fails with
     /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) on other
-    /// platforms; when `name` is empty, holds a NUL byte, or is longer than
-    /// 15 bytes (256 UTF-16 code units on Windows); and when no network
-    /// interface on this host has the name. Each socket looks the name up
-    /// again, so an interface that goes away after `build` fails each
-    /// connection when its socket binds. Linux kernels before 5.7 let only a
-    /// process with `CAP_NET_RAW` bind a socket to an interface; there each
-    /// connection fails when its socket binds.
+    /// platforms, and when `name` is empty, holds a NUL byte, or is longer
+    /// than 15 bytes (256 UTF-16 code units on Windows). `build` does not
+    /// look the name up: each socket does as it binds, so a name no
+    /// interface has fails each connection with
+    /// [`Connect`](crate::RequestErrorKind::Connect), or
+    /// [`Proxy`](crate::RequestErrorKind::Proxy) for a proxy, until an
+    /// interface has it. Linux kernels before 5.7 let only a process with
+    /// `CAP_NET_RAW` bind a socket to an interface; there each connection
+    /// fails when its socket binds.
     #[must_use]
     pub fn interface(mut self, name: &str) -> Self {
         self.source_binding = self.source_binding.with_interface(name);
@@ -1569,7 +1571,6 @@ impl ClientBuilder {
         }
         self.source_binding
             .validate()
-            .and_then(|()| self.source_binding.check_interface())
             .map_err(BuildError::invalid_source_binding)?;
         if let Some(certificate) = &self.client_certificate {
             let http3_tls = self.profile.http3().map(|settings| settings.tls());

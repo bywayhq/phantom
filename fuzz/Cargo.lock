@@ -1150,6 +1150,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "httparse",
+ "libc",
  "phantom-btls",
  "phantom-h3",
  "phantom-h3-datagram",

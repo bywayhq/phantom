@@ -51,10 +51,10 @@ tokio-btls.workspace = true
 btls = { workspace = true, features = ["prefix-symbols"] }
 tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 
-# `if_nametoindex`, which turns an interface name into the index that the
-# build-time interface check and Apple's `IP_BOUND_IF` take. socket2 and
-# Tokio already build this version on these targets.
-[target.'cfg(any(target_os = "android", target_os = "linux", target_vendor = "apple"))'.dependencies]
+# `if_nametoindex`, which turns an interface name into the index that
+# Apple's `IP_BOUND_IF` takes. socket2 and Tokio already build this version on
+# these targets.
+[target.'cfg(target_vendor = "apple")'.dependencies]
 libc = "0.2.189"
 
 # The Winsock, IP Helper, and ntdll declarations behind `SO_RANDOMIZE_PORT`
@@ -62,6 +62,10 @@ libc = "0.2.189"
 # Windows.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock", "Win32_System_SystemInformation"] }
+
+# Linux and Android tests run the Apple `if_nametoindex` lookup.
+[target.'cfg(any(target_os = "android", target_os = "linux"))'.dev-dependencies]
+libc = "0.2.189"
 
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }

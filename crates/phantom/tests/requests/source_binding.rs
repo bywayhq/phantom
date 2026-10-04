@@ -358,16 +358,30 @@ fn interface_binding_builds_only_where_the_platform_has_it() {
     }
 }
 
-#[test]
-fn an_interface_no_host_has_is_an_invalid_policy() {
-    let result = Client::builder(profile())
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[tokio::test]
+async fn an_interface_no_host_has_fails_each_connection() -> TestResult<()> {
+    let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
+    let address = listener.local_addr()?;
+    let client = Client::builder(profile())
         .interface("phantom-none0")
-        .build();
+        .build()?;
 
-    assert_eq!(
-        result.err().map(|error| error.kind()),
-        Some(BuildErrorKind::InvalidPolicy)
-    );
+    let error = timeout(TEST_TIMEOUT, get(&client, format!("http://{address}/")))
+        .await?
+        .err()
+        .ok_or("a request through an unknown interface succeeded")?;
+
+    assert_eq!(error.kind(), RequestErrorKind::Connect);
+    if cfg!(any(target_vendor = "apple", windows)) {
+        assert_eq!(io_error_kind(&error), Some(io::ErrorKind::NotFound));
+    }
+    Ok(())
 }
 
 #[cfg(any(target_os = "linux", target_vendor = "apple", windows))]

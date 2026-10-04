@@ -16,11 +16,12 @@
 //!
 //! All `unsafe` code is confined to the private `socket_ffi` module, the
 //! socket FFI boundary that sets Winsock's `SO_RANDOMIZE_PORT` on Windows and
-//! looks up network interfaces by name for [`SourceBinding`]: with
-//! `if_nametoindex` on Linux, Android, and Apple platforms, and with the IP
-//! Helper LUID conversions and `IP_UNICAST_IF` on Windows. The rest of the
-//! crate denies `unsafe_code`, and every unsafe block in that module carries
-//! a `SAFETY` comment required by `clippy::undocumented_unsafe_blocks`.
+//! binds [`SourceBinding`]'s interface by index: it looks the index up with
+//! `if_nametoindex` on Apple platforms, and with the IP Helper LUID
+//! conversions on Windows, where it also sets `IP_UNICAST_IF`. Linux and
+//! Android compile the module only in tests. The rest of the crate denies
+//! `unsafe_code`, and every unsafe block in that module carries a `SAFETY`
+//! comment required by `clippy::undocumented_unsafe_blocks`.
 
 #![deny(unsafe_code)]
 
@@ -44,12 +45,12 @@ mod response;
 mod shutdown_timer;
 // Raw libc, Winsock, IP Helper, and ntdll access is isolated here so safe code
 // cannot grow new unsafe operations without crossing an explicit, reviewable
-// module boundary.
+// module boundary. Linux and Android test builds compile it to run the Apple
+// lookup, which their production builds never call.
 #[cfg(any(
-    target_os = "android",
-    target_os = "linux",
     target_vendor = "apple",
-    windows
+    windows,
+    all(test, any(target_os = "android", target_os = "linux"))
 ))]
 #[allow(unsafe_code, reason = "private socket FFI boundary")]
 mod socket_ffi;

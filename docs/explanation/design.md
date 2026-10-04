@@ -403,7 +403,7 @@ one private module that is the crate's complete FFI boundary:
 | Crate | Module | Foreign calls |
 | --- | --- | --- |
 | `phantom-quic-btls` | `backend` | BoringSSL's QUIC TLS API, for Quinn |
-| `phantom-net` | `socket_ffi`, compiled on Linux, Android, Apple platforms, and Windows | libc `if_nametoindex`; Winsock `setsockopt` and, in tests, `getsockopt`; IP Helper LUID conversions; ntdll `RtlGetVersion` |
+| `phantom-net` | `socket_ffi`, compiled on Apple platforms and Windows, and in Linux and Android tests | libc `if_nametoindex`; Winsock `setsockopt` and, in tests, `getsockopt`; IP Helper LUID conversions; ntdll `RtlGetVersion` |
 
 Both crates follow the same rules:
 
@@ -439,9 +439,10 @@ every TCP socket from Windows 11 22H2, and on every UDP socket it connects
 option evidence](validation.md#udp-socket-option-evidence)).
 `TcpPortRandomization` and `UdpSettings::port_randomization` reproduce it.
 `tcp.rs` and `udp.rs` each call `socket_ffi::port_randomization`, compiled
-on Windows only, before their socket binds or connects; the module sits at
-the crate root, not under either transport, because it serves both. No safe Rust API sets the option: `socket2` 0.6.5
-has no method for it, and its general `setsockopt` is private. The
+on Windows only, before their socket binds or connects; the parent
+`socket_ffi` sits at the crate root, not under either transport, because
+it serves both. No safe Rust API sets the option: `socket2` 0.6.5 has no
+method for it, and its general `setsockopt` is private. The
 declarations come from `windows-sys` 0.61.2, which `socket2` and Tokio
 already build on Windows, so the boundary added no crate to the build.
 Winsock errors are read with `io::Error::last_os_error`, as `socket2` reads
@@ -496,46 +497,62 @@ The sanitizer jobs build on Linux, where the submodule does not compile.
 #### Interface binding audit
 
 `SourceBinding` binds a socket to a network interface by name. Linux and
-Android take the name in `SO_BINDTODEVICE`, which socket2 sets safely. Apple
-platforms take an interface index in `IP_BOUND_IF` and `IPV6_BOUND_IF`,
-which socket2 0.6.5 also sets safely with `bind_device_by_index_v4` and
+Android take the name in `SO_BINDTODEVICE`, which socket2 sets safely, so
+their production builds compile no `socket_ffi` code. macOS takes an
+interface index in `IP_BOUND_IF` and `IPV6_BOUND_IF`, which socket2 0.6.5
+also sets safely with `bind_device_by_index_v4` and
 `bind_device_by_index_v6`. Windows takes an index in `IP_UNICAST_IF`, in
 network byte order, and `IPV6_UNICAST_IF`, in host byte order, which no
-safe API sets. No safe API turns a name into an index on either platform.
-`socket_ffi::interface` makes those calls. `ClientBuilder::build` also
-looks the name up once, on every platform with interface binding, so a
-name no interface has fails before any connection.
+safe API sets. No safe API turns a name into an index on either platform,
+so `socket_ffi::interface` makes those calls. Each socket looks the name up
+as it binds, as Linux resolves `SO_BINDTODEVICE`'s name; `build` does not,
+so an interface that appears after `build` serves later connections.
 
 `libc` 0.2.189 and `windows-sys` 0.61.2 supply the declarations; socket2
 and Tokio already build both, so the boundary adds no crate to the build.
-A safe function outside the module, `unicast_interface_value`, encodes the
-option value, and a unit test checks its byte order on every platform.
+`libc` is a normal dependency on Apple platforms and a dev-dependency on
+Linux and Android. A safe function outside the module,
+`unicast_interface_value`, encodes the option value, and a unit test
+checks its byte order on every platform.
 
-The submodule has six unsafe blocks, one foreign call each:
+The submodule has six unsafe blocks, one foreign call each. Each row names
+the builds that compile the block:
 
-| Call | What it relies on | Why that holds |
-| --- | --- | --- |
-| `if_nametoindex`, on Linux, Android, and Apple platforms | A NUL-terminated string that stays readable for the call | A local `CString`, built from the name, that outlives the call. A name with a NUL fails before the call. |
-| `ConvertInterfaceAliasToLuid`, on Windows | A NUL-terminated UTF-16 string, and a writable `NET_LUID_LH` | A local `Vec<u16>` ending in 0, built from a name without NUL, and a zeroed local `NET_LUID_LH`. |
-| `ConvertInterfaceNameToLuidW`, on Windows, when the alias is not found | The same | The same buffer and local. |
-| `ConvertInterfaceLuidToIndex`, on Windows | A readable `NET_LUID_LH` and a writable `u32` | The local `NET_LUID_LH`, initialized, and a local `u32`. |
-| `setsockopt(IPPROTO_IP, IP_UNICAST_IF)` or `setsockopt(IPPROTO_IPV6, IPV6_UNICAST_IF)`, on Windows | An open socket handle, and `optlen` readable bytes at `optval` | The handle comes from a `BorrowedSocket`. `optval` points to a local `[u8; 4]` and `optlen` is 4. |
-| `getsockopt` of the same option, on Windows, in tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `[u8; 4]` and `optlen` to a local 4; a returned length other than 4 is an error. |
+| Call | Compiled in | What it relies on | Why that holds |
+| --- | --- | --- | --- |
+| `if_nametoindex` | Apple platforms; Linux and Android tests, which run the Apple lookup | A NUL-terminated string that stays readable for the call | A local `CString`, built from the name, that outlives the call. A name with a NUL fails before the call. |
+| `ConvertInterfaceAliasToLuid` | Windows | A NUL-terminated UTF-16 string, and a writable `NET_LUID_LH` | A local `Vec<u16>` ending in 0, built from a name without NUL, and a zeroed local `NET_LUID_LH`. |
+| `ConvertInterfaceNameToLuidW`, when no interface has the alias | Windows | The same | The same buffer and local. |
+| `ConvertInterfaceLuidToIndex` | Windows | A readable `NET_LUID_LH` and a writable `u32` | The local `NET_LUID_LH`, initialized, and a local `u32`. |
+| `setsockopt(IPPROTO_IP, IP_UNICAST_IF)` or `setsockopt(IPPROTO_IPV6, IPV6_UNICAST_IF)` | Windows | An open socket handle, and `optlen` readable bytes at `optval` | The handle comes from a `BorrowedSocket`. `optval` points to a local `[u8; 4]` and `optlen` is 4. |
+| `getsockopt` of the same option | Windows tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `[u8; 4]` and `optlen` to a local 4; a returned length other than 4 is an error. |
 
 As in port randomization, every pointer is an exclusive borrow of a local
 that outlives the call, none of the calls keeps a pointer after it returns,
 and the module exports no `unsafe fn`. `if_nametoindex` reports a missing
 interface through `errno`, which the code reads with
-`io::Error::last_os_error` straight after the call.
+`io::Error::last_os_error` straight after the call. A missing interface
+(`ENODEV` or `ENXIO`, or an IP Helper "not found", "invalid name", or
+"invalid parameter") fails with `io::ErrorKind::NotFound`; any other
+failure keeps its OS error. Windows returns `IP_UNICAST_IF` from
+`getsockopt` in host byte order, although `setsockopt` takes it in network
+byte order, so the read-back test expects host order for both options.
 
 Tests in `crates/phantom-net/src/source_binding/tests.rs` look up the
 loopback interface (`lo`, `lo0`, or the NDIS name `loopback_0`) and a name
 no host has, bind a TCP and a UDP socket to the loopback interface, and read
 the binding back: the device name on Linux, the index with
-`device_index_v4` and `device_index_v6` on Apple platforms, and the option
-value with `getsockopt` on Windows. Binding by index, the Apple path, also
-runs in Linux test builds, where socket2 sets `SO_BINDTOIFINDEX`. The macOS
-and Windows CI jobs are the only builds of those two platforms' paths.
+`device_index_v4` and `device_index_v6` on macOS, and the option value with
+`getsockopt` on Windows. Binding by index, the Apple path, also runs in
+Linux test builds, where socket2 sets `SO_BINDTOIFINDEX`. The macOS and
+Windows CI jobs are the only builds of those two platforms' paths; no job
+builds iOS or the other Apple platforms.
+
+Neither Miri nor the sanitizers cover `socket_ffi::interface`: Miri cannot
+execute `if_nametoindex` or the IP Helper calls, and the ASan job, which
+compiles `phantom-net`'s Linux unit tests and so the `if_nametoindex`
+block, runs only the `http3::` tests, which never call it. The Windows
+blocks compile on no sanitizer build.
 
 ## How the pieces fit
 

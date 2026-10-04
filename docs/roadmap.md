@@ -165,7 +165,7 @@ Counts in the later phases come from a read-only review of `main` at
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
 - A local source address per address family and an interface binding by
-  name, on Linux, Android, macOS, iOS, and Windows, for every TCP and QUIC
+  name, on Linux, Android, macOS, and Windows, for every TCP and QUIC
   socket, and a client certificate
   sent over TCP and QUIC when a server requests one, each off by default
   ([Send connections from a chosen local address](guides/connections-and-state.md#send-connections-from-a-chosen-local-address),
@@ -632,7 +632,8 @@ not carry its renames. Until then, depend on a pinned git revision
   so the off-state stubs are compiled but never run, and the Windows and
   macOS jobs build no reduced feature set. Compile the branches no job
   builds: Android interface binding, which Phase 1 and the `SourceBinding`
-  rustdoc claim; the fallback for targets outside the 16-target list in
+  rustdoc claim; the iOS build of the macOS interface binding, which no
+  job compiles; the fallback for targets outside the 16-target list in
   `phantom-net/src/tcp.rs`, which is written out three times; and its
   OpenBSD, Haiku, and Vita exclusion. Otherwise narrow the claims to Linux.
 - Tests that do not depend on wall-clock speed: 16 real-time upper-bound

@@ -827,12 +827,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
-- `ClientBuilder::interface` binds sockets on macOS, iOS, and the other
-  Apple platforms, with `IP_BOUND_IF` or `IPV6_BOUND_IF`, and on Windows,
-  with `IP_UNICAST_IF` or `IPV6_UNICAST_IF`, where the name is an interface
-  alias such as `Ethernet` or an NDIS name such as `ethernet_32768`, up to
-  256 UTF-16 code units. Each socket looks the interface index up from the
-  name before it binds or connects. On Windows the option picks the
+- `ClientBuilder::interface` binds sockets on macOS, with `IP_BOUND_IF` or
+  `IPV6_BOUND_IF`, and on Windows, with `IP_UNICAST_IF` or
+  `IPV6_UNICAST_IF`, where the name is an interface alias such as
+  `Ethernet` or an NDIS name such as `ethernet_32768`, up to 256 UTF-16
+  code units. Each socket looks the interface index up from the name
+  before it binds or connects, so a name no interface has fails that
+  connection with `RequestErrorKind::Connect` and an
+  `io::ErrorKind::NotFound` source. On Windows the option picks the
   interface for outgoing packets only. Before, `build` failed with
   `BuildErrorKind::InvalidPolicy` on these platforms
   ([guide](docs/guides/connections-and-state.md#send-connections-from-a-chosen-local-address)).
@@ -1582,12 +1584,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
-- `ClientBuilder::build` fails with `BuildErrorKind::InvalidPolicy` when
-  no network interface on the host has the name given to
-  `ClientBuilder::interface`. Before, on Linux and Android, the client
-  built and each connection failed when its socket bound. Sockets still
-  look the name up as they bind, so an interface that goes away later
-  fails connections as before.
 - Wire change for Alt-Svc: the store keeps up to eight `h3` alternatives a
   field lists, in field order, each expiring on its own `ma`, and a
   negotiated request uses the first one that is not broken, as Chrome 154

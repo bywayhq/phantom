@@ -16,7 +16,10 @@ use std::os::windows::io::BorrowedSocket;
 use socket2::Domain;
 #[cfg(windows)]
 use windows_sys::Win32::{
-    Foundation::NO_ERROR,
+    Foundation::{
+        ERROR_FILE_NOT_FOUND, ERROR_INVALID_NAME, ERROR_INVALID_PARAMETER, ERROR_NOT_FOUND,
+        NO_ERROR, WIN32_ERROR,
+    },
     NetworkManagement::{
         IpHelper::{
             ConvertInterfaceAliasToLuid, ConvertInterfaceLuidToIndex, ConvertInterfaceNameToLuidW,
@@ -30,7 +33,8 @@ use windows_sys::Win32::{
 
 /// Returns the index of the network interface named `name`.
 ///
-/// Fails with [`io::ErrorKind::NotFound`] when no interface has the name.
+/// Fails with [`io::ErrorKind::NotFound`] when no interface has the name,
+/// and with the OS error when the lookup itself fails.
 #[cfg(any(target_os = "android", target_os = "linux", target_vendor = "apple"))]
 pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     let name = std::ffi::CString::new(name).map_err(|_| nul_in_name())?;
@@ -45,7 +49,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
         let error = io::Error::last_os_error();
         match error.raw_os_error() {
             None | Some(0 | libc::ENODEV | libc::ENXIO) => no_such_interface(),
-            Some(_) => error,
+            Some(_) => lookup_failed(&error),
         }
     })
 }
@@ -54,7 +58,8 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
 /// `Ethernet`, or NDIS name, such as `ethernet_32768`, is `name`.
 ///
 /// The alias is tried first, as the name Windows shows. Fails with
-/// [`io::ErrorKind::NotFound`] when no interface has the name.
+/// [`io::ErrorKind::NotFound`] when no interface has the name, and with the
+/// OS error when a lookup fails otherwise.
 #[cfg(windows)]
 pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     if name.contains('\0') {
@@ -67,14 +72,21 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     // live, writable local `NET_LUID_LH`, so the call may write the whole
     // value through the pointer. Both are exclusive local borrows that the
     // call does not keep after it returns.
-    let mut status = unsafe { ConvertInterfaceAliasToLuid(name.as_ptr(), &raw mut luid) };
+    let status = unsafe { ConvertInterfaceAliasToLuid(name.as_ptr(), &raw mut luid) };
     if status != NO_ERROR {
+        if !absent(status) {
+            return Err(lookup_failed(&win32_error(status)));
+        }
         // SAFETY: the same buffer and local as in the alias lookup above,
         // with the same reads and writes, and no pointer kept.
-        status = unsafe { ConvertInterfaceNameToLuidW(name.as_ptr(), &raw mut luid) };
-    }
-    if status != NO_ERROR {
-        return Err(no_such_interface());
+        let status = unsafe { ConvertInterfaceNameToLuidW(name.as_ptr(), &raw mut luid) };
+        if status != NO_ERROR {
+            return Err(if absent(status) {
+                no_such_interface()
+            } else {
+                lookup_failed(&win32_error(status))
+            });
+        }
     }
     let mut index: u32 = 0;
     // SAFETY: `luid` is an initialized local that the call only reads, and
@@ -82,9 +94,31 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     // exclusive local borrows that the call does not keep.
     let status = unsafe { ConvertInterfaceLuidToIndex(&raw const luid, &raw mut index) };
     if status != NO_ERROR {
-        return Err(io::Error::from_raw_os_error(status.cast_signed()));
+        return Err(if absent(status) {
+            no_such_interface()
+        } else {
+            lookup_failed(&win32_error(status))
+        });
     }
     NonZeroU32::new(index).ok_or_else(no_such_interface)
+}
+
+/// Whether an IP Helper conversion failed because no interface has the name
+/// or LUID. `ConvertInterfaceAliasToLuid` reports an unknown alias as an
+/// invalid parameter, and `ConvertInterfaceNameToLuidW` an NDIS name it
+/// cannot parse as an invalid name; a parsed name whose interface is absent
+/// fails the index conversion as not found.
+#[cfg(windows)]
+fn absent(status: WIN32_ERROR) -> bool {
+    matches!(
+        status,
+        ERROR_FILE_NOT_FOUND | ERROR_INVALID_NAME | ERROR_INVALID_PARAMETER | ERROR_NOT_FOUND
+    )
+}
+
+#[cfg(windows)]
+fn win32_error(status: WIN32_ERROR) -> io::Error {
+    io::Error::from_raw_os_error(status.cast_signed())
 }
 
 /// Sets `IP_UNICAST_IF` on an IPv4 `socket`, or `IPV6_UNICAST_IF` on an IPv6
@@ -116,8 +150,9 @@ pub(crate) fn set_unicast_interface(
     Ok(())
 }
 
-/// Reads the `IP_UNICAST_IF` or `IPV6_UNICAST_IF` value of `socket`, in the
-/// byte order Windows stores it.
+/// Reads the `IP_UNICAST_IF` or `IPV6_UNICAST_IF` value of `socket` as
+/// Windows returns it: the interface index in host byte order for both
+/// options, although `IP_UNICAST_IF` takes it in network byte order.
 #[cfg(all(windows, test))]
 pub(crate) fn unicast_interface(socket: BorrowedSocket<'_>, domain: Domain) -> io::Result<[u8; 4]> {
     use windows_sys::Win32::Networking::WinSock::getsockopt;
@@ -157,7 +192,14 @@ fn unicast_interface_option(domain: Domain) -> (i32, i32) {
 fn no_such_interface() -> io::Error {
     io::Error::new(
         io::ErrorKind::NotFound,
-        "no network interface has this name",
+        "no network interface on this host has this name",
+    )
+}
+
+fn lookup_failed(error: &io::Error) -> io::Error {
+    io::Error::new(
+        error.kind(),
+        format!("could not look up the network interface by name: {error}"),
     )
 }
 
