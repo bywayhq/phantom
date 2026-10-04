@@ -1,6 +1,6 @@
 use super::{
-    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    Http2StreamSettings, InvalidHttp2Settings,
+    Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StreamSettings, InvalidHttp2Settings,
 };
 
 use std::time::Duration;
@@ -28,6 +28,7 @@ fn settings() -> Http2Settings {
         ping_failure_retries: 0,
         idle_ping_after: None,
         idle_ping_timeout: None,
+        idle_timeout: Http2IdleTimeout::Unlimited,
     }
 }
 
@@ -158,6 +159,44 @@ fn firefox_recipe_sends_an_idle_ping_and_chromium_none() {
     assert_eq!(
         (chromium.idle_ping_after, chromium.idle_ping_timeout),
         (None, None)
+    );
+}
+
+#[test]
+fn an_idle_timer_limit_is_from_1_to_65535_seconds() -> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    assert_eq!(settings.idle_timeout, Http2IdleTimeout::default());
+    assert_eq!(settings.idle_timeout.closed_on_timer(), None);
+    for limit in [1, 170, 65_535] {
+        settings.idle_timeout = Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(limit));
+        settings.validate()?;
+    }
+    for limit in [
+        Duration::ZERO,
+        Duration::from_millis(999),
+        Duration::from_secs(65_535) + Duration::from_millis(1),
+        Duration::from_secs(65_536),
+        Duration::MAX,
+    ] {
+        settings.idle_timeout = Http2IdleTimeout::ClosedOnTimer(limit);
+        assert_eq!(settings.idle_timeout.closed_on_timer(), Some(limit));
+        assert_field(settings.validate(), "idle_timeout");
+    }
+    Ok(())
+}
+
+#[test]
+fn firefox_recipe_closes_idle_connections_after_170_seconds_and_chromium_never() {
+    // `network.http.http2.timeout`,
+    // `modules/libpref/init/StaticPrefList.yaml:16477-16480` at
+    // `FIREFOX_157_0_RELEASE`.
+    assert_eq!(
+        crate::firefox::v157_http2().idle_timeout,
+        Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(170))
+    );
+    assert_eq!(
+        crate::chromium::v154_http2().idle_timeout,
+        Http2IdleTimeout::Unlimited
     );
 }
 

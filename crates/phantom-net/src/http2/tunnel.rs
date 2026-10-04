@@ -215,7 +215,11 @@ impl Http2ConnectStream {
     }
 
     fn poll_trailers(&mut self, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match ready!(self.receive.poll_trailers(context)) {
+        let trailers = ready!(self.receive.poll_trailers(context));
+        if trailers.is_ok() {
+            self.lease.record_read();
+        }
+        match trailers {
             Ok(Some(_)) => {
                 self.receive_complete = true;
                 self.release_guard_if_complete();
@@ -277,6 +281,7 @@ impl AsyncRead for Http2ConnectStream {
 
             match ready!(self.receive.poll_data(context)) {
                 Some(Ok(data)) => {
+                    self.lease.record_read();
                     self.current = data;
                 }
                 Some(Err(error)) => {

@@ -1,8 +1,8 @@
 # Profile reference
 
 Lookup tables for profile components, built-in recipes, TCP and UDP socket
-options, HTTP/1.1 connections, request templates, required caller fields, and
-client hints. For how to
+options, HTTP/1.1 connections, idle HTTP/2 connections, request templates,
+required caller fields, and client hints. For how to
 use them, see [Browser profiles](../guides/profiles.md).
 
 > For builders and specialists looking up a recipe or template detail.
@@ -16,7 +16,7 @@ use them, see [Browser profiles](../guides/profiles.md).
 | `with_udp(settings)` | UDP socket options for every UDP socket that carries QUIC ([details](#udp-socket-options)) |
 | `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
 | `with_dns_cache(settings)` | How long the client reuses the addresses it resolves ([details](#address-cache)) |
-| `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, HPACK encoder choices, stream numbering, and the stream limit assumed before the peer's SETTINGS |
+| `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, HPACK encoder choices, stream numbering, the stream limit assumed before the peer's SETTINGS, PINGs, and when an idle connection closes ([details](#idle-http2-connections)) |
 | `with_http3(Http3ClientSettings)` | H3 TLS ClientHello, QUIC transport parameters, HTTP/3 settings, and request settings |
 | `with_client_hints(settings)` | Ordered client-hint fields and when to send them |
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
@@ -350,6 +350,37 @@ for each origin and route.
 
 Each recipe's rustdoc cites the source lines. Evidence:
 [HTTP/1.1 connection bound evidence](../explanation/validation.md#http11-connection-bound-evidence).
+
+## Idle HTTP/2 connections
+
+`Http2Settings::idle_timeout` sets how long an HTTP/2 connection may go
+without response data before it stops taking new requests and closes.
+
+| Recipe | `idle_timeout` | Source |
+| --- | --- | --- |
+| None (no `with_http2`), `chromium::v154_http2` and the recipes built on it | `Http2IdleTimeout::Unlimited`: reused until the server closes it or sends a [`GOAWAY`](glossary.md#goaway) | No limit found in Chromium source |
+| `firefox::v157_http2` | `Http2IdleTimeout::ClosedOnTimer` with 170 seconds | Firefox's `network.http.http2.timeout` |
+
+- Only response data (a response head, DATA, or trailers) restarts the
+  clock. PINGs and other control frames do not, so the idle PING does not
+  keep a connection open.
+- Past the limit, the connection takes no new request or WebSocket; the
+  next one opens a new connection. The old connection closes with
+  `GOAWAY(NO_ERROR)` once no request or WebSocket is open on it.
+- Phantom checks on a timer, so an idle connection closes within about a
+  second after the limit even if no request comes. This applies to
+  `HttpProtocol::Http2` and `get_negotiated` requests on every
+  [route](glossary.md#route). A connection to an HTTPS proxy is the
+  exception: it closes only when the next tunnel replaces it.
+- A profile with an HTTP/2 limit runs this timer even without an HTTP/1.1
+  limit. Each time it fires, it also drops idle HTTP/1.1 connections the
+  server already closed, and forgets the remembered address family of an
+  origin with no connections, as Firefox's prune does.
+- `Http2Settings::validate` accepts 1 to 65,535 seconds, the range Firefox
+  allows.
+
+Evidence:
+[HTTP/2 idle close evidence](../explanation/validation.md#http2-idle-close-evidence).
 
 ## Address cache
 

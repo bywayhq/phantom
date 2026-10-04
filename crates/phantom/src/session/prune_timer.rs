@@ -1,6 +1,7 @@
 //! The timer that closes a client's expired idle HTTP/1.1 connections and
-//! ends what its pool entries remember of an origin with no connection, as
-//! Firefox's connection manager prunes its connections on one timer.
+//! HTTP/2 connections, and ends what its pool entries remember of an origin
+//! with no connection, as Firefox's connection manager prunes its
+//! connections on one timer.
 
 use std::{
     sync::{Arc, Mutex, MutexGuard, PoisonError, Weak},
@@ -13,7 +14,8 @@ use tracing::debug;
 
 /// What a prune of one pool key found.
 pub(super) struct Pruned {
-    /// The time the key's soonest expiring idle connection has left.
+    /// The time the key's soonest expiring idle H1 connection or H2
+    /// connection has left.
     pub(super) next: Option<Duration>,
     /// Whether the key has no connection, setup, or slower attempt left.
     pub(super) empty: bool,
@@ -21,18 +23,20 @@ pub(super) struct Pruned {
 
 /// The connections of one pool key, as the prune timer sees them.
 pub(super) trait PrunedEntry: Send + Sync {
-    /// Closes the key's idle H1 connections that have been idle `limit` or
-    /// longer as of `now`, and those the server closed.
-    fn prune(&self, now: Instant, limit: Duration) -> Pruned;
+    /// Closes the key's idle H1 connections that have been idle
+    /// `http1_limit` or longer as of `now`, its H2 connections past their
+    /// own idle limit, and those the server closed.
+    fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned;
 
     /// The address family memory the key shares with the other runtimes'
-    /// keys of its origin.
-    fn address_family(&self) -> &Arc<AddressFamilyMemory>;
+    /// keys of its origin, for a key that remembers one.
+    fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>>;
 }
 
-/// One timer per client for the idle limit of
-/// [`Http1IdleTimeout::ClosedOnTimer`](phantom_profile::Http1IdleTimeout::ClosedOnTimer),
-/// shared by the exact H1 pool and the negotiated pool.
+/// One timer per client for the idle limits of
+/// [`Http1IdleTimeout::ClosedOnTimer`](phantom_profile::Http1IdleTimeout::ClosedOnTimer)
+/// and [`Http2IdleTimeout::ClosedOnTimer`](phantom_profile::Http2IdleTimeout::ClosedOnTimer),
+/// shared by the exact H1 and H2 pools and the negotiated pool.
 ///
 /// Line numbers are for Firefox tag `FIREFOX_157_0_RELEASE`:
 ///
@@ -48,6 +52,13 @@ pub(super) trait PrunedEntry: Send + Sync {
 ///   again for the soonest expiry left, if any
 ///   (`nsHttpConnectionMgr.cpp:2572-2625`;
 ///   `netwerk/protocol/http/ConnectionEntry.cpp:470-503`).
+/// - An H2 connection holds its own limit
+///   ([`Http2Connection::idle_time_left`](phantom_net::http2::Http2Connection::idle_time_left)).
+///   One that joins a pool sets the timer for the time it has left, as an
+///   idle H1 connection does (`nsHttpConnectionMgr::ReportSpdyConnection`,
+///   `nsHttpConnectionMgr.cpp:1026-1031`), and
+///   when the timer fires, a pool key gives up each H2 connection past its
+///   limit, which closes once no stream is open (`ConnectionEntry.cpp:486-500`).
 ///
 /// Firefox also stops its timer when its last idle connection closes while
 /// no connection is active (`nsHttpConnectionMgr.cpp:273-289`,
@@ -60,7 +71,7 @@ pub(super) trait PrunedEntry: Send + Sync {
 /// runtime that set it is dropped, and prunes the keys of every runtime,
 /// including the idle connections of a runtime that is gone.
 pub(crate) struct PruneTimer {
-    limit: Duration,
+    http1_limit: Option<Duration>,
     scheduled: bool,
     state: Mutex<TimerState>,
 }
@@ -73,29 +84,39 @@ struct TimerState {
 }
 
 impl PruneTimer {
-    /// A timer that closes idle connections once they have been idle
-    /// `limit`.
-    pub(crate) fn new(limit: Duration) -> Arc<Self> {
+    /// A timer that closes idle H1 connections once they have been idle
+    /// `http1_limit`, if set, and H2 connections past their own limit.
+    pub(crate) fn new(http1_limit: Option<Duration>) -> Arc<Self> {
         Arc::new(Self {
-            limit,
+            http1_limit,
             scheduled: true,
             state: Mutex::default(),
         })
     }
 
-    /// A timer that records when it would fire but fires only when a test
-    /// calls [`Self::fire`].
+    /// A timer with H1 limit `http1_limit` that records when it would fire
+    /// but fires only when a test calls [`Self::fire`].
     #[cfg(test)]
-    pub(super) fn unscheduled(limit: Duration) -> Arc<Self> {
+    pub(super) fn unscheduled(http1_limit: Duration) -> Arc<Self> {
         Arc::new(Self {
-            limit,
+            http1_limit: Some(http1_limit),
             scheduled: false,
             state: Mutex::default(),
         })
     }
 
-    pub(super) const fn limit(&self) -> Duration {
-        self.limit
+    /// The limit of idle H1 connections, if the timer closes them.
+    #[cfg(test)]
+    pub(super) const fn http1_limit(&self) -> Option<Duration> {
+        self.http1_limit
+    }
+
+    /// Reports an H1 connection that became idle, when the timer closes
+    /// idle H1 connections.
+    pub(super) fn http1_idle_added(self: &Arc<Self>) {
+        if let Some(limit) = self.http1_limit {
+            self.idle_added(limit);
+        }
     }
 
     fn lock(&self) -> MutexGuard<'_, TimerState> {
@@ -109,7 +130,8 @@ impl PruneTimer {
         state.entries.push(entry);
     }
 
-    /// Reports a connection that became idle with `left` until it expires.
+    /// Reports a connection that became idle, or an H2 connection that
+    /// joined a pool, with `left` until it expires.
     pub(super) fn idle_added(self: &Arc<Self>, left: Duration) {
         let now = Instant::now();
         // A limit beyond the clock's range never expires on the timer.
@@ -117,11 +139,10 @@ impl PruneTimer {
             return;
         };
         let mut state = self.lock();
-        // A wake-up already due has fired or is firing.
-        if state
-            .wake_at
-            .is_some_and(|wake_at| wake_at > now && wake_at <= at)
-        {
+        // A wake-up set for `at` or sooner, even one already due whose prune
+        // has not yet run, prunes this connection or sets the timer again
+        // for it.
+        if state.wake_at.is_some_and(|wake_at| wake_at <= at) {
             return;
         }
         self.arm(&mut state, at);
@@ -168,12 +189,14 @@ impl PruneTimer {
         // Each memory, and whether every live key that shares it is empty.
         let mut families: Vec<(Arc<AddressFamilyMemory>, bool)> = Vec::new();
         for entry in entries.iter().filter_map(Weak::upgrade) {
-            let pruned = entry.prune(now, self.limit);
+            let pruned = entry.prune(now, self.http1_limit);
             next = match (next, pruned.next) {
                 (Some(soonest), Some(left)) => Some(soonest.min(left)),
                 (soonest, left) => soonest.or(left),
             };
-            let family = entry.address_family();
+            let Some(family) = entry.address_family() else {
+                continue;
+            };
             match families
                 .iter_mut()
                 .find(|(memory, _)| Arc::ptr_eq(memory, family))
@@ -262,7 +285,7 @@ mod tests {
     }
 
     impl PrunedEntry for Entry {
-        fn prune(&self, now: Instant, _limit: Duration) -> Pruned {
+        fn prune(&self, now: Instant, _http1_limit: Option<Duration>) -> Pruned {
             if let Ok(mut pruned) = self.pruned.lock() {
                 pruned.push(now);
             }
@@ -272,8 +295,8 @@ mod tests {
             }
         }
 
-        fn address_family(&self) -> &Arc<AddressFamilyMemory> {
-            &self.family
+        fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {
+            Some(&self.family)
         }
     }
 
@@ -337,6 +360,26 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_connection_idle_while_a_prune_is_due_keeps_the_due_wake_up() {
+        let timer = PruneTimer::unscheduled(Duration::from_secs(115));
+        let entry = Entry::new(Some(Duration::from_secs(115)));
+        register(&timer, &entry);
+        let start = Instant::now();
+        timer.idle_added(Duration::from_secs(115));
+
+        tokio::time::advance(Duration::from_secs(116)).await;
+        timer.idle_added(Duration::from_secs(115));
+        assert_eq!(timer.wake_at(), Some(start + Duration::from_secs(115)));
+
+        timer.fire();
+        assert_eq!(entry.prunes(), 1);
+        assert_eq!(
+            timer.wake_at(),
+            Some(start + Duration::from_secs(116 + 115))
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn firing_prunes_every_entry_and_waits_for_the_soonest_expiry_left() {
         let timer = PruneTimer::unscheduled(Duration::from_secs(115));
         let soon = Entry::new(Some(Duration::from_millis(2_500)));
@@ -393,7 +436,7 @@ mod tests {
 
     #[test]
     fn a_timer_set_outside_any_runtime_fires_on_the_deadline_service() {
-        let timer = PruneTimer::new(Duration::from_secs(1));
+        let timer = PruneTimer::new(Some(Duration::from_secs(1)));
         let entry = Entry::new(None);
         register(&timer, &entry);
 
@@ -405,7 +448,7 @@ mod tests {
 
     #[test]
     fn the_timer_fires_after_the_runtime_that_set_it_is_dropped() -> std::io::Result<()> {
-        let timer = PruneTimer::new(Duration::from_secs(1));
+        let timer = PruneTimer::new(Some(Duration::from_secs(1)));
         let entry = Entry::new(None);
         register(&timer, &entry);
         let first = tokio::runtime::Builder::new_current_thread()

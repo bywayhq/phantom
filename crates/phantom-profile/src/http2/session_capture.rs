@@ -8,8 +8,8 @@
 use std::collections::BTreeMap;
 
 use crate::http2::{
-    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    Http2StaticNameIndex, Http2StreamSettings,
+    Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StaticNameIndex, Http2StreamSettings,
 };
 
 type CaptureResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -210,6 +210,8 @@ impl<'a> SessionCapture<'a> {
             ping_failure_retries: 0,
             idle_ping_after: None,
             idle_ping_timeout: None,
+            // Nor is it idle for long enough to close.
+            idle_timeout: Http2IdleTimeout::Unlimited,
         })
     }
 }

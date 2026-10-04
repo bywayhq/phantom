@@ -16,7 +16,7 @@ use crate::{
     http1::{Http1IdleTimeout, Http1Settings},
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
+        Http2IdleTimeout, Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
@@ -623,6 +623,7 @@ pub fn v154_http2() -> Http2Settings {
         ping_failure_retries: 2,
         idle_ping_after: None,
         idle_ping_timeout: None,
+        idle_timeout: Http2IdleTimeout::Unlimited,
     }
 }
 

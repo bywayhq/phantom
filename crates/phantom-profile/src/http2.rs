@@ -11,6 +11,10 @@ const MAX_STREAM_ID: u32 = (1 << 31) - 1;
 const INITIAL_CONNECTION_WINDOW_SIZE: u32 = 65_535;
 const MIN_FRAME_SIZE: u32 = 1 << 14;
 const MAX_FRAME_SIZE: u32 = (1 << 24) - 1;
+/// The shortest and longest idle limits [`Http2IdleTimeout::ClosedOnTimer`]
+/// accepts, in seconds; see [`Http2Settings::validate`].
+const MIN_HTTP2_TIMER_IDLE_SECONDS: u64 = 1;
+const MAX_HTTP2_TIMER_IDLE_SECONDS: u64 = 0xffff;
 
 /// One value in the initial HTTP/2 SETTINGS frame.
 ///
@@ -450,6 +454,45 @@ pub struct Http2Settings {
     /// `None` keeps a connection whose idle PING is never answered. A value
     /// requires [`Self::idle_ping_after`].
     pub idle_ping_timeout: Option<Duration>,
+    /// When a connection that has read no response HEADERS or DATA for a
+    /// while stops carrying new streams and closes.
+    pub idle_timeout: Http2IdleTimeout,
+}
+
+/// When an HTTP/2 connection stops carrying new streams because it has read
+/// no response HEADERS or DATA for a while.
+///
+/// The idle time counts from the connection's start or from the last time
+/// the client handed the caller a response head, a DATA frame, or trailers,
+/// on any stream, whichever is later. PING, SETTINGS, and WINDOW_UPDATE
+/// frames do not reset it, nor does anything the client sends. An idle PING
+/// ([`Http2Settings::idle_ping_after`]) and its ACK therefore leave it
+/// running.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2IdleTimeout {
+    /// Reuse a connection until the server closes it or sends `GOAWAY`.
+    #[default]
+    Unlimited,
+    /// Stop reusing a connection once it has been idle this long, and close
+    /// it with `GOAWAY(NO_ERROR)` once no stream is open.
+    ///
+    /// The `phantom` client checks on a timer, so an idle connection closes
+    /// within about a second after the limit even if no request comes. A
+    /// connection to an HTTPS proxy closes only when a new tunnel replaces
+    /// it. [`Http2Settings::validate`] accepts 1 to 65,535 seconds.
+    ClosedOnTimer(Duration),
+}
+
+impl Http2IdleTimeout {
+    /// Returns the limit a timer enforces, if any.
+    #[must_use]
+    pub const fn closed_on_timer(self) -> Option<Duration> {
+        match self {
+            Self::Unlimited => None,
+            Self::ClosedOnTimer(limit) => Some(limit),
+        }
+    }
 }
 
 impl Http2Settings {
@@ -479,6 +522,7 @@ impl Http2Settings {
             self.ping_failure_retries,
         )?;
         validate_idle_ping(self.idle_ping_after, self.idle_ping_timeout)?;
+        validate_idle_timeout(self.idle_timeout)?;
 
         if let Some(priority) = self.headers_priority {
             validate_priority(
@@ -561,6 +605,27 @@ fn validate_idle_ping(
         ));
     }
     Ok(())
+}
+
+/// Firefox clamps `network.http.http2.timeout` to 1..=65,535 seconds
+/// (`netwerk/protocol/http/nsHttpHandler.cpp:1617-1620` at tag
+/// `FIREFOX_157_0_RELEASE`). A shorter limit could end a new connection's
+/// reuse before its first stream.
+fn validate_idle_timeout(idle_timeout: Http2IdleTimeout) -> Result<(), InvalidHttp2Settings> {
+    let Http2IdleTimeout::ClosedOnTimer(limit) = idle_timeout else {
+        return Ok(());
+    };
+    if (Duration::from_secs(MIN_HTTP2_TIMER_IDLE_SECONDS)
+        ..=Duration::from_secs(MAX_HTTP2_TIMER_IDLE_SECONDS))
+        .contains(&limit)
+    {
+        Ok(())
+    } else {
+        Err(InvalidHttp2Settings::new(
+            "idle_timeout",
+            "a timer's idle limit must be in 1..=65535 seconds",
+        ))
+    }
 }
 
 fn validate_ping_failure_retries(

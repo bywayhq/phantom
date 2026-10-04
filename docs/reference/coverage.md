@@ -365,6 +365,13 @@ Supported:
   `GOAWAY(INTERNAL_ERROR)`. Its requests are sent again only as the
   profile's `ping_failure_retries` allow, never with Firefox's
   ([HTTP/2 idle PING evidence](../explanation/validation.md#http2-idle-ping-evidence)).
+- An idle limit: when the profile sets one (170 seconds for Firefox, none
+  for Chromium), a connection with no response data for that long takes no
+  new stream and closes with `GOAWAY(NO_ERROR)` within about a second, or
+  when its last stream ends. Idle PINGs do not delay it. A connection to an
+  HTTPS proxy closes only when the next tunnel replaces it. It rests on
+  Firefox source; no capture shows a close on the idle timer
+  ([HTTP/2 idle close evidence](../explanation/validation.md#http2-idle-close-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.

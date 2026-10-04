@@ -55,6 +55,7 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source, a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom, and one of Chrome 154.0.8037.97 closing a connection whose PING went unanswered | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
 | [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
 | [HTTP/2 idle PING](#http2-idle-ping-evidence) | Firefox source and a retained Firefox 157 capture of an idle pooled connection, replayed against Phantom | One Windows run; no capture shows an unanswered PING |
+| [HTTP/2 idle close](#http2-idle-close-evidence) | Firefox source, the Firefox 157 exit capture of the same `GOAWAY`, plus loopback tests of Phantom | No capture shows a close on the idle timer |
 | [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures, compared with the default-mode `fetch` templates, and browser source | One run per scenario; HTTP/1.1 and HTTP/3 validator positions rest on source; uploads recorded for future work |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; at most eight alternatives per origin; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests; Chrome 154 and Firefox 157 captures and Chromium source for `Alt-Used` | Firefox's `Alt-Used` position and first-request omission not modeled; no browser capture on a proxy route |
@@ -3963,8 +3964,118 @@ Limits:
   `Http2Error::ReusedConnectionClosed`, which reused-connection replay
   covers, where Firefox's `Http2Session::AddStream` restarts it on a new
   connection (`Http2Session.cpp:577-594`).
-- Firefox's PING on a network change and its close of a connection idle for
-  170 seconds (`network.http.http2.timeout`) are not modeled.
+- Firefox's PING on a network change is not modeled. Its close of a
+  connection idle for 170 seconds is; see
+  [HTTP/2 idle close evidence](#http2-idle-close-evidence).
+
+### HTTP/2 idle close evidence
+
+What is claimed: `firefox::v157_http2` sets
+`Http2IdleTimeout::ClosedOnTimer` with 170 seconds. An HTTP/2 connection
+that has handed the caller no response head, DATA frame, or trailers for
+that long takes no new stream, and the client's prune timer closes it with
+`GOAWAY` carrying last stream ID 0, `NO_ERROR`, and no debug data, within a
+second after the limit. A connection with a stream open, a WebSocket
+included, closes the same way when its last stream ends. Idle PINGs and
+their ACKs do not delay the close. The Chromium recipes set no limit.
+
+Evidence: Firefox source at tag `FIREFOX_157_0_RELEASE`, and one capture
+of the frame. The Firefox 157 `close` capture in
+[TLS close evidence](#tls-close-evidence) shows the idle HTTP/2 connection
+ending at browser exit with `GOAWAY` (`NO_ERROR`, last stream 0), which the
+same `Http2Session::Close` writes (`Http2Session.cpp:3570-3615`). No capture
+shows a close on the idle timer.
+
+- The limit is `network.http.http2.timeout`, 170 seconds
+  (`modules/libpref/init/StaticPrefList.yaml:16477-16480`), clamped to
+  1..=65,535 seconds (`netwerk/protocol/http/nsHttpHandler.cpp:1617-1620`).
+  `nsHttpConnection::StartSpdy` makes it the connection's idle timeout
+  (`netwerk/protocol/http/nsHttpConnection.cpp:414`), multiplied by
+  `network.http.largeKeepaliveFactor` only for a DNS-over-HTTPS channel
+  (`:561-563`; `nsHttpChannel.cpp:1219-1221`).
+- The idle time of an HTTP/2 connection is its session's
+  (`nsHttpConnection.cpp:1002-1005`): the time since `mLastDataReadEpoch`,
+  which the session sets when it starts, on each HEADERS or CONTINUATION
+  frame of a known stream, and on each DATA frame
+  (`netwerk/protocol/http/Http2Session.cpp:239`, `:432-434`, `:1629`,
+  `:2820`, `:3203`). PING, SETTINGS, and WINDOW_UPDATE frames update only
+  `mLastReadEpoch`, the clock of the idle PING (`:743`), and nothing the
+  client sends updates either.
+- `nsHttpConnection::CanReuseLikely` refuses reuse once the idle time
+  reaches the timeout (`nsHttpConnection.cpp:965-983`), so
+  `ConnectionEntry::GetH2orH3ActiveConn` does not choose the connection for
+  a new transaction (`netwerk/protocol/http/ConnectionEntry.cpp:695-714`).
+- The connection manager's prune timer is set for a new HTTP/2
+  connection's time to live, in whole seconds rounded down but at least one
+  (`nsHttpConnectionMgr::ReportSpdyConnection`,
+  `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1026-1031`;
+  `nsHttpConnection::TimeToLive`, `nsHttpConnection.cpp:1009-1025`), and
+  again after each prune for the soonest time to live left
+  (`nsHttpConnectionMgr.cpp:2572-2625`). A prune that finds an HTTP/2
+  connection it may not reuse marks it don't-reuse
+  (`ConnectionEntry.cpp:486-500`). A fire that comes before the limit finds
+  the connection still reusable and sets the timer again for one second, so
+  the close lands within a second after the limit.
+- `Http2Session::DontReuse` closes an idle session at once with `NS_OK`,
+  and otherwise only stops new streams; the session closes when its last
+  stream, a WebSocket or tunnel stream included, ends
+  (`Http2Session.cpp:812-826`, `:1424-1426`, `:3346-3348`, `:4116-4118`).
+- `Http2Session::Close` with `NS_OK` sends `GOAWAY` with `NO_ERROR`
+  (`:3570-3615`). `GenerateGoAway` writes an 8-byte payload: the last stream
+  ID from `mOutgoingGoAwayID`, which nothing sets after its initial 0, then
+  the error code, with no debug data (`:200`, `:1033-1052`).
+
+With the idle PING of the same recipe, a connection left idle after a
+response therefore carries a PING about 58 seconds and another about 116
+seconds after that response, then the `GOAWAY` 170 to 171 seconds after it.
+
+`crates/phantom-net/src/http2/tests/idle_close.rs` scales the limit to 1
+second against a loopback peer: a response head or a DATA frame restarts
+the idle time, idle PING ACKs do not, a connection past the limit is no
+longer reusable, and dropping it sends `GOAWAY` with payload
+`0000000000000000` and ends the byte stream. DATA read from a WebSocket
+extended CONNECT stream restarts the idle time too, and while that stream
+is open, a connection past the limit whose last handle is dropped sends no
+`GOAWAY` until the stream ends. A limit under a second is refused.
+`proxy::http2_pool::tests` in `phantom-net` checks, with a 1-second limit,
+that an HTTPS proxy connection carries a second tunnel within the limit and
+that a tunnel past it opens a new connection.
+`crates/phantom/tests/sessions/session_http2_idle.rs` runs the client
+against a loopback TLS origin with the same scaled limit. With no request,
+the origin reads that `GOAWAY` on an exact and on a negotiated HTTP/2
+connection at least 1 second and less than 4 seconds after the request, and
+the next request opens a second connection. A connection whose response
+body stays open past the limit sends the next request on a new connection
+and its `GOAWAY` only after the body ends. Under `chromium::v154_http2`, a
+connection idle 3 seconds carries the next request. The prune timer's
+arithmetic is checked in `session::http2_pool::tests` and
+`session::prune_timer::tests` with Tokio's paused clock.
+
+How to reproduce:
+
+```sh
+cargo test -p phantom-net --lib http2::tests::idle_close
+cargo test -p phantom-net --lib proxy::http2_pool::tests::a_connection_past_its_idle_limit
+cargo test -p phantom-http --test sessions session_http2_idle
+cargo test -p phantom-http --lib prune_timer
+cargo test -p phantom-profile --lib -- idle_timer closes_idle_connections
+```
+
+Limits:
+
+- No capture shows a close on the idle timer; the 170 seconds and the
+  timer rest on source.
+- The backend buffers a DATA frame until the caller reads it, so a body
+  read late restarts the idle time when it is read, or never, if the body
+  is dropped unread, where Firefox restarts it when the frame arrives. An
+  informational (1xx) response head does not restart it; Firefox's HEADERS
+  frame does.
+- A request that finds the connection past its limit closes it at once,
+  where Firefox leaves it to the next prune, at most a second later.
+- An HTTP/2 connection to an HTTPS proxy stops taking new tunnels past the
+  limit, but closes only when the next tunnel to that proxy replaces it,
+  not on the timer. The proxy pool lives in `phantom-net`, outside the
+  client's timer.
 
 ### TLS close evidence
 

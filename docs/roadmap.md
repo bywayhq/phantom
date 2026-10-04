@@ -123,6 +123,11 @@ Counts in the later phases come from a read-only review of `main` at
   idle 115 s on one timer per client, as Firefox 157 closed one 115.5 s
   after its last response in the hook logs
   ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
+- Firefox's HTTP/2 idle limit: `firefox::v157_http2` stops reusing a
+  connection with no response data for 170 s and closes it with `GOAWAY`
+  about a second later, or when its last stream ends, as Firefox 157
+  source does
+  ([HTTP/2 idle close evidence](explanation/validation.md#http2-idle-close-evidence)).
 - Firefox's address selection in `firefox::v157_tcp`: an IPv4 backup
   attempt 250 ms after a slow first attempt; the slower connection kept
   idle by the HTTP/1.1 and negotiated pools on the direct route, counted
@@ -367,21 +372,13 @@ anything does.
   reach this; it waits on the DNS over HTTPS entry below. With early data,
   Phantom's retry after an ECH rejection would also have to move from the
   handshake to the request.
-- Firefox's close of an idle HTTP/2 connection. Evidence: Firefox 157
-  stops reusing an HTTP/2 connection whose last HEADERS or DATA read is
-  `network.http.http2.timeout`, 170 seconds, old
-  (`netwerk/protocol/http/nsHttpConnection.cpp:414`, `:982`, `:1002-1017` at
-  `FIREFOX_157_0_RELEASE`); `firefox::v157_http2` keeps it, answering its
-  idle PING
-  ([HTTP/2 idle PING evidence](explanation/validation.md#http2-idle-ping-evidence)).
-  Firefox source also shows the close: the connection manager's prune,
-  timed to the connection's remaining time, marks the session not
-  reusable, and an idle session then closes with `GOAWAY(NO_ERROR)`
-  (`netwerk/protocol/http/ConnectionEntry.cpp:486-500`,
-  `Http2Session.cpp:812-826`, `:3598-3611`), the frame Firefox 157 sent at
-  browser exit ([TLS close evidence](explanation/validation.md#tls-close-evidence)).
-  Blocker: none recorded; the work is a close timer in the HTTP/2 recipe,
-  which no capture of an idle close checks.
+- Firefox's idle HTTP/2 close on HTTPS proxy connections. Evidence:
+  `firefox::v157_http2` closes an idle HTTP/2 connection on the client's
+  timer, but an HTTP/2 connection to an HTTPS proxy past the limit closes
+  only when the next tunnel to that proxy replaces it
+  ([HTTP/2 idle close evidence](explanation/validation.md#http2-idle-close-evidence)).
+  Blocker: none recorded; the proxy pool lives in `phantom-net`, outside
+  the client's timer.
 - Validator slots in the Edge, Brave, Opera, and Android templates.
   Evidence: Chrome 154 and Firefox 157 place `If-None-Match` and
   `If-Modified-Since` as their default-mode `fetch` templates do
@@ -634,9 +631,10 @@ not carry its renames. Until then, depend on a pinned git revision
   Alt-Svc setup holds a `Client` clone, so dropping the client does not
   release its pools until the setup ends; `Client` has no shutdown method;
   idle connections close only on checkout or eviction, unless the profile
-  sets `Http1IdleTimeout::ClosedOnTimer`, as the Firefox recipes do, whose
-  client-wide timer closes idle HTTP/1.1 connections at their limit on
-  every runtime; pool entries opened on a runtime that was dropped keep
+  sets `Http1IdleTimeout::ClosedOnTimer` or
+  `Http2IdleTimeout::ClosedOnTimer`, as the Firefox recipes do, whose
+  client-wide timer closes idle HTTP/1.1 and HTTP/2 connections at their
+  limit on every runtime; pool entries opened on a runtime that was dropped keep
   their sockets until the pool evicts them, because nothing tells a pool
   that a runtime ended, though that timer removes their idle HTTP/1.1
   connections; evicting a pool

@@ -9,10 +9,11 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
     task::Poll,
+    time::Duration,
 };
 
-use phantom_profile::chromium::v154_http2;
-use tokio::{io::DuplexStream, sync::oneshot};
+use phantom_profile::{Http2IdleTimeout, chromium::v154_http2};
+use tokio::{io::DuplexStream, sync::oneshot, time::Instant};
 
 use super::{ConnectionSettingsId, Http2ProxyPool, PooledConnection, RouteKey};
 use crate::{
@@ -175,5 +176,47 @@ fn a_tunnel_on_another_runtime_opens_its_own_connection() -> TestResult {
     assert!(same_connection(&first, &again));
     assert!(!same_connection(&first, &other));
     assert_eq!(opens.load(Ordering::Acquire), 2);
+    Ok(())
+}
+
+/// A connection past its idle limit takes no new tunnel: the next tunnel
+/// opens a new connection.
+#[tokio::test]
+async fn a_connection_past_its_idle_limit_takes_no_new_tunnel() -> TestResult {
+    const IDLE: Duration = Duration::from_secs(1);
+    let pool = Http2ProxyPool::new();
+    let settings = ConnectionSettingsId::default();
+    let peers = std::sync::Mutex::new(Vec::new());
+    let opens = AtomicUsize::new(0);
+    let open = || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        let (client, server) = tokio::io::duplex(64 * 1024);
+        if let Ok(mut peers) = peers.lock() {
+            peers.push(server);
+        }
+        let mut http2 = v154_http2();
+        // No PING timer may close the connection while the test waits.
+        http2.preface_ping_after = None;
+        http2.ping_timeout = None;
+        http2.ping_failure_retries = 0;
+        http2.idle_timeout = Http2IdleTimeout::ClosedOnTimer(IDLE);
+        Http2Connection::connect(client, &http2)
+            .await
+            .map_err(|error| HttpConnectError::Write(io::Error::other(error)))
+    };
+
+    let start = Instant::now();
+    let first = pool.acquire(key(&settings), open).await?;
+    let opened = Instant::now();
+    let within = pool.acquire(key(&settings), open).await?;
+    // A slow machine may take the whole limit before the second tunnel.
+    if start.elapsed() < IDLE {
+        assert!(same_connection(&first, &within));
+    }
+
+    tokio::time::sleep_until(opened + IDLE + Duration::from_millis(100)).await;
+    let past = pool.acquire(key(&settings), open).await?;
+    assert!(!same_connection(&first, &past));
+    assert!(!past.reused);
     Ok(())
 }

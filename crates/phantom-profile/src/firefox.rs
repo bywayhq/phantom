@@ -11,7 +11,7 @@ use crate::{
     http1::{Http1IdleTimeout, Http1Settings},
     http2::{
         Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
+        Http2IdleTimeout, Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
@@ -466,6 +466,24 @@ pub fn v157_http1() -> Http1Settings {
 /// failed (`nsHttpTransaction.cpp:1546-1553`), so none is sent again. A PING
 /// Firefox sends on a network change (`Http2Session.cpp:4190-4212`) is not
 /// modeled.
+///
+/// A connection that has read no response HEADERS or DATA for 170 seconds
+/// takes no new stream, and the connection manager's prune timer closes it
+/// with `GOAWAY(0, NO_ERROR)` within a second, or when its last stream ends
+/// ([`Http2IdleTimeout::ClosedOnTimer`]). The limit is
+/// `network.http.http2.timeout` (`StaticPrefList.yaml:16477-16480`), which
+/// `nsHttpConnection::StartSpdy` applies
+/// (`netwerk/protocol/http/nsHttpConnection.cpp:414`, `:965-983`); the idle
+/// time counts from the session's start or its last HEADERS or DATA read,
+/// so PING ACKs do not extend it (`Http2Session.cpp:239`, `:432-434`,
+/// `:1629`, `:2820`, `:3203`). The prune marks such a connection
+/// don't-reuse (`netwerk/protocol/http/ConnectionEntry.cpp:486-500`), which
+/// closes an idle session with `NS_OK` and so `NO_ERROR`
+/// (`Http2Session.cpp:812-826`, `:1033-1052`, `:3570-3615`). After a
+/// response, the idle PING therefore goes out about 58 and 116 seconds
+/// later, and the `GOAWAY` 170 to 171 seconds later. No capture shows a
+/// close on the idle timer; Firefox 157 sent the same `GOAWAY` at browser
+/// exit.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
     Http2Settings {
@@ -521,6 +539,7 @@ pub fn v157_http2() -> Http2Settings {
         ping_failure_retries: 0,
         idle_ping_after: Some(Duration::from_secs(58)),
         idle_ping_timeout: Some(Duration::from_secs(8)),
+        idle_timeout: Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(170)),
     }
 }
 

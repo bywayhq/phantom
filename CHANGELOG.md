@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
+  literals that list every field no longer compile.
+  `Http2Connection::idle_time_left` is new, and `is_reusable` returns
+  `false` once that time runs out. Migrate: add
+  `idle_timeout: Http2IdleTimeout::Unlimited` to the literal; to keep the
+  old Firefox behavior, set `idle_timeout` to `Http2IdleTimeout::Unlimited`
+  on `firefox::v157_http2()`.
 - `Http3RequestSettings` gained the public field `alt_used`, of the new
   `#[non_exhaustive]` enum `Http3AltUsed`, so struct literals that name
   every field no longer compile. With `Append`, an HTTP/3 request sent to an
@@ -1639,6 +1646,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Firefox HTTP/2 recipe: `firefox::v157_http2` stops
+  reusing a connection with no response data for 170 seconds and closes it
+  with `GOAWAY(NO_ERROR)` about a second later, or when its last stream
+  ends, as Firefox 157 does. The next request opens a new connection.
+  Before, a Firefox profile kept such a connection until the server closed
+  it. A connection to an HTTPS proxy closes only when the next tunnel
+  replaces it. The Chromium recipes set no limit
+  ([evidence](docs/explanation/validation.md#http2-idle-close-evidence)).
 - Wire change for the Chromium HTTP/3 request recipe:
   `chromium::v154_http3_request`, which the Chrome, Edge, Brave, and Opera
   profiles use, as do `chrome_android::v154_http3_request`,

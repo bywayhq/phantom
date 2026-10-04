@@ -141,6 +141,9 @@ pub(crate) struct ClientInner {
     pub(crate) http1_used_idle_timeout: Option<Duration>,
     /// The idle limit the profile also enforces on a timer between requests.
     pub(crate) http1_idle_timer: Option<Duration>,
+    /// The limit after which the profile stops reusing an HTTP/2 connection
+    /// that reads nothing, also enforced on a timer between requests.
+    pub(crate) http2_idle_timer: Option<Duration>,
     /// Profile position of the jar's `Cookie` field.
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
@@ -2078,6 +2081,10 @@ impl ClientBuilder {
                 .profile
                 .http1()
                 .and_then(|http1| http1.idle_timeout.closed_on_timer()),
+            http2_idle_timer: self
+                .profile
+                .http2()
+                .and_then(|http2| http2.idle_timeout.closed_on_timer()),
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
@@ -2257,8 +2264,8 @@ mod tests {
     use std::time::Duration;
 
     use phantom_profile::{
-        ClientProfile, Http1IdleTimeout, Http3ClientSettings, TcpKeepalive, TcpKeepalivePolicy,
-        chromium, firefox,
+        ClientProfile, Http1IdleTimeout, Http2IdleTimeout, Http3ClientSettings, TcpKeepalive,
+        TcpKeepalivePolicy, chromium, firefox,
     };
 
     use super::{Client, HttpProtocol};
@@ -2495,6 +2502,22 @@ mod tests {
             .ok_or("an idle limit of Duration::MAX was accepted")?;
 
         assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        Ok(())
+    }
+
+    #[test]
+    fn an_http2_idle_limit_outside_firefox_range_is_an_invalid_profile() -> Result<(), &'static str>
+    {
+        for limit in [Duration::ZERO, Duration::MAX] {
+            let mut http2 = firefox::v157_http2();
+            http2.idle_timeout = Http2IdleTimeout::ClosedOnTimer(limit);
+            let profile = ClientProfile::new(firefox::v157_tls()).with_http2(http2);
+            let error = Client::builder(profile)
+                .build()
+                .err()
+                .ok_or("an HTTP/2 idle limit outside 1..=65535 seconds was accepted")?;
+            assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        }
         Ok(())
     }
 

@@ -69,7 +69,39 @@ fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn st
         .prune_timer()
         .ok_or("no negotiated timer")?;
     assert!(Arc::ptr_eq(exact, negotiated));
-    assert_eq!(exact.limit(), Duration::from_secs(115));
+    assert_eq!(exact.http1_limit(), Some(Duration::from_secs(115)));
+    Ok(())
+}
+
+#[test]
+fn an_http2_idle_limit_shares_the_prune_timer_of_every_pool()
+-> Result<(), Box<dyn std::error::Error>> {
+    let chromium_client = Client::builder(profile(chromium::v154_http3_tls())).build()?;
+    assert!(chromium_client.state.http2.prune_timer().is_none());
+
+    let firefox_http2 =
+        ClientProfile::new(chromium::v154_tls()).with_http2(phantom_profile::firefox::v157_http2());
+    let http2_only = Client::builder(firefox_http2.clone()).build()?;
+    let timer = http2_only
+        .state
+        .http2
+        .prune_timer()
+        .ok_or("no HTTP/2 timer")?;
+    // HTTP/1.1 connections keep no idle limit of their own.
+    assert_eq!(timer.http1_limit(), None);
+    let negotiated = http2_only
+        .state
+        .http1_or_2
+        .prune_timer()
+        .ok_or("no negotiated timer")?;
+    assert!(Arc::ptr_eq(timer, negotiated));
+
+    let firefox = Client::builder(firefox_http2.with_http1(phantom_profile::firefox::v157_http1()))
+        .build()?;
+    let exact = firefox.state.http2.prune_timer().ok_or("no HTTP/2 timer")?;
+    let http1 = firefox.state.http1.prune_timer().ok_or("no HTTP/1 timer")?;
+    assert!(Arc::ptr_eq(exact, http1));
+    assert_eq!(exact.http1_limit(), Some(Duration::from_secs(115)));
     Ok(())
 }
 

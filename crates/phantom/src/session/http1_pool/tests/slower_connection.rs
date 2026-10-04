@@ -165,7 +165,7 @@ async fn a_fresh_connection_request_skips_the_slower_connection() -> TestResult 
 fn timed(timer: &Arc<PruneTimer>) -> Result<Arc<EntryConnections>, Box<dyn std::error::Error>> {
     Ok(EntryConnections::new(
         bound(6)?,
-        Some(timer.limit()),
+        timer.http1_limit(),
         Some(Arc::clone(timer)),
         Arc::default(),
     ))
@@ -184,13 +184,13 @@ async fn the_prune_closes_a_connection_idle_for_the_limit() -> TestResult {
     assert_eq!(timer.wake_at(), Some(start + LIMIT));
 
     tokio::time::advance(LIMIT - Duration::from_millis(500)).await;
-    let pruned = connections.prune(Instant::now(), LIMIT);
+    let pruned = connections.prune(Instant::now(), Some(LIMIT));
     assert_eq!(pruned.next, Some(Duration::from_millis(500)));
     assert!(!pruned.empty);
     assert_eq!(connections.lock().idle.len(), 1);
 
     tokio::time::advance(Duration::from_millis(500)).await;
-    let pruned = connections.prune(Instant::now(), LIMIT);
+    let pruned = connections.prune(Instant::now(), Some(LIMIT));
     assert_eq!(pruned.next, None);
     assert!(pruned.empty);
     assert!(connections.lock().idle.is_empty());
@@ -254,7 +254,7 @@ fn a_slower_attempt_dropped_with_its_runtime_leaves_the_key() -> TestResult {
 
     assert!(connections.lock().spares.is_empty());
     assert_eq!(connections.open(), 0);
-    assert!(connections.prune(Instant::now(), LIMIT).empty);
+    assert!(connections.prune(Instant::now(), Some(LIMIT)).empty);
     timer.fire();
     assert_eq!(connections.family.family(), None);
     Ok(())
@@ -327,7 +327,7 @@ fn a_slower_connection_stays_with_its_runtime_and_the_origin_state_is_shared() -
 #[test]
 fn an_idle_connection_closes_after_the_runtime_that_set_the_timer_is_gone() -> TestResult {
     let limit = Duration::from_secs(1);
-    let timer = PruneTimer::new(limit);
+    let timer = PruneTimer::new(Some(limit));
     let pool = Http1Pool::new(bound(4)?, bound(6)?, std::num::NonZeroUsize::MIN)
         .with_used_idle_timeout(Some(limit))
         .with_prune_timer(Some(Arc::clone(&timer)));

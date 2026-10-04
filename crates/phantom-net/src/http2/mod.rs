@@ -836,6 +836,16 @@ fn translate_settings_with_pseudo_order(
     } else if settings.idle_ping_timeout.is_some() {
         return Err(Http2Error::UnsupportedSetting);
     }
+    // Validation rejects this, but a caller may translate settings it has
+    // not validated; a connection would stop being reusable before its first
+    // stream.
+    if settings
+        .idle_timeout
+        .closed_on_timer()
+        .is_some_and(|limit| limit < std::time::Duration::from_secs(1))
+    {
+        return Err(Http2Error::UnsupportedSetting);
+    }
     let mut order = SettingsOrder::builder();
 
     for setting in &settings.initial_settings {
@@ -885,11 +895,13 @@ fn translate_settings_with_pseudo_order(
     Ok(Http2Builder {
         client: Box::new(client),
         first_stream_id,
+        idle_timeout: settings.idle_timeout.closed_on_timer(),
     })
 }
 
 /// A backend client builder translated from profile settings, with the
-/// profile's first stream ID, which the backend builder does not report.
+/// profile's first stream ID and idle limit, which the backend builder does
+/// not hold.
 ///
 /// The builder is boxed because connection setup futures hold it across
 /// awaits, and debug builds of the deepest setup paths are close to the test
@@ -897,6 +909,8 @@ fn translate_settings_with_pseudo_order(
 pub(crate) struct Http2Builder {
     pub(crate) client: Box<client::Builder>,
     pub(crate) first_stream_id: u32,
+    /// [`Http2Settings::idle_timeout`]'s limit.
+    pub(crate) idle_timeout: Option<std::time::Duration>,
 }
 
 mod body;

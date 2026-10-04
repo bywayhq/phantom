@@ -124,6 +124,7 @@ mod expect_continue;
 mod extended_connect;
 mod hpack_replay;
 mod hpack_transitions;
+mod idle_close;
 mod idle_ping;
 mod ping_peer;
 mod preface_ping;

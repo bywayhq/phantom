@@ -3,8 +3,8 @@ use std::future::poll_fn;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::{
-    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    Http2StreamSettings, chromium::v154_http2,
+    Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StreamSettings, chromium::v154_http2,
 };
 use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,
@@ -185,6 +185,7 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
         ping_failure_retries: 0,
         idle_ping_after: None,
         idle_ping_timeout: None,
+        idle_timeout: Http2IdleTimeout::Unlimited,
     };
     bounded_peer_test(async {
         let (client, mut server) = duplex(64 * 1024);

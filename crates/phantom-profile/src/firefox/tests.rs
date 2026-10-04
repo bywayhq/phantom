@@ -1,7 +1,7 @@
 use super::{v157_http2, v157_http3, v157_http3_request, v157_http3_tls, v157_quic, v157_tls};
 use crate::http2::{
-    Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
-    Http2StreamSettings, session_capture::SessionCapture,
+    Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
+    Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
 use crate::http3::Http3AltUsed;
 use crate::tls::{
@@ -216,9 +216,11 @@ fn firefox_157_http2_recipe_matches_windows_session_capture()
             assumed_max_concurrent_streams: None,
             ..settings.streams
         },
-        // The idle PING follows a minute without a read, past these runs.
+        // The idle PING follows a minute without a read, and the idle close
+        // 170 seconds, past these runs.
         idle_ping_after: None,
         idle_ping_timeout: None,
+        idle_timeout: Http2IdleTimeout::Unlimited,
         ..settings
     };
     let observed = capture.navigation_settings()?;
@@ -256,9 +258,11 @@ fn firefox_157_macos_http2_session_capture_matches_the_recipe()
             assumed_max_concurrent_streams: None,
             ..settings.streams
         },
-        // The idle PING follows a minute without a read, past these runs.
+        // The idle PING follows a minute without a read, and the idle close
+        // 170 seconds, past these runs.
         idle_ping_after: None,
         idle_ping_timeout: None,
+        idle_timeout: Http2IdleTimeout::Unlimited,
         ..settings
     };
     let observed = capture.navigation_settings()?;

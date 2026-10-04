@@ -3,6 +3,7 @@ use std::{
     num::NonZeroUsize,
     pin::pin,
     sync::{Arc, MutexGuard, OnceLock, PoisonError},
+    time::Duration,
 };
 
 use http::Method;
@@ -13,13 +14,17 @@ use phantom_net::http2::{
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use phantom_profile::Http2Priority;
-use tokio::sync::{Mutex, Notify};
+use tokio::{
+    sync::{Mutex, Notify},
+    time::Instant,
+};
 use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http2_connections::{Choice, Http2Spread},
+    prune_timer::{PruneTimer, Pruned, PrunedEntry},
     stream_count::{OpenStream, StreamCount},
 };
 use crate::timeout::{TimeoutBudget, TimeoutPhase};
@@ -74,6 +79,9 @@ pub(crate) struct Http2Pool {
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     max_connections: NonZeroUsize,
+    /// The client's prune timer, when the profile closes idle connections on
+    /// one.
+    prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -90,6 +98,7 @@ impl Http2Pool {
             max_active,
             max_pending,
             max_connections: NonZeroUsize::MIN,
+            prune_timer: None,
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
@@ -111,6 +120,19 @@ impl Http2Pool {
     pub(super) const fn with_max_connections(mut self, maximum: NonZeroUsize) -> Self {
         self.max_connections = maximum;
         self
+    }
+
+    /// Lets the client's prune timer close connections past their idle
+    /// limit ([`phantom_profile::Http2Settings::idle_timeout`]) between
+    /// requests.
+    pub(super) fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
+        self.prune_timer = timer;
+        self
+    }
+
+    #[cfg(test)]
+    pub(super) const fn prune_timer(&self) -> Option<&Arc<PruneTimer>> {
+        self.prune_timer.as_ref()
     }
 
     pub(super) const fn max_connections(&self) -> NonZeroUsize {
@@ -376,6 +398,7 @@ impl Http2Pool {
             admission,
             Http2Spread::new(self.max_connections, self.max_active),
         );
+        entry.prune.clone_from(&self.prune_timer);
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
         #[cfg(feature = "https-records")]
@@ -383,6 +406,10 @@ impl Http2Pool {
             entry.https_records = self.https_records.clone();
         }
         let entry = Arc::new(entry);
+        if let Some(timer) = &self.prune_timer {
+            let pruned: Arc<dyn PrunedEntry> = entry.clone();
+            timer.register(Arc::downgrade(&pruned));
+        }
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -455,6 +482,9 @@ struct PoolEntry {
     admission: Arc<Admission>,
     connector: OnceLock<Http2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
+    /// The client's prune timer, when the profile closes idle connections on
+    /// one.
+    prune: Option<Arc<PruneTimer>>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
@@ -471,6 +501,7 @@ impl PoolEntry {
             admission,
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
+            prune: None,
             #[cfg(feature = "https-records")]
             https_records: None,
         }
@@ -747,6 +778,28 @@ impl PoolEntry {
     }
 }
 
+impl PrunedEntry for PoolEntry {
+    /// Gives up the key's connections past their idle limit, which close
+    /// once no stream is open, and those the server closed.
+    fn prune(&self, _now: Instant, _http1_limit: Option<Duration>) -> Pruned {
+        let mut connections = self.lock();
+        connections.retain_reusable();
+        Pruned {
+            next: connections
+                .slots
+                .iter()
+                .filter_map(|slot| slot.connection.idle_time_left())
+                .min(),
+            empty: connections.slots.is_empty() && !connections.connecting,
+        }
+    }
+
+    /// The exact H2 pool remembers no address family.
+    fn address_family(&self) -> Option<&Arc<phantom_net::tcp::AddressFamilyMemory>> {
+        None
+    }
+}
+
 /// One pool key's HTTP/2 connections and how streams spread across them.
 struct Connections {
     slots: Vec<ConnectionSlot>,
@@ -769,6 +822,7 @@ impl SetupReservation<'_> {
     /// Pools the new connection and leases it for this request's stream.
     fn finish(mut self, connection: Http2Connection) -> ConnectionLease {
         self.finished = true;
+        let left = connection.idle_time_left();
         let slot = ConnectionSlot {
             connection,
             token: Arc::new(()),
@@ -779,6 +833,11 @@ impl SetupReservation<'_> {
         connections.connecting = false;
         connections.slots.push(slot);
         drop(connections);
+        // Reported after the push, so a prune that runs from here on finds
+        // the connection.
+        if let (Some(timer), Some(left)) = (&self.entry.prune, left) {
+            timer.idle_added(left);
+        }
         self.entry.setup_done.notify_waiters();
         lease
     }
@@ -912,6 +971,51 @@ mod tests {
         assert!(poll_once(reuse.as_mut()).is_none());
         drop(reservation);
         assert!(reuse.await.is_none());
+        Ok(())
+    }
+
+    /// A connection past its idle limit leaves the key when the prune timer
+    /// fires; one within it sets the timer for the whole seconds it has
+    /// left.
+    #[tokio::test(start_paused = true)]
+    async fn the_prune_timer_gives_up_a_connection_past_its_idle_limit()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::time::Duration;
+
+        use phantom_profile::{Http2IdleTimeout, firefox};
+        use tokio::time::{Instant, advance};
+
+        use super::super::prune_timer::PruneTimer;
+
+        let one = NonZeroUsize::MIN;
+        let timer = PruneTimer::unscheduled(Duration::from_secs(115));
+        let pool = Http2Pool::new(one, one, one).with_prune_timer(Some(Arc::clone(&timer)));
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let entry = pool
+            .entry(PoolKey::new(
+                &endpoint,
+                &Route::Direct,
+                super::Http2ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        let mut settings = firefox::v157_http2();
+        settings.idle_timeout = Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(2));
+        let (client, _server) = tokio::io::duplex(64 * 1024);
+        let connection = phantom_net::http2::Http2Connection::connect(client, &settings).await?;
+        let start = Instant::now();
+        drop(reserve(&entry).finish(connection));
+        assert_eq!(timer.wake_at(), Some(start + Duration::from_secs(2)));
+
+        advance(Duration::from_millis(1_500)).await;
+        timer.fire();
+        assert_eq!(entry.lock().slots.len(), 1);
+        // Half a second left still waits one second.
+        assert_eq!(timer.wake_at(), Some(start + Duration::from_millis(2_500)));
+
+        advance(Duration::from_secs(1)).await;
+        timer.fire();
+        assert!(entry.lock().slots.is_empty());
+        assert_eq!(timer.wake_at(), None);
         Ok(())
     }
 

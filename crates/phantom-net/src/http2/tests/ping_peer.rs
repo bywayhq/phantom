@@ -145,6 +145,15 @@ pub(super) async fn answer_requests(
 /// Connects a client over loopback and completes the peer's side of the
 /// handshake, reading the client's preface and initial SETTINGS.
 pub(super) async fn start(settings: &Http2Settings) -> TestResult<(TcpStream, Http2Connection)> {
+    start_with_peer_settings(settings, &[]).await
+}
+
+/// Like [`start`], with `peer_settings` as the payload of the peer's
+/// SETTINGS frame.
+pub(super) async fn start_with_peer_settings(
+    settings: &Http2Settings,
+    peer_settings: &[u8],
+) -> TestResult<(TcpStream, Http2Connection)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let client = TcpStream::connect(listener.local_addr()?).await?;
     let (mut peer, _) = listener.accept().await?;
@@ -158,7 +167,7 @@ pub(super) async fn start(settings: &Http2Settings) -> TestResult<(TcpStream, Ht
     if (kind, flags) != (SETTINGS, 0) {
         return Err("client did not start with SETTINGS".into());
     }
-    write_frame(&mut peer, SETTINGS, 0, 0, &[]).await?;
+    write_frame(&mut peer, SETTINGS, 0, 0, peer_settings).await?;
     Ok((peer, connection))
 }
 

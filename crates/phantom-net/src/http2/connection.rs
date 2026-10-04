@@ -4,7 +4,10 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
@@ -408,7 +411,10 @@ impl Http2Connection {
                 .map_err(Http2Error::before_send)?;
             let mut send = RequestStreamGuard::new(send);
             let response = match response.await {
-                Ok(response) => response,
+                Ok(response) => {
+                    self.inner.idle.record();
+                    response
+                }
                 Err(error) => {
                     // A failed response already ended the stream; an explicit
                     // reset would only queue a frame on a dead connection.
@@ -508,7 +514,10 @@ impl Http2Connection {
                 .map_err(Http2Error::before_send)?;
             let send = RequestStreamGuard::new(send);
             let response = match response.await {
-                Ok(response) => response,
+                Ok(response) => {
+                    self.inner.idle.record();
+                    response
+                }
                 Err(error) => {
                     // A failed response already ended the stream; an explicit
                     // reset would only queue a frame on a dead connection.
@@ -693,7 +702,10 @@ impl Http2Connection {
     /// does not reserve capacity. A later send can still fail.
     #[must_use]
     pub fn is_reusable(&self) -> bool {
-        if self.is_closed() || self.early_data_alpn_changed() {
+        if self.is_closed()
+            || self.early_data_alpn_changed()
+            || self.idle_time_left().is_some_and(|left| left.is_zero())
+        {
             return false;
         }
         let Some(sender) = self.inner.sender() else {
@@ -702,6 +714,22 @@ impl Http2Connection {
         let mut sender = sender.clone();
         let mut context = Context::from_waker(Waker::noop());
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
+    }
+
+    /// Returns how long this connection may go on reading nothing before
+    /// [`Http2Settings::idle_timeout`] ends its reuse, or `None` when the
+    /// profile sets no limit.
+    ///
+    /// The time counts from the connection's start or from the last time a
+    /// response head, a DATA frame, or trailers was handed to the caller,
+    /// on any stream, whichever is later; PING, SETTINGS, and WINDOW_UPDATE
+    /// frames do not count. Once it is zero, [`Self::is_reusable`] returns
+    /// `false`. Streams already open are unaffected, and the connection
+    /// sends `GOAWAY` with `NO_ERROR` when its last handle and stream are
+    /// dropped, as it does whatever the limit.
+    #[must_use]
+    pub fn idle_time_left(&self) -> Option<Duration> {
+        self.inner.idle.left()
     }
 
     /// Returns the peer's `SETTINGS_MAX_CONCURRENT_STREAMS`, lowered to the
@@ -836,6 +864,7 @@ impl Http2Connection {
         let Http2Builder {
             client,
             first_stream_id,
+            idle_timeout,
         } = client;
         let (sender, connection) = client
             .handshake(stream)
@@ -850,6 +879,7 @@ impl Http2Connection {
                 extended_connect,
                 first_stream_id,
                 early_data,
+                idle: ReadIdle::new(idle_timeout),
             }),
         })
     }
@@ -955,6 +985,7 @@ impl Http2Connection {
                 Some(response) => response,
                 None => response.await.map_err(Http2Error::protocol)?,
             };
+            self.inner.idle.record();
 
             span.record("status", response.status().as_u16());
             debug!("HTTP/2 response headers received");
@@ -1081,6 +1112,12 @@ impl ConnectionLease {
     pub(super) fn is_closed(&self) -> bool {
         self._inner.driver.is_finished()
     }
+
+    /// Records a DATA frame or trailers handed to the caller; see
+    /// [`Http2Connection::idle_time_left`].
+    pub(super) fn record_read(&self) {
+        self._inner.idle.record();
+    }
 }
 
 struct ConnectionInner {
@@ -1094,11 +1131,56 @@ struct ConnectionInner {
     first_stream_id: u32,
     /// Present when the connection was opened with early data.
     early_data: Option<EarlyDataWait>,
+    idle: ReadIdle,
 }
 
 impl ConnectionInner {
     fn sender(&self) -> Option<&client::SendRequest<Bytes>> {
         self.sender.as_ref()
+    }
+}
+
+/// How long a connection has gone without handing the caller a response
+/// head, DATA, or trailers, against the profile's
+/// [`Http2Settings::idle_timeout`].
+///
+/// Firefox measures the same time from its session's start or its last read
+/// of a HEADERS frame on a live stream or of a DATA frame
+/// (`Http2Session::IdleTime` and the `mLastDataReadEpoch` updates,
+/// `netwerk/protocol/http/Http2Session.cpp:239`, `:432-434`, `:1629`,
+/// `:2820`, `:3203` at tag `FIREFOX_157_0_RELEASE`). The backend buffers a
+/// DATA frame until the caller reads it, so a body read late counts from
+/// the read.
+struct ReadIdle {
+    limit: Option<Duration>,
+    opened: tokio::time::Instant,
+    /// Nanoseconds from `opened` to the last read.
+    last_read: AtomicU64,
+}
+
+impl ReadIdle {
+    fn new(limit: Option<Duration>) -> Self {
+        Self {
+            limit,
+            opened: tokio::time::Instant::now(),
+            last_read: AtomicU64::new(0),
+        }
+    }
+
+    fn record(&self) {
+        if self.limit.is_none() {
+            return;
+        }
+        let since_open = u64::try_from(self.opened.elapsed().as_nanos()).unwrap_or(u64::MAX);
+        self.last_read.fetch_max(since_open, Ordering::Relaxed);
+    }
+
+    /// The time left before the limit, zero once it has passed, or `None`
+    /// without a limit.
+    fn left(&self) -> Option<Duration> {
+        let limit = self.limit?;
+        let last_read = Duration::from_nanos(self.last_read.load(Ordering::Relaxed));
+        Some(limit.saturating_sub(self.opened.elapsed().saturating_sub(last_read)))
     }
 }
 

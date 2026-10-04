@@ -141,6 +141,7 @@ impl Http2Body {
             Poll::Ready(Some(Ok(data))) => {
                 let _ = incoming.flow_control().release_capacity(data.len());
                 let end_stream = incoming.is_end_stream();
+                record_read(self.lease.as_ref());
                 self.trace.add_bytes(data.len());
                 if end_stream {
                     self.finished = true;
@@ -157,12 +158,15 @@ impl Http2Body {
             }
             Poll::Ready(None) => match incoming.poll_trailers(context) {
                 Poll::Ready(Ok(Some(trailers))) => {
+                    record_read(self.lease.as_ref());
                     self.finished = true;
                     self.finish_stream();
                     self.trace.finish("complete");
                     Poll::Ready(Some(Ok(Frame::trailers(trailers))))
                 }
                 Poll::Ready(Ok(None)) => {
+                    // An empty DATA frame ended the stream.
+                    record_read(self.lease.as_ref());
                     self.finished = true;
                     self.finish_stream();
                     self.trace.finish("complete");
@@ -178,6 +182,14 @@ impl Http2Body {
             },
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+/// Records a frame read on the connection; see
+/// [`Http2Connection::idle_time_left`](super::Http2Connection::idle_time_left).
+fn record_read(lease: Option<&ConnectionLease>) {
+    if let Some(lease) = lease {
+        lease.record_read();
     }
 }
 

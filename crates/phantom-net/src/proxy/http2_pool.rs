@@ -78,8 +78,11 @@ pub const MAX_HTTP2_PROXY_POOL_ROUTES: usize = 32;
 ///
 /// Clones share one pool. It holds at most
 /// [`MAX_HTTP2_PROXY_POOL_ROUTES`] routes, and keeps an idle connection until
-/// the proxy closes it or its route is forgotten.
+/// the proxy closes it, its route is forgotten, or a new tunnel finds it
+/// past its idle limit ([`Http2Settings::idle_timeout`]). No timer closes
+/// it sooner.
 ///
+/// [`Http2Settings::idle_timeout`]: phantom_profile::Http2Settings::idle_timeout
 /// [`HttpsProxyConnector::with_http2_proxy_pool`]: super::HttpsProxyConnector::with_http2_proxy_pool
 #[derive(Clone)]
 pub struct Http2ProxyPool {

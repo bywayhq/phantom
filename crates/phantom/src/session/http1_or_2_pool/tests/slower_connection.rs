@@ -305,7 +305,7 @@ fn a_slower_attempt_dropped_with_its_runtime_leaves_the_key() -> TestResult {
 
     assert!(connections.lock().spares.is_empty());
     assert_eq!(connections.lock().open_http1_or_connecting(), 0);
-    assert!(connections.prune(Instant::now(), limit).empty);
+    assert!(connections.prune(Instant::now(), Some(limit)).empty);
     timer.fire();
     assert_eq!(connections.family.family(), None);
     Ok(())
@@ -320,7 +320,7 @@ async fn the_prune_counts_a_key_with_an_http2_connection_as_in_use() -> TestResu
         return Err("an H2 connection was not leased as H2".into());
     };
 
-    let pruned = connections.prune(Instant::now(), limit);
+    let pruned = connections.prune(Instant::now(), Some(limit));
     assert_eq!(pruned.next, None);
     assert!(
         !pruned.empty,
@@ -337,12 +337,12 @@ async fn the_prune_closes_expired_idle_http1_connections_and_leaves_the_key_empt
     drop(reserve(&connections)?.finish(connection));
     assert_eq!(connections.counts(), (1, 0, 0));
 
-    let pruned = connections.prune(Instant::now(), limit);
+    let pruned = connections.prune(Instant::now(), Some(limit));
     assert_eq!(pruned.next, Some(limit));
     assert!(!pruned.empty);
 
     tokio::time::advance(limit).await;
-    let pruned = connections.prune(Instant::now(), limit);
+    let pruned = connections.prune(Instant::now(), Some(limit));
     assert_eq!(pruned.next, None);
     assert!(pruned.empty);
     assert_eq!(connections.counts(), (0, 0, 0));

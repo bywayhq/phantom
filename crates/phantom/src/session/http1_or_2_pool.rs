@@ -73,7 +73,7 @@ pub(crate) struct Http1Or2Pool {
     setup_wait_limit: Option<Duration>,
     /// How long an idle H1 connection stays reusable.
     http1_used_idle_timeout: Option<Duration>,
-    /// The client's prune timer, when the profile closes idle H1
+    /// The client's prune timer, when the profile closes idle H1 or H2
     /// connections on one.
     prune_timer: Option<Arc<PruneTimer>>,
     state: Mutex<PoolState>,
@@ -128,9 +128,9 @@ impl Http1Or2Pool {
         self
     }
 
-    /// Lets the client's prune timer close idle H1 connections between
-    /// requests and forget an origin's address family once none of its keys
-    /// has a connection.
+    /// Lets the client's prune timer close idle H1 connections and H2
+    /// connections past their idle limit between requests, and forget an
+    /// origin's address family once none of its keys has a connection.
     pub(super) fn with_prune_timer(mut self, timer: Option<Arc<PruneTimer>>) -> Self {
         self.prune_timer = timer;
         self
@@ -1368,7 +1368,7 @@ struct EntryConnections {
     /// How long an idle H1 connection stays reusable; see
     /// [`phantom_profile::Http1Settings::idle_timeout`].
     http1_used_idle_timeout: Option<Duration>,
-    /// The client's prune timer, when the profile closes idle H1
+    /// The client's prune timer, when the profile closes idle H1 or H2
     /// connections on one.
     prune: Option<Arc<PruneTimer>>,
     /// The address family a backup connection to the origin tries first,
@@ -1643,7 +1643,15 @@ impl EntryConnections {
     /// Tells the prune timer that an H1 connection became idle.
     fn idle_added(&self) {
         if let Some(timer) = &self.prune {
-            timer.idle_added(timer.limit());
+            timer.http1_idle_added();
+        }
+    }
+
+    /// Tells the prune timer that the key kept an H2 connection with `left`
+    /// before its idle limit, if it has one.
+    fn http2_joined(&self, left: Option<Duration>) {
+        if let (Some(timer), Some(left)) = (&self.prune, left) {
+            timer.idle_added(left);
         }
     }
 
@@ -1710,8 +1718,12 @@ impl EntryConnections {
                 );
             }
             Some(Http1Or2Connection::Http2(connection)) => {
+                let left = connection.idle_time_left();
                 let (closed, idle) = state.place_http2(connection, &self.setup_done);
                 drop(state);
+                if closed.is_none() {
+                    self.http2_joined(left);
+                }
                 self.http2_keys.insert(&self.key);
                 // Dropping the last handle shuts a connection down; that
                 // happens outside the state lock.
@@ -1928,25 +1940,35 @@ impl EntryConnections {
 }
 
 impl PrunedEntry for EntryConnections {
-    fn prune(&self, now: Instant, limit: Duration) -> Pruned {
+    fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned {
         let mut state = self.lock();
-        state
-            .http1_idle
-            .retain(|idle| idle.connection.is_reusable() && idle.idle_for(now) < limit);
+        state.http1_idle.retain(|idle| {
+            idle.connection.is_reusable()
+                && http1_limit.is_none_or(|limit| idle.idle_for(now) < limit)
+        });
+        // Giving up an H2 connection past its idle limit closes it once no
+        // stream is open (`ConnectionEntry.cpp:486-500`).
         state.http2.retain(|slot| slot.connection.is_reusable());
-        let next = state
-            .http1_idle
+        let http1_next = http1_limit.and_then(|limit| {
+            state
+                .http1_idle
+                .iter()
+                .map(|idle| limit.saturating_sub(idle.idle_for(now)))
+                .min()
+        });
+        let http2_next = state
+            .http2
             .iter()
-            .map(|idle| limit.saturating_sub(idle.idle_for(now)))
+            .filter_map(|slot| slot.connection.idle_time_left())
             .min();
         Pruned {
-            next,
+            next: http1_next.into_iter().chain(http2_next).min(),
             empty: state.is_empty(),
         }
     }
 
-    fn address_family(&self) -> &Arc<AddressFamilyMemory> {
-        &self.family
+    fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {
+        Some(&self.family)
     }
 }
 
@@ -1982,6 +2004,8 @@ impl Reservation {
     fn finish(mut self, connection: PooledConnection) -> Acquired {
         self.finished = true;
         let mut remember_http2 = false;
+        // The idle time left of an H2 connection the key keeps.
+        let mut joined_left = None;
         let mut state = self.connections.lock();
         state.connecting = state.connecting.saturating_sub(1);
         let (lease, closed_http2, closed_http1) = match connection {
@@ -1996,11 +2020,16 @@ impl Reservation {
             }
             PooledConnection::Http2(connection) => {
                 remember_http2 = true;
+                joined_left = connection.idle_time_left();
                 let (closed, idle) = state.place_http2(connection, &self.connections.setup_done);
+                if closed.is_some() {
+                    joined_left = None;
+                }
                 (Acquired::Http2, closed, idle)
             }
         };
         drop(state);
+        self.connections.http2_joined(joined_left);
         // Dropping the last handle shuts a connection down; that happens
         // outside the state lock.
         drop(closed_http2);

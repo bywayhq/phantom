@@ -387,9 +387,10 @@ impl ClientOptions {
             .https_record_resolver
             .zip(self.max_alt_svc_origins)
             .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity));
-        // One timer prunes the H1 connections of both pools, as Firefox's
-        // connection manager prunes all of its connections on one.
-        let prune_timer = inner.http1_idle_timer.map(prune_timer::PruneTimer::new);
+        // One timer prunes the H1 and H2 connections of every pool, as
+        // Firefox's connection manager prunes all of its connections on one.
+        let prune_timer = (inner.http1_idle_timer.is_some() || inner.http2_idle_timer.is_some())
+            .then(|| prune_timer::PruneTimer::new(inner.http1_idle_timer));
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
         let mut http1_or_2 = http1_or_2_pool::Http1Or2Pool::new(
             self.max_retained_http1_connections,
@@ -414,7 +415,7 @@ impl ClientOptions {
             self.max_pending_http1_requests_per_origin,
         )
         .with_used_idle_timeout(inner.http1_used_idle_timeout)
-        .with_prune_timer(prune_timer);
+        .with_prune_timer(prune_timer.clone());
         #[cfg(feature = "https-records")]
         http1.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
@@ -423,7 +424,8 @@ impl ClientOptions {
             self.max_concurrent_http2_requests_per_origin,
             self.max_pending_http2_requests_per_origin,
         )
-        .with_max_connections(self.max_http2_connections_per_origin);
+        .with_max_connections(self.max_http2_connections_per_origin)
+        .with_prune_timer(prune_timer);
         #[cfg(feature = "https-records")]
         http2.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]

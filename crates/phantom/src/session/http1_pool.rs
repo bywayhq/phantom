@@ -1034,7 +1034,7 @@ impl EntryConnections {
     /// Tells the prune timer that a connection became idle.
     fn idle_added(&self) {
         if let Some(timer) = &self.prune {
-            timer.idle_added(timer.limit());
+            timer.http1_idle_added();
         }
     }
 
@@ -1171,23 +1171,26 @@ impl EntryConnections {
 }
 
 impl PrunedEntry for EntryConnections {
-    fn prune(&self, now: Instant, limit: Duration) -> Pruned {
+    fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned {
         let mut set = self.lock();
-        set.idle
-            .retain(|idle| idle.connection.is_reusable() && idle.idle_for(now) < limit);
-        let next = set
-            .idle
-            .iter()
-            .map(|idle| limit.saturating_sub(idle.idle_for(now)))
-            .min();
+        set.idle.retain(|idle| {
+            idle.connection.is_reusable()
+                && http1_limit.is_none_or(|limit| idle.idle_for(now) < limit)
+        });
+        let next = http1_limit.and_then(|limit| {
+            set.idle
+                .iter()
+                .map(|idle| limit.saturating_sub(idle.idle_for(now)))
+                .min()
+        });
         Pruned {
             next,
             empty: set.is_empty(),
         }
     }
 
-    fn address_family(&self) -> &Arc<AddressFamilyMemory> {
-        &self.family
+    fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {
+        Some(&self.family)
     }
 }
 
