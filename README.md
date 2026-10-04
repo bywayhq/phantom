@@ -1,74 +1,42 @@
 # Phantom
 
-Phantom is a Rust HTTP client that connects the way a chosen browser does.
+Phantom is a Rust HTTP client that looks like a real browser on the wire.
 
-A server can tell which program sent a request without reading its
-`User-Agent`. The TLS handshake, the HTTP/2 settings, the order of header
-fields, and the QUIC parameters of an HTTP/3 connection all differ between
-Chrome, Firefox, curl, and a typical Rust library. Copying Chrome's headers
-changes none of them. [How servers recognize a client](docs/fingerprinting.md)
-explains each signal in a few minutes of reading.
+Servers can tell which program is talking to them without reading the
+`User-Agent` header. The TLS handshake, the HTTP/2 settings, the order of
+headers and the HTTP/3 parameters all differ between Chrome, Firefox, curl
+and a typical Rust library, and copying Chrome's headers changes none of
+them. Phantom sends all of these the way the browser you pick does.
+[How servers recognize a client](docs/fingerprinting.md) explains the
+signals.
 
-Phantom reproduces those layers from
-[captures](docs/reference/glossary.md#capture) of real browsers, and tests
-compare its output with the captures. It never falls back to another
-route, and changes protocol only when you opt in. Phantom is maintained by
-[Byway](https://github.com/bywayhq).
+> Phantom is pre-1.0 and not on crates.io yet. The API can change between
+> commits, so pin a git revision.
 
-> Phantom is experimental and pre-1.0. It is not on crates.io, and its API can
-> change between commits, so pin a git revision. It matches the layers listed
-> below, not every way a browser can be told apart.
+## Browsers
 
-## What Phantom matches
+Phantom has recipes for desktop Chrome, Edge, Brave, Opera and Firefox. For
+each one it matches:
 
-Phantom carries [recipes](docs/reference/glossary.md#recipe) for Chrome,
-Edge, Brave, Opera, and Firefox, from one desktop build and one Android build
-of each.
-[Coverage](docs/reference/coverage.md#at-a-glance) names every build and
-shows, layer by layer, what Phantom reproduces for it.
+- the TLS handshake;
+- HTTP/2 and HTTP/3 settings;
+- the headers of a page load and a `fetch`, in the browser's order;
+- client hints (the Chromium-based browsers only; Firefox sends none);
+- the WebSocket handshake.
 
-For each desktop build, and for Chrome, Edge, and Brave for Android, the
-recipes and [request templates](docs/reference/glossary.md#request-template)
-reproduce the browser's:
+There are Android recipes too, for Chrome, Edge, Brave, Opera and Firefox,
+but they cover less. [Coverage](docs/reference/coverage.md#at-a-glance)
+shows exactly what each recipe matches and where the known gaps are.
 
-- TLS ClientHello;
-- HTTP/2 SETTINGS, priority, and pseudo-header order;
-- QUIC transport parameters and HTTP/3 settings;
-- client hints;
-- request fields of a navigation and a `fetch`, in the browser's order;
-- WebSocket opening request.
+## What else it does
 
-Exceptions to that list:
-
-- Firefox sends no client hints, and its QUIC and HTTP/3 recipes have
-  [known differences](docs/explanation/validation.md#firefox-157-http3-recipe).
-- Edge for Android has no WebSocket opening recipe.
-- Opera for Android has only TLS and client-hint recipes, and Firefox for
-  Android only a TLS recipe.
-- Only the desktop browsers have TCP socket options: Chrome and Brave from
-  browser source, Edge, Opera, and Firefox from hook logs of their own
-  socket calls. Firefox's recipe, IPv4 backup connection included, has
-  [known differences](docs/explanation/validation.md#firefox-socket-hook-evidence).
-
-Most recipes come from captures on Windows 11 for the desktop builds, with
-some client-hint and request-template recipes also from macOS, and on Android
-emulators, not phones, for the Android builds.
-[Validation](docs/explanation/validation.md) lists the evidence for each
-layer.
-
-Beyond the browser layers, the client supports:
-
-- HTTP/1.1, HTTP/2, and HTTP/3, each chosen exactly, or HTTP/1.1 and HTTP/2
-  negotiated in one handshake, with opt-in Alt-Svc upgrade to HTTP/3;
-- direct connections, HTTP proxies (CONNECT and forwarding), SOCKS5, and
-  CONNECT-UDP for HTTP/3; the [route matrix](docs/reference/route-matrix.md)
-  lists every combination;
-- connection pools, redirects, retries, cookies, and TLS session reuse, all
-  owned by one client and bounded in size;
-- server-sent events and WebSocket.
-
-WebSocket over HTTP/3 has no browser recipe, so it is for servers you
-control.
+- HTTP/1.1, HTTP/2 and HTTP/3. You choose the protocol, or let the server
+  pick between HTTP/1.1 and HTTP/2.
+- Proxies: HTTP, SOCKS5, and CONNECT-UDP for HTTP/3.
+- Connection pooling and TLS session reuse.
+- Redirects, retries, timeouts, cookies and decompression, each off until
+  you turn it on.
+- Server-sent events and WebSocket.
 
 ## Quick look
 
@@ -93,10 +61,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-To the server, this request has Chrome 154's TLS handshake, HTTP/2 settings,
-and client hints. It always uses HTTP/2; `get_negotiated` lets the server
-choose HTTP/1.1 or HTTP/2 instead. Requests run inside a Tokio runtime with
-I/O and timers enabled.
+The server sees Chrome 154's TLS handshake, HTTP/2 settings and client
+hints. Run it inside a Tokio runtime.
 
 ## Install
 
@@ -105,35 +71,29 @@ I/O and timers enabled.
 phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
-Pin an exact commit, `be02e93` or later; earlier commits lack the Chrome 154
-recipes used on this page. The documentation describes the commit it ships
-with; [CHANGELOG.md](CHANGELOG.md) lists what changes between commits. The
-minimum supported Rust version is 1.88; development uses the toolchain in
-`rust-toolchain.toml`. Phantom
-builds BoringSSL from source, so the build needs Git, CMake, Clang, and a
-C++ toolchain; see [Prerequisites](docs/getting-started.md#prerequisites).
+Use commit `be02e93` or later, and Rust 1.88 or newer. Phantom builds
+BoringSSL from source, so you also need Git, CMake, Clang and a C++
+compiler ([Prerequisites](docs/getting-started.md#prerequisites)).
 
-No Cargo feature is enabled by default:
+No feature is on by default:
 
 | Feature | Adds |
 | --- | --- |
-| `cookies` | A cookie jar owned by the client, with size limits |
-| `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the desktop Chrome, Edge, Brave, and Opera recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; address lookups with Phantom's own DNS queries through `AddressResolver::system_nameservers`; adds the `hickory-resolver` dependency |
-| `sse` | Server-sent events, with a limited number of reconnects |
-| `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
-| `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |
-| `serde` | Serialization of saved cookie-jar snapshots, with `cookies` |
+| `cookies` | A cookie jar |
+| `https-records` | HTTP/3 discovery and Encrypted Client Hello from DNS HTTPS records |
+| `sse` | Server-sent events |
+| `websocket` | WebSocket |
+| `websocket-deflate` | WebSocket compression |
+| `serde` | Saving and loading cookie jars |
 | `full` | All of the above |
-| `diagnostics` | TLS key logging and QUIC qlog files, for debugging your own connections; not part of `full` |
-| `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing; not part of `full` |
+| `diagnostics` | TLS key logs and QUIC qlog files for debugging; not in `full` |
+| `danger-disable-verification` | Turning off certificate checks, for testing only; not in `full` |
 
 ## What Phantom is not
 
-Phantom shapes network traffic only and is not a browser;
-[Coverage](docs/reference/coverage.md#at-a-glance) lists what it leaves out. Optional
-behavior such as redirects, retries, timeouts, cookies, and decompression
-stays off until you turn it on. [Why Phantom](docs/why-phantom.md#when-not-to-use-phantom)
-lists the cases where another tool fits better.
+Phantom only shapes network traffic. It does not run JavaScript or render
+pages. [Why Phantom](docs/why-phantom.md#when-not-to-use-phantom) lists the
+cases where another tool fits better.
 
 ## Where to go next
 
