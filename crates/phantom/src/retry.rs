@@ -17,7 +17,9 @@ mod retry_after;
 /// client with [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy);
 /// [`RequestBuilder::retry_policy`](crate::RequestBuilder::retry_policy)
 /// replaces the whole policy for one request. Every retry and replay keeps the
-/// request's route and its exact protocol or negotiated selection rule.
+/// request's route and its exact protocol or negotiated selection rule, except
+/// the opt-in [`with_http2_fallback`](Self::with_http2_fallback), which moves
+/// an exact HTTP/3 request whose connection could not be set up to HTTP/2.
 ///
 /// An eligible connection-setup retry occurs inside the selected H1, H2, or H3
 /// pool, or before ALPN selection in the negotiated H1/H2 pool, before the
@@ -98,11 +100,12 @@ pub struct RetryPolicy {
     reused_connection_replay: bool,
     unprocessed_replays: Option<NonZeroUsize>,
     status_retry: Option<StatusRetry>,
+    http2_fallback: bool,
 }
 
 impl RetryPolicy {
     /// Disables connection-setup retries, reused-connection replay,
-    /// unprocessed-request replay, and status retries.
+    /// unprocessed-request replay, status retries, and the HTTP/2 fallback.
     #[must_use]
     pub const fn none() -> Self {
         Self {
@@ -111,6 +114,7 @@ impl RetryPolicy {
             reused_connection_replay: false,
             unprocessed_replays: None,
             status_retry: None,
+            http2_fallback: false,
         }
     }
 
@@ -128,6 +132,7 @@ impl RetryPolicy {
             reused_connection_replay: false,
             unprocessed_replays: None,
             status_retry: None,
+            http2_fallback: false,
         }
     }
 
@@ -232,6 +237,62 @@ impl RetryPolicy {
         }
     }
 
+    /// Sets whether an exact HTTP/3 request whose connection could not be set
+    /// up is sent once more over the profile's HTTP/2 recipe, as a browser
+    /// sends a request over TCP once its QUIC alternative fails.
+    ///
+    /// This is caller policy, never browser or profile behavior, and it is
+    /// the one retry that changes protocol. It starts after any
+    /// connection-setup retries, only when no QUIC connection could carry the
+    /// request: the connection attempt failed or was refused, the QUIC or TLS
+    /// handshake failed, the attempt did not finish within the connect
+    /// timeout, or a handshake that sent early data failed before the request
+    /// was written. A request that could fall back limits each QUIC attempt
+    /// to 4 seconds, the limit of a raced Alt-Svc alternative, which comes
+    /// from Chromium's QUIC idle timeout before a handshake; Chromium lets a
+    /// responsive handshake run longer, so a slow one falls back here and
+    /// not in Chromium. A name-resolution failure, a SOCKS5 proxy failure, a
+    /// rejected Encrypted Client Hello, a full pool, and any failure after
+    /// the request was written return the HTTP/3 error. So does a
+    /// replay-safe request sent as early data on a resumed connection, which
+    /// leaves before its handshake completes; turn early data off with
+    /// [`ClientBuilder::http3_early_data`](crate::ClientBuilder::http3_early_data)
+    /// for such a request to fall back too.
+    ///
+    /// The request then goes once, at once, as an exact HTTP/2 request on the
+    /// same route: the profile's TLS ClientHello over TCP, its
+    /// [`Http2Settings`](crate::profile::Http2Settings), and a template's
+    /// HTTP/2 field list. The rest of the redirect hop stays on HTTP/2, and
+    /// the next hop tries HTTP/3 again; nothing is remembered between
+    /// requests, so each one tries QUIC first. Any method may fall back,
+    /// since the server processed none of the request; the body must be
+    /// absent, owned, or buffered within its limit, and a one-shot streaming
+    /// body returns the HTTP/3 error. If the HTTP/2 attempt fails too, its
+    /// error is returned.
+    /// [`ResponseInfo::protocol`](crate::ResponseInfo::protocol) reports the
+    /// protocol that answered.
+    ///
+    /// The client needs an HTTP/2 profile, and the route must carry TCP: an
+    /// exact HTTP/3 request with this policy on a client without one, or on
+    /// a CONNECT-UDP route, fails before any I/O.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use phantom::RetryPolicy;
+    ///
+    /// let policy = RetryPolicy::none().with_http2_fallback(true);
+    /// assert!(policy.http2_fallback());
+    /// assert!(!RetryPolicy::default().http2_fallback());
+    /// ```
+    #[must_use]
+    pub const fn with_http2_fallback(self, enabled: bool) -> Self {
+        Self {
+            http2_fallback: enabled,
+            ..self
+        }
+    }
+
     /// Returns the maximum number of connection failures that may be retried.
     #[must_use]
     pub const fn max_connection_failures(self) -> Option<NonZeroUsize> {
@@ -261,6 +322,13 @@ impl RetryPolicy {
     #[must_use]
     pub const fn status_retry(self) -> Option<StatusRetry> {
         self.status_retry
+    }
+
+    /// Returns whether an exact HTTP/3 request falls back to HTTP/2 when its
+    /// connection cannot be set up.
+    #[must_use]
+    pub const fn http2_fallback(self) -> bool {
+        self.http2_fallback
     }
 
     pub(crate) fn validate(self) -> bool {
@@ -462,6 +530,7 @@ pub(crate) struct ConnectionSetupRetryState {
     reused_connection_replays: usize,
     unprocessed_replays: usize,
     status_retries: usize,
+    http2_fallbacks: usize,
     request_span: Span,
 }
 
@@ -473,6 +542,7 @@ impl ConnectionSetupRetryState {
             reused_connection_replays: 0,
             unprocessed_replays: 0,
             status_retries: 0,
+            http2_fallbacks: 0,
             request_span,
         }
     }
@@ -547,6 +617,27 @@ impl ConnectionSetupRetryState {
             delay_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
             reason = "status",
             "waiting to retry request after a retryable status"
+        );
+    }
+
+    /// Returns whether an exact HTTP/3 request falls back to HTTP/2 when its
+    /// connection cannot be set up.
+    pub(crate) const fn falls_back_to_http2(&self) -> bool {
+        self.policy.http2_fallback
+    }
+
+    /// Records the fallback of an exact HTTP/3 request to HTTP/2.
+    pub(crate) fn record_http2_fallback(&mut self, error: &RequestError) {
+        self.http2_fallbacks += 1;
+        self.request_span.record(
+            "http2_fallbacks",
+            u64::try_from(self.http2_fallbacks).unwrap_or(u64::MAX),
+        );
+        tracing::debug!(
+            fallback = self.http2_fallbacks,
+            error_kind = ?error.kind(),
+            reason = "http3_setup_failed",
+            "sending exact HTTP/3 request over HTTP/2"
         );
     }
 
@@ -695,6 +786,22 @@ mod tests {
                 .with_reused_connection_replay(false)
                 .reused_connection_replay()
         );
+    }
+
+    #[test]
+    fn http2_fallback_is_disabled_by_default_and_independent() {
+        assert!(!RetryPolicy::default().http2_fallback());
+        assert!(
+            !RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::ZERO).http2_fallback()
+        );
+        let policy = RetryPolicy::none().with_http2_fallback(true);
+        assert!(policy.http2_fallback());
+        assert_eq!(policy.max_connection_failures(), None);
+        assert!(!policy.with_http2_fallback(false).http2_fallback());
+
+        let retries = ConnectionSetupRetryState::new(policy, Span::none());
+        assert!(retries.falls_back_to_http2());
+        assert!(!retries.for_alternative_setup().falls_back_to_http2());
     }
 
     #[test]

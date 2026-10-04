@@ -908,7 +908,8 @@ Supported CONNECT-UDP:
 
 Across all routes:
 
-- No route or protocol fallback.
+- No route fallback, and no protocol fallback except the opt-in HTTP/2
+  fallback of an exact HTTP/3 request.
 - Proxy and origin hosts use their canonical Unicode form.
 - Trust settings and ticket caches are kept separate for HTTPS proxies and
   origins.

@@ -12,7 +12,7 @@ explains each signal in a few minutes of reading.
 Phantom reproduces those layers from
 [captures](docs/reference/glossary.md#capture) of real browsers, and tests
 compare its output with the captures. It never falls back to another
-protocol or route. Phantom is maintained by
+route, and changes protocol only when you opt in. Phantom is maintained by
 [Byway](https://github.com/bywayhq).
 
 > Phantom is experimental and pre-1.0. It is not on crates.io, and its API can

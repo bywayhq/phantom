@@ -104,6 +104,12 @@ async fn send_once_exact(
         retries,
         replays,
     } = lifecycle;
+    // Changes only when an exact HTTP/3 request falls back to HTTP/2. An
+    // exact HTTP/3 route never forwards, so nothing below that depends on
+    // the protocol before the loop changes with it.
+    let mut protocol = protocol;
+    // Every hop starts on the request's protocol, after a fallback too.
+    request_span.record("selected_protocol", protocol.trace_name());
     let AttemptRequest {
         method,
         headers: request_headers,
@@ -153,6 +159,11 @@ async fn send_once_exact(
         };
         let prepared_headers =
             route_attempt_headers(client, request, protocol, &request_headers, forwarding);
+        // Checked before the attempt takes a one-shot body.
+        let may_fall_back = protocol == HttpProtocol::Http3
+            && retries.falls_back_to_http2()
+            && body.can_replay()
+            && !replays.performed(ReplayClass::Http2Fallback);
         let prepared = prepare_attempt(
             client,
             request,
@@ -191,6 +202,7 @@ async fn send_once_exact(
             },
             timeout_budget,
             retries,
+            may_fall_back,
         )
         .await;
         let dispatched = match dispatched {
@@ -223,6 +235,13 @@ async fn send_once_exact(
                 }
                 // The pool already retired the connection that refused it.
                 if begin_unprocessed_replay(&error, &method, body, retries, replays) {
+                    continue;
+                }
+                if protocol == HttpProtocol::Http3
+                    && begin_http2_fallback(&error, &method, body, retries, replays)
+                {
+                    protocol = HttpProtocol::Http2;
+                    request_span.record("selected_protocol", protocol.trace_name());
                     continue;
                 }
                 return Err(error);
@@ -575,6 +594,27 @@ pub(super) fn begin_unprocessed_replay(
     true
 }
 
+/// Starts the fallback of an exact HTTP/3 request to HTTP/2 when the policy
+/// allows it, no HTTP/3 connection could be set up to carry the request, the
+/// body can be sent again, and the hop has not fallen back yet.
+fn begin_http2_fallback(
+    error: &RequestError,
+    method: &Method,
+    body: &RequestBodySource,
+    retries: &mut ConnectionSetupRetryState,
+    replays: &mut ReplayState,
+) -> bool {
+    if !retries.falls_back_to_http2()
+        || !error.is_http3_setup_failure()
+        || !body.can_replay()
+        || !replays.try_begin(ReplayClass::Http2Fallback, method)
+    {
+        return false;
+    }
+    retries.record_http2_fallback(error);
+    true
+}
+
 /// Starts one status retry after `response` was observed, returning the delay
 /// to wait before the next attempt, when policy, status, `Retry-After`,
 /// remaining retry budget, method, and body all permit it and the delay can
@@ -885,6 +925,7 @@ async fn dispatch_attempt(
     http1_connect: Http1Connect<'_>,
     timeout_budget: TimeoutBudget,
     retries: &mut ConnectionSetupRetryState,
+    may_fall_back: bool,
 ) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let endpoint = &request.endpoint;
     let target = request.target.clone();
@@ -1017,6 +1058,7 @@ async fn dispatch_attempt(
                 body,
                 timeout_budget,
                 retries,
+                may_fall_back,
             ))
             .await
             .map(|dispatched| dispatched.map(DispatchOutcome::from))

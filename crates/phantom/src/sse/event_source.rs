@@ -60,7 +60,9 @@ enum ReconnectFailure {
 /// [`SseRequestBuilder::connect`]. After a disconnect, a body failure, or an
 /// idle timeout, the source waits [`Self::retry_delay`] and sends the request
 /// again with the committed `Last-Event-ID`, on the same exact protocol and
-/// route. Reconnects stop after the builder's
+/// route; a client whose retry policy enables
+/// [`RetryPolicy::with_http2_fallback`](crate::RetryPolicy::with_http2_fallback)
+/// may send an HTTP/3 connect over HTTP/2. Reconnects stop after the builder's
 /// [`max_reconnects`](SseRequestBuilder::max_reconnects) budget (3 by
 /// default); browsers reconnect without a limit. A 204 response closes the
 /// source. Nothing runs between calls to [`Self::next_event`]: there is no

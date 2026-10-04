@@ -136,6 +136,9 @@ Counts in the later phases come from a read-only review of `main` at
 - An opt-in `Expect: 100-continue` with a caller-set wait, which neither
   Chrome 154 nor Firefox 157 sends on any upload
   ([Let the server answer before the body](guides/responses.md#let-the-server-answer-before-the-body)).
+- An opt-in fallback of an exact HTTP/3 request to the profile's HTTP/2
+  recipe when no QUIC connection can be set up
+  ([Fall back to HTTP/2 when QUIC fails](guides/http3.md#fall-back-to-http2-when-quic-fails)).
 - Field lists built once: a negotiated request builds and checks its
   HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
   once per redirect hop before any I/O. The race's winner and every replay
@@ -349,8 +352,6 @@ Each of these needs no capture, because no named recipe may reach it
 - WebSocket over HTTP/3 (RFC 9220) for custom profiles. The `phantom-net`
   extended CONNECT foundation exists; no shipping browser opens one, so no
   recipe will.
-- An opt-in retry of a failed exact HTTP/3 attempt over the profile's own
-  HTTP/2 recipe, as a browser does once it marks an alternative broken.
 - A caller-pinned Alt-Svc alternative, which needs no TLS stream to learn
   from and so could work on CONNECT-UDP.
 - Racing more than one alternative, bounded and chosen by the caller.

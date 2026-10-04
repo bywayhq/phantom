@@ -5,9 +5,10 @@ closed or refusing connection, or a retryable status.
 
 > For builders who have read [Using the client](client.md).
 
-A retry can change what a server sees, so every retry keeps the request's
-route and its [exact protocol](../reference/glossary.md#exact-protocol) or
-negotiated selection rule, and each class has its own bound
+A retry can change what a server sees, so each class has its own bound, and
+every retry but the HTTP/2 fallback keeps the route, the
+[exact protocol](../reference/glossary.md#exact-protocol) or negotiated
+selection rule, and any Alt-Svc alternative
 ([Design](../explanation/design.md#retries-and-replays)). Retries are your
 policy, so no browser recipe includes them apart from the PING resend below.
 
@@ -19,6 +20,7 @@ policy, so no browser recipe includes them apart from the PING resend below.
 | Reused-connection replay | Off | `with_reused_connection_replay` | An H1 keep-alive connection closed before any response byte |
 | Unprocessed-request replay | Off | `with_unprocessed_replay` | The H2 or H3 peer reported it did not process the request |
 | Status retry | Off | `with_status_retry` | The status is 408, 425, 429, 500, 502, 503, or 504 |
+| HTTP/2 fallback | Off | `with_http2_fallback` ([HTTP/3](http3.md#fall-back-to-http2-when-quic-fails)) | No QUIC connection could be set up for an exact H3 request; sent once over H2 |
 | WebSocket setup retry | Off | `WebSocketRetryPolicy` ([WebSocket](websocket.md#retry-a-connect-that-fails-to-open)) | A WebSocket connect failed before any byte reached the server |
 
 Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407` challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
@@ -78,8 +80,7 @@ fn policy() -> RetryPolicy {
 The request, exact or negotiated, is sent once more on a fresh connection
 over the same route when all of these hold:
 
-- it was written to a keep-alive connection that had already delivered a
-  response;
+- it went to a keep-alive connection that had already delivered a response;
 - that connection closed or was reset before any byte of the new response;
 - the method is idempotent (RFC 9110, section 9.2.2: GET, HEAD, OPTIONS,
   TRACE, PUT, or DELETE); and
@@ -158,10 +159,9 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
 
 ## Limits
 
-- Never retried: TLS, certificate, ALPN, proxy negotiation, proxy
-  authentication or rejection, timeouts, HTTP responses, and protocol or
-  post-dispatch failures. When setup retries run out, the last original error
-  is returned.
+- Setup retries never cover TLS, certificate, ALPN, proxy negotiation,
+  proxy authentication or rejection, timeouts, HTTP responses, and protocol
+  or post-dispatch failures. When they run out, the last error is returned.
 - A negotiated request holds a bounded per-origin admission slot across the
   retry delay; a request past that bound fails with
   `RequestErrorKind::Capacity` and no protocol
@@ -186,9 +186,8 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
   cancels an H2 or H3 stream. A missing, repeated, malformed, RFC 850, or
   asctime `Retry-After` falls back to the constant delay.
 - The `client.request` tracing span records `reused_connection_replays`,
-  `unprocessed_replays`, and `status_retries`; each status retry also emits a
-  debug event with its status and delay.
-- Retries never change an Alt-Svc alternative already in use.
+  `unprocessed_replays`, `status_retries`, and `http2_fallbacks`; each status
+  retry also emits a debug event with its status and delay.
 
 ## Next
 

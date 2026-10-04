@@ -63,7 +63,8 @@ impl ResponseInfo {
     /// [`RetryPolicy::connection_failures`](crate::RetryPolicy::connection_failures),
     /// summed across every redirect hop and counted when the attempt starts.
     /// Redirects, status retries, reused-connection and `GOAWAY` replays,
-    /// proxy-authentication replays, and `Critical-CH` retries are not counted.
+    /// proxy-authentication replays, `Critical-CH` retries, and the HTTP/2
+    /// fallback are not counted.
     #[must_use]
     pub const fn retries_performed(&self) -> usize {
         self.retries_performed

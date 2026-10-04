@@ -135,7 +135,7 @@ pub struct AltSvcRace {
 /// (`kMaxTimeForCryptoHandshakeSecs`). Phantom cannot observe handshake
 /// packets at this layer, so it bounds the whole attempt instead, including
 /// name resolution and proxy setup that Chromium's timer does not cover.
-const DEFAULT_ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
+pub(crate) const DEFAULT_ALTERNATIVE_SETUP_LIMIT: Duration = Duration::from_secs(4);
 
 impl AltSvcRace {
     /// Creates racing parameters.

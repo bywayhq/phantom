@@ -14,6 +14,7 @@ policies that stay off until you enable them.
 | Redirects | Not followed | `RedirectPolicy::limited` |
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
+| HTTP/2 fallback of an exact HTTP/3 request | None | `RetryPolicy::with_http2_fallback` |
 | Sending a streaming request body again | Never | `RequestBuilder::buffered_streaming_body`, which keeps up to the bytes you set until `send` returns |
 | Waiting for `100 Continue` before a request body | No `Expect` field; the body follows the head | `RequestBuilder::expect_continue(wait)` |
 | WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
@@ -141,6 +142,7 @@ closes, or sends; the last column says which.
 | WebSocket setup retry delay | No retries | Phantom | `WebSocketRetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 157; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
 | Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
+| QUIC attempt limit of an exact HTTP/3 request that may fall back to HTTP/2 | 4 seconds, the raced alternative's limit | Phantom, from Chrome 153's QUIC idle timeout before a handshake; Chromium lets a responsive handshake run longer | Not configurable | Yes: when TCP setup starts |
 | Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
 | Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
 | Alt-Svc lifetime without `ma` | 24 hours | RFC 7838 | Server's `ma` | No |

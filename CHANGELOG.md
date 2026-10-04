@@ -836,6 +836,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `100-continue`. In `phantom-net`, `RequestBody::expect_continue` and
   `RequestBodyMetadata::continue_wait` do the same for a transport request
   ([guide](docs/guides/responses.md#let-the-server-answer-before-the-body)).
+- `RetryPolicy::with_http2_fallback` sends an exact HTTP/3 request once
+  over the profile's HTTP/2 recipe when no QUIC connection could be set up
+  for it: the QUIC connection attempt or handshake failed or was refused,
+  took longer than 4 seconds or the connect timeout, or failed before the
+  request was written. Any method and an absent, owned, or buffered body
+  may fall back. A name-resolution or SOCKS5 proxy failure, a rejected
+  Encrypted Client Hello, a failure after the request was sent, a request
+  sent as early data, or a one-shot streaming body returns the HTTP/3
+  error. Nothing is remembered between requests, so each tries QUIC first,
+  and `ResponseInfo::protocol` reports the protocol that answered. An exact
+  HTTP/3 request with the policy fails before any I/O on a client without
+  an HTTP/2 profile or on a CONNECT-UDP route
+  ([guide](docs/guides/http3.md#fall-back-to-http2-when-quic-fails)).
 - `RequestBuilder::buffered_streaming_body` and
   `buffered_streaming_body_with_trailers` send a streaming body that a later
   attempt of the request may send again. Up to the caller's byte limit is

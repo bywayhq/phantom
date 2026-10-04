@@ -18,6 +18,9 @@ pub(super) enum ReplayClass {
     /// PING; bounded per hop by the profile's
     /// [`phantom_profile::Http2Settings::ping_failure_retries`].
     Http2PingFailure,
+    /// No HTTP/3 connection could be set up for an exact HTTP/3 request,
+    /// which the caller lets fall back to HTTP/2.
+    Http2Fallback,
 }
 
 impl ReplayClass {
@@ -27,6 +30,9 @@ impl ReplayClass {
             // RFC 9113, section 8.7, and RFC 9114, section 4.1.1: the server
             // did not process the request, so any method may be repeated.
             Self::ProxyAuthentication | Self::Unprocessed => true,
+            // No QUIC connection carried the request, so the server
+            // processed none of it.
+            Self::Http2Fallback => true,
             // Chromium resends after `ERR_HTTP2_PING_FAILED` whatever the
             // method (`net/http/http_network_transaction.cc:2222-2233` at
             // `154.0.8037.58`).
@@ -45,6 +51,7 @@ pub(super) struct ReplayState {
     critical_client_hints: bool,
     proxy_authentication: bool,
     reused_connection: bool,
+    http2_fallback: bool,
     unprocessed: usize,
     status: usize,
     http2_ping_failures: u8,
@@ -59,6 +66,7 @@ impl ReplayState {
             critical_client_hints: false,
             proxy_authentication: false,
             reused_connection: false,
+            http2_fallback: false,
             unprocessed: 0,
             status: 0,
             http2_ping_failures: 0,
@@ -85,6 +93,7 @@ impl ReplayState {
             ReplayClass::CriticalClientHints => &mut self.critical_client_hints,
             ReplayClass::ProxyAuthentication => &mut self.proxy_authentication,
             ReplayClass::ReusedConnection => &mut self.reused_connection,
+            ReplayClass::Http2Fallback => &mut self.http2_fallback,
             ReplayClass::Unprocessed => {
                 self.unprocessed += 1;
                 return true;
@@ -114,6 +123,7 @@ impl ReplayState {
             ReplayClass::CriticalClientHints => self.critical_client_hints,
             ReplayClass::ProxyAuthentication => self.proxy_authentication,
             ReplayClass::ReusedConnection => self.reused_connection,
+            ReplayClass::Http2Fallback => self.http2_fallback,
             ReplayClass::Unprocessed => self.unprocessed > 0,
             ReplayClass::Status => self.status > 0,
             ReplayClass::Http2PingFailure => self.http2_ping_failures > 0,

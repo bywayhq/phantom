@@ -291,7 +291,9 @@ impl Client {
 
     /// Starts one empty-body GET using exactly `protocol`.
     ///
-    /// The request never falls back to another protocol.
+    /// The request never falls back to another protocol, except an exact
+    /// HTTP/3 request under
+    /// [`RetryPolicy::with_http2_fallback`](crate::RetryPolicy::with_http2_fallback).
     ///
     /// # Errors
     ///
@@ -321,7 +323,9 @@ impl Client {
 
     /// Starts one request using exactly `protocol`.
     ///
-    /// The request never falls back to another protocol.
+    /// The request never falls back to another protocol, except an exact
+    /// HTTP/3 request under
+    /// [`RetryPolicy::with_http2_fallback`](crate::RetryPolicy::with_http2_fallback).
     ///
     /// # Errors
     ///

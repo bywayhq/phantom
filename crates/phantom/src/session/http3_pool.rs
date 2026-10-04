@@ -21,6 +21,7 @@ use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
+    alt_svc::DEFAULT_ALTERNATIVE_SETUP_LIMIT,
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http3_connections::{Candidate, Choice, Http3Spread},
     stream_count::{OpenStream, StreamCount},
@@ -141,7 +142,12 @@ impl Http3Pool {
         body: Option<RequestBody>,
         timeout_budget: TimeoutBudget,
         retries: &mut ConnectionSetupRetryState,
+        may_fall_back: bool,
     ) -> Result<Dispatched<Http3Response>, RequestError> {
+        // A request that would fall back to HTTP/2 bounds each QUIC attempt
+        // as a raced alternative's is bounded, with the same caveat: a
+        // responsive but slow handshake fails here and not in Chromium.
+        let attempt_limit = may_fall_back.then_some(DEFAULT_ALTERNATIVE_SETUP_LIMIT);
         let leased = self
             .admit(endpoint, route, timeout_budget)
             .await?
@@ -155,6 +161,7 @@ impl Http3Pool {
                 retries,
                 Http3SetupControl {
                     early_data: connector.sends_early_data(),
+                    attempt_limit,
                     ..Http3SetupControl::default()
                 },
             )
@@ -1085,7 +1092,7 @@ impl Http3Lease {
             Ok(()) => Ok(self),
             Err(error) => {
                 self.entry.invalidate(&self.lease.token);
-                Err(RequestError::http3_stream(error))
+                Err(RequestError::http3_early_data_setup(error))
             }
         }
     }

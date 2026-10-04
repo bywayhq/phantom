@@ -874,6 +874,7 @@ async fn dispatch_http3(
                 body,
                 timeout_budget,
                 retries,
+                false,
             ))
             .await
         }

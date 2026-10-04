@@ -459,8 +459,10 @@ impl RequestBuilder {
     /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
     /// or pre-ALPN negotiated connection setup without replaying request bytes
     /// or body frames, and can separately opt into reused-connection replay
-    /// and status retries for idempotent requests, and replay requests that
-    /// the H2 or H3 peer reported as not processed. When the client has a
+    /// and status retries for idempotent requests, replay requests that
+    /// the H2 or H3 peer reported as not processed, and send an exact H3
+    /// request over H2 when no QUIC connection could be set up for it
+    /// ([`RetryPolicy::with_http2_fallback`]). When the client has a
     /// [`RedirectPolicy`](crate::RedirectPolicy), each `http://` or `https://`
     /// redirect target is checked against the request's protocol selection
     /// and route before it is sent, as the first request is.
@@ -538,6 +540,7 @@ impl RequestBuilder {
             reused_connection_replays = 0_u64,
             unprocessed_replays = 0_u64,
             status_retries = 0_u64,
+            http2_fallbacks = 0_u64,
             timeout_phase = field::Empty,
             outcome = field::Empty,
         );
@@ -667,6 +670,7 @@ impl RequestBuilder {
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
         ensure_request_supported(selection, route, &request)?;
+        ensure_http2_fallback_supported(&client, selection, route, retry_policy)?;
         // A caller's preemptive field goes to the forward proxy, as it does on
         // CONNECT. On any other route it would reach the origin, and with
         // configured credentials it would conflict with the generated field.
@@ -1112,6 +1116,29 @@ fn ensure_request_supported(
         },
         _ => Err(RequestError::unsupported_scheme()),
     }
+}
+
+/// Checks before any I/O that an exact HTTP/3 request that may fall back to
+/// HTTP/2 has an HTTP/2 path: an HTTP/2 profile and a route that carries TCP.
+fn ensure_http2_fallback_supported(
+    client: &Client,
+    selection: ProtocolSelection,
+    route: &Route,
+    policy: RetryPolicy,
+) -> Result<(), RequestError> {
+    if !policy.http2_fallback()
+        || !matches!(selection, ProtocolSelection::Exact(HttpProtocol::Http3))
+    {
+        return Ok(());
+    }
+    if client.inner.http2.is_none() {
+        return Err(RequestError::unsupported_protocol(HttpProtocol::Http2));
+    }
+    // CONNECT-UDP carries only QUIC.
+    if matches!(route, Route::ConnectUdp(_)) {
+        return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug)]

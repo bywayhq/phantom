@@ -23,7 +23,8 @@ Terms: H3, H2, and H1 are HTTP/3, HTTP/2, and HTTP/1.1. QUIC (RFC 9000) is the
 UDP transport under HTTP/3. QPACK (RFC 9204) is HTTP/3 field compression; its
 dynamic table is state that encoder and decoder keep in sync over two
 dedicated streams. An [exact](../reference/glossary.md#exact-protocol) H3
-request must use HTTP/3 and never falls back. A
+request uses HTTP/3, or HTTP/2 only under the opt-in
+`RetryPolicy::with_http2_fallback` when no QUIC connection can be set up. A
 [negotiated](../reference/glossary.md#negotiated-protocol) request starts over
 TCP and lets ALPN pick H1 or H2; later requests to the origin can use H3
 through [Alt-Svc](../reference/glossary.md#alt-svc).

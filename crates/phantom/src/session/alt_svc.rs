@@ -1084,6 +1084,7 @@ impl PendingLookup {
 }
 
 mod policy;
+pub(crate) use policy::DEFAULT_ALTERNATIVE_SETUP_LIMIT;
 pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
 
 mod snapshot;

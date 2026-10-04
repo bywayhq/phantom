@@ -57,6 +57,8 @@ shows, such as Edge's TCP options, has no recipe at all.
 
 An exact H3 request fails when UDP is blocked. That is deliberate: Phantom
 never silently changes protocol, route, or fingerprint to complete a request.
+The one protocol change, `RetryPolicy::with_http2_fallback`, is a caller's
+choice, and the response reports the protocol that answered.
 When it cannot do what the caller chose, it returns a typed error, and
 conflicts between a profile and connection policy fail before any I/O.
 
@@ -162,8 +164,10 @@ with no connection, as Firefox's connection manager prunes on one timer.
 
 A browser's recovery is part of its behavior, and a request sent twice can
 have effects twice. Every retry class is therefore bounded, and none changes
-the route, the exact protocol, the negotiated selection rule, or the Alt-Svc
-alternative in use. Apart from one H2 `GOAWAY` replay and the Chromium
+the route, the negotiated selection rule, or the Alt-Svc alternative in use.
+Only the opt-in HTTP/2 fallback changes an exact protocol, and only for an
+HTTP/3 request that no QUIC connection carried, so the server processed
+none of it. Apart from one H2 `GOAWAY` replay and the Chromium
 recipes' resend after a failed H2 PING, Phantom retries nothing unless you
 configure it, so a transient failure reaches your code as an error.
 Firefox's transaction restarts on fresh connections are not reproduced.

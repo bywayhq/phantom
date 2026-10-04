@@ -12,6 +12,7 @@ mod alt_svc_frames;
 mod alt_svc_persistence;
 mod alt_svc_race;
 mod connect_udp;
+mod http2_fallback;
 mod http3;
 mod http3_early_data;
 mod http3_retries;

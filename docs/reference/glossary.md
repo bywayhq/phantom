@@ -106,7 +106,8 @@ packets, or qlog events.
 ## Exact protocol
 
 A request mode in which the request uses the protocol you chose (H1, H2, or
-H3) or fails. It never falls back to another protocol. Compare
+H3) or fails. It never falls back to another protocol, except an H3 request
+whose retry policy opts into the HTTP/2 fallback. Compare
 [negotiated protocol](#negotiated-protocol).
 
 ## Extended CONNECT

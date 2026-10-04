@@ -3,8 +3,9 @@
 //! Phantom is an HTTP client whose observable TLS, HTTP/1.1, HTTP/2, QUIC, and
 //! HTTP/3 behavior comes from a typed [`profile::ClientProfile`]. A [`Client`]
 //! owns that profile plus bounded pools and cross-request state; each request
-//! selects its protocol explicitly and never falls back to another protocol
-//! or route.
+//! selects its protocol explicitly and never falls back to another route. It
+//! changes protocol only when its retry policy opts into
+//! [`RetryPolicy::with_http2_fallback`] for an exact HTTP/3 request.
 //!
 //! # Quick start
 //!

@@ -22,10 +22,11 @@ rests on.
   recordings. Where a recording cannot show a detail, such as TCP socket
   options, the recipe comes from browser source and
   [Validation](explanation/validation.md) says so.
-- Phantom never falls back to another protocol or route. A request for
-  HTTP/3 never retries over HTTP/2, and a failed proxy never gives way to a
-  direct connection: Phantom uses the protocol and
-  [route](reference/glossary.md#route) you chose or returns a typed error.
+- Phantom never falls back to another protocol or route on its own. A
+  request for HTTP/3 retries over HTTP/2 only when you opt in, and a failed
+  proxy never gives way to a direct connection: Phantom uses the protocol
+  and [route](reference/glossary.md#route) you chose or returns a typed
+  error.
 - Header fields, duplicates, and trailers go out in the order you add them,
   and SETTINGS and pseudo-header fields in the order the profile lists them.
 - Connection pools, cookies, Alt-Svc entries, and TLS session caches belong
@@ -79,7 +80,8 @@ The table records what each project's own documentation states, as of
 
 - Its documentation ties each layer's claim to a retained capture and the
   test that replays it, in [Validation](explanation/validation.md).
-- It refuses to fall back to another protocol or route.
+- It never falls back to another route, and changes protocol only when you
+  opt in.
 - It ships fewer browser builds than curl-impersonate, curl_cffi, or wreq,
   and it is not on crates.io, while wreq is.
 

@@ -95,8 +95,8 @@ it is not resent over HTTP/1.1 or HTTP/2.
 To behave like Chrome, send negotiated requests with Alt-Svc racing, so the
 origin connection wins when QUIC fails
 ([Race the alternative against the origin](http3-discovery.md#race-the-alternative-against-the-origin)).
-To fall back yourself, catch the error and send a new request on another
-protocol; that request has a different fingerprint.
+For an exact H3 request, set `RetryPolicy::with_http2_fallback`
+([Fall back to HTTP/2 when QUIC fails](http3.md#fall-back-to-http2-when-quic-fails)).
 
 ## A negotiated request is rejected on a proxy route
 

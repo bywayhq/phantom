@@ -37,7 +37,8 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 - This is an [exact-protocol](../reference/glossary.md#exact-protocol)
-  request: it never falls back to HTTP/1.1 or HTTP/2.
+  request; it moves to HTTP/2 only
+  [if you opt in](#fall-back-to-http2-when-quic-fails).
 - The TLS settings passed to `ClientProfile::new` apply only to TCP
   connections. H3 uses the TLS settings inside `Http3ClientSettings`.
 - Exact H3 works over direct QUIC, SOCKS5 UDP ASSOCIATE (`socks5://` or
@@ -76,19 +77,40 @@ fn client_without_early_data(profile: ClientProfile) -> Result<Client, BuildErro
   `session_tickets`.
 - A replay-safe request is sent as early data: `GET`, `HEAD`, `OPTIONS`, or
   `TRACE`, with no body and no trailers. Other requests wait for the
-  handshake, even on a connection that offered early data. Under the
-  recipes' dynamic QPACK policy, early requests are encoded with the server
-  SETTINGS remembered with the ticket; see
-  [Remembered SETTINGS](../internals/http3.md#remembered-settings).
-  [QUIC session resumption](../explanation/validation.md#quic-session-resumption)
-  gives the Chromium source for this rule.
-- Concurrent requests to a resumed origin share one connection while its
-  early data is unanswered.
+  handshake, even on a connection that offered early data; see
+  [Session tickets](../internals/http3.md#session-tickets).
 - The server must have issued a ticket that permits early data. If it
   rejects the early data, it processed none of it. Phantom sends the request
   again on the same connection once the handshake completes, as Chrome does.
   A handshake that fails after the connection sent early data fails the
-  waiting requests; it is not retried.
+  waiting requests, unless they [fall back](#fall-back-to-http2-when-quic-fails).
+
+## Fall back to HTTP/2 when QUIC fails
+
+Send an exact H3 request over the profile's HTTP/2 recipe when no QUIC
+connection can be set up, as a browser uses TCP once QUIC fails.
+
+```rust
+use phantom::{Client, HttpProtocol, RetryPolicy};
+
+async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let policy = RetryPolicy::none().with_http2_fallback(true);
+    let request = client.get(HttpProtocol::Http3, "https://example.com/")?;
+    drop(request.retry_policy(policy).send().await?);
+    Ok(())
+}
+```
+
+- It follows a refused, failed, or slow QUIC connection or handshake (past 4
+  seconds or the connect timeout), after any setup retries. A failure after
+  the request was sent, or a one-shot body, returns the H3 error.
+- A replay-safe request on a resumed connection leaves as early data before
+  the handshake completes, so it does not fall back; build the client with
+  `http3_early_data(false)` for it to.
+- The request goes once over TCP with the profile's TLS and HTTP/2 recipes,
+  and `ResponseInfo::protocol` reports `Http2`; the next request tries QUIC
+  again. Without an HTTP/2 profile or on a CONNECT-UDP route, it fails
+  before any I/O.
 
 ## Upgrade to HTTP/3 when the server advertises it
 
@@ -148,8 +170,7 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Limits
 
-- An exact H3 request never falls back to HTTP/1.1 or HTTP/2. When UDP is
-  blocked it fails, usually with `RequestErrorKind::Connect` or `Http3`
+- Without the fallback, an exact H3 request fails when UDP is blocked
   ([Troubleshooting](troubleshooting.md#an-http3-request-fails-where-a-browser-would-fall-back)).
 - Only an authenticated, negotiated HTTP/1.1 or HTTP/2 response can advertise
   `h3`. Phantom subtracts the response's `Age` from `ma` (the advertised

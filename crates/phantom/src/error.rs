@@ -386,6 +386,9 @@ pub struct RequestError {
     protocol: Option<HttpProtocol>,
     timeout_phase: Option<TimeoutPhase>,
     retryability: RequestRetryability,
+    /// Whether no HTTP/3 connection could be set up to carry the request,
+    /// so an exact HTTP/3 request may fall back to HTTP/2.
+    http3_setup_failed: bool,
     message: &'static str,
     source: Option<BoxError>,
 }
@@ -614,6 +617,7 @@ impl RequestError {
             protocol: Some(protocol),
             timeout_phase: None,
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message: "requested protocol is absent from the client profile",
             source: None,
         }
@@ -632,6 +636,7 @@ impl RequestError {
             protocol: Some(protocol),
             timeout_phase: None,
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message: "selected route does not support the requested protocol",
             source: None,
         }
@@ -659,6 +664,7 @@ impl RequestError {
             protocol,
             timeout_phase: None,
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message: "request admission capacity is exhausted",
             source: None,
         }
@@ -692,6 +698,7 @@ impl RequestError {
             protocol,
             timeout_phase: Some(phase),
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message,
             source: None,
         }
@@ -978,10 +985,25 @@ impl RequestError {
                 .is_some_and(Http3ProxyFailure::is_retryable_connection_setup),
             kind => is_retryable_http3_connection_setup_kind(kind),
         };
+        // A rejected Encrypted Client Hello is the server's answer, not a
+        // connection that could not be set up.
+        let setup_failed =
+            source.ech_failure().is_none() && is_http3_setup_failure_kind(source.kind());
         let mut error = Self::http3(source);
         if retryable {
             error.retryability = RequestRetryability::ConnectionSetup;
         }
+        error.http3_setup_failed = setup_failed;
+        error
+    }
+
+    /// Wraps the failed handshake of a connection that sent early data,
+    /// observed before the request was written.
+    pub(crate) fn http3_early_data_setup(source: Http3ConnectorError) -> Self {
+        let setup_failed =
+            source.ech_failure().is_none() && is_http3_setup_failure_kind(source.kind());
+        let mut error = Self::http3_stream(source);
+        error.http3_setup_failed = setup_failed;
         error
     }
 
@@ -1034,6 +1056,7 @@ impl RequestError {
             protocol: None,
             timeout_phase: None,
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message,
             source: None,
         }
@@ -1050,6 +1073,7 @@ impl RequestError {
             protocol,
             timeout_phase: None,
             retryability: RequestRetryability::Never,
+            http3_setup_failed: false,
             message,
             source: Some(Box::new(source)),
         }
@@ -1057,6 +1081,16 @@ impl RequestError {
 
     pub(crate) fn is_retryable_connection_setup(&self) -> bool {
         self.retryability == RequestRetryability::ConnectionSetup
+    }
+
+    /// Returns whether no HTTP/3 connection could be set up to carry the
+    /// request, including a connect-phase HTTP/3 timeout, so an exact HTTP/3
+    /// request may fall back to HTTP/2.
+    pub(crate) fn is_http3_setup_failure(&self) -> bool {
+        self.http3_setup_failed
+            || (self.kind == RequestErrorKind::Timeout
+                && self.timeout_phase == Some(TimeoutPhase::Connect)
+                && self.protocol == Some(HttpProtocol::Http3))
     }
 
     /// Returns whether a reused HTTP/1.1 connection closed before any
@@ -1173,6 +1207,20 @@ fn socks5_request_error_kind(kind: Socks5ErrorKind) -> RequestErrorKind {
         | Socks5ErrorKind::Authentication
         | Socks5ErrorKind::Rejected => RequestErrorKind::Proxy,
     }
+}
+
+/// Returns whether a failure of this kind left no HTTP/3 connection to carry
+/// the request: the QUIC endpoint, connection attempt, or handshake failed.
+/// Name resolution fails the same way over TCP, and the other kinds are
+/// configuration or request errors.
+fn is_http3_setup_failure_kind(kind: Http3ConnectorErrorKind) -> bool {
+    matches!(
+        kind,
+        Http3ConnectorErrorKind::Endpoint
+            | Http3ConnectorErrorKind::Connect
+            | Http3ConnectorErrorKind::Connection
+            | Http3ConnectorErrorKind::Handshake
+    )
 }
 
 fn is_retryable_http3_connection_setup_kind(kind: Http3ConnectorErrorKind) -> bool {
@@ -1315,11 +1363,11 @@ mod tests {
     };
 
     use super::{
-        RequestError, RequestErrorKind, is_retryable_connect_udp_kind,
+        RequestError, RequestErrorKind, is_http3_setup_failure_kind, is_retryable_connect_udp_kind,
         is_retryable_http_connect_kind, is_retryable_http3_connection_setup_kind,
         is_retryable_socks5_kind, socks5_request_error_kind,
     };
-    use crate::HttpProtocol;
+    use crate::{HttpProtocol, TimeoutPhase};
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
@@ -1579,6 +1627,43 @@ mod tests {
             ConnectUdpErrorKind::Protocol,
         ] {
             assert!(!is_retryable_connect_udp_kind(kind), "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn only_a_failed_quic_connection_or_handshake_allows_the_http2_fallback() {
+        for kind in [
+            Http3ConnectorErrorKind::Endpoint,
+            Http3ConnectorErrorKind::Connect,
+            Http3ConnectorErrorKind::Connection,
+            Http3ConnectorErrorKind::Handshake,
+        ] {
+            assert!(is_http3_setup_failure_kind(kind), "{kind:?}");
+        }
+        for kind in [
+            Http3ConnectorErrorKind::Resolve,
+            Http3ConnectorErrorKind::Proxy,
+            Http3ConnectorErrorKind::InvalidProfile,
+            Http3ConnectorErrorKind::TrustStore,
+            Http3ConnectorErrorKind::ProtocolConfiguration,
+            Http3ConnectorErrorKind::RuntimeUnavailable,
+            Http3ConnectorErrorKind::Request,
+            Http3ConnectorErrorKind::Protocol,
+            Http3ConnectorErrorKind::Local,
+            Http3ConnectorErrorKind::ExtendedConnectUnavailable,
+        ] {
+            assert!(!is_http3_setup_failure_kind(kind), "{kind:?}");
+        }
+
+        let connect_timeout =
+            RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3));
+        assert!(connect_timeout.is_http3_setup_failure());
+        for (phase, protocol) in [
+            (TimeoutPhase::ResponseHead, Some(HttpProtocol::Http3)),
+            (TimeoutPhase::Total, Some(HttpProtocol::Http3)),
+            (TimeoutPhase::Connect, Some(HttpProtocol::Http2)),
+        ] {
+            assert!(!RequestError::timeout(phase, protocol).is_http3_setup_failure());
         }
     }
 
