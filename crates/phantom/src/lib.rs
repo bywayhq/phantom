@@ -259,9 +259,11 @@ pub mod profile {
         pub use phantom_profile::chromium::{
             v154_cookie_placement, v154_dns_cache, v154_http1, v154_http2, v154_http3,
             v154_http3_request, v154_http3_tls, v154_macos_client_hints,
-            v154_macos_fetch_no_store_template, v154_macos_navigation_template, v154_proxy_connect,
-            v154_quic, v154_tcp, v154_tls, v154_udp, v154_websocket, v154_windows_client_hints,
-            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
+            v154_macos_fetch_no_store_template, v154_macos_fetch_template,
+            v154_macos_navigation_template, v154_proxy_connect, v154_quic, v154_tcp, v154_tls,
+            v154_udp, v154_websocket, v154_windows_client_hints,
+            v154_windows_fetch_no_store_template, v154_windows_fetch_template,
+            v154_windows_navigation_template,
         };
     }
 
@@ -286,8 +288,9 @@ pub mod profile {
         pub use phantom_profile::firefox::{
             v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_http3,
             v157_http3_request, v157_http3_tls, v157_macos_fetch_no_store_template,
-            v157_macos_navigation_template, v157_proxy_connect, v157_quic, v157_tcp, v157_tls,
-            v157_websocket, v157_windows_fetch_no_store_template, v157_windows_navigation_template,
+            v157_macos_fetch_template, v157_macos_navigation_template, v157_proxy_connect,
+            v157_quic, v157_tcp, v157_tls, v157_websocket, v157_windows_fetch_no_store_template,
+            v157_windows_fetch_template, v157_windows_navigation_template,
         };
     }
 

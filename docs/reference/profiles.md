@@ -408,16 +408,20 @@ Each recipe's rustdoc cites the source lines. Evidence:
 | `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
 | `chromium::v154_macos_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `chromium::v154_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `chromium::v154_windows_fetch_template` | Same-origin `fetch(url)` GET in the default cache mode, with validator slots | Yes | Yes | No | Captured headful Chrome 154 value |
+| `chromium::v154_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | No | Required caller slot |
 | `edge::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `edge::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `brave::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `opera::v136_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `opera::v136_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
-| `firefox::v157_windows_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 157 value |
-| `firefox::v157_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 157 value |
-| `firefox::v157_macos_navigation_template` | Address-bar navigation | Yes | Yes | No | Captured Firefox 157 macOS value |
-| `firefox::v157_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Firefox 157 macOS value |
+| `firefox::v157_windows_navigation_template` | Address-bar navigation | Yes | Yes | HTTP/2 list | Captured Firefox 157 value |
+| `firefox::v157_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | HTTP/2 list | Captured Firefox 157 value |
+| `firefox::v157_macos_navigation_template` | Address-bar navigation | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
+| `firefox::v157_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
+| `firefox::v157_windows_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 value |
+| `firefox::v157_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
 | `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `chrome_android::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
@@ -430,7 +434,9 @@ Each recipe's rustdoc cites the source lines. Evidence:
 - "No" means no retained capture covers that protocol, so the template has
   no field list for it. "Chromium list" means the H3 list is the Chromium
   one: the Android H3 captures were opened by intent and differ from it only
-  in the fields the next list names.
+  in the fields the next list names. "HTTP/2 list" means the H3 list is the
+  template's HTTP/2 order without `te` and the proxy credential fields, which the Firefox 157 HTTP/3
+  snapshots and cookie captures match for the fields they share.
 - A caller slot has no captured value; you supply the field. A request that
   leaves a required caller slot empty fails before any I/O.
 - Every template carries the capture machine's `en-US` `Accept-Language`,
@@ -478,11 +484,13 @@ template and caller fields, not client hints, which are added afterward.
 | --- | --- | --- |
 | `firefox::v157_cookie_placement` | Firefox `fetch` | After `Referer`, before `Sec-Fetch-Dest` |
 | `firefox::v157_cookie_placement` | Firefox navigation | Before `Upgrade-Insecure-Requests` |
-| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last |
-| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before the final `priority` |
+| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last, or before your `If-None-Match` and `If-Modified-Since` |
+| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before your validators and the final `priority` |
 
 The cookie captures of all four Chromium-family browsers show both
 positions ([Cookie crumb evidence](../explanation/validation.md#cookie-crumb-evidence)).
+Both placements put `Cookie` before the validators of a revalidation, as the
+browsers' source does; no capture holds a cookie and a validator together.
 
 ### Cookie crumbs
 

@@ -55,7 +55,7 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source, a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom, and one of Chrome 154.0.8037.97 closing a connection whose PING went unanswered | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
 | [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
 | [HTTP/2 idle PING](#http2-idle-ping-evidence) | Firefox source and a retained Firefox 157 capture of an idle pooled connection, replayed against Phantom | One Windows run; no capture shows an unanswered PING |
-| [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures | One run per scenario; recorded for future work, no recipe uses them yet |
+| [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures, compared with the default-mode `fetch` templates, and browser source | One run per scenario; HTTP/1.1 and HTTP/3 validator positions rest on source; uploads recorded for future work |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; Phantom keeps one alternative per origin; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
@@ -3977,10 +3977,17 @@ Limits:
 
 ### Revalidation and upload evidence
 
-What is recorded: two browser behaviors that no recipe models yet, from
-the same `http_lifecycle.py` captures of Chrome 154.0.8037.97 and Firefox
-157.0, one run each, retained under `fixtures/lifecycle/`. The `idle-ping`
-run of the same tool is the [idle PING evidence](#http2-idle-ping-evidence).
+What is claimed: `chromium::v154_windows_fetch_template`,
+`chromium::v154_macos_fetch_template`, `firefox::v157_windows_fetch_template`,
+and `firefox::v157_macos_fetch_template` place a caller's `If-None-Match`
+and `If-Modified-Since` where Chrome 154 and Firefox 157 send them when
+their cache revalidates a response, and the browsers' cookie placements put
+`Cookie` before them. Uploads are recorded for future work.
+
+Evidence: two behaviors from the same `http_lifecycle.py` captures of Chrome
+154.0.8037.97 and Firefox 157.0, one run each, retained under
+`fixtures/lifecycle/`, and browser source. The `idle-ping` run of the same
+tool is the [idle PING evidence](#http2-idle-ping-evidence).
 
 - Revalidation (`revalidate`): the page fetched four resources twice
   each with the default cache mode. Three carried `Cache-Control: no-cache`
@@ -3992,21 +3999,58 @@ run of the same tool is the [idle PING evidence](#http2-idle-ping-evidence).
   `if-none-match` first; Firefox put them after `sec-fetch-site` and before
   `priority`, `if-modified-since` first when both were sent. A resource with
   only a year-old `Last-Modified` and no `Cache-Control` was served from the
-  cache with no second request, in both browsers.
+  cache with no second request, in both browsers. Apart from the
+  validators, each request carried the fields of the browser's no-store
+  `fetch` template without `Pragma` and `Cache-Control`.
 - Uploads (`upload-h1`, `upload-h2`): a 100-byte `fetch` POST, 1 MiB
   string and `Blob` bodies, a 1 MiB multipart `FormData`, and a form that
   submitted a 1 MiB file into an iframe, over HTTP/1.1 and over HTTP/2.
   Neither browser sent `Expect: 100-continue` on any of them; each body
   carried `Content-Length`.
 
+Chromium source at tag `154.0.8037.58` places the validators on every
+protocol. `HttpCache::Transaction::ConditionalizeRequest` appends
+`If-None-Match` and then `If-Modified-Since` to the request's fields
+(`net/http/http_cache_transaction.cc:3322-3323`, `:3337-3338`), after
+`URLRequestHttpJob` has added `Accept-Encoding`, `Accept-Language`, and
+`Cookie` (`net/url_request/url_request_http_job.cc:782`, `:793-794`,
+`:870-871`). The HTTP/1.1 transaction writes those fields after `Host` and
+`Connection` (`net/http/http_network_transaction.cc:1429`), so the
+validators go last, and `CreateSpdyHeadersFromHttpRequest` appends
+`priority` after them on HTTP/2 and HTTP/3
+(`net/spdy/spdy_http_utils.cc:227-237`). Firefox source at tag
+`FIREFOX_157_0_RELEASE` adds `If-Modified-Since` and then `If-None-Match` in
+`nsHttpChannel::OnCacheEntryCheck`
+(`netwerk/protocol/http/nsHttpChannel.cpp:5598`, `:5605`), after the cookies
+and the `Sec-Fetch-*` fields and before `Priority` (`:1866`), and every
+protocol keeps the order in which the fields were set.
+
+`crates/phantom/src/request/template/tests.rs` expands the Windows Chrome and
+Firefox default-mode templates' HTTP/2 lists with each revalidating request's
+validators and compares the field names with the capture's.
+`the_jar_cookie_precedes_the_validators_of_a_revalidation` in
+`crates/phantom/tests/requests/request_templates.rs` sends a jar cookie with
+both validators and checks that `Cookie` comes before them, over HTTP/1.1
+and HTTP/2 with Chrome's template and over HTTP/2 with Firefox's.
+
 How to reproduce: the commands in
 [Connection lifecycle](../../scripts/capture/README.md#connection-lifecycle);
 each `revalidate` and `upload` run took 1 to 2 seconds.
 
+```sh
+cargo test -p phantom-http --lib revalidation
+cargo test -p phantom-http --all-features --test requests \
+  the_jar_cookie_precedes_the_validators
+```
+
 Limits:
 
 - One run per scenario, headless, on one Windows host; Edge, Brave, and
-  Opera were not captured.
+  Opera were not captured, and their templates have no validator slots.
+- The capture records field names, not every value or the HTTP/2 priority;
+  the default-mode templates take those from the no-store templates.
+- No capture shows validators over HTTP/1.1 or HTTP/3, or with a cookie;
+  those positions rest on source.
 - Phantom has no HTTP cache, so revalidation fields come from the caller.
 
 ### Alt-Svc racing evidence

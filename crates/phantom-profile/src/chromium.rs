@@ -187,11 +187,15 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
 /// `Cookie` precedes a `priority` field. The retained cookie captures of
 /// Chrome 154, Edge 154, Brave 154, and Opera 136 (`fixtures/cookies/`) show
 /// both positions on every run: `Cookie` last over HTTP/1.1, and the crumbs
-/// right before `priority` over HTTP/2 and HTTP/3. Edge, Brave, and Opera
+/// right before `priority` over HTTP/2 and HTTP/3. The cache appends the
+/// validators of a revalidation after it
+/// (`net/http/http_cache_transaction.cc:3322-3323`, `:3337-3338`), so
+/// `Cookie` also precedes an `If-None-Match` or `If-Modified-Since` field; no
+/// capture shows a cookie and a validator together. Edge, Brave, and Opera
 /// use this recipe.
 #[must_use]
 pub fn v154_cookie_placement() -> CookiePlacement {
-    CookiePlacement::before_fields(["priority"])
+    CookiePlacement::before_fields(["if-none-match", "if-modified-since", "priority"])
 }
 
 /// Returns TLS settings captured from Chrome 154.0.8037.58 on Windows 11.
@@ -905,6 +909,44 @@ pub fn v154_macos_fetch_no_store_template() -> RequestTemplate {
     v154_fetch_no_store_template(None)
 }
 
+/// Returns same-origin `fetch` request fields of Chrome 154 on Windows 11 in
+/// the default cache mode, with slots for the validators of a revalidation.
+///
+/// A script `fetch(url)` GET to the page's own origin. The fields, values,
+/// and HTTP/2 priority are those of
+/// [`v154_windows_fetch_no_store_template`] without `Pragma` and
+/// `Cache-Control`, which only the no-store mode adds; the proxy route
+/// captures show the default-mode `fetch()` with that shape. When the cache
+/// revalidates a response, Chrome adds `If-None-Match`, then
+/// `If-Modified-Since`, after `Accept-Language` and before `priority`. Phantom
+/// has no HTTP cache, so both are optional caller slots: a caller that
+/// revalidates its own cached response supplies the fields, and they go
+/// there. The retained Chrome 154.0.8037.97 revalidation capture shows that
+/// HTTP/2 order with either field and with both. The HTTP/1.1 position, last,
+/// follows from Chromium source: the cache appends the validators to the
+/// request's fields, which the transaction writes after `Host` and
+/// `Connection` (`net/http/http_cache_transaction.cc:3322-3323`,
+/// `:3337-3338`; `net/http/http_network_transaction.cc:1429` at tag
+/// `154.0.8037.58`). A `Cookie` precedes them, as
+/// [`v154_cookie_placement`] places it. No capture backs this request kind on
+/// HTTP/3, so [`RequestTemplate::http3_fields`] is `None`.
+#[must_use]
+pub fn v154_windows_fetch_template() -> RequestTemplate {
+    v154_fetch_template(Some(V154_WINDOWS_USER_AGENT))
+}
+
+/// Returns same-origin `fetch` request fields of Chrome 154 on macOS 15.5
+/// arm64 in the default cache mode, with slots for the validators of a
+/// revalidation.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v154_windows_fetch_template`], with `User-Agent` as a required caller
+/// slot for the reason given in [`v154_macos_navigation_template`].
+#[must_use]
+pub fn v154_macos_fetch_template() -> RequestTemplate {
+    v154_fetch_template(None)
+}
+
 /// Returns Chromium 154's position of forwarded proxy credentials, on the
 /// replay after a `407` and on later requests alike: after
 /// `Proxy-Connection` on HTTP/1.1 and first after the pseudo-header fields
@@ -977,51 +1019,101 @@ pub(crate) fn v154_navigation_template(user_agent: Option<&str>) -> RequestTempl
     }
 }
 
+/// The cache mode of a same-origin `fetch`, which decides its cache fields.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum FetchCache {
+    /// The default mode: no cache fields of its own, and the validators of a
+    /// cached response when the cache revalidates it.
+    Default,
+    /// `no-store`: `Pragma` and `Cache-Control` set to `no-cache`.
+    NoStore,
+}
+
 /// Builds the Chromium 154 no-store fetch lists with a literal or required
 /// caller `User-Agent`.
 pub(crate) fn v154_fetch_no_store_template(user_agent: Option<&str>) -> RequestTemplate {
+    v154_fetch_lists(user_agent, FetchCache::NoStore)
+}
+
+/// Builds the Chromium 154 default-mode fetch lists with a literal or
+/// required caller `User-Agent`.
+fn v154_fetch_template(user_agent: Option<&str>) -> RequestTemplate {
+    v154_fetch_lists(user_agent, FetchCache::Default)
+}
+
+/// Builds the Chromium 154 fetch lists for `cache`.
+///
+/// `HttpNetworkTransaction::BuildRequestHeaders` writes the no-store cache
+/// fields right after `Connection`, before the merged request fields
+/// (`net/http/http_network_transaction.cc:1415-1419`, `:1429` at tag
+/// `154.0.8037.58`). `HttpCache::Transaction::ConditionalizeRequest` appends
+/// `If-None-Match` and then `If-Modified-Since` to those fields
+/// (`net/http/http_cache_transaction.cc:3322-3323`, `:3337-3338`), after
+/// `URLRequestHttpJob` has added `Accept-Encoding`, `Accept-Language`
+/// (`net/url_request/url_request_http_job.cc:782`, `:793-794`), and the
+/// cookies, and `CreateSpdyHeadersFromHttpRequest` appends `priority` after
+/// them (`net/spdy/spdy_http_utils.cc:227-237`).
+fn v154_fetch_lists(user_agent: Option<&str>, cache: FetchCache) -> RequestTemplate {
     let user_agent = |name: &str| match user_agent {
         Some(value) => RequestField::literal(name, value),
         None => RequestField::required_caller(name),
     };
+    let cache_fields = |pragma: &str, cache_control: &str| match cache {
+        FetchCache::NoStore => vec![
+            RequestField::literal(pragma, "no-cache"),
+            RequestField::literal(cache_control, "no-cache"),
+        ],
+        FetchCache::Default => Vec::new(),
+    };
+    let validators = |if_none_match: &str, if_modified_since: &str| match cache {
+        FetchCache::Default => vec![
+            RequestField::caller(if_none_match),
+            RequestField::caller(if_modified_since),
+        ],
+        FetchCache::NoStore => Vec::new(),
+    };
+    let mut http1_fields = vec![
+        RequestField::unless_forwarded("Connection", "keep-alive"),
+        RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
+    ];
+    http1_fields.extend(cache_fields("Pragma", "Cache-Control"));
+    http1_fields.extend([
+        chromium_proxy_authorization("Proxy-Authorization"),
+        RequestField::client_hint("sec-ch-ua-platform"),
+        user_agent("User-Agent"),
+        RequestField::client_hint("sec-ch-ua"),
+        RequestField::client_hint("sec-ch-ua-mobile"),
+        RequestField::ClientHints,
+        RequestField::literal("Accept", "*/*"),
+        RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
+        RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
+        RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
+        RequestField::caller("Referer"),
+        accept_encoding("Accept-Encoding"),
+        RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
+    ]);
+    http1_fields.extend(validators("If-None-Match", "If-Modified-Since"));
+    let mut http2_fields = cache_fields("pragma", "cache-control");
+    http2_fields.extend([
+        chromium_proxy_authorization("proxy-authorization"),
+        RequestField::client_hint("sec-ch-ua-platform"),
+        user_agent("user-agent"),
+        RequestField::client_hint("sec-ch-ua"),
+        RequestField::client_hint("sec-ch-ua-mobile"),
+        RequestField::ClientHints,
+        RequestField::literal("accept", "*/*"),
+        RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
+        RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+        RequestField::trustworthy_only("sec-fetch-dest", "empty"),
+        RequestField::caller("referer"),
+        accept_encoding("accept-encoding"),
+        RequestField::literal("accept-language", V154_ACCEPT_LANGUAGE),
+    ]);
+    http2_fields.extend(validators("if-none-match", "if-modified-since"));
+    http2_fields.push(RequestField::literal("priority", "u=1, i"));
     RequestTemplate {
-        http1_fields: vec![
-            RequestField::unless_forwarded("Connection", "keep-alive"),
-            RequestField::when_forwarded("Proxy-Connection", "keep-alive"),
-            RequestField::literal("Pragma", "no-cache"),
-            RequestField::literal("Cache-Control", "no-cache"),
-            chromium_proxy_authorization("Proxy-Authorization"),
-            RequestField::client_hint("sec-ch-ua-platform"),
-            user_agent("User-Agent"),
-            RequestField::client_hint("sec-ch-ua"),
-            RequestField::client_hint("sec-ch-ua-mobile"),
-            RequestField::ClientHints,
-            RequestField::literal("Accept", "*/*"),
-            RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
-            RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
-            RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
-            RequestField::caller("Referer"),
-            accept_encoding("Accept-Encoding"),
-            RequestField::literal("Accept-Language", V154_ACCEPT_LANGUAGE),
-        ],
-        http2_fields: vec![
-            RequestField::literal("pragma", "no-cache"),
-            RequestField::literal("cache-control", "no-cache"),
-            chromium_proxy_authorization("proxy-authorization"),
-            RequestField::client_hint("sec-ch-ua-platform"),
-            user_agent("user-agent"),
-            RequestField::client_hint("sec-ch-ua"),
-            RequestField::client_hint("sec-ch-ua-mobile"),
-            RequestField::ClientHints,
-            RequestField::literal("accept", "*/*"),
-            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
-            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
-            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
-            RequestField::caller("referer"),
-            accept_encoding("accept-encoding"),
-            RequestField::literal("accept-language", V154_ACCEPT_LANGUAGE),
-            RequestField::literal("priority", "u=1, i"),
-        ],
+        http1_fields,
+        http2_fields,
         http3_fields: None,
         http2_priority: Some(Http2Priority {
             dependency_stream_id: 0,

@@ -959,6 +959,62 @@ mod cookie_placement {
         }
         Ok(())
     }
+
+    /// The validators of a revalidation follow the jar's `Cookie`, which the
+    /// browsers add before them; no capture holds both.
+    #[tokio::test]
+    async fn the_jar_cookie_precedes_the_validators_of_a_revalidation() -> TestResult<()> {
+        let mut caller = referer();
+        caller.extend([
+            RequestHeader::new("if-none-match", "\"v1\""),
+            RequestHeader::new("if-modified-since", "Tue, 01 Sep 2026 00:00:00 GMT"),
+        ]);
+        let chrome = chrome();
+        for (protocol, expected) in [
+            (
+                HttpProtocol::Http1,
+                &["if-none-match", "if-modified-since"][..],
+            ),
+            (
+                HttpProtocol::Http2,
+                &["if-none-match", "if-modified-since", "priority"][..],
+            ),
+        ] {
+            let observed = send_with_jar_cookie(
+                &chrome,
+                chromium::v154_windows_fetch_template(),
+                chromium::v154_cookie_placement(),
+                protocol,
+                caller.clone(),
+            )
+            .await?;
+            let (_, after) = sides(&observed)?;
+            assert_eq!(after, expected, "Chrome {protocol:?}");
+        }
+        let observed = send_with_jar_cookie(
+            &firefox(),
+            firefox::v157_windows_fetch_template(),
+            firefox::v157_cookie_placement(),
+            HttpProtocol::Http2,
+            caller,
+        )
+        .await?;
+        let (_, after) = sides(&observed)?;
+        assert_eq!(
+            after,
+            [
+                "sec-fetch-dest",
+                "sec-fetch-mode",
+                "sec-fetch-site",
+                "if-modified-since",
+                "if-none-match",
+                "priority",
+                "te",
+            ],
+            "Firefox HTTP/2"
+        );
+        Ok(())
+    }
 }
 
 #[tokio::test]

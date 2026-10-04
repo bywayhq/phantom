@@ -588,7 +588,8 @@ Supported:
   - the captured H2 HEADERS priority for its request kind.
 
   Recipes cover address-bar navigations and same-origin no-store `fetch`
-  GETs. See [Request templates](../guides/request-templates.md#apply-a-captured-request-template).
+  GETs, and for Chrome and Firefox default-mode `fetch` GETs with slots for
+  the validators of a revalidation. See [Request templates](../guides/request-templates.md#apply-a-captured-request-template).
 - One WHATWG/IDNA endpoint boundary, shared by the wire authority and state
   keys.
 - Separate TLS settings for TCP and QUIC.
@@ -1062,7 +1063,12 @@ Request templates:
   - Firefox 157 over H1 and H2.
 
   The fetch templates match every retained no-store report `fetch` in the
-  WebSocket captures, over H1 and H2.
+  WebSocket captures, over H1 and H2. The Chrome and Firefox default-mode
+  fetch templates, with a caller's `If-None-Match` and `If-Modified-Since`,
+  match every revalidating request of the retained revalidation captures
+  over H2; the H1 and H3 positions of the validators, and `Cookie` before
+  them, follow browser source
+  ([Revalidation evidence](../explanation/validation.md#revalidation-and-upload-evidence)).
 - Each template carries the captured H2 HEADERS priority for its request kind,
   sent on that stream only. Navigations use weight 256 exclusive (Chrome,
   Edge, Brave, Opera) and 42 (Firefox), which equal the H2 recipes' connection priority.

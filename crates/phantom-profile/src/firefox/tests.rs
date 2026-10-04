@@ -296,3 +296,22 @@ fn http3_recipes_are_valid_profile_data() {
     assert_eq!(v157_http3().validate(), Ok(()));
     assert_eq!(v157_http3_request().validate(), Ok(()));
 }
+
+/// Without `Sec-Fetch-*` fields, as on a request to a plaintext origin, the
+/// jar's `Cookie` still precedes the validators of a revalidation, which
+/// `nsHttpChannel::OnCacheEntryCheck` adds after the cookies.
+#[test]
+fn cookie_precedes_the_validators_on_a_plaintext_origin() {
+    let fields = [
+        "user-agent",
+        "accept",
+        "referer",
+        "if-modified-since",
+        "if-none-match",
+        "priority",
+    ];
+    assert_eq!(
+        super::v157_cookie_placement().insertion_index(fields),
+        Some(3)
+    );
+}

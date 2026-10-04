@@ -338,6 +338,10 @@ fn every_template_recipe_is_valid() {
         edge_android::v153_android_fetch_no_store_template(),
         brave_android::v153_android_navigation_template(),
         brave_android::v153_android_fetch_no_store_template(),
+        chromium::v154_windows_fetch_template(),
+        chromium::v154_macos_fetch_template(),
+        firefox::v157_windows_fetch_template(),
+        firefox::v157_macos_fetch_template(),
     ] {
         assert_eq!(template.validate(), Ok(()));
     }
@@ -1009,6 +1013,10 @@ fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
         (firefox::v157_windows_fetch_no_store_template(), false),
         (firefox::v157_macos_navigation_template(), false),
         (firefox::v157_macos_fetch_no_store_template(), false),
+        (chromium::v154_windows_fetch_template(), false),
+        (chromium::v154_macos_fetch_template(), false),
+        (firefox::v157_windows_fetch_template(), false),
+        (firefox::v157_macos_fetch_template(), false),
     ] {
         assert_eq!(template.restarts_for_connection_accept_ch, restarts);
     }

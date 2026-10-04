@@ -818,6 +818,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `chromium::v154_windows_fetch_template`,
+  `chromium::v154_macos_fetch_template`,
+  `firefox::v157_windows_fetch_template`, and
+  `firefox::v157_macos_fetch_template`: same-origin `fetch()` GETs in the
+  default cache mode, the no-store templates without `Pragma` and
+  `Cache-Control`, with optional `If-None-Match` and `If-Modified-Since`
+  slots where Chrome 154 (after `Accept-Language`, `If-None-Match` first)
+  and Firefox 157 (after `Sec-Fetch-Site`, `If-Modified-Since` first) send
+  them when their cache revalidates a response
+  ([evidence](docs/explanation/validation.md#revalidation-and-upload-evidence)).
 - `Http1TlsConnector::with_alpn_protocols`,
   `Http1Or2TlsConnector::http1_connector`, and
   `Http1Or2TlsConnector::http2_connector` return connectors that share the
@@ -1486,6 +1496,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- `chromium::v154_cookie_placement` and `firefox::v157_cookie_placement`
+  put the jar's `Cookie` before a request's `If-None-Match` and
+  `If-Modified-Since`, as the browsers add it before the validators. Before,
+  it went after them where no later listed field followed: on a
+  Chromium-family HTTP/1.1 request, and on a request whose template places
+  the validators last or has no template. To keep the old Chromium
+  placement, pass `CookiePlacement::before_fields(["priority"])` to
+  `ClientProfile::with_cookie_placement`.
 - A `wss://` opening of a `Client`, direct or through an HTTP or SOCKS5
   proxy, shares the TLS session tickets of its origin's request pool key: a
   profile-policy opening the negotiated pool's, and an exact opening the

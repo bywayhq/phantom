@@ -141,6 +141,12 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
             None,
             &[][..],
         ),
+        (
+            chromium::v154_windows_fetch_template(),
+            Some(chromium::v154_windows_client_hints()),
+            &[][..],
+        ),
+        (firefox::v157_windows_fetch_template(), None, &[][..]),
     ];
     for (template, hints, caller) in cases {
         assert_eq!(
@@ -543,4 +549,127 @@ fn template_after_a_cross_origin_hop_keeps_no_credential_slot()
         .ok_or("the HTTP/1.1 list is missing")?;
     assert_eq!(names(&expand(fields, &[], None, true)), ["x-kept"]);
     Ok(())
+}
+
+/// Chrome 154 and Firefox 157 revalidating cached responses with `fetch()`,
+/// recorded by `scripts/capture/http_lifecycle.py --scenario revalidate`.
+const CHROME_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/revalidate.txt"
+));
+const FIREFOX_REVALIDATION: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/lifecycle/firefox/157.0/windows-11-26200/revalidate.txt"
+));
+
+/// The ordinary HTTP/2 field names of each request a capture answered with
+/// `304`, after the pseudo-header fields.
+fn revalidations(capture: &str) -> Vec<Vec<&str>> {
+    capture
+        .lines()
+        .filter(|line| line.starts_with("request_") && line.contains(",status:304,"))
+        .map(|line| {
+            let fields = line
+                .split_once(",fields:")
+                .map_or("", |(_, rest)| rest.split(',').next().unwrap_or(""));
+            fields
+                .split('|')
+                .filter(|name| !name.starts_with(':'))
+                .collect()
+        })
+        .collect()
+}
+
+/// Expands `template`'s HTTP/2 list with a `Referer`, the validators that
+/// `names` holds, and `extra` caller fields, as a caller that revalidates its
+/// own cached response sends them.
+fn expand_revalidation(
+    template: &RequestTemplate,
+    names: &[&str],
+    extra: &[RequestHeader],
+) -> Vec<String> {
+    let mut caller = vec![RequestHeader::new("referer", "https://example.test/")];
+    for validator in ["if-modified-since", "if-none-match"] {
+        if names.contains(&validator) {
+            caller.push(RequestHeader::new(validator, "v"));
+        }
+    }
+    caller.extend_from_slice(extra);
+    expand(&template.http2_fields, &caller, None, true)
+        .iter()
+        .map(|header| header.name().to_owned())
+        .collect()
+}
+
+#[test]
+fn chrome_fetch_template_places_validators_as_the_revalidation_capture() {
+    let captured = revalidations(CHROME_REVALIDATION);
+    assert_eq!(captured.len(), 3);
+    let hints = [
+        RequestHeader::new("sec-ch-ua-platform", "\"Windows\""),
+        RequestHeader::new("sec-ch-ua", "\"Chromium\""),
+        RequestHeader::new("sec-ch-ua-mobile", "?0"),
+    ];
+    for names in captured {
+        assert_eq!(
+            expand_revalidation(&chromium::v154_windows_fetch_template(), &names, &hints),
+            names
+        );
+    }
+}
+
+#[test]
+fn firefox_fetch_template_places_validators_as_the_revalidation_capture() {
+    let captured = revalidations(FIREFOX_REVALIDATION);
+    assert_eq!(captured.len(), 3);
+    for names in captured {
+        assert_eq!(
+            expand_revalidation(&firefox::v157_windows_fetch_template(), &names, &[]),
+            names
+        );
+    }
+}
+
+#[test]
+fn default_mode_fetch_templates_send_no_pragma_or_cache_control() {
+    let chrome = expand(
+        &chromium::v154_windows_fetch_template().http1_fields,
+        &[],
+        None,
+        true,
+    );
+    assert_eq!(
+        names(&chrome),
+        [
+            "Connection",
+            "User-Agent",
+            "Accept",
+            "Sec-Fetch-Site",
+            "Sec-Fetch-Mode",
+            "Sec-Fetch-Dest",
+            "Accept-Encoding",
+            "Accept-Language",
+        ]
+    );
+    let firefox = expand(
+        &firefox::v157_windows_fetch_template().http1_fields,
+        &[RequestHeader::new("If-None-Match", "\"v1\"")],
+        None,
+        true,
+    );
+    assert_eq!(
+        names(&firefox),
+        [
+            "User-Agent",
+            "Accept",
+            "Accept-Language",
+            "Accept-Encoding",
+            "Connection",
+            "Sec-Fetch-Dest",
+            "Sec-Fetch-Mode",
+            "Sec-Fetch-Site",
+            "If-None-Match",
+            "Priority",
+        ]
+    );
 }

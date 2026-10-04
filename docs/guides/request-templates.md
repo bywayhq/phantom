@@ -46,9 +46,13 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- Each browser has two templates: an address-bar navigation and a
-  same-origin `fetch(url, {cache: "no-store"})` GET
-  ([template table](../reference/profiles.md#request-templates)).
+- Each browser has an address-bar navigation template and a same-origin
+  `fetch(url, {cache: "no-store"})` GET template
+  ([template table](../reference/profiles.md#request-templates)). Chrome
+  and Firefox also have a default-mode `fetch(url)` template with optional
+  `If-None-Match` and `If-Modified-Since` slots where each browser sends
+  them: Phantom has no HTTP cache, so you revalidate your own cached
+  response by adding those fields.
 - A field you add whose name matches a template entry takes that entry's
   position and keeps your value. Other fields follow the template's last
   field. A caller slot, such as `Referer` or Edge's `User-Agent`, sends

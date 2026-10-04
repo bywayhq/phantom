@@ -573,3 +573,23 @@ fn chrome_154_macos_http2_session_capture_matches_the_recipe()
     }
     Ok(())
 }
+
+/// On HTTP/1.1, where no `priority` follows, the jar's `Cookie` precedes the
+/// validators of a revalidation, which the cache appends after the cookies.
+#[test]
+fn cookie_precedes_the_validators_of_a_revalidation() {
+    let fields = [
+        "accept-encoding",
+        "accept-language",
+        "if-none-match",
+        "if-modified-since",
+    ];
+    assert_eq!(
+        super::v154_cookie_placement().insertion_index(fields),
+        Some(2)
+    );
+    assert_eq!(
+        super::v154_cookie_placement().insertion_index(["accept-language", "if-modified-since"]),
+        Some(1)
+    );
+}

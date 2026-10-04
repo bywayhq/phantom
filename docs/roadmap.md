@@ -97,6 +97,11 @@ Counts in the later phases come from a read-only review of `main` at
   request comes, and that request opens another, as the Chrome 154, Edge
   154, and Opera 136 hook logs show
   ([HTTP/1.1 connection bound evidence](explanation/validation.md#http11-connection-bound-evidence)).
+- Revalidation fields in template order: `chromium::v154_windows_fetch_template`,
+  `chromium::v154_macos_fetch_template`, and the Firefox 157 equivalents take a
+  caller's `If-None-Match` and `If-Modified-Since` where Chrome 154 and
+  Firefox 157 send them, and the cookie placements put `Cookie` before them
+  ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)).
 - Firefox's idle PING in `firefox::v157_http2`: a zero-payload PING after
   58 seconds without a read, whether or not requests are open, and a close
   with `GOAWAY(0, INTERNAL_ERROR)` when one goes 8 seconds with nothing
@@ -309,14 +314,12 @@ anything does.
   idle PING
   ([HTTP/2 idle PING evidence](explanation/validation.md#http2-idle-ping-evidence)).
   Blocker: no capture shows the close or what Firefox writes for it.
-- Revalidation fields in template order. Evidence: Chrome 154 and Firefox
-  157 send `If-None-Match` and `If-Modified-Since` on a second fetch of a
-  resource with `no-cache` and show the page the cached body after a `304`;
-  Chrome puts them after `Accept-Language`, `If-None-Match` first, and
-  Firefox after `Sec-Fetch-Site`, `If-Modified-Since` first
-  ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)).
-  Phantom has no HTTP cache, so a caller sends the fields, and the templates
-  have no slot for them. Blocker: template slots for the two fields.
+- Validator slots in the Edge, Brave, Opera, and Android templates.
+  Evidence: Chrome 154 and Firefox 157 place `If-None-Match` and
+  `If-Modified-Since` as their default-mode `fetch` templates do
+  ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)),
+  and the other Chromium-family browsers share Chromium's network stack.
+  Blocker: no revalidation capture of those browsers.
 - The next Alt-Svc alternative after a broken one. Evidence: Chrome 154
   uses the first alternative a field lists, races no other, and moves to the
   next once the first is broken

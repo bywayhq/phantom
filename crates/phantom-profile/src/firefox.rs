@@ -48,7 +48,8 @@ use crate::{
 ///
 /// Firefox adds `Cookie` in `nsHttpChannel::PrepareToConnect`, then
 /// `Upgrade-Insecure-Requests` and the `Sec-Fetch-*` fields in
-/// `OnBeforeConnect`, and `Priority`, `Pragma`, and `Cache-Control` in
+/// `OnBeforeConnect`, the validators of a revalidation in
+/// `OnCacheEntryCheck`, and `Priority`, `Pragma`, and `Cache-Control` in
 /// `SetupChannelForTransaction`; its HTTP/2 compressor appends `te` last. The
 /// retained Firefox 157 HTTP/1.1 EventSource reconnect capture sends `Cookie`
 /// after `Referer` and before `Sec-Fetch-Dest`. The other neighbors come from
@@ -61,6 +62,8 @@ pub fn v157_cookie_placement() -> CookiePlacement {
         "sec-fetch-mode",
         "sec-fetch-site",
         "sec-fetch-user",
+        "if-modified-since",
+        "if-none-match",
         "priority",
         "pragma",
         "cache-control",
@@ -1090,7 +1093,7 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
 /// a proxy to both kinds of origin, `Pragma` and `Cache-Control` included.
 #[must_use]
 pub fn v157_windows_fetch_no_store_template() -> RequestTemplate {
-    fetch_no_store_template(V157_WINDOWS_USER_AGENT)
+    fetch_template(V157_WINDOWS_USER_AGENT, FetchCache::NoStore)
 }
 
 /// Returns same-origin `fetch` request fields observed from Firefox 157.0 on
@@ -1101,57 +1104,122 @@ pub fn v157_windows_fetch_no_store_template() -> RequestTemplate {
 /// matches [`v157_macos_navigation_template`].
 #[must_use]
 pub fn v157_macos_fetch_no_store_template() -> RequestTemplate {
-    fetch_no_store_template(V157_MACOS_USER_AGENT)
+    fetch_template(V157_MACOS_USER_AGENT, FetchCache::NoStore)
 }
 
-/// Builds the Firefox no-store `fetch` lists with a literal `User-Agent`.
-fn fetch_no_store_template(user_agent: &str) -> RequestTemplate {
+/// Returns same-origin `fetch` request fields of Firefox 157 on Windows 11 in
+/// the default cache mode, with slots for the validators of a revalidation.
+///
+/// A script `fetch(url)` GET to the page's own origin. The fields, values,
+/// and HTTP/2 priority are those of
+/// [`v157_windows_fetch_no_store_template`] without `Pragma` and
+/// `Cache-Control`, which only the no-store mode adds; the proxy route
+/// captures show the default-mode `fetch()` with that shape. When the cache
+/// revalidates a response, Firefox adds `If-Modified-Since`, then
+/// `If-None-Match`, after `Sec-Fetch-Site` and before `Priority`. Phantom has
+/// no HTTP cache, so both are optional caller slots: a caller that
+/// revalidates its own cached response supplies the fields, and they go
+/// there. The retained Firefox 157 revalidation capture shows that HTTP/2
+/// order with either field and with both. The HTTP/1.1 and HTTP/3 positions
+/// follow from Firefox source: `nsHttpChannel::OnCacheEntryCheck` adds the
+/// validators after the `Sec-Fetch-*` fields and before
+/// `SetupChannelForTransaction` adds `Priority`
+/// (`netwerk/protocol/http/nsHttpChannel.cpp:5598`, `:5605`, `:1866` at tag
+/// `FIREFOX_157_0_RELEASE`), and every protocol keeps the request's order.
+#[must_use]
+pub fn v157_windows_fetch_template() -> RequestTemplate {
+    fetch_template(V157_WINDOWS_USER_AGENT, FetchCache::Default)
+}
+
+/// Returns same-origin `fetch` request fields of Firefox 157 on macOS 15.5
+/// arm64 in the default cache mode, with slots for the validators of a
+/// revalidation.
+///
+/// The fields, order, values, and HTTP/2 priority are those of
+/// [`v157_windows_fetch_template`], except `User-Agent`, which matches
+/// [`v157_macos_navigation_template`].
+#[must_use]
+pub fn v157_macos_fetch_template() -> RequestTemplate {
+    fetch_template(V157_MACOS_USER_AGENT, FetchCache::Default)
+}
+
+/// The cache mode of a same-origin `fetch`, which decides its cache fields.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum FetchCache {
+    /// The default mode: no cache fields of its own, and the validators of a
+    /// cached response when the cache revalidates it.
+    Default,
+    /// `no-store`: `Pragma` and `Cache-Control` set to `no-cache`.
+    NoStore,
+}
+
+/// Builds the Firefox `fetch` lists for `cache` with a literal `User-Agent`.
+fn fetch_template(user_agent: &str, cache: FetchCache) -> RequestTemplate {
+    let cache_fields = |pragma: &str, cache_control: &str| match cache {
+        FetchCache::NoStore => vec![
+            RequestField::literal(pragma, "no-cache"),
+            RequestField::literal(cache_control, "no-cache"),
+        ],
+        FetchCache::Default => Vec::new(),
+    };
+    let validators = |if_modified_since: &str, if_none_match: &str| match cache {
+        FetchCache::Default => vec![
+            RequestField::caller(if_modified_since),
+            RequestField::caller(if_none_match),
+        ],
+        FetchCache::NoStore => Vec::new(),
+    };
+    let mut http1_fields = vec![
+        RequestField::literal("User-Agent", user_agent),
+        RequestField::literal("Accept", "*/*"),
+        RequestField::literal("Accept-Language", V157_ACCEPT_LANGUAGE),
+        accept_encoding("Accept-Encoding"),
+        RequestField::caller("Referer"),
+        preemptive_proxy_authorization("Proxy-Authorization"),
+        RequestField::literal("Connection", "keep-alive"),
+        RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
+        RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
+        RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
+    ];
+    http1_fields.extend(validators("If-Modified-Since", "If-None-Match"));
+    http1_fields.push(RequestField::literal("Priority", "u=4"));
+    http1_fields.extend(cache_fields("Pragma", "Cache-Control"));
+    http1_fields.push(replay_proxy_authorization("Proxy-Authorization"));
+    let mut http2_fields = vec![
+        RequestField::literal("user-agent", user_agent),
+        RequestField::literal("accept", "*/*"),
+        RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
+        accept_encoding("accept-encoding"),
+        RequestField::caller("referer"),
+        preemptive_proxy_authorization("proxy-authorization"),
+        RequestField::trustworthy_only("sec-fetch-dest", "empty"),
+        RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+        RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
+    ];
+    http2_fields.extend(validators("if-modified-since", "if-none-match"));
+    http2_fields.push(RequestField::literal("priority", "u=4"));
+    http2_fields.extend(cache_fields("pragma", "cache-control"));
+    http2_fields.extend([
+        replay_proxy_authorization("proxy-authorization"),
+        RequestField::literal("te", "trailers"),
+    ]);
+    let mut http3_fields = vec![
+        RequestField::literal("user-agent", user_agent),
+        RequestField::literal("accept", "*/*"),
+        RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
+        accept_encoding("accept-encoding"),
+        RequestField::caller("referer"),
+        RequestField::trustworthy_only("sec-fetch-dest", "empty"),
+        RequestField::trustworthy_only("sec-fetch-mode", "cors"),
+        RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
+    ];
+    http3_fields.extend(validators("if-modified-since", "if-none-match"));
+    http3_fields.push(RequestField::literal("priority", "u=4"));
+    http3_fields.extend(cache_fields("pragma", "cache-control"));
     RequestTemplate {
-        http1_fields: vec![
-            RequestField::literal("User-Agent", user_agent),
-            RequestField::literal("Accept", "*/*"),
-            RequestField::literal("Accept-Language", V157_ACCEPT_LANGUAGE),
-            accept_encoding("Accept-Encoding"),
-            RequestField::caller("Referer"),
-            preemptive_proxy_authorization("Proxy-Authorization"),
-            RequestField::literal("Connection", "keep-alive"),
-            RequestField::trustworthy_only("Sec-Fetch-Dest", "empty"),
-            RequestField::trustworthy_only("Sec-Fetch-Mode", "cors"),
-            RequestField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
-            RequestField::literal("Priority", "u=4"),
-            RequestField::literal("Pragma", "no-cache"),
-            RequestField::literal("Cache-Control", "no-cache"),
-            replay_proxy_authorization("Proxy-Authorization"),
-        ],
-        http2_fields: vec![
-            RequestField::literal("user-agent", user_agent),
-            RequestField::literal("accept", "*/*"),
-            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
-            accept_encoding("accept-encoding"),
-            RequestField::caller("referer"),
-            preemptive_proxy_authorization("proxy-authorization"),
-            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
-            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
-            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
-            RequestField::literal("priority", "u=4"),
-            RequestField::literal("pragma", "no-cache"),
-            RequestField::literal("cache-control", "no-cache"),
-            replay_proxy_authorization("proxy-authorization"),
-            RequestField::literal("te", "trailers"),
-        ],
-        http3_fields: Some(vec![
-            RequestField::literal("user-agent", user_agent),
-            RequestField::literal("accept", "*/*"),
-            RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
-            accept_encoding("accept-encoding"),
-            RequestField::caller("referer"),
-            RequestField::trustworthy_only("sec-fetch-dest", "empty"),
-            RequestField::trustworthy_only("sec-fetch-mode", "cors"),
-            RequestField::trustworthy_only("sec-fetch-site", "same-origin"),
-            RequestField::literal("priority", "u=4"),
-            RequestField::literal("pragma", "no-cache"),
-            RequestField::literal("cache-control", "no-cache"),
-        ]),
+        http1_fields,
+        http2_fields,
+        http3_fields: Some(http3_fields),
         http2_priority: Some(Http2Priority {
             dependency_stream_id: 0,
             weight: 22,
