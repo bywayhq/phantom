@@ -43,7 +43,6 @@ BANNED_TERMS = (
     "easily",
     "in summary",
     "that's it",
-    "let's",
     "in today's world",
     "whether you're",
     "it's not just",
@@ -53,9 +52,6 @@ BANNED_TERMS = (
 # Link text that says nothing about the destination.
 VAGUE_LINK_TEXT = frozenset({"click here", "here", "link", "this"})
 
-# The `> For ...` reader line must come before the first section heading and
-# within this many lines: a title, a blank line, and a two-sentence opening.
-BANNER_WINDOW = 12
 GUIDE_LINE_LIMIT = 200
 
 GROUPS = ("links", "shape", "prose")
@@ -545,12 +541,6 @@ def _check_shape(page: Page, report: Report) -> None:
         elif level > previous + 1:
             report(index, "heading-level", f"H{level} follows H{previous}")
         previous = level
-    opening = page.headings[1][0] if len(page.headings) > 1 else len(page.lines)
-    if not any(
-        not page.code[i] and re.match(r">\s*For\s", line)
-        for i, line in enumerate(page.lines[: min(opening, BANNER_WINDOW)])
-    ):
-        report(0, "banner", "no '> For ...' reader line before the first section")
     last = page.headings[-1]
     if last[1] != 2 or last[2].strip() != "Next":
         report(last[0], "next", "the last section must be '## Next'")

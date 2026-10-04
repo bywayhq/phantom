@@ -136,7 +136,7 @@ Do not write these:
   crucial, cutting-edge, effortless, unlock, elevate, streamline, navigate
   (except for browsers), landscape, ecosystem (as filler), journey.
 - Framing tics: "It's not X, it's Y", "not just X but Y", "whether you're X
-  or Y", "in today's world", "let's", "simply", "just", "easily".
+  or Y", "in today's world", "simply", "just", "easily".
 - Reflexive lists of three adjectives or clauses.
 - Rhetorical questions, including in headings.
 - Chains of em-dashes. Use a colon, parentheses, or a new sentence.

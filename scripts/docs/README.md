@@ -25,7 +25,7 @@ status 1; a warning does not.
 | Group | Files | Rules |
 | --- | --- | --- |
 | `links` | `README.md`, `CONTRIBUTING.md`, `llms.txt`, `docs/`, `scripts/*/README.md` | `link`: a relative link names a file that exists, with the same letter case. `anchor`: a fragment names a heading slug, a numbered duplicate such as `#limits-1`, or an HTML `id` in the target page. |
-| `shape` | `docs/` except `roadmap.md` and `README.md` | `h1`: one H1, first. `heading-level`: no skipped levels. `banner`: a `> For ...` reader line before the first section, within 12 lines. `next`: the last section is `## Next`. `guide-length`: a warning for a guide over 200 lines. |
+| `shape` | `docs/` except `roadmap.md` and `README.md` | `h1`: one H1, first. `heading-level`: no skipped levels. `next`: the last section is `## Next`. `guide-length`: a warning for a guide over 200 lines. |
 | `prose` | The link set, except `llms.txt` and `docs/roadmap.md` | `word`: the banned terms in `BANNED_TERMS`. `em-dash`, `emoji`, `exclamation`, `heading-question`, and `link-text` (the text "here", "this", "click here", or "link"). |
 
 Prose rules skip fenced code, inline code, link targets, URLs, and HTML tags.

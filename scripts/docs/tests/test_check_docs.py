@@ -155,10 +155,6 @@ class ShapeTests(RepoTestCase):
         self.write("docs/a.md", GOOD_PAGE.replace("Text.", "#### Deep"))
         self.assertEqual(self.findings("docs/a.md", ["shape"]), ["9: heading-level"])
 
-    def test_requires_a_reader_line_in_the_opening(self) -> None:
-        self.write("docs/a.md", GOOD_PAGE.replace("> For", "For"))
-        self.assertEqual(self.findings("docs/a.md", ["shape"]), ["1: banner"])
-
     def test_requires_a_final_next_section(self) -> None:
         self.write("docs/a.md", GOOD_PAGE + "\n## Limits\n\n- One.\n")
         self.assertEqual(self.findings("docs/a.md", ["shape"]), ["15: next"])
@@ -192,7 +188,7 @@ class ProseTests(RepoTestCase):
         self.assertEqual(self.findings("CONTRIBUTING.md"), [])
 
     def test_matches_phrases_across_line_breaks_once(self) -> None:
-        self.write("CONTRIBUTING.md", "# C\n\nIt’s not\njust a client. Let's go.\n")
+        self.write("CONTRIBUTING.md", "# C\n\nIt’s not\njust a client. Simply go.\n")
         self.assertEqual(self.findings("CONTRIBUTING.md"), ["3: word", "4: word"])
 
     def test_ignores_code_link_targets_and_urls(self) -> None:
