@@ -26,6 +26,8 @@ use tls_support::{
     H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
 
+mod http3;
+
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
