@@ -502,7 +502,13 @@ async fn serve_origin_connection(
         .ssl()
         .servername(NameType::HOST_NAME)
         .map(str::to_owned);
-    let mut connection = http2::server::handshake(stream).await?;
+    let mut connection = match http2::server::handshake(stream).await {
+        Ok(connection) => connection,
+        // A racing client may also drop the losing origin setup after its
+        // TLS handshake, before the HTTP/2 preface.
+        Err(error) if error.get_io().is_some_and(is_peer_gone) => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
 
     loop {
         let accepted = tokio::select! {
