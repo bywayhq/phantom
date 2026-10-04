@@ -574,11 +574,16 @@ async fn send_after_early_win(
         outcome = "handshake_failed",
         "raced alternative failed its handshake after early data; racing again"
     );
+    // The winner is raced again whatever the store says, as a race of one
+    // alternative always was; a loser is left out once it failed or is
+    // broken.
     let keep: Vec<bool> = alternatives
         .iter()
         .zip(&failed)
-        .map(|(alternative, failed)| {
-            !failed && !client.alt_svc_is_broken(&request.endpoint, route, alternative)
+        .enumerate()
+        .map(|(position, (alternative, failed))| {
+            position == index
+                || (!failed && !client.alt_svc_is_broken(&request.endpoint, route, alternative))
         })
         .collect();
     let (alternatives, kept_http3) =
