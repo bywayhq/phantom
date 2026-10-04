@@ -8,7 +8,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use super::tls::TestResult;
+use super::tls::{TestResult, is_peer_gone};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ObservedSocks5Connect {
@@ -42,6 +42,30 @@ pub(crate) async fn forward_one_socks5(
     downstream.flush().await?;
     copy_bidirectional(&mut downstream, &mut upstream).await?;
     Ok(request)
+}
+
+/// Serves one already-accepted SOCKS5 CONNECT without authentication and
+/// tunnels it to `origin`, returning what the client asked for.
+///
+/// Taking the stream lets one listener serve a UDP association and a CONNECT
+/// tunnel in turn. A client that closes its end, which Windows can report as
+/// an abort, ends the tunnel normally.
+pub(crate) async fn forward_socks5_stream(
+    mut downstream: TcpStream,
+    origin: SocketAddr,
+) -> TestResult<ObservedSocks5Connect> {
+    negotiate_no_auth(&mut downstream).await?;
+    let request = read_connect(&mut downstream).await?;
+    let mut upstream = TcpStream::connect(origin).await?;
+    downstream
+        .write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0])
+        .await?;
+    downstream.flush().await?;
+    match copy_bidirectional(&mut downstream, &mut upstream).await {
+        Ok(_) => Ok(request),
+        Err(error) if is_peer_gone(&error) => Ok(request),
+        Err(error) => Err(error.into()),
+    }
 }
 
 pub(crate) async fn forward_one_authenticated_socks5(
