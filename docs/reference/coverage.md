@@ -549,10 +549,8 @@ Supported lifecycle:
   of a CONNECT-UDP proxy, with the origin's authority and TLS name and an
   `Alt-Used` field
   ([evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)).
-
-Supported in `phantom-net` only (`phantom-http` does not expose it):
-
-- RFC 9220 extended CONNECT for the WebSocket protocol. It is gated on peer
+- RFC 9220 extended CONNECT for the WebSocket protocol, which
+  `phantom-http` opens for an exact H3 WebSocket. It is gated on peer
   SETTINGS from ALPS or the control stream and emits no local setting. It
   uses an explicit five-field pseudo-header order from a custom profile, a
   bounded duplex DATA stream with FIN, a stream-scoped `H3_REQUEST_CANCELLED`
@@ -787,6 +785,12 @@ Supported WebSocket (`websocket` feature):
   replay, on the challenged HTTP/1.1 connection when the `407` leaves it
   open), and SOCKS5 with local or remote DNS.
   The peer capability gate applies, with no route or H1 fallback.
+- Exact WebSocket over H3 extended CONNECT (RFC 9220), for custom profiles
+  that define an extended CONNECT pseudo-header order, opened as a stream on
+  the client's pooled H3 connection to the origin and route. Routes: direct,
+  SOCKS5 UDP ASSOCIATE with local or remote DNS, and CONNECT-UDP on any leg.
+  No recipe has H3 opening fields, so it is for servers the caller controls;
+  the peer capability gate applies, with no fallback to H2 or H1.
 - `ws://` through an HTTP proxy as a CONNECT tunnel (HTTP/1.1 transport) or
   CONNECT stream (HTTP/2 transport) with the direct Upgrade inside, as Chrome
   154, Edge 154, and Firefox 157 send it.
@@ -837,8 +841,8 @@ The WebSocket recipes still differ from those captures in two ways:
 
 Supported direct paths:
 
-- Direct HTTPS over H1 or H2, plaintext HTTP over H1, exact direct H2
-  WebSocket extended CONNECT, and H3 over QUIC.
+- Direct HTTPS over H1 or H2, plaintext HTTP over H1, exact direct H2 and
+  H3 WebSocket extended CONNECT, and H3 over QUIC.
 - Direct negotiated HTTPS can upgrade through a learned Alt-Svc alternative
   without changing the direct route.
 
@@ -897,15 +901,16 @@ Supported [SOCKS5](glossary.md#socks5):
 - Exact H3 over local-DNS `socks5://` or remote-DNS `socks5h://` through
   RFC 1928 UDP ASSOCIATE. The TCP control connection is retained, the target
   is a fixed IP or canonical domain, connections are reused per route, and
-  terminal proxy failures are typed.
+  terminal proxy failures are typed. An exact H3 WebSocket uses the same
+  association.
 - The SOCKS5 UDP adapter drops oversized or undeliverable datagrams, as UDP
   does, and ends the association when its TCP control connection closes.
 
 Supported CONNECT-UDP:
 
-- Exact H3 over RFC 9298 CONNECT-UDP proxies, with an `https` URI template, a
-  percent-encoded target, and proxy trust and SNI set separately from the
-  origin's.
+- Exact H3, including an exact H3 WebSocket, over RFC 9298 CONNECT-UDP
+  proxies, with an `https` URI template, a percent-encoded target, and proxy
+  trust and SNI set separately from the origin's.
 - On the default HTTP/3 proxy leg: SETTINGS and QUIC DATAGRAM gating before
   any stream opens, Context ID 0 HTTP Datagrams with bounded queues per
   stream, and a 1,252-byte outer path MTU with capacity checks before I/O.

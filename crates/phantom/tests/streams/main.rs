@@ -21,6 +21,8 @@ mod websocket_http2;
 #[cfg(feature = "websocket")]
 mod websocket_http2_proxy;
 #[cfg(feature = "websocket")]
+mod websocket_http3;
+#[cfg(feature = "websocket")]
 mod websocket_profile;
 #[cfg(feature = "websocket")]
 mod websocket_trust;

@@ -827,6 +827,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `Client::websocket_with_protocol(HttpProtocol::Http3, "wss://...")` opens
+  a WebSocket over HTTP/3 extended CONNECT (RFC 9220) to a server the
+  caller controls; before, the builder rejected HTTP/3 with
+  `ProtocolUnavailable`. The opening is a new stream on the client's pooled
+  HTTP/3 connection to the origin and route, direct, over SOCKS5 UDP
+  ASSOCIATE, or through a CONNECT-UDP proxy, and holds one per-origin pool
+  admission until it ends. The profile needs
+  `Http3RequestSettings::extended_connect_pseudo_header_order`, which no
+  named recipe sets, and the opening starts from the built-in H2 field
+  template. A peer that does not enable extended CONNECT fails with the new
+  `WebSocketErrorKind::Http3` before any stream is sent, a non-2xx answer is
+  `HandshakeRejected` with its body, and nothing falls back to HTTP/2 or
+  HTTP/1.1. `ws://` and HTTP proxy routes fail with `UnsupportedRoute`
+  before I/O, and profile policy never chooses HTTP/3.
 - `AltSvcRace::with_max_alternatives` races up to three learned Alt-Svc
   alternatives at once, the first ones the field listed that are not
   broken, and sends the request on the first to connect, with an `Alt-Used`

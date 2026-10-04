@@ -19,7 +19,7 @@ const EXTENSIONS_NAME: &str = "sec-websocket-extensions";
 mod response;
 mod syntax;
 
-pub(super) use response::{validate_http2_response, validate_response};
+pub(super) use response::{validate_extended_connect_response, validate_response};
 use syntax::{is_token, split_tokens, trim_ows};
 
 /// One field or generated-value placeholder in the opening handshake.
@@ -139,7 +139,7 @@ pub(super) struct PreparedHandshake {
     pub(super) offered_protocols: Vec<Box<str>>,
 }
 
-pub(super) struct PreparedHttp2Handshake {
+pub(super) struct PreparedExtendedConnect {
     pub(super) headers: Vec<RequestHeader>,
     pub(super) offered_protocols: Vec<Box<str>>,
 }
@@ -157,7 +157,8 @@ pub(super) fn default_headers() -> Vec<WebSocketHeader> {
     ]
 }
 
-pub(super) fn default_http2_headers() -> Vec<WebSocketHeader> {
+/// Default opening fields for an RFC 8441 or RFC 9220 extended CONNECT.
+pub(super) fn default_extended_connect_headers() -> Vec<WebSocketHeader> {
     vec![
         WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
         #[cfg(feature = "websocket-deflate")]
@@ -166,17 +167,18 @@ pub(super) fn default_http2_headers() -> Vec<WebSocketHeader> {
     ]
 }
 
-/// Builds the HTTP/2 opening fields after validating `templates`.
+/// Builds the extended CONNECT opening fields, for HTTP/2 or HTTP/3, after
+/// validating `templates`.
 ///
 /// `session_cookie` runs at most once, only after validation and only when a
 /// cookie placeholder is emitted without a literal `Cookie` override: a jar
 /// read on the send path counts as a use for eviction.
-pub(super) fn prepare_http2(
+pub(super) fn prepare_extended_connect(
     templates: Vec<WebSocketHeader>,
     session_cookie: impl FnOnce() -> Option<String>,
     extension_offer: Option<&[u8]>,
-) -> Result<PreparedHttp2Handshake, WebSocketError> {
-    let validation = validate_http2_templates(&templates, extension_offer.is_some())?;
+) -> Result<PreparedExtendedConnect, WebSocketError> {
+    let validation = validate_extended_connect_templates(&templates, extension_offer.is_some())?;
     let mut session_cookie = Some(session_cookie);
     let mut headers = Vec::with_capacity(templates.len());
     for template in templates {
@@ -200,12 +202,12 @@ pub(super) fn prepare_http2(
             WebSocketHeader::CallerField { .. } => {}
             WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
                 return Err(WebSocketError::invalid_request(
-                    "HTTP/2 WebSocket fields must not contain authority or key placeholders",
+                    "extended CONNECT WebSocket fields must not contain authority or key placeholders",
                 ));
             }
         }
     }
-    Ok(PreparedHttp2Handshake {
+    Ok(PreparedExtendedConnect {
         headers,
         offered_protocols: validation.offered_protocols,
     })
@@ -213,7 +215,7 @@ pub(super) fn prepare_http2(
 
 /// Builds the HTTP/1.1 opening fields after validating `templates`.
 ///
-/// `session_cookie` follows the same rule as in [`prepare_http2`].
+/// `session_cookie` follows the same rule as in [`prepare_extended_connect`].
 pub(super) fn prepare(
     templates: Vec<WebSocketHeader>,
     authority: &str,
@@ -268,7 +270,7 @@ struct TemplateValidation {
     offered_protocols: Vec<Box<str>>,
 }
 
-fn validate_http2_templates(
+fn validate_extended_connect_templates(
     templates: &[WebSocketHeader],
     extension_required: bool,
 ) -> Result<TemplateValidation, WebSocketError> {
@@ -286,31 +288,31 @@ fn validate_http2_templates(
         match template {
             WebSocketHeader::Authority { .. } | WebSocketHeader::Key { .. } => {
                 return Err(WebSocketError::invalid_request(
-                    "HTTP/2 WebSocket fields must not contain authority or key placeholders",
+                    "extended CONNECT WebSocket fields must not contain authority or key placeholders",
                 ));
             }
             WebSocketHeader::ClientCookies { name } => {
-                validate_http2_placeholder_name(name, "cookie")?;
+                validate_extended_connect_placeholder_name(name, "cookie")?;
                 cookie_placeholder_count += 1;
             }
             WebSocketHeader::CallerField { name } => {
                 validate_caller_field_name(name)?;
                 if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
                     return Err(WebSocketError::invalid_request(
-                        "HTTP/2 WebSocket field names must be lowercase",
+                        "extended CONNECT WebSocket field names must be lowercase",
                     ));
                 }
             }
             #[cfg(feature = "websocket-deflate")]
             WebSocketHeader::PerMessageDeflate { name } => {
-                validate_http2_placeholder_name(name, EXTENSIONS_NAME)?;
+                validate_extended_connect_placeholder_name(name, EXTENSIONS_NAME)?;
                 extension_placeholder_count += 1;
             }
             WebSocketHeader::Field(header) | WebSocketHeader::DefaultField(header) => {
                 let name = header.name();
                 if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
                     return Err(WebSocketError::invalid_request(
-                        "HTTP/2 WebSocket field names must be lowercase",
+                        "extended CONNECT WebSocket field names must be lowercase",
                     ));
                 }
                 if name.eq_ignore_ascii_case(HOST.as_str())
@@ -319,7 +321,7 @@ fn validate_http2_templates(
                     || name.eq_ignore_ascii_case(CONNECTION.as_str())
                 {
                     return Err(WebSocketError::invalid_request(
-                        "HTTP/2 WebSocket request contains an HTTP/1-only field",
+                        "extended CONNECT WebSocket request contains an HTTP/1-only field",
                     ));
                 }
                 if name.eq_ignore_ascii_case(PROXY_AUTHORIZATION.as_str()) {
@@ -350,12 +352,12 @@ fn validate_http2_templates(
 
     if version_count != 1 {
         return Err(WebSocketError::invalid_request(
-            "HTTP/2 opening handshake requires one Sec-WebSocket-Version field",
+            "extended CONNECT opening requires one Sec-WebSocket-Version field",
         ));
     }
     if cookie_placeholder_count > 1 || protocol_count > 1 || extension_placeholder_count > 1 {
         return Err(WebSocketError::invalid_request(
-            "HTTP/2 opening handshake contains a duplicate singleton field",
+            "extended CONNECT opening contains a duplicate singleton field",
         ));
     }
     if extension_required && extension_placeholder_count != 1 {
@@ -370,11 +372,14 @@ fn validate_http2_templates(
     })
 }
 
-fn validate_http2_placeholder_name(name: &str, expected: &str) -> Result<(), WebSocketError> {
+fn validate_extended_connect_placeholder_name(
+    name: &str,
+    expected: &str,
+) -> Result<(), WebSocketError> {
     validate_placeholder_name(name, expected)?;
     if name.as_bytes().iter().any(u8::is_ascii_uppercase) {
         return Err(WebSocketError::invalid_request(
-            "HTTP/2 WebSocket placeholder names must be lowercase",
+            "extended CONNECT WebSocket placeholder names must be lowercase",
         ));
     }
     Ok(())
@@ -536,7 +541,7 @@ pub(super) fn validate_policy_templates(
     extension_required: bool,
 ) -> Result<(), WebSocketError> {
     validate_templates(http1, extension_required)?;
-    validate_http2_templates(http2, extension_required).map(drop)
+    validate_extended_connect_templates(http2, extension_required).map(drop)
 }
 
 /// Fills the first matching caller slot or default field, or appends the field.
@@ -666,8 +671,8 @@ mod tests {
     use phantom_profile::{chromium, firefox};
 
     use super::{
-        WebSocketHeader, accept_for_key, default_http2_headers, fill_or_append, prepare,
-        prepare_http2, profile_headers,
+        WebSocketHeader, accept_for_key, default_extended_connect_headers, fill_or_append, prepare,
+        prepare_extended_connect, profile_headers,
     };
 
     fn no_cookie() -> Option<String> {
@@ -685,19 +690,20 @@ mod tests {
         let placeholder = WebSocketHeader::client_cookies("cookie");
         let literal = WebSocketHeader::Field(RequestHeader::new("cookie", "b=2"));
 
-        let prepared = prepare_http2(vec![version.clone(), placeholder.clone()], read, None)?;
+        let prepared =
+            prepare_extended_connect(vec![version.clone(), placeholder.clone()], read, None)?;
         assert_eq!(reads.get(), 1);
         assert!(prepared.headers.iter().any(|field| field.value() == b"a=1"));
 
         let overridden = vec![version.clone(), placeholder.clone(), literal];
-        prepare_http2(overridden, read, None)?;
+        prepare_extended_connect(overridden, read, None)?;
         assert_eq!(reads.get(), 1, "a literal Cookie field overrides the jar");
 
-        prepare_http2(vec![version.clone()], read, None)?;
+        prepare_extended_connect(vec![version.clone()], read, None)?;
         assert_eq!(reads.get(), 1, "no placeholder means no jar read");
 
         let invalid = vec![version, placeholder.clone(), placeholder];
-        assert!(prepare_http2(invalid, read, None).is_err());
+        assert!(prepare_extended_connect(invalid, read, None).is_err());
         assert_eq!(reads.get(), 1, "a rejected template never reads the jar");
         Ok(())
     }
@@ -711,9 +717,10 @@ mod tests {
     }
 
     #[test]
-    fn http2_template_omits_http1_only_fields_and_requires_lowercase()
+    fn extended_connect_template_omits_http1_only_fields_and_requires_lowercase()
     -> Result<(), super::WebSocketError> {
-        let prepared = prepare_http2(default_http2_headers(), no_cookie, None)?;
+        let prepared =
+            prepare_extended_connect(default_extended_connect_headers(), no_cookie, None)?;
         assert_eq!(prepared.headers.len(), 1);
         assert_eq!(prepared.headers[0].name(), "sec-websocket-version");
 
@@ -721,12 +728,12 @@ mod tests {
             "Sec-WebSocket-Version",
             "13",
         ))];
-        assert!(prepare_http2(uppercase, no_cookie, None).is_err());
+        assert!(prepare_extended_connect(uppercase, no_cookie, None).is_err());
         let key = vec![
             WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
             WebSocketHeader::key("sec-websocket-key"),
         ];
-        assert!(prepare_http2(key, no_cookie, None).is_err());
+        assert!(prepare_extended_connect(key, no_cookie, None).is_err());
         Ok(())
     }
 
@@ -745,7 +752,7 @@ mod tests {
             RequestHeader::new("x-extra", "last").sensitive(),
         );
 
-        let prepared = prepare_http2(headers, no_cookie, None)?;
+        let prepared = prepare_extended_connect(headers, no_cookie, None)?;
         let fields = prepared
             .headers
             .iter()
@@ -766,12 +773,12 @@ mod tests {
     }
 
     #[test]
-    fn http2_caller_slots_must_be_lowercase() {
+    fn extended_connect_caller_slots_must_be_lowercase() {
         let headers = vec![
             WebSocketHeader::field(RequestHeader::new("sec-websocket-version", "13")),
             WebSocketHeader::caller_field("User-Agent"),
         ];
-        assert!(prepare_http2(headers, no_cookie, None).is_err());
+        assert!(prepare_extended_connect(headers, no_cookie, None).is_err());
     }
 
     #[test]
@@ -801,7 +808,7 @@ mod tests {
                 "Sec-WebSocket-Key",
             ]
         );
-        let http2 = prepare_http2(
+        let http2 = prepare_extended_connect(
             profile_headers(&settings.http2_fields, true)?,
             no_cookie,
             None,

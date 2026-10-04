@@ -44,9 +44,11 @@ reuses an HTTP/3 session that already advertised extended CONNECT and never
 dials one. Firefox has no implementation and its tracking bug is unassigned;
 WebKit has none. Common servers do not accept one either. A named recipe would
 emit a handshake no browser emits, so none will until a browser ships it on by
-default. A caller-configurable RFC 9220 slice, which a downstream user could
-point at their own server, is a separate question and stays open on the
-[roadmap](../roadmap.md).
+default. `Client::websocket_with_protocol` with `HttpProtocol::Http3` opens
+an RFC 9220 WebSocket for a caller who points it at their own server: it
+needs a profile that sets an extended CONNECT pseudo-header order, which no
+named recipe does, and it starts from Phantom's default fields. Profile
+policy never chooses it.
 
 Phantom therefore covers only what has been captured or read. It carries one
 version per browser, from Windows 11 captures, and a new browser release needs
@@ -581,14 +583,21 @@ failure on the chosen connection never falls back to another connection or
 protocol. The accepted stream keeps both DATA directions and the connection
 driver.
 
+An exact-protocol H3 WebSocket, in contrast, is a stream on the client's
+pooled H3 connection to the origin and route. Every exact H3 request already
+shares that connection, so the WebSocket follows it rather than opening a
+QUIC connection that no ordinary request would open.
+
 WebSocket connections never enter the client's ordinary HTTP pool, except as
-one stream on a pooled H2 session under a profile policy. That stream takes
-the same per-origin H2 slot an ordinary request takes, and holds the slot and
-a lease on the session for its whole life, like a response body. Both are
-released when the WebSocket is dropped or reaches a terminal state, such as a
-completed close handshake. On any H2 WebSocket, receive-window capacity is
-returned as the caller consumes bytes, a graceful shutdown sends
-`END_STREAM`, and dropping early resets only the CONNECT stream.
+one stream on a pooled H2 session under a profile policy or on a pooled H3
+connection. That stream takes the same per-origin slot an ordinary request
+takes, and holds the slot and a lease on the connection for its whole life,
+like a response body. Both are released when the WebSocket is dropped or
+reaches a terminal state, such as a completed close handshake. On any H2
+WebSocket, receive-window capacity is returned as the caller consumes bytes,
+a graceful shutdown sends `END_STREAM`, and dropping early resets only the
+CONNECT stream. On an H3 WebSocket a graceful shutdown sends FIN, and
+dropping early resets only its stream with `H3_REQUEST_CANCELLED`.
 
 A profile may reopen a refused WebSocket once. When a recipe sets
 `refused_stream_retry` to `SameSessionOnce` and the peer answers the extended

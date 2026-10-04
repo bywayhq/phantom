@@ -1,8 +1,9 @@
 # WebSocket fields and compression
 
-Write your own ordered opening request for a WebSocket, and compress its
-messages with permessage-deflate. You need the optional `websocket` feature;
-compression also needs `websocket-deflate`.
+Write your own ordered opening request for a WebSocket, open one over
+HTTP/3 to a server you run, and compress its messages with
+permessage-deflate. You need the optional `websocket` feature; compression
+also needs `websocket-deflate`.
 
 > For builders who have read [WebSocket](websocket.md).
 
@@ -44,6 +45,58 @@ async fn open_ordered(client: &Client) -> Result<(), Box<dyn std::error::Error>>
   [opening template rules](../reference/websocket.md#opening-templates) fails
   before I/O. An H1 template needs the authority and key placeholders; an H2
   template rejects them.
+
+## Open a WebSocket over HTTP/3 to your own server
+
+`Client::websocket_with_protocol` with `HttpProtocol::Http3` sends an RFC
+9220 extended CONNECT to a server you control. The profile's HTTP/3 request
+settings need an extended CONNECT pseudo-header order:
+
+```rust
+use phantom::profile::{chromium, ClientProfile, Http3ClientSettings, Http3PseudoHeader};
+use phantom::{Client, HttpProtocol, RequestHeader};
+
+async fn open_h3() -> Result<(), Box<dyn std::error::Error>> {
+    let mut request = chromium::v154_http3_request();
+    request.extended_connect_pseudo_header_order = Some(vec![
+        Http3PseudoHeader::Method,
+        Http3PseudoHeader::Protocol,
+        Http3PseudoHeader::Scheme,
+        Http3PseudoHeader::Authority,
+        Http3PseudoHeader::Path,
+    ]);
+    let http3 = Http3ClientSettings::new(
+        chromium::v154_http3_tls(),
+        chromium::v154_quic(),
+        chromium::v154_http3(),
+        request,
+    );
+    let profile = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
+    let client = Client::builder(profile).build()?;
+
+    let socket = client
+        .websocket_with_protocol(HttpProtocol::Http3, "wss://ws.example.com/events")?
+        .header(RequestHeader::new("origin", "https://example.com"))
+        .connect()
+        .await?;
+    println!("{:?}", socket.handshake_response().version());
+    Ok(())
+}
+```
+
+- No browser opens a WebSocket over HTTP/3, so no recipe sets this order or
+  has HTTP/3 opening fields. The order above is a choice, not a capture.
+  Without an order, `connect` fails with `ProtocolUnavailable` before I/O.
+- The opening starts from the built-in H2 template, `sec-websocket-version:
+  13` plus the cookie and compression placeholders. `header` appends
+  lowercase fields; `headers` replaces the template under the H2 rules.
+- The WebSocket is a stream on the client's pooled H3 connection to the
+  origin and route, shared with exact H3 requests, and holds one of the
+  origin's pool slots until it ends. It runs direct, over SOCKS5, or through
+  CONNECT-UDP; `ws://` and HTTP proxies fail before I/O.
+- A server that does not enable extended CONNECT fails the connect with
+  `WebSocketErrorKind::Http3` before a stream is sent. Nothing falls back to
+  H2 or H1.
 
 ## Compress WebSocket messages
 

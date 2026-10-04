@@ -189,7 +189,7 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
   keep. `ClientBuilder::max_http3_connections_per_origin` allows more when
   the server's stream limit is the bottleneck; see
   [Tune throughput and latency](performance.md#open-more-than-one-connection-per-origin).
-- Not implemented: WebSocket over H3.
+- WebSocket over H3 is in [WebSocket fields](websocket-fields.md).
 
 ## Next
 

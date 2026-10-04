@@ -14,6 +14,10 @@ use phantom_net::http3::{
     ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector, Http3ConnectorError,
     Http3ConnectorErrorKind, OriginForm, RequestHeader,
 };
+#[cfg(feature = "websocket")]
+use phantom_net::http3::{
+    Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
+};
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
@@ -1101,6 +1105,104 @@ impl Http3Lease {
             }
         }
     }
+}
+
+#[cfg(feature = "websocket")]
+impl Http3Lease {
+    /// Opens one RFC 9220 extended CONNECT stream for `protocol` on the
+    /// leased connection.
+    ///
+    /// The request waits until the server has answered the connection's
+    /// early data, so it never goes out as early data, and it is sent only
+    /// after the peer's SETTINGS enable extended CONNECT. An accepted stream
+    /// keeps the lease's stream count and admission permit until it
+    /// completes or is dropped; a rejecting response's body keeps them until
+    /// it is read or dropped. A stream failure retires the connection when it
+    /// can no longer be reused, as an ordinary request's does. Nothing is
+    /// replayed.
+    pub(crate) async fn send_extended_connect(
+        self,
+        connector: &Http3Connector,
+        protocol: Http3ExtendedProtocol,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        timeout_budget: TimeoutBudget,
+    ) -> Result<Http3ExtendedConnect, RequestError> {
+        let Self {
+            entry,
+            lease,
+            stream,
+            permit,
+        } = self.wait_for_early_data(connector, timeout_budget).await?;
+        let result = timeout_budget
+            .run(
+                TimeoutPhase::ResponseHead,
+                Some(HttpProtocol::Http3),
+                async {
+                    Ok::<_, RequestError>(
+                        connector
+                            .send_extended_connect_on(
+                                &lease.connection,
+                                protocol,
+                                authority,
+                                target,
+                                headers,
+                            )
+                            .await,
+                    )
+                },
+            )
+            .await;
+        match result {
+            Ok(Ok(Http3ExtendedConnectOutcome::Accepted {
+                response,
+                stream: mut tunnel,
+            })) => {
+                // The stream count drops first, so the request the permit
+                // admits next sees this stream ended.
+                tunnel.retain_until_stream_complete((stream, permit));
+                Ok(Http3ExtendedConnect::Accepted {
+                    response: Box::new(response),
+                    stream: tunnel,
+                })
+            }
+            Ok(Ok(Http3ExtendedConnectOutcome::Rejected(response))) => {
+                let (parts, body) = response.into_parts();
+                Ok(Http3ExtendedConnect::Rejected(Box::new(
+                    http::Response::from_parts(
+                        parts,
+                        ResponseBody::http3_with_guard(body, (stream, permit)),
+                    ),
+                )))
+            }
+            Ok(Err(error)) => {
+                drop(stream);
+                drop(permit);
+                if !connector.can_reuse_now(&lease.connection) {
+                    entry.invalidate(&lease.token);
+                }
+                Err(RequestError::http3_stream(error))
+            }
+            Err(error) => {
+                drop(stream);
+                drop(permit);
+                Err(error)
+            }
+        }
+    }
+}
+
+/// The answer to an extended CONNECT from [`Http3Lease::send_extended_connect`].
+#[cfg(feature = "websocket")]
+pub(crate) enum Http3ExtendedConnect {
+    /// A 2xx response head and the stream it opened.
+    Accepted {
+        response: Box<http::Response<()>>,
+        stream: Http3ExtendedConnectStream,
+    },
+    /// Any other final response, with its body.
+    Rejected(Box<http::Response<ResponseBody>>),
 }
 
 /// Returns whether a request goes out before its connection's handshake

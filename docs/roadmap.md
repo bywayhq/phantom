@@ -145,6 +145,11 @@ Counts in the later phases come from a read-only review of `main` at
 - An opt-in race of up to three Alt-Svc alternatives at once, where Chrome
   races only the first
   ([Race the alternative against the origin](guides/http3-discovery.md#race-the-alternative-against-the-origin)).
+- WebSocket over HTTP/3 (RFC 9220) to a server the caller controls, as a
+  stream on the client's pooled HTTP/3 connection, directly, over SOCKS5
+  UDP, or through CONNECT-UDP, for a custom profile with an extended CONNECT
+  pseudo-header order; no recipe opens one
+  ([Open a WebSocket over HTTP/3 to your own server](guides/websocket-fields.md#open-a-websocket-over-http3-to-your-own-server)).
 - Field lists built once: a negotiated request builds and checks its
   HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
   once per redirect hop before any I/O. The race's winner and every replay
@@ -355,9 +360,6 @@ anything does.
 Each of these needs no capture, because no named recipe may reach it
 ([standing rules](#standing-rules)).
 
-- WebSocket over HTTP/3 (RFC 9220) for custom profiles. The `phantom-net`
-  extended CONNECT foundation exists; no shipping browser opens one, so no
-  recipe will.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
   `IP_UNICAST_IF`), and a client certificate chosen per origin.

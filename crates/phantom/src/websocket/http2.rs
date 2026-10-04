@@ -17,7 +17,7 @@ use super::{
     AdmissionGuard, Http2Target, ResolvedWebSocket, WebSocket, WebSocketError, WebSocketLimits,
     WebSocketRequestBuilder, WebSocketSelection, WebSocketTransport,
     error::refused_extended_connect_stream,
-    handshake::{prepare_http2, validate_http2_response},
+    handshake::{prepare_extended_connect, validate_extended_connect_response},
 };
 #[cfg(feature = "cookies")]
 use crate::CookieJar;
@@ -117,7 +117,7 @@ impl WebSocketRequestBuilder {
             .http2
             .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
-        let prepared = prepare_http2(
+        let prepared = prepare_extended_connect(
             headers,
             cookie_value,
             extension_offer.as_ref().map(http::HeaderValue::as_bytes),
@@ -387,7 +387,8 @@ async fn finish_http2(
             Err(WebSocketError::rejected(response))
         }
         Http2ExtendedConnectOutcome::Accepted { response, stream } => {
-            let selected_protocol = validate_http2_response(
+            let selected_protocol = validate_extended_connect_response(
+                http::Version::HTTP_2,
                 response.version(),
                 response.headers(),
                 offered_protocols,

@@ -18,15 +18,18 @@ use crate::RequestError;
 ///
 /// Only a failure that happened before any byte of the opening reached the
 /// origin is retried: a failed name lookup, a refused or failed TCP connect
-/// to the origin or proxy, and a SOCKS5 proxy that could not connect or
-/// resolve. The same failures are the retryable connection-setup class of
+/// to the origin or proxy, a SOCKS5 proxy that could not connect or
+/// resolve, and over HTTP/3 a QUIC connection or CONNECT-UDP proxy that
+/// could not be reached. The same failures are the retryable
+/// connection-setup class of
 /// [`RetryPolicy`](crate::RetryPolicy). TLS, proxy authentication or
 /// rejection, the opening exchange, a
 /// [`HandshakeRejected`](super::WebSocketErrorKind::HandshakeRejected) or
 /// [`InvalidHandshake`](super::WebSocketErrorKind::InvalidHandshake) answer,
 /// and a handshake [`Timeout`](super::WebSocketErrorKind::Timeout) return the
 /// error at once, so no retry follows a response from the server. A stream
-/// on a pooled HTTP/2 session is not retried either.
+/// on a pooled HTTP/2 session or HTTP/3 connection is not retried either,
+/// and no retry changes the protocol.
 ///
 /// A retry is a new opening: it resolves, connects, and sends the opening
 /// with a fresh `Sec-WebSocket-Key` on the same route, with the same exact

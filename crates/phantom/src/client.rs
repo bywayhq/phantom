@@ -459,8 +459,13 @@ impl Client {
     /// HTTP/2 uses RFC 8441 extended CONNECT and supports `wss://` only, over
     /// direct, HTTP CONNECT, or SOCKS5 routes. It requires an explicit
     /// extended-CONNECT pseudo-header order in the HTTP/2 profile and never
-    /// falls back to HTTP/1.1. HTTP/3 is rejected when the builder is created.
-    /// Client timeouts, retry, and redirect policy do not apply.
+    /// falls back to HTTP/1.1. HTTP/3 uses RFC 9220 extended CONNECT on the
+    /// client's pooled HTTP/3 connection and supports `wss://` only, over
+    /// direct, SOCKS5, or CONNECT-UDP routes. It requires an explicit
+    /// extended-CONNECT pseudo-header order in the HTTP/3 request settings,
+    /// which no named recipe sets, so it is for servers the caller controls;
+    /// it never falls back to HTTP/2 or HTTP/1.1. Client timeouts, retry, and
+    /// redirect policy do not apply.
     ///
     /// # Errors
     ///

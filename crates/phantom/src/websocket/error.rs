@@ -37,6 +37,9 @@ pub enum WebSocketErrorKind {
     Http1,
     /// The HTTP/2 extended CONNECT handshake could not be completed.
     Http2,
+    /// The HTTP/3 extended CONNECT handshake could not be completed, for
+    /// example because the peer did not enable extended CONNECT.
+    Http3,
     /// Generating the opening-handshake nonce failed.
     Random,
     /// The opening handshake did not finish within its handshake timeout.
@@ -103,7 +106,9 @@ impl WebSocketError {
             HttpProtocol::Http2 => {
                 "client profile cannot use HTTP/2 extended CONNECT for WebSocket"
             }
-            HttpProtocol::Http3 => "HTTP/3 WebSocket is not implemented",
+            HttpProtocol::Http3 => {
+                "client profile cannot use HTTP/3 extended CONNECT for WebSocket"
+            }
         };
         Self::new(WebSocketErrorKind::ProtocolUnavailable, message)
     }
@@ -146,7 +151,7 @@ impl WebSocketError {
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
             RequestErrorKind::Http1 => WebSocketErrorKind::Http1,
             RequestErrorKind::Http2 => WebSocketErrorKind::Http2,
-            RequestErrorKind::Http3 => WebSocketErrorKind::Protocol,
+            RequestErrorKind::Http3 => WebSocketErrorKind::Http3,
             RequestErrorKind::Timeout => WebSocketErrorKind::Timeout,
         };
         let timeout_phase = source.timeout_phase();

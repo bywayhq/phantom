@@ -46,7 +46,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 - [Tune throughput and latency](docs/guides/performance.md): concurrency bounds, extra HTTP/2 connections per origin, wait limits, and what each lets a server observe; Phantom does no request pacing
 - [Server-sent events](docs/guides/sse.md): the `sse` feature
 - [WebSocket](docs/guides/websocket.md): the `websocket` feature over HTTP/1.1 and HTTP/2
-- [WebSocket fields and compression](docs/guides/websocket-fields.md): caller-ordered openings, and the `websocket-deflate` feature
+- [WebSocket fields and compression](docs/guides/websocket-fields.md): caller-ordered openings, HTTP/3 openings to your own server (no recipe), and the `websocket-deflate` feature
 - [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
 - [Coming from reqwest](docs/guides/coming-from-reqwest.md): reqwest concepts mapped to Phantom, and behaviors that differ
 - [Troubleshooting](docs/guides/troubleshooting.md): error kinds mapped to causes and fixes

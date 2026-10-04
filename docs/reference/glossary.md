@@ -114,8 +114,9 @@ whose retry policy opts into the HTTP/2 fallback. Compare
 ## Extended CONNECT
 
 A CONNECT request with a `:protocol` pseudo-header field (RFC 8441 for H2,
-RFC 9220 for H3). Phantom uses it to open a WebSocket on an H2 stream, and
-only after the peer advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL`. See
+RFC 9220 for H3). Phantom uses it to open a WebSocket on an H2 or H3
+stream, and only after the peer advertises
+`SETTINGS_ENABLE_CONNECT_PROTOCOL`. See
 [WebSocket](../guides/websocket.md).
 
 ## Fingerprint

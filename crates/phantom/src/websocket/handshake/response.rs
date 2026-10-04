@@ -56,15 +56,18 @@ pub(in crate::websocket) fn validate_response(
     validate_selected_fields(headers, offered_protocols, allow_extensions)
 }
 
-pub(in crate::websocket) fn validate_http2_response(
+/// Validates a 2xx extended CONNECT response, which must use `expected`:
+/// HTTP/2 for RFC 8441 or HTTP/3 for RFC 9220.
+pub(in crate::websocket) fn validate_extended_connect_response(
+    expected: Version,
     version: Version,
     headers: &HeaderMap,
     offered_protocols: &[Box<str>],
     allow_extensions: bool,
 ) -> Result<Option<Box<str>>, WebSocketError> {
-    if version != Version::HTTP_2 {
+    if version != expected {
         return Err(WebSocketError::invalid_handshake(
-            "extended CONNECT response must use HTTP/2",
+            "extended CONNECT response used another HTTP version",
         ));
     }
     if headers.contains_key(CONNECTION)
@@ -138,7 +141,7 @@ fn response_tokens<'a>(
 mod tests {
     use http::{HeaderMap, Version};
 
-    use super::{validate_http2_response, validate_response};
+    use super::{validate_extended_connect_response, validate_response};
 
     #[test]
     fn offered_protocol_may_remain_unselected() -> Result<(), Box<dyn std::error::Error>> {
@@ -178,22 +181,50 @@ mod tests {
     }
 
     #[test]
-    fn validates_http2_fields_without_http1_acceptance_headers()
+    fn validates_extended_connect_fields_without_http1_acceptance_headers()
     -> Result<(), Box<dyn std::error::Error>> {
+        let offered: &[Box<str>] = &["chat".into()];
         let mut headers = HeaderMap::new();
         headers.insert("sec-websocket-protocol", "chat".parse()?);
-        assert_eq!(
-            validate_http2_response(Version::HTTP_2, &headers, &["chat".into()], false)?,
-            Some("chat".into())
+        for version in [Version::HTTP_2, Version::HTTP_3] {
+            assert_eq!(
+                validate_extended_connect_response(version, version, &headers, offered, false)?,
+                Some("chat".into())
+            );
+        }
+        // An HTTP/3 opening never accepts an HTTP/2 response, or the reverse.
+        assert!(
+            validate_extended_connect_response(
+                Version::HTTP_3,
+                Version::HTTP_2,
+                &headers,
+                offered,
+                false
+            )
+            .is_err()
         );
 
         headers.insert("sec-websocket-accept", "forbidden".parse()?);
         assert!(
-            validate_http2_response(Version::HTTP_2, &headers, &["chat".into()], false).is_err()
+            validate_extended_connect_response(
+                Version::HTTP_2,
+                Version::HTTP_2,
+                &headers,
+                offered,
+                false
+            )
+            .is_err()
         );
         headers.remove("sec-websocket-accept");
         assert!(
-            validate_http2_response(Version::HTTP_11, &headers, &["chat".into()], false).is_err()
+            validate_extended_connect_response(
+                Version::HTTP_2,
+                Version::HTTP_11,
+                &headers,
+                offered,
+                false
+            )
+            .is_err()
         );
         Ok(())
     }

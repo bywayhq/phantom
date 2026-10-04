@@ -189,7 +189,7 @@ async fn open_with_retry(client: &Client) -> Result<(), Box<dyn std::error::Erro
   message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
 - No browser capture covers a `wss://` WebSocket through a proxy.
-- WebSocket over HTTP/3 is not implemented.
+- WebSocket over HTTP/3 is in [WebSocket fields](websocket-fields.md).
 
 ## Next
 

@@ -34,7 +34,8 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
 | `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Rejected |
-| `ws://` or `wss://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `ws://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `wss://`, H3 | Extended CONNECT on a pooled QUIC connection | Rejected | Rejected | Extended CONNECT on a pooled QUIC connection over UDP ASSOCIATE | Extended CONNECT on a pooled QUIC connection in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 
 Notes:
 
@@ -56,7 +57,11 @@ Notes:
   origin in `:authority`, in the profile's pseudo-header order. The response
   reports H2. Exact H1 through an H2 proxy is rejected, not sent as H2.
 - WebSocket and SSE requests need the matching Cargo feature.
-- A `ws://` or `wss://` request over H3 fails when the builder is created.
+- The `wss://` H3 row describes `websocket_with_protocol` with
+  `HttpProtocol::Http3`, for servers the caller controls: no recipe has H3
+  opening fields, and profile policy never chooses H3. The QUIC connection
+  is the one the client's ordinary exact H3 requests to that origin and
+  route share.
 - SSE event sources follow the ordinary rows for their scheme and protocol.
 - The `wss://` H2 row describes `websocket_with_protocol`. With
   `websocket_with_profile_policy`, the profile's connection policy may instead

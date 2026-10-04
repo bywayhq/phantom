@@ -131,7 +131,12 @@ then continues alongside the response body (RFC 9114 section 4.1).
 Extended CONNECT (RFC 9220) turns an HTTP/3 request stream into a tunnel for
 another protocol. `phantom-net` can open these streams on a connection opened
 by the same `Http3Connector`. `Http3ExtendedProtocol::WebSocket` is the only
-protocol today, and the `phantom-http` facade does not expose it yet.
+protocol today. The `phantom-http` facade exposes it through
+`Client::websocket_with_protocol` with `HttpProtocol::Http3`, which admits
+the opening to the client's HTTP/3 pool, leases a pooled connection or opens
+one, and sends the request with `Http3Lease::send_extended_connect` in
+`crates/phantom/src/session/http3_pool.rs`. The accepted stream retains the
+lease's stream count and admission permit until it completes or drops.
 
 Request:
 
@@ -439,8 +444,9 @@ Handshake, ALPN, SETTINGS, datagram, authentication, rejection, protocol, and
 inner QUIC failures are terminal. No failure falls back to a direct
 connection. CONNECT-UDP never learns or evicts Alt-Svc state.
 
-The route is limited to exact H3. HTTP/1.1, HTTP/2, negotiated requests, and
-WebSocket reject it with `UnsupportedRoute` before I/O. Still planned:
+The route is limited to exact H3, including an exact H3 WebSocket. HTTP/1.1,
+HTTP/2, negotiated requests, and H1 or H2 WebSockets reject it with
+`UnsupportedRoute` before I/O. Still planned:
 multiplexing several tunnels on one outer connection, proxy authentication
 schemes other than Basic, and capture evidence for a browser's MASQUE
 fingerprint.

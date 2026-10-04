@@ -185,8 +185,8 @@ fn private_roots(
 - A second `407`, a malformed or unsupported challenge, or a one-shot
   streaming body fails an HTTP proxy request with a typed error; see
   [Proxy authentication](../explanation/design.md#proxy-authentication).
-- Exact H3 through an HTTP proxy fails before I/O. WebSocket over H3 is not
-  supported.
+- Exact H3 through an HTTP proxy fails before I/O, an H3 WebSocket
+  included.
 - Configuration errors have stable kinds (`ProxyConfigErrorKind`).
 - Credentials are validated before I/O and kept out of diagnostics.
 

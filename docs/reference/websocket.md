@@ -13,12 +13,13 @@ rules work this way is in [Design](../explanation/design.md#websocket-and-sse).
 
 ## Routes
 
-| Route | H1 | H2 |
-| --- | --- | --- |
-| Direct | `ws://` and `wss://` | `wss://` |
-| HTTP proxy, HTTP/1.1 transport | `ws://` and `wss://` (CONNECT tunnel) | `wss://` (CONNECT tunnel) |
-| HTTPS proxy, HTTP/2 transport (`HttpProxy::with_http2_transport`) | `ws://` and `wss://` (CONNECT stream) | `wss://` (CONNECT stream) |
-| SOCKS5 (`socks5://` or `socks5h://`) | `ws://` and `wss://` | `wss://` |
+| Route | H1 | H2 | H3 |
+| --- | --- | --- | --- |
+| Direct | `ws://` and `wss://` | `wss://` | `wss://` |
+| HTTP proxy, HTTP/1.1 transport | `ws://` and `wss://` (CONNECT tunnel) | `wss://` (CONNECT tunnel) | Rejected |
+| HTTPS proxy, HTTP/2 transport (`HttpProxy::with_http2_transport`) | `ws://` and `wss://` (CONNECT stream) | `wss://` (CONNECT stream) | Rejected |
+| SOCKS5 (`socks5://` or `socks5h://`) | `ws://` and `wss://` | `wss://` | `wss://` (UDP ASSOCIATE) |
+| CONNECT-UDP | Rejected | Rejected | `wss://`, on every proxy leg |
 
 Any other combination fails with a typed error before proxy or origin I/O;
 the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
@@ -28,6 +29,7 @@ the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
 | `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. This is what Chrome 154, Edge 154, and Firefox 157 send ([proxy route evidence](../explanation/validation.md#proxy-route-browser-evidence)). The CONNECT carries the route's CONNECT fields, or the profile's [proxy CONNECT fields](profiles.md#proxy-connect-fields) with the opening's `User-Agent`, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
 | SOCKS5 | After the tunnel is up, `ws://` sends the same origin-form Upgrade as a direct connection. `socks5://` resolves the origin locally; `socks5h://` sends the canonical DNS name to the proxy. Username and password authentication applies only to SOCKS negotiation. |
 | H2 through a proxy | Phantom opens a dedicated tunnel, then runs origin TLS, the HTTP/2 preface, and extended CONNECT inside it, as on a direct route. The origin must still enable extended CONNECT. |
+| H3 | `websocket_with_protocol(HttpProtocol::Http3, ..)` sends RFC 9220 extended CONNECT as a new stream on the QUIC connection the client's HTTP/3 pool keeps for the origin and route, opening one when it has none with room. The stream holds one per-origin admission until it ends. The profile needs `Http3RequestSettings::extended_connect_pseudo_header_order`, which no named recipe sets, or `connect` fails with `ProtocolUnavailable` before I/O. A peer whose SETTINGS do not enable extended CONNECT fails with `WebSocketErrorKind::Http3` before any stream opens. |
 | Proxy credentials | Literal `Proxy-Authorization` fields are rejected. With Basic credentials on the proxy, the first connection to that proxy starts anonymously and replays once over the same route, only after a strict `407` Basic challenge: on the challenged connection when the `407` leaves it open, and on a new one otherwise. Once the proxy accepts the credentials, later tunnels to it send them on the first CONNECT. |
 | Proxy failure | A proxy rejection, SOCKS5 failure, or proxy ALPN mismatch is a terminal proxy error. Phantom never falls back to a direct connection or from H2 to an H1 Upgrade. |
 
@@ -40,13 +42,14 @@ fields keep their order and casing.
 
 | Source | Applies to |
 | --- | --- |
-| Built-in H1 or H2 template | Every builder, when nothing else is set |
-| `WebSocketSettings` on the profile | Every builder on that client; replaces the built-in templates |
+| Built-in H1 or H2 template | Every H1 or H2 builder, when nothing else is set |
+| Built-in H2 template | Every H3 builder without `headers`: no recipe has H3 opening fields |
+| `WebSocketSettings` on the profile | Every H1 or H2 builder on that client; replaces the built-in templates |
 | `WebSocketRequestBuilder::headers` | One connection; replaces the whole template. Fails under `websocket_with_profile_policy`. |
 
 All validation finishes before network I/O.
 
-| Rule | H1 | H2 |
+| Rule | H1 | H2 and H3 |
 | --- | --- | --- |
 | Authority placeholder | Exactly one | Rejected |
 | Key placeholder | Exactly one | Rejected |
@@ -57,17 +60,18 @@ All validation finishes before network I/O.
 | Literal `Sec-WebSocket-Extensions` | Rejected; use the `permessage_deflate` placeholder | Rejected |
 | Literal `Proxy-Authorization` | Rejected | Rejected |
 
-On H2, the `:method`, `:authority`, `:scheme`, `:path`, and
-`:protocol = websocket` pseudo-fields come from the request and the profile's
-extended-CONNECT pseudo-header order. The default ordinary fields are
+On H2 and H3, the `:method`, `:authority`, `:scheme`, `:path`, and
+`:protocol = websocket` pseudo-fields come from the request and the
+extended-CONNECT pseudo-header order of the profile's HTTP/2 or HTTP/3
+settings. The default ordinary fields are
 `sec-websocket-version: 13`, the compression placeholder when enabled, and
 the cookie placeholder.
 
 ## Response checks
 
-| Check | H1 | H2 |
+| Check | H1 | H2 and H3 |
 | --- | --- | --- |
-| Success status | `101` over HTTP/1.1 | Any 2xx |
+| Success status | `101` over HTTP/1.1 | Any 2xx over the protocol of the request |
 | Accept value | Exactly one matching `Sec-WebSocket-Accept` | `Sec-WebSocket-Accept` rejected |
 | `Upgrade`, `Connection` | Valid tokens required | Rejected |
 | Body framing or transfer coding | Rejected | Transfer coding rejected |

@@ -6,7 +6,9 @@ use std::{
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use http::Response;
-use phantom_net::{http1::Http1Upgrade, http2::Http2ExtendedConnectStream};
+use phantom_net::{
+    http1::Http1Upgrade, http2::Http2ExtendedConnectStream, http3::Http3ExtendedConnectStream,
+};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_tungstenite::{
     WebSocketStream,
@@ -131,6 +133,28 @@ impl WebSocket {
         .await
     }
 
+    /// Installs the frame engine on an accepted HTTP/3 extended CONNECT
+    /// stream, which already retains its pool admission until it completes.
+    pub(super) async fn new_http3(
+        stream: Http3ExtendedConnectStream,
+        handshake: Response<()>,
+        selected_protocol: Option<Box<str>>,
+        limits: WebSocketLimits,
+        config: WebSocketConfig,
+        #[cfg(feature = "websocket-deflate")] deflate: DeflateState,
+    ) -> Self {
+        Self::new(
+            WebSocketIo::Http3(stream),
+            handshake,
+            selected_protocol,
+            limits,
+            config,
+            #[cfg(feature = "websocket-deflate")]
+            deflate,
+        )
+        .await
+    }
+
     async fn new(
         stream: WebSocketIo,
         handshake: Response<()>,
@@ -161,7 +185,7 @@ impl WebSocket {
             .accept_unmasked_frames(false)
     }
 
-    /// Returns the validated H1 `101` or H2 2xx opening response.
+    /// Returns the validated H1 `101`, or H2 or H3 2xx, opening response.
     ///
     /// Its extensions retain the exact ordered response fields.
     #[must_use]
@@ -329,6 +353,7 @@ enum WebSocketIo {
         /// state (which drops the transport) releases it.
         _admission: Option<Box<dyn Send + Sync>>,
     },
+    Http3(Http3ExtendedConnectStream),
 }
 
 impl AsyncRead for WebSocketIo {
@@ -340,6 +365,7 @@ impl AsyncRead for WebSocketIo {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_read(context, output),
             Self::Http2 { stream, .. } => Pin::new(stream).poll_read(context, output),
+            Self::Http3(stream) => Pin::new(stream).poll_read(context, output),
         }
     }
 }
@@ -353,6 +379,7 @@ impl AsyncWrite for WebSocketIo {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_write(context, input),
             Self::Http2 { stream, .. } => Pin::new(stream).poll_write(context, input),
+            Self::Http3(stream) => Pin::new(stream).poll_write(context, input),
         }
     }
 
@@ -363,6 +390,7 @@ impl AsyncWrite for WebSocketIo {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_flush(context),
             Self::Http2 { stream, .. } => Pin::new(stream).poll_flush(context),
+            Self::Http3(stream) => Pin::new(stream).poll_flush(context),
         }
     }
 
@@ -373,15 +401,20 @@ impl AsyncWrite for WebSocketIo {
         match &mut *self {
             Self::Http1(stream) => Pin::new(stream).poll_shutdown(context),
             Self::Http2 { stream, .. } => Pin::new(stream).poll_shutdown(context),
+            Self::Http3(stream) => Pin::new(stream).poll_shutdown(context),
         }
     }
 }
 
 impl WebSocketIo {
-    fn poll_shutdown_http2(&mut self, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    /// Ends an extended CONNECT stream's send side once the Close handshake
+    /// is done: `END_STREAM` on HTTP/2 and FIN on HTTP/3. An HTTP/1.1
+    /// connection is left as it is.
+    fn poll_shutdown_stream(&mut self, context: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self {
             Self::Http1(_) => Poll::Ready(Ok(())),
             Self::Http2 { stream, .. } => Pin::new(stream).poll_shutdown(context),
+            Self::Http3(stream) => Pin::new(stream).poll_shutdown(context),
         }
     }
 }
@@ -440,7 +473,7 @@ fn poll_pending_incoming(
             let is_close = matches!(socket.pending_incoming, Some(WebSocketMessage::Close(_)));
             if is_close {
                 match Pin::new(engine.get_mut())
-                    .poll_shutdown_http2(context)
+                    .poll_shutdown_stream(context)
                     .map_err(WebSocketError::engine_io)
                 {
                     Poll::Ready(Ok(())) => {}
@@ -506,7 +539,7 @@ impl Sink<WebSocketMessage> for WebSocket {
         };
         match Pin::new(&mut *socket).poll_close(context) {
             Poll::Ready(Ok(())) => Pin::new(socket.get_mut())
-                .poll_shutdown_http2(context)
+                .poll_shutdown_stream(context)
                 .map_err(WebSocketError::engine_io),
             Poll::Ready(Err(error)) => Poll::Ready(Err(WebSocketError::engine(error))),
             Poll::Pending => Poll::Pending,

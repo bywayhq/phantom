@@ -31,9 +31,9 @@ fn socks_route() -> Result<Route, Box<dyn std::error::Error>> {
   stays plaintext inside it.
 - With Alt-Svc enabled, a negotiated request can later upgrade to H3 over the
   same proxy ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
-- Exact H3 uses an RFC 1928 UDP ASSOCIATE relay. Its TCP control connection
-  stays open while the association lives, and the association stays in the
-  route's pool for reuse.
+- Exact H3, an H3 WebSocket included, uses an RFC 1928 UDP ASSOCIATE relay.
+  Its TCP control connection stays open while the association lives, and
+  the association stays in the route's pool for reuse.
 
 ## Send HTTP/3 through a CONNECT-UDP proxy
 
@@ -111,7 +111,7 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 - A SOCKS5 failure never tries another address
   ([SOCKS5 rules](../reference/route-matrix.md#socks5-rules)).
-- H1, H2, negotiated requests, and WebSocket fail before I/O on a
+- H1, H2, negotiated requests, and H1 or H2 WebSockets fail before I/O on a
   CONNECT-UDP route, so that route never learns Alt-Svc; name a known
   alternative instead.
 - A CONNECT-UDP proxy rejection fails with `RequestErrorKind::Proxy`; only

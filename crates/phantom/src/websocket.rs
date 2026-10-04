@@ -22,6 +22,7 @@ mod error;
 mod handshake;
 mod http1;
 mod http2;
+mod http3;
 mod message;
 mod retry;
 mod trace;
@@ -36,7 +37,9 @@ pub use handshake::WebSocketHeader;
 pub use message::{WebSocketCloseFrame, WebSocketLimits, WebSocketMessage};
 pub use retry::WebSocketRetryPolicy;
 
-use handshake::{default_headers, default_http2_headers, fill_or_append, profile_headers};
+use handshake::{
+    default_extended_connect_headers, default_headers, fill_or_append, profile_headers,
+};
 use phantom_net::http2::Http2Connection;
 use phantom_profile::{WebSocketNewConnection, WebSocketRefusedStreamRetry};
 use trace::OperationOutcome;
@@ -167,7 +170,7 @@ impl WebSocketRequestBuilder {
         let available = match protocol {
             HttpProtocol::Http1 => client.inner.http1.is_some(),
             HttpProtocol::Http2 => client.inner.http2.is_some(),
-            HttpProtocol::Http3 => false,
+            HttpProtocol::Http3 => client.inner.http3.is_some(),
         };
         if !available {
             return Err(WebSocketError::protocol_unavailable(protocol));
@@ -187,9 +190,10 @@ impl WebSocketRequestBuilder {
                 profile_headers(&settings.http2_fields, trustworthy)?
             }
             (HttpProtocol::Http1, None) => default_headers(),
-            (HttpProtocol::Http2, None) => default_http2_headers(),
-            (HttpProtocol::Http3, _) => {
-                return Err(WebSocketError::protocol_unavailable(protocol));
+            // No browser opens a WebSocket over HTTP/3, so no recipe has
+            // HTTP/3 fields and every profile starts from the defaults.
+            (HttpProtocol::Http2, None) | (HttpProtocol::Http3, _) => {
+                default_extended_connect_headers()
             }
         };
         Ok(Self {
@@ -235,11 +239,12 @@ impl WebSocketRequestBuilder {
     /// For HTTP/1.1 the sequence must contain exactly one authority
     /// placeholder, one random-key placeholder, one `Upgrade: websocket`
     /// field, one `Connection` field containing `Upgrade`, and
-    /// `Sec-WebSocket-Version: 13`. For HTTP/2 the pseudo-fields come from the
-    /// request and profile, so authority and key placeholders, `Host`,
-    /// `Upgrade`, `Connection`, `Sec-WebSocket-Key`, and uppercase names are
-    /// rejected. Both reject literal `Proxy-Authorization` and extension
-    /// fields. Validation completes before DNS, proxy, or origin I/O.
+    /// `Sec-WebSocket-Version: 13`. For HTTP/2 and HTTP/3 the pseudo-fields
+    /// come from the request and profile, so authority and key placeholders,
+    /// `Host`, `Upgrade`, `Connection`, `Sec-WebSocket-Key`, and uppercase
+    /// names are rejected. All three reject literal `Proxy-Authorization`
+    /// and extension fields. Validation completes before DNS, proxy, or
+    /// origin I/O.
     ///
     /// Under [`Client::websocket_with_profile_policy`] the protocol is chosen
     /// at connect time, so one replacement sequence cannot fit it; `connect`
@@ -316,7 +321,13 @@ impl WebSocketRequestBuilder {
     /// extended CONNECT on a dedicated connection, opened directly or through
     /// an HTTP CONNECT or SOCKS5 tunnel; it requires `wss://`, a profile with
     /// an extended-CONNECT pseudo-header order, and a peer that enables it,
-    /// and accepts a 2xx response.
+    /// and accepts a 2xx response. HTTP/3 sends RFC 9220 extended CONNECT as
+    /// a new stream on a connection from the client's HTTP/3 pool, reusing
+    /// one to the same origin and route or opening one directly, through a
+    /// SOCKS5 UDP association, or through a CONNECT-UDP proxy; it has the
+    /// same requirements and holds a per-origin pool admission until the
+    /// stream ends. No profile recipe has HTTP/3 opening fields, so HTTP/3
+    /// is for servers the caller controls, not for a browser fingerprint.
     ///
     /// The client's [`RequestTimeouts`](crate::RequestTimeouts),
     /// [`RetryPolicy`](crate::RetryPolicy), and
@@ -338,13 +349,16 @@ impl WebSocketRequestBuilder {
     /// - [`WebSocketErrorKind::ProtocolUnavailable`] when the profile lacks
     ///   the selected protocol or, under profile policy, a WebSocket recipe;
     /// - [`WebSocketErrorKind::UnsupportedRoute`] when the route or scheme
-    ///   cannot carry the protocol, such as `ws://` over HTTP/2, before I/O;
+    ///   cannot carry the protocol, such as `ws://` over HTTP/2 or HTTP/3, or
+    ///   HTTP/3 through an HTTP proxy, before I/O;
     /// - [`WebSocketErrorKind::Connect`], [`WebSocketErrorKind::Proxy`],
-    ///   [`WebSocketErrorKind::Tls`], [`WebSocketErrorKind::Http1`], or
-    ///   [`WebSocketErrorKind::Http2`] when resolution, connection, proxy
-    ///   setup, TLS, or the HTTP exchange fails;
-    /// - [`WebSocketErrorKind::Capacity`] when a pooled HTTP/2 session's
-    ///   per-origin waiting bound is full;
+    ///   [`WebSocketErrorKind::Tls`], [`WebSocketErrorKind::Http1`],
+    ///   [`WebSocketErrorKind::Http2`], or [`WebSocketErrorKind::Http3`]
+    ///   when resolution, connection, proxy setup, TLS, or the HTTP exchange
+    ///   fails, including an HTTP/3 peer that did not enable extended
+    ///   CONNECT, which is reported before any stream is opened;
+    /// - [`WebSocketErrorKind::Capacity`] when a pooled HTTP/2 session's or
+    ///   the HTTP/3 pool's per-origin waiting bound is full;
     /// - [`WebSocketErrorKind::Timeout`] when the handshake timeout passes;
     /// - [`WebSocketErrorKind::HandshakeRejected`] when the server answers
     ///   with an ordinary response, including a redirect; read it with
@@ -489,8 +503,8 @@ impl WebSocketRequestBuilder {
                 )
                 .await
             }
-            WebSocketSelection::Exact(protocol) => {
-                Err(WebSocketError::protocol_unavailable(protocol))
+            WebSocketSelection::Exact(HttpProtocol::Http3) => {
+                crate::session::box_send(self.connect_http3(request_span)).await
             }
             WebSocketSelection::ProfilePolicy => self.connect_by_profile_policy(request_span).await,
         }
@@ -708,6 +722,10 @@ mod tests {
                 (
                     "WebSocketRequestBuilder::connect_http2",
                     future_size(&WebSocketRequestBuilder::connect_http2),
+                ),
+                (
+                    "WebSocketRequestBuilder::connect_http3",
+                    future_size(&WebSocketRequestBuilder::connect_http3),
                 ),
             ],
         );
