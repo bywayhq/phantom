@@ -45,7 +45,7 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
   `socks5h://`), and a CONNECT-UDP (MASQUE) proxy. HTTP forwarding and HTTP
   CONNECT proxies cannot carry QUIC, so Phantom rejects them before any origin
   I/O. See [SOCKS5 and CONNECT-UDP proxies](socks-and-connect-udp.md).
-- With the Chrome 154 and Edge 154 recipes, which enable `session_tickets`,
+- With every built-in H3 recipe, each of which enables `session_tickets`,
   a later QUIC connection to the same origin over the same route resumes the
   TLS session with a ticket from an earlier one. Tickets are never shared
   between origins or routes; see
@@ -53,10 +53,10 @@ async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Turn off early data on resumed connections
 
-With the Chrome 154 and Edge 154 recipes, a resumed QUIC connection offers
-early (0-RTT) data in its ClientHello, as those browsers do, and sends
-replay-safe requests in 0-RTT packets, as the browsers send `GET`, `HEAD`,
-and `OPTIONS`. Turn early data off on the builder:
+With every built-in H3 recipe, a resumed QUIC connection offers early
+(0-RTT) data in its ClientHello, as those browsers do, and sends replay-safe
+requests in 0-RTT packets, as Chrome and Edge send `GET`, `HEAD`, and
+`OPTIONS`. Turn early data off on the builder:
 
 ```rust
 use phantom::profile::ClientProfile;

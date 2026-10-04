@@ -997,8 +997,9 @@ Planned:
 
 Not supported:
 
-- Proxy authentication schemes other than Basic, on every proxy type,
-  CONNECT-UDP included.
+- HTTP and CONNECT-UDP proxy authentication schemes other than Basic and
+  the planned Digest, and SOCKS5 methods other than RFC 1929 username and
+  password.
 
 ## Validation
 

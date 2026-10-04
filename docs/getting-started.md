@@ -162,7 +162,7 @@ No feature is enabled by default. Add them to the `phantom` line in
 | `cookies` | A cookie jar owned by the client, with size limits |
 | `https-records` | HTTP/3 discovery from HTTPS DNS records, the `phantom::dns` lookup types, and `AddressResolver::system_nameservers` |
 | `sse` | Server-sent events, with a limited number of reconnects |
-| `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 extended CONNECT with an HTTP/2 profile that sets its pseudo-header order |
+| `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT with a profile that sets its pseudo-header order |
 | `websocket-deflate` | Opt-in `permessage-deflate`; turns on `websocket` |
 | `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |

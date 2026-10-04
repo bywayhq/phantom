@@ -1914,10 +1914,10 @@ Differences from the browsers:
   fail on a socket that is already bound; Phantom sets it before a source
   binding binds the socket, so a bound connection gets a random port too.
 - Chromium on macOS sets only the keepalive idle time
-  (`net/socket/tcp_socket_posix.cc:101-105`), and Android and iOS builds
-  enable no keepalive (`:512-516`). `chromium::v154_tcp` describes Windows and Linux; a
-  macOS profile sets the interval of its `TcpKeepalivePolicy::Fixed` to
-  `None`.
+  (`net/socket/tcp_socket_posix.cc:102-106`), and Android and iOS builds
+  enable no keepalive (`:512-516`). `chromium::v154_tcp` describes Windows
+  and Linux; a macOS profile sets the interval of its
+  `TcpKeepalivePolicy::Fixed` to `None`.
 - Firefox applies keepalive after connecting, where Phantom's fixed
   keepalive and Chromium apply it before; no packet shows the difference.
   On macOS Firefox sets only the idle time and assumes 8 probes, and on

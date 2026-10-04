@@ -332,7 +332,7 @@ pub fn v154_tls() -> TlsSettings {
 /// [`TcpSettings::port_randomization`] sets it from the same build.
 ///
 /// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
-/// (`net/socket/tcp_socket_posix.cc:101-105`); set [`TcpKeepalive::interval`]
+/// (`net/socket/tcp_socket_posix.cc:102-106`); set [`TcpKeepalive::interval`]
 /// to `None` for that platform. Android and iOS builds enable no keepalive.
 /// Chromium ignores a failure to set any of these options
 /// (`net/socket/tcp_socket_win.cc:70-71`, `:1046-1047`); Phantom instead fails

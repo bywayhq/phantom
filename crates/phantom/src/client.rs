@@ -1620,9 +1620,9 @@ impl ClientBuilder {
     /// overriding the profile.
     ///
     /// Without this call the profile decides. A client offers early data
-    /// when its HTTP/3 QUIC settings set `early_data`, as the Chrome 154
-    /// and Edge 154 recipes do, because the captured browsers offer it on
-    /// every resumed connection. `false` turns it off for such a profile; `true`
+    /// when its HTTP/3 QUIC settings set `early_data`, as every built-in QUIC
+    /// recipe does, because the captured browsers offer it on every resumed
+    /// connection. `false` turns it off for such a profile; `true`
     /// turns it on for a profile that leaves it unset.
     ///
     /// # Replay

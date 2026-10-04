@@ -279,7 +279,7 @@ anything does.
   host and an Intel Mac.
 - Chromium's macOS TCP keepalive as a named recipe. Evidence: on macOS
   Chromium sets only the keepalive idle time, through `TCP_KEEPALIVE`
-  (`net/socket/tcp_socket_posix.cc:101-105` at `154.0.8037.58`), where
+  (`net/socket/tcp_socket_posix.cc:102-106` at `154.0.8037.58`), where
   `chromium::v154_tcp` also sets the interval; a caller gets the macOS
   behavior by setting `TcpKeepalive::interval` to `None`
   ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
@@ -341,8 +341,8 @@ anything does.
   and kept a 1,757-second answer
   ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence));
   `firefox::v157_dns_cache` honors a record TTL, but Phantom's system
-  lookups report none. Blocker: none recorded; `DnsQuery_A` needs an
-  audited FFI boundary of its own ([Design](explanation/design.md#unsafe-code)).
+  lookups report none. Blocker: `DnsQuery_A` needs an audited FFI
+  boundary of its own ([Design](explanation/design.md#unsafe-code)).
   Phantom's own queries would not stand in for it: they leave from its
   process, not the operating system's resolver as Firefox's do.
 - Firefox's choice of ticket for a request after a WebSocket. Evidence: in
@@ -432,7 +432,7 @@ the wire, capture evidence.
   off by default, with the tradeoff documented
   ([Tune throughput and latency](guides/performance.md)). The exception is
   failing closed: where the browser would carry on, such as after a socket
-  option fails to set, Phantom returns an error by default, so the
+  option fails to set, Phantom returns an error, so the
   fingerprint never changes silently.
 - A named recipe never emits a field, order, or protocol option that no
   capture or browser source backs. A caller option may exist ahead of any

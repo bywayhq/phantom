@@ -177,7 +177,7 @@ fn forget(client: &Client) {
 - TLS session tickets for H1/H2, and QUIC session tickets for H3, are
   bounded ([Defaults and limits](../reference/limits.md#protocol-state)) and
   keyed by exact origin and route. A ticket carries early data when the
-  profile enables it: over QUIC in every recipe, and over TCP in Firefox's
+  profile sets QUIC `early_data` or, over TCP, `TlsSettings::tcp_early_data`
   ([HTTP/3 and Alt-Svc](http3.md#turn-off-early-data-on-resumed-connections)).
 - Browsers also keep separate tickets for each top-level site a page runs
   under. A client has no such partitions: all its requests share one ticket
