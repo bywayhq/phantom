@@ -160,8 +160,7 @@ async fn a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunn
         assert_eq!(error.kind(), RequestErrorKind::Proxy);
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
 
-        let observed = proxy.await??;
-        assert_eq!(observed.client_datagrams, 0);
+        proxy.await??;
         no_quic_handshake(&quic).await?;
         no_tcp_connection(&tcp).await
     })

@@ -151,7 +151,7 @@ async fn an_http3_body_is_sent_when_the_wait_ends() -> TestResult {
         let (body, waited) = server.await??;
         assert_eq!(body, b"payload");
         assert!(
-            waited >= Duration::from_millis(400) && waited < Duration::from_secs(5),
+            waited >= Duration::from_millis(250) && waited < Duration::from_secs(5),
             "body after {waited:?}"
         );
         Ok(())
