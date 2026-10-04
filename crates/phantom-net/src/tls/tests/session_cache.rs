@@ -315,6 +315,24 @@ async fn a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next() 
     Ok(())
 }
 
+/// Firefox keeps up to ten tickets per peer. Each connection after the first
+/// resumes one ticket and stores the server's two, so ten connections would
+/// leave eleven; the Firefox recipe keeps ten.
+#[tokio::test]
+async fn the_firefox_recipe_keeps_ten_tickets_per_origin() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let (address, server) = ticket_server(&identity, 10).await?;
+    drop(connect_and_read(&connector, address, false).await?);
+    for _ in 1..10 {
+        drop(connect_and_read(&connector, address, true).await?);
+    }
+    assert_eq!(cache.len(), 10);
+    let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+    assert_eq!(resumed.iter().filter(|resumed| **resumed).count(), 9);
+    Ok(())
+}
+
 #[tokio::test]
 async fn authentication_failure_discards_pending_and_attempted_sessions() -> TestResult<()> {
     let trusted = TestIdentity::generate()?;

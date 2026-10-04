@@ -5,7 +5,7 @@ use std::{error::Error, fmt, net::IpAddr};
 const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
 const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERHEAD;
 /// Matches the TCP session cache's total capacity in `phantom-net`.
-const MAX_SESSION_TICKETS_PER_ORIGIN: u8 = 8;
+const MAX_SESSION_TICKETS_PER_ORIGIN: u8 = 10;
 
 /// A TLS protocol version accepted by a transport.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -484,7 +484,7 @@ pub struct TlsSettings {
     /// A new connection presents the ticket [`Self::session_ticket_order`]
     /// selects, and each TLS 1.3 ticket is used at most once. When the
     /// origin already has this many, storing a ticket evicts the one that
-    /// order names. It must be between 1 and 8 when
+    /// order names. It must be between 1 and 10 when
     /// [`Self::session_tickets`] is enabled. QUIC connections keep their own
     /// tickets under a separate bound.
     ///
@@ -660,7 +660,7 @@ impl TlsSettings {
         {
             return Err(InvalidTlsSettings::new(
                 "session_tickets_per_origin",
-                "session tickets per origin must be between 1 and 8",
+                "session tickets per origin must be between 1 and 10",
             ));
         }
         if self.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault

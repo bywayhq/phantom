@@ -101,8 +101,8 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. A resumed ClientHello omits the empty `session_ticket`
 /// extension and adds `pre_shared_key` last. Firefox used each of the eight
-/// tickets one connection issued, once, so the recipe keeps up to eight per
-/// origin, the TCP cache's bound. It offers them
+/// tickets one connection issued, once. The recipe keeps up to ten per
+/// origin, as Firefox's default ticket-cache preference allows. It offers them
 /// [`SessionTicketOrder::OldestConnectionFirst`], as Firefox on Windows
 /// does: in every `resumption-websocket-http1` run, the request after the
 /// WebSocket resumed a ticket of the page's connection. When a ticket
@@ -177,7 +177,7 @@ pub fn v157_tls() -> TlsSettings {
             CertificateCompression::Zstd,
         ],
         session_tickets: true,
-        session_tickets_per_origin: 8,
+        session_tickets_per_origin: 10,
         session_ticket_order: SessionTicketOrder::OldestConnectionFirst,
         session_ticket_extension_when_resuming: false,
         tcp_early_data: true,

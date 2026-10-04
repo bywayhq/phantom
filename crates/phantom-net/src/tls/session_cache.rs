@@ -12,7 +12,9 @@ use btls::{
 use phantom_profile::SessionTicketOrder;
 use tracing::debug;
 
-const MAX_SESSIONS: usize = 8;
+/// Bounds the whole cache, and so the per-hostname bound, which
+/// `phantom-profile` validates up to the same number.
+const MAX_SESSIONS: usize = 10;
 
 #[derive(Clone)]
 pub(super) struct TlsSessionCache {

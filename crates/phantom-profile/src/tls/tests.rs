@@ -146,13 +146,13 @@ fn record_size_limit_rejects_values_outside_the_wire_range() {
 }
 
 #[test]
-fn session_tickets_per_origin_must_be_between_one_and_eight() -> Result<(), Box<dyn Error>> {
-    for limit in [1, 8] {
+fn session_tickets_per_origin_must_be_between_one_and_ten() -> Result<(), Box<dyn Error>> {
+    for limit in [1, 10] {
         let mut settings = minimal_settings();
         settings.session_tickets_per_origin = limit;
         settings.validate()?;
     }
-    for limit in [0, 9] {
+    for limit in [0, 11] {
         let mut settings = minimal_settings();
         settings.session_tickets_per_origin = limit;
         let error = settings.validate().err();
@@ -195,7 +195,7 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
             SessionTicketOrder::OldestFirst,
         ),
     ] {
-        assert_eq!(firefox.session_tickets_per_origin, 8);
+        assert_eq!(firefox.session_tickets_per_origin, 10);
         assert_eq!(firefox.session_ticket_order, order);
         assert!(!firefox.session_ticket_extension_when_resuming);
     }

@@ -171,8 +171,8 @@ use it.
 | Variant | Offers first | Drops when full | Recipes |
 | --- | --- | --- | --- |
 | `NewestFirst` | The newest ticket | The oldest ticket | Chromium-family `*_tls`, which keep 2 tickets |
-| `OldestConnectionFirst` | The oldest connection's tickets, newest of them first | The ticket it would offer next | `firefox::v157_tls`, which keeps 8 |
-| `OldestFirst` | The oldest ticket | The oldest ticket | `firefox_android::v156_tls`, which keeps 8 |
+| `OldestConnectionFirst` | The oldest connection's tickets, newest of them first | The ticket it would offer next | `firefox::v157_tls`, which keeps 10 |
+| `OldestFirst` | The oldest ticket | The oldest ticket | `firefox_android::v156_tls`, which keeps 10 |
 
 Firefox's order depends on how finely its clock counts: `firefox::v157_tls`
 follows Firefox on Windows, a macOS Firefox profile would use `OldestFirst`,

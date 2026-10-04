@@ -5438,7 +5438,7 @@ With a ticket that permits early data, a direct Firefox-profile connection
 offers `early_data` where Firefox does and sends replay-safe requests as early
 data, including a WebSocket opening's HTTP/1.1 Upgrade GET; the
 Chromium-family recipes never offer it. Phantom keeps as many tickets per
-origin as the browser did and uses each once. The Chromium-family recipes
+origin as the browser does (for Firefox, as many as its source allows) and uses each once. The Chromium-family recipes
 offer the newest ticket first. The Firefox recipe offers the oldest
 connection's tickets first, the last one it received first, as Firefox on
 Windows does; the Firefox for Android recipe offers the oldest ticket first,
@@ -5555,9 +5555,11 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   takes them in the order they were stored, and
   `a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next`
   shows a full origin evicting the first ticket stored.
+  `the_firefox_recipe_keeps_ten_tickets_per_origin` stores eleven tickets
+  over ten connections with `firefox::v157_tls` and keeps ten.
 
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
-(2 for the Chromium family, 8 for Firefox), the order as
+(2 for the Chromium family, 10 for Firefox), the order as
 `TlsSettings::session_ticket_order`, the `session_ticket` choice as
 `TlsSettings::session_ticket_extension_when_resuming`, and early data as
 `TlsSettings::tcp_early_data`, set by `firefox::v157_tls` and, from source,
@@ -5798,12 +5800,15 @@ Limits:
   tickets were processed in different milliseconds, as in one `issue-once`
   run, and when the tickets of connections open at once interleave in
   time: Phantom keeps each connection's tickets together, ordered by when
-  its first ticket was stored. Firefox held all eight tickets it was given,
-  so its true limit may be higher than the recipe's eight.
+  its first ticket was stored.
 - Firefox drops a TLS 1.2 session it resumed without a new ticket; Phantom
   keeps it and offers it last. NSS caches only a session that was never
   cached (`security/nss/lib/ssl/ssl3con.c:12812-12816`), and taking a token
   removes it (`netwerk/base/SSLTokensCache.cpp:1013-1018`).
+- The Firefox recipes' bound of ten comes from the default of
+  `network.ssl_tokens_cache_records_per_entry`. No capture shows Firefox
+  holding more than eight tickets at once; in `issue-once` it held and used
+  all eight it was given.
 - Loopback, headless, and HTTP/1.1 or HTTP/2 only. The captures cannot show
   how long a browser keeps a ticket; every ticket was valid for one day.
 

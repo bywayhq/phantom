@@ -1677,6 +1677,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   154's captures and source show it never does. Before, every profile sent
   the field there. `firefox::v157_http3_request` still sends it.
 - Wire change for the Firefox TLS recipe over TCP: `firefox::v157_tls` and
+  `firefox_android::v156_tls` keep up to ten tickets per origin instead of
+  eight, the default of Firefox 157's
+  `network.ssl_tokens_cache_records_per_entry`. `TlsSettings::validate`
+  now accepts `session_tickets_per_origin` from 1 to 10, and the
+  `phantom-net` TCP session cache holds up to ten tickets.
+- Wire change for the Firefox TLS recipe over TCP: `firefox::v157_tls` and
   `firefox_android::v156_tls` now present a ticket of the connection whose
   tickets were stored earliest, the last one stored first, where before
   they presented the newest ticket. After a WebSocket opening, a
