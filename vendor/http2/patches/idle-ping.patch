@@ -1,0 +1,711 @@
+diff --git a/src/client.rs b/src/client.rs
+index 6623ce1..d0f7bef 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -158,7 +158,8 @@ use std::task::{Context, Poll};
+ use std::time::{Duration, Instant};
+ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+ 
+-/// The clock that times how long a preface PING goes unanswered.
++/// The clock that times how long a preface PING goes unanswered, and when an
++/// idle PING is due.
+ ///
+ /// `now` reads the clock, and `sleep` returns a future that completes once
+ /// the clock has advanced by the duration it receives. Both must measure the
+@@ -382,6 +383,10 @@ pub struct Builder {
+     /// timer that measures it.
+     preface_ping_timeout: Option<(Duration, PingTimer)>,
+ 
++    /// Read-idle time after which a PING goes out, the time it may then go
++    /// unanswered, and the timer that measures both.
++    idle_ping: Option<(Duration, Option<Duration>, PingTimer)>,
++
+     /// Initial target window size for new connections.
+     initial_target_connection_window_size: Option<u32>,
+ 
+@@ -771,6 +776,7 @@ impl Builder {
+             max_send_streams_cap: usize::MAX,
+             preface_ping: None,
+             preface_ping_timeout: None,
++            idle_ping: None,
+             settings: Default::default(),
+             #[cfg(feature = "unstable")]
+             initial_peer_settings: None,
+@@ -1148,6 +1154,32 @@ impl Builder {
+         self
+     }
+ 
++    /// Sends a PING once nothing has been read from the peer for `after`, on
++    /// `timer`'s clock, whether or not streams are open.
++    ///
++    /// The PING's payload is always zero, and only one is outstanding at a
++    /// time. Any frame read from the peer clears it, so the next PING goes
++    /// out `after` that read. With a `timeout`, a PING that goes `timeout`
++    /// with nothing read closes the connection: it sends GOAWAY with last
++    /// stream ID 0, `INTERNAL_ERROR`, and no debug data, then closes, and
++    /// every open stream, and every later request, fails with an error whose
++    /// [`is_ping_timeout`](crate::Error::is_ping_timeout) is `true`. As with
++    /// the [`preface_ping_timeout`](Builder::preface_ping_timeout), neither
++    /// the PING nor the timeout is checked while writing is blocked, because
++    /// the connection then reads nothing either. This is Firefox's
++    /// read-timeout PING.
++    ///
++    /// By default no such PING is sent.
++    pub fn idle_ping(
++        &mut self,
++        after: Duration,
++        timeout: Option<Duration>,
++        timer: PingTimer,
++    ) -> &mut Self {
++        self.idle_ping = Some((after, timeout, timer));
++        self
++    }
++
+     /// Sets the maximum number of concurrent locally reset streams.
+     ///
+     /// When a stream is explicitly reset, the HTTP/2 specification requires
+@@ -1676,6 +1708,7 @@ where
+                 max_send_streams_cap: builder.max_send_streams_cap,
+                 preface_ping: builder.preface_ping,
+                 preface_ping_timeout: builder.preface_ping_timeout.clone(),
++                idle_ping: builder.idle_ping.clone(),
+                 max_send_buffer_size: builder.max_send_buffer_size,
+                 reset_stream_duration: builder.reset_stream_duration,
+                 reset_stream_max: builder.reset_stream_max,
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index e83a672..205db16 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -1492,6 +1492,157 @@ async fn preface_ping_timeout_waits_while_writing_is_blocked() {
+     .expect("write-blocked preface PING timeout test timed out");
+ }
+ 
++const IDLE_PING_AFTER: Duration = Duration::from_secs(1);
++
++#[tokio::test]
++async fn idle_ping_goes_out_without_a_stream_and_again_after_its_ack() {
++    timeout(Duration::from_secs(15), async {
++        let (mut peer, _sender, driver) = idle_ping_client(None, 64 * 1024).await;
++        let handshake_read = Instant::now();
++        let ping = read_connection_frame(&mut peer).await;
++        let waited = handshake_read.elapsed();
++        assert_eq!((ping.kind, ping.flags, ping.stream_id), (6, 0, 0));
++        assert_eq!(ping.payload, [0; 8]);
++        assert!(
++            waited >= Duration::from_millis(900) && waited < Duration::from_secs(3),
++            "PING after {waited:?}"
++        );
++
++        write_raw_frame(&mut peer, 6, 1, 0, &[0; 8]).await;
++        let ack_written = Instant::now();
++        let ping = read_connection_frame(&mut peer).await;
++        let waited = ack_written.elapsed();
++        assert_eq!((ping.kind, ping.flags), (6, 0));
++        assert_eq!(ping.payload, [0; 8]);
++        assert!(
++            waited >= Duration::from_millis(900) && waited < Duration::from_secs(3),
++            "second PING after {waited:?}"
++        );
++        assert!(!driver.is_finished());
++        driver.abort();
++    })
++    .await
++    .expect("idle PING test timed out");
++}
++
++#[tokio::test]
++async fn unanswered_idle_ping_closes_the_connection_with_internal_error() {
++    timeout(Duration::from_secs(15), async {
++        let (mut peer, mut sender, driver) =
++            idle_ping_client(Some(Duration::from_secs(2)), 64 * 1024).await;
++        let response = send_empty_request(&mut sender).await;
++        read_request_headers(&mut peer, 1).await;
++        let ping = read_connection_frame(&mut peer).await;
++        assert_eq!((ping.kind, ping.flags), (6, 0));
++        assert_eq!(ping.payload, [0; 8]);
++        let ping_read = Instant::now();
++
++        let go_away = read_raw_frame(&mut peer).await;
++        let waited = ping_read.elapsed();
++        assert_eq!((go_away.kind, go_away.flags, go_away.stream_id), (7, 0, 0));
++        // Last stream ID 0, INTERNAL_ERROR, and no debug data.
++        assert_eq!(go_away.payload, [0, 0, 0, 0, 0, 0, 0, 2]);
++        assert!(
++            waited >= Duration::from_secs(1) && waited < Duration::from_secs(4),
++            "GOAWAY after {waited:?}"
++        );
++        let mut rest = Vec::new();
++        peer.read_to_end(&mut rest)
++            .await
++            .expect("client connection was not closed");
++        assert!(rest.is_empty(), "client wrote after GOAWAY: {rest:?}");
++
++        let error = response.await.expect_err("the request succeeded");
++        assert!(error.is_ping_timeout(), "{error:?}");
++        assert!(error.is_go_away() && error.is_library());
++        assert_eq!(error.reason(), Some(crate::Reason::INTERNAL_ERROR));
++        let error = poll_fn(|cx| sender.poll_ready(cx))
++            .await
++            .expect_err("a closed connection accepted a request");
++        assert!(error.is_ping_timeout(), "{error:?}");
++        let closed = driver
++            .await
++            .expect("driver task failed")
++            .expect_err("the connection closed without an error");
++        assert!(closed.is_ping_timeout(), "{closed:?}");
++    })
++    .await
++    .expect("idle PING timeout test timed out");
++}
++
++#[tokio::test]
++async fn idle_ping_timeout_waits_while_writing_is_blocked() {
++    timeout(Duration::from_secs(20), async {
++        let (mut peer, mut sender, driver) =
++            idle_ping_client(Some(Duration::from_secs(1)), 4096).await;
++        poll_fn(|cx| sender.poll_ready(cx))
++            .await
++            .expect("sender never became ready");
++        let (_response, mut body) = sender
++            .send_request(data_budget_request(), false)
++            .expect("request was rejected");
++        body.send_data(Bytes::from(vec![0x61; 60_000]), true)
++            .expect("data was rejected");
++
++        // The body fills the pipe, so the client can neither write nor read
++        // for well past the idle time and the timeout together.
++        tokio::time::sleep(Duration::from_secs(3)).await;
++        loop {
++            let frame = read_raw_frame(&mut peer).await;
++            assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
++            if frame.kind == 6 && frame.flags == 0 {
++                write_raw_frame(&mut peer, 6, 1, 0, &frame.payload).await;
++            }
++            if frame.kind == 0 && frame.flags & 0x1 != 0 {
++                break;
++            }
++        }
++        assert_connection_open(&mut peer).await;
++        driver.abort();
++    })
++    .await
++    .expect("write-blocked idle PING test timed out");
++}
++
++/// Opens a client that sends an idle PING after `IDLE_PING_AFTER` without a
++/// read, failing it after `ping_timeout`, over a pipe of `capacity` bytes,
++/// and completes the peer side of its handshake.
++async fn idle_ping_client(
++    ping_timeout: Option<Duration>,
++    capacity: usize,
++) -> (
++    DuplexStream,
++    super::SendRequest<Bytes>,
++    tokio::task::JoinHandle<Result<(), crate::Error>>,
++) {
++    let (client_io, mut peer) = duplex(capacity);
++    let mut builder = super::Builder::new();
++    builder.idle_ping(
++        IDLE_PING_AFTER,
++        ping_timeout,
++        super::PingTimer::new(Instant::now, |duration| {
++            Box::pin(tokio::time::sleep(duration))
++        }),
++    );
++    let (sender, connection) = builder
++        .handshake::<_, Bytes>(client_io)
++        .await
++        .expect("client handshake failed");
++    let driver = tokio::spawn(connection);
++    accept_client_handshake(&mut peer).await;
++    (peer, sender, driver)
++}
++
++/// Skips SETTINGS and WINDOW_UPDATE frames and returns the next frame.
++async fn read_connection_frame(peer: &mut DuplexStream) -> RawFrame {
++    loop {
++        let frame = read_raw_frame(peer).await;
++        if !matches!(frame.kind, 4 | 8) {
++            return frame;
++        }
++    }
++}
++
+ /// Skips connection-level frames until request HEADERS, and returns them with
+ /// the frame the client wrote next.
+ async fn read_headers_and_next_frame(peer: &mut DuplexStream) -> (RawFrame, RawFrame) {
+diff --git a/src/error.rs b/src/error.rs
+index 615a580..dadfc57 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -138,16 +138,23 @@ impl Error {
+ 
+     /// Returns true if the library closed the connection because a preface
+     /// PING went unanswered, with nothing read from the peer, for the time
+-    /// set by `client::Builder::preface_ping_timeout`.
++    /// set by `client::Builder::preface_ping_timeout`, or an idle PING for
++    /// the timeout set by `client::Builder::idle_ping`.
+     ///
+-    /// The connection sent GOAWAY with `PROTOCOL_ERROR` and the debug data
+-    /// `Failed ping.` before closing.
++    /// For a preface PING the connection sent GOAWAY with `PROTOCOL_ERROR` and
++    /// the debug data `Failed ping.` before closing; for an idle PING, GOAWAY
++    /// with `INTERNAL_ERROR` and no debug data. Nothing else in the library
++    /// closes a connection with `INTERNAL_ERROR`.
+     pub fn is_ping_timeout(&self) -> bool {
+-        matches!(
+-            self.kind,
+-            Kind::GoAway(ref debug_data, Reason::PROTOCOL_ERROR, Initiator::Library)
+-                if debug_data.as_ref() == proto::PING_TIMEOUT_DEBUG_DATA
+-        )
++        match self.kind {
++            Kind::GoAway(ref debug_data, Reason::PROTOCOL_ERROR, Initiator::Library) => {
++                debug_data.as_ref() == proto::PING_TIMEOUT_DEBUG_DATA
++            }
++            Kind::GoAway(ref debug_data, Reason::INTERNAL_ERROR, Initiator::Library) => {
++                debug_data.is_empty()
++            }
++            _ => false,
++        }
+     }
+ 
+     /// Returns true if the library reset the stream because the peer sent more
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index 189ba66..4ccab65 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -30,6 +30,9 @@ where
+ 
+     /// Whether frames read are reported to the preface PING state.
+     preface_ping: bool,
++
++    /// The idle PING state, when the connection sends one.
++    idle_ping: Option<super::idle_ping::IdlePing>,
+ }
+ 
+ // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
+@@ -88,6 +91,7 @@ pub(crate) struct Config {
+     pub max_send_streams_cap: usize,
+     pub preface_ping: Option<Duration>,
+     pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
++    pub idle_ping: Option<(Duration, Option<Duration>, crate::client::PingTimer)>,
+     pub max_send_buffer_size: usize,
+     pub reset_stream_duration: Duration,
+     pub reset_stream_max: usize,
+@@ -170,6 +174,9 @@ where
+             codec,
+             idle_close_requested: false,
+             preface_ping: config.preface_ping.is_some(),
++            idle_ping: config.idle_ping.map(|(after, timeout, timer)| {
++                super::idle_ping::IdlePing::new(after, timeout, timer)
++            }),
+             inner: ConnectionInner {
+                 state: State::Open,
+                 error: None,
+@@ -237,6 +244,17 @@ where
+         }
+         // The order of these calls don't really matter too much
+         ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
++        if let Some(idle_ping) = &mut self.idle_ping {
++            if let Some(payload) = idle_ping.take_pending() {
++                if !self.codec.poll_ready(cx)?.is_ready() {
++                    idle_ping.restore_pending();
++                    return Poll::Pending;
++                }
++                self.codec
++                    .buffer(frame::Ping::new(payload).into())
++                    .expect("invalid ping frame");
++            }
++        }
+         ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;
+         ready!(self
+             .inner
+@@ -347,12 +365,28 @@ where
+                             // This will also handle flushing `self.codec`
+                             let complete = self.inner.streams.poll_complete(cx, &mut self.codec)?;
+ 
+-                            // Checked only once nothing more can be read, so
+-                            // a frame already received counts as a read, and
+-                            // after the send path, which queues the PING. It
+-                            // is skipped while writing is blocked, because
+-                            // poll2 then reads nothing either; it resumes once
+-                            // the codec drains.
++                            // Both PING states are checked only once nothing
++                            // more can be read, so a frame already received
++                            // counts as a read, and after the send path, which
++                            // queues the preface PING. They are skipped while
++                            // writing is blocked, because poll2 then reads
++                            // nothing either; they resume once the codec
++                            // drains.
++                            if let Some(idle_ping) =
++                                self.idle_ping.as_mut().filter(|_| complete.is_ready())
++                            {
++                                match idle_ping.poll(cx) {
++                                    Poll::Ready(super::idle_ping::IdlePingState::Send) => continue,
++                                    Poll::Ready(super::idle_ping::IdlePingState::Failed) => {
++                                        tracing::debug!("idle PING unanswered; closing connection");
++                                        self.inner.as_dyn().handle_poll2_result(Err(
++                                            Error::library_go_away(Reason::INTERNAL_ERROR),
++                                        ))?;
++                                        continue;
++                                    }
++                                    Poll::Pending => {}
++                                }
++                            }
+                             if self.preface_ping
+                                 && complete.is_ready()
+                                 && self.inner.streams.poll_preface_ping_timeout(cx).is_ready()
+@@ -443,15 +477,21 @@ where
+                 return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
+             }
+ 
+-            if self.preface_ping {
+-                if let Some(frame) = &frame {
+-                    let ack = match frame {
+-                        Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
+-                        _ => None,
+-                    };
+-                    if self.inner.streams.recv_frame_for_preface_ping(ack) {
+-                        continue;
+-                    }
++            if let Some(frame) = &frame {
++                let ack = match frame {
++                    Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
++                    _ => None,
++                };
++                // Both PING states record every read; each consumes only the
++                // ACK of its own PING.
++                let idle_ack = self
++                    .idle_ping
++                    .as_mut()
++                    .is_some_and(|idle_ping| idle_ping.recv_frame(ack));
++                let preface_ack =
++                    self.preface_ping && self.inner.streams.recv_frame_for_preface_ping(ack);
++                if idle_ack || preface_ack {
++                    continue;
+                 }
+             }
+ 
+diff --git a/src/proto/idle_ping.rs b/src/proto/idle_ping.rs
+new file mode 100644
+index 0000000..3a32079
+--- /dev/null
++++ b/src/proto/idle_ping.rs
+@@ -0,0 +1,293 @@
++use crate::client::PingTimer;
++
++use std::fmt;
++use std::future::Future;
++use std::pin::Pin;
++use std::task::{Context, Poll};
++use std::time::{Duration, Instant};
++
++/// The payload of every idle PING.
++pub(crate) const IDLE_PING_PAYLOAD: [u8; 8] = [0; 8];
++
++/// Decides when a client PING goes out on a connection that has read nothing
++/// for a configured time, whether or not streams are open, and when an
++/// unanswered one closes the connection.
++///
++/// The PING is due once `after` has passed on the timer's clock since the last
++/// frame read, and only while no earlier idle PING is outstanding. Its payload
++/// is always zero. Any frame read clears the outstanding PING, so the next one
++/// is due `after` that read. With a timeout, an outstanding PING fails once the
++/// timeout has passed since it was queued with nothing read. This is the rule
++/// of Firefox's `Http2Session::ReadTimeoutTick`.
++pub(crate) struct IdlePing {
++    after: Duration,
++    timeout: Option<Duration>,
++    timer: PingTimer,
++    /// The timer's time of the last frame read, or of the connection's start.
++    last_read: Instant,
++    /// The timer's time when the outstanding PING was queued.
++    sent_at: Option<Instant>,
++    /// Whether a zero-payload ACK is still expected.
++    awaiting_ack: bool,
++    /// Whether the PING is queued but not yet written.
++    write_pending: bool,
++    sleep: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
++}
++
++/// What [`IdlePing::poll`] found.
++#[derive(Debug, Eq, PartialEq)]
++pub(crate) enum IdlePingState {
++    /// A PING is due; [`IdlePing::take_pending`] returns it.
++    Send,
++    /// The outstanding PING went the timeout with nothing read.
++    Failed,
++}
++
++impl fmt::Debug for IdlePing {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.debug_struct("IdlePing")
++            .field("after", &self.after)
++            .field("timeout", &self.timeout)
++            .field("last_read", &self.last_read)
++            .field("sent_at", &self.sent_at)
++            .field("awaiting_ack", &self.awaiting_ack)
++            .field("write_pending", &self.write_pending)
++            .finish_non_exhaustive()
++    }
++}
++
++impl IdlePing {
++    pub(crate) fn new(after: Duration, timeout: Option<Duration>, timer: PingTimer) -> Self {
++        IdlePing {
++            after,
++            timeout,
++            last_read: timer.now(),
++            timer,
++            sent_at: None,
++            awaiting_ack: false,
++            write_pending: false,
++            sleep: None,
++        }
++    }
++
++    /// Records a frame read from the peer. Returns `true` when `ack` is the
++    /// acknowledgement of an idle PING, which this consumes.
++    pub(crate) fn recv_frame(&mut self, ack: Option<&[u8; 8]>) -> bool {
++        self.last_read = self.timer.now();
++        self.sent_at = None;
++        self.sleep = None;
++        if self.awaiting_ack && ack == Some(&IDLE_PING_PAYLOAD) {
++            self.awaiting_ack = false;
++            return true;
++        }
++        false
++    }
++
++    /// Returns [`IdlePingState::Send`] once a PING is due and
++    /// [`IdlePingState::Failed`] once an outstanding PING has gone the timeout,
++    /// and otherwise sleeps until the next deadline.
++    pub(crate) fn poll(&mut self, cx: &mut Context) -> Poll<IdlePingState> {
++        // A sleep that ends before the deadline re-arms once; a second one
++        // started here that ends at once yields instead, so a timer whose
++        // sleeps end immediately cannot hold the connection in this loop.
++        let mut started = false;
++        loop {
++            let deadline = match self.sent_at {
++                Some(sent_at) => match self.timeout {
++                    Some(timeout) => sent_at.checked_add(timeout),
++                    None => return Poll::Pending,
++                },
++                None => self.last_read.checked_add(self.after),
++            };
++            let deadline = match deadline {
++                Some(deadline) => deadline,
++                None => return Poll::Pending,
++            };
++            let now = self.timer.now();
++            if now >= deadline {
++                self.sleep = None;
++                if self.sent_at.take().is_some() {
++                    return Poll::Ready(IdlePingState::Failed);
++                }
++                self.sent_at = Some(now);
++                self.awaiting_ack = true;
++                self.write_pending = true;
++                return Poll::Ready(IdlePingState::Send);
++            }
++            if self.sleep.is_none() {
++                if started {
++                    cx.waker().wake_by_ref();
++                    return Poll::Pending;
++                }
++                started = true;
++                self.sleep = Some(self.timer.sleep(deadline - now));
++            }
++            if let Some(sleep) = &mut self.sleep {
++                if sleep.as_mut().poll(cx).is_pending() {
++                    return Poll::Pending;
++                }
++            }
++            self.sleep = None;
++        }
++    }
++
++    /// Takes the payload of a PING that is due but not yet written.
++    pub(crate) fn take_pending(&mut self) -> Option<[u8; 8]> {
++        if self.write_pending {
++            self.write_pending = false;
++            Some(IDLE_PING_PAYLOAD)
++        } else {
++            None
++        }
++    }
++
++    /// Puts back a PING that could not be written yet.
++    pub(crate) fn restore_pending(&mut self) {
++        self.write_pending = true;
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::sync::atomic::{AtomicU64, Ordering};
++    use std::sync::Arc;
++    use std::task::Waker;
++
++    const AFTER: Duration = Duration::from_secs(58);
++    const TIMEOUT: Duration = Duration::from_secs(8);
++
++    /// A clock that moves only when a test advances it, and sleeps that end
++    /// at once, so each poll re-reads the clock.
++    #[derive(Clone)]
++    struct Clock {
++        start: Instant,
++        offset_ms: Arc<AtomicU64>,
++    }
++
++    impl Clock {
++        fn new() -> Self {
++            Clock {
++                start: Instant::now(),
++                offset_ms: Arc::new(AtomicU64::new(0)),
++            }
++        }
++
++        fn advance(&self, duration: Duration) {
++            let millis = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
++            self.offset_ms.fetch_add(millis, Ordering::SeqCst);
++        }
++
++        fn timer(&self) -> PingTimer {
++            let clock = self.clone();
++            PingTimer::new(
++                move || clock.start + Duration::from_millis(clock.offset_ms.load(Ordering::SeqCst)),
++                |_| Box::pin(std::future::pending()),
++            )
++        }
++    }
++
++    fn poll(ping: &mut IdlePing) -> Poll<IdlePingState> {
++        let mut cx = Context::from_waker(Waker::noop());
++        ping.poll(&mut cx)
++    }
++
++    #[test]
++    fn a_ping_is_due_once_the_idle_time_has_passed() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), clock.timer());
++        clock.advance(AFTER - Duration::from_millis(1));
++        assert_eq!(poll(&mut ping), Poll::Pending);
++        clock.advance(Duration::from_millis(1));
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        assert_eq!(ping.take_pending(), Some(IDLE_PING_PAYLOAD));
++        assert_eq!(ping.take_pending(), None);
++    }
++
++    #[test]
++    fn a_read_moves_the_next_ping_back() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), clock.timer());
++        clock.advance(Duration::from_secs(30));
++        assert!(!ping.recv_frame(None));
++        clock.advance(Duration::from_secs(30));
++        assert_eq!(poll(&mut ping), Poll::Pending);
++        clock.advance(Duration::from_secs(28));
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++    }
++
++    #[test]
++    fn only_one_ping_is_outstanding_and_every_payload_is_zero() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, None, clock.timer());
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        assert_eq!(ping.take_pending(), Some(IDLE_PING_PAYLOAD));
++        clock.advance(AFTER * 3);
++        assert_eq!(poll(&mut ping), Poll::Pending);
++        assert!(ping.recv_frame(Some(&IDLE_PING_PAYLOAD)));
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        assert_eq!(ping.take_pending(), Some(IDLE_PING_PAYLOAD));
++    }
++
++    #[test]
++    fn an_unanswered_ping_fails_after_the_timeout() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), clock.timer());
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        clock.advance(TIMEOUT - Duration::from_millis(1));
++        assert_eq!(poll(&mut ping), Poll::Pending);
++        clock.advance(Duration::from_millis(1));
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Failed));
++    }
++
++    #[test]
++    fn any_read_before_the_timeout_keeps_the_connection() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), clock.timer());
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        clock.advance(TIMEOUT - Duration::from_millis(1));
++        // A frame other than the ACK clears the outstanding PING.
++        assert!(!ping.recv_frame(None));
++        clock.advance(TIMEOUT);
++        assert_eq!(poll(&mut ping), Poll::Pending);
++        // The late ACK is still recognized as the idle PING's.
++        assert!(ping.recv_frame(Some(&IDLE_PING_PAYLOAD)));
++    }
++
++    #[test]
++    fn a_ping_without_a_timeout_never_fails() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, None, clock.timer());
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        clock.advance(Duration::from_secs(3_600));
++        assert_eq!(poll(&mut ping), Poll::Pending);
++    }
++
++    #[test]
++    fn an_ack_with_another_payload_is_not_consumed() {
++        let clock = Clock::new();
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), clock.timer());
++        clock.advance(AFTER);
++        assert_eq!(poll(&mut ping), Poll::Ready(IdlePingState::Send));
++        assert!(!ping.recv_frame(Some(&1_u64.to_be_bytes())));
++    }
++
++    #[test]
++    fn a_sleep_that_ends_at_once_yields_instead_of_spinning() {
++        let clock = Clock::new();
++        let timer = PingTimer::new(
++            {
++                let clock = clock.clone();
++                move || clock.start + Duration::from_millis(clock.offset_ms.load(Ordering::SeqCst))
++            },
++            |_| Box::pin(std::future::ready(())),
++        );
++        let mut ping = IdlePing::new(AFTER, Some(TIMEOUT), timer);
++        assert_eq!(poll(&mut ping), Poll::Pending);
++    }
++}
+diff --git a/src/proto/mod.rs b/src/proto/mod.rs
+index a65352e..0a56fb8 100644
+--- a/src/proto/mod.rs
++++ b/src/proto/mod.rs
+@@ -1,6 +1,7 @@
+ mod connection;
+ mod error;
+ mod go_away;
++mod idle_ping;
+ mod peer;
+ mod ping_pong;
+ mod settings;
+diff --git a/src/server.rs b/src/server.rs
+index 1c1ff5c..72bab06 100644
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -1522,6 +1522,7 @@ where
+                             max_send_streams_cap: usize::MAX,
+                             preface_ping: None,
+                             preface_ping_timeout: None,
++                            idle_ping: None,
+                             max_send_buffer_size: self.builder.max_send_buffer_size,
+                             reset_stream_duration: self.builder.reset_stream_duration,
+                             reset_stream_max: self.builder.reset_stream_max,

@@ -30,6 +30,9 @@ where
 
     /// Whether frames read are reported to the preface PING state.
     preface_ping: bool,
+
+    /// The idle PING state, when the connection sends one.
+    idle_ping: Option<super::idle_ping::IdlePing>,
 }
 
 // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
@@ -88,6 +91,7 @@ pub(crate) struct Config {
     pub max_send_streams_cap: usize,
     pub preface_ping: Option<Duration>,
     pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
+    pub idle_ping: Option<(Duration, Option<Duration>, crate::client::PingTimer)>,
     pub max_send_buffer_size: usize,
     pub reset_stream_duration: Duration,
     pub reset_stream_max: usize,
@@ -170,6 +174,9 @@ where
             codec,
             idle_close_requested: false,
             preface_ping: config.preface_ping.is_some(),
+            idle_ping: config.idle_ping.map(|(after, timeout, timer)| {
+                super::idle_ping::IdlePing::new(after, timeout, timer)
+            }),
             inner: ConnectionInner {
                 state: State::Open,
                 error: None,
@@ -237,6 +244,17 @@ where
         }
         // The order of these calls don't really matter too much
         ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
+        if let Some(idle_ping) = &mut self.idle_ping {
+            if let Some(payload) = idle_ping.take_pending() {
+                if !self.codec.poll_ready(cx)?.is_ready() {
+                    idle_ping.restore_pending();
+                    return Poll::Pending;
+                }
+                self.codec
+                    .buffer(frame::Ping::new(payload).into())
+                    .expect("invalid ping frame");
+            }
+        }
         ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;
         ready!(self
             .inner
@@ -347,12 +365,28 @@ where
                             // This will also handle flushing `self.codec`
                             let complete = self.inner.streams.poll_complete(cx, &mut self.codec)?;
 
-                            // Checked only once nothing more can be read, so
-                            // a frame already received counts as a read, and
-                            // after the send path, which queues the PING. It
-                            // is skipped while writing is blocked, because
-                            // poll2 then reads nothing either; it resumes once
-                            // the codec drains.
+                            // Both PING states are checked only once nothing
+                            // more can be read, so a frame already received
+                            // counts as a read, and after the send path, which
+                            // queues the preface PING. They are skipped while
+                            // writing is blocked, because poll2 then reads
+                            // nothing either; they resume once the codec
+                            // drains.
+                            if let Some(idle_ping) =
+                                self.idle_ping.as_mut().filter(|_| complete.is_ready())
+                            {
+                                match idle_ping.poll(cx) {
+                                    Poll::Ready(super::idle_ping::IdlePingState::Send) => continue,
+                                    Poll::Ready(super::idle_ping::IdlePingState::Failed) => {
+                                        tracing::debug!("idle PING unanswered; closing connection");
+                                        self.inner.as_dyn().handle_poll2_result(Err(
+                                            Error::library_go_away(Reason::INTERNAL_ERROR),
+                                        ))?;
+                                        continue;
+                                    }
+                                    Poll::Pending => {}
+                                }
+                            }
                             if self.preface_ping
                                 && complete.is_ready()
                                 && self.inner.streams.poll_preface_ping_timeout(cx).is_ready()
@@ -443,15 +477,21 @@ where
                 return Poll::Ready(Err(Error::library_go_away(Reason::PROTOCOL_ERROR)));
             }
 
-            if self.preface_ping {
-                if let Some(frame) = &frame {
-                    let ack = match frame {
-                        Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
-                        _ => None,
-                    };
-                    if self.inner.streams.recv_frame_for_preface_ping(ack) {
-                        continue;
-                    }
+            if let Some(frame) = &frame {
+                let ack = match frame {
+                    Frame::Ping(ping) if ping.is_ack() => Some(ping.payload()),
+                    _ => None,
+                };
+                // Both PING states record every read; each consumes only the
+                // ACK of its own PING.
+                let idle_ack = self
+                    .idle_ping
+                    .as_mut()
+                    .is_some_and(|idle_ping| idle_ping.recv_frame(ack));
+                let preface_ack =
+                    self.preface_ping && self.inner.streams.recv_frame_for_preface_ping(ack);
+                if idle_ack || preface_ack {
+                    continue;
                 }
             }
 

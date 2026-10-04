@@ -345,6 +345,14 @@ Supported:
   Chromium recipes and never with Firefox's
   (`Http2Settings::ping_failure_retries`)
   ([HTTP/2 preface PING evidence](../explanation/validation.md#http2-preface-ping-evidence)).
+- An idle PING: when the profile sets an idle time (58 seconds for Firefox,
+  none for Chromium), a connection that has read nothing for that long sends
+  a PING with a zero payload whether or not requests are open. When the
+  profile also sets a timeout (8 seconds for Firefox), one left unanswered
+  with nothing read for that long closes the connection with
+  `GOAWAY(INTERNAL_ERROR)`. Its requests are sent again only as the
+  profile's `ping_failure_retries` allow, never with Firefox's
+  ([HTTP/2 idle PING evidence](../explanation/validation.md#http2-idle-ping-evidence)).
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.

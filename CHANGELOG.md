@@ -14,6 +14,23 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http2Settings` gained the public fields `idle_ping_after` and
+  `idle_ping_timeout` (`Option<Duration>`). `firefox::v157_http2` sets 58
+  and 8 seconds: a connection that has read nothing for 58 seconds sends a
+  PING with a zero payload whether or not requests are open, and one that
+  then goes 8 seconds with nothing read closes the connection with
+  `GOAWAY(0, INTERNAL_ERROR)`, failing its open requests with
+  `Http2Error::PingTimeout`, as Firefox 157 does. Before, a Firefox profile
+  sent no PING and kept such a connection. `Http2Settings::validate` rejects
+  a zero or out-of-range value and a timeout without `idle_ping_after`
+  ([evidence](docs/explanation/validation.md#http2-idle-ping-evidence)).
+  `ping_failure_retries` covers a failed idle PING as well, and a value
+  above 0 is valid with either `ping_timeout` or `idle_ping_timeout`.
+  The vendored `phantom-http2` is now `0.5.20-phantom.10`, with the client
+  builder option `idle_ping`, and `phantom-wreq-proto` `0.2.5-phantom.10`.
+  Migrate: add `idle_ping_after: None, idle_ping_timeout: None` to an
+  `Http2Settings` literal; set both to `None` on `firefox::v157_http2()` to
+  keep the old behavior.
 - `Http2Settings` gained the public field `ping_failure_retries: u8`.
   `chromium::v154_http2`, and so every Chromium-family recipe, sets 2:
   a request whose HTTP/2 connection closed itself after an unanswered PING

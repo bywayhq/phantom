@@ -26,6 +26,8 @@ fn settings() -> Http2Settings {
         preface_ping_after: None,
         ping_timeout: None,
         ping_failure_retries: 0,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
     }
 }
 
@@ -103,6 +105,11 @@ fn ping_failure_retries_need_a_ping_timeout() -> Result<(), Box<dyn std::error::
     let mut settings = settings();
     settings.ping_failure_retries = 2;
     assert_field(settings.validate(), "ping_failure_retries");
+    settings.idle_ping_after = Some(Duration::from_secs(58));
+    settings.idle_ping_timeout = Some(Duration::from_secs(8));
+    settings.validate()?;
+    settings.idle_ping_after = None;
+    settings.idle_ping_timeout = None;
     settings.preface_ping_after = Some(Duration::from_secs(10));
     settings.ping_timeout = Some(Duration::from_secs(10));
     settings.validate()?;
@@ -116,6 +123,42 @@ fn chromium_recipe_allows_two_ping_failure_retries_and_firefox_none() {
     // session closed with `NS_ERROR_NET_TIMEOUT`.
     assert_eq!(crate::chromium::v154_http2().ping_failure_retries, 2);
     assert_eq!(crate::firefox::v157_http2().ping_failure_retries, 0);
+}
+
+#[test]
+fn idle_ping_times_must_be_positive_and_the_timeout_needs_an_idle_ping()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut settings = settings();
+    settings.idle_ping_timeout = Some(Duration::from_secs(8));
+    assert_field(settings.validate(), "idle_ping_timeout");
+    settings.idle_ping_after = Some(Duration::from_secs(58));
+    settings.validate()?;
+    settings.idle_ping_timeout = Some(Duration::ZERO);
+    assert_field(settings.validate(), "idle_ping_timeout");
+    settings.idle_ping_timeout = Some(Duration::MAX);
+    assert_field(settings.validate(), "idle_ping_timeout");
+    settings.idle_ping_timeout = None;
+    settings.validate()?;
+    settings.idle_ping_after = Some(Duration::ZERO);
+    assert_field(settings.validate(), "idle_ping_after");
+    settings.idle_ping_after = Some(Duration::MAX);
+    assert_field(settings.validate(), "idle_ping_after");
+    Ok(())
+}
+
+#[test]
+fn firefox_recipe_sends_an_idle_ping_and_chromium_none() {
+    // `network.http.http2.ping-threshold` and `ping-timeout`,
+    // `modules/libpref/init/StaticPrefList.yaml:16497-16505` at
+    // `FIREFOX_157_0_RELEASE`.
+    let firefox = crate::firefox::v157_http2();
+    assert_eq!(firefox.idle_ping_after, Some(Duration::from_secs(58)));
+    assert_eq!(firefox.idle_ping_timeout, Some(Duration::from_secs(8)));
+    let chromium = crate::chromium::v154_http2();
+    assert_eq!(
+        (chromium.idle_ping_after, chromium.idle_ping_timeout),
+        (None, None)
+    );
 }
 
 #[test]

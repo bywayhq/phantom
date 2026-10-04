@@ -443,13 +443,25 @@ pub fn v157_http1() -> Http1Settings {
 /// replaces it (`:1880-1883`), with no cap on a large value. No capture shows
 /// the limit, because every capture server states 100.
 ///
-/// No PING precedes a request on a read-idle connection. `Http2Session` sends
-/// a PING of its own only from its read-timeout tick and on a network change
-/// (`Http2Session.cpp:436-503`, `:4190-4212` at tag `FIREFOX_157_0_RELEASE`),
-/// which Phantom does not model. When that PING goes unanswered, Firefox
-/// closes the session with `NS_ERROR_NET_TIMEOUT` (`:470-486`), which
-/// `nsHttpTransaction::Close` does not restart
-/// (`nsHttpTransaction.cpp:1546-1553`), so no request is sent again.
+/// No PING precedes a request on a read-idle connection. Instead, after 58
+/// seconds without a read, a PING with a zero payload goes out whether or not
+/// requests are open, and one unanswered with nothing read for 8 seconds
+/// closes the connection with `GOAWAY(0, INTERNAL_ERROR)`. `Http2Session`'s
+/// read-timeout tick sends the PING once `network.http.http2.ping-threshold`,
+/// 58, has passed since the last read, and closes the session with
+/// `NS_ERROR_NET_TIMEOUT` once `network.http.http2.ping-timeout`, 8, has
+/// passed since the PING with nothing read (`Http2Session.cpp:436-503`;
+/// `modules/libpref/init/StaticPrefList.yaml:16497-16505` at tag
+/// `FIREFOX_157_0_RELEASE`). The payload is zero (`Http2Session.cpp:990`),
+/// and a close for a failure sends `INTERNAL_ERROR` with last stream ID 0 and
+/// no debug data (`:1033-1051`, `:3597-3610`). The retained capture
+/// (`fixtures/lifecycle/firefox/157.0/windows-11-26200/idle-ping.txt`) shows
+/// the PING 59.95 seconds after the last read, later than 58 because Firefox
+/// checks on a one-second tick that its timer thread may delay; Phantom sends
+/// it at 58. `nsHttpTransaction::Close` does not restart a request the close
+/// failed (`nsHttpTransaction.cpp:1546-1553`), so none is sent again. A PING
+/// Firefox sends on a network change (`Http2Session.cpp:4190-4212`) is not
+/// modeled.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
     Http2Settings {
@@ -503,6 +515,8 @@ pub fn v157_http2() -> Http2Settings {
         preface_ping_after: None,
         ping_timeout: None,
         ping_failure_retries: 0,
+        idle_ping_after: Some(Duration::from_secs(58)),
+        idle_ping_timeout: Some(Duration::from_secs(8)),
     }
 }
 

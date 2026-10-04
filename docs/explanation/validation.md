@@ -54,7 +54,8 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
 | [HTTP/2 preface PING](#http2-preface-ping-evidence) | Chromium source, a retained loopback capture of Chrome 154 reusing an idle connection, replayed against Phantom, and one of Chrome 154.0.8037.97 closing a connection whose PING went unanswered | One Windows build; the PING after a DATA frame and the 10-second boundary rest on source |
 | [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
-| [Idle PING, revalidation, and uploads](#idle-ping-revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures | One run per scenario; recorded for future work, no recipe uses them yet |
+| [HTTP/2 idle PING](#http2-idle-ping-evidence) | Firefox source and a retained Firefox 157 capture of an idle pooled connection, replayed against Phantom | One Windows run; no capture shows an unanswered PING |
+| [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures | One run per scenario; recorded for future work, no recipe uses them yet |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; Phantom keeps one alternative per origin; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
@@ -3696,9 +3697,11 @@ producer builds the frame (`net/spdy/spdy_stream.cc:68-84`), so the PING,
 queued at the highest priority (`:2479-2499`), is the next write after the
 frame. Its payload is `next_ping_id_`, from 1, serialized as 64 bits by
 quiche's `SpdyFramer::SerializePing` at the pinned revision `80bf9559d3a4`.
-Firefox 157 sends a PING of its own only from its read-timeout tick and on a
-network change (`netwerk/protocol/http/Http2Session.cpp:436-503`,
-`:4190-4212` at tag `FIREFOX_157_0_RELEASE`).
+Firefox 157 sends a PING of its own only from its read-timeout tick, which
+`firefox::v157_http2` models as its
+[idle PING](#http2-idle-ping-evidence), and on a network change
+(`netwerk/protocol/http/Http2Session.cpp:436-503`, `:4190-4212` at tag
+`FIREFOX_157_0_RELEASE`).
 
 Sending the PING posts `SpdySession::CheckPingStatus` to run after
 `kHungIntervalSeconds`, 10 (`:102`, `:2500-2510`). The check does nothing if
@@ -3829,6 +3832,86 @@ Limits:
 - The close sends no TLS `close_notify`, in Chrome and in the Chromium
   recipes; see [TLS close evidence](#tls-close-evidence).
 
+### HTTP/2 idle PING evidence
+
+What is claimed: on an HTTP/2 connection that has read nothing from the peer
+for 58 seconds, `firefox::v157_http2` sends a PING with an all-zero payload,
+whether or not requests are open, as Firefox 157 does. Only one is
+outstanding at a time, and any frame read clears it, so the next goes out 58
+seconds after that read. When one goes 8 seconds with nothing read, the
+connection sends `GOAWAY` with last stream ID 0, `INTERNAL_ERROR`, and no
+debug data, then closes. Every request still open on it fails with
+`Http2Error::PingTimeout` and is not sent again, and the client's pool drops
+the connection. The Chromium recipes send no such PING.
+
+Evidence: Firefox source at tag `FIREFOX_157_0_RELEASE` and one retained
+capture. The connection manager's one-second tick runs
+`Http2Session::ReadTimeoutTick`
+(`netwerk/protocol/http/Http2Session.cpp:436-503`). Once
+`network.http.http2.ping-threshold`, 58 seconds, has passed since the last
+read, it records the time and sends a PING; a read before the threshold
+passes again clears that time; and once `network.http.http2.ping-timeout`, 8
+seconds, has passed since the PING, it closes the session with
+`NS_ERROR_NET_TIMEOUT` (`modules/libpref/init/StaticPrefList.yaml:16497-16505`).
+`GeneratePing` writes a zero payload (`Http2Session.cpp:977-995`), and
+`Http2Session::Close` sends `GOAWAY` with `INTERNAL_ERROR` for that error,
+with last stream ID 0 and no debug data (`:1033-1051`, `:3597-3610`).
+`nsHttpTransaction::Close` does not restart a transaction failed so
+(`netwerk/protocol/http/nsHttpTransaction.cpp:1546-1553`).
+
+[`http_lifecycle.py --scenario idle-ping`](../../scripts/capture/README.md#connection-lifecycle)
+served a page that fetched `/a` over HTTP/2, left the connection idle for 75
+seconds, then fetched `/b`, to headless Firefox 157.0 on Windows 11. The
+retained
+[`idle-ping.txt`](../../fixtures/lifecycle/firefox/157.0/windows-11-26200/idle-ping.txt)
+keeps every client frame. Firefox sent `/a` at 0.609 seconds, one PING with
+payload `0000000000000000` at 60.558 seconds, 59.9 seconds after the
+server's last frame, and nothing else until `/b` at 79.823 seconds. A trial
+run, not retained, sent the PING after 60.2 seconds. The two seconds past the
+threshold are the tick's.
+
+`crates/phantom-net/src/http2/tests/idle_ping.rs` checks the fixture's
+order and payload, then drives the Firefox recipe through the same timeline
+with its idle time scaled to 1 second against a loopback peer and compares
+the request frames and PING with the fixture's. With the timeout scaled to 2
+seconds, a PING the peer never answers brings that GOAWAY between 1 and 4
+seconds after the peer reads it, then the end of the byte stream; the open
+request fails with `Http2Error::PingTimeout`, and a later one with
+`Http2Error::ReusedConnectionClosed`. A WINDOW_UPDATE written while the PING
+is outstanding keeps the connection usable past a 1-second timeout. The
+vendored `http2` crate's tests add a second zero PING 1 second after the
+first one's ACK, and a peer that reads nothing for 3 seconds while a request
+body fills the pipe, which sees no GOAWAY under a 1-second timeout.
+
+How to reproduce:
+
+```sh
+cargo test -p phantom-net --lib http2::tests::idle_ping
+cargo test -p phantom-profile --lib idle_ping
+```
+
+The capture commands are under
+[Connection lifecycle](../../scripts/capture/README.md#connection-lifecycle).
+
+Limits:
+
+- One Windows run; no capture shows an unanswered PING, so the timeout and
+  the close rest on source.
+- Phantom sends the PING at 58 seconds rather than on the next one-second
+  tick, so a capture of Firefox shows it up to about two seconds later.
+- Neither the PING nor its timeout is checked while the connection cannot
+  write, because it then reads nothing either; Firefox keeps reading while
+  its writes wait.
+- A read is a whole frame the connection handles, where Firefox counts any
+  bytes read; a frame of an unknown type, a CONTINUATION before its header
+  block ends, and a large frame still arriving do not count.
+- A request that reaches the connection after the close fails with
+  `Http2Error::ReusedConnectionClosed`, which reused-connection replay
+  covers, where Firefox's `Http2Session::AddStream` restarts it on a new
+  connection (`Http2Session.cpp:577-594`).
+- Firefox's PING on a network change and its close of a connection idle for
+  170 seconds (`network.http.http2.timeout`) are not modeled.
+
 ### TLS close evidence
 
 What is claimed: `TlsSettings::close_notify` decides whether Phantom sends
@@ -3892,23 +3975,13 @@ Limits:
   `firefox_android::v156_tls`, which sets it, rests on desktop Firefox 157
   and NSS's `ssl_SecureClose`.
 
-### Idle PING, revalidation, and upload evidence
+### Revalidation and upload evidence
 
-What is recorded: three browser behaviors that no recipe models yet, from
+What is recorded: two browser behaviors that no recipe models yet, from
 the same `http_lifecycle.py` captures of Chrome 154.0.8037.97 and Firefox
-157.0, one run each, retained under `fixtures/lifecycle/`.
+157.0, one run each, retained under `fixtures/lifecycle/`. The `idle-ping`
+run of the same tool is the [idle PING evidence](#http2-idle-ping-evidence).
 
-- Firefox's read-timeout PING (`idle-ping`, Firefox only): the page
-  fetched `/a` over HTTP/2, left the connection idle for 75 seconds, then
-  fetched `/b`. Firefox sent one PING with payload `0000000000000000` on the
-  idle pooled connection 59.9 seconds after the server's last frame, and no
-  other in that time; a trial run, not retained, sent it after 60.2
-  seconds. That is
-  `network.http.http2.ping-threshold`, 58 seconds, plus the connection
-  manager's timer tick (`Http2Session::ReadTimeoutTick`,
-  `netwerk/protocol/http/Http2Session.cpp:436-503` at
-  `FIREFOX_157_0_RELEASE`). The run took 81 seconds.
-  `firefox::v157_http2` sends no PING.
 - Revalidation (`revalidate`): the page fetched four resources twice
   each with the default cache mode. Three carried `Cache-Control: no-cache`
   with an `ETag`, a `Last-Modified`, or both; the server answered a second

@@ -158,7 +158,8 @@ use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
-/// The clock that times how long a preface PING goes unanswered.
+/// The clock that times how long a preface PING goes unanswered, and when an
+/// idle PING is due.
 ///
 /// `now` reads the clock, and `sleep` returns a future that completes once
 /// the clock has advanced by the duration it receives. Both must measure the
@@ -381,6 +382,10 @@ pub struct Builder {
     /// Time an unanswered preface PING may wait without a read, and the
     /// timer that measures it.
     preface_ping_timeout: Option<(Duration, PingTimer)>,
+
+    /// Read-idle time after which a PING goes out, the time it may then go
+    /// unanswered, and the timer that measures both.
+    idle_ping: Option<(Duration, Option<Duration>, PingTimer)>,
 
     /// Initial target window size for new connections.
     initial_target_connection_window_size: Option<u32>,
@@ -771,6 +776,7 @@ impl Builder {
             max_send_streams_cap: usize::MAX,
             preface_ping: None,
             preface_ping_timeout: None,
+            idle_ping: None,
             settings: Default::default(),
             #[cfg(feature = "unstable")]
             initial_peer_settings: None,
@@ -1145,6 +1151,32 @@ impl Builder {
     /// set. By default an unanswered PING never closes the connection.
     pub fn preface_ping_timeout(&mut self, timeout: Duration, timer: PingTimer) -> &mut Self {
         self.preface_ping_timeout = Some((timeout, timer));
+        self
+    }
+
+    /// Sends a PING once nothing has been read from the peer for `after`, on
+    /// `timer`'s clock, whether or not streams are open.
+    ///
+    /// The PING's payload is always zero, and only one is outstanding at a
+    /// time. Any frame read from the peer clears it, so the next PING goes
+    /// out `after` that read. With a `timeout`, a PING that goes `timeout`
+    /// with nothing read closes the connection: it sends GOAWAY with last
+    /// stream ID 0, `INTERNAL_ERROR`, and no debug data, then closes, and
+    /// every open stream, and every later request, fails with an error whose
+    /// [`is_ping_timeout`](crate::Error::is_ping_timeout) is `true`. As with
+    /// the [`preface_ping_timeout`](Builder::preface_ping_timeout), neither
+    /// the PING nor the timeout is checked while writing is blocked, because
+    /// the connection then reads nothing either. This is Firefox's
+    /// read-timeout PING.
+    ///
+    /// By default no such PING is sent.
+    pub fn idle_ping(
+        &mut self,
+        after: Duration,
+        timeout: Option<Duration>,
+        timer: PingTimer,
+    ) -> &mut Self {
+        self.idle_ping = Some((after, timeout, timer));
         self
     }
 
@@ -1676,6 +1708,7 @@ where
                 max_send_streams_cap: builder.max_send_streams_cap,
                 preface_ping: builder.preface_ping,
                 preface_ping_timeout: builder.preface_ping_timeout.clone(),
+                idle_ping: builder.idle_ping.clone(),
                 max_send_buffer_size: builder.max_send_buffer_size,
                 reset_stream_duration: builder.reset_stream_duration,
                 reset_stream_max: builder.reset_stream_max,

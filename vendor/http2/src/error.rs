@@ -138,16 +138,23 @@ impl Error {
 
     /// Returns true if the library closed the connection because a preface
     /// PING went unanswered, with nothing read from the peer, for the time
-    /// set by `client::Builder::preface_ping_timeout`.
+    /// set by `client::Builder::preface_ping_timeout`, or an idle PING for
+    /// the timeout set by `client::Builder::idle_ping`.
     ///
-    /// The connection sent GOAWAY with `PROTOCOL_ERROR` and the debug data
-    /// `Failed ping.` before closing.
+    /// For a preface PING the connection sent GOAWAY with `PROTOCOL_ERROR` and
+    /// the debug data `Failed ping.` before closing; for an idle PING, GOAWAY
+    /// with `INTERNAL_ERROR` and no debug data. Nothing else in the library
+    /// closes a connection with `INTERNAL_ERROR`.
     pub fn is_ping_timeout(&self) -> bool {
-        matches!(
-            self.kind,
-            Kind::GoAway(ref debug_data, Reason::PROTOCOL_ERROR, Initiator::Library)
-                if debug_data.as_ref() == proto::PING_TIMEOUT_DEBUG_DATA
-        )
+        match self.kind {
+            Kind::GoAway(ref debug_data, Reason::PROTOCOL_ERROR, Initiator::Library) => {
+                debug_data.as_ref() == proto::PING_TIMEOUT_DEBUG_DATA
+            }
+            Kind::GoAway(ref debug_data, Reason::INTERNAL_ERROR, Initiator::Library) => {
+                debug_data.is_empty()
+            }
+            _ => false,
+        }
     }
 
     /// Returns true if the library reset the stream because the peer sent more

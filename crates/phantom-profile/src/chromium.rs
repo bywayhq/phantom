@@ -616,6 +616,8 @@ pub fn v154_http2() -> Http2Settings {
         preface_ping_after: Some(Duration::from_secs(10)),
         ping_timeout: Some(Duration::from_secs(10)),
         ping_failure_retries: 2,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
     }
 }
 

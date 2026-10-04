@@ -1492,6 +1492,157 @@ async fn preface_ping_timeout_waits_while_writing_is_blocked() {
     .expect("write-blocked preface PING timeout test timed out");
 }
 
+const IDLE_PING_AFTER: Duration = Duration::from_secs(1);
+
+#[tokio::test]
+async fn idle_ping_goes_out_without_a_stream_and_again_after_its_ack() {
+    timeout(Duration::from_secs(15), async {
+        let (mut peer, _sender, driver) = idle_ping_client(None, 64 * 1024).await;
+        let handshake_read = Instant::now();
+        let ping = read_connection_frame(&mut peer).await;
+        let waited = handshake_read.elapsed();
+        assert_eq!((ping.kind, ping.flags, ping.stream_id), (6, 0, 0));
+        assert_eq!(ping.payload, [0; 8]);
+        assert!(
+            waited >= Duration::from_millis(900) && waited < Duration::from_secs(3),
+            "PING after {waited:?}"
+        );
+
+        write_raw_frame(&mut peer, 6, 1, 0, &[0; 8]).await;
+        let ack_written = Instant::now();
+        let ping = read_connection_frame(&mut peer).await;
+        let waited = ack_written.elapsed();
+        assert_eq!((ping.kind, ping.flags), (6, 0));
+        assert_eq!(ping.payload, [0; 8]);
+        assert!(
+            waited >= Duration::from_millis(900) && waited < Duration::from_secs(3),
+            "second PING after {waited:?}"
+        );
+        assert!(!driver.is_finished());
+        driver.abort();
+    })
+    .await
+    .expect("idle PING test timed out");
+}
+
+#[tokio::test]
+async fn unanswered_idle_ping_closes_the_connection_with_internal_error() {
+    timeout(Duration::from_secs(15), async {
+        let (mut peer, mut sender, driver) =
+            idle_ping_client(Some(Duration::from_secs(2)), 64 * 1024).await;
+        let response = send_empty_request(&mut sender).await;
+        read_request_headers(&mut peer, 1).await;
+        let ping = read_connection_frame(&mut peer).await;
+        assert_eq!((ping.kind, ping.flags), (6, 0));
+        assert_eq!(ping.payload, [0; 8]);
+        let ping_read = Instant::now();
+
+        let go_away = read_raw_frame(&mut peer).await;
+        let waited = ping_read.elapsed();
+        assert_eq!((go_away.kind, go_away.flags, go_away.stream_id), (7, 0, 0));
+        // Last stream ID 0, INTERNAL_ERROR, and no debug data.
+        assert_eq!(go_away.payload, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert!(
+            waited >= Duration::from_secs(1) && waited < Duration::from_secs(4),
+            "GOAWAY after {waited:?}"
+        );
+        let mut rest = Vec::new();
+        peer.read_to_end(&mut rest)
+            .await
+            .expect("client connection was not closed");
+        assert!(rest.is_empty(), "client wrote after GOAWAY: {rest:?}");
+
+        let error = response.await.expect_err("the request succeeded");
+        assert!(error.is_ping_timeout(), "{error:?}");
+        assert!(error.is_go_away() && error.is_library());
+        assert_eq!(error.reason(), Some(crate::Reason::INTERNAL_ERROR));
+        let error = poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect_err("a closed connection accepted a request");
+        assert!(error.is_ping_timeout(), "{error:?}");
+        let closed = driver
+            .await
+            .expect("driver task failed")
+            .expect_err("the connection closed without an error");
+        assert!(closed.is_ping_timeout(), "{closed:?}");
+    })
+    .await
+    .expect("idle PING timeout test timed out");
+}
+
+#[tokio::test]
+async fn idle_ping_timeout_waits_while_writing_is_blocked() {
+    timeout(Duration::from_secs(20), async {
+        let (mut peer, mut sender, driver) =
+            idle_ping_client(Some(Duration::from_secs(1)), 4096).await;
+        poll_fn(|cx| sender.poll_ready(cx))
+            .await
+            .expect("sender never became ready");
+        let (_response, mut body) = sender
+            .send_request(data_budget_request(), false)
+            .expect("request was rejected");
+        body.send_data(Bytes::from(vec![0x61; 60_000]), true)
+            .expect("data was rejected");
+
+        // The body fills the pipe, so the client can neither write nor read
+        // for well past the idle time and the timeout together.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        loop {
+            let frame = read_raw_frame(&mut peer).await;
+            assert_ne!(frame.kind, 7, "client sent GOAWAY: {:?}", frame.payload);
+            if frame.kind == 6 && frame.flags == 0 {
+                write_raw_frame(&mut peer, 6, 1, 0, &frame.payload).await;
+            }
+            if frame.kind == 0 && frame.flags & 0x1 != 0 {
+                break;
+            }
+        }
+        assert_connection_open(&mut peer).await;
+        driver.abort();
+    })
+    .await
+    .expect("write-blocked idle PING test timed out");
+}
+
+/// Opens a client that sends an idle PING after `IDLE_PING_AFTER` without a
+/// read, failing it after `ping_timeout`, over a pipe of `capacity` bytes,
+/// and completes the peer side of its handshake.
+async fn idle_ping_client(
+    ping_timeout: Option<Duration>,
+    capacity: usize,
+) -> (
+    DuplexStream,
+    super::SendRequest<Bytes>,
+    tokio::task::JoinHandle<Result<(), crate::Error>>,
+) {
+    let (client_io, mut peer) = duplex(capacity);
+    let mut builder = super::Builder::new();
+    builder.idle_ping(
+        IDLE_PING_AFTER,
+        ping_timeout,
+        super::PingTimer::new(Instant::now, |duration| {
+            Box::pin(tokio::time::sleep(duration))
+        }),
+    );
+    let (sender, connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    let driver = tokio::spawn(connection);
+    accept_client_handshake(&mut peer).await;
+    (peer, sender, driver)
+}
+
+/// Skips SETTINGS and WINDOW_UPDATE frames and returns the next frame.
+async fn read_connection_frame(peer: &mut DuplexStream) -> RawFrame {
+    loop {
+        let frame = read_raw_frame(peer).await;
+        if !matches!(frame.kind, 4 | 8) {
+            return frame;
+        }
+    }
+}
+
 /// Skips connection-level frames until request HEADERS, and returns them with
 /// the frame the client wrote next.
 async fn read_headers_and_next_frame(peer: &mut DuplexStream) -> (RawFrame, RawFrame) {

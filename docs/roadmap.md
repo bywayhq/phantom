@@ -97,6 +97,11 @@ Counts in the later phases come from a read-only review of `main` at
   request comes, and that request opens another, as the Chrome 154, Edge
   154, and Opera 136 hook logs show
   ([HTTP/1.1 connection bound evidence](explanation/validation.md#http11-connection-bound-evidence)).
+- Firefox's idle PING in `firefox::v157_http2`: a zero-payload PING after
+  58 seconds without a read, whether or not requests are open, and a close
+  with `GOAWAY(0, INTERNAL_ERROR)` when one goes 8 seconds with nothing
+  read, as Firefox 157 sent the PING on an idle pooled connection
+  ([HTTP/2 idle PING evidence](explanation/validation.md#http2-idle-ping-evidence)).
 - Firefox's HTTP/1.1 idle limit: `firefox::v157_http1` closes a connection
   idle 115 s on one timer per client, as Firefox 157 closed one 115.5 s
   after its last response in the hook logs
@@ -296,20 +301,20 @@ anything does.
   waits for the record only over DNS over HTTPS; with early data, Phantom's
   retry after an ECH rejection would also have to move from the handshake to
   the request.
-- Firefox's read-timeout `PING` in `firefox::v157_http2`. Evidence: a
-  Firefox 157 capture shows one `PING` with payload 0 on an idle pooled
-  HTTP/2 connection about 60 seconds after its last read, from
-  `network.http.http2.ping-threshold`, 58 seconds, and the connection
-  manager's tick
-  ([Idle PING evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)).
-  Blocker: a per-connection idle timer in the HTTP/2 driver, and Firefox's
-  handling of an unanswered `PING`, which no capture shows.
+- Firefox's close of an idle HTTP/2 connection. Evidence: Firefox 157
+  stops reusing an HTTP/2 connection whose last HEADERS or DATA read is
+  `network.http.http2.timeout`, 170 seconds, old
+  (`netwerk/protocol/http/nsHttpConnection.cpp:414`, `:982`, `:1002-1017` at
+  `FIREFOX_157_0_RELEASE`); `firefox::v157_http2` keeps it, answering its
+  idle PING
+  ([HTTP/2 idle PING evidence](explanation/validation.md#http2-idle-ping-evidence)).
+  Blocker: no capture shows the close or what Firefox writes for it.
 - Revalidation fields in template order. Evidence: Chrome 154 and Firefox
   157 send `If-None-Match` and `If-Modified-Since` on a second fetch of a
   resource with `no-cache` and show the page the cached body after a `304`;
   Chrome puts them after `Accept-Language`, `If-None-Match` first, and
   Firefox after `Sec-Fetch-Site`, `If-Modified-Since` first
-  ([Revalidation evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)).
+  ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)).
   Phantom has no HTTP cache, so a caller sends the fields, and the templates
   have no slot for them. Blocker: template slots for the two fields.
 - The next Alt-Svc alternative after a broken one. Evidence: Chrome 154
@@ -345,7 +350,7 @@ Each of these needs no capture, because no named recipe may reach it
 - Racing more than one alternative, bounded and chosen by the caller.
 - `Expect: 100-continue`, which neither Chrome 154 nor Firefox 157 sends on
   any `fetch`, `FormData`, or form upload
-  ([Upload evidence](explanation/validation.md#idle-ping-revalidation-and-upload-evidence)),
+  ([Upload evidence](explanation/validation.md#revalidation-and-upload-evidence)),
   and caller-owned conditional-request validators.
 - A buffered request body that a retry may replay.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.

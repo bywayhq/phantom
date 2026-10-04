@@ -208,6 +208,8 @@ impl<'a> SessionCapture<'a> {
             preface_ping_after: None,
             ping_timeout: None,
             ping_failure_retries: 0,
+            idle_ping_after: None,
+            idle_ping_timeout: None,
         })
     }
 }

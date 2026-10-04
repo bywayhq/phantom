@@ -183,6 +183,8 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
         preface_ping_after: None,
         ping_timeout: None,
         ping_failure_retries: 0,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
     };
     bounded_peer_test(async {
         let (client, mut server) = duplex(64 * 1024);

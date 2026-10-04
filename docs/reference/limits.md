@@ -147,7 +147,7 @@ closes, or sends; the last column says which.
 | TCP keepalive idle and interval | 45 seconds and 45 seconds in `chromium::v154_tcp`; 10 seconds, then 600 seconds, with the setup time as interval, in `firefox::v157_tcp` | Chromium 154 source; Firefox 157 hook logs | `TcpSettings::keepalive` | Yes |
 | Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`; no limit for Firefox or without a recipe | Chromium 154 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
-| HTTP/2 idle PING | None sent | Phantom | Not configurable | No |
+| HTTP/2 idle PING | After 58 seconds without a read, failing after 8 more, in `firefox::v157_http2`; none in `chromium::v154_http2` | Firefox 157 source and capture | `Http2Settings::idle_ping_after`, `idle_ping_timeout` | Yes: PING frame |
 | SSE reconnect delay | 3 seconds, or the server's `retry` | Phantom | `initial_retry`, `min_retry` | Yes |
 | Resend after a stale keep-alive connection closes | Immediate, when enabled | Chrome | `RetryPolicy::with_reused_connection_replay` | Yes |
 | H2 and H3 driver shutdown after the last handle drops | 1 second | Phantom | Not configurable | Yes: close timing |

@@ -736,10 +736,12 @@ fn pseudo_order(
 /// [`std::time::Instant::now`], the clock the PING timer reads, so both
 /// measure the same time.
 ///
-/// The service was running when the connection was built and never stops,
-/// and validation bounds the duration, so scheduling does not fail. Should
-/// it, the sleep never ends: the connection keeps running as if the profile
-/// set no PING timeout, and a warning is logged. A sleep that ended at once
+/// It also times the idle PING. The service was running when the connection
+/// was built and never stops, and validation bounds the duration, so
+/// scheduling does not fail. Should it, the sleep never ends: the connection
+/// keeps running as if the profile set no PING timeout, or sends the idle
+/// PING only when something else wakes the connection, and a warning is
+/// logged. A sleep that ended at once
 /// would instead have the connection wake repeatedly until the deadline.
 fn ping_sleep(
     duration: std::time::Duration,
@@ -750,7 +752,7 @@ fn ping_sleep(
             let _ = deadline.await;
         }),
         Err(_) => {
-            tracing::warn!("could not schedule the HTTP/2 PING timeout; it will not expire");
+            tracing::warn!("could not schedule an HTTP/2 PING deadline; it will not expire");
             Box::pin(std::future::pending())
         }
     }
@@ -809,6 +811,30 @@ fn translate_settings_with_pseudo_order(
             timeout,
             client::PingTimer::new(std::time::Instant::now, ping_sleep),
         );
+    }
+    if let Some(after) = settings.idle_ping_after {
+        // Validation rejects these, but a caller may translate settings it
+        // has not validated.
+        let in_range = |duration: std::time::Duration| {
+            !duration.is_zero() && std::time::Instant::now().checked_add(duration).is_some()
+        };
+        if !in_range(after)
+            || settings
+                .idle_ping_timeout
+                .is_some_and(|timeout| !in_range(timeout))
+        {
+            return Err(Http2Error::UnsupportedSetting);
+        }
+        if !shutdown_timer::is_available() {
+            return Err(Http2Error::RuntimeUnavailable);
+        }
+        client.idle_ping(
+            after,
+            settings.idle_ping_timeout,
+            client::PingTimer::new(std::time::Instant::now, ping_sleep),
+        );
+    } else if settings.idle_ping_timeout.is_some() {
+        return Err(Http2Error::UnsupportedSetting);
     }
     let mut order = SettingsOrder::builder();
 

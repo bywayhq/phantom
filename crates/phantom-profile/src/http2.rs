@@ -411,8 +411,9 @@ pub struct Http2Settings {
     /// answered. A value requires [`Self::preface_ping_after`].
     pub ping_timeout: Option<Duration>,
     /// How many times the `phantom` client sends a request again after its
-    /// connection's PING failed ([`Self::ping_timeout`]) before the
-    /// request's response head arrived.
+    /// connection's PING failed ([`Self::ping_timeout`] or
+    /// [`Self::idle_ping_timeout`]) before the request's response head
+    /// arrived.
     ///
     /// Each resend goes out at once on another connection, whatever the
     /// method, when the request has no body or an owned one; a one-shot
@@ -420,7 +421,7 @@ pub struct Http2Settings {
     /// field lists of the failed attempt, and an exact request builds its
     /// list again, as for its other replays. The count is per redirect hop
     /// and apart from the client's retry policy. `0` sends none, and a value
-    /// above 0 requires [`Self::ping_timeout`]. A `phantom-net` connection
+    /// above 0 requires one of the two timeouts. A `phantom-net` connection
     /// only reports the failure.
     ///
     /// A client that must not send a request twice clears it:
@@ -433,6 +434,22 @@ pub struct Http2Settings {
     /// assert!(http2.validate().is_ok());
     /// ```
     pub ping_failure_retries: u8,
+    /// Read-idle time after which the client sends a PING whether or not
+    /// requests are open.
+    ///
+    /// The PING's payload is always zero, and only one is outstanding at a
+    /// time; any frame read clears it, so the next one goes out this long
+    /// after that read. `None` sends none.
+    pub idle_ping_after: Option<Duration>,
+    /// How long a PING sent under [`Self::idle_ping_after`] may go with
+    /// nothing read from the peer before the connection closes.
+    ///
+    /// When it fails, the client sends `GOAWAY` with last stream ID 0,
+    /// `INTERNAL_ERROR`, and no debug data, then closes the connection, and
+    /// every request still open on it fails with `Http2Error::PingTimeout`.
+    /// `None` keeps a connection whose idle PING is never answered. A value
+    /// requires [`Self::idle_ping_after`].
+    pub idle_ping_timeout: Option<Duration>,
 }
 
 impl Http2Settings {
@@ -457,7 +474,11 @@ impl Http2Settings {
 
         validate_streams(self.streams)?;
         validate_ping_timeout(self.preface_ping_after, self.ping_timeout)?;
-        validate_ping_failure_retries(self.ping_timeout, self.ping_failure_retries)?;
+        validate_ping_failure_retries(
+            self.ping_timeout.or(self.idle_ping_timeout),
+            self.ping_failure_retries,
+        )?;
+        validate_idle_ping(self.idle_ping_after, self.idle_ping_timeout)?;
 
         if let Some(priority) = self.headers_priority {
             validate_priority(
@@ -500,6 +521,48 @@ fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Sett
     Ok(())
 }
 
+fn validate_idle_ping(
+    after: Option<Duration>,
+    timeout: Option<Duration>,
+) -> Result<(), InvalidHttp2Settings> {
+    if let Some(after) = after {
+        if after.is_zero() {
+            return Err(InvalidHttp2Settings::new(
+                "idle_ping_after",
+                "an idle PING time must be positive; None sends no idle PING",
+            ));
+        }
+        if Instant::now().checked_add(after).is_none() {
+            return Err(InvalidHttp2Settings::new(
+                "idle_ping_after",
+                "the idle PING time exceeds the clock range",
+            ));
+        }
+    }
+    let Some(timeout) = timeout else {
+        return Ok(());
+    };
+    if after.is_none() {
+        return Err(InvalidHttp2Settings::new(
+            "idle_ping_timeout",
+            "an idle PING timeout applies only to an idle PING; set idle_ping_after",
+        ));
+    }
+    if timeout.is_zero() {
+        return Err(InvalidHttp2Settings::new(
+            "idle_ping_timeout",
+            "an idle PING timeout must be positive; None sets no limit",
+        ));
+    }
+    if Instant::now().checked_add(timeout).is_none() {
+        return Err(InvalidHttp2Settings::new(
+            "idle_ping_timeout",
+            "the idle PING timeout exceeds the clock range",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_ping_failure_retries(
     ping_timeout: Option<Duration>,
     ping_failure_retries: u8,
@@ -507,7 +570,8 @@ fn validate_ping_failure_retries(
     if ping_failure_retries > 0 && ping_timeout.is_none() {
         return Err(InvalidHttp2Settings::new(
             "ping_failure_retries",
-            "PING-failure retries apply only with a PING timeout; set ping_timeout",
+            "PING-failure retries apply only with a PING timeout; set ping_timeout or \
+             idle_ping_timeout",
         ));
     }
     Ok(())

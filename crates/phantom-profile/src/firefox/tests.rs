@@ -215,6 +215,9 @@ fn firefox_157_http2_recipe_matches_windows_session_capture()
             assumed_max_concurrent_streams: None,
             ..settings.streams
         },
+        // The idle PING follows a minute without a read, past these runs.
+        idle_ping_after: None,
+        idle_ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;
@@ -252,6 +255,9 @@ fn firefox_157_macos_http2_session_capture_matches_the_recipe()
             assumed_max_concurrent_streams: None,
             ..settings.streams
         },
+        // The idle PING follows a minute without a read, past these runs.
+        idle_ping_after: None,
+        idle_ping_timeout: None,
         ..settings
     };
     let observed = capture.navigation_settings()?;

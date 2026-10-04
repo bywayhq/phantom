@@ -154,6 +154,8 @@ fn edge_android_153_http2_session_capture_matches_the_chromium_recipe() -> TestR
         preface_ping_after: None,
         ping_timeout: None,
         ping_failure_retries: 0,
+        idle_ping_after: None,
+        idle_ping_timeout: None,
         ..settings
     };
     for run in observed {

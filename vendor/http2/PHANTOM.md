@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.9`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.10`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -757,6 +757,66 @@ drains it and sends the ACK, sees no GOAWAY under a 1 s timeout. Unit tests in
 sleeps end at once or never: the failure follows the timer's clock, not the
 system clock, a read moves the deadline to a timeout after it, sleeps that
 end at once neither spin nor fail the PING early, and the ACK disarms the
+timeout.
+
+## Idle PING
+
+Firefox sends a PING on an HTTP/2 connection that has read nothing for a
+while, whether or not streams are open, and closes the connection when it goes
+unanswered. The connection manager's one-second tick runs
+`Http2Session::ReadTimeoutTick`. Once `network.http.http2.ping-threshold`, 58
+seconds, has passed since `mLastReadEpoch`, the tick sends a PING with an
+all-zero payload and records the time in `mPingSentEpoch`. Any read before the
+threshold passes again clears `mPingSentEpoch`. Otherwise, once
+`network.http.http2.ping-timeout`, 8 seconds, has passed since the PING, the
+tick closes the session with `NS_ERROR_NET_TIMEOUT`, and `Http2Session::Close`
+sends `GOAWAY` with `INTERNAL_ERROR`, last stream ID 0 (`mOutgoingGoAwayID`,
+which nothing changes), and no debug data. Sources, at tag `FIREFOX_157_0_RELEASE`:
+
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L436-L503>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L977-L995>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L1033-L1051>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/netwerk/protocol/http/Http2Session.cpp#L3597-L3610>
+- <https://github.com/mozilla-firefox/firefox/blob/FIREFOX_157_0_RELEASE/modules/libpref/init/StaticPrefList.yaml#L16497-L16505>
+
+`idle-ping.patch` adds the client builder option
+`idle_ping(after, timeout, timer)`, timed by `client::PingTimer`. The client
+records the timer's time of every frame it reads. Once `after` has passed
+since the last read and no idle PING is outstanding, it buffers a PING with a
+zero payload after any pending PING acknowledgement. Any frame read clears the
+outstanding PING, and a zero-payload ACK while one is outstanding is consumed
+rather than passed to the ordinary PING handling. With a `timeout`, a PING that
+goes `timeout` with nothing read closes the connection with
+`GOAWAY(0, INTERNAL_ERROR)`, fails every stream with that library error, and
+later requests fail with it too. `http2::Error::is_ping_timeout` identifies
+it as well as the preface PING's failure; nothing else in the crate closes a
+connection with a library `INTERNAL_ERROR`.
+
+Four differences from Firefox remain. The PING goes out at `after`, not on
+the next one-second tick, so a capture shows Firefox about two seconds later.
+A read is a whole frame that reaches the connection, where Firefox counts any
+bytes read: a frame of an unknown type the codec drops, a CONTINUATION before
+its header block ends, and a large frame still arriving do not count.
+As for the preface PING timeout, neither the PING nor its timeout is checked
+while writing is blocked, because the connection then reads nothing either;
+Firefox keeps reading while its writes wait. Firefox also restores a
+threshold changed for a network change and sends a PING of its own on one,
+which is not modeled.
+
+The default sends no idle PING, and servers never set it. The patch adds
+`src/proto/idle_ping.rs` and changes `src/client.rs`, `src/error.rs`,
+`src/server.rs`, and `src/proto/{connection,mod}.rs`. Unit tests in
+`src/proto/idle_ping.rs` drive the state with a fake clock: the PING is due at
+the idle time and a read moves it back, only one is outstanding, the timeout
+fails it and any read before then keeps the connection, there is no failure
+without a timeout, an ACK with another payload is not consumed, and sleeps
+that end at once do not spin. Its regressions in `src/client/tests.rs` use a
+1 s idle time and a Tokio sleep against a raw peer: a zero PING goes out with
+no stream open and again 1 s after its ACK; a PING unanswered for 2 s brings
+`GOAWAY(0, INTERNAL_ERROR)` with no debug data and the end of the byte stream
+between 1 s and 4 s after the peer reads it, and the open request, a later
+request, and the connection report the error; and a peer that reads nothing
+for 3 s while a 60,000-byte body fills the pipe sees no GOAWAY under a 1 s
 timeout.
 
 ## Refreshing the vendor copy

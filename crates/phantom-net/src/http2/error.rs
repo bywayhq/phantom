@@ -244,14 +244,20 @@ pub enum Http2Error {
         /// Maximum accepted interim responses before the final response.
         maximum: usize,
     },
-    /// A PING sent under the profile's
-    /// [`preface_ping_after`](phantom_profile::Http2Settings::preface_ping_after)
-    /// went unanswered, with nothing read from the peer, for its
-    /// [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout).
+    /// A PING went unanswered, with nothing read from the peer, for the time
+    /// the profile allows.
     ///
-    /// The connection sent `GOAWAY` with `PROTOCOL_ERROR` and closed, so every
-    /// request on it fails with this error. Chromium reports the same event
-    /// as `ERR_HTTP2_PING_FAILED`.
+    /// A PING sent under
+    /// [`preface_ping_after`](phantom_profile::Http2Settings::preface_ping_after)
+    /// fails after [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout),
+    /// and the connection sends `GOAWAY` with `PROTOCOL_ERROR`. Chromium
+    /// reports that event as `ERR_HTTP2_PING_FAILED`. An idle PING sent under
+    /// [`idle_ping_after`](phantom_profile::Http2Settings::idle_ping_after)
+    /// fails after
+    /// [`idle_ping_timeout`](phantom_profile::Http2Settings::idle_ping_timeout),
+    /// and the connection sends `GOAWAY` with `INTERNAL_ERROR`, as Firefox
+    /// does. Either way the connection closes, so every request on it fails
+    /// with this error.
     PingTimeout,
     /// The connection had already closed after an unanswered PING when this
     /// request reached it, so nothing of the request was sent.
@@ -260,6 +266,7 @@ pub enum Http2Error {
     ReusedConnectionClosed,
     /// The connection was polled outside a Tokio runtime, or the timer a
     /// profile's [`ping_timeout`](phantom_profile::Http2Settings::ping_timeout)
+    /// or [`idle_ping_after`](phantom_profile::Http2Settings::idle_ping_after)
     /// needs could not be started.
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.

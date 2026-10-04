@@ -1,6 +1,7 @@
 mod connection;
 mod error;
 mod go_away;
+mod idle_ping;
 mod peer;
 mod ping_pong;
 mod settings;
