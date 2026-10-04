@@ -4230,8 +4230,8 @@ Limits, as differences from Chromium:
 - Phantom does not persist brokenness and does not reset it on a network
   change. It races one alternative by default, as Chromium does, and up to
   three under a caller cap, which no browser does. Stored Alt-Svc
-  alternatives replace an HTTPS-record one, where Chromium runs both jobs unless they name the same
-  location. With every stored alternative broken, Phantom uses the origin
+  alternatives replace an HTTPS-record one, where Chromium runs both jobs
+  unless they name the same location. With every stored alternative broken, Phantom uses the origin
   alone, where Chromium still runs its `DNS_ALPN_H3` job when QUIC to the
   origin's own location is not broken
   (`net/http/http_stream_factory_job_controller.cc` lines 926-935 and 1068).
@@ -4252,10 +4252,13 @@ Limits, as differences from Chromium:
   route until it ends.
 - Under a caller cap above one, an alternative that fails while another
   alternative carries the request is marked broken once the winner's
-  handshake completes. Chromium marks an alternative broken only when the
-  origin wins against it, and never races two alternatives, so this is
-  Phantom's choice. A request raced again after a failed early handshake
-  leaves out the alternatives that failed and any now broken.
+  handshake completes; if that handshake fails or its result is unknown,
+  it stays unmarked. One still connecting when the winner was chosen
+  continues in the background and is marked if it fails. Chromium marks an
+  alternative broken only when the origin wins against it, and never races
+  two alternatives, so this is Phantom's choice. A request raced again
+  after a failed early handshake races the winner again without early data
+  and leaves out the other alternatives that failed or are now broken.
 
 ### Alt-Svc HTTP/3 upgrade evidence
 

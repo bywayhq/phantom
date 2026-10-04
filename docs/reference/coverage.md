@@ -528,7 +528,7 @@ Supported lifecycle:
     three at once (`AltSvcRace::with_max_alternatives`), which no browser
     does; the request carries an `Alt-Used` field naming the winner, and a
     failed alternative is marked broken once the winner's handshake
-    completes.
+    completes, or when it fails if it was still connecting then.
   - The request is dispatched once, on the winner.
   - Alternative setup is limited to 4 seconds.
   - A losing alternative keeps connecting in the background and is then

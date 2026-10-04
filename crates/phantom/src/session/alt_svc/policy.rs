@@ -128,9 +128,10 @@ impl AltSvcPolicy {
 /// fails, nothing is marked.
 ///
 /// When several alternatives race and one of them wins, a failed one is
-/// marked broken too, once the winner's handshake has completed. Chrome
-/// never races two alternatives, so this is Phantom's choice for the caller
-/// policy, not browser behavior.
+/// marked broken too, once the winner's handshake has completed; one still
+/// connecting when the winner was chosen is marked if it fails later, as a
+/// background setup is. Chrome never races two alternatives, so this is
+/// Phantom's choice for the caller policy, not browser behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: Duration,
@@ -188,7 +189,8 @@ impl AltSvcRace {
     /// `Alt-Used` field that names it. The origin still waits for
     /// `origin_delay`, and starts early only when every raced alternative has
     /// failed. An alternative that fails while another one wins is marked
-    /// broken once the winner's handshake has completed.
+    /// broken once the winner's handshake has completed, and one still
+    /// connecting then is marked if it fails later.
     ///
     /// Every raced setup needs its own HTTP/3 admission for the origin. With
     /// [`ClientBuilder::max_concurrent_http3_requests_per_origin`](crate::ClientBuilder::max_concurrent_http3_requests_per_origin)

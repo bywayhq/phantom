@@ -834,7 +834,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   only the first; a value above 3 fails `ClientBuilder::build` with
   `BuildErrorKind::InvalidPolicy`. Each raced setup needs its own H3
   admission, so with `max_concurrent_http3_requests_per_origin` at 1 the
-  later alternatives wait and are cancelled when another candidate wins
+  later alternatives wait and are cancelled when another candidate wins.
+  An alternative that fails while another wins is marked broken once the
+  winner's handshake completes
   ([guide](docs/guides/http3-discovery.md#race-the-alternative-against-the-origin)).
 - `RequestBuilder::alt_svc_alternative(host, port)` sends an exact HTTP/3
   request to an alternative service the caller names, as a request to a

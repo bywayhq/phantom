@@ -413,6 +413,19 @@ fn mark_failed_broken(
 /// Keeps the alternatives at the positions `keep` names and, when the race
 /// kept its HTTP/3 lists, the list at each of those positions, so the `n`th
 /// alternative still sends the `n`th list.
+/// Returns, in race order, which alternatives a race started again after the
+/// winner's early-data handshake failed races: the winner whatever the store
+/// says, as a race of one alternative always was, and each loser that neither
+/// failed nor is now broken.
+fn raced_again(winner: usize, failed: &[bool], broken: &[bool]) -> Vec<bool> {
+    failed
+        .iter()
+        .zip(broken)
+        .enumerate()
+        .map(|(position, (failed, broken))| position == winner || (!failed && !broken))
+        .collect()
+}
+
 fn retain_raced<A, L>(
     alternatives: Vec<A>,
     lists: Option<Box<[L]>>,
@@ -574,18 +587,11 @@ async fn send_after_early_win(
         outcome = "handshake_failed",
         "raced alternative failed its handshake after early data; racing again"
     );
-    // The winner is raced again whatever the store says, as a race of one
-    // alternative always was; a loser is left out once it failed or is
-    // broken.
-    let keep: Vec<bool> = alternatives
+    let broken: Vec<bool> = alternatives
         .iter()
-        .zip(&failed)
-        .enumerate()
-        .map(|(position, (alternative, failed))| {
-            position == index
-                || (!failed && !client.alt_svc_is_broken(&request.endpoint, route, alternative))
-        })
+        .map(|alternative| client.alt_svc_is_broken(&request.endpoint, route, alternative))
         .collect();
+    let keep = raced_again(index, &failed, &broken);
     let (alternatives, kept_http3) =
         retain_raced(alternatives, kept_http3.filter(|_| !responded), &keep);
     let alternatives = alternatives

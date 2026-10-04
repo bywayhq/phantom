@@ -635,3 +635,19 @@ fn a_race_started_again_keeps_each_alternative_with_its_own_list() {
     assert!(alternatives.is_empty());
     assert_eq!(lists.as_deref(), Some(&[][..]));
 }
+
+#[test]
+fn a_race_started_again_keeps_the_winner_and_drops_failed_or_broken_losers() {
+    use super::raced_again;
+
+    // A race of one alternative always races its winner again, even broken.
+    assert_eq!(raced_again(0, &[false], &[true]), [true]);
+    assert_eq!(
+        raced_again(1, &[true, false, false], &[false, true, false]),
+        [false, true, true]
+    );
+    assert_eq!(
+        raced_again(0, &[false, false, true], &[false, true, false]),
+        [true, false, false]
+    );
+}

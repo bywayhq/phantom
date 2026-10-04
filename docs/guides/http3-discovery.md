@@ -54,9 +54,9 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   does; with every one broken, the origin is used alone, without the
   HTTPS-record lookup Chrome would still race. When every candidate fails,
   Phantom returns the origin's error.
-- Chrome never races two alternatives, so marking one that fails while
-  another alternative wins is Phantom's choice: it happens once the
-  winner's handshake has completed.
+- With several raced, one that fails while another alternative wins is
+  also marked broken once the winner's handshake completes; one still
+  connecting then is marked if it fails later.
 - A raced alternative offers early data when the client does, as Chrome's
   does, so a resumed alternative can win at once and send a replay-safe
   request as early data. It does not after QUIC to the origin's own host and

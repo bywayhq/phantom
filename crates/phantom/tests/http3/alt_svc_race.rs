@@ -642,8 +642,10 @@ async fn a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_r
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
         // Whether it failed before the winner connected or afterwards in the
         // background, the untrusted alternative is marked broken.
-        wait_until(|| Ok(untrusted.attempts() == 1)).await?;
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        wait_until(|| Ok(untrusted.failures() == 1)).await?;
+        // The client marks the alternative as its own handshake fails, at
+        // about the time the server sees the handshake end.
+        tokio::time::sleep(Duration::from_millis(200)).await;
 
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
@@ -1576,6 +1578,7 @@ impl Drop for Blackhole {
 struct UntrustedAlternative {
     port: u16,
     attempts: Arc<AtomicUsize>,
+    failures: Arc<AtomicUsize>,
     task: JoinHandle<()>,
 }
 
@@ -1585,23 +1588,36 @@ impl UntrustedAlternative {
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let (address, endpoint) = h3_support::server_endpoint(&untrusted)?;
         let attempts = Arc::new(AtomicUsize::new(0));
+        let failures = Arc::new(AtomicUsize::new(0));
         let counter = Arc::clone(&attempts);
+        let failed = Arc::clone(&failures);
         let task = tokio::spawn(async move {
             while let Some(incoming) = endpoint.accept().await {
                 counter.fetch_add(1, Ordering::SeqCst);
+                let failed = Arc::clone(&failed);
                 // The client rejects the certificate, so the handshake fails.
-                drop(tokio::spawn(async move { incoming.await.is_err() }));
+                drop(tokio::spawn(async move {
+                    if incoming.await.is_err() {
+                        failed.fetch_add(1, Ordering::SeqCst);
+                    }
+                }));
             }
         });
         Ok(Self {
             port: address.port(),
             attempts,
+            failures,
             task,
         })
     }
 
     fn attempts(&self) -> usize {
         self.attempts.load(Ordering::SeqCst)
+    }
+
+    /// Returns how many handshakes the client abandoned.
+    fn failures(&self) -> usize {
+        self.failures.load(Ordering::SeqCst)
     }
 }
 

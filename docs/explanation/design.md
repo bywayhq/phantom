@@ -277,10 +277,9 @@ dropped unread, so an unbounded body cannot stall the retry.
 A negotiated request builds its HTTP/1.1 and HTTP/2 field lists once per
 redirect hop and checks them before any I/O. A request that races Alt-Svc
 alternatives builds and checks one HTTP/3 list per raced alternative at the
-same time, each with its own `Alt-Used`. Each list
-takes the template, your fields, the cookie jar's value, and the client
-hints known at that moment: the profile's defaults and those the origin
-requested through `Accept-CH`. A hint that another response teaches later
+same time, each with its own `Alt-Used`. Each list takes the template, your
+fields, the cookie jar's value, and the client hints known at that moment:
+the profile's defaults and those the origin requested through `Accept-CH`. A hint that another response teaches later
 reaches the next request, not this one.
 
 The race's winner sends its lists as they were built. So does every attempt
