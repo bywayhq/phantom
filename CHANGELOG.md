@@ -14,6 +14,22 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http3RequestSettings` gained the public field `alt_used`, of the new
+  `#[non_exhaustive]` enum `Http3AltUsed`, so struct literals that name
+  every field no longer compile. With `Append`, an HTTP/3 request sent to an
+  alternative service, learned from `Alt-Svc` or pinned with
+  `RequestBuilder::alt_svc_alternative`, carries one `Alt-Used` field after
+  every other field; with `Omit`, it carries none.
+  `chromium::v154_http3_request`, and so every Chromium-family recipe, sets
+  `Omit`, and `firefox::v157_http3_request` sets `Append`
+  ([evidence](docs/explanation/validation.md#alt-svc-http3-upgrade-evidence)).
+  In `phantom-net`, `Http3Connector::sends_alt_used` reports the setting. A
+  caller-supplied `Alt-Used` field or trailer is still rejected before any
+  I/O. Migrate: add `alt_used: Http3AltUsed::Append` to an
+  `Http3RequestSettings` literal to keep sending the field, or
+  `alt_used: Http3AltUsed::Omit` to send none; to keep sending it with the
+  Chromium recipe, set `alt_used = Http3AltUsed::Append` on the value
+  `chromium::v154_http3_request` returns.
 - `WebSocketConnectionPolicy` gained the public field
   `proxied_http2_session`, of the new `#[non_exhaustive]` enum
   `WebSocketProxiedSession`, so struct literals that name every field no
@@ -1623,6 +1639,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Chromium HTTP/3 request recipe:
+  `chromium::v154_http3_request`, which the Chrome, Edge, Brave, and Opera
+  profiles use, as do `chrome_android::v154_http3_request`,
+  `edge_android::v153_http3_request`, and
+  `brave_android::v153_http3_request`, no longer sends `Alt-Used` on a
+  request to an Alt-Svc alternative or to a pinned alternative, as Chrome
+  154's captures and source show it never does. Before, every profile sent
+  the field there. `firefox::v157_http3_request` still sends it.
 - Wire change for the Chromium and Firefox WebSocket recipes on proxy
   routes: `chromium::v154_websocket`, `chrome_android::v154_websocket`,
   `brave_android::v153_websocket`, and `firefox::v157_websocket` now open a

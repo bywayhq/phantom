@@ -21,9 +21,9 @@ use crate::{
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
     http3::{
-        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-        Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings,
+        Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
+        Http3Setting, Http3SettingOrder, Http3Settings,
     },
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -1250,6 +1250,21 @@ pub fn v154_http3_tls() -> TlsSettings {
 /// inserting each crumb into the QPACK dynamic table with a static name
 /// reference and sending it as an indexed field line, at the position of the
 /// joined field.
+///
+/// No request carries `Alt-Used` ([`Http3AltUsed::Omit`]), not even one sent
+/// to an alternative service. The retained Chrome 154 snapshots
+/// (`fixtures/client-hints/chrome/154.0.8037.97/`) send a navigation and a
+/// fetch over HTTP/3 to an alternative learned from Alt-Svc without it. At
+/// tag 154.0.8037.58 no non-test file under `net/http`, `net/quic`,
+/// `net/spdy`, or `net/base` mentions the field, though Chrome connects to
+/// an alternative at another host or port
+/// (`net/http/http_stream_factory_job_controller.cc` lines 1366-1376), and
+/// the request fields are built without it by
+/// `HttpNetworkTransaction::BuildRequestHeaders`
+/// (`net/http/http_network_transaction.cc` lines 1381-1438),
+/// `QuicHttpStream::SendRequest` (`net/quic/quic_http_stream.cc` lines
+/// 117-133), and `CreateSpdyHeadersFromHttpRequest`
+/// (`net/spdy/spdy_http_utils.cc` lines 199-238).
 #[must_use]
 pub fn v154_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {
@@ -1261,6 +1276,7 @@ pub fn v154_http3_request() -> Http3RequestSettings {
         ],
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: Http3CookieCrumbs::Split,
+        alt_used: Http3AltUsed::Omit,
     }
 }
 

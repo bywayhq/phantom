@@ -94,9 +94,10 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 - QUIC goes to the alternative over the request's route, direct or through
   a CONNECT-UDP proxy, which is asked for the alternative, not the origin.
   The request keeps the origin's authority, TLS server name, and
-  certificate check, and carries an [`Alt-Used`](../reference/glossary.md#alt-used)
-  field after its template, caller, and cookie fields, as a learned
-  alternative does.
+  certificate check. As for a learned alternative, a profile that sends
+  [`Alt-Used`](../reference/glossary.md#alt-used), such as Firefox's, adds
+  it after the template, caller, and cookie fields; the Chromium recipes
+  send none.
 - It needs no Alt-Svc store. Setup retries follow the request's
   `RetryPolicy`; a failure returns the H3 error, and nothing falls back to
   the origin, even under the HTTP/2 fallback, or is stored.

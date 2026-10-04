@@ -24,11 +24,14 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
-    profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, chromium},
+    profile::{
+        ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
+        chromium, firefox,
+    },
 };
 use tokio::time::timeout;
 
-use h3_support::client_settings;
+use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, ObservedRequest,
     PlannedResponse, UpgradeScript,
@@ -58,7 +61,6 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
         )
         .await?;
         let origin_authority = format!("localhost:{}", fixture.origin_address().port());
-        let alternative_authority = format!("127.0.0.1:{}", fixture.alternative_address().port());
         assert_ne!(fixture.origin_address(), fixture.alternative_address());
         let client = upgrade_client(&identity)?;
 
@@ -100,11 +102,70 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
             observed.alternative_requests[0].server_name.as_deref(),
             Some("localhost")
         );
+        // The Chromium request recipe names no alternative, as Chrome 154
+        // does not.
         assert_eq!(
             field_pairs(&observed.alternative_requests[0]),
             [
                 ("x-before", b"first".as_slice()),
                 ("x-after", b"second".as_slice()),
+            ]
+        );
+        Ok(())
+    })
+    .await
+}
+
+/// The Firefox 157 request recipe names the learned alternative in one
+/// `Alt-Used` field after every other field.
+#[tokio::test]
+async fn firefox_request_recipe_names_a_learned_alternative_in_alt_used_last() -> TestResult<()> {
+    bounded(async {
+        let identity =
+            TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            "localhost",
+            UpgradeScript::new(
+                [PlannedResponse::new(StatusCode::OK).advertise_alternative()],
+                AlternativeBehavior::responses([PlannedResponse::new(StatusCode::OK)]),
+            )
+            .advertisement(AltSvcAdvertisement::default().host(ORIGIN_NAME)),
+        )
+        .await?;
+        let alternative_authority = format!("127.0.0.1:{}", fixture.alternative_address().port());
+        let base = client_settings();
+        let settings = Http3ClientSettings::new(
+            base.tls().clone(),
+            base.quic_transport().clone(),
+            base.http3().clone(),
+            firefox::v157_http3_request(),
+        );
+        let client = upgrade_client_with(&identity, settings)?;
+
+        drain(
+            client
+                .get_negotiated(&fixture.origin_url("/learn"))?
+                .send()
+                .await?,
+        )
+        .await?;
+        let upgraded = client
+            .get_negotiated(&fixture.origin_url("/upgrade"))?
+            .header(RequestHeader::new("x-caller", "last"))
+            .send()
+            .await?;
+        assert_eq!(protocol(&upgraded)?, HttpProtocol::Http3);
+        drain(upgraded).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.alternative_requests.len(), 1);
+        assert!(header_values(&observed.origin_requests[0], "alt-used").is_empty());
+        assert_eq!(
+            field_pairs(&observed.alternative_requests[0]),
+            [
+                ("x-caller", b"last".as_slice()),
                 ("alt-used", alternative_authority.as_bytes()),
             ]
         );
@@ -126,7 +187,8 @@ async fn exact_http3_does_not_emit_alt_used() -> TestResult<()> {
             ),
         )
         .await?;
-        let client = upgrade_client(&identity)?;
+        // Even a profile that sends `Alt-Used` sends none to the origin.
+        let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
         let response = client
             .get(
                 HttpProtocol::Http3,
@@ -161,45 +223,48 @@ async fn caller_supplied_alt_used_fields_and_trailers_are_rejected_before_io() -
             UpgradeScript::new([], AlternativeBehavior::responses([])),
         )
         .await?;
-        let client = upgrade_client(&identity)?;
-        let error = client
-            .get_negotiated(&fixture.origin_url("/rejected"))?
-            .header(RequestHeader::new("Alt-Used", "caller.invalid:443"))
-            .send()
-            .await
-            .err()
-            .ok_or("caller-supplied Alt-Used unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+        // The check reads no profile setting, so it holds under `Omit`, the
+        // Chromium recipe's setting, and under `Append`.
+        for http3 in [client_settings(), appending_alt_used(client_settings())] {
+            let client = upgrade_client_with(&identity, http3)?;
+            let error = client
+                .get_negotiated(&fixture.origin_url("/rejected"))?
+                .header(RequestHeader::new("Alt-Used", "caller.invalid:443"))
+                .send()
+                .await
+                .err()
+                .ok_or("caller-supplied Alt-Used unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
 
-        let error = client
-            .request_negotiated(Method::POST, &fixture.origin_url("/static-trailer"))?
-            .body("payload")
-            .trailers(vec![RequestHeader::new("Alt-Used", "caller.invalid:443")])
-            .send()
-            .await
-            .err()
-            .ok_or("caller-supplied static Alt-Used trailer unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+            let error = client
+                .request_negotiated(Method::POST, &fixture.origin_url("/static-trailer"))?
+                .body("payload")
+                .trailers(vec![RequestHeader::new("Alt-Used", "caller.invalid:443")])
+                .send()
+                .await
+                .err()
+                .ok_or("caller-supplied static Alt-Used trailer unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
 
-        let body_polls = Arc::new(AtomicUsize::new(0));
-        let error = client
-            .request_negotiated(Method::POST, &fixture.origin_url("/dynamic-trailer"))?
-            .streaming_body_with_trailers(
-                PollCountingBody::new(Arc::clone(&body_polls)),
-                vec![RequestTrailerName::new("alt-used")],
-            )
-            .send()
-            .await
-            .err()
-            .ok_or("declared body-produced Alt-Used trailer unexpectedly succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
-        assert_eq!(body_polls.load(Ordering::SeqCst), 0);
+            let body_polls = Arc::new(AtomicUsize::new(0));
+            let error = client
+                .request_negotiated(Method::POST, &fixture.origin_url("/dynamic-trailer"))?
+                .streaming_body_with_trailers(
+                    PollCountingBody::new(Arc::clone(&body_polls)),
+                    vec![RequestTrailerName::new("alt-used")],
+                )
+                .send()
+                .await
+                .err()
+                .ok_or("declared body-produced Alt-Used trailer unexpectedly succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+            assert_eq!(body_polls.load(Ordering::SeqCst), 0);
+        }
 
         let snapshot = fixture.snapshot()?;
         assert_eq!(snapshot.origin_connections, 0);
         assert_eq!(snapshot.alternative_connections, 0);
 
-        drop(client);
         let observed = fixture.finish().await?;
         assert!(observed.origin_requests.is_empty());
         assert!(observed.alternative_requests.is_empty());
@@ -224,7 +289,7 @@ async fn ipv6_alternative_uses_bracketed_canonical_alt_used_authority() -> TestR
         )
         .await?;
         let expected = format!("[::1]:{}", fixture.alternative_address().port());
-        let client = upgrade_client(&identity)?;
+        let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
         drain(
             client
@@ -371,7 +436,7 @@ async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() 
             ),
         )
         .await?;
-        let client = upgrade_client(&identity)?;
+        let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
         drain(
             client
@@ -399,6 +464,10 @@ async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() 
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_requests.len(), 2);
         assert_eq!(observed.alternative_requests.len(), 1);
+        assert_eq!(
+            header_values(&observed.alternative_requests[0], "alt-used").len(),
+            1
+        );
         assert!(header_values(&observed.origin_requests[1], "alt-used").is_empty());
         Ok(())
     })
@@ -431,7 +500,7 @@ async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> 
         let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
         let profile = ClientProfile::new(tls_settings())
             .with_http2(chromium::v154_http2())
-            .with_http3(client_settings())
+            .with_http3(appending_alt_used(client_settings()))
             .with_client_hints(ClientHintSettings::new(vec![ClientHint::new(
                 "sec-ch-ua-arch",
                 "\"arm\"",
@@ -542,7 +611,7 @@ async fn exact_and_alternative_http3_keep_separate_connections_for_one_origin() 
             ]),
         )
         .await?;
-        let client = upgrade_client(&identity)?;
+        let client = upgrade_client_with(&identity, appending_alt_used(client_settings()))?;
 
         drain(
             client
@@ -583,16 +652,28 @@ async fn exact_and_alternative_http3_keep_separate_connections_for_one_origin() 
 }
 
 fn upgrade_client(identity: &TestIdentity) -> TestResult<Client> {
+    upgrade_client_with(identity, client_settings())
+}
+
+/// An Alt-Svc client whose HTTP/3 profile is `http3`.
+fn upgrade_client_with(identity: &TestIdentity, http3: Http3ClientSettings) -> TestResult<Client> {
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
-    Ok(upgrade_client_builder(identity)
+    Ok(upgrade_client_builder_with(identity, http3)
         .alt_svc(maximum_origins)
         .build()?)
 }
 
 fn upgrade_client_builder(identity: &TestIdentity) -> phantom::ClientBuilder {
+    upgrade_client_builder_with(identity, client_settings())
+}
+
+fn upgrade_client_builder_with(
+    identity: &TestIdentity,
+    http3: Http3ClientSettings,
+) -> phantom::ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_http3(client_settings());
+        .with_http3(http3);
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 

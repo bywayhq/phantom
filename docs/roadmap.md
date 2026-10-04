@@ -265,8 +265,11 @@ anything does.
   `encrypted_client_hello` and its `record_size_limit`,
   `extended_master_secret`, and `renegotiation_info` extensions
   ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
-  Remaining: the position of `Alt-Used`, which the captures show. Blocker:
-  none recorded; it needs a template slot for a field the client generates.
+  Remaining: the position of `Alt-Used`, and its omission from the first
+  request, both of which the captures show: Firefox sends no `Alt-Used` on
+  its first H3 navigation to a learned alternative, while Phantom sends it on
+  every request to an alternative. Blocker: none recorded; it needs a
+  template slot for a field the client generates.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 136 and `macos` request
   templates for Chrome 154 and Firefox 157, from macOS 15.5 captures on an

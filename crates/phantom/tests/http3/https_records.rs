@@ -22,7 +22,7 @@ use phantom::{
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 use tokio::time::timeout;
 
-use h3_support::client_settings;
+use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
     AlternativeBehavior, Http3UpgradeFixture, ObservedRequest, PlannedResponse, UpgradeScript,
 };
@@ -368,10 +368,12 @@ fn resolver(dns: &DnsServer) -> TestResult<HttpsRecordResolver> {
     }))
 }
 
+/// A client builder whose profile sends `Alt-Used` to an alternative
+/// service, so a request at an HTTPS record's location shows it sends none.
 fn profile_builder(identity: &TestIdentity) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_http3(client_settings());
+        .with_http3(appending_alt_used(client_settings()));
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 

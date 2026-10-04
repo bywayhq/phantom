@@ -13,11 +13,11 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RedirectPolicy, RequestErrorKind,
     RequestHeader, ResponseInfo, RetryPolicy, Route,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
 
-use h3_support::{client_settings, server_endpoint};
+use h3_support::{appending_alt_used, client_settings, server_endpoint};
 use masque_support::{MasqueProxy, ProxyMode, masque_client_settings};
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
@@ -81,9 +81,14 @@ fn serve_alternative(
 }
 
 fn direct_client(identity: &TestIdentity) -> ClientBuilder {
+    direct_client_with(identity, client_settings())
+}
+
+/// A direct client builder whose HTTP/3 profile is `http3`.
+fn direct_client_with(identity: &TestIdentity, http3: Http3ClientSettings) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_http3(client_settings());
+        .with_http3(http3);
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 
@@ -128,7 +133,8 @@ async fn a_pinned_alternative_receives_the_request_for_the_origin() -> TestResul
 
         let received = server.await??;
         assert_eq!(received.len(), 1);
-        // The origin's authority and the alternative's `Alt-Used`.
+        // The origin's authority, and no `Alt-Used` from the Chromium request
+        // recipe, as Chrome 154 sends none.
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(received[0].path, "/pinned");
         assert!(
@@ -137,6 +143,34 @@ async fn a_pinned_alternative_receives_the_request_for_the_origin() -> TestResul
                 .ok_or("Alt-Svc is enabled")?
                 .is_empty()
         );
+        assert_eq!(received[0].alt_used, None);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_profile_that_appends_alt_used_names_the_pinned_alternative() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns(ORIGIN)?;
+        let (address, endpoint) = server_endpoint(&identity)?;
+        let (done, wait_for_done) = oneshot::channel();
+        let server = serve_alternative(endpoint, vec![(StatusCode::OK, None)], wait_for_done);
+        let (host, port) = alternative(address);
+
+        let response = direct_client_with(&identity, appending_alt_used(client_settings()))
+            .build()?
+            .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/pinned"))?
+            .alt_svc_alternative(&host, port)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        response.into_body().collect().await?;
+        let _ = done.send(());
+
+        let received = server.await??;
+        assert_eq!(received.len(), 1);
+        assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(
             received[0].alt_used.as_deref(),
             Some(&*format!("{host}:{port}"))
@@ -157,7 +191,8 @@ async fn a_pinned_alternative_is_reached_through_connect_udp() -> TestResult<()>
         let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
         let (host, port) = alternative(address);
 
-        let profile = ClientProfile::new(tls_settings()).with_http3(masque_client_settings());
+        let profile = ClientProfile::new(tls_settings())
+            .with_http3(appending_alt_used(masque_client_settings()));
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
@@ -207,7 +242,7 @@ async fn a_same_origin_redirect_keeps_the_pinned_alternative() -> TestResult<()>
         );
         let (host, port) = alternative(address);
 
-        let response = direct_client(&identity)
+        let response = direct_client_with(&identity, appending_alt_used(client_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .build()?
             .get(HttpProtocol::Http3, &format!("https://{ORIGIN}/first"))?

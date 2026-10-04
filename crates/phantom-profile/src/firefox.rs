@@ -16,9 +16,9 @@ use crate::{
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
     http3::{
-        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-        Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings,
+        Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
+        Http3Setting, Http3SettingOrder, Http3Settings,
     },
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -904,6 +904,15 @@ pub fn v157_http3() -> Http3Settings {
 /// so [`Http3RequestSettings::extended_connect_pseudo_header_order`] is
 /// `None`. The retained cookie captures (`fixtures/cookies/firefox/`) show
 /// one joined `cookie` field over HTTP/3 ([`Http3CookieCrumbs::Whole`]).
+///
+/// A request to an alternative service carries `Alt-Used`
+/// ([`Http3AltUsed::Append`]): Firefox names the field in
+/// `netwerk/protocol/http/nsHttpAtomList.inc` (`Alternate_Service_Used`).
+/// The retained cookie captures carry it on every HTTP/3 request, and the
+/// snapshots on the fetch that follows the first navigation over HTTP/3,
+/// which carries none. Phantom sends it on every request to an alternative,
+/// and appends it last, where Firefox sends it after `accept-encoding`, or
+/// after `referer` when there is one.
 #[must_use]
 pub fn v157_http3_request() -> Http3RequestSettings {
     Http3RequestSettings {
@@ -915,6 +924,7 @@ pub fn v157_http3_request() -> Http3RequestSettings {
         ],
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: Http3CookieCrumbs::Whole,
+        alt_used: Http3AltUsed::Append,
     }
 }
 

@@ -290,6 +290,19 @@ impl Http3Connector {
         )
     }
 
+    /// Returns whether a request sent to an alternative service carries an
+    /// `Alt-Used` field, as [`Http3RequestSettings::alt_used`] says.
+    ///
+    /// The connector itself never adds the field: the caller that chose the
+    /// alternative appends it to the request's fields.
+    #[must_use]
+    pub fn sends_alt_used(&self) -> bool {
+        matches!(
+            self.request_settings.alt_used,
+            phantom_profile::Http3AltUsed::Append
+        )
+    }
+
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
         self.with_shared_crypto(Arc::new(crypto))
     }

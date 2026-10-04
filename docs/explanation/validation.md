@@ -57,7 +57,7 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 idle PING](#http2-idle-ping-evidence) | Firefox source and a retained Firefox 157 capture of an idle pooled connection, replayed against Phantom | One Windows run; no capture shows an unanswered PING |
 | [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures, compared with the default-mode `fetch` templates, and browser source | One run per scenario; HTTP/1.1 and HTTP/3 validator positions rest on source; uploads recorded for future work |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; at most eight alternatives per origin; several listed differences from Chromium |
-| [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
+| [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests; Chrome 154 and Firefox 157 captures and Chromium source for `Alt-Used` | Firefox's `Alt-Used` position and first-request omission not modeled; no browser capture on a proxy route |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
 | [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; no network partitions in Phantom |
 | [Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence) | NSS source, and Firefox 157 fresh, resumed, and IP-literal ClientHellos over TCP and QUIC, replayed against Phantom and an independent model of NSS's rule | Resumed lengths with early data compared through the rule; no QUIC capture to an IPv6 literal |
@@ -4267,7 +4267,7 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 | Same file: other candidates | Exact H3 to the origin does not wait for a background alternative setup; an available H2 connection skips a 5 s origin delay |
 | Same file: listed alternatives | The second listed alternative receives nothing while the first works; once the first is broken, the next request is bound to the origin while the second connects, and the request after uses it; under the sequential policy a failed alternative, and one that answers `421`, leaves the list and the next request uses the next one |
 | Same file: admission | With one H3 admission per origin, the alternative's permit is released after a win, after cancellation, and at the 4 s limit of a background setup, while a race still waiting for admission gives its place back |
-| Same file: several alternatives (`with_max_alternatives`) | With two raced, the one that connects carries the request with an `Alt-Used` naming it, and a blackholed one is broken at its limit (`two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used`); one that fails its handshake is broken and not raced again (`a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again`); the origin wins over two blackholed ones and both are broken (`origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken`); with one H3 admission the waiting second is cancelled unmarked and dialed by a later race (`an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked`); build rejects more than three |
+| Same file: several alternatives (`with_max_alternatives`) | With two raced, the one that connects carries the request, with an `Alt-Used` naming it under a profile that sends one, and a blackholed one is broken at its limit (`two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used`); one that fails its handshake is broken and not raced again (`a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_raced_again`); the origin wins over two blackholed ones and both are broken (`origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken`); with one H3 admission the waiting second is cancelled unmarked and dialed by a later race (`an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked`); build rejects more than three |
 
 How to reproduce: `scripts/capture/alt_svc_race.py --browser chrome --repeat
 10`, and `--scenario broken-backoff --repeat 2`.
@@ -4327,24 +4327,61 @@ learning from the ordered response fields; an H2 first response followed by
 H3; retention of the original authority, SNI, and certificate identity; and
 selected-protocol metadata.
 
-The managed H3 attempt carries one automatically generated `Alt-Used` value
-with the canonical alternative host and explicit port. Regressions prove that
-exact H3 requests to the origin and the tested negotiated H2 origin request
-do not receive the field. A request-field regression proves that a caller-supplied
-`Alt-Used` is rejected before any network I/O. `Alt-Used` is also reserved in
+Whether the managed H3 attempt carries `Alt-Used` is part of the profile
+(`Http3RequestSettings::alt_used`). Chrome 154 sends none, so the Chromium
+recipe sets `Omit`. The three retained Chrome 154.0.8037.97 snapshots
+(`fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/snapshot-*.txt`)
+each send a navigation and a fetch over H3 to an alternative learned from
+`Alt-Svc: h3=":<port>"`, and neither carries the field. Chromium's source at
+tag `154.0.8037.58` agrees: no non-test file under `net/http`, `net/quic`,
+`net/spdy`, or `net/base` mentions `Alt-Used`, and
+`net/http/http_request_headers.h` lines 82-115 define no constant for it.
+The request fields are built by `HttpNetworkTransaction::BuildRequestHeaders`
+(`net/http/http_network_transaction.cc` lines 1381-1438), sent by
+`QuicHttpStream::SendRequest` (`net/quic/quic_http_stream.cc` lines 117-133),
+and converted by `CreateSpdyHeadersFromHttpRequest`
+(`net/spdy/spdy_http_utils.cc` lines 199-238), and none adds it, although
+Chrome connects to an alternative at another host or port
+(`net/http/http_stream_factory_job_controller.cc` lines 1366-1376). Firefox
+157 sends the field (`HTTP_ATOM(Alternate_Service_Used, "Alt-Used")` in
+`netwerk/protocol/http/nsHttpAtomList.inc`), and the retained Firefox H3
+snapshots and cookie captures show it, so the Firefox recipe sets `Append`.
+`crates/phantom-profile/src/chromium/http3_tests.rs` and
+`crates/phantom-profile/src/firefox/tests.rs` check both recipes against
+those captures.
+
+Under `Append`, the managed H3 attempt carries one automatically generated
+`Alt-Used` value with the canonical alternative host and explicit port, after
+every other field. Under the Chromium recipe, a learned alternative receives
+only the caller's fields
+(`opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3`), and
+the Firefox request recipe adds the field last
+(`firefox_request_recipe_names_a_learned_alternative_in_alt_used_last`).
+Regressions prove that exact H3 requests to the origin and the tested
+negotiated H2 origin request do not receive the field, even under `Append`. A
+request-field regression proves that a caller-supplied `Alt-Used` is rejected
+before any network I/O under either setting. `Alt-Used` is also reserved in
 trailers, as part of the pre-I/O validation contract rather than as protocol
 coverage claimed here. This evidence verifies the field's value and scope, not
-a browser-specific position among ordinary request fields.
+Firefox's position among ordinary request fields.
 
-`tests/http3/alt_svc_pinned.rs` covers an exact H3 request to an
-alternative the caller pins, directly and through the HTTP/3 leg of a
-CONNECT-UDP proxy, with a certificate only for an origin name that is never
-resolved: the alternative receives the origin's authority and an `Alt-Used`
-naming it, and the proxy is asked for the alternative. A same-origin
-redirect stays on the alternative, a redirect to another origin leaves it, a
-refused alternative returns the H3 error without the HTTP/2 fallback, a
-pinned response's `Alt-Svc` leaves the store empty, and invalid input fails
-before the proxy sees a connection.
+`tests/http3/alt_svc_pinned.rs` covers an exact H3 request to an alternative
+the caller pins, directly and through the HTTP/3 leg of a CONNECT-UDP proxy,
+with a certificate only for an origin name that is never resolved: the
+alternative receives the origin's authority, an `Alt-Used` naming it under a
+profile that sends one and none under the Chromium recipe, and the proxy is
+asked for the alternative. A same-origin redirect stays on the alternative, a
+redirect to another origin leaves it, a refused alternative returns the H3
+error without the HTTP/2 fallback, a pinned response's `Alt-Svc` leaves the
+store empty, and invalid input fails before the proxy sees a connection.
+
+`tests/http3/http3_upgrade_socks5.rs` covers the upgrade on a SOCKS5 route,
+with local and remote DNS and with RFC 1929 credentials: both legs go through
+one proxy, and the alternative receives the origin's authority and SNI, with
+an `Alt-Used` naming it under a profile that sends one and none under the
+Chromium recipe. On an HTTP proxy route an advertisement is not learned
+(`alt_svc_advertisement_on_a_proxy_tunnel_is_not_learned`, in
+`tests/proxies/negotiated_proxy.rs`).
 
 Parser regressions cover ordered duplicate fields, canonical host forms,
 default and explicit `ma`, `Age` subtraction and expiry, replacement, `clear`,
@@ -4402,10 +4439,19 @@ Alt-Svc upgrade, as they carry exact H3.
 
 Limits:
 
-- Not covered: browser `Alt-Used` ordering, upgrades on proxy routes,
-  snapshots on proxy routes, and racing among multiple alternatives. Racing
-  between one alternative and the origin has its own
-  [evidence](#alt-svc-racing-evidence).
+- Firefox sends `Alt-Used` after `accept-encoding` or `referer`; Phantom
+  appends it last. In each Firefox snapshot the first H3 request, a
+  navigation, carries no `Alt-Used` while the fetch after it does; Phantom
+  sends the field on every request to an alternative.
+- The Chrome snapshots show only a same-host, same-port `h3=":<port>"`
+  alternative, so the omission at another host or port rests on Chromium
+  source alone. No Edge, Brave, Opera, or Android capture reaches H3 through
+  Alt-Svc (the Edge, Brave, and Opera `crumbs-h3` captures force QUIC with
+  `--origin-to-force-quic-on`), so `Omit` for those recipes is inherited from
+  the shared Chromium network stack.
+- Not covered: a browser capture of an upgrade on any proxy route, and a
+  raced upgrade that succeeds over SOCKS5. Racing one alternative or several
+  against the origin has its own [evidence](#alt-svc-racing-evidence).
 
 ### HTTPS DNS record evidence
 
@@ -4417,7 +4463,8 @@ whose profile leaves `ech_from_https_records` unset.
 Evidence: `crates/phantom/tests/http3/https_records.rs` runs a loopback DNS server
 from `phantom-testkit` beside a loopback H2 origin and H3 endpoint on the
 same port. It proves that a sequential client sends the first request to the
-origin and a later one over H3 without `Alt-Used`; that a lookup delayed by
+origin and a later one over H3 without `Alt-Used`, under a profile that
+sends it to an alternative; that a lookup delayed by
 4.5 seconds delays neither a sequential nor a racing request, and its answer
 still reaches the cache; that a failed lookup leaves requests on the origin;
 that a `421` over H3 marks the location broken; that proxy routes send no
@@ -6282,7 +6329,7 @@ Limits:
 - CONNECT-UDP routes have their own loopback evidence against an h3 test
   proxy. No independent MASQUE implementation or browser capture backs them
   yet.
-- Alt-Svc upgrade has separate, direct-route
+- Alt-Svc upgrade, direct and over SOCKS5, has separate
   [evidence](#alt-svc-http3-upgrade-evidence).
 
 ### Connection-retry evidence

@@ -155,9 +155,9 @@ pub(super) async fn send_once_alt_svc(
 /// Every candidate keeps the request's origin identity and route. One H3
 /// list per alternative, and the H1 and H2 lists, are built and checked
 /// once, before any candidate performs I/O, unless `fields` already holds
-/// them; the winner sends its lists without building them again, so
-/// `Alt-Used` names the alternative that won. The request body is prepared
-/// only for the winner.
+/// them; the winner sends its lists without building them again, so an
+/// `Alt-Used` field, under a profile that sends one, names the alternative
+/// that won. The request body is prepared only for the winner.
 ///
 /// With a pending HTTPS-record `lookup`, the origin does not wait at all and
 /// setup of the one alternative begins only once the lookup advertises `h3`;

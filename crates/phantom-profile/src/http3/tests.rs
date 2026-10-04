@@ -1,7 +1,8 @@
 use super::{
-    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
-    Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
+    Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+    Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
+    Http3Setting, Http3SettingOrder, Http3Settings, InvalidHttp3RequestSettings,
+    InvalidHttp3Settings,
 };
 
 fn settings() -> Http3Settings {
@@ -32,6 +33,7 @@ fn request_settings() -> Http3RequestSettings {
         ],
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: Http3CookieCrumbs::Whole,
+        alt_used: Http3AltUsed::Omit,
     }
 }
 

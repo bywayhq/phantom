@@ -392,9 +392,12 @@ impl RequestBuilder {
     /// Sends this exact HTTP/3 request to the alternative service at `host`
     /// and `port`, as a request to an alternative learned from `Alt-Svc`
     /// goes (RFC 7838): QUIC connects to that location over the request's
-    /// route, the request keeps the origin's authority, TLS server name, and
-    /// certificate check, and an `Alt-Used` field naming the alternative
-    /// follows its template, caller, and cookie fields.
+    /// route, and the request keeps the origin's authority, TLS server name,
+    /// and certificate check. Under a profile whose
+    /// [`Http3RequestSettings::alt_used`](crate::profile::Http3RequestSettings::alt_used)
+    /// is `Append`, such as the Firefox 157 recipe, an `Alt-Used` field naming
+    /// the alternative follows the template, caller, and cookie fields; the
+    /// Chromium-family recipes send none, as Chrome 154 does not.
     ///
     /// This needs no Alt-Svc store and no TLS connection to learn from, so it
     /// also reaches an alternative through a CONNECT-UDP proxy. Setup retries

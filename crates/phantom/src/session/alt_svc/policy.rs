@@ -186,7 +186,8 @@ impl AltSvcRace {
     /// that no browser shows on the wire: it starts QUIC setup to up to that
     /// many alternatives together, distinct and not broken, in field order,
     /// and sends the request on whichever finishes setup first, with an
-    /// `Alt-Used` field that names it. The origin still waits for
+    /// `Alt-Used` field that names it under a profile that sends one, such as
+    /// the Firefox 157 recipe. The origin still waits for
     /// `origin_delay`, and starts early only when every raced alternative has
     /// failed. An alternative that fails while another one wins is marked
     /// broken once the winner's handshake has completed, and one still

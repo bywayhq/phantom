@@ -3,6 +3,7 @@ use crate::http2::{
     Http2HpackSettings, Http2Priority, Http2PseudoHeader, Http2Setting, Http2Settings,
     Http2StreamSettings, session_capture::SessionCapture,
 };
+use crate::http3::Http3AltUsed;
 use crate::tls::{
     CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
     EchGreaseAead, EchGreasePayloadLength, NamedGroup, SignatureScheme, TlsVersion,
@@ -287,6 +288,21 @@ fn firefox_157_http3_tls_keeps_the_quic_tail_and_tcp_extensions() {
             maximum_name_length: 100
         }
     );
+}
+
+const V157_ALT_SVC_SNAPSHOT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../fixtures/http3/firefox/157.0/windows-11-26200/snapshot-1.txt"
+));
+
+#[test]
+fn requests_to_an_alternative_append_alt_used() {
+    assert_eq!(v157_http3_request().alt_used, Http3AltUsed::Append);
+    // The fetch Firefox 157 sent over HTTP/3 to the learned alternative.
+    assert!(V157_ALT_SVC_SNAPSHOT.lines().any(|line| {
+        line.strip_prefix("request_3_field_order=")
+            .is_some_and(|order| order.split(',').any(|name| name == "alt-used"))
+    }));
 }
 
 #[test]

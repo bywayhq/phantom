@@ -42,9 +42,11 @@ each advertisement by origin and [route](#route). See
 ## Alt-Used
 
 A request field naming the [Alt-Svc](#alt-svc) alternative a request uses.
-Phantom adds it only on H3 attempts it makes through the Alt-Svc store or to
-an alternative the caller pins, and rejects a caller-supplied `Alt-Used`
-before any I/O.
+Phantom adds it only when the profile's `Http3RequestSettings::alt_used` is
+`Append`, as in the Firefox 157 recipe, and only on H3 attempts it makes
+through the Alt-Svc store or to an alternative the caller pins. The Chromium
+recipes never send it, as Chrome 154 does not. Phantom rejects a
+caller-supplied `Alt-Used` before any I/O.
 
 ## Browser source
 

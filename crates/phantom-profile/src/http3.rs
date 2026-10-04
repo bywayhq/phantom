@@ -265,6 +265,29 @@ pub enum Http3CookieCrumbs {
     Split,
 }
 
+/// Whether an HTTP/3 request sent to an alternative service carries
+/// `Alt-Used`.
+///
+/// RFC 7838 section 5 asks a client (SHOULD) to name the alternative service
+/// it uses in an `Alt-Used` field; Chrome 154 does not. The rule applies to
+/// every HTTP/3 request sent to an alternative, whether learned from
+/// `Alt-Svc` or pinned by the caller. An exact HTTP/3 request to the origin,
+/// and one sent to the origin's own host and port because an HTTPS record
+/// lists `h3`, never carry the field. The client generates its value; a
+/// caller-supplied `Alt-Used` field or trailer is rejected under either
+/// setting.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http3AltUsed {
+    /// Send no `Alt-Used` field.
+    Omit,
+    /// Append one `Alt-Used` field after every other request field.
+    ///
+    /// Its value is the alternative's host and port, with an IPv6 literal in
+    /// brackets and the port present even when it is 443.
+    Append,
+}
+
 /// Ordered HTTP/3 request construction independent of the concrete backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Http3RequestSettings {
@@ -279,6 +302,8 @@ pub struct Http3RequestSettings {
     pub extended_connect_pseudo_header_order: Option<Vec<Http3PseudoHeader>>,
     /// How each `cookie` field is split.
     pub cookie_crumbs: Http3CookieCrumbs,
+    /// Whether a request to an alternative service carries `Alt-Used`.
+    pub alt_used: Http3AltUsed,
 }
 
 impl Http3RequestSettings {

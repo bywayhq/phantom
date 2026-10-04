@@ -1,14 +1,14 @@
 //! The field lists a negotiated request builds and checks before any I/O.
 //!
-//! A list is built from the request template, the caller's fields, the
-//! cookie jar, the client hints known before a connection is chosen, and, on
-//! HTTP/3 to an alternative, `Alt-Used`; it is checked with the request's
-//! method, target, trailers, and body. Each list is built and checked once.
-//! The attempt that wins a race sends it as built, and so does every attempt
-//! that repeats a request the server did not answer: a graceful `GOAWAY`
-//! retry, a restart after rejected early data, a reused-connection replay, an
-//! unprocessed-request replay, a PING-failure resend, and a race started
-//! again after a failed early-data handshake.
+//! A list is built from the request template, the caller's fields, the cookie
+//! jar, the client hints known before a connection is chosen, and, on HTTP/3
+//! to an alternative under a profile that sends it, `Alt-Used`; it is checked
+//! with the request's method, target, trailers, and body. Each list is built
+//! and checked once. The attempt that wins a race sends it as built, and so
+//! does every attempt that repeats a request the server did not answer: a
+//! graceful `GOAWAY` retry, a restart after rejected early data, a
+//! reused-connection replay, an unprocessed-request replay, a PING-failure
+//! resend, and a race started again after a failed early-data handshake.
 //!
 //! An attempt that follows a response builds and checks the lists again. The
 //! response may have stored cookies or requested client hints, and a
@@ -39,7 +39,7 @@ use crate::{
 #[derive(Clone)]
 pub(super) struct RacedFields {
     /// One HTTP/3 list per raced alternative, in race order, each naming its
-    /// own alternative in `Alt-Used`.
+    /// own alternative in `Alt-Used` when the profile sends it.
     pub(super) http3: Box<[Http3Fields]>,
     pub(super) negotiated: NegotiatedFields,
 }
@@ -72,7 +72,7 @@ pub(super) fn raced(
         client_hints: attempt_client_hints(client, request, hint_origin.as_deref(), &no_restart),
         body,
     };
-    // The alternatives differ only in `Alt-Used`, so the list is built once.
+    // The alternatives differ at most in `Alt-Used`; the list is built once.
     let headers = attempt_headers(client, request, HttpProtocol::Http3, fields.headers);
     let http3 = alternatives
         .iter()
@@ -125,7 +125,7 @@ pub(super) fn negotiated(
 }
 
 /// Builds and checks the HTTP/3 list of a request to an Alt-Svc alternative,
-/// with the alternative's `Alt-Used` field last.
+/// with the alternative's `Alt-Used` field last when the profile sends it.
 pub(super) fn alternative_fields(
     client: &Client,
     request: &ResolvedRequest,
@@ -138,7 +138,7 @@ pub(super) fn alternative_fields(
 }
 
 /// Appends the alternative's `Alt-Used` field to the HTTP/3 `headers` built
-/// for this attempt, and checks the list.
+/// for this attempt, when the profile sends it, and checks the list.
 fn checked_alternative_fields(
     client: &Client,
     request: &ResolvedRequest,
@@ -152,7 +152,9 @@ fn checked_alternative_fields(
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    if let Some(alt_used) = alternative.alt_used() {
+    if connector.sends_alt_used()
+        && let Some(alt_used) = alternative.alt_used()
+    {
         headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
     }
     #[cfg(test)]

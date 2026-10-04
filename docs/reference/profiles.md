@@ -534,6 +534,27 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
   `chromium::v154_http3_request`, so they send crumbs as Chrome does, as
   their cookie captures show.
 
+### Alt-Used on HTTP/3
+
+`Http3RequestSettings::alt_used` decides whether an HTTP/3 request sent to an
+alternative service, one learned from `Alt-Svc` or pinned with
+`RequestBuilder::alt_svc_alternative`, carries an
+[`Alt-Used`](glossary.md#alt-used) field with the alternative's host and
+explicit port.
+
+| Recipe | `alt_used` | Evidence |
+| --- | --- | --- |
+| `chromium::v154_http3_request`, used by every Chromium-family recipe | `Omit` | Chrome 154 snapshots over H3 to a learned alternative, and Chromium 154 source |
+| `firefox::v157_http3_request` | `Append`: one field after every other field | Firefox 157 snapshots and cookie captures, and Firefox source |
+
+- An exact H3 request to the origin, and one that an HTTPS record sends over
+  H3 to the origin's own host and port, never carry the field.
+- A caller-supplied `Alt-Used` field or trailer fails before any I/O under
+  either setting.
+- Firefox places the field elsewhere in the list; see
+  [Template limits](#template-limits).
+- See [Alt-Svc upgrade evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence).
+
 ### Client hints in templates
 
 A template sends only the hints the profile would send anyway: the default

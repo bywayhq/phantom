@@ -37,8 +37,8 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 - Chrome races only the first alternative that is not broken, and so does
   the default. `AltSvcRace::with_max_alternatives` races up to three at
   once, in field order and skipping broken ones; the request goes to the
-  first to connect, with an [`Alt-Used`](../reference/glossary.md#alt-used)
-  field that names it. Each setup needs its own H3 admission, so with
+  first to connect, named in [`Alt-Used`](../reference/glossary.md#alt-used)
+  if the profile sends it. Each setup needs its own H3 admission, so with
   `max_concurrent_http3_requests_per_origin` at 1 the later ones wait and
   are cancelled when another candidate wins.
 - The request is sent once, on the winner, and `ResponseInfo` reports the

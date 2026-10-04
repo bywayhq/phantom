@@ -1,6 +1,7 @@
 use crate::{
-    Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
-    Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
+    Http3AltUsed, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
+    Http3SettingOrder, Http3Settings,
 };
 
 use super::{v154_http3, v154_http3_request};
@@ -368,6 +369,64 @@ fn named_http3_recipes_leave_extended_connect_order_unset() {
         v154_http3_request().extended_connect_pseudo_header_order,
         None
     );
+}
+
+/// Snapshot runs in which Chrome 154 learned `h3=":<port>"` from Alt-Svc and
+/// sent the next navigation and its fetch over HTTP/3 to that alternative.
+const CHROME_154_ALT_SVC_SNAPSHOTS: [&str; 3] = [
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/snapshot-1.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/snapshot-2.txt"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/snapshot-3.txt"
+    )),
+];
+
+/// Returns the field order of every HTTP/3 request in a snapshot.
+fn snapshot_http3_field_orders(snapshot: &str) -> Vec<&str> {
+    snapshot
+        .lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            value.starts_with("protocol:h3,").then_some(key)
+        })
+        .map(|key| {
+            let prefix = format!("{key}_field_order=");
+            snapshot
+                .lines()
+                .find_map(|line| line.strip_prefix(prefix.as_str()))
+                .unwrap_or_else(|| panic!("snapshot lacks {prefix}"))
+        })
+        .collect()
+}
+
+#[test]
+fn chromium_family_requests_to_an_alternative_omit_alt_used() {
+    assert_eq!(v154_http3_request().alt_used, Http3AltUsed::Omit);
+    for request in [
+        crate::chrome_android::v154_http3_request(),
+        crate::edge_android::v153_http3_request(),
+        crate::brave_android::v153_http3_request(),
+    ] {
+        assert_eq!(request.alt_used, Http3AltUsed::Omit);
+    }
+
+    for snapshot in CHROME_154_ALT_SVC_SNAPSHOTS {
+        let orders = snapshot_http3_field_orders(snapshot);
+        assert_eq!(orders.len(), 2, "a navigation and its fetch over HTTP/3");
+        for order in orders {
+            assert!(
+                order.split(',').all(|name| name != "alt-used"),
+                "Chrome 154 sent Alt-Used: {order}"
+            );
+        }
+    }
 }
 
 const STREAM_FIXTURES: [&str; 7] = [

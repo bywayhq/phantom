@@ -474,9 +474,10 @@ Supported requests and routes:
 - RFC 9298 [CONNECT-UDP](glossary.md#connect-udp) proxies (see
   [Routes](#routes)).
 - Opt-in, bounded [Alt-Svc](glossary.md#alt-svc) upgrade from negotiated HTTPS
-  on a direct or SOCKS5 route. Phantom adds a canonical `Alt-Used` field with
-  an explicit port and keeps the origin authority, SNI, and authentication
-  identity. The alternative is dialed over the route that learned it.
+  on a direct or SOCKS5 route. Phantom keeps the origin authority, SNI, and
+  authentication identity, and adds a canonical `Alt-Used` field with an
+  explicit port only under a profile that sends it, such as Firefox 157's;
+  Chrome 154 sends none. The alternative is dialed over the route that learned it.
 - Opt-in H3 discovery from [HTTPS DNS records](glossary.md#https-record)
   (RFC 9460) on the direct route,
   for an origin with no stored Alt-Svc alternative. A ServiceMode record
@@ -553,9 +554,9 @@ Supported lifecycle:
     alternative fails or a reusable pooled H2 connection exists.
   - One alternative is raced, as in Chromium 154. A caller can race up to
     three at once (`AltSvcRace::with_max_alternatives`), which no browser
-    does; the request carries an `Alt-Used` field naming the winner, and a
-    failed alternative is marked broken once the winner's handshake
-    completes, or when it fails if it was still connecting then.
+    does; under a profile that sends `Alt-Used`, the field names the
+    winner, and a failed alternative is marked broken once the winner's
+    handshake completes, or when it fails if it was still connecting then.
   - The request is dispatched once, on the winner.
   - Alternative setup is limited to 4 seconds.
   - A losing alternative keeps connecting in the background and is then
@@ -573,8 +574,8 @@ Supported lifecycle:
   See [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).
 - An exact H3 request to a caller-pinned alternative
   (`RequestBuilder::alt_svc_alternative`), directly or through the HTTP/3 leg
-  of a CONNECT-UDP proxy, with the origin's authority and TLS name and an
-  `Alt-Used` field
+  of a CONNECT-UDP proxy, with the origin's authority and TLS name, and an
+  `Alt-Used` field under a profile that sends it
   ([evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)).
 - RFC 9220 extended CONNECT for the WebSocket protocol, which
   `phantom-http` opens for an exact H3 WebSocket. It is gated on peer
@@ -679,7 +680,7 @@ Supported:
   - H3 connection slots per location, so exact H3 and Alt-Svc H3 do not
     replace each other;
   - an automatic `Alt-Used` field, scoped to the request and sent only on
-    managed H3 attempts; and
+    managed H3 attempts under a profile that sends it; and
   - export and import of direct-route snapshots by the caller (canonical
     origin, location, and expiry in whole seconds; revalidated on import and
     never extended). A snapshot carries no route, so export omits proxy-route

@@ -1034,13 +1034,16 @@ async fn dispatch_attempt(
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
             let mut request_headers = request_headers;
             // A pinned alternative is reached as a learned one is, with its
-            // `Alt-Used` field after every other field.
+            // `Alt-Used` field after every other field when the profile sends
+            // it.
             let transport = match &request.alternative {
                 Some(alternative) => {
-                    request_headers.push(RequestHeader::new(
-                        "alt-used",
-                        alternative.alt_used().as_bytes(),
-                    ));
+                    if connector.sends_alt_used() {
+                        request_headers.push(RequestHeader::new(
+                            "alt-used",
+                            alternative.alt_used().as_bytes(),
+                        ));
+                    }
                     Http3TransportTarget::new(alternative.host(), alternative.port())
                 }
                 None => Http3TransportTarget::for_origin(endpoint),

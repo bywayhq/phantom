@@ -3,8 +3,8 @@ use std::{net::SocketAddr, sync::Arc};
 use bytes::Bytes;
 use http::Request;
 use phantom::profile::{
-    CipherSuite, ClientHelloExtensionOrder, Http3ClientSettings, NamedGroup, SignatureScheme,
-    TlsSettings, TlsVersion, chromium,
+    CipherSuite, ClientHelloExtensionOrder, Http3AltUsed, Http3ClientSettings, NamedGroup,
+    SignatureScheme, TlsSettings, TlsVersion, chromium,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
@@ -16,6 +16,20 @@ pub(crate) fn client_settings() -> Http3ClientSettings {
         chromium::v154_quic(),
         chromium::v154_http3(),
         chromium::v154_http3_request(),
+    )
+}
+
+/// Returns `settings` with a request profile that appends `Alt-Used` to a
+/// request sent to an alternative service, as the Firefox 157 recipe does
+/// and the Chromium recipe of [`client_settings`] does not.
+pub(crate) fn appending_alt_used(settings: Http3ClientSettings) -> Http3ClientSettings {
+    let mut request = settings.request().clone();
+    request.alt_used = Http3AltUsed::Append;
+    Http3ClientSettings::new(
+        settings.tls().clone(),
+        settings.quic_transport().clone(),
+        settings.http3().clone(),
+        request,
     )
 }
 

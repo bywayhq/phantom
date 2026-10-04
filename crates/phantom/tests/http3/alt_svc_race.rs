@@ -27,11 +27,11 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
     HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader, RequestTimeouts,
     ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, Http3ClientSettings, chromium},
 };
 use tokio::{net::TcpListener, task::JoinHandle, time::timeout};
 
-use h3_support::client_settings;
+use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, PlannedResponse, UpgradeScript,
 };
@@ -162,6 +162,9 @@ async fn race_dispatches_request_on_exactly_one_connection() -> TestResult<()> {
             .filter_map(|request| request.path_and_query.as_deref())
             .collect();
         assert_eq!(paths, ["/pooled"]);
+        // `client_builder` uses the Chromium recipe, which sends no `Alt-Used`
+        // to an alternative that won a race.
+        assert!(field_values(&observed.alternative_requests[0], "alt-used").is_empty());
         Ok(())
     })
     .await
@@ -528,8 +531,9 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
 }
 
 /// A caller cap of two races both listed alternatives at once: the request
-/// goes to the one that answers, with an `Alt-Used` field that names it,
-/// and the blackholed one is marked broken once its setup limit ends it.
+/// goes to the one that answers, with an `Alt-Used` field that names it
+/// under a profile that sends one, and the blackholed one is marked broken
+/// once its setup limit ends it.
 #[tokio::test]
 async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used()
 -> TestResult<()> {
@@ -550,7 +554,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         let blackhole = Blackhole::bind().await?;
         let limit = Duration::from_millis(300);
         // A long origin delay leaves the alternatives to decide the race.
-        let client = client_builder(&identity)?
+        let client = client_builder_with(&identity, appending_alt_used(client_settings()))?
             .alt_svc_policy(capped_race(Duration::from_secs(30), limit, 2)?)
             .build()?;
         let serving = fixture.alternative_address().port();
@@ -1352,14 +1356,26 @@ fn identity() -> TestResult<TestIdentity> {
 }
 
 fn profile() -> ClientProfile {
+    profile_with(client_settings())
+}
+
+fn profile_with(http3: Http3ClientSettings) -> ClientProfile {
     ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_http3(client_settings())
+        .with_http3(http3)
 }
 
 fn client_builder(identity: &TestIdentity) -> TestResult<phantom::ClientBuilder> {
+    client_builder_with(identity, client_settings())
+}
+
+/// An Alt-Svc client builder whose HTTP/3 profile is `http3`.
+fn client_builder_with(
+    identity: &TestIdentity,
+    http3: Http3ClientSettings,
+) -> TestResult<phantom::ClientBuilder> {
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
-    Ok(Client::builder(profile())
+    Ok(Client::builder(profile_with(http3))
         .add_root_certificate_der(identity.root_der.clone())
         .alt_svc(maximum_origins))
 }

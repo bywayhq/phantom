@@ -182,9 +182,9 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
   request's canonical origin exactly, and on the request's own stream. Other
   frames are ignored; the per-connection cap is in
   [Defaults and limits](../reference/limits.md#protocol-state).
-- A request sent to an alternative carries one `Alt-Used` field, which
-  Phantom manages; a caller-supplied `Alt-Used` field or trailer is rejected
-  before network I/O. Phantom makes no browser claim about its position.
+- Firefox's [`Http3RequestSettings::alt_used`](../reference/profiles.md#alt-used-on-http3)
+  appends `Alt-Used` last to each request to an alternative; Chromium's sends
+  none. A caller-supplied `Alt-Used` field or trailer fails before any I/O.
 - One H3 connection per origin, route, and transport location, as browsers
   keep. `ClientBuilder::max_http3_connections_per_origin` allows more when
   the server's stream limit is the bottleneck; see

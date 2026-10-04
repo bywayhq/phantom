@@ -21,7 +21,7 @@ use http::StatusCode;
 use http_body_util::BodyExt;
 use phantom::{
     Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, ResponseInfo, Route, Socks5Proxy,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, Http3AltUsed, chromium},
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
@@ -30,7 +30,7 @@ use tokio::{
     time::timeout,
 };
 
-use h3_support::client_settings;
+use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
     AltSvcAdvertisement, AlternativeBehavior, Http3UpgradeFixture, ObservedRequest,
     PlannedResponse, UpgradeScript,
@@ -45,14 +45,14 @@ const ORIGIN_NAME: &str = "127.0.0.1";
 
 #[tokio::test]
 async fn local_dns_socks5_request_upgrades_to_http3_through_the_same_proxy() -> TestResult<()> {
-    upgrades_through_one_proxy(Socks5Dns::Local, ProxyAuth::None).await
+    upgrades_through_one_proxy(Socks5Dns::Local, ProxyAuth::None, Http3AltUsed::Append).await
 }
 
 /// With `socks5h://` the proxy resolves the origin name, so the CONNECT leg
 /// carries a DOMAIN target and no local lookup happens.
 #[tokio::test]
 async fn remote_dns_socks5_request_upgrades_to_http3_through_the_same_proxy() -> TestResult<()> {
-    upgrades_through_one_proxy(Socks5Dns::Remote, ProxyAuth::None).await
+    upgrades_through_one_proxy(Socks5Dns::Remote, ProxyAuth::None, Http3AltUsed::Append).await
 }
 
 /// RFC 1929 credentials authenticate both legs: the CONNECT tunnel that learns
@@ -65,11 +65,23 @@ async fn authenticated_socks5_request_upgrades_to_http3_through_the_same_proxy()
             username: PROXY_USERNAME,
             password: PROXY_PASSWORD,
         },
+        Http3AltUsed::Append,
     )
     .await
 }
 
-async fn upgrades_through_one_proxy(dns: Socks5Dns, auth: ProxyAuth) -> TestResult<()> {
+/// The Chromium recipe sends no `Alt-Used` to an alternative reached through
+/// the proxy, as Chrome 154 sends none to any alternative.
+#[tokio::test]
+async fn chromium_recipe_upgrades_through_socks5_without_alt_used() -> TestResult<()> {
+    upgrades_through_one_proxy(Socks5Dns::Local, ProxyAuth::None, Http3AltUsed::Omit).await
+}
+
+async fn upgrades_through_one_proxy(
+    dns: Socks5Dns,
+    auth: ProxyAuth,
+    alt_used: Http3AltUsed,
+) -> TestResult<()> {
     bounded(async move {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
@@ -97,7 +109,7 @@ async fn upgrades_through_one_proxy(dns: Socks5Dns, auth: ProxyAuth) -> TestResu
             auth,
         )
         .await?;
-        let client = upgrade_client(&identity)?;
+        let client = upgrade_client(&identity, alt_used)?;
 
         let first = client
             .get_negotiated(&fixture.origin_url("/learn"))?
@@ -131,10 +143,15 @@ async fn upgrades_through_one_proxy(dns: Socks5Dns, auth: ProxyAuth) -> TestResu
             observed.alternative_requests[0].server_name.as_deref(),
             Some("localhost")
         );
+        let expected_alt_used: Vec<&[u8]> = if alt_used == Http3AltUsed::Append {
+            vec![alternative_authority.as_bytes()]
+        } else {
+            Vec::new()
+        };
         assert_eq!(
             header_values(&observed.alternative_requests[0], "alt-used"),
-            [alternative_authority.as_bytes()],
-            "the managed attempt carries one canonical explicit-port Alt-Used"
+            expected_alt_used,
+            "an appending profile sends one canonical explicit-port Alt-Used; Omit sends none"
         );
         assert!(header_values(&observed.origin_requests[0], "alt-used").is_empty());
 
@@ -196,7 +213,7 @@ async fn upgrades_through_one_proxy(dns: Socks5Dns, auth: ProxyAuth) -> TestResu
 async fn negotiated_request_is_refused_on_a_route_without_origin_tls() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let client = upgrade_client(&identity)?;
+        let client = upgrade_client(&identity, Http3AltUsed::Append)?;
 
         // A CONNECT-UDP proxy carries only QUIC, so there is no TLS stream for
         // ALPN to select a protocol on. The request is refused before any
@@ -436,10 +453,18 @@ async fn read_credential(stream: &mut TcpStream) -> TestResult<String> {
     Ok(String::from_utf8(value)?)
 }
 
-fn upgrade_client(identity: &TestIdentity) -> TestResult<Client> {
+/// An Alt-Svc client on the Chromium recipe, with `Alt-Used` appended to a
+/// request to an alternative when `alt_used` is `Append`, so the field is
+/// checked on the proxied alternative too.
+fn upgrade_client(identity: &TestIdentity, alt_used: Http3AltUsed) -> TestResult<Client> {
+    let http3 = if alt_used == Http3AltUsed::Append {
+        appending_alt_used(client_settings())
+    } else {
+        client_settings()
+    };
     let profile = ClientProfile::new(tls_settings())
         .with_http2(chromium::v154_http2())
-        .with_http3(client_settings());
+        .with_http3(http3);
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
