@@ -22,27 +22,32 @@ Counts in the later phases come from a read-only review of `main` at
   retained captures and browser source, with request templates and client hints
   ([Browser profiles](guides/profiles.md),
   [Request templates and client hints](guides/request-templates.md)).
-- Chrome 154, Edge 153, Brave 153, Opera 102, and Firefox 156 for Android
-  recipes from Android emulator captures
+- Chrome 154, Edge 153, and Brave 153 for Android recipes, Opera 102 for
+  Android TLS and client-hint recipes, and a Firefox 156 for Android TLS
+  recipe, from Android emulator captures
   ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes),
-  [Edge for Android 153 recipes](explanation/validation.md#edge-for-android-153-recipes)).
+  [Edge for Android 153 recipes](explanation/validation.md#edge-for-android-153-recipes),
+  [Brave for Android 153 recipes](explanation/validation.md#brave-for-android-153-recipes),
+  [Opera for Android 102 recipes](explanation/validation.md#opera-for-android-102-recipes),
+  [Firefox for Android 156 recipe](explanation/validation.md#firefox-for-android-156-recipe)).
 - TCP options, the HTTP/1.1 connection bound, and the address cache of the
   Chromium recipes for Brave 154, from a `brave-core` source reading, and for
   Edge 154 and Opera 136, from Frida hook logs that match Chrome 154's
-  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
+  ([Brave source reading](explanation/validation.md#brave-154-and-opera-136-recipes),
+  [Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
 - Exact and negotiated HTTP/1.1 and HTTP/2, ordered fields, streaming bodies,
   and ordered static or body-produced trailers ([Using the client](guides/client.md)).
 - Bounded response collection and opt-in decompression
   ([Responses and errors](guides/responses.md),
   [Content decoding](guides/content-decoding.md)).
 - Exact HTTP/3 with QUIC session resumption and early data in the Chrome,
-  Edge, Brave, and Opera recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
+  Edge, Brave, Opera, and Firefox recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
 - Chrome's QPACK stream order in the Chrome, Edge, Brave, and Opera HTTP/3
   recipes: the encoder stream is client stream 10, and its type is written
   with its first instructions
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
-- Requests sent again on the same connection after a server rejects early
-  data, as the Chrome 154 and Edge 154 captures show
+- HTTP/3 requests sent again on the same QUIC connection after a server
+  rejects early data, as the Chrome 154 and Edge 154 captures show
   ([QUIC resumption evidence](explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
@@ -61,7 +66,7 @@ Counts in the later phases come from a read-only review of `main` at
   ([Firefox ECH GREASE payload](explanation/validation.md#firefox-ech-grease-payload-evidence)).
 - Chromium's resend of a request whose HTTP/2 session ended with
   `ERR_HTTP2_PING_FAILED`: at once on another connection, up to twice per
-  redirect hop, whatever the method
+  redirect hop, whatever the method, unless the body cannot be sent again
   ([HTTP/2 preface PING evidence](explanation/validation.md#http2-preface-ping-evidence)).
 - Early data over TCP in the Firefox recipe: a resumed direct connection
   offers `early_data` where Firefox 157 does, sends replay-safe requests in
@@ -75,13 +80,15 @@ Counts in the later phases come from a read-only review of `main` at
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the
-  origin, with the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes
-  ([Real ECH evidence](explanation/validation.md#real-ech-evidence),
+  origin, with the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes,
+  Edge's from an Edge 153 capture, whose ClientHellos equal Edge 154's
+  ([Edge 154 recipes](explanation/validation.md#edge-154-recipes),
+  [Real ECH evidence](explanation/validation.md#real-ech-evidence),
   [over QUIC](explanation/validation.md#real-ech-over-quic-evidence)).
 - A TLS shutdown without `close_notify` in the Chromium-family recipes and
-  with it in the Firefox recipe, through `TlsSettings::close_notify`, as the
-  Chrome 154 and Firefox 157 captures of aborted responses, failed PINGs,
-  and browser exit show
+  with it in the Firefox recipe, through `TlsSettings::close_notify`, as
+  Chrome 154 captures of aborted responses, a failed PING, and browser exit,
+  and Firefox 157 captures of an aborted response and browser exit, show
   ([TLS close evidence](explanation/validation.md#tls-close-evidence)).
 - HTTP proxies with CONNECT and forwarding over HTTP/1.1 or HTTP/2, and
   remembered Basic proxy credentials ([Routes and proxies](guides/routes-and-proxies.md)).
@@ -123,16 +130,20 @@ Counts in the later phases come from a read-only review of `main` at
   finished with its TLS handshake, claimable by a request, and closed once
   the first connection selects HTTP/2; and the
   address family of an origin, which later connections try alone until a
-  prune of the idle timer finds the origin without a connection, as five
-  Firefox 157 runs show
-  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence)).
+  prune of the idle timer finds the origin without a connection. Five
+  Firefox 157 runs show the backup timing, the kept connection, and the
+  remembered family; the TLS handshake and the HTTP/2 close follow Firefox
+  source
+  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence),
+  [TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
 - The address cache, host-to-address overrides, and a caller-supplied
   address resolver ([Resolve host names](guides/name-resolution.md)).
 - Redirects, the cookie jar, and cookie snapshots
   ([Redirects](guides/redirects.md), [Cookies](guides/cookies.md)).
 - Connection-setup retries, reused-connection replay, unprocessed-request
   replay, and status retries ([Retries and replays](guides/retries.md)), and
-  a buffered streaming body that a redirect or replay can send again.
+  a buffered streaming body that a redirect or replay can send again
+  ([Send a streaming body again](guides/redirects.md#send-a-streaming-body-again)).
 - An opt-in `Expect: 100-continue` with a caller-set wait, which neither
   Chrome 154 nor Firefox 157 sends on any upload
   ([Let the server answer before the body](guides/responses.md#let-the-server-answer-before-the-body)).
@@ -165,8 +176,9 @@ Counts in the later phases come from a read-only review of `main` at
 - Throughput options, each off by default
   ([Tune throughput and latency](guides/performance.md)).
 - A local source address per address family and an interface binding by
-  name, on Linux, Android, macOS, and Windows, for every TCP and QUIC
-  socket, and a client certificate, for every origin or per host and port,
+  name, on Linux, macOS, and Windows, and on Android through the Linux code
+  path, which no CI job builds, for every TCP and QUIC socket, and a client
+  certificate, for every origin or per host and port,
   sent over TCP and QUIC when a server requests one, each off by default
   ([Send connections from a chosen local address](guides/connections-and-state.md#send-connections-from-a-chosen-local-address),
   [Present a client certificate](guides/client.md#present-a-client-certificate)).
@@ -177,7 +189,9 @@ Counts in the later phases come from a read-only review of `main` at
 - Server-sent events with Chrome and Firefox reconnects
   ([Server-sent events](guides/sse.md)).
 - WebSocket over HTTP/1.1 on direct, HTTP proxy, and SOCKS5 routes, and over
-  HTTP/2 extended CONNECT with named Chrome, Edge, and Firefox recipes
+  HTTP/2 extended CONNECT with the Chromium recipe, which serves Chrome,
+  Edge, Brave, Opera, and Chrome and Brave for Android, and the Firefox
+  recipe
   ([WebSocket](guides/websocket.md)).
 - WebSocket reuse of a pooled HTTP/2 session on HTTP proxy and SOCKS5
   routes, chosen by `WebSocketProxiedSession`: `chromium::v154_websocket`
@@ -213,7 +227,8 @@ Counts in the later phases come from a read-only review of `main` at
 - Windows TCP port randomization: `chromium::v154_tcp`, and so the Brave,
   Edge, and Opera profiles, set `SO_RANDOMIZE_PORT` on every TCP socket from
   Windows 11 22H2 (build 22621), as the Chrome 154, Edge 154, and Opera 136
-  hook logs show, through a new audited FFI module in `phantom-net`
+  hook logs show, through the audited `socket_ffi` FFI module of
+  `phantom-net`
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence),
   [Design](explanation/design.md#windows-port-randomization-audit)).
 - Windows UDP port randomization: `chromium::v154_udp`, which Brave, Edge,
@@ -221,8 +236,7 @@ Counts in the later phases come from a read-only review of `main` at
   `SO_RANDOMIZE_PORT` before the QUIC socket binds, direct, to a
   CONNECT-UDP proxy, or for a SOCKS5 UDP association, on every Windows, as
   Chromium 154 sets it on every UDP socket it connects and the three
-  browsers' hook logs show. It goes through the same FFI module, now at the
-  crate root of `phantom-net`
+  browsers' hook logs show. It goes through the same `socket_ffi` module
   ([Socket hook evidence](explanation/validation.md#socket-hook-evidence)).
 - Record TTLs in the address cache: `DnsCacheSettings::min_record_ttl`
   keeps an answer that carries a record TTL for that TTL or the minimum,
@@ -251,18 +265,25 @@ anything does.
   `encrypted_client_hello` and its `record_size_limit`,
   `extended_master_secret`, and `renegotiation_info` extensions
   ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
-  Remaining: the position of `Alt-Used`. Blocker: a template slot for a
-  field the client generates.
+  Remaining: the position of `Alt-Used`, which the captures show. Blocker:
+  none recorded; it needs a template slot for a field the client generates.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 136 and `macos` request
   templates for Chrome 154 and Firefox 157, from macOS 15.5 captures on an
-  Apple silicon Mac, with single runs of the TCP, QUIC, H2, and H3 layers
-  replayed against the Windows recipes
+  Apple silicon Mac, with one resumed TCP ClientHello per browser, three H2
+  page loads per browser, and one QUIC and H3 startup each for Chrome, Edge,
+  and Opera, replayed against the Windows recipes
   ([Validation](explanation/validation.md#macos-recipes)). Remaining: a
-  literal Chromium-family `User-Agent`, which needs a headful capture; the
-  idle-only TCP keepalive, known from Chromium source but not captured; Intel
+  literal Chromium-family `User-Agent`, which needs a headful capture; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
+- Chromium's macOS TCP keepalive as a named recipe. Evidence: on macOS
+  Chromium sets only the keepalive idle time, through `TCP_KEEPALIVE`
+  (`net/socket/tcp_socket_posix.cc:101-105` at `154.0.8037.58`), where
+  `chromium::v154_tcp` also sets the interval; a caller gets the macOS
+  behavior by setting `TcpKeepalive::interval` to `None`
+  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
+  Blocker: none recorded; a source-backed recipe.
 - Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
@@ -271,7 +292,12 @@ anything does.
   `chrome_android::v154_*`, and Play served that build to the emulator; no
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
-  The emulator hides TCP, so the Android TCP layer also needs a phone.
+- Chrome for Android's TCP socket options as a named recipe. Evidence:
+  Chromium's client sockets set `TCP_NODELAY` and, on Android, no keepalive
+  (`net/socket/tcp_socket_posix.cc:499`, `:512-516` at `154.0.8037.58`);
+  the emulator ends the guest's TCP connections, so no capture shows them
+  ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
+  Blocker: none recorded; a source-backed recipe.
 - Firefox's address selection beyond direct HTTP/1.1 and negotiated
   requests. Evidence: Firefox keeps the slower backup connection and the
   address family on every connection entry, proxies, WebSocket, and HTTP/2
@@ -281,9 +307,9 @@ anything does.
   these routes, and Phantom closes the slower attempt there, learns no
   family, and tries a failed address again
   ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
-  Blocker: the proxy, WebSocket, exact HTTP/2, and ECH connectors return one
-  connection and take no family, and the address cache records no connect
-  failures.
+  Blocker: none recorded; the work is to give the proxy, WebSocket, exact
+  HTTP/2, and ECH connectors a family and a second connection, and to
+  record connect failures in the address cache.
 
 #### Wire fidelity
 
@@ -315,27 +341,29 @@ anything does.
   and kept a 1,757-second answer
   ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence));
   `firefox::v157_dns_cache` honors a record TTL, but Phantom's system
-  lookups report none. Blocker: `DnsQuery_A` needs a new audited FFI
-  boundary; Phantom's own queries would leave from its process, not the
-  operating system's resolver as Firefox's do.
+  lookups report none. Blocker: none recorded; `DnsQuery_A` needs an
+  audited FFI boundary of its own ([Design](explanation/design.md#unsafe-code)).
+  Phantom's own queries would not stand in for it: they leave from its
+  process, not the operating system's resolver as Firefox's do.
 - Firefox's choice of ticket for a request after a WebSocket. Evidence: in
   every Firefox 157 `websocket-http1` run, the `/done` request after the
   WebSocket resumed a ticket the page's connection was issued, not one the
   WebSocket's connection was issued
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence));
   Phantom presents the newest ticket of the request pool key, which the
-  WebSocket's connection was issued. Blocker: NSS's token cache order for a
-  peer, checked against `FIREFOX_157_0_RELEASE`, and whether Firefox stores
-  the tickets of a WebSocket connection at all.
+  WebSocket's connection was issued. Blocker: none recorded; the work
+  starts with a read, at `FIREFOX_157_0_RELEASE`, of NSS's token cache order
+  for a peer and of whether Firefox stores a WebSocket connection's tickets.
 - Early data on connections that offer ECH from HTTPS records. Evidence:
   NSS offers `early_data` in both ClientHellos of a resumed ECH connection,
   and Firefox 157 disables TCP early data only on proxy connections and
   origins that failed before
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
   Blocker: no Firefox recipe offers ECH from HTTPS records, since Firefox
-  waits for the record only over DNS over HTTPS; with early data, Phantom's
-  retry after an ECH rejection would also have to move from the handshake to
-  the request.
+  waits for the record only over DNS over HTTPS, so no named recipe would
+  reach this; it waits on the DNS over HTTPS entry below. With early data,
+  Phantom's retry after an ECH rejection would also have to move from the
+  handshake to the request.
 - Firefox's close of an idle HTTP/2 connection. Evidence: Firefox 157
   stops reusing an HTTP/2 connection whose last HEADERS or DATA read is
   `network.http.http2.timeout`, 170 seconds, old
@@ -343,13 +371,22 @@ anything does.
   `FIREFOX_157_0_RELEASE`); `firefox::v157_http2` keeps it, answering its
   idle PING
   ([HTTP/2 idle PING evidence](explanation/validation.md#http2-idle-ping-evidence)).
-  Blocker: no capture shows the close or what Firefox writes for it.
+  Firefox source also shows the close: the connection manager's prune,
+  timed to the connection's remaining time, marks the session not
+  reusable, and an idle session then closes with `GOAWAY(NO_ERROR)`
+  (`netwerk/protocol/http/ConnectionEntry.cpp:486-500`,
+  `Http2Session.cpp:812-826`, `:3598-3611`), the frame Firefox 157 sent at
+  browser exit ([TLS close evidence](explanation/validation.md#tls-close-evidence)).
+  Blocker: none recorded; the work is a close timer in the HTTP/2 recipe,
+  which no capture of an idle close checks.
 - Validator slots in the Edge, Brave, Opera, and Android templates.
   Evidence: Chrome 154 and Firefox 157 place `If-None-Match` and
   `If-Modified-Since` as their default-mode `fetch` templates do
   ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)),
   and the other Chromium-family browsers share Chromium's network stack.
-  Blocker: no revalidation capture of those browsers.
+  Blocker: no revalidation capture of those browsers. Edge's and Opera's
+  network-stack source is not public, and no reading of Brave's or the
+  Android builds' source for the validators' place is recorded.
 
 #### Discovery, DNS, and ECH
 
@@ -358,9 +395,11 @@ anything does.
   (`net/quic/quic_session_pool_direct_job.cc`); Phantom looks up only the
   origin's records. Blocker: a capture of Chrome reaching such an
   alternative whose own record carries `ech`.
-- DNS over HTTPS where the captured browser uses it. Blocker: none
-  recorded; a caller can already supply an `AddressResolver` that queries
-  over HTTPS, but no recipe does.
+- DNS over HTTPS where the captured browser uses it. Blocker: no retained
+  capture shows a browser using DNS over HTTPS with its default settings;
+  the ECH captures turned it on by policy or preferences. A caller can
+  supply an `AddressResolver` and an `HttpsRecordResolver` that query over
+  HTTPS, but no recipe does.
 
 ### Proposed after Phase 1
 
@@ -379,15 +418,22 @@ the wire, capture evidence.
 
 ## Standing rules
 
-- No lock is held across an `.await` on a shared path.
+- No lock is held across an `.await` on a shared path. The known
+  exceptions, listed under the async correctness audit in
+  [Phase 3](#phase-3-hardening), are to be removed.
 - Every per-client store has a bound
-  ([Design](explanation/design.md#state-belongs-to-one-client-and-has-a-bound)).
+  ([Design](explanation/design.md#state-belongs-to-one-client-and-has-a-bound)),
+  except the gaps that the resource lifecycle audit in
+  [Phase 3](#phase-3-hardening) lists.
 - Discovery adds no serial round trip. The one exception is documented and
   opt-in: when a recipe turns on ECH from HTTPS records, a direct TLS
   handshake waits 5 to 50 ms for the record.
 - Browser behavior is the default. A departure is an explicit caller option,
   off by default, with the tradeoff documented
-  ([Tune throughput and latency](guides/performance.md)).
+  ([Tune throughput and latency](guides/performance.md)). The exception is
+  failing closed: where the browser would carry on, such as after a socket
+  option fails to set, Phantom returns an error by default, so the
+  fingerprint never changes silently.
 - A named recipe never emits a field, order, or protocol option that no
   capture or browser source backs. A caller option may exist ahead of any
   capture, but no named recipe may reach it
