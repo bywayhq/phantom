@@ -2,7 +2,10 @@
 
 Find what Phantom does for each combination of request scheme, protocol, and
 [route](glossary.md#route). "Rejected" means a typed error
-before any proxy or origin I/O. No cell falls back to another row or column.
+before any proxy or origin I/O. No cell falls back to another row or column,
+except that an exact H3 request under `RetryPolicy::with_http2_fallback` is
+sent once on the exact H2 row of the same column when no QUIC connection can
+be set up; with CONNECT-UDP that policy is rejected before any I/O.
 
 > For builders choosing a route. Configuration is in
 > [Routes and proxies](../guides/routes-and-proxies.md).

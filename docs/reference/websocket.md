@@ -121,7 +121,7 @@ to join.
 
 | Recipe | Pooled capable H2 session | No H2 session | Session without the setting | Pooled session on a proxy route |
 | --- | --- | --- | --- | --- |
-| `chromium::v154_websocket` (Chrome 154 and Edge 154) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
+| `chromium::v154_websocket` (Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154 and Brave 153 for Android) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 | `firefox::v157_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 
 | Recipe | Refused CONNECT stream | Empty message with deflate | Handshake timeout |

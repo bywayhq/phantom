@@ -69,7 +69,9 @@ Read the matrix with these conditions:
   browsers have no TCP, HTTP/1.1 connection, or address-cache recipe.
 - Firefox's H2 recipe rests on H2 session captures, not on raw startup bytes.
 - Navigation templates cover H1, H2, and H3 for Chrome, Edge, Brave, Opera,
-  and Brave for Android, and H1 and H2 for Firefox. For Chrome and Edge for
+  and Brave for Android, and H1 and H2 for Firefox, whose H3 navigation and
+  no-store fetch lists are compared by field order with its H3 cookie and
+  snapshot captures. For Chrome and Edge for
   Android, the H1 and H2 lists are compared with typed captures; their H3
   list is the Chromium one, compared with H3 captures opened by intent.
   Fetch templates cover H1 and H2 for all eight.
@@ -107,12 +109,12 @@ connection is not enough.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, and Chromium Happy Eyeballs, on every TCP path | Firefox's backup connection, kept slower connection, and per-origin address family |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy, WebSocket, exact H2, and ECH connections |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | RTT-derived racing delay |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; opt-in H2 fallback for exact H3 | RTT-derived racing delay |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -229,9 +231,15 @@ Supported:
 
 Planned:
 
-- More versions and platform captures.
-- A public ticket policy.
-- Generic imported stacks.
+- Import of externally described fingerprints, limited to fields Phantom
+  reproduces byte for byte
+  ([Proposed after Phase 1](../roadmap.md#proposed-after-phase-1)).
+
+Not supported:
+
+- Browser versions and platforms other than the captured builds.
+- Clearing, exporting, or importing a client's TLS session tickets; the
+  client keeps them for its life.
 
 ## HTTP/1.1
 
@@ -291,10 +299,11 @@ Not modeled:
   remembers that a server spoke H2 per origin and route, as Firefox does;
   Chromium remembers it per origin, across proxies, and saves it to disk.
 
-Planned:
+Not supported:
 
-- Broader retry classes.
-- Additional proxy modes.
+- Retry classes beyond those above.
+- Proxy modes beyond those above; SOCKS4 is planned under
+  [Routes](#routes).
 
 ## HTTP/2
 
@@ -308,8 +317,11 @@ Supported:
   responses.
 - An early, incomplete response does not stop the request upload (RFC 9113
   §8.1). The upload continues as the caller reads the response body.
-- Exact direct WebSocket [extended CONNECT](glossary.md#extended-connect): an
-  explicit order for the five pseudo-header fields, gating on the peer's
+- Exact WebSocket [extended CONNECT](glossary.md#extended-connect) on the
+  direct, HTTP CONNECT, and SOCKS5 routes, including streams on a pooled
+  proxied session
+  ([Server-sent events and WebSocket](#server-sent-events-and-websocket)):
+  an explicit order for the five pseudo-header fields, gating on the peer's
   capability, duplex DATA flow control, and cancellation scoped to the stream.
 - Per-request HEADERS overrides. An extended CONNECT stream on a pooled
   session carries the profile's pseudo-header order and priority, while
@@ -363,10 +375,11 @@ Supported:
   limits on empty and small unread DATA frames. The values are in
   [Defaults and limits](limits.md#protocol-state).
 
-Planned:
+Not supported or not captured:
 
-- Broader retry classes.
-- Captured extended CONNECT behavior through proxies.
+- Retry classes beyond those above.
+- A browser capture of a `wss://` extended CONNECT through a proxy; see the
+  gaps under [Server-sent events and WebSocket](#server-sent-events-and-websocket).
 
 ## QUIC
 
@@ -391,15 +404,16 @@ Supported:
   serializer with randomized permitted order and [GREASE](glossary.md#grease).
 - A reusable connection lifecycle owned by H3.
 - TLS 1.3 session resumption when the H3 TLS settings enable
-  `session_tickets`, as the Chrome 154 and Edge 154 recipes do. Each client
+  `session_tickets`, as the Chrome 154, Edge 154, Brave 154, Opera 136, and
+  Firefox 157 recipes do. Each client
   pool entry (exact origin and route) keeps its own cache of at most four
   tickets, filled only by authenticated connections and presented only for the
   same verified server name. Tickets are single-use and expire at the server's
   lifetime; an expired ticket falls back to a full handshake. A handshake that
   presented a ticket and failed is repeated once with a full handshake on the
   same route.
-- Early (0-RTT) data on resumed connections, offered by the Chrome 154 and
-  Edge 154 recipes through `QuicTransportSettings::early_data`.
+- Early (0-RTT) data on resumed connections, offered by the same recipes
+  through `QuicTransportSettings::early_data`.
   `ClientBuilder::http3_early_data` overrides the profile either way. A
   request's first new connection offers early data when it presents a ticket
   that permits it, but only a request with a safe method, no body, and no
@@ -420,10 +434,11 @@ Supported:
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
-- Tests replay the retained resumed Chrome 154 and Edge 154 connections
-  against Phantom's resumed ClientHello and transport parameters, and check,
-  with the recipes' dynamic QPACK policy, that a resumed connection sends
-  `GET` as early data and holds `POST`
+- Tests replay the retained resumed Chrome 154, Edge 154, Brave 154, and
+  Opera 136 connections against Phantom's resumed ClientHello and transport
+  parameters, and the Firefox 157 ones against its resumed ClientHello, and
+  check, with the Chromium recipes' dynamic QPACK policy, that a resumed
+  connection sends `GET` as early data and holds `POST`
   ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
@@ -439,10 +454,13 @@ Known gaps:
   keeps a connection open whose server lowered a remembered limit, which
   Chromium closes.
 
-Planned:
+Not supported:
 
-- A generic non-H3 connection API.
-- A repeated study of packet-shape stability.
+- A QUIC connection API for protocols other than H3.
+
+Not measured:
+
+- Packet-shape stability across repeated runs.
 
 ## HTTP/3
 
@@ -516,6 +534,15 @@ Supported lifecycle:
   Loopback recovery tests cover a refused direct handshake, a refused SOCKS5
   proxy connect, and a refused handshake retried through a fresh SOCKS5
   association.
+- Opt-in fallback to HTTP/2 (`RetryPolicy::with_http2_fallback`): when no
+  QUIC connection could be set up for an exact H3 request, it is sent once
+  as an exact H2 request on the same route, with the profile's TLS and H2
+  recipes. A name-resolution or SOCKS5 proxy failure, a rejected ECH, a full
+  pool, a pinned alternative, a request sent as early data, a one-shot
+  streaming body, and a failure after the request was written return the
+  HTTP/3 error. A client without an HTTP/2 profile, or a CONNECT-UDP route,
+  fails before I/O. See
+  [Fall back to HTTP/2 when QUIC fails](../guides/http3.md#fall-back-to-http2-when-quic-fails).
 - Tests for the exact close codes sent to hostile peers.
 - Cancellation scoped to the stream, and bounded shutdown.
 - One qlog file per QUIC connection, written to `ClientBuilder::qlog_dir`
@@ -558,11 +585,14 @@ Supported lifecycle:
 
 Planned:
 
+- Encrypted Client Hello on an Alt-Svc alternative at another host
+  ([roadmap](../roadmap.md#discovery-dns-and-ech)).
+
+Not supported:
+
 - Nonempty local H3 application settings.
-- Repeated packet differentials against fresh browsers.
 - Datagram APIs for specific extensions.
 - A racing delay derived from RTT.
-- Encrypted Client Hello on an Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does. Phantom's address lookups go through the operating system,
   or through `AddressResolver::system_nameservers`, whose queries are
@@ -570,28 +600,36 @@ Planned:
 - Multiplexing several CONNECT-UDP tunnels on one outer connection.
 - MASQUE recipes captured from browsers.
 
+Not measured:
+
+- Repeated packet differentials against fresh browsers.
+
 ## Public client
 
 Supported:
 
 - A pooled facade for exact H1, H2, and H3 that is cheap to clone.
-- Pooled H1/H2 selection over a direct or SOCKS5 route, with optional later H3
-  selection through Alt-Svc on the same route. H3 is tried sequentially by
+- Pooled H1/H2 selection over a direct, HTTP proxy CONNECT, or SOCKS5 route,
+  with optional later H3 selection through Alt-Svc on direct and SOCKS5
+  routes; an HTTP proxy tunnel learns no Alt-Svc alternative. H3 is tried
+  sequentially by
   default, or raced against the origin under an opt-in policy. A negotiated
   `http://` request uses H1 on any route that carries exact H1 `http://`, and
   learns no Alt-Svc alternative.
 - Owned request builders with explicit methods.
 - Ordered [trailers](glossary.md#trailers), either static or produced by a
   declared streaming body, on exact H1/H2/H3 and negotiated requests.
-- Streaming bodies, owned-byte or pull-driven.
+- Streaming bodies, owned-byte or pull-driven, and buffered streaming bodies
+  (`RequestBuilder::buffered_streaming_body`) that a redirect, replay, or
+  retry sends again while they stay within a caller byte limit.
 - An opt-in `Expect: 100-continue` on exact H1/H2/H3 and negotiated
   requests, which holds a nonempty body until `100 Continue` or a
   caller-set wait ends, and withholds it when a final response comes first.
 - Default and per-request connection retry policies for exact H1/H2/H3 setup
   and for TCP setup of negotiated requests before ALPN.
-- Opt-in status retry for idempotent requests on 408, 425, 429, and 5xx
-  statuses that the caller lists, with an optional capped `Retry-After` and a
-  budget for the whole request.
+- Opt-in status retry for idempotent requests on the 408, 425, 429, 500,
+  502, 503, and 504 statuses that the caller lists, with an optional capped
+  `Retry-After` and a budget for the whole request.
 - Opt-in per-request browser field templates. A template holds:
   - the captured field order and values for each protocol;
   - slots for caller fields and client hints;
@@ -695,8 +733,9 @@ Supported:
   [Present a client certificate](../guides/client.md#present-a-client-certificate).
 - With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
   record results, one entry per origin, bounded by the Alt-Svc store's
-  capacity and kept for the record TTL. It stores only whether the records
-  advertise `h3`.
+  capacity and kept for the record TTL. It stores whether the records
+  advertise `h3` and, for each usable ServiceMode record, its protocols and
+  `ech` value.
 - An optional bounded cookie jar that the caller activates explicitly:
   - deterministic path and creation order;
   - Public Suffix List checks (including private and unlisted suffixes),
@@ -751,16 +790,21 @@ Not modeled:
   resolution policy, or different servers per adapter.
 - Firefox's record TTL on Windows, which it reads from the operating
   system's cache with `DnsQuery_A`. Phantom's system lookups report no TTL,
-  so a Firefox profile keeps each answer 60 s.
+  so with them a Firefox profile keeps each answer 60 s; a resolver that
+  reports TTLs gets the record rule.
 - Firefox's 600-second grace period for expired answers, and the flush both
   browsers do when the network changes.
 
 Planned:
 
+- DNS over HTTPS where a captured browser uses it
+  ([roadmap](../roadmap.md#discovery-dns-and-ech)).
+
+Not supported:
+
 - Cookie contexts the caller selects (cross-site and embedded requests, and
   cross-site CHIPS partitions).
 - Permissions and delegation context.
-- DNS over HTTPS where a captured browser uses it.
 - Persistence of Alt-Svc brokenness, reset on network change, and proxy-route
   snapshots.
 - Broader policy and retry classes.
@@ -815,7 +859,7 @@ Supported WebSocket (`websocket` feature):
   source do. See
   [Profile connection policy](websocket.md#profile-connection-policy).
 
-Planned or not captured:
+Not supported or not captured:
 
 - Firefox-style transaction restarts on fresh connections. Chrome's single
   resend, after a reused H1 connection closes before a response, is already
@@ -840,14 +884,15 @@ The WebSocket recipes still differ from those captures in two ways:
 | Gap | Why | What would close it |
 | --- | --- | --- |
 | Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
-| `wss://` WebSocket through a proxy | The proxy route captures record only `ws://` openings through a proxy. | A `wss://` capture through a proxy |
+| `wss://` opening inside a proxy tunnel | The proxy route captures record the CONNECT of a `wss://` opening but not the opening inside its TLS tunnel. | A capture that decrypts the tunnelled `wss://` opening |
 
 ## Routes
 
 Supported direct paths:
 
 - Direct HTTPS over H1 or H2, plaintext HTTP over H1, exact direct H2 and
-  H3 WebSocket extended CONNECT, and H3 over QUIC.
+  H3 WebSocket extended CONNECT, and H3 over QUIC to the origin or to a
+  caller-pinned alternative.
 - Direct negotiated HTTPS can upgrade through a learned Alt-Svc alternative
   without changing the direct route.
 
@@ -898,7 +943,7 @@ Supported [SOCKS5](glossary.md#socks5):
 
 - SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for exact
   H1/H2 origin TLS, negotiated H1-or-H2 origin TLS, plaintext H1 `http://`
-  (exact or negotiated), and H1 WS/WSS.
+  (exact or negotiated), H1 WS/WSS, and exact H2 WSS.
 - Negotiated HTTPS over SOCKS5 can upgrade through a learned Alt-Svc
   alternative, dialing it over the same proxy with UDP ASSOCIATE. The
   advertisement is keyed to that route and is never reused directly or through
@@ -913,9 +958,10 @@ Supported [SOCKS5](glossary.md#socks5):
 
 Supported CONNECT-UDP:
 
-- Exact H3, including an exact H3 WebSocket, over RFC 9298 CONNECT-UDP
-  proxies, with an `https` URI template, a percent-encoded target, and proxy
-  trust and SNI set separately from the origin's.
+- Exact H3, including an exact H3 WebSocket and an exact H3 request to a
+  caller-pinned alternative, over RFC 9298 CONNECT-UDP proxies, with an
+  `https` URI template, a percent-encoded target, and proxy trust and SNI
+  set separately from the origin's.
 - On the default HTTP/3 proxy leg: SETTINGS and QUIC DATAGRAM gating before
   any stream opens, Context ID 0 HTTP Datagrams with bounded queues per
   stream, and a 1,252-byte outer path MTU with capacity checks before I/O.
@@ -946,10 +992,13 @@ Deliberately excluded:
 
 Planned:
 
-- Other proxy authentication schemes, and learned challenge state.
-- Basic challenge retry for `http://` requests forwarded over H2.
-- Custom SOCKS5 resolvers.
-- CONNECT-UDP proxy authentication schemes other than Basic.
+- Digest proxy authentication, and SOCKS4 and SOCKS4a routes
+  ([Proposed after Phase 1](../roadmap.md#proposed-after-phase-1)).
+
+Not supported:
+
+- Proxy authentication schemes other than Basic, on every proxy type,
+  CONNECT-UDP included.
 
 ## Validation
 
@@ -974,10 +1023,13 @@ Not currently used:
 
 Planned:
 
+- Broader protocol fuzzing, sanitizers for native adapters, and long soak
+  tests ([Phase 3](../roadmap.md#phase-3-hardening)).
+
+Not done:
+
 - Restoring a supplemental observer for a current recipe, and a repeated
   packet-shape study and Prism comparison.
-- Broader protocol fuzzing and sanitizers for native adapters.
-- Long soak tests.
 
 ## Browser profiles
 
@@ -1053,10 +1105,10 @@ How the recipes differ:
   `"Pixel 7"` model, and `v102_android_client_hints_for_model`. Opera for Android
   takes no switches, so only loopback captures without a certificate exist.
 - `brave_android::v153_*` returns the Chromium H2, QUIC, H3, H3 request,
-  and WebSocket recipes and desktop Brave's H3 TLS recipe, which the Android
-  captures equal, and carries desktop Brave's TCP ClientHello without ECH from
-  HTTPS records, `v153_android_client_hints`, and templates with desktop
-  Brave's request-field changes and the Android `User-Agent`.
+  and WebSocket recipes, which the Android captures equal, and carries
+  desktop Brave's TCP and QUIC ClientHellos without ECH from HTTPS records,
+  `v153_android_client_hints`, and templates with desktop Brave's
+  request-field changes and the Android `User-Agent`.
 - `chrome_android::v154_*` returns the Chromium H2, QUIC, H3, H3 request,
   and WebSocket recipes, which the Android captures equal, and the Chromium
   TLS recipes with ECH from HTTPS records off. It carries

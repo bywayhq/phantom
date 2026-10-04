@@ -21,7 +21,8 @@ policies that stay off until you enable them.
 | WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
-| HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; the Chrome 154 and Edge 154 recipes offer it | `ClientBuilder::http3_early_data(bool)` overrides the profile |
+| Racing a learned Alt-Svc alternative against the origin | Sequential: the alternative alone | `ClientBuilder::alt_svc_policy(AltSvcPolicy::race(..))`, with `alt_svc` |
+| HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; every built-in QUIC recipe offers it: `chromium::v154_quic`, which every Chromium-family profile uses, and `firefox::v157_quic` | `ClientBuilder::http3_early_data(bool)` overrides the profile |
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
 | Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
 | Host-to-address overrides | None | `ClientBuilder::resolve` |
@@ -34,6 +35,17 @@ policies that stay off until you enable them.
 | More than one H3 connection per transport location | One connection | `ClientBuilder::max_http3_connections_per_origin` |
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
+
+Some repeats are on by default; [Retries and replays](../guides/retries.md)
+lists each. A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is always
+sent once more. With a Chromium-family HTTP/2 recipe, a request whose
+connection closed on an unanswered PING is sent again, any method, up to
+twice per redirect hop, unless its body cannot be sent again; set
+`Http2Settings::ping_failure_retries` to 0 to turn it off. A profile with
+client hints repeats a safe request once when a `Critical-CH` response
+names a hint it lacked. `chromium::v154_websocket` reopens a refused
+extended CONNECT stream once on the same session
+([WebSocket recipes](websocket.md#browser-recipes)).
 
 ## Timeouts
 
@@ -151,9 +163,9 @@ closes, or sends; the last column says which.
 | HTTPS record result lifetime | Answer TTL, at most 1 day; 60 seconds without one | Phantom | Not configurable | Resolver only |
 | HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
-| TCP second-attempt delay | 300 ms racing in `chromium::v154_tcp`; none in `firefox::v157_tcp`, which tries addresses in order | Chromium 154 source | `TcpSettings::address_selection` | Yes |
+| TCP second-attempt delay | 300 ms racing in `chromium::v154_tcp`; a 250 ms backup attempt in `firefox::v157_tcp`, IPv4 until the origin's address family is known, then that family with each connect limited to 5 seconds | Chromium 154 source; Firefox 157 source and hook logs | `TcpSettings::address_selection` | Yes |
 | TCP keepalive idle and interval | 45 seconds and 45 seconds in `chromium::v154_tcp`; 10 seconds, then 600 seconds, with the setup time as interval, in `firefox::v157_tcp` | Chromium 154 source; Firefox 157 hook logs | `TcpSettings::keepalive` | Yes |
-| Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`; no limit for Firefox or without a recipe | Chromium 154 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection |
+| Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`, checked when a request arrives; closed by a timer after 115 seconds idle in `firefox::v157_http1`; no limit without a recipe | Chromium 154 source and hook logs; Firefox 157 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection, or a FIN on an idle one |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
 | HTTP/2 idle PING | After 58 seconds without a read, failing after 8 more, in `firefox::v157_http2`; none in `chromium::v154_http2` | Firefox 157 source and capture | `Http2Settings::idle_ping_after`, `idle_ping_timeout` | Yes: PING frame |
 | Wait for `100 Continue` before a request body | None (no `Expect` field) | RFC 9110 | `RequestBuilder::expect_continue` | Yes: when the body is sent |
@@ -162,8 +174,11 @@ closes, or sends; the last column says which.
 | H2 and H3 driver shutdown after the last handle drops | 1 second | Phantom | Not configurable | Yes: close timing |
 | Queued CONNECT-UDP datagram lifetime | 10 ms to 1 second | Phantom | Not configurable | No |
 
-The pools have no sleeps of their own: a request waits only for an admission
-slot, a connection another request is setting up, or the timers above.
+A request waits only for an admission slot, a connection another request
+is setting up, or the timers above. The one pool timer, which a profile
+with `Http1IdleTimeout::ClosedOnTimer` such as `firefox::v157_http1`
+starts, closes idle HTTP/1.1 connections and ends a remembered address
+family once its origin has no connection; no request waits for it.
 
 ## Cookies
 
@@ -207,6 +222,7 @@ order and the differences from Chromium.
 | TCP keepalive schedule probe count | 1 to 127 |
 | TCP send buffer size | 1 to 2,147,483,647 bytes |
 | TCP racing fallback delay and backup delay | Nonzero, at most 10 seconds |
+| TCP backup connect timeout once the address family is known | Whole seconds, 1 to 600 (`MAX_TCP_BACKUP_TIMEOUT_SECONDS`) |
 | Concurrent TCP attempts per connection with address racing or a backup | 2 |
 | Pool keys remembered as having selected HTTP/2 through negotiation, per client | 500, least recently used evicted |
 
@@ -258,8 +274,9 @@ value, and applies to every profile.
   reassembly, so many tiny or empty frames cannot cause unbounded work.
 - Decompressed bytes count against the message limit as they expand, so an
   oversized compressed message stops early.
-- On a pooled H2 session, a WebSocket holds one of the origin's
-  `max_concurrent_http2_requests_per_origin` slots for its life.
+- On a pooled H2 session or H3 connection, a WebSocket holds one of the
+  origin's `max_concurrent_http2_requests_per_origin` or
+  `max_concurrent_http3_requests_per_origin` slots for its life.
 
 ## CONNECT-UDP
 
