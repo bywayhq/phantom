@@ -88,6 +88,11 @@ jobs:
           fi
           echo "WPT_EVENTSOURCE_MODE=$mode" >> "$GITHUB_ENV"
 
+      # The scenario run is timed, so the client is built first: a cold
+      # BoringSSL build on a macOS runner can take most of the run's budget.
+      - name: Build the EventSource client
+        run: cargo build --locked -p phantom-http --example wpt-eventsource-client --features sse
+
       - name: Run pinned EventSource scenarios
         run: python3 scripts/conformance/wpt_eventsource.py "$WPT_EVENTSOURCE_MODE"
 
