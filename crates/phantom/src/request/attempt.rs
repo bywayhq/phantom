@@ -108,8 +108,10 @@ async fn send_once_exact(
     // exact HTTP/3 route never forwards, so nothing below that depends on
     // the protocol before the loop changes with it.
     let mut protocol = protocol;
-    // Every hop starts on the request's protocol, after a fallback too.
-    request_span.record("selected_protocol", protocol.trace_name());
+    // A hop after a fallback starts on the request's protocol again.
+    if retries.has_fallen_back_to_http2() {
+        request_span.record("selected_protocol", protocol.trace_name());
+    }
     let AttemptRequest {
         method,
         headers: request_headers,

@@ -626,6 +626,11 @@ impl ConnectionSetupRetryState {
         self.policy.http2_fallback
     }
 
+    /// Returns whether an earlier hop of the request fell back to HTTP/2.
+    pub(crate) const fn has_fallen_back_to_http2(&self) -> bool {
+        self.http2_fallbacks > 0
+    }
+
     /// Records the fallback of an exact HTTP/3 request to HTTP/2.
     pub(crate) fn record_http2_fallback(&mut self, error: &RequestError) {
         self.http2_fallbacks += 1;
