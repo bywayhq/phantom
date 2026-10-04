@@ -478,7 +478,8 @@ impl ConnectionSetupRetryState {
     }
 
     /// Returns setup state for an Alt-Svc alternative: no setup retries, so a
-    /// setup failure evicts the advertisement, while the pool still retires
+    /// setup failure removes the alternative from its advertisement, while
+    /// the pool still retires
     /// a connection that refused a request when unprocessed replay is on.
     /// Replays are counted by the request's own state, not by this one.
     pub(crate) fn for_alternative_setup(&self) -> Self {

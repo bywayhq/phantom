@@ -146,6 +146,54 @@ async fn import_keeps_most_recent_entries_within_capacity() -> TestResult<()> {
 }
 
 #[tokio::test]
+async fn an_origin_s_entries_form_its_list_and_export_back_in_order() -> TestResult<()> {
+    let imported = client(&TestIdentity::generate()?, 8)?;
+    let now = SystemTime::now();
+    let alternative = |origin: &str, port, expires_at| {
+        AltSvcSnapshotEntry::new(origin, "alt.example", port, expires_at)
+    };
+    imported.import_alt_svc(&AltSvcSnapshot::new(vec![
+        alternative("https://a.example", 8443, now + HOUR),
+        alternative("https://b.example", 8443, now + HOUR),
+        alternative("https://a.example", 9443, now + 2 * HOUR),
+        alternative("https://a.example", 7443, now - Duration::from_secs(1)),
+    ]))?;
+
+    let exported = imported
+        .export_alt_svc()
+        .ok_or("Alt-Svc export was disabled")?;
+    let listed: Vec<_> = exported
+        .entries()
+        .iter()
+        .map(|entry| (entry.origin(), entry.alternative_port()))
+        .collect();
+    // `a.example` ranks where its last entry stands; its expired entry is
+    // dropped, and the others keep their order and their own expiry.
+    assert_eq!(
+        listed,
+        [
+            ("https://b.example", 8443),
+            ("https://a.example", 8443),
+            ("https://a.example", 9443),
+        ]
+    );
+    assert!(exported.entries()[1].expires_at() < exported.entries()[2].expires_at());
+
+    let round_trip = client(&TestIdentity::generate()?, 8)?;
+    round_trip.import_alt_svc(&exported)?;
+    let again = round_trip
+        .export_alt_svc()
+        .ok_or("Alt-Svc export was disabled")?;
+    let relisted: Vec<_> = again
+        .entries()
+        .iter()
+        .map(|entry| (entry.origin(), entry.alternative_port()))
+        .collect();
+    assert_eq!(relisted, listed);
+    Ok(())
+}
+
+#[tokio::test]
 async fn import_rejects_noncanonical_origin_with_typed_error() -> TestResult<()> {
     let client = client(&TestIdentity::generate()?, 8)?;
     let expires_at = SystemTime::now() + HOUR;

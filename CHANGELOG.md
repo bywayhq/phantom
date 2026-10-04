@@ -14,6 +14,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- An `AltSvcSnapshot` holds one entry for each alternative an origin's
+  field listed, consecutive and in field order, and
+  `Client::import_alt_svc` makes the entries for one origin its list of
+  alternatives, up to eight, ranking the origin where its last entry
+  stands. Before, a snapshot held one entry per origin and a later entry
+  for the same origin replaced an earlier one. Migrate: a caller that
+  stores an export keyed by origin keeps every entry of each origin, in
+  order; to import only one alternative per origin, keep only its latest
+  entry before `import_alt_svc`.
 - `Http2Settings` gained the public fields `idle_ping_after` and
   `idle_ping_timeout` (`Option<Duration>`). `firefox::v157_http2` sets 58
   and 8 seconds: a connection that has read nothing for 58 seconds sends a
@@ -1496,6 +1505,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for Alt-Svc: the store keeps up to eight `h3` alternatives a
+  field lists, in field order, each expiring on its own `ma`, and a
+  negotiated request uses the first one that is not broken, as Chrome 154
+  does ([evidence](docs/explanation/validation.md#alt-svc-racing-evidence)).
+  A racing client therefore races the next listed alternative once the
+  first is broken, where before it used the origin alone until the first
+  recovered. An alternative that fails after the request went to it, or
+  answers `421`, under either policy, and a sequential client's alternative
+  whose setup failed, are removed from the list, so the next request goes
+  to the next listed alternative, where before the whole advertisement was
+  dropped and it went to the origin. A new field still replaces the whole
+  list.
 - `chromium::v154_cookie_placement` and `firefox::v157_cookie_placement`
   put the jar's `Cookie` before a request's `If-None-Match` and
   `If-Modified-Since`, as the browsers add it before the validators. Before,

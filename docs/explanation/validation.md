@@ -56,7 +56,7 @@ Phantom's claims rest on five kinds of evidence:
 | [TLS close](#tls-close-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures of how each connection ended, Chromium source, and a loopback test of Phantom | One Windows build per browser; Edge, Brave, and Opera rest on Chromium source |
 | [HTTP/2 idle PING](#http2-idle-ping-evidence) | Firefox source and a retained Firefox 157 capture of an idle pooled connection, replayed against Phantom | One Windows run; no capture shows an unanswered PING |
 | [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures, compared with the default-mode `fetch` templates, and browser source | One run per scenario; HTTP/1.1 and HTTP/3 validator positions rest on source; uploads recorded for future work |
-| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; Phantom keeps one alternative per origin; several listed differences from Chromium |
+| [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; at most eight alternatives per origin; several listed differences from Chromium |
 | [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests | No browser `Alt-Used` ordering; no proxy routes |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
 | [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; no network partitions in Phantom |
@@ -4134,10 +4134,19 @@ origin's own port second, three runs per scenario, retained under
   later requests were bound to that QUIC session, 3/3.
 
 So Chrome uses the first alternative that is not broken, in the order the
-field lists them, as `GetAlternativeServiceInfoInternal` reads them
-(`net/http/http_stream_factory_job_controller.cc`). Phantom keeps only the
-first `h3` entry of a field and does not fall back to the next one. The two
-scenarios took 57 seconds together.
+field lists them, and creates one alternative job for it
+(`HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal`,
+`net/http/http_stream_factory_job_controller.cc` lines 1412-1433, 1505-1508,
+and 1061-1065 at 154.0.8037.58). A new field replaces the list
+(`net/http/http_server_properties.cc` lines 942-1034), each alternative
+expires on its own `ma` (lines 841-844), and brokenness is kept per
+alternative, outside the list (`net/http/broken_alternative_services.cc`
+lines 67-74). Phantom keeps the `h3` entries of a field in order, up to
+eight, and selects the first that is not broken.
+`race_uses_the_first_listed_alternative_and_never_dials_the_second` and
+`race_moves_to_the_next_alternative_once_the_first_is_broken`, in
+`crates/phantom/tests/http3/alt_svc_race.rs`, reproduce the two scenarios.
+The two scenarios took 57 seconds together.
 
 Phantom's policy, as [Coverage](../reference/coverage.md#http3) states it,
 follows these rows: alternative setup first, origin setup after the caller's
@@ -4196,11 +4205,12 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 | Tests | What they cover |
 | --- | --- |
 | Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of both candidates, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores) |
-| Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear` |
+| Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear`; every listed `h3` alternative kept in field order up to eight, the first one not broken selected, a return to the first when its broken period ends, each alternative's own expiry, and a new field replacing the list without clearing brokenness |
 | Unit tests with a paused clock: H3 connect turns | One location waits only for its own turn |
 | Loopback, `crates/phantom/tests/http3/alt_svc_race.rs`, real client pools | The default sequential terminal failure; one dispatch per request, with background pooling of the losing alternative; a one-shot streaming body sent only by the winner; route preservation |
 | Same file: blackholed alternative | Under a short connect timeout it loses after the origin delay. With default timeouts it stops at the 4 s limit, is marked broken, and is not raced again, while a second race queued behind it never opens a QUIC connection |
 | Same file: other candidates | Exact H3 to the origin does not wait for a background alternative setup; an available H2 connection skips a 5 s origin delay |
+| Same file: listed alternatives | The second listed alternative receives nothing while the first works; once the first is broken, the next request is bound to the origin while the second connects, and the request after uses it; under the sequential policy a failed alternative, and one that answers `421`, leaves the list and the next request uses the next one |
 | Same file: admission | With one H3 admission per origin, the alternative's permit is released after a win, after cancellation, and at the 4 s limit of a background setup, while a race still waiting for admission gives its place back |
 
 How to reproduce: `scripts/capture/alt_svc_race.py --browser chrome --repeat
@@ -4218,9 +4228,23 @@ Limits, as differences from Chromium:
 - Phantom does not persist brokenness and does not reset it on a network
   change. It races one alternative: a stored Alt-Svc alternative replaces an
   HTTPS-record one, where Chromium runs both jobs unless they name the same
-  location.
-- Phantom stores only the first `h3` entry of an `Alt-Svc` field. Chrome
-  moves to the next listed alternative once the first is broken.
+  location. With every stored alternative broken, Phantom uses the origin
+  alone, where Chromium still runs its `DNS_ALPN_H3` job when QUIC to the
+  origin's own location is not broken
+  (`net/http/http_stream_factory_job_controller.cc` lines 926-935 and 1068).
+- Phantom keeps at most eight alternatives per origin and route; Chromium
+  keeps every listed one. Brokenness is kept per origin, where Chromium
+  shares an alternative's brokenness among every origin that lists it, and
+  the rule that skips an alternative on a port of 1024 or above for an
+  origin below 1024 is not applied.
+- After the first alternative's broken period ends, Phantom dials it again,
+  where Chromium keeps using the QUIC session it opened to the next one,
+  since it reuses a session by origin (`CanUseExistingSession` in
+  `GetAdvertisedAltSvcInternal`, lines 1496-1499).
+- An alternative that fails after the request went to it, or answers
+  `421`, is removed from the list under either policy, so the next request
+  uses the next one; under the sequential policy, which Chromium does not
+  have, so is one whose setup failed.
 - A background alternative keeps its H3 admission permit for the origin and
   route until it ends.
 
@@ -4254,7 +4278,8 @@ eviction, and explicit removal.
 Failure regressions close the authenticated alternative before request
 dispatch. They prove a typed H3 error, no same-request H1/H2 fallback,
 eviction, and recovery through the origin on a later request. A `421` stays
-visible as an H3 response, evicts the advertisement, and cannot cause the
+visible as an H3 response, removes that alternative from the advertisement,
+and cannot cause the
 alternative connection generation to be reused for the origin's transport
 location. Manual clearing is covered through the public client.
 

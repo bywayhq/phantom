@@ -643,10 +643,12 @@ impl Client {
     /// Stops using `alternative` after its connection failed or it answered
     /// `421`.
     ///
-    /// A stored Alt-Svc advertisement is evicted, unless it was replaced
-    /// meanwhile. An HTTPS record cannot be evicted from DNS, so its location
-    /// is marked broken instead, for the racing policy's backoff or, under
-    /// the sequential policy, for [`AltSvcBrokenBackoff::CHROMIUM_153`].
+    /// The alternative is removed from its stored Alt-Svc advertisement,
+    /// unless the advertisement was replaced meanwhile, so the next request
+    /// takes the next alternative the field listed; the advertisement goes
+    /// once it lists none. An HTTPS record cannot be evicted from DNS, so its
+    /// location is marked broken instead, for the racing policy's backoff or,
+    /// under the sequential policy, for [`AltSvcBrokenBackoff::CHROMIUM_153`].
     pub(crate) fn invalidate_alternative(
         &self,
         endpoint: &crate::authority::Endpoint,
@@ -654,7 +656,11 @@ impl Client {
         alternative: &alt_svc::AlternativeTarget,
     ) {
         match alternative.generation() {
-            Some(generation) => self.remove_alt_svc_if_current(endpoint, route, generation),
+            Some(generation) => {
+                if let Some(store) = &self.state.alt_svc {
+                    store.remove_if_current(endpoint, route, generation, alternative.location());
+                }
+            }
             None => {
                 let backoff = self.state.alt_svc_policy.race_settings().map_or(
                     AltSvcBrokenBackoff::CHROMIUM_153,
@@ -707,17 +713,6 @@ impl Client {
             return;
         };
         store.learn(endpoint, route, headers);
-    }
-
-    pub(crate) fn remove_alt_svc_if_current(
-        &self,
-        endpoint: &crate::authority::Endpoint,
-        route: &crate::Route,
-        generation: u64,
-    ) {
-        if let Some(store) = &self.state.alt_svc {
-            store.remove_if_current(endpoint, route, generation);
-        }
     }
 
     /// Starts a bounded server-sent event source using this client's state.
@@ -875,13 +870,15 @@ impl Client {
     /// Imports alternatives from a previously exported or caller-built snapshot.
     ///
     /// Every entry is revalidated first; one invalid entry rejects the whole
-    /// snapshot without changing state. Expired entries are dropped, a later
-    /// entry for the same origin wins, and lifetimes are clamped and never
-    /// extended. Alternatives this client already holds take precedence and
-    /// imported entries rank as least recently used, so capacity keeps held
-    /// entries and then the most recently used snapshot entries. Every
-    /// imported entry receives a fresh generation, like a learned one, and
-    /// belongs to the direct route, so no import can reach a proxy route.
+    /// snapshot without changing state. Expired entries are dropped, the
+    /// entries for one origin form its list of alternatives in snapshot
+    /// order, up to eight, and lifetimes are clamped and never extended. An
+    /// origin ranks where its last entry stands. Origins this client already
+    /// holds take precedence and imported origins rank as least recently
+    /// used, so capacity keeps held origins and then the most recently used
+    /// snapshot origins. Every imported origin receives a fresh generation,
+    /// like a learned advertisement, and belongs to the direct route, so no
+    /// import can reach a proxy route.
     ///
     /// # Errors
     ///

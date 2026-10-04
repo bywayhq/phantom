@@ -1357,7 +1357,8 @@ impl ClientBuilder {
     /// unless the profile configures HTTP/2, offers `http/1.1` in its TLS ALPN
     /// list, and configures HTTP/3.
     ///
-    /// A fresh `h3` alternative is used by a later negotiated request without
+    /// A later negotiated request uses the first fresh `h3` alternative the
+    /// field listed that is not broken, up to eight per origin, without
     /// changing its origin identity or its route. Alternative setup failure is
     /// terminal for that request and never falls back implicitly to H1 or H2.
     ///

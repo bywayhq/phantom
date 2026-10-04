@@ -535,7 +535,8 @@ Supported lifecycle:
     that handshake fails, the request is raced again without early data, as
     Chromium restarts it.
   - Broken alternatives back off as in Chromium 153: 300 seconds, doubling,
-    capped at two days.
+    capped at two days. Meanwhile the next alternative a field listed is
+    raced, as in Chromium 154, from up to eight kept per origin.
 
   See [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).
 
@@ -552,9 +553,7 @@ Planned:
 - Nonempty local H3 application settings.
 - Repeated packet differentials against fresh browsers.
 - Datagram APIs for specific extensions.
-- Moving to the next alternative an `Alt-Svc` field lists once the first
-  is broken, as Chrome 154 does; Phantom keeps the first only. A racing
-  delay derived from RTT.
+- A racing delay derived from RTT.
 - Encrypted Client Hello on an Alt-Svc alternative at another host.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does. Phantom's address lookups go through the operating system,

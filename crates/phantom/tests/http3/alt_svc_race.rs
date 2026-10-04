@@ -398,6 +398,256 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
     .await
 }
 
+/// Chrome dials only the first alternative a field lists
+/// (`two-alternatives`): the second receives nothing.
+#[tokio::test]
+async fn race_uses_the_first_listed_alternative_and_never_dials_the_second() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("alternative"),
+                    PlannedResponse::new(StatusCode::OK).body("alternative"),
+                ]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let client = client_builder(&identity)?
+            // A long origin delay lets the alternative win both races
+            // without an origin connection to cancel.
+            .alt_svc_policy(race_policy(Duration::from_secs(5))?)
+            .build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &fixture,
+            &[fixture.alternative_address().port(), blackhole.port],
+        )?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http3);
+        drain(first).await?;
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http3);
+        drain(second).await?;
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 0);
+        assert_eq!(observed.alternative_connections, 1);
+        assert_eq!(blackhole.datagrams(), 0);
+        Ok(())
+    })
+    .await
+}
+
+/// Chrome races the next alternative once the first is broken
+/// (`first-alternative-blackholed`): the blackholed first alternative
+/// loses, the next request is bound to the origin while the second
+/// alternative connects in the background, and the request after that uses
+/// it.
+#[tokio::test]
+async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("alternative")
+                ]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let limit = Duration::from_millis(300);
+        let race = race_policy(Duration::from_millis(50))?
+            .race_settings()
+            .ok_or("the race policy has no race settings")?
+            .with_alternative_setup_limit(limit);
+        let client = client_builder(&identity)?
+            .alt_svc_policy(AltSvcPolicy::race(race))
+            .build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &fixture,
+            &[blackhole.port, fixture.alternative_address().port()],
+        )?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        drain(first).await?;
+        // The first alternative is abandoned at its setup limit and broken;
+        // the slack allows for a slow runner's timers.
+        tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
+        assert!(blackhole.datagrams() > 0);
+        assert_eq!(fixture.snapshot()?.alternative_connections, 0);
+
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        drain(second).await?;
+        wait_until(|| Ok(fixture.snapshot()?.alternative_connections == 1)).await?;
+
+        let third = client
+            .get_negotiated(&fixture.origin_url("/third"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&third)?, HttpProtocol::Http3);
+        assert_eq!(third.into_body().collect().await?.to_bytes(), "alternative");
+        assert_eq!(blackhole.peers(), 1);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        Ok(())
+    })
+    .await
+}
+
+/// Under the sequential policy a failed alternative is dropped from its
+/// advertisement, so the next request uses the next one the field listed.
+#[tokio::test]
+async fn sequential_failure_moves_the_next_request_to_the_next_alternative() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let failing = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::close_after_handshake(0x100, b"closed".to_vec()),
+            ),
+        )
+        .await?;
+        let next = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([PlannedResponse::new(StatusCode::OK).body("next")]),
+            ),
+        )
+        .await?;
+        let client = client_builder(&identity)?.build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &failing,
+            &[
+                failing.alternative_address().port(),
+                next.alternative_address().port(),
+            ],
+        )?;
+
+        let error = client
+            .get_negotiated(&failing.origin_url("/terminal"))?
+            .send()
+            .await
+            .err()
+            .ok_or("the failed alternative must not fall back to the origin")?;
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+
+        let moved = client
+            .get_negotiated(&failing.origin_url("/moved"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&moved)?, HttpProtocol::Http3);
+        assert_eq!(moved.into_body().collect().await?.to_bytes(), "next");
+
+        drop(client);
+        let failed = failing.finish().await?;
+        assert_eq!(failed.origin_request_count, 0);
+        assert_eq!(failed.alternative_connections, 1);
+        let next = next.finish().await?;
+        assert_eq!(next.alternative_connections, 1);
+        Ok(())
+    })
+    .await
+}
+
+/// A `421` from the first listed alternative removes it, so the next
+/// request uses the second.
+#[tokio::test]
+async fn misdirected_request_moves_the_next_request_to_the_next_alternative() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let misdirected = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([PlannedResponse::new(
+                    StatusCode::MISDIRECTED_REQUEST,
+                )]),
+            ),
+        )
+        .await?;
+        let next = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([PlannedResponse::new(StatusCode::OK).body("next")]),
+            ),
+        )
+        .await?;
+        let client = client_builder(&identity)?.build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &misdirected,
+            &[
+                misdirected.alternative_address().port(),
+                next.alternative_address().port(),
+            ],
+        )?;
+
+        let first = client
+            .get_negotiated(&misdirected.origin_url("/misdirected"))?
+            .send()
+            .await?;
+        assert_eq!(first.status(), StatusCode::MISDIRECTED_REQUEST);
+        assert_eq!(protocol(&first)?, HttpProtocol::Http3);
+        drain(first).await?;
+
+        let moved = client
+            .get_negotiated(&misdirected.origin_url("/moved"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&moved)?, HttpProtocol::Http3);
+        assert_eq!(moved.into_body().collect().await?.to_bytes(), "next");
+
+        drop(client);
+        misdirected.finish().await?;
+        next.finish().await?;
+        Ok(())
+    })
+    .await
+}
+
 #[test]
 fn alternative_setup_limit_defaults_to_chrome_s_four_seconds() -> TestResult<()> {
     let race = race_policy(Duration::ZERO)?
@@ -851,6 +1101,24 @@ fn import_alternative_for(
         port,
         expires_at,
     )]))?;
+    Ok(())
+}
+
+/// Seeds `ports`, in order, as the alternatives one field listed for the
+/// origin.
+fn import_alternatives_for(
+    client: &Client,
+    origin_name: &str,
+    fixture: &Http3UpgradeFixture,
+    ports: &[u16],
+) -> TestResult<()> {
+    let origin = format!("https://{origin_name}:{}", fixture.origin_address().port());
+    let expires_at = SystemTime::now() + Duration::from_secs(3600);
+    let entries = ports
+        .iter()
+        .map(|port| AltSvcSnapshotEntry::new(origin.clone(), ALTERNATIVE_HOST, *port, expires_at))
+        .collect();
+    client.import_alt_svc(&AltSvcSnapshot::new(entries))?;
     Ok(())
 }
 

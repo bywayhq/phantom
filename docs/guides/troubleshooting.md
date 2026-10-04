@@ -89,8 +89,8 @@ Timeouts are never retried. Raise that phase's limit, or `Total`
 A browser that cannot reach a server over QUIC uses TCP. When UDP is
 blocked, an exact H3 request in Phantom fails, usually with `Connect`,
 `Http3`, or a `Connect`-phase `Timeout`. A negotiated request whose learned
-H3 alternative fails returns an H3 error and evicts the advertisement; it is
-not resent over HTTP/1.1 or HTTP/2.
+H3 alternative fails returns an H3 error, and Phantom drops that alternative;
+it is not resent over HTTP/1.1 or HTTP/2.
 
 To behave like Chrome, send negotiated requests with Alt-Svc racing, so the
 origin connection wins when QUIC fails

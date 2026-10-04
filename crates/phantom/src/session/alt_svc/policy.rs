@@ -7,7 +7,9 @@ use crate::BuildError;
 /// How a negotiated HTTPS request uses a fresh learned `h3` alternative.
 ///
 /// The default, [`AltSvcPolicy::sequential`], uses the alternative alone: its
-/// setup failure is terminal for the request and evicts the advertisement.
+/// setup failure is terminal for the request and removes that alternative
+/// from the advertisement, so a later request takes the next one the field
+/// listed.
 /// [`AltSvcPolicy::race`] instead races alternative connection setup against
 /// origin connection setup. Racing chooses a connection, never a request
 /// replay: the request is sent once, on the winner, and both candidates keep
@@ -104,7 +106,10 @@ impl AltSvcPolicy {
 ///
 /// An alternative that fails while the origin succeeds is marked broken for
 /// [`AltSvcBrokenBackoff`] and is not raced again until that period ends.
-/// When both candidates fail, nothing is marked.
+/// Meanwhile the next alternative the field listed is raced, as Chrome does.
+/// With every listed alternative broken the origin is used alone, without
+/// the HTTPS-record lookup Chrome would still race. When both candidates
+/// fail, nothing is marked.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: Duration,

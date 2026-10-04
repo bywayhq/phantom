@@ -47,6 +47,11 @@ Counts in the later phases come from a read-only review of `main` at
 - Alt-Svc upgrade, H2 ALTSVC frames, racing with broken-alternative backoff,
   HTTPS-record discovery, and Alt-Svc snapshots
   ([HTTP/3 discovery](guides/http3-discovery.md)).
+- The next Alt-Svc alternative after a broken one: the store keeps up to
+  eight alternatives a field lists, in order and each with its own expiry,
+  and a request uses the first that is not broken, as Chrome 154 moved to
+  the second alternative once the first was broken
+  ([Alt-Svc racing evidence](explanation/validation.md#alt-svc-racing-evidence)).
 - TLS 1.3 session resumption over TCP, with the per-origin ticket count and
   resumed ClientHello of each recipe's browser
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
@@ -320,12 +325,6 @@ anything does.
   ([Revalidation evidence](explanation/validation.md#revalidation-and-upload-evidence)),
   and the other Chromium-family browsers share Chromium's network stack.
   Blocker: no revalidation capture of those browsers.
-- The next Alt-Svc alternative after a broken one. Evidence: Chrome 154
-  uses the first alternative a field lists, races no other, and moves to the
-  next once the first is broken
-  ([Alt-Svc racing evidence](explanation/validation.md#alt-svc-racing-evidence));
-  Phantom stores only the first. Blocker: the Alt-Svc store and its
-  snapshots must keep every listed alternative, with brokenness for each.
 
 #### Discovery, DNS, and ECH
 

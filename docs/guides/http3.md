@@ -139,9 +139,10 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
   `RequestErrorKind::UnsupportedRoute` before any I/O. The store is keyed by
   origin and route, so an alternative learned over one route is used only
   over that route.
-- By default a failed alternative returns a typed H3 error and evicts the
-  advertisement; Phantom does not resend over HTTP/1.1 or HTTP/2. A `421`
-  response also evicts it. `Client::clear_alt_svc` clears the whole store.
+- By default a failed alternative returns a typed H3 error and is removed
+  from the advertisement, so the next request uses the next alternative the
+  field listed, if any; Phantom does not resend over HTTP/1.1 or HTTP/2. A `421`
+  response also removes it. `Client::clear_alt_svc` clears the whole store.
 - The alternative changes only where QUIC connects. The URI, authority, TLS
   identity, cookies, client hints, and timeouts stay those of the origin.
 
@@ -152,8 +153,9 @@ async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
   ([Troubleshooting](troubleshooting.md#an-http3-request-fails-where-a-browser-would-fall-back)).
 - Only an authenticated, negotiated HTTP/1.1 or HTTP/2 response can advertise
   `h3`. Phantom subtracts the response's `Age` from `ma` (the advertised
-  maximum age), replaces the origin's previous alternatives, and uses the
-  first fresh canonical `h3` entry.
+  maximum age), replaces the origin's previous alternatives, and keeps up to
+  eight fresh `h3` entries in field order, each expiring on its own `ma`. A
+  request uses the first one that is not broken.
 - A negotiated HTTP/2 response also learns from ALTSVC frames that arrived
   before its final headers: on stream 0 when the frame's origin matches the
   request's canonical origin exactly, and on the request's own stream. Other

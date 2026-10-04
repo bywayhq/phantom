@@ -448,13 +448,14 @@ fingerprint.
 
 Negotiated direct HTTPS requests can opt into a bounded Alt-Svc store. The
 store learns from response fields and exact-origin H2 ALTSVC frames. A later
-request can then use a fresh canonical `h3` alternative. Callers may export
+request can then use the first of up to eight `h3` alternatives the field
+listed that is not broken. Callers may export
 and re-import that direct-route state; Phantom never persists it, or QUIC
 tickets, itself.
 
 An alternative changes where QUIC dials. The origin authority and certificate
 identity stay the same. By default, a failed alternative setup is terminal and
-evicts the advertisement, with no H1 or H2 fallback. An opt-in racing policy
+removes that alternative from the advertisement, with no H1 or H2 fallback. An opt-in racing policy
 instead races the alternative's setup against a delayed origin setup, and
 marks a failed alternative broken; see
 [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).

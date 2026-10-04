@@ -20,6 +20,10 @@ use crate::{RequestError, RequestErrorKind, Route, TimeoutPhase, authority::Endp
 
 const DEFAULT_MAX_AGE: u64 = 24 * 60 * 60;
 const MAX_DELTA_SECONDS: u64 = 1 << 31;
+/// Alternatives kept per origin and route, in field order. Chromium keeps
+/// every listed alternative; the bound keeps a hostile field from growing the
+/// store.
+pub(crate) const MAX_ALTERNATIVES_PER_ORIGIN: usize = 8;
 
 pub(super) struct AltSvcSelection {
     location: AltSvcLocation,
@@ -267,18 +271,31 @@ impl AltSvcStore {
         self.remove_key(&StoreKey::new(origin, route));
     }
 
-    pub(super) fn remove_if_current(&self, origin: &Endpoint, route: &Route, generation: u64) {
+    /// Removes `location` from the advertisement that `generation` names,
+    /// and the advertisement once it lists no other alternative.
+    ///
+    /// A later advertisement for the origin has another generation and is
+    /// left as it is.
+    pub(super) fn remove_if_current(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        generation: u64,
+        location: &AltSvcLocation,
+    ) {
         let key = StoreKey::new(origin, route);
         let mut entries = self.lock_entries();
         if let Some(position) = entries
             .iter()
             .position(|entry| entry.key == key && entry.generation == generation)
         {
-            entries.remove(position);
-            debug!(
-                outcome = "cleared",
-                "removed attempted Alt-Svc client state"
-            );
+            entries[position]
+                .alternatives
+                .retain(|alternative| &alternative.location != location);
+            if entries[position].alternatives.is_empty() {
+                entries.remove(position);
+            }
+            debug!(outcome = "cleared", "removed attempted Alt-Svc alternative");
         }
     }
 
@@ -315,7 +332,7 @@ impl AltSvcStore {
         {
             Some(record) => record,
             None => {
-                if broken.len() == self.capacity.get() {
+                if broken.len() == self.broken_capacity() {
                     broken.pop_front();
                 }
                 BrokenRecord {
@@ -374,7 +391,7 @@ impl AltSvcStore {
         {
             return;
         }
-        if broken.len() == self.capacity.get() {
+        if broken.len() == self.broken_capacity() {
             broken.pop_front();
         }
         broken.push_back(BrokenRecord {
@@ -441,16 +458,27 @@ impl AltSvcStore {
 
     /// Returns whether `location` has a failure record, which outlives its
     /// broken period until the location connects again.
+    #[cfg(any(test, feature = "https-records"))]
     fn has_failed(&self, key: &StoreKey, location: &AltSvcLocation) -> bool {
         self.lock_broken()
             .iter()
             .any(|record| &record.key == key && &record.location == location)
     }
 
+    #[cfg(any(test, feature = "https-records"))]
     fn is_broken_at(&self, key: &StoreKey, location: &AltSvcLocation, now: Instant) -> bool {
         self.lock_broken()
             .iter()
             .any(|record| &record.key == key && &record.location == location && record.until > now)
+    }
+
+    /// Returns how many failure records the store keeps: one for each
+    /// alternative a full store can hold, and one more per origin for QUIC to
+    /// the origin's own host and port.
+    fn broken_capacity(&self) -> usize {
+        self.capacity
+            .get()
+            .saturating_mul(MAX_ALTERNATIVES_PER_ORIGIN + 1)
     }
 
     fn lock_broken(&self) -> MutexGuard<'_, VecDeque<BrokenRecord>> {
@@ -476,39 +504,72 @@ impl AltSvcStore {
             }
         };
         let key = StoreKey::new(origin, route);
-        match update {
-            Update::Clear => self.remove_key(&key),
-            Update::Replace(None) => self.remove_key(&key),
-            Update::Replace(Some(alternative)) => {
-                let remaining = alternative.max_age.saturating_sub(alternative.age);
-                if remaining == 0 {
-                    self.remove_key(&key);
-                    return;
-                }
-                let expires_at = expiration_at(now, remaining);
-                self.replace(Entry {
-                    key,
-                    location: alternative.location,
-                    expires_at,
-                    generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
-                });
-            }
+        let alternatives = match update {
+            Update::Clear => Vec::new(),
+            Update::Replace(alternatives) => alternatives
+                .into_iter()
+                .filter_map(|alternative| {
+                    let remaining = alternative.max_age.saturating_sub(alternative.age);
+                    (remaining > 0).then(|| StoredAlternative {
+                        location: alternative.location,
+                        expires_at: expiration_at(now, remaining),
+                    })
+                })
+                .collect(),
+        };
+        if alternatives.is_empty() {
+            self.remove_key(&key);
+            return;
         }
+        self.replace(Entry {
+            key,
+            alternatives,
+            generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
+        });
     }
 
     fn get_at(&self, origin: &Endpoint, route: &Route, now: Instant) -> Option<AltSvcSelection> {
         let key = StoreKey::new(origin, route);
         let mut entries = self.lock_entries();
         let position = entries.iter().position(|entry| entry.key == key)?;
-        let entry = entries.remove(position)?;
-        if entry.expires_at <= now {
+        let mut entry = entries.remove(position)?;
+        entry
+            .alternatives
+            .retain(|alternative| alternative.expires_at > now);
+        if entry.alternatives.is_empty() {
             debug!(outcome = "expired", "removed expired Alt-Svc origin");
             return None;
         }
-        let broken = self.is_broken_at(&key, &entry.location, now);
-        let origin_quic_recently_broken = self.has_failed(&key, &AltSvcLocation::origin(origin));
+        // Chromium takes the first alternative in field order that is not
+        // broken (`HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal`,
+        // `net/http/http_stream_factory_job_controller.cc` lines 1412-1433
+        // and 1505-1508 at 154.0.8037.58). When every one is broken,
+        // Chromium returns none; Phantom returns the first, marked broken,
+        // so a race goes to the origin alone and a sequential request still
+        // uses it.
+        let own = AltSvcLocation::origin(origin);
+        let (location, broken, origin_quic_recently_broken) = {
+            let records = self.lock_broken();
+            let is_broken = |location: &AltSvcLocation| {
+                records.iter().any(|record| {
+                    record.key == key && &record.location == location && record.until > now
+                })
+            };
+            let (location, broken) = match entry
+                .alternatives
+                .iter()
+                .find(|alternative| !is_broken(&alternative.location))
+            {
+                Some(alternative) => (alternative.location.clone(), false),
+                None => (entry.alternatives[0].location.clone(), true),
+            };
+            let origin_failed = records
+                .iter()
+                .any(|record| record.key == key && record.location == own);
+            (location, broken, origin_failed)
+        };
         let selection = AltSvcSelection {
-            location: entry.location.clone(),
+            location,
             generation: entry.generation,
             broken,
             origin_quic_recently_broken,
@@ -637,14 +698,20 @@ struct BrokenRecord {
 
 struct Entry {
     key: StoreKey,
+    /// The advertised alternatives in field order, never empty.
+    alternatives: Vec<StoredAlternative>,
+    generation: u64,
+}
+
+/// One alternative of an advertisement, which expires on its own `ma`.
+struct StoredAlternative {
     location: AltSvcLocation,
     expires_at: Instant,
-    generation: u64,
 }
 
 enum Update {
     Clear,
-    Replace(Option<ParsedAlternative>),
+    Replace(Vec<ParsedAlternative>),
 }
 
 struct ParsedAlternative {
@@ -686,19 +753,15 @@ fn parse_response_fields<'a>(
     }
 
     let age = age.unwrap_or(0);
-    let mut selected = None;
+    let mut selected = Vec::new();
     for member in members {
         let alternative = parse_alternative(origin, trim_ows(member))?;
-        if selected.is_none()
-            && alternative
-                .as_ref()
-                .is_some_and(|candidate| candidate.max_age > age)
+        if let Some(mut alternative) = alternative.filter(|candidate| candidate.max_age > age)
+            && selected.len() < MAX_ALTERNATIVES_PER_ORIGIN
         {
-            selected = alternative;
+            alternative.age = age;
+            selected.push(alternative);
         }
-    }
-    if let Some(alternative) = selected.as_mut() {
-        alternative.age = age;
     }
     Ok(Some(Update::Replace(selected)))
 }

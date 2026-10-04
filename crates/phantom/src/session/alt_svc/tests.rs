@@ -1,8 +1,8 @@
 use std::{num::NonZeroUsize, time::Duration};
 
 use super::{
-    AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, AlternativeTarget, StoreKey,
-    invalidates_alternative,
+    AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, AlternativeTarget,
+    MAX_ALTERNATIVES_PER_ORIGIN, StoreKey, invalidates_alternative,
 };
 use crate::{HttpProtocol, RequestError, Route, TimeoutPhase, authority::Endpoint};
 
@@ -262,13 +262,12 @@ fn stale_failure_does_not_remove_a_newer_advertisement() -> TestResult {
     let store = AltSvcStore::new(NonZeroUsize::MIN);
     let now = std::time::Instant::now();
     learn(&store, &origin, b"h3=\":8443\"", now);
-    let stale_generation = store
+    let stale = store
         .get_at(&origin, &DIRECT, now)
-        .ok_or("first alternative missing")?
-        .generation;
+        .ok_or("first alternative missing")?;
     learn(&store, &origin, b"h3=\":9443\"", now);
 
-    store.remove_if_current(&origin, &DIRECT, stale_generation);
+    store.remove_if_current(&origin, &DIRECT, stale.generation, &stale.location);
 
     assert_eq!(
         store
@@ -762,19 +761,19 @@ fn confirming_an_alternative_keeps_a_broken_period_of_the_origin_location() -> T
 }
 
 #[test]
-fn recently_broken_records_are_bounded_by_the_store_capacity() -> TestResult {
-    let store = AltSvcStore::new(NonZeroUsize::new(2).ok_or("zero capacity")?);
-    let origins = [
-        endpoint("a.example:443")?,
-        endpoint("b.example:443")?,
-        endpoint("c.example:443")?,
-    ];
+fn recently_broken_records_are_bounded_at_nine_per_stored_origin() -> TestResult {
+    // One origin's alternatives and its own location fit a store of one.
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let bound = MAX_ALTERNATIVES_PER_ORIGIN + 1;
+    let origins = (0..=bound)
+        .map(|index| endpoint(&format!("o{index}.example:443")))
+        .collect::<Result<Vec<_>, _>>()?;
     for origin in &origins {
         store.mark_origin_quic_recently_broken(origin, &DIRECT);
         // Marking again adds nothing.
         store.mark_origin_quic_recently_broken(origin, &DIRECT);
     }
-    assert_eq!(store.lock_broken().len(), 2);
+    assert_eq!(store.lock_broken().len(), bound);
     let failed = |origin: &Endpoint| {
         store.has_failed(
             &StoreKey::new(origin, &DIRECT),
@@ -783,8 +782,166 @@ fn recently_broken_records_are_bounded_by_the_store_capacity() -> TestResult {
     };
     // The least recently marked origin is evicted first.
     assert!(!failed(&origins[0]));
-    assert!(failed(&origins[1]));
-    assert!(failed(&origins[2]));
+    assert!(origins[1..].iter().all(failed));
+    Ok(())
+}
+
+fn alternative(port: u16) -> AltSvcLocation {
+    AltSvcLocation {
+        host: "origin.example".into(),
+        port,
+    }
+}
+
+fn selected(
+    store: &AltSvcStore,
+    origin: &Endpoint,
+    now: std::time::Instant,
+) -> Option<(u16, bool)> {
+    store
+        .get_at(origin, &DIRECT, now)
+        .map(|selection| (selection.port(), selection.is_broken()))
+}
+
+#[test]
+fn keeps_every_fresh_h3_alternative_in_field_order() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    store.learn_fields_at(
+        &origin,
+        &DIRECT,
+        [
+            (
+                "alt-svc",
+                b"h3=\":8443\", h2=\":7443\", h3=\":6443\"; ma=0".as_slice(),
+            ),
+            ("alt-svc", b"h3=\":9443\"".as_slice()),
+        ],
+        now,
+    );
+    let backoff = backoff()?;
+    assert_eq!(selected(&store, &origin, now), Some((8443, false)));
+    store.mark_broken_at(&origin, &DIRECT, &alternative(8443), backoff, now);
+    // `h2` and an alternative with `ma=0` are not kept.
+    assert_eq!(selected(&store, &origin, now), Some((9443, false)));
+    Ok(())
+}
+
+#[test]
+fn returns_to_the_first_alternative_when_its_broken_period_ends() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\", h3=\":9443\"", now);
+    store.mark_broken_at(&origin, &DIRECT, &alternative(8443), backoff()?, now);
+    assert_eq!(selected(&store, &origin, now), Some((9443, false)));
+    let later = now + Duration::from_secs(11);
+    assert_eq!(selected(&store, &origin, later), Some((8443, false)));
+    Ok(())
+}
+
+#[test]
+fn all_broken_alternatives_select_the_first_as_broken() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\", h3=\":9443\"", now);
+    for port in [9443, 8443] {
+        store.mark_broken_at(&origin, &DIRECT, &alternative(port), backoff()?, now);
+    }
+    assert_eq!(selected(&store, &origin, now), Some((8443, true)));
+    Ok(())
+}
+
+#[test]
+fn each_alternative_expires_on_its_own_max_age() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(
+        &store,
+        &origin,
+        b"h3=\":8443\"; ma=10, h3=\":9443\"; ma=100",
+        now,
+    );
+    assert_eq!(selected(&store, &origin, now), Some((8443, false)));
+    let later = now + Duration::from_secs(20);
+    assert_eq!(selected(&store, &origin, later), Some((9443, false)));
+    assert_eq!(
+        selected(&store, &origin, now + Duration::from_secs(100)),
+        None
+    );
+    Ok(())
+}
+
+#[test]
+fn a_new_field_replaces_the_list_and_keeps_brokenness() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\", h3=\":9443\"", now);
+    store.mark_broken_at(&origin, &DIRECT, &alternative(8443), backoff()?, now);
+    learn(&store, &origin, b"h3=\":8443\", h3=\":7443\"", now);
+    assert_eq!(selected(&store, &origin, now), Some((7443, false)));
+    Ok(())
+}
+
+#[test]
+fn alternatives_beyond_the_bound_are_dropped() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    let ports: Vec<u16> = (8001..).take(MAX_ALTERNATIVES_PER_ORIGIN + 1).collect();
+    let field = ports
+        .iter()
+        .map(|port| format!("h3=\":{port}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    learn(&store, &origin, field.as_bytes(), now);
+    for port in &ports[..MAX_ALTERNATIVES_PER_ORIGIN] {
+        store.mark_broken_at(&origin, &DIRECT, &alternative(*port), backoff()?, now);
+    }
+    // The last listed alternative was never kept, so every kept one is broken.
+    assert_eq!(selected(&store, &origin, now), Some((8001, true)));
+    Ok(())
+}
+
+#[test]
+fn a_failure_removes_only_that_alternative_of_the_current_advertisement() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(&store, &origin, b"h3=\":8443\", h3=\":9443\"", now);
+    let first = store.get_at(&origin, &DIRECT, now).ok_or("not learned")?;
+    store.remove_if_current(&origin, &DIRECT, first.generation, &first.location);
+    let second = store.get_at(&origin, &DIRECT, now).ok_or("list removed")?;
+    assert_eq!((second.port(), second.generation), (9443, first.generation));
+    store.remove_if_current(&origin, &DIRECT, second.generation, &second.location);
+    assert!(store.get_at(&origin, &DIRECT, now).is_none());
+    Ok(())
+}
+
+#[test]
+fn a_full_store_keeps_the_brokenness_of_every_alternative() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    let ports: Vec<u16> = (8001..).take(MAX_ALTERNATIVES_PER_ORIGIN).collect();
+    let field = ports
+        .iter()
+        .map(|port| format!("h3=\":{port}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    learn(&store, &origin, field.as_bytes(), now);
+    store.mark_origin_quic_recently_broken(&origin, &DIRECT);
+    for port in &ports {
+        store.mark_broken_at(&origin, &DIRECT, &alternative(*port), backoff()?, now);
+    }
+    // Eight alternatives and the origin's own location fill the bound of a
+    // store of one, and none is forgotten.
+    assert_eq!(store.lock_broken().len(), MAX_ALTERNATIVES_PER_ORIGIN + 1);
+    assert_eq!(selected(&store, &origin, now), Some((8001, true)));
     Ok(())
 }
 

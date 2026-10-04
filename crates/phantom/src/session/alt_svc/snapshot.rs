@@ -1,7 +1,7 @@
 //! Caller-owned persistence of learned Alt-Svc alternatives.
 
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     fmt,
     net::Ipv6Addr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -10,8 +10,8 @@ use std::{
 use tracing::debug;
 
 use super::{
-    AltSvcLocation, AltSvcStore, Entry, MAX_DELTA_SECONDS, OriginKey, StoreKey, canonical_origin,
-    expiration_at,
+    AltSvcLocation, AltSvcStore, Entry, MAX_ALTERNATIVES_PER_ORIGIN, MAX_DELTA_SECONDS, OriginKey,
+    StoreKey, StoredAlternative, canonical_origin, expiration_at,
 };
 use crate::authority::Endpoint;
 
@@ -19,8 +19,9 @@ use crate::authority::Endpoint;
 ///
 /// A snapshot contains only each origin's canonical ASCII serialization, the
 /// alternative's QUIC host and port, and an absolute expiry rounded down to a
-/// whole second. It holds no connection, TLS ticket, route, cookie, or
-/// credential state.
+/// whole second. An origin with several alternatives has one entry for each,
+/// consecutive and in field order. It holds no connection, TLS ticket,
+/// route, cookie, or credential state.
 ///
 /// The client store keys each alternative by origin and route. A snapshot
 /// carries no route, so exporting keeps the direct-route entries and skips
@@ -73,7 +74,10 @@ impl fmt::Debug for AltSvcSnapshot {
     }
 }
 
-/// One origin's HTTP/3 alternative in an [`AltSvcSnapshot`].
+/// One HTTP/3 alternative of an origin in an [`AltSvcSnapshot`].
+///
+/// An origin whose field listed several alternatives has one entry for each,
+/// consecutive and in field order, each with its own expiry.
 #[derive(Clone, Eq, PartialEq)]
 pub struct AltSvcSnapshotEntry {
     origin: Box<str>,
@@ -217,22 +221,30 @@ impl AltSvcStore {
             entries
                 .iter()
                 .filter(|entry| entry.key.is_direct())
-                .filter_map(|entry| {
-                    let remaining = entry.expires_at.checked_duration_since(now)?;
-                    let expires_at = floor_to_second(system_now.checked_add(remaining)?);
-                    (expires_at > system_now).then(|| AltSvcSnapshotEntry {
-                        origin: entry.key.origin().serialize().into(),
-                        alternative_host: entry.location.host.clone(),
-                        alternative_port: entry.location.port,
-                        expires_at,
+                .flat_map(|entry| {
+                    let origin: Box<str> = entry.key.origin().serialize().into();
+                    entry.alternatives.iter().filter_map(move |alternative| {
+                        let remaining = alternative.expires_at.checked_duration_since(now)?;
+                        let expires_at = floor_to_second(system_now.checked_add(remaining)?);
+                        (expires_at > system_now).then(|| AltSvcSnapshotEntry {
+                            origin: origin.clone(),
+                            alternative_host: alternative.location.host.clone(),
+                            alternative_port: alternative.location.port,
+                            expires_at,
+                        })
                     })
                 })
                 .collect(),
         )
     }
 
-    /// Validates every entry, then adds unexpired entries for origins this
-    /// store does not already hold, ranked older than every held entry.
+    /// Validates every entry, then adds the unexpired alternatives of each
+    /// origin this store does not already hold, ranked older than every held
+    /// origin.
+    ///
+    /// The entries for one origin form its list of alternatives in snapshot
+    /// order, and the origin ranks where its last entry stands, so an export
+    /// imports back as it was.
     pub(crate) fn import(&self, snapshot: &AltSvcSnapshot) -> Result<(), AltSvcSnapshotError> {
         let mut validated = Vec::with_capacity(snapshot.len());
         for (index, entry) in snapshot.entries().iter().enumerate() {
@@ -251,19 +263,35 @@ impl AltSvcStore {
         // lifetime can only be shorter than the snapshot's.
         let now = Instant::now();
         let system_now = SystemTime::now();
-        let mut entries = self.lock_entries();
-        let mut seen = HashSet::new();
-        // Newest first: a later duplicate wins and capacity keeps the newest.
-        for (origin, location, expires_at) in validated.into_iter().rev() {
-            if !seen.insert(origin.clone()) {
-                continue;
+        // Each origin's alternatives in snapshot order, with the index of
+        // its last entry, which ranks it.
+        let mut origins: Vec<(OriginKey, Vec<StoredAlternative>, usize)> = Vec::new();
+        let mut positions: HashMap<OriginKey, usize> = HashMap::new();
+        for (index, (origin, location, expires_at)) in validated.into_iter().enumerate() {
+            let position = *positions.entry(origin.clone()).or_insert_with(|| {
+                origins.push((origin, Vec::new(), index));
+                origins.len() - 1
+            });
+            let (_, alternatives, last) = &mut origins[position];
+            *last = index;
+            let remaining = expires_at
+                .duration_since(system_now)
+                .unwrap_or_default()
+                .min(Duration::from_secs(MAX_DELTA_SECONDS));
+            if !remaining.is_zero() && alternatives.len() < MAX_ALTERNATIVES_PER_ORIGIN {
+                alternatives.push(StoredAlternative {
+                    location,
+                    expires_at: expiration_at_duration(now, remaining),
+                });
             }
-            let Ok(remaining) = expires_at.duration_since(system_now) else {
-                continue;
-            };
-            let remaining = remaining.min(Duration::from_secs(MAX_DELTA_SECONDS));
+        }
+        origins.sort_unstable_by_key(|(_, _, last)| *last);
+
+        let mut entries = self.lock_entries();
+        // Newest first, so capacity keeps the most recently used origins.
+        for (origin, alternatives, _) in origins.into_iter().rev() {
             let key = StoreKey::new_direct(origin);
-            if remaining.is_zero()
+            if alternatives.is_empty()
                 || entries.len() == self.capacity.get()
                 || entries.iter().any(|held| held.key == key)
             {
@@ -271,8 +299,7 @@ impl AltSvcStore {
             }
             entries.push_front(Entry {
                 key,
-                location,
-                expires_at: expiration_at_duration(now, remaining),
+                alternatives,
                 generation: self
                     .next_generation
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),

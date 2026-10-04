@@ -724,7 +724,8 @@ async fn send_on_alternative(
         };
         // A replay after no response sends this list again.
         let kept_fields = keeps_fields.then(|| attempt_fields.clone());
-        // Alternative setup failures evict the advertisement instead of retrying.
+        // An alternative setup failure removes the alternative from its
+        // advertisement instead of retrying.
         let mut setup_retries = request_retries.for_alternative_setup();
         let dispatched = dispatch_http3(
             client,

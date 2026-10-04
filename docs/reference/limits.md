@@ -71,6 +71,8 @@ error names `TimeoutPhase::WebSocketHandshake`
 | H3 connections per pool key and transport location, at most 8 | 1 | `max_http3_connections_per_origin` |
 | Origins with learned `Accept-CH` state | 64 | `max_client_hint_origins` |
 | Origins with Alt-Svc state | disabled | `alt_svc(maximum_origins)` |
+| Alt-Svc alternatives per origin and route | 8, in field order | Not configurable |
+| Alt-Svc failure records, shared by alternatives, HTTPS-record locations, and evicted origins | 9 × `maximum_origins` | Not configurable |
 
 - Each retained entry holds one pool key's connection state. When the limit
   is reached, the least recently used entry is evicted.

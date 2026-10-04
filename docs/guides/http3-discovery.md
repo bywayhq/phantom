@@ -43,7 +43,10 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 - An alternative that fails while the origin succeeds is marked broken and
   not raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling
   per failure, capped at two days; a successful alternative connection resets
-  it. When both fail, Phantom returns the origin's error.
+  it. Meanwhile the next alternative the field listed is raced, as Chrome
+  does; with every one broken, the origin is used alone, without the
+  HTTPS-record lookup Chrome would still race. When both fail, Phantom
+  returns the origin's error.
 - A raced alternative offers early data when the client does, as Chrome's
   does, so a resumed alternative can win at once and send a replay-safe
   request as early data. It does not after QUIC to the origin's own host and
@@ -126,7 +129,9 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 ```
 
 - `export_alt_svc` returns `None` when Alt-Svc is disabled. Entries are least
-  recently used first; expiry is rounded down to a whole second.
+  recently used first; expiry is rounded down to a whole second. An origin
+  with several alternatives has one entry for each, consecutive and in field
+  order, and import rebuilds the list from them.
 - A snapshot holds direct-route entries only. It never contains brokenness,
   TLS tickets, connections, cookies, or credentials, and its `Debug` output
   omits hosts.
@@ -167,9 +172,7 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   does, and `ech_from_https_records = false` on the profile's H3 TLS
   settings sends GREASE.
 - Not implemented: racing more than one alternative (a stored Alt-Svc
-  alternative is used instead of an HTTPS-record one), moving to the next
-  alternative an `Alt-Svc` field lists once the first is broken, as Chrome
-  does (Phantom keeps the first), persisting
+  alternative is used instead of an HTTPS-record one), persisting
   brokenness or clearing it on a network change, an RTT-derived racing
   delay, and proxy-route snapshots.
 
