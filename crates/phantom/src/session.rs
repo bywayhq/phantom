@@ -535,16 +535,22 @@ impl Client {
             })
     }
 
-    pub(crate) fn alt_svc_location(
+    /// Returns up to `max` learned alternatives in field order that are not
+    /// broken, or else the first one, marked broken; empty when none is
+    /// learned.
+    pub(crate) fn alt_svc_locations(
         &self,
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
-    ) -> Option<alt_svc::AlternativeTarget> {
-        self.state
-            .alt_svc
-            .as_ref()?
-            .get(endpoint, route)
-            .map(|selection| alt_svc::AlternativeTarget::new(&selection))
+        max: usize,
+    ) -> Vec<alt_svc::AlternativeTarget> {
+        self.state.alt_svc.as_ref().map_or_else(Vec::new, |store| {
+            store
+                .get_up_to(endpoint, route, max)
+                .iter()
+                .map(alt_svc::AlternativeTarget::new)
+                .collect()
+        })
     }
 
     /// Returns how negotiated requests use a learned alternative.

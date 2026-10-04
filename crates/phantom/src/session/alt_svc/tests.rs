@@ -803,6 +803,56 @@ fn selected(
         .map(|selection| (selection.port(), selection.is_broken()))
 }
 
+fn selected_up_to(
+    store: &AltSvcStore,
+    origin: &Endpoint,
+    max: usize,
+    now: std::time::Instant,
+) -> Vec<(u16, bool)> {
+    store
+        .get_up_to_at(origin, &DIRECT, max, now)
+        .iter()
+        .map(|selection| (selection.port(), selection.is_broken()))
+        .collect()
+}
+
+#[test]
+fn a_race_selects_distinct_alternatives_that_are_not_broken_in_field_order() -> TestResult {
+    let origin = endpoint("origin.example:443")?;
+    let store = AltSvcStore::new(NonZeroUsize::MIN);
+    let now = std::time::Instant::now();
+    learn(
+        &store,
+        &origin,
+        b"h3=\":8443\", h3=\":8443\", h3=\":9443\", h3=\":7443\", h3=\":6443\"",
+        now,
+    );
+    let backoff = backoff()?;
+
+    assert_eq!(selected_up_to(&store, &origin, 1, now), [(8443, false)]);
+    assert_eq!(
+        selected_up_to(&store, &origin, 3, now),
+        [(8443, false), (9443, false), (7443, false)]
+    );
+    store.mark_broken_at(&origin, &DIRECT, &alternative(9443), backoff, now);
+    assert_eq!(
+        selected_up_to(&store, &origin, 3, now),
+        [(8443, false), (7443, false), (6443, false)]
+    );
+
+    // With every alternative broken, only the first is returned, marked.
+    for port in [8443, 7443, 6443] {
+        store.mark_broken_at(&origin, &DIRECT, &alternative(port), backoff, now);
+    }
+    assert_eq!(selected_up_to(&store, &origin, 3, now), [(8443, true)]);
+    assert!(
+        store
+            .get_up_to_at(&endpoint("other.example:443")?, &DIRECT, 3, now)
+            .is_empty()
+    );
+    Ok(())
+}
+
 #[test]
 fn keeps_every_fresh_h3_alternative_in_field_order() -> TestResult {
     let origin = endpoint("origin.example:443")?;

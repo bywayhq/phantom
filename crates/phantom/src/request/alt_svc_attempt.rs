@@ -36,21 +36,25 @@ use tracing::{Instrument, instrument::WithSubscriber};
 pub(super) enum NegotiatedPlan {
     Origin,
     Alternative(AlternativeTarget),
-    /// Race the alternative against the origin. With a pending HTTPS-record
-    /// lookup, alternative setup starts only if the lookup advertises `h3`.
-    Race(AlternativeTarget, AltSvcRace, Option<PendingLookup>),
+    /// Race the alternatives, in field order, against the origin. With a
+    /// pending HTTPS-record lookup there is one alternative, and its setup
+    /// starts only if the lookup advertises `h3`.
+    Race(Vec<AlternativeTarget>, AltSvcRace, Option<PendingLookup>),
 }
 
-/// Chooses how one negotiated request uses this route's learned alternative,
-/// or else the origin's HTTPS records.
+/// Chooses how one negotiated request uses this route's learned
+/// alternatives, or else the origin's HTTPS records.
 ///
 /// The store is keyed by origin and route, so only an alternative learned on
 /// `route` can be selected here, and it is reached over `route` as well. A
 /// route that cannot carry QUIC never stores an alternative, so it always
 /// plans the origin; see `Client::learn_alt_svc`.
 ///
-/// A learned Alt-Svc alternative takes precedence over HTTPS records, since
-/// Phantom races one alternative at a time. Chromium drops its
+/// A racing policy takes up to [`AltSvcRace::max_alternatives`] learned
+/// alternatives, and the sequential policy the first one. A learned Alt-Svc
+/// alternative takes precedence over HTTPS records, since Phantom races
+/// either the learned alternatives or the HTTPS-record location, never
+/// both. Chromium drops its
 /// `DNS_ALPN_H3` job only when the Alt-Svc alternative is the same location
 /// and otherwise runs both (`JobController::ClearInappropriateJobs`,
 /// `net/http/http_stream_factory_job_controller.cc` lines 1125-1133 at
@@ -64,18 +68,23 @@ pub(super) enum NegotiatedPlan {
 /// and alternative setup when the lookup advertises `h3`.
 pub(super) fn plan(client: &Client, request: &ResolvedRequest, route: &Route) -> NegotiatedPlan {
     let race = client.alt_svc_policy().race_settings();
-    let alternative = match client.alt_svc_location(&request.endpoint, route) {
-        Some(alternative) => alternative,
-        None => match https_record_plan(client, request, route, race) {
-            Ok(alternative) => alternative,
+    let max = race.map_or(1, |race| race.max_alternatives().get());
+    let mut alternatives = client.alt_svc_locations(&request.endpoint, route, max);
+    if alternatives.is_empty() {
+        match https_record_plan(client, request, route, race) {
+            Ok(alternative) => alternatives.push(alternative),
             Err(plan) => return *plan,
-        },
-    };
+        }
+    }
     match race {
-        None => NegotiatedPlan::Alternative(alternative),
-        // A broken alternative is not raced until its broken period ends.
-        Some(_) if alternative.is_broken() => NegotiatedPlan::Origin,
-        Some(race) => NegotiatedPlan::Race(alternative, race, None),
+        None => alternatives
+            .into_iter()
+            .next()
+            .map_or(NegotiatedPlan::Origin, NegotiatedPlan::Alternative),
+        // A broken alternative is not raced until its broken period ends;
+        // the store returns one only when every listed alternative is broken.
+        Some(_) if alternatives.iter().any(AlternativeTarget::is_broken) => NegotiatedPlan::Origin,
+        Some(race) => NegotiatedPlan::Race(alternatives, race, None),
     }
 }
 
@@ -99,7 +108,7 @@ fn https_record_plan(
         Some((alternative, Discovery::Pending(lookup))) => {
             tracing::debug!(outcome = "pending", "HTTPS record lookup in flight");
             Err(Box::new(match race {
-                Some(race) => NegotiatedPlan::Race(alternative, race, Some(lookup)),
+                Some(race) => NegotiatedPlan::Race(vec![alternative], race, Some(lookup)),
                 None => NegotiatedPlan::Origin,
             }))
         }
@@ -140,19 +149,20 @@ pub(super) async fn send_once_alt_svc(
     .await
 }
 
-/// Races alternative QUIC setup against delayed origin H1/H2 setup, then
-/// sends the request once, on the winner.
+/// Races QUIC setup to every alternative against delayed origin H1/H2
+/// setup, then sends the request once, on the winner.
 ///
-/// Both candidates keep the request's origin identity and route. The H3,
-/// H1, and H2 lists are built and checked once, before either candidate
-/// performs I/O, unless `fields` already holds them; the winner sends its
-/// lists without building them again. The request body is prepared only for
-/// the winner.
+/// Every candidate keeps the request's origin identity and route. One H3
+/// list per alternative, and the H1 and H2 lists, are built and checked
+/// once, before any candidate performs I/O, unless `fields` already holds
+/// them; the winner sends its lists without building them again, so
+/// `Alt-Used` names the alternative that won. The request body is prepared
+/// only for the winner.
 ///
 /// With a pending HTTPS-record `lookup`, the origin does not wait at all and
-/// alternative setup begins only once the lookup advertises `h3`; a lookup
-/// that fails or advertises nothing leaves the origin as the only candidate
-/// and marks nothing broken.
+/// setup of the one alternative begins only once the lookup advertises `h3`;
+/// a lookup that fails or advertises nothing leaves the origin as the only
+/// candidate and marks nothing broken.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn send_once_raced(
     client: &Client,
@@ -160,14 +170,14 @@ pub(super) async fn send_once_raced(
     attempt: AttemptRequest<'_>,
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
-    alternative: AlternativeTarget,
+    alternatives: Vec<AlternativeTarget>,
     race: AltSvcRace,
     lookup: Option<PendingLookup>,
     fields: Option<RacedFields>,
 ) -> Result<AttemptOutcome, RequestError> {
     let fields = match fields {
         Some(fields) => fields,
-        None => field_lists::raced(client, request, &attempt, route, &alternative)?,
+        None => field_lists::raced(client, request, &attempt, route, &alternatives)?,
     };
     let AttemptLifecycle {
         request_span,
@@ -181,19 +191,29 @@ pub(super) async fn send_once_raced(
         .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
 
-    let connecting = Arc::new(AtomicBool::new(false));
+    let connecting: Vec<_> = alternatives
+        .iter()
+        .map(|_| Arc::new(AtomicBool::new(false)))
+        .collect();
     let awaits_lookup = lookup.is_some();
-    let alternative_setup = box_send(alternative_setup(
-        client.clone(),
-        request.endpoint.clone(),
-        route.clone(),
-        alternative.clone(),
-        timeout_budget,
-        retries.for_alternative_setup(),
-        Arc::clone(&connecting),
-        lookup,
-        race.alternative_setup_limit(),
-    ));
+    let mut lookup = lookup;
+    let setups = alternatives
+        .iter()
+        .zip(&connecting)
+        .map(|(alternative, connecting)| {
+            box_send(alternative_setup(
+                client.clone(),
+                request.endpoint.clone(),
+                route.clone(),
+                alternative.clone(),
+                timeout_budget,
+                retries.for_alternative_setup(),
+                Arc::clone(connecting),
+                lookup.take(),
+                race.alternative_setup_limit(),
+            ))
+        })
+        .collect();
     // Like Chromium's main job, the origin does not wait when an HTTP/2
     // connection to it is already available. It never waits for a DNS
     // lookup, which would add a DNS round trip to a first request.
@@ -209,7 +229,7 @@ pub(super) async fn send_once_raced(
         race.origin_delay()
     };
     let outcome = race_setup(
-        alternative_setup,
+        setups,
         || {
             client.state.http1_or_2.acquire_lease(
                 negotiated,
@@ -232,25 +252,41 @@ pub(super) async fn send_once_raced(
         replays,
     };
     match outcome {
-        RaceOutcome::Alternative(leased) => {
+        RaceOutcome::Alternative {
+            index,
+            leased,
+            losers,
+        } => {
             tracing::debug!(
                 outcome = "alternative",
-                "Alt-Svc race chose the alternative"
+                alternative = index,
+                "Alt-Svc race chose an alternative"
+            );
+            let marked_broken = settle_losers(
+                client,
+                request,
+                route,
+                &alternatives,
+                &connecting,
+                race,
+                losers,
             );
             let connection = leased.connection().clone();
             // A setup that resumed with early data wins before its handshake
             // completes, so it is confirmed only once the handshake has.
             if !connection.early_data_pending() {
-                client.confirm_alt_svc(&request.endpoint, route, &alternative);
+                // `race_setup` returns the index of one of `alternatives`.
+                let winner = &alternatives[index];
+                client.confirm_alt_svc(&request.endpoint, route, winner);
                 return send_on_alternative(
                     client,
                     request,
                     attempt,
                     route,
                     lifecycle,
-                    &alternative,
+                    winner,
                     Some(leased),
-                    Some(fields.http3),
+                    fields.http3.into_vec().into_iter().nth(index),
                     &mut false,
                 )
                 .await;
@@ -264,41 +300,29 @@ pub(super) async fn send_once_raced(
                 attempt,
                 route,
                 lifecycle,
-                alternative,
-                race,
-                leased,
-                connection,
-                fields,
+                EarlyWin {
+                    alternatives,
+                    marked_broken,
+                    index,
+                    race,
+                    leased,
+                    connection,
+                    fields,
+                },
             )
             .await
         }
-        RaceOutcome::Origin { leased, loser } => {
+        RaceOutcome::Origin { leased, losers } => {
             tracing::debug!(outcome = "origin", "Alt-Svc race chose the origin");
-            match loser {
-                Candidate::Failed(error) if invalidates_alternative(&error) => {
-                    client.mark_alt_svc_broken(
-                        &request.endpoint,
-                        route,
-                        &alternative,
-                        race.broken_backoff(),
-                    );
-                }
-                Candidate::Failed(_) | Candidate::Taken => {}
-                // A setup still waiting for admission or for its location's
-                // connect turn has done no network work, so it is cancelled
-                // rather than orphaned.
-                Candidate::Pending(setup) if connecting.load(Ordering::Acquire) => {
-                    continue_alternative(
-                        client.clone(),
-                        request.endpoint.clone(),
-                        route.clone(),
-                        alternative,
-                        race,
-                        setup,
-                    );
-                }
-                Candidate::Pending(_) => {}
-            }
+            settle_losers(
+                client,
+                request,
+                route,
+                &alternatives,
+                &connecting,
+                race,
+                losers,
+            );
             send_once_origin(
                 client,
                 request,
@@ -313,59 +337,110 @@ pub(super) async fn send_once_raced(
     }
 }
 
+/// Settles the alternatives that lost a race, given in race order with
+/// `connecting` set once each held its location's connect turn.
+///
+/// One that failed while another candidate won is marked broken, one still
+/// connecting continues in the background, and one still waiting for
+/// admission or for its location's connect turn has done no network work and
+/// is cancelled rather than orphaned. Returns, in race order, which ones were
+/// marked broken.
+fn settle_losers<F>(
+    client: &Client,
+    request: &ResolvedRequest,
+    route: &Route,
+    alternatives: &[AlternativeTarget],
+    connecting: &[Arc<AtomicBool>],
+    race: AltSvcRace,
+    losers: Vec<Candidate<F>>,
+) -> Vec<bool>
+where
+    F: Future<Output = Result<Http3Lease, RequestError>> + Send + ?Sized + 'static,
+{
+    let mut marked_broken = vec![false; alternatives.len()];
+    for (((loser, alternative), connecting), marked) in losers
+        .into_iter()
+        .zip(alternatives)
+        .zip(connecting)
+        .zip(&mut marked_broken)
+    {
+        match loser {
+            Candidate::Failed(error) if invalidates_alternative(&error) => {
+                client.mark_alt_svc_broken(
+                    &request.endpoint,
+                    route,
+                    alternative,
+                    race.broken_backoff(),
+                );
+                *marked = true;
+            }
+            Candidate::Failed(_) | Candidate::Taken => {}
+            Candidate::Pending(setup) if connecting.load(Ordering::Acquire) => {
+                continue_alternative(
+                    client.clone(),
+                    request.endpoint.clone(),
+                    route.clone(),
+                    alternative.clone(),
+                    race,
+                    setup,
+                );
+            }
+            Candidate::Pending(_) => {}
+        }
+    }
+    marked_broken
+}
+
+/// A raced alternative that won while its handshake, resumed with early
+/// data, was still running.
+struct EarlyWin {
+    /// Every raced alternative, in race order.
+    alternatives: Vec<AlternativeTarget>,
+    /// Which of `alternatives` the race marked broken; a race started again
+    /// leaves them out.
+    marked_broken: Vec<bool>,
+    /// The winner's position in `alternatives`.
+    index: usize,
+    race: AltSvcRace,
+    leased: Http3Lease,
+    connection: phantom_net::http3::Http3Connection,
+    fields: RacedFields,
+}
+
 /// Sends the request on a raced alternative that won while its handshake,
 /// resumed with early data, was still running; then confirms the
-/// alternative, marks QUIC to the origin recently broken, or races again,
-/// as `after_early_win` decides.
+/// alternative, marks QUIC to the origin recently broken, or races every
+/// alternative again, as `after_early_win` decides.
 ///
-/// A race started again sends `fields` again when no attempt on the
+/// A race started again sends the race's lists again when no attempt on the
 /// alternative got a response. A failed handshake starts it, but an
 /// unprocessed replay may have reached another connection that answered
 /// with a status the retry policy repeats; that response may have stored
 /// cookies or client hints, so the race then builds the lists again.
-#[allow(clippy::too_many_arguments)]
 fn boxed_send_after_early_win<'a>(
     client: &'a Client,
     request: &'a ResolvedRequest,
     attempt: AttemptRequest<'a>,
     route: &'a Route,
     lifecycle: AttemptLifecycle<'a>,
-    alternative: AlternativeTarget,
-    race: AltSvcRace,
-    leased: Http3Lease,
-    connection: phantom_net::http3::Http3Connection,
-    fields: RacedFields,
+    won: EarlyWin,
 ) -> SendBox<'a, Result<AttemptOutcome, RequestError>> {
     // A named return type, unlike an `async fn`, lets the compiler prove
     // this future `Send` inside the recursion through `send_once_raced`;
     // see `box_send`.
     box_send(send_after_early_win(
-        client,
-        request,
-        attempt,
-        route,
-        lifecycle,
-        alternative,
-        race,
-        leased,
-        connection,
-        fields,
+        client, request, attempt, route, lifecycle, won,
     ))
 }
 
 /// The future that [`boxed_send_after_early_win`] boxes.
-#[allow(clippy::too_many_arguments)]
 async fn send_after_early_win(
     client: &Client,
     request: &ResolvedRequest,
     attempt: AttemptRequest<'_>,
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
-    alternative: AlternativeTarget,
-    race: AltSvcRace,
-    leased: Http3Lease,
-    connection: phantom_net::http3::Http3Connection,
-    fields: RacedFields,
+    won: EarlyWin,
 ) -> Result<AttemptOutcome, RequestError> {
     let AttemptRequest {
         method,
@@ -379,11 +454,20 @@ async fn send_after_early_win(
         retries,
         replays,
     } = lifecycle;
-    let RacedFields { http3, negotiated } = fields;
+    let EarlyWin {
+        alternatives,
+        marked_broken,
+        index,
+        race,
+        leased,
+        connection,
+        fields: RacedFields { http3, negotiated },
+    } = won;
+    // `race_setup` returns the index of one of `alternatives`.
+    let winner = &alternatives[index];
     let replayable = body.can_replay();
-    // Only a request that may be raced again keeps its HTTP/3 list.
-    let kept_http3 =
-        races_again(alternative.allows_early_data(), replayable).then(|| http3.clone());
+    // Only a request that may be raced again keeps its HTTP/3 lists.
+    let kept_http3 = races_again(winner.allows_early_data(), replayable).then(|| http3.clone());
     let mut responded = false;
     let result = send_on_alternative(
         client,
@@ -401,9 +485,9 @@ async fn send_after_early_win(
             retries: &mut *retries,
             replays: &mut *replays,
         },
-        &alternative,
+        winner,
         Some(leased),
-        Some(http3),
+        http3.into_vec().into_iter().nth(index),
         &mut responded,
     )
     .await;
@@ -419,13 +503,13 @@ async fn send_after_early_win(
     match after_early_win(
         handshake_failed.ok(),
         result.is_ok(),
-        alternative.allows_early_data(),
+        winner.allows_early_data(),
         // A buffered body may have passed its limit during the attempt.
         replayable && body.can_replay(),
     ) {
         EarlyWinStep::Return => return result,
         EarlyWinStep::Confirm => {
-            client.confirm_alt_svc(&request.endpoint, route, &alternative);
+            client.confirm_alt_svc(&request.endpoint, route, winner);
             return result;
         }
         EarlyWinStep::MarkRecentlyBroken => {
@@ -440,6 +524,23 @@ async fn send_after_early_win(
         outcome = "handshake_failed",
         "raced alternative failed its handshake after early data; racing again"
     );
+    // The winner was never marked, so at least one alternative remains.
+    let kept: Vec<bool> = marked_broken.iter().map(|marked| !marked).collect();
+    let alternatives = alternatives
+        .into_iter()
+        .zip(&kept)
+        .filter(|(_, kept)| **kept)
+        .map(|(alternative, _)| alternative.without_early_data())
+        .collect();
+    let kept_http3 = kept_http3.filter(|_| !responded).map(|http3| {
+        http3
+            .into_vec()
+            .into_iter()
+            .zip(&kept)
+            .filter(|(_, kept)| **kept)
+            .map(|(fields, _)| fields)
+            .collect::<Box<[_]>>()
+    });
     Box::pin(send_once_raced(
         client,
         request,
@@ -456,12 +557,10 @@ async fn send_after_early_win(
             retries,
             replays,
         },
-        alternative.without_early_data(),
+        alternatives,
         race,
         None,
-        kept_http3
-            .filter(|_| !responded)
-            .map(|http3| RacedFields { http3, negotiated }),
+        kept_http3.map(|http3| RacedFields { http3, negotiated }),
     ))
     .await
 }
@@ -596,7 +695,8 @@ async fn alternative_setup(
         .await
 }
 
-/// Lets an alternative that lost to the origin while connecting finish.
+/// Lets an alternative that lost to another candidate while connecting
+/// finish.
 ///
 /// Like Chromium's orphaned alternative job, a finished connection stays
 /// pooled for later requests and clears the alternative's failure history,
@@ -882,24 +982,34 @@ async fn dispatch_http3(
     sent.map(|dispatched| dispatched.map(DispatchOutcome::from))
 }
 
-/// The candidate that finished setup first. When the origin wins, `loser`
-/// holds the alternative's failure or its unfinished setup.
+/// The candidate that finished setup first, with every alternative's state
+/// in race order: `losers` holds each other alternative's failure or
+/// unfinished setup, and [`Candidate::Taken`] in the winner's place.
 pub(super) enum RaceOutcome<A, O, F: ?Sized> {
-    Alternative(A),
-    Origin { leased: O, loser: Candidate<F> },
+    Alternative {
+        index: usize,
+        leased: A,
+        losers: Vec<Candidate<F>>,
+    },
+    Origin {
+        leased: O,
+        losers: Vec<Candidate<F>>,
+    },
 }
 
-/// Races `alternative` setup against origin setup started by `start_origin`.
+/// Races `alternatives` setup against origin setup started by
+/// `start_origin`.
 ///
-/// The alternative is polled first. The origin starts after `origin_delay`,
-/// or at once when the alternative fails first, so at most one setup attempt
-/// per candidate exists. The first success wins and the other candidate is
-/// cancelled, except that an unfinished alternative is returned to the caller
-/// when the origin wins. An origin failure waits for the alternative. When
-/// both fail, the origin's error is returned. Dropping the returned future
-/// cancels both candidates.
+/// Every alternative starts at once, and they are polled in race order. The
+/// origin starts after `origin_delay`, or at once when every alternative has
+/// failed, so at most one setup attempt per candidate exists. The first
+/// success wins: an unfinished origin is cancelled, while the other
+/// alternatives' failures and unfinished setups are returned to the caller.
+/// An origin failure waits for the alternatives. When every candidate fails,
+/// the origin's error is returned. Dropping the returned future cancels
+/// every candidate.
 pub(super) async fn race_setup<A, O, F, S, G>(
-    alternative: Pin<Box<F>>,
+    alternatives: Vec<Pin<Box<F>>>,
     start_origin: S,
     origin_delay: Duration,
     timeout_budget: TimeoutBudget,
@@ -909,27 +1019,42 @@ where
     S: FnOnce() -> G,
     G: Future<Output = Result<O, RequestError>>,
 {
-    let mut alternative = Candidate::Pending(alternative);
+    let mut alternatives: Vec<_> = alternatives.into_iter().map(Candidate::Pending).collect();
     let mut start_origin = Some(start_origin);
     let mut origin: Option<Pin<Box<G>>> = None;
     let mut origin_error = None;
     let mut delay = Some(Box::pin(timeout_budget.delay(origin_delay, None)));
 
     poll_fn(|context| {
-        if let Candidate::Pending(setup) = &mut alternative
-            && let Poll::Ready(result) = setup.as_mut().poll(context)
-        {
-            match result {
-                Ok(leased) => return Poll::Ready(Ok(RaceOutcome::Alternative(leased))),
-                Err(error) => {
-                    alternative = Candidate::Failed(error);
-                    // The origin no longer waits for its delay.
-                    delay = None;
-                    if let Some(start) = start_origin.take() {
-                        origin = Some(Box::pin(start()));
+        let mut won = None;
+        for (index, candidate) in alternatives.iter_mut().enumerate() {
+            if let Candidate::Pending(setup) = &mut *candidate
+                && let Poll::Ready(result) = setup.as_mut().poll(context)
+            {
+                match result {
+                    Ok(leased) => {
+                        *candidate = Candidate::Taken;
+                        won = Some((index, leased));
+                        break;
                     }
+                    Err(error) => *candidate = Candidate::Failed(error),
                 }
             }
+        }
+        if let Some((index, leased)) = won {
+            return Poll::Ready(Ok(RaceOutcome::Alternative {
+                index,
+                leased,
+                losers: std::mem::take(&mut alternatives),
+            }));
+        }
+        let all_failed = alternatives
+            .iter()
+            .all(|candidate| matches!(candidate, Candidate::Failed(_)));
+        if all_failed && let Some(start) = start_origin.take() {
+            // The origin no longer waits for its delay.
+            delay = None;
+            origin = Some(Box::pin(start()));
         }
         if let Some(timer) = delay.as_mut()
             && let Poll::Ready(result) = timer.as_mut().poll(context)
@@ -948,15 +1073,15 @@ where
             origin = None;
             match result {
                 Ok(leased) => {
-                    let loser = std::mem::replace(&mut alternative, Candidate::Taken);
-                    return Poll::Ready(Ok(RaceOutcome::Origin { leased, loser }));
+                    let losers = std::mem::take(&mut alternatives);
+                    return Poll::Ready(Ok(RaceOutcome::Origin { leased, losers }));
                 }
                 Err(error) => origin_error = Some(error),
             }
         }
-        if matches!(alternative, Candidate::Failed(_)) && origin.is_none() {
-            // Both failed; nothing is marked broken, because Chromium reports
-            // brokenness only when the origin succeeds.
+        if all_failed && origin.is_none() {
+            // Every candidate failed; nothing is marked broken, because
+            // Chromium reports brokenness only when the origin succeeds.
             if let Some(error) = origin_error.take() {
                 return Poll::Ready(Err(error));
             }
@@ -966,7 +1091,7 @@ where
     .await
 }
 
-/// The alternative candidate's state; `Taken` only after the race returned.
+/// An alternative candidate's state; `Taken` only after the race returned.
 pub(super) enum Candidate<F: ?Sized> {
     Pending(Pin<Box<F>>),
     Failed(RequestError),

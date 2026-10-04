@@ -527,6 +527,228 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
     .await
 }
 
+/// A caller cap of two races both listed alternatives at once: the request
+/// goes to the one that answers, with an `Alt-Used` field that names it,
+/// and the blackholed one is marked broken once its setup limit ends it.
+#[tokio::test]
+async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt_used()
+-> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ORIGIN_NAME,
+            UpgradeScript::new(
+                [],
+                AlternativeBehavior::responses([
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ]),
+            ),
+        )
+        .await?;
+        let blackhole = Blackhole::bind().await?;
+        let limit = Duration::from_millis(300);
+        // A long origin delay leaves the alternatives to decide the race.
+        let client = client_builder(&identity)?
+            .alt_svc_policy(capped_race(Duration::from_secs(30), limit, 2)?)
+            .build()?;
+        let serving = fixture.alternative_address().port();
+        import_alternatives_for(&client, ORIGIN_NAME, &fixture, &[blackhole.port, serving])?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http3);
+        assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
+        // The first listed alternative was dialed too, and keeps connecting
+        // in the background until its setup limit; the slack allows for a
+        // slow runner's timers.
+        wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+        tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
+        let after_limit = blackhole.datagrams();
+
+        // The broken first alternative is not raced again, and the second
+        // request reuses the pooled connection to the second.
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http3);
+        assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.peers(), 1);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_connections, 0);
+        assert_eq!(observed.alternative_connections, 1);
+        let alt_used = format!("{ALTERNATIVE_HOST}:{serving}");
+        let authority = format!("{ORIGIN_NAME}:{}", fixture_port(&observed)?);
+        assert_eq!(observed.alternative_requests.len(), 2);
+        for request in &observed.alternative_requests {
+            assert_eq!(field_values(request, "alt-used"), [alt_used.as_bytes()]);
+            // Only the QUIC location differs from the origin.
+            assert_eq!(request.authority.as_deref(), Some(authority.as_str()));
+            assert_eq!(request.server_name.as_deref(), Some(ORIGIN_NAME));
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// When every raced alternative is blackholed, the origin carries the
+/// request after its delay and each alternative is marked broken once its
+/// setup limit ends it.
+#[tokio::test]
+async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken() -> TestResult<()>
+{
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([]),
+            ),
+        )
+        .await?;
+        let blackholes = [Blackhole::bind().await?, Blackhole::bind().await?];
+        let origin_delay = Duration::from_millis(50);
+        let limit = Duration::from_millis(300);
+        let client = client_builder(&identity)?
+            .alt_svc_policy(capped_race(origin_delay, limit, 2)?)
+            .build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &fixture,
+            &[blackholes[0].port, blackholes[1].port],
+        )?;
+
+        let started = Instant::now();
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        let elapsed = started.elapsed();
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
+        assert!(elapsed >= origin_delay, "origin won after {elapsed:?}");
+        for blackhole in &blackholes {
+            wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+        }
+        tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
+        let after_limit = blackholes.each_ref().map(Blackhole::datagrams);
+
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        drain(second).await?;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(blackholes.each_ref().map(Blackhole::datagrams), after_limit);
+        assert_eq!(blackholes.each_ref().map(Blackhole::peers), [1, 1]);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        assert_eq!(observed.alternative_connections, 0);
+        Ok(())
+    })
+    .await
+}
+
+/// With one HTTP/3 request admitted per origin, the second raced
+/// alternative waits for admission while the first connects; when the
+/// origin wins it is cancelled without a datagram and without being marked,
+/// so a later race dials it.
+#[tokio::test]
+async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -> TestResult<()> {
+    bounded(async {
+        let identity = identity()?;
+        let fixture = Http3UpgradeFixture::spawn(
+            &identity,
+            ALTERNATIVE_HOST,
+            UpgradeScript::new(
+                [
+                    PlannedResponse::new(StatusCode::OK).body("first"),
+                    PlannedResponse::new(StatusCode::OK).body("second"),
+                ],
+                AlternativeBehavior::responses([]),
+            ),
+        )
+        .await?;
+        let admitted = Blackhole::bind().await?;
+        let waiting = Blackhole::bind().await?;
+        let limit = Duration::from_millis(300);
+        let client = client_builder(&identity)?
+            .alt_svc_policy(capped_race(Duration::from_millis(50), limit, 2)?)
+            .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
+            .max_pending_http3_requests_per_origin(NonZeroUsize::MIN)
+            .request_timeouts(RequestTimeouts::new().pool_admission(Duration::from_secs(2)))
+            .build()?;
+        import_alternatives_for(
+            &client,
+            ALTERNATIVE_HOST,
+            &fixture,
+            &[admitted.port, waiting.port],
+        )?;
+
+        let first = client
+            .get_negotiated(&fixture.origin_url("/first"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&first)?, HttpProtocol::Http2);
+        drain(first).await?;
+        wait_until(|| Ok(admitted.datagrams() > 0)).await?;
+        // The admitted setup ends at its limit and gives its admission back;
+        // the cancelled one never sent anything.
+        tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
+        assert_eq!(waiting.datagrams(), 0);
+
+        // The first alternative is broken and the second is not, so the
+        // next race dials the second while the pooled H2 connection carries
+        // the request.
+        let second = client
+            .get_negotiated(&fixture.origin_url("/second"))?
+            .send()
+            .await?;
+        assert_eq!(protocol(&second)?, HttpProtocol::Http2);
+        drain(second).await?;
+        wait_until(|| Ok(waiting.datagrams() > 0)).await?;
+        assert_eq!(admitted.peers(), 1);
+
+        drop(client);
+        let observed = fixture.finish().await?;
+        assert_eq!(observed.origin_request_count, 2);
+        Ok(())
+    })
+    .await
+}
+
+#[test]
+fn a_race_of_more_than_three_alternatives_is_rejected_at_build() -> TestResult<()> {
+    let identity = identity()?;
+    let error = client_builder(&identity)?
+        .alt_svc_policy(capped_race(Duration::ZERO, Duration::from_secs(4), 4)?)
+        .build()
+        .err()
+        .ok_or("a race of four alternatives must be rejected")?;
+    assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    client_builder(&identity)?
+        .alt_svc_policy(capped_race(Duration::ZERO, Duration::from_secs(4), 3)?)
+        .build()?;
+    Ok(())
+}
+
 /// Under the sequential policy a failed alternative is dropped from its
 /// advertisement, so the next request uses the next one the field listed.
 #[tokio::test]
@@ -1079,6 +1301,36 @@ fn client_builder(identity: &TestIdentity) -> TestResult<phantom::ClientBuilder>
 fn race_policy(origin_delay: Duration) -> TestResult<AltSvcPolicy> {
     let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
     Ok(AltSvcPolicy::race(AltSvcRace::new(origin_delay, backoff)))
+}
+
+/// A racing policy that sets up at most `max_alternatives` alternatives,
+/// each for at most `limit`.
+fn capped_race(
+    origin_delay: Duration,
+    limit: Duration,
+    max_alternatives: usize,
+) -> TestResult<AltSvcPolicy> {
+    let race = race_policy(origin_delay)?
+        .race_settings()
+        .ok_or("the race policy has no race settings")?
+        .with_alternative_setup_limit(limit)
+        .with_max_alternatives(
+            NonZeroUsize::new(max_alternatives).ok_or("a race needs an alternative")?,
+        );
+    Ok(AltSvcPolicy::race(race))
+}
+
+/// Returns the values of every `name` field the request carried.
+fn field_values<'a>(
+    request: &'a http3_upgrade_support::ObservedRequest,
+    name: &str,
+) -> Vec<&'a [u8]> {
+    request
+        .fields
+        .iter()
+        .filter(|field| field.name.eq_ignore_ascii_case(name))
+        .map(|field| field.value.as_slice())
+        .collect()
 }
 
 /// Seeds the alternative without an origin request, so no H2 connection is

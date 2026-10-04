@@ -4204,7 +4204,7 @@ connection exists (`existing-h2-session`), one dispatch on the winner, and a
 
 | Tests | What they cover |
 | --- | --- |
-| Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of both candidates, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores) |
+| Unit tests with a paused clock: race coordinator | Origin start at the configured delay, immediate start after an alternative failure, cancellation of every attempt, and connect and total deadlines (the coordinator's permit tests use stand-in semaphores) |
 | Unit tests with a paused clock: store | Brokenness per origin and alternative, expiry, doubling with a cap, a repeated failure inside one broken period, and clearing on success or `clear`; every listed `h3` alternative kept in field order up to eight, the first one not broken selected, a return to the first when its broken period ends, each alternative's own expiry, and a new field replacing the list without clearing brokenness |
 | Unit tests with a paused clock: H3 connect turns | One location waits only for its own turn |
 | Loopback, `crates/phantom/tests/http3/alt_svc_race.rs`, real client pools | The default sequential terminal failure; one dispatch per request, with background pooling of the losing alternative; a one-shot streaming body sent only by the winner; route preservation |

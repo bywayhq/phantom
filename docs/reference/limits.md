@@ -76,6 +76,7 @@ error names `TimeoutPhase::WebSocketHandshake`
 | Origins with learned `Accept-CH` state | 64 | `max_client_hint_origins` |
 | Origins with Alt-Svc state | disabled | `alt_svc(maximum_origins)` |
 | Alt-Svc alternatives per origin and route | 8, in field order | Not configurable |
+| Alt-Svc alternatives one race sets up at once, at most 3; each needs its own H3 admission | 1, the first not broken, as Chrome | `AltSvcRace::with_max_alternatives` |
 | Alt-Svc failure records, shared by alternatives, HTTPS-record locations, and evicted origins | 9 × `maximum_origins` | Not configurable |
 
 - Each retained entry holds one pool key's connection state. When the limit

@@ -420,6 +420,11 @@ impl PoolKey {
 /// closed.
 const MAX_TRANSPORT_LOCATIONS_PER_ENTRY: usize = 4;
 
+// A race's alternatives and exact H3 to the origin's own location all keep
+// their connections without evicting one another.
+const _: () =
+    assert!(super::alt_svc::MAX_RACED_ALTERNATIVES == MAX_TRANSPORT_LOCATIONS_PER_ENTRY - 1);
+
 struct PoolEntry {
     /// The entry's connections and how streams spread across them. The lock
     /// is held for lookup and insertion only, never across an await.

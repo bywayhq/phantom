@@ -314,8 +314,14 @@ impl AltSvcStore {
         }
     }
 
-    pub(super) fn get(&self, origin: &Endpoint, route: &Route) -> Option<AltSvcSelection> {
-        self.get_at(origin, route, Instant::now())
+    /// Returns up to `max` alternatives for one request; see [`Self::get_up_to_at`].
+    pub(super) fn get_up_to(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        max: usize,
+    ) -> Vec<AltSvcSelection> {
+        self.get_up_to_at(origin, route, max, Instant::now())
     }
 
     #[cfg(test)]
@@ -580,17 +586,35 @@ impl AltSvcStore {
         });
     }
 
+    #[cfg(test)]
     fn get_at(&self, origin: &Endpoint, route: &Route, now: Instant) -> Option<AltSvcSelection> {
+        self.get_up_to_at(origin, route, 1, now).into_iter().next()
+    }
+
+    /// Returns the first `max` alternatives in field order that are not
+    /// broken, each location once, or else the first alternative marked
+    /// broken; empty when the origin has no fresh alternative.
+    fn get_up_to_at(
+        &self,
+        origin: &Endpoint,
+        route: &Route,
+        max: usize,
+        now: Instant,
+    ) -> Vec<AltSvcSelection> {
         let key = StoreKey::new(origin, route);
         let mut entries = self.lock_entries();
-        let position = entries.iter().position(|entry| entry.key == key)?;
-        let mut entry = entries.remove(position)?;
+        let Some(position) = entries.iter().position(|entry| entry.key == key) else {
+            return Vec::new();
+        };
+        let Some(mut entry) = entries.remove(position) else {
+            return Vec::new();
+        };
         entry
             .alternatives
             .retain(|alternative| alternative.expires_at > now);
         if entry.alternatives.is_empty() {
             debug!(outcome = "expired", "removed expired Alt-Svc origin");
-            return None;
+            return Vec::new();
         }
         // Chromium takes the first alternative in field order that is not
         // broken (`HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal`,
@@ -600,34 +624,42 @@ impl AltSvcStore {
         // so a race goes to the origin alone and a sequential request still
         // uses it.
         let own = AltSvcLocation::origin(origin);
-        let (location, broken, origin_quic_recently_broken) = {
+        let (locations, broken, origin_quic_recently_broken) = {
             let records = self.lock_broken();
             let is_broken = |location: &AltSvcLocation| {
                 records.iter().any(|record| {
                     record.key == key && &record.location == location && record.until > now
                 })
             };
-            let (location, broken) = match entry
-                .alternatives
-                .iter()
-                .find(|alternative| !is_broken(&alternative.location))
-            {
-                Some(alternative) => (alternative.location.clone(), false),
-                None => (entry.alternatives[0].location.clone(), true),
-            };
+            let mut locations: Vec<AltSvcLocation> = Vec::new();
+            for alternative in &entry.alternatives {
+                if locations.len() == max {
+                    break;
+                }
+                if !is_broken(&alternative.location) && !locations.contains(&alternative.location) {
+                    locations.push(alternative.location.clone());
+                }
+            }
+            let broken = locations.is_empty();
+            if broken {
+                locations.push(entry.alternatives[0].location.clone());
+            }
             let origin_failed = records
                 .iter()
                 .any(|record| record.key == key && record.location == own);
-            (location, broken, origin_failed)
+            (locations, broken, origin_failed)
         };
-        let selection = AltSvcSelection {
-            location,
-            generation: entry.generation,
-            broken,
-            origin_quic_recently_broken,
-        };
+        let selections = locations
+            .into_iter()
+            .map(|location| AltSvcSelection {
+                location,
+                generation: entry.generation,
+                broken,
+                origin_quic_recently_broken,
+            })
+            .collect();
         entries.push_back(entry);
-        Some(selection)
+        selections
     }
 
     fn replace(&self, entry: Entry) {
@@ -1136,8 +1168,8 @@ impl PendingLookup {
 }
 
 mod policy;
-pub(crate) use policy::DEFAULT_ALTERNATIVE_SETUP_LIMIT;
 pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
+pub(crate) use policy::{DEFAULT_ALTERNATIVE_SETUP_LIMIT, MAX_RACED_ALTERNATIVES};
 
 mod snapshot;
 pub use snapshot::{

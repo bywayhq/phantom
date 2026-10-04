@@ -21,7 +21,7 @@ to your code.
 | `max_http2_connections_per_origin` | H2 past the peer's stream limit | Several H2 connections to one origin | 1, as browsers |
 | `max_http3_connections_per_origin` | H3 past the server's stream limit | Several QUIC connections to one origin | 1, as browsers |
 | `negotiated_setup_wait_limit` | Requests behind a stalled handshake | A second TLS handshake to an H2 origin | No limit, as Firefox 157 |
-| `alt_svc_policy` race, `with_alternative_setup_limit` | First request to an H3 origin | Parallel QUIC and TCP setup; when QUIC setup stops | Sequential; 4 s limit, as Chrome 153 |
+| `alt_svc_policy` race, `with_alternative_setup_limit`, `with_max_alternatives` | First request to an H3 origin | Parallel QUIC and TCP setup, QUIC to up to three alternatives; when QUIC setup stops | Sequential; 4 s limit, as Chrome 153; one alternative, as Chrome 154 |
 | `http3_early_data` | First request on a resumed H3 connection | 0-RTT data | The profile's QUIC `early_data` |
 | `https_record_discovery` | H3 without a prior Alt-Svc response | HTTPS queries to your DNS resolver | Off |
 | `preemptive_proxy_authentication` | Proxied requests after the first | The proxy sees fewer `407` exchanges | On, as browsers |

@@ -31,22 +31,28 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 ```
 
 - QUIC setup to the alternative starts first. Origin setup starts after the
-  delay you pass, or at once if the alternative fails first or a reusable
-  HTTP/2 connection to the origin is pooled. There is no preset delay; zero
-  starts both together.
+  delay you pass, or at once if every raced alternative fails first or a
+  reusable HTTP/2 connection to the origin is pooled. There is no preset
+  delay; zero starts both together.
+- Chrome races only the first alternative that is not broken, and so does
+  the default. `AltSvcRace::with_max_alternatives` races up to three at
+  once, in field order and skipping broken ones; the request goes to the
+  first to connect, with an `Alt-Used` field that names it. Each setup needs
+  its own H3 admission, so with `max_concurrent_http3_requests_per_origin`
+  at 1 the later ones wait and are cancelled when another candidate wins.
 - The request is sent once, on the winner, and `ResponseInfo` reports the
   winner's protocol. Later retries and replays stay on that protocol.
-- The fields for both candidates are built and checked before either setup
+- The fields for every candidate are built and checked before any setup
   starts, and the winner sends them as built, so a cookie stored during the
   race reaches the next request
   ([fields of a repeated attempt](../explanation/design.md#fields-of-a-repeated-attempt)).
-- An alternative that fails while the origin succeeds is marked broken and
-  not raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling
-  per failure, capped at two days; a successful alternative connection resets
-  it. Meanwhile the next alternative the field listed is raced, as Chrome
+- An alternative that fails while another candidate wins is marked broken
+  and not raced until the backoff ends. `CHROMIUM_153` is 300 seconds,
+  doubling per failure, capped at two days; a successful alternative
+  connection resets it. Meanwhile the next alternative the field listed is raced, as Chrome
   does; with every one broken, the origin is used alone, without the
-  HTTPS-record lookup Chrome would still race. When both fail, Phantom
-  returns the origin's error.
+  HTTPS-record lookup Chrome would still race. When every candidate fails,
+  Phantom returns the origin's error.
 - A raced alternative offers early data when the client does, as Chrome's
   does, so a resumed alternative can win at once and send a replay-safe
   request as early data. It does not after QUIC to the origin's own host and
@@ -174,8 +180,8 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
   (`AltSvcPolicy::race`) sends the request over TCP instead, as Chrome
   does, and `ech_from_https_records = false` on the profile's H3 TLS
   settings sends GREASE.
-- Not implemented: racing more than one alternative (a stored Alt-Svc
-  alternative is used instead of an HTTPS-record one), persisting
+- Not implemented: racing an HTTPS-record location beside stored Alt-Svc
+  alternatives (they are used instead of it), persisting
   brokenness or clearing it on a network change, an RTT-derived racing
   delay, and proxy-route snapshots.
 

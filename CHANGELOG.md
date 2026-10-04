@@ -827,6 +827,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `AltSvcRace::with_max_alternatives` races up to three learned Alt-Svc
+  alternatives at once, the first ones the field listed that are not
+  broken, and sends the request on the first to connect, with an `Alt-Used`
+  field that names it. The default of 1 keeps Chrome's behavior of racing
+  only the first; a value above 3 fails `ClientBuilder::build` with
+  `BuildErrorKind::InvalidPolicy`. Each raced setup needs its own H3
+  admission, so with `max_concurrent_http3_requests_per_origin` at 1 the
+  later alternatives wait and are cancelled when another candidate wins
+  ([guide](docs/guides/http3-discovery.md#race-the-alternative-against-the-origin)).
 - `RequestBuilder::alt_svc_alternative(host, port)` sends an exact HTTP/3
   request to an alternative service the caller names, as a request to a
   learned Alt-Svc alternative goes: QUIC connects to that location over
@@ -835,8 +844,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   check, with `Alt-Used` after its template, caller, and cookie fields.
   It needs no Alt-Svc store, setup retries follow the request's
   `RetryPolicy`, a failure returns the HTTP/3 error without the HTTP/2
-  fallback, and a same-origin redirect keeps the alternative. A non-canonical host, a zero port, a request that is not
-  exact HTTP/3, or a caller `Alt-Used` fails before any I/O
+  fallback, and a same-origin redirect keeps the alternative. A
+  non-canonical host, a zero port, a request that is not exact HTTP/3, or
+  a caller `Alt-Used` fails before any I/O
   ([guide](docs/guides/socks-and-connect-udp.md#reach-a-known-alternative-service)).
 - `RequestBuilder::expect_continue(wait)` sends `Expect: 100-continue` and
   holds a nonempty body until the server answers `100 Continue` or `wait`

@@ -35,15 +35,17 @@ use crate::{
     },
 };
 
-/// The lists of a request that races an alternative against its origin.
+/// The lists of a request that races alternatives against its origin.
 #[derive(Clone)]
 pub(super) struct RacedFields {
-    pub(super) http3: Http3Fields,
+    /// One HTTP/3 list per raced alternative, in race order, each naming its
+    /// own alternative in `Alt-Used`.
+    pub(super) http3: Box<[Http3Fields]>,
     pub(super) negotiated: NegotiatedFields,
 }
 
-/// Builds and checks the HTTP/3 list for the alternative and the HTTP/1.1
-/// and HTTP/2 lists for the origin before either candidate performs I/O.
+/// Builds and checks an HTTP/3 list for each alternative and the HTTP/1.1
+/// and HTTP/2 lists for the origin before any candidate performs I/O.
 ///
 /// The body is borrowed, not taken, since only the winner sends it.
 pub(super) fn raced(
@@ -51,7 +53,7 @@ pub(super) fn raced(
     request: &ResolvedRequest,
     attempt: &AttemptRequest<'_>,
     route: &Route,
-    alternative: &AlternativeTarget,
+    alternatives: &[AlternativeTarget],
 ) -> Result<RacedFields, RequestError> {
     // An HTTP/3 connector is required before the body is looked at, as it is
     // for an attempt on the alternative alone.
@@ -70,7 +72,21 @@ pub(super) fn raced(
         client_hints: attempt_client_hints(client, request, hint_origin.as_deref(), &no_restart),
         body,
     };
-    let http3 = alternative_fields(client, request, route, alternative, &fields)?;
+    // The alternatives differ only in `Alt-Used`, so the list is built once.
+    let headers = attempt_headers(client, request, HttpProtocol::Http3, fields.headers);
+    let http3 = alternatives
+        .iter()
+        .map(|alternative| {
+            checked_alternative_fields(
+                client,
+                request,
+                route,
+                alternative,
+                &fields,
+                headers.clone(),
+            )
+        })
+        .collect::<Result<_, _>>()?;
     let negotiated = negotiated(client, request, &fields)?;
     Ok(RacedFields { http3, negotiated })
 }
@@ -117,12 +133,25 @@ pub(super) fn alternative_fields(
     alternative: &AlternativeTarget,
     attempt: &AttemptFields<'_>,
 ) -> Result<Http3Fields, RequestError> {
+    let headers = attempt_headers(client, request, HttpProtocol::Http3, attempt.headers);
+    checked_alternative_fields(client, request, route, alternative, attempt, headers)
+}
+
+/// Appends the alternative's `Alt-Used` field to the HTTP/3 `headers` built
+/// for this attempt, and checks the list.
+fn checked_alternative_fields(
+    client: &Client,
+    request: &ResolvedRequest,
+    route: &Route,
+    alternative: &AlternativeTarget,
+    attempt: &AttemptFields<'_>,
+    mut headers: Vec<RequestHeader>,
+) -> Result<Http3Fields, RequestError> {
     let connector = client
         .inner
         .http3
         .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    let mut headers = attempt_headers(client, request, HttpProtocol::Http3, attempt.headers);
     if let Some(alt_used) = alternative.alt_used() {
         headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
     }

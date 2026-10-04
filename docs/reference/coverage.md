@@ -112,7 +112,7 @@ connection is not enough.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | RTT-derived racing delay |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -524,6 +524,9 @@ Supported lifecycle:
   - QUIC setup to the alternative starts first. H1/H2 setup to the origin
     starts after a delay the caller sets, or at once if the alternative fails
     or a reusable pooled H2 connection exists.
+  - One alternative is raced, as in Chromium 154. A caller can race up to
+    three at once (`AltSvcRace::with_max_alternatives`), which no browser
+    does; the request carries an `Alt-Used` field naming the winner.
   - The request is dispatched once, on the winner.
   - Alternative setup is limited to 4 seconds.
   - A losing alternative keeps connecting in the background and is then

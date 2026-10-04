@@ -1,8 +1,15 @@
 //! Caller policy for using a learned HTTP/3 alternative.
 
-use std::time::Duration;
+use std::{num::NonZeroUsize, time::Duration};
 
 use crate::BuildError;
+
+/// The most alternatives one race may set up at once.
+///
+/// An HTTP/3 pool entry keeps connections for four transport locations
+/// before it closes the least recently used one: the origin's own location,
+/// which exact HTTP/3 dials, and three alternatives.
+pub(crate) const MAX_RACED_ALTERNATIVES: usize = 3;
 
 /// How a negotiated HTTPS request uses a fresh learned `h3` alternative.
 ///
@@ -78,6 +85,9 @@ impl AltSvcPolicy {
                     "Alt-Svc alternative setup limit is not representable",
                 ))
             }
+            Some(race) if race.max_alternatives.get() > MAX_RACED_ALTERNATIVES => Err(
+                BuildError::invalid_policy("Alt-Svc race allows at most 3 alternatives"),
+            ),
             Some(_) | None => Ok(()),
         }
     }
@@ -86,9 +96,16 @@ impl AltSvcPolicy {
 /// Parameters for racing a learned HTTP/3 alternative against the origin.
 ///
 /// QUIC setup to the alternative starts first. Origin H1/H2 setup starts
-/// after `origin_delay`, or at once when the alternative fails first or the
-/// origin already has a reusable pooled HTTP/2 connection. The first
+/// after `origin_delay`, or at once when every raced alternative fails first
+/// or the origin already has a reusable pooled HTTP/2 connection. The first
 /// candidate to finish setup carries the request.
+///
+/// One alternative is raced by default: the first one the field listed that
+/// is not broken. That is what Chrome does: in the `two-alternatives`
+/// capture of Chrome 154, which `docs/explanation/validation.md` describes,
+/// the second alternative received no datagram.
+/// [`AltSvcRace::with_max_alternatives`] races more of them at once, which is
+/// caller policy rather than browser behavior.
 ///
 /// An alternative connection attempt, including name resolution and any
 /// proxy setup, runs for at most 4 seconds by default, Chrome 153's timeout
@@ -97,24 +114,26 @@ impl AltSvcPolicy {
 /// that timeout on every received packet, so a responsive alternative whose
 /// handshake needs longer fails here but not in Chrome.
 ///
-/// When the origin wins while the alternative is connecting, alternative
-/// setup continues in the background on the current Tokio runtime and keeps
-/// its HTTP/3 admission permit until it ends; a finished connection is pooled
-/// for later requests. A setup still waiting for admission or for another
-/// setup to the same location is cancelled instead. Without a Tokio runtime
-/// handle the unfinished setup is dropped, and nothing is pooled or marked.
+/// When another candidate wins while an alternative is connecting, that
+/// alternative's setup continues in the background on the current Tokio
+/// runtime and keeps its HTTP/3 admission permit until it ends; a finished
+/// connection is pooled for later requests. A setup still waiting for
+/// admission or for another setup to the same location is cancelled instead.
+/// Without a Tokio runtime handle the unfinished setup is dropped, and
+/// nothing is pooled or marked.
 ///
-/// An alternative that fails while the origin succeeds is marked broken for
-/// [`AltSvcBrokenBackoff`] and is not raced again until that period ends.
-/// Meanwhile the next alternative the field listed is raced, as Chrome does.
-/// With every listed alternative broken the origin is used alone, without
-/// the HTTPS-record lookup Chrome would still race. When both candidates
-/// fail, nothing is marked.
+/// An alternative that fails while another candidate succeeds is marked
+/// broken for [`AltSvcBrokenBackoff`] and is not raced again until that
+/// period ends. Meanwhile the next alternative the field listed is raced, as
+/// Chrome does. With every listed alternative broken the origin is used
+/// alone, without the HTTPS-record lookup Chrome would still race. When
+/// every candidate fails, nothing is marked.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
     origin_delay: Duration,
     broken_backoff: AltSvcBrokenBackoff,
     alternative_setup_limit: Duration,
+    max_alternatives: NonZeroUsize,
 }
 
 /// Longest time one raced alternative connection attempt may run once it
@@ -151,7 +170,52 @@ impl AltSvcRace {
             origin_delay,
             broken_backoff,
             alternative_setup_limit: DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+            max_alternatives: NonZeroUsize::MIN,
         }
+    }
+
+    /// Sets how many learned alternatives one race sets up at once, at most
+    /// 3.
+    ///
+    /// The default is 1, the first alternative the field listed that is not
+    /// broken, which is what Chrome races. A larger value is caller policy
+    /// that no browser shows on the wire: it starts QUIC setup to up to that
+    /// many alternatives together, distinct and not broken, in field order,
+    /// and sends the request on whichever finishes setup first, with an
+    /// `Alt-Used` field that names it. The origin still waits for
+    /// `origin_delay`, and starts early only when every raced alternative has
+    /// failed.
+    ///
+    /// Every raced setup needs its own HTTP/3 admission for the origin. With
+    /// [`ClientBuilder::max_concurrent_http3_requests_per_origin`](crate::ClientBuilder::max_concurrent_http3_requests_per_origin)
+    /// at 1, later alternatives wait for that admission while the first one
+    /// connects, and are cancelled when another candidate wins. A value above
+    /// 3 makes [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
+    /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::{num::NonZeroUsize, time::Duration};
+    ///
+    /// use phantom::{AltSvcBrokenBackoff, AltSvcRace};
+    ///
+    /// let race = AltSvcRace::new(Duration::from_millis(300), AltSvcBrokenBackoff::CHROMIUM_153);
+    /// assert_eq!(race.max_alternatives(), NonZeroUsize::MIN);
+    /// let two = NonZeroUsize::new(2).ok_or("two is not zero")?;
+    /// assert_eq!(race.with_max_alternatives(two).max_alternatives(), two);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub const fn with_max_alternatives(mut self, max: NonZeroUsize) -> Self {
+        self.max_alternatives = max;
+        self
+    }
+
+    /// Returns how many learned alternatives one race sets up at once.
+    #[must_use]
+    pub const fn max_alternatives(self) -> NonZeroUsize {
+        self.max_alternatives
     }
 
     /// Sets how long one alternative connection attempt may run, including
@@ -250,5 +314,41 @@ impl AltSvcBrokenBackoff {
             .checked_pow(previous_failures)
             .and_then(|factor| self.initial.checked_mul(factor))
             .map_or(self.maximum, |period| period.min(self.maximum))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{num::NonZeroUsize, time::Duration};
+
+    use super::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, MAX_RACED_ALTERNATIVES};
+    use crate::BuildErrorKind;
+
+    fn race() -> AltSvcRace {
+        AltSvcRace::new(
+            Duration::from_millis(300),
+            AltSvcBrokenBackoff::CHROMIUM_153,
+        )
+    }
+
+    #[test]
+    fn a_race_sets_up_one_alternative_by_default() {
+        assert_eq!(race().max_alternatives(), NonZeroUsize::MIN);
+    }
+
+    #[test]
+    fn a_race_accepts_up_to_three_alternatives_and_rejects_four() -> Result<(), &'static str> {
+        for count in 1..=MAX_RACED_ALTERNATIVES {
+            let max = NonZeroUsize::new(count).ok_or("zero alternatives")?;
+            let policy = AltSvcPolicy::race(race().with_max_alternatives(max));
+            assert!(policy.validate().is_ok(), "{count}");
+        }
+        let four = NonZeroUsize::new(MAX_RACED_ALTERNATIVES + 1).ok_or("zero alternatives")?;
+        let error = AltSvcPolicy::race(race().with_max_alternatives(four))
+            .validate()
+            .err()
+            .ok_or("four alternatives must be rejected")?;
+        assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+        Ok(())
     }
 }
