@@ -29,6 +29,8 @@ use crate::support::{
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
+mod per_origin;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// The `quic_transport_parameters` extension type (RFC 9001).
 const QUIC_TRANSPORT_PARAMETERS: u16 = 0x0039;

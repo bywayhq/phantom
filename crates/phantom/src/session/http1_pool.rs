@@ -519,6 +519,9 @@ struct PoolState {
     families: AddressFamilies<PoolKey>,
 }
 
+/// The client certificate depends only on host and port
+/// ([`ClientBuilder::client_certificate_for`](crate::ClientBuilder::client_certificate_for)),
+/// so the connections and TLS session tickets of one key share a certificate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PoolKey {
     host: Box<str>,

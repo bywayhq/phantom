@@ -60,8 +60,8 @@ impl WebSocketRequestBuilder {
         }
         let connector = client
             .inner
+            .connectors_for(&request.endpoint)
             .http3
-            .as_deref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http3))?;
         let authority = request.endpoint.authority().as_str();
         // A profile without an extended CONNECT pseudo-header order fails

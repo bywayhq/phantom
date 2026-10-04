@@ -22,6 +22,7 @@ use phantom_profile::{
 
 use crate::{
     BuildError, RequestBuilder, Route,
+    authority::{Endpoint, parse_absolute_uri},
     session::{ClientOptions, ClientState, http3_pool::ConnectUdpConnectors},
 };
 #[cfg(feature = "websocket")]
@@ -152,11 +153,116 @@ pub(crate) struct ClientInner {
     /// HTTP/1.1 connector with the policy's Upgrade-connection ALPN offer.
     #[cfg(feature = "websocket")]
     pub(crate) websocket_http1: Option<Http1TlsConnector>,
+    /// Origin connectors for each host and port with a certificate of its
+    /// own; [`Self::connectors_for`] picks among them and the fields above.
+    certificate_origins: Box<[CertificateOrigin]>,
     #[cfg(feature = "diagnostics")]
     pub(crate) key_log: Option<Arc<crate::KeyLog>>,
 }
 
+/// The origin connectors that present one host and port's client
+/// certificate, from [`ClientBuilder::client_certificate_for`].
+///
+/// Each connector is a clone of the client's connector for its protocol, so
+/// it shares the TLS context and settings, with an empty session cache and,
+/// for HTTP/3, a connection identity of its own.
+#[derive(Clone, Debug)]
+struct CertificateOrigin {
+    /// Canonical host, as [`Endpoint::host`] gives it.
+    host: Box<str>,
+    port: u16,
+    http1: Option<Http1TlsConnector>,
+    http1_or_2: Option<Http1Or2TlsConnector>,
+    http2: Option<Http2TlsConnector>,
+    http3: Option<Arc<Http3Connector>>,
+    #[cfg(feature = "websocket")]
+    websocket_http1: Option<Http1TlsConnector>,
+}
+
+/// The origin connectors that open connections to one host and port.
+///
+/// Every connection to an origin, including one to its Alt-Svc alternative
+/// or through a proxy tunnel, takes its connector from here, so that it
+/// presents the origin's client certificate. Whether a protocol is
+/// configured at all does not depend on the origin.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OriginConnectors<'a> {
+    pub(crate) http1: Option<&'a Http1TlsConnector>,
+    pub(crate) http1_or_2: Option<&'a Http1Or2TlsConnector>,
+    pub(crate) http2: Option<&'a Http2TlsConnector>,
+    pub(crate) http3: Option<&'a Arc<Http3Connector>>,
+    #[cfg(feature = "websocket")]
+    pub(crate) websocket_http1: Option<&'a Http1TlsConnector>,
+}
+
 impl ClientInner {
+    /// Returns the origin connectors for `endpoint`'s host and port: those
+    /// with the certificate [`ClientBuilder::client_certificate_for`] mapped
+    /// to it, or otherwise the client-wide ones.
+    ///
+    /// The host matches without regard to ASCII case, as the connection
+    /// pools' keys do.
+    pub(crate) fn connectors_for(&self, endpoint: &Endpoint) -> OriginConnectors<'_> {
+        let mapped = self.certificate_origins.iter().find(|origin| {
+            origin.port == endpoint.port() && origin.host.eq_ignore_ascii_case(endpoint.host())
+        });
+        match mapped {
+            Some(origin) => OriginConnectors {
+                http1: origin.http1.as_ref(),
+                http1_or_2: origin.http1_or_2.as_ref(),
+                http2: origin.http2.as_ref(),
+                http3: origin.http3.as_ref(),
+                #[cfg(feature = "websocket")]
+                websocket_http1: origin.websocket_http1.as_ref(),
+            },
+            None => OriginConnectors {
+                http1: self.http1.as_ref(),
+                http1_or_2: self.http1_or_2.as_ref(),
+                http2: self.http2.as_ref(),
+                http3: self.http3.as_ref(),
+                #[cfg(feature = "websocket")]
+                websocket_http1: self.websocket_http1.as_ref(),
+            },
+        }
+    }
+
+    /// Derives one set of origin connectors per mapped host and port from
+    /// the client-wide connectors.
+    ///
+    /// Call it after every other change to the origin connectors, whose
+    /// clones it makes, so that each set has the same resolver, proxy
+    /// credentials, and early-data choice.
+    fn bind_certificate_origins(&mut self, origins: &[(Endpoint, ClientCertificate)]) {
+        self.certificate_origins = origins
+            .iter()
+            .map(|(endpoint, certificate)| CertificateOrigin {
+                host: endpoint.host().into(),
+                port: endpoint.port(),
+                http1: self
+                    .http1
+                    .clone()
+                    .map(|connector| connector.with_client_certificate(certificate)),
+                http1_or_2: self
+                    .http1_or_2
+                    .clone()
+                    .map(|connector| connector.with_client_certificate(certificate)),
+                http2: self
+                    .http2
+                    .clone()
+                    .map(|connector| connector.with_client_certificate(certificate)),
+                http3: self
+                    .http3
+                    .as_deref()
+                    .map(|connector| Arc::new(connector.with_client_certificate(certificate))),
+                #[cfg(feature = "websocket")]
+                websocket_http1: self
+                    .websocket_http1
+                    .clone()
+                    .map(|connector| connector.with_client_certificate(certificate)),
+            })
+            .collect();
+    }
+
     /// Gives the HTTPS proxy connectors new HTTP/2 connection pools: one for
     /// every purpose, or one per purpose, as the profile says.
     ///
@@ -272,6 +378,7 @@ impl Client {
             address_resolver: None,
             source_binding: SourceBinding::new(),
             client_certificate: None,
+            origin_certificates: Vec::new(),
             #[cfg(feature = "diagnostics")]
             key_log_capacity: None,
             #[cfg(feature = "diagnostics")]
@@ -570,6 +677,9 @@ pub struct ClientBuilder {
     /// default.
     source_binding: SourceBinding,
     client_certificate: Option<ClientCertificate>,
+    /// Origins as the caller wrote them, each with its own certificate; a
+    /// later entry for the same host and port wins.
+    origin_certificates: Vec<(Box<str>, ClientCertificate)>,
     #[cfg(feature = "diagnostics")]
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
@@ -619,7 +729,8 @@ impl fmt::Debug for ClientBuilder {
             .field("host_overrides", &self.host_overrides.len())
             .field("address_resolver", &self.address_resolver.is_some())
             .field("source_binding", &self.source_binding)
-            .field("client_certificate", &self.client_certificate.is_some());
+            .field("client_certificate", &self.client_certificate.is_some())
+            .field("origin_certificates", &self.origin_certificates.len());
         self.options.debug_fields(&mut debug);
         debug.finish_non_exhaustive()
     }
@@ -1018,16 +1129,19 @@ impl ClientBuilder {
         self
     }
 
-    /// Presents `certificate` to every origin that requests TLS client
-    /// authentication, over TCP and QUIC.
+    /// Presents `certificate` to every origin without a certificate of its
+    /// own from [`client_certificate_for`](Self::client_certificate_for)
+    /// that requests TLS client authentication, over TCP and QUIC.
     ///
     /// Off by default: without a certificate, a server's
     /// `CertificateRequest` gets an empty `Certificate` message, as a
     /// browser sends when no certificate is chosen. With one, the ClientHello
     /// does not change, and the certificate and its chain leave the client
-    /// only in answer to a `CertificateRequest`. One certificate serves every
-    /// origin; there is no per-origin selection. Proxies, including the
-    /// outer connection of a CONNECT-UDP route, never receive it.
+    /// only in answer to a `CertificateRequest`. An origin given a
+    /// certificate of its own with
+    /// [`client_certificate_for`](Self::client_certificate_for) receives that
+    /// one instead. Proxies, including the outer connection of a CONNECT-UDP
+    /// route, never receive it.
     ///
     /// BoringSSL signs the `CertificateVerify` only with a scheme from the
     /// profile's `signature_schemes`, so [`build`](Self::build) fails with
@@ -1068,6 +1182,95 @@ impl ClientBuilder {
     pub fn client_certificate(mut self, certificate: ClientCertificate) -> Self {
         self.client_certificate = Some(certificate);
         self
+    }
+
+    /// Presents `certificate` to one host and port, in place of the
+    /// certificate from [`client_certificate`](Self::client_certificate).
+    ///
+    /// `origin` is an `https://` or `wss://` URL with a host and an optional
+    /// port, such as `"https://api.example:8443"`; without a port it names
+    /// port 443. Only the host and port select the certificate, so
+    /// `https://api.example` and `wss://api.example` name one origin. The
+    /// host is canonicalized as a request URL's is, so ASCII case and an
+    /// internationalized name's Unicode or ASCII form do not matter; a
+    /// trailing dot names another host, as it does for a request. A later
+    /// call for the same host and port replaces an earlier one. Every other
+    /// origin receives the certificate from
+    /// [`client_certificate`](Self::client_certificate), or none without it.
+    ///
+    /// The certificate serves HTTP/1.1, HTTP/2, negotiated, and HTTP/3
+    /// requests and `wss://` openings over HTTP/1.1 and HTTP/2 to the
+    /// origin, its pinned and learned Alt-Svc alternatives, and its TLS
+    /// inside HTTP proxy CONNECT, SOCKS5, and CONNECT-UDP tunnels. Proxies
+    /// never receive it. Each redirect hop presents the certificate of the
+    /// host and port it goes to. Connections, and TLS session tickets over
+    /// TCP, stay with the host and port that opened them, so neither is used
+    /// with another certificate. As with
+    /// [`client_certificate`](Self::client_certificate), the certificate
+    /// leaves the client only in answer to a `CertificateRequest`.
+    ///
+    /// [`build`](Self::build) fails with
+    /// [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when `origin`
+    /// is not such a URL, such as one with a path, query, or user
+    /// information, or when the profile cannot sign with the certificate's
+    /// key, as [`client_certificate`](Self::client_certificate) describes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::{Client, ClientCertificate};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let default = ClientCertificate::from_pem(
+    ///     &std::fs::read("client-chain.pem")?,
+    ///     &std::fs::read("client-key.pem")?,
+    /// )?;
+    /// let api = ClientCertificate::from_pem(
+    ///     &std::fs::read("api-chain.pem")?,
+    ///     &std::fs::read("api-key.pem")?,
+    /// )?;
+    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let client = Client::builder(profile)
+    ///     .client_certificate(default)
+    ///     .client_certificate_for("https://api.example:8443", api)
+    ///     .build()?;
+    /// # drop(client);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn client_certificate_for(mut self, origin: &str, certificate: ClientCertificate) -> Self {
+        self.origin_certificates.push((origin.into(), certificate));
+        self
+    }
+
+    /// Checks every certificate [`Self::client_certificate_for`] mapped and
+    /// returns one per host and port, the last mapped for each.
+    fn certificate_origins(&self) -> Result<Vec<(Endpoint, ClientCertificate)>, BuildError> {
+        let mut origins: Vec<(Endpoint, ClientCertificate)> = Vec::new();
+        for (origin, certificate) in &self.origin_certificates {
+            let endpoint = certificate_origin(origin)?;
+            self.check_signature_schemes(certificate)?;
+            origins.retain(|(mapped, _)| {
+                mapped.port() != endpoint.port()
+                    || !mapped.host().eq_ignore_ascii_case(endpoint.host())
+            });
+            origins.push((endpoint, certificate.clone()));
+        }
+        Ok(origins)
+    }
+
+    /// Fails unless the TLS and HTTP/3 TLS settings can sign with
+    /// `certificate`'s key.
+    fn check_signature_schemes(&self, certificate: &ClientCertificate) -> Result<(), BuildError> {
+        let http3_tls = self.profile.http3().map(|settings| settings.tls());
+        for tls in std::iter::once(self.profile.tls()).chain(http3_tls) {
+            certificate
+                .check_signature_schemes(&tls.signature_schemes)
+                .map_err(BuildError::client_certificate)?;
+        }
+        Ok(())
     }
 
     /// Returns the host resolver the client will share with its connectors,
@@ -1542,8 +1745,10 @@ impl ClientBuilder {
     ///   `max_http2_proxy_connections_per_route` is above its ceiling; disabled
     ///   authentication is combined with added roots, HTTP/3, or a
     ///   CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
-    ///   and HTTP/3; a racing Alt-Svc policy has no store; or the profile's
-    ///   WebSocket connection policy needs HTTP/2 settings it lacks;
+    ///   and HTTP/3; a racing Alt-Svc policy has no store; a client
+    ///   certificate origin is malformed, or the profile cannot sign with a
+    ///   client certificate's key; or the profile's WebSocket connection
+    ///   policy needs HTTP/2 settings it lacks;
     /// - [`TrustStore`](crate::BuildErrorKind::TrustStore) when an added
     ///   origin or proxy root cannot be loaded;
     /// - [`ProtocolConfiguration`](crate::BuildErrorKind::ProtocolConfiguration)
@@ -1576,13 +1781,9 @@ impl ClientBuilder {
             .validate()
             .map_err(BuildError::invalid_source_binding)?;
         if let Some(certificate) = &self.client_certificate {
-            let http3_tls = self.profile.http3().map(|settings| settings.tls());
-            for tls in std::iter::once(self.profile.tls()).chain(http3_tls) {
-                certificate
-                    .check_signature_schemes(&tls.signature_schemes)
-                    .map_err(BuildError::client_certificate)?;
-            }
+            self.check_signature_schemes(certificate)?;
         }
+        let certificate_origins = self.certificate_origins()?;
         self.profile
             .tls()
             .validate()
@@ -1885,6 +2086,7 @@ impl ClientBuilder {
             websocket: self.profile.websocket().cloned(),
             #[cfg(feature = "websocket")]
             websocket_http1,
+            certificate_origins: Box::default(),
             #[cfg(feature = "diagnostics")]
             key_log,
         };
@@ -1898,6 +2100,7 @@ impl ClientBuilder {
         }
         inner.bind_http2_proxy_pools();
         self.options.apply_http3_early_data(&mut inner);
+        inner.bind_certificate_origins(&certificate_origins);
         Ok(self.options.into_client(Arc::new(inner)))
     }
 }
@@ -1960,6 +2163,31 @@ impl ClientBuilder {
     }
 }
 
+/// Parses an origin given to [`ClientBuilder::client_certificate_for`] into
+/// the host and port a request to it has.
+///
+/// It uses the request URL parser and default port, so the host is
+/// canonicalized as a request's is.
+fn certificate_origin(origin: &str) -> Result<Endpoint, BuildError> {
+    let invalid = || {
+        BuildError::invalid_policy(
+            "a client certificate origin must be an https:// or wss:// URL with only a host and an optional port",
+        )
+    };
+    let uri = parse_absolute_uri(origin).map_err(|_| invalid())?;
+    if !matches!(uri.scheme_str(), Some("https" | "wss")) {
+        return Err(invalid());
+    }
+    let authority = uri.authority().cloned().ok_or_else(invalid)?;
+    if !matches!(
+        uri.path_and_query().map(|value| value.as_str()),
+        None | Some("/")
+    ) {
+        return Err(invalid());
+    }
+    Endpoint::new(authority, 443).map_err(|_| invalid())
+}
+
 /// Applies the profile's TCP socket options, when it has any, to a connector.
 fn with_tcp<C>(connector: C, tcp: Option<&TcpSettings>, apply: fn(C, &TcpSettings) -> C) -> C {
     match tcp {
@@ -2012,6 +2240,9 @@ fn connect_udp_proxy_quic(settings: &QuicTransportSettings) -> QuicTransportSett
         .retain(|parameter| parameter.kind != QuicTransportParameterKind::InitialRtt);
     quic
 }
+
+#[cfg(test)]
+mod certificate_origin_tests;
 
 #[cfg(test)]
 mod dns_cache_tests;

@@ -166,7 +166,7 @@ Counts in the later phases come from a read-only review of `main` at
   ([Tune throughput and latency](guides/performance.md)).
 - A local source address per address family and an interface binding by
   name, on Linux, Android, macOS, and Windows, for every TCP and QUIC
-  socket, and a client certificate
+  socket, and a client certificate, for every origin or per host and port,
   sent over TCP and QUIC when a server requests one, each off by default
   ([Send connections from a chosen local address](guides/connections-and-state.md#send-connections-from-a-chosen-local-address),
   [Present a client certificate](guides/client.md#present-a-client-certificate)).
@@ -361,13 +361,6 @@ anything does.
 - DNS over HTTPS where the captured browser uses it. Blocker: none
   recorded; a caller can already supply an `AddressResolver` that queries
   over HTTPS, but no recipe does.
-
-#### Caller options, off by default
-
-Each of these needs no capture, because no named recipe may reach it
-([standing rules](#standing-rules)).
-
-- A client certificate chosen per origin.
 
 ### Proposed after Phase 1
 

@@ -223,7 +223,8 @@ pub use phantom_net::ServerAuthentication;
 pub use phantom_net::host_resolver::AddressResolver;
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::HttpConnectHeader;
-/// A TLS client certificate for [`ClientBuilder::client_certificate`].
+/// A TLS client certificate for [`ClientBuilder::client_certificate`] and
+/// [`ClientBuilder::client_certificate_for`].
 pub use phantom_net::{ClientCertificate, ClientCertificateError, ClientCertificateErrorKind};
 
 /// Client-profile types used to configure observable wire behavior.

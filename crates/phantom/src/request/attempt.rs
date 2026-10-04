@@ -377,8 +377,8 @@ pub(super) async fn send_once_origin(
     } = attempt;
     let connector = client
         .inner
+        .connectors_for(endpoint)
         .http1_or_2
-        .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
     let client_hint_origin = client_hint_origin(client, request);
     let mut restart_hints = RestartHints::default();
@@ -940,8 +940,8 @@ async fn dispatch_attempt(
         HttpProtocol::Http1 => {
             let connector = client
                 .inner
+                .connectors_for(endpoint)
                 .http1
-                .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http1))?;
             let sent_headers = prepare_headers(client_hints, request_headers)?;
             let mut headers = Vec::with_capacity(sent_headers.len() + 1);
@@ -987,8 +987,8 @@ async fn dispatch_attempt(
         HttpProtocol::Http2 => {
             let connector = client
                 .inner
+                .connectors_for(endpoint)
                 .http2
-                .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http2))?;
             let (mode, https_proxy) = if request.uri.scheme_str() == Some("http") {
                 (
@@ -1029,8 +1029,8 @@ async fn dispatch_attempt(
         HttpProtocol::Http3 => {
             let connector = client
                 .inner
+                .connectors_for(endpoint)
                 .http3
-                .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
             let mut request_headers = request_headers;
             // A pinned alternative is reached as a learned one is, with its

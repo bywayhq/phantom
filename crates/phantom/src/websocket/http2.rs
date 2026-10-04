@@ -112,10 +112,9 @@ impl WebSocketRequestBuilder {
         let extension_offer = engine_config.deflate_offer();
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
-        let base = client
-            .inner
+        let connectors = client.inner.connectors_for(&request.endpoint);
+        let base = connectors
             .http2
-            .as_ref()
             .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
         let prepared = prepare_extended_connect(
             headers,
@@ -129,7 +128,7 @@ impl WebSocketRequestBuilder {
         // below before any I/O and creates no pool key.
         let pooled = match (&target, route) {
             (Http2Target::Session(..), _) | (_, Route::ConnectUdp(_)) => None,
-            (Http2Target::NewConnection, _) => Some(match (selection, &client.inner.http1_or_2) {
+            (Http2Target::NewConnection, _) => Some(match (selection, connectors.http1_or_2) {
                 (WebSocketSelection::ProfilePolicy, Some(negotiated)) => client
                     .state
                     .http1_or_2

@@ -77,8 +77,9 @@ async fn pooled_tls_connector(
 ) -> Result<Option<Http1TlsConnector>, WebSocketError> {
     let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
     let state = &client.state;
+    let connectors = client.inner.connectors_for(endpoint);
     match upgrade_connector {
-        Http1UpgradeConnector::Profile => match &client.inner.http1 {
+        Http1UpgradeConnector::Profile => match connectors.http1 {
             Some(base) => Ok(Some(
                 state
                     .http1
@@ -92,7 +93,7 @@ async fn pooled_tls_connector(
                 return Ok(None);
             };
             let protocols = &websocket.connection.http1_alpn_protocols;
-            if let Some(base) = &client.inner.http1_or_2 {
+            if let Some(base) = connectors.http1_or_2 {
                 return state
                     .http1_or_2
                     .tls_origin_connector(base, endpoint, route)
@@ -101,7 +102,7 @@ async fn pooled_tls_connector(
                     .map(Some)
                     .map_err(setup);
             }
-            match &client.inner.http1 {
+            match connectors.http1 {
                 Some(base) => state
                     .http1
                     .tls_origin_connector(base, endpoint, route)
@@ -163,9 +164,10 @@ impl WebSocketRequestBuilder {
         #[cfg(not(feature = "websocket-deflate"))]
         let extension_offer: Option<http::HeaderValue> = None;
 
+        let connectors = client.inner.connectors_for(&request.endpoint);
         let base = match upgrade_connector {
-            Http1UpgradeConnector::Profile => client.inner.http1.as_ref(),
-            Http1UpgradeConnector::PolicyAlpn => client.inner.websocket_http1.as_ref(),
+            Http1UpgradeConnector::Profile => connectors.http1,
+            Http1UpgradeConnector::PolicyAlpn => connectors.websocket_http1,
         }
         .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
         let prepared = prepare(

@@ -29,7 +29,7 @@ When you use Phantom as a dependency, a git checkout of the pinned revision sits
 
 ## Guides
 
-- [Using the client](docs/guides/client.md): client policies, protocols, fields, bodies, trailers, timeouts, `ClientBuilder::client_certificate`
+- [Using the client](docs/guides/client.md): client policies, protocols, fields, bodies, trailers, timeouts, `ClientBuilder::client_certificate` and `ClientBuilder::client_certificate_for`
 - [Responses and errors](docs/guides/responses.md): ordered response fields, `ResponseInfo`, bounded bodies, error kinds
 - [Browser profiles](docs/guides/profiles.md): choose a built-in profile, build a custom one
 - [Request templates and client hints](docs/guides/request-templates.md): a browser's request fields in its order, and client hints

@@ -687,9 +687,11 @@ Supported:
   name, with `SO_BINDTODEVICE` on Linux and Android, `IP_BOUND_IF` on macOS,
   and `IP_UNICAST_IF` on Windows. See
   [Send connections from a chosen local address](../guides/connections-and-state.md#send-connections-from-a-chosen-local-address).
-- A caller TLS client certificate for origins over TCP and QUIC, off by
-  default, sent only in answer to a `CertificateRequest`, with an unchanged
-  ClientHello. Proxies never receive it. See
+- A caller TLS client certificate for origins over TCP and QUIC, one for
+  every origin or one per host and port, off by default, sent only in answer
+  to a `CertificateRequest`, with an unchanged ClientHello. A host and port's
+  certificate also serves its Alt-Svc alternatives and its TLS inside proxy
+  tunnels. Proxies never receive one. See
   [Present a client certificate](../guides/client.md#present-a-client-certificate).
 - With the `https-records` feature, an opt-in per-client cache of HTTPS DNS
   record results, one entry per origin, bounded by the Alt-Svc store's

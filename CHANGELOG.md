@@ -848,6 +848,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `ClientBuilder::client_certificate_for(origin, certificate)` presents
+  `certificate` to one host and port, such as `"https://api.example:8443"`,
+  in place of the certificate from `ClientBuilder::client_certificate`,
+  which still serves every other origin. It applies to HTTP/1.1, HTTP/2,
+  negotiated, and HTTP/3 requests, to `wss://` openings over HTTP/1.1 and
+  HTTP/2, to each redirect hop by its own host and port, to origin TLS
+  inside HTTP proxy CONNECT, SOCKS5, and CONNECT-UDP tunnels, and to the
+  origin's pinned and learned Alt-Svc alternatives; proxies never receive
+  it. Connections, and TLS session tickets over TCP, stay with the host and
+  port that made them, so neither is reused with another certificate. An
+  origin that is not an `https://` or `wss://` URL with only a host and an
+  optional port, or a certificate whose key the profile cannot sign with,
+  fails `build` with `BuildErrorKind::InvalidPolicy`
+  ([guide](docs/guides/client.md#present-a-client-certificate)).
 - `phantom::profile` re-exports `WebSocketProxiedSession`,
   `WebSocketRefusedStreamRetry`, and `WebSocketEmptyMessageCompression`, so
   a custom WebSocket profile can name every `WebSocketSettings` field value

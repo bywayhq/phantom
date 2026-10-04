@@ -187,8 +187,8 @@ pub(super) async fn send_once_raced(
     } = lifecycle;
     let negotiated = client
         .inner
+        .connectors_for(&request.endpoint)
         .http1_or_2
-        .as_ref()
         .ok_or_else(RequestError::unsupported_negotiation)?;
 
     let connecting: Vec<_> = alternatives
@@ -720,10 +720,12 @@ async fn alternative_setup(
         // broken.
         return Err(RequestError::unsupported_protocol(HttpProtocol::Http3));
     }
+    // The origin's certificate, never the alternative's: the alternative
+    // serves the origin, and its connections pool under the origin's key.
     let connector = client
         .inner
+        .connectors_for(&endpoint)
         .http3
-        .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
     // Like Chromium's QUIC job, the setup offers early data unless QUIC to
     // the origin was recently broken; a resumed connection is then ready
@@ -992,8 +994,8 @@ async fn dispatch_http3(
 ) -> Result<Dispatched<DispatchOutcome>, RequestError> {
     let connector = client
         .inner
+        .connectors_for(&request.endpoint)
         .http3
-        .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
     let authority = request.endpoint.authority().as_str();
     // Boxed for the reason `dispatch_attempt` boxes its HTTP/3 send: a

@@ -132,37 +132,37 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 ## Present a client certificate
 
 Answer a server that requests TLS client authentication with a certificate
-and its private key.
+and its private key, for every origin or for one host and port.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
 use phantom::{Client, ClientCertificate};
 
-fn client_with_certificate(
-    chain_pem: &[u8],
-    key_pem: &[u8],
+fn client_with_certificates(
+    default: ClientCertificate,
+    api: ClientCertificate,
 ) -> Result<Client, Box<dyn std::error::Error>> {
-    // The chain starts with the client certificate, then its intermediates.
-    let certificate = ClientCertificate::from_pem(chain_pem, key_pem)?;
     let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
     Ok(Client::builder(profile)
-        .client_certificate(certificate)
+        .client_certificate(default)
+        .client_certificate_for("https://api.example:8443", api)
         .build()?)
 }
 ```
 
-- `ClientCertificate::from_der` takes DER certificates and a PKCS #8, RSA,
-  or EC key. A key that does not match the first certificate fails with
-  `ClientCertificateErrorKind::KeyMismatch`.
+- `ClientCertificate::from_pem` and `from_der` take the client certificate,
+  then its intermediates, and a PKCS #8, RSA, or EC key; a key that does not
+  match fails with `ClientCertificateErrorKind::KeyMismatch`.
+- `client_certificate_for` gives an `https://` or `wss://` origin (port 443
+  unless given) its own certificate for requests, `wss://` over H1 and H2,
+  and Alt-Svc alternatives; other origins get the `client_certificate` one.
 - The ClientHello does not change. The certificate leaves the client only in
   answer to a `CertificateRequest`, over TCP and QUIC, and never to a proxy.
-- The key signs with a scheme from the profile's `signature_schemes`. The
-  Chromium recipes cover RSA, P-256, and P-384 keys, and the Firefox recipe
-  also P-521; `build` fails with `BuildErrorKind::InvalidPolicy` for a key
-  the profile cannot sign with.
-- Under TLS 1.3 and QUIC a server checks the certificate after the client's
-  handshake ends, so a rejection can fail the first read instead of the
-  handshake.
+- The key signs with a scheme from the profile's `signature_schemes`: RSA,
+  P-256, and P-384 in the Chromium recipes, also P-521 in Firefox's. Another
+  key or a malformed origin fails `build` with `BuildErrorKind::InvalidPolicy`.
+- Under TLS 1.3 and QUIC a server checks the certificate after the
+  handshake, so a rejection can fail the first read instead.
 
 ## Limits
 
@@ -184,10 +184,10 @@ fn client_with_certificate(
   `RequestErrorKind::RequestBody`.
 - An invalid or forbidden trailer fails before I/O and before the body is
   read. If the body fails, no trailers are sent.
-- One client certificate serves every origin the client reaches; for
-  another certificate, build another client. An encrypted private key is
-  not accepted. Ed25519 keys are rejected: no profile has an Ed25519
-  signature scheme, and a PKCS #8 v2 key does not parse.
+- Only host and port choose a client certificate, and no origin can opt out
+  of `client_certificate`. An encrypted private key is not accepted. Ed25519
+  keys are rejected: no profile has an Ed25519 signature scheme, and a
+  PKCS #8 v2 key does not parse.
 - The cookie, SSE, and WebSocket APIs need their
   [Cargo features](../getting-started.md#optional-features).
 

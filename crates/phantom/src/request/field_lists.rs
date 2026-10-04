@@ -149,8 +149,8 @@ fn checked_alternative_fields(
 ) -> Result<Http3Fields, RequestError> {
     let connector = client
         .inner
+        .connectors_for(&request.endpoint)
         .http3
-        .as_ref()
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
     if let Some(alt_used) = alternative.alt_used() {
         headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
