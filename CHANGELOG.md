@@ -14,6 +14,27 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `WebSocketConnectionPolicy` gained the public field
+  `proxied_http2_session`, of the new `#[non_exhaustive]` enum
+  `WebSocketProxiedSession`, so struct literals that name every field no
+  longer compile. With `Reuse`, a profile-policy `wss://` WebSocket on an
+  HTTP proxy or SOCKS5 route opens as an extended CONNECT stream on a
+  capable pooled HTTP/2 session to the same origin and route, negotiated or
+  exact, inside that session's tunnel, with no proxy CONNECT or
+  `Proxy-Authorization` of its own; proxy credentials are part of the route,
+  so a session tunnelled with other credentials is never used. With
+  `Ignore`, it opens the connection `without_http2_session` names, through
+  its own tunnel. `chromium::v154_websocket`, and so
+  `chrome_android::v154_websocket` and `brave_android::v153_websocket`, and
+  `firefox::v157_websocket` set `Reuse`, as Chromium 154 and Firefox 157
+  source do
+  ([evidence](docs/explanation/validation.md#websocket-browser-evidence));
+  before, such a WebSocket checked only the exact HTTP/2 pool on a proxy
+  route. The direct route is unchanged. Migrate: add `proxied_http2_session:
+  WebSocketProxiedSession::Reuse` to a `WebSocketConnectionPolicy` literal
+  for a WebSocket that joins a proxied session as the browsers do, or
+  `Ignore` for one that never does; no value keeps the old reuse of exact
+  sessions alone.
 - An `AltSvcSnapshot` holds one entry for each alternative an origin's
   field listed, consecutive and in field order, and
   `Client::import_alt_svc` makes the entries for one origin its list of
@@ -827,6 +848,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `phantom::profile` re-exports `WebSocketProxiedSession`,
+  `WebSocketRefusedStreamRetry`, and `WebSocketEmptyMessageCompression`, so
+  a custom WebSocket profile can name every `WebSocketSettings` field value
+  without depending on `phantom-profile`.
 - `ClientBuilder::interface` binds sockets on macOS, with `IP_BOUND_IF` or
   `IPV6_BOUND_IF`, and on Windows, with `IP_UNICAST_IF` or
   `IPV6_UNICAST_IF`, where the name is an interface alias such as
@@ -1584,6 +1609,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Wire change for the Chromium and Firefox WebSocket recipes on proxy
+  routes: `chromium::v154_websocket`, `chrome_android::v154_websocket`,
+  `brave_android::v153_websocket`, and `firefox::v157_websocket` now open a
+  proxied `wss://` WebSocket on a capable pooled negotiated HTTP/2 session
+  as well as an exact one, through the same proxy route, as Chromium 154
+  and Firefox 157 source do. Before, they checked only the exact HTTP/2
+  pool on a proxy route.
 - Wire change for Alt-Svc: the store keeps up to eight `h3` alternatives a
   field lists, in field order, each expiring on its own `ma`, and a
   negotiated request uses the first one that is not broken, as Chrome 154

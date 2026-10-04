@@ -65,5 +65,5 @@ pub use udp::UdpSettings;
 pub use websocket::{
     InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-    WebSocketRefusedStreamRetry, WebSocketSettings,
+    WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };

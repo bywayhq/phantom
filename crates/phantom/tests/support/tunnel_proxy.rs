@@ -2,12 +2,15 @@
 //!
 //! Each function returns as soon as the tunnel is established. The relay runs
 //! in a detached task and ignores teardown errors, so assertions never depend
-//! on how a platform reports the client hanging up.
+//! on how a platform reports the client hanging up. An `_on` variant borrows
+//! the listener, so a test can keep it and check with
+//! [`no_connection_arrives`] that nothing else connected later.
 
 use std::{
     future::poll_fn,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -31,6 +34,14 @@ pub(crate) async fn http1_connect(
     listener: TcpListener,
     origin: SocketAddr,
 ) -> TestResult<Vec<u8>> {
+    http1_connect_on(&listener, origin).await
+}
+
+/// [`http1_connect`] on a borrowed listener.
+pub(crate) async fn http1_connect_on(
+    listener: &TcpListener,
+    origin: SocketAddr,
+) -> TestResult<Vec<u8>> {
     let (mut downstream, _) = listener.accept().await?;
     let request = read_head(&mut downstream).await?;
     establish_relay(downstream, origin).await?;
@@ -45,6 +56,14 @@ pub(crate) async fn http1_connect(
 /// used the challenged connection.
 pub(crate) async fn http1_challenge_then_connect(
     listener: TcpListener,
+    origin: SocketAddr,
+) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
+    http1_challenge_then_connect_on(&listener, origin).await
+}
+
+/// [`http1_challenge_then_connect`] on a borrowed listener.
+pub(crate) async fn http1_challenge_then_connect_on(
+    listener: &TcpListener,
     origin: SocketAddr,
 ) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
     let (mut first, _) = listener.accept().await?;
@@ -73,6 +92,15 @@ pub(crate) async fn http1_challenge_then_connect(
 /// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`.
 pub(crate) async fn https1_connect(
     listener: TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<Vec<u8>> {
+    https1_connect_on(&listener, acceptor, origin).await
+}
+
+/// [`https1_connect`] on a borrowed listener.
+pub(crate) async fn https1_connect_on(
+    listener: &TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<Vec<u8>> {
@@ -161,6 +189,10 @@ pub(crate) struct Http2ConnectRecord {
     pub(crate) fields: Vec<(String, Vec<u8>)>,
 }
 
+/// The CONNECT streams an HTTP/2 proxy connection received after its tunnel
+/// opened. The proxy resets each one.
+pub(crate) type LateConnects = Arc<Mutex<Vec<Http2ConnectRecord>>>;
+
 /// Accepts one h2-only TLS proxy connection, answers one RFC 9113 CONNECT
 /// with 200, and relays its DATA to `origin`.
 ///
@@ -171,7 +203,16 @@ pub(crate) async fn http2_connect(
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<Http2ConnectRecord> {
-    let mut records = http2_connects(&listener, acceptor, origin, false).await?;
+    http2_connect_on(&listener, acceptor, origin).await
+}
+
+/// [`http2_connect`] on a borrowed listener.
+pub(crate) async fn http2_connect_on(
+    listener: &TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<Http2ConnectRecord> {
+    let (mut records, _) = http2_connects(listener, acceptor, origin, false).await?;
     records.pop().ok_or_else(|| "no CONNECT was served".into())
 }
 
@@ -185,9 +226,26 @@ pub(crate) async fn http2_challenge_then_connect(
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<(Vec<Http2ConnectRecord>, bool)> {
-    let records = http2_connects(&listener, acceptor, origin, true).await?;
-    let second = timeout(Duration::from_millis(100), listener.accept()).await;
-    Ok((records, second.is_err()))
+    let (records, _) = http2_challenge_then_connect_on(&listener, acceptor, origin).await?;
+    Ok((records, no_connection_arrives(&listener).await))
+}
+
+/// Serves [`http2_challenge_then_connect`]'s two CONNECTs on a borrowed
+/// listener and returns both requests and the log of any later CONNECT on
+/// the same proxy connection.
+pub(crate) async fn http2_challenge_then_connect_on(
+    listener: &TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<(Vec<Http2ConnectRecord>, LateConnects)> {
+    http2_connects(listener, acceptor, origin, true).await
+}
+
+/// Returns whether no other connection arrives at `listener` within 100 ms.
+pub(crate) async fn no_connection_arrives(listener: &TcpListener) -> bool {
+    timeout(Duration::from_millis(100), listener.accept())
+        .await
+        .is_err()
 }
 
 async fn http2_connects(
@@ -195,7 +253,7 @@ async fn http2_connects(
     acceptor: SslAcceptor,
     origin: SocketAddr,
     challenge_first: bool,
-) -> TestResult<Vec<Http2ConnectRecord>> {
+) -> TestResult<(Vec<Http2ConnectRecord>, LateConnects)> {
     let (tcp, _) = listener.accept().await?;
     let stream = accept_tls_stream(tcp, acceptor).await?;
     if stream.ssl().selected_alpn_protocol() != Some(b"h2") {
@@ -212,18 +270,7 @@ async fn http2_connects(
         if request.method() != Method::CONNECT {
             return Err("proxy received a non-CONNECT request".into());
         }
-        records.push(Http2ConnectRecord {
-            stream_id: respond.stream_id().as_u32(),
-            authority: request.uri().authority().map(ToString::to_string),
-            fields: request
-                .extensions()
-                .get::<::http2::ext::OrderedHeaders>()
-                .ok_or("missing ordered CONNECT fields")?
-                .as_slice()
-                .iter()
-                .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
-                .collect(),
-        });
+        records.push(connect_record(&request, respond.stream_id().as_u32())?);
         if challenge {
             let response = Response::builder()
                 .status(407)
@@ -238,8 +285,34 @@ async fn http2_connects(
         spawn_http2_relay(request.into_body(), send, upstream);
         break;
     }
-    tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
-    Ok(records)
+    let late = LateConnects::default();
+    let log = Arc::clone(&late);
+    tokio::spawn(async move {
+        // Dropping each responder resets its stream.
+        while let Some(Ok((request, respond))) = connection.accept().await {
+            if let Ok(record) = connect_record(&request, respond.stream_id().as_u32())
+                && let Ok(mut log) = log.lock()
+            {
+                log.push(record);
+            }
+        }
+    });
+    Ok((records, late))
+}
+
+fn connect_record<B>(request: &http::Request<B>, stream_id: u32) -> TestResult<Http2ConnectRecord> {
+    Ok(Http2ConnectRecord {
+        stream_id,
+        authority: request.uri().authority().map(ToString::to_string),
+        fields: request
+            .extensions()
+            .get::<::http2::ext::OrderedHeaders>()
+            .ok_or("missing ordered CONNECT fields")?
+            .as_slice()
+            .iter()
+            .map(|(name, value)| (name.as_str().to_owned(), value.as_bytes().to_vec()))
+            .collect(),
+    })
 }
 
 /// The SOCKS5 CONNECT target observed by the proxy.
@@ -252,6 +325,14 @@ pub(crate) enum Socks5Target {
 /// Accepts one no-authentication SOCKS5 CONNECT and tunnels it to `origin`.
 pub(crate) async fn socks5_connect(
     listener: TcpListener,
+    origin: SocketAddr,
+) -> TestResult<(Socks5Target, u16)> {
+    socks5_connect_on(&listener, origin).await
+}
+
+/// [`socks5_connect`] on a borrowed listener.
+pub(crate) async fn socks5_connect_on(
+    listener: &TcpListener,
     origin: SocketAddr,
 ) -> TestResult<(Socks5Target, u16)> {
     let (mut downstream, _) = listener.accept().await?;

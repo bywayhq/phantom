@@ -48,7 +48,7 @@ Phantom's claims rest on five kinds of evidence:
 | [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, two Chrome 154.0.8037.97 captures of a navigation that restarted, plus loopback tests against BoringSSL H2 and QUIC servers | H2 only; no capture over HTTP/3 |
 | [SSE reconnect](#sse-browser-reconnect-evidence) | Chrome 154 and Firefox 157 captures, replayed against Phantom | Plaintext HTTP/1.1 on Windows only |
 | [Cookie crumbs](#cookie-crumb-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures over H1, H2, and H3, replayed against Phantom | Five cookies on one origin |
-| [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures | No subprotocols, H3, proxies, macOS, or Safari |
+| [WebSocket openings](#websocket-browser-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures; Chromium and Firefox source for reuse of a proxied session | No subprotocols, H3, proxies, macOS, or Safari in the captures |
 | [WebSocket handshake timers](#websocket-handshake-timer-evidence) | Browser source at one tag per browser, plus loopback tests | No capture shows a timer firing; no Edge source |
 | [HPACK encoder](#hpack-encoder-evidence) | Every H2 HEADERS block in the cookie and WebSocket captures of five browsers, replayed byte for byte, and browser source | One origin, small fields; Chromium's size and field rules rest on source |
 | [HTTP/2 stream numbering](#http2-stream-numbering-evidence) | The stream of every request in the H2 cookie, WebSocket, and TLS proxy captures of eight browsers on Windows, macOS, and Android, and browser source for the stream limit and its cap | No capture shows the stream limit or the cap |
@@ -3367,6 +3367,60 @@ deterministic fixtures, not named-browser evidence.
 How to reproduce: `scripts/capture/http2_websocket.py --browser <browser>
 --scenario all --repeat 3`. The Chrome 153 comparison is under
 [Comparison with Chrome 153](#comparison-with-chrome-153).
+
+`WebSocketProxiedSession::Reuse` in `chromium::v154_websocket` and
+`firefox::v157_websocket` rests on browser source, not on a capture: no
+retained capture opens a `wss://` WebSocket through a proxy. Chromium, at
+tag `154.0.8037.58`:
+
+| Source | Behavior |
+| --- | --- |
+| `net/http/http_stream_factory_job.cc:136-137` | `try_websocket_over_http2_` is set for every `wss://` WebSocket, with no proxy condition. At tag `100.0.4896.60` the same initializer also required `proxy_info_.is_direct()`, with a TODO for crbug.com/1277306 (`:130-133`). |
+| `net/http/http_stream_factory_job.cc:154-157` | The job's `SpdySessionKey` is built from the request's proxy chain. |
+| `net/http/http_stream_factory_job.cc:426-427`, `:749`, `:764-767` | `CanUseExistingSpdySession` returns `try_websocket_over_http2_` for a WebSocket, so the job asks the session pool for a session under that key. |
+| `net/spdy/spdy_session_key.h:33-41`, `net/spdy/spdy_session_key.cc:59-69` | The key holds the proxy chain and compares it, so a session tunnelled through another proxy never matches. |
+| `net/spdy/spdy_session_pool.cc:211-215` | `FindAvailableSession` returns nothing to a WebSocket when the matching session's peer does not allow WebSockets. |
+
+Chromium commit `35db5dc8c79c4bbd7dc59c84c381fe0725b263a8`, "Support wss
+over HTTP/2 to origin over proxy" (crbug.com/1277306), removed the
+`is_direct()` condition: tag `125.0.6384.0` still has it and
+`125.0.6385.0` does not. `http_stream_factory_job.cc`,
+`http_stream_factory.cc`, `spdy_session_key.h`, `spdy_session_key.cc`, and
+`spdy_session_pool.cc` are byte-identical at `152.0.7977.130`,
+`153.0.8010.56`, and `154.0.8037.58`, so the same lines hold for the
+Chromium 152 and 153 builds that use the recipe, Opera 136 and Brave for
+Android 153.
+
+Firefox, at tag `FIREFOX_157_0_RELEASE`:
+
+| Source | Behavior |
+| --- | --- |
+| `netwerk/protocol/http/nsHttpChannel.cpp:1192-1207` | A WebSocket upgrade stays eligible for HTTP/2 when `network.http.http2.websockets` is set, its default (`modules/libpref/init/StaticPrefList.yaml:16540-16543`), with no proxy condition. It disallows HTTP/3. |
+| `netwerk/protocol/http/HttpBaseChannel.cpp:6693-6703`, `nsHttpChannel.cpp:8197-8200` | An ordinary request through an HTTP or SOCKS proxy also disallows HTTP/3, so it and the WebSocket get the same connection entry. |
+| `netwerk/protocol/http/nsHttpConnectionInfo.cpp:211-231` | The entry's hash key holds the proxy type, host, and port, the user name, and a digest of the password, so an entry matches only through the same proxy. |
+| `netwerk/protocol/http/nsHttpConnectionMgr.cpp:1619-1630`, `:1811-1875` | A WebSocket that finds an active HTTP/2 connection in its entry opens an extended CONNECT stream on it when the peer allows one, and an HTTP/1.1 connection otherwise. Neither path checks the proxy. |
+
+Firefox's own `netwerk/test/unit/test_websocket_server.js:357-419` at that
+tag opens an `https://` request and then a `wss://` WebSocket through a
+loopback HTTP proxy and expects an extended CONNECT, though it does not
+check which connection carried it. A Firefox WebSocket prefers a SOCKS
+proxy when both a SOCKS and an HTTPS proxy are configured
+(`netwerk/protocol/websocket/WebSocketChannel.cpp:3592-3596`), and then
+takes another entry than ordinary requests; a Phantom route names one
+proxy, so that case does not arise.
+
+Phantom's route also holds the proxy credentials, which Chromium keeps in
+its authentication cache instead, so two Phantom routes that differ only in
+credentials never share a session.
+`crates/phantom/tests/streams/websocket_profile/proxy.rs` checks both
+recipes on loopback HTTP/1.1, HTTPS, and HTTP/2 proxies and SOCKS5 with
+local and remote resolution: under `Reuse` the proxy sees one tunnel and
+the origin one connection carrying the GET, the extended CONNECT, and a
+second GET. For the Chromium recipe it also checks that no further CONNECT
+or `Proxy-Authorization` follows a `407`, and that other credentials, or a
+session whose peer did not enable extended CONNECT, lead to a second tunnel
+and connection. A profile set to `Ignore` opens a second tunnel and
+connection on an HTTP/1.1 proxy.
 
 Limits:
 

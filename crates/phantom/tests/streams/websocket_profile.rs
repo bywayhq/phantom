@@ -6,6 +6,7 @@
 
 #[path = "websocket_profile/fixture.rs"]
 pub(crate) mod fixture;
+mod proxy;
 #[path = "websocket_profile/server.rs"]
 pub(crate) mod server;
 use crate::support::tls as tls_support;
@@ -229,7 +230,7 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
         let connect = capture.connect()?;
 
-        let socket = connect_like(&client, &server, &connect, &settings).await?;
+        let socket = connect_like(&client, server.address, &connect, &settings).await?;
         assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
         exchange(socket).await?;
 
@@ -941,6 +942,41 @@ async fn assert_reuses_session(
     http2: Http2Settings,
     settings: WebSocketSettings,
 ) -> TestResult<()> {
+    bounded(async {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let client = profile_client(&identity, http2.clone(), settings.clone())?;
+        let session = PooledSession {
+            authority: &server.address.to_string(),
+            negotiated: true,
+        };
+        assert_websocket_joins_the_session(&client, &server, session, capture, &http2, &settings)
+            .await
+    })
+    .await
+}
+
+/// The origin and pool of the ordinary requests around a WebSocket.
+#[derive(Clone, Copy)]
+struct PooledSession<'a> {
+    /// The `host:port` of every URL.
+    authority: &'a str,
+    /// Whether the requests use the negotiated pool rather than exact HTTP/2.
+    negotiated: bool,
+}
+
+/// Sends a GET, opens a profile-policy WebSocket like the capture's, and
+/// sends another GET while it is open, all on `client`'s route. Checks that
+/// the origin saw them on one HTTP/2 connection, with the captured CONNECT
+/// shape and consecutive stream ids.
+async fn assert_websocket_joins_the_session(
+    client: &Client,
+    server: &TestServer,
+    session: PooledSession<'_>,
+    capture: &Capture,
+    http2: &Http2Settings,
+    settings: &WebSocketSettings,
+) -> TestResult<()> {
     assert_eq!(capture.value("scenario")?, "accept");
     let ordinary_priority = http2.headers_priority.map(|priority| {
         (
@@ -953,40 +989,34 @@ async fn assert_reuses_session(
     // The captured session numbers its requests 1, 3, 5 in Chrome and 3, 5, 7
     // in Firefox, as the recipe's first stream says.
     let first = http2.streams.first_stream_id;
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
-        let client = profile_client(&identity, http2, settings.clone())?;
-        let connect = capture.connect()?;
+    let connect = capture.connect()?;
 
-        ordinary_get(&client, &server).await?;
-        let socket = connect_like(&client, &server, &connect, &settings).await?;
-        assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
-        // The session still serves ordinary requests with their own shape
-        // while the WebSocket stream is open.
-        ordinary_get(&client, &server).await?;
-        exchange(socket).await?;
+    pooled_get_at(client, session.authority, session.negotiated).await?;
+    let socket = connect_like(client, session.authority, &connect, settings).await?;
+    assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
+    // The session still serves ordinary requests with their own shape
+    // while the WebSocket stream is open.
+    pooled_get_at(client, session.authority, session.negotiated).await?;
+    exchange(socket).await?;
 
-        let connections = server.connections()?;
-        assert_eq!(connections.len(), 1, "WebSocket did not reuse the session");
-        let connection = &connections[0];
-        assert_eq!(methods(connection), ["GET", "CONNECT", "GET"]);
-        assert_eq!(
-            connection
-                .h2
-                .iter()
-                .map(|headers| headers.stream_id)
-                .collect::<Vec<_>>(),
-            [first, first + 2, first + 4]
-        );
-        assert_connect_matches(&connection.h2[1], &connect)?;
-        for ordinary in [&connection.h2[0], &connection.h2[2]] {
-            assert_eq!(ordinary.priority, ordinary_priority);
-            assert_eq!(ordinary.pseudo.len(), ordinary_pseudo);
-        }
-        Ok(())
-    })
-    .await
+    let connections = server.connections()?;
+    assert_eq!(connections.len(), 1, "WebSocket did not reuse the session");
+    let connection = &connections[0];
+    assert_eq!(methods(connection), ["GET", "CONNECT", "GET"]);
+    assert_eq!(
+        connection
+            .h2
+            .iter()
+            .map(|headers| headers.stream_id)
+            .collect::<Vec<_>>(),
+        [first, first + 2, first + 4]
+    );
+    assert_connect_matches(&connection.h2[1], &connect)?;
+    for ordinary in [&connection.h2[0], &connection.h2[2]] {
+        assert_eq!(ordinary.priority, ordinary_priority);
+        assert_eq!(ordinary.pseudo.len(), ordinary_pseudo);
+    }
+    Ok(())
 }
 
 async fn assert_incapable_session_upgrades(
@@ -1196,10 +1226,10 @@ async fn pooled_get(client: &Client, server: &TestServer, negotiated: bool) -> T
 /// its body, which releases the request's admission.
 async fn pooled_get_at(
     client: &Client,
-    address: std::net::SocketAddr,
+    authority: impl std::fmt::Display,
     negotiated: bool,
 ) -> TestResult<()> {
-    let uri = format!("https://{address}/page");
+    let uri = format!("https://{authority}/page");
     let builder = if negotiated {
         client.get_negotiated(&uri)?
     } else {
@@ -1252,13 +1282,12 @@ fn compressed_websocket(
 
 async fn connect_like(
     client: &Client,
-    server: &TestServer,
+    authority: impl std::fmt::Display,
     connect: &fixture::CapturedConnect,
     settings: &WebSocketSettings,
 ) -> TestResult<WebSocket> {
     let path = pseudo_value(&connect.pseudo, ":path")?;
-    let builder =
-        client.websocket_with_profile_policy(&format!("wss://{}{path}", server.address))?;
+    let builder = client.websocket_with_profile_policy(&format!("wss://{authority}{path}"))?;
     let builder = fill_callers(builder, &settings.http2_fields, &connect.fields);
     Ok(with_profile_compression(builder, settings)?
         .connect()
@@ -1465,7 +1494,7 @@ async fn extended_connect_sends_one_cookie_field_per_jar_cookie() -> TestResult<
         jar.set_cookie(&origin, "second=2; Path=/")?;
 
         ordinary_get(&client, &server).await?;
-        let socket = connect_like(&client, &server, &capture.connect()?, &settings).await?;
+        let socket = connect_like(&client, server.address, &capture.connect()?, &settings).await?;
         assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
         exchange(socket).await?;
 

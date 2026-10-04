@@ -36,7 +36,8 @@ use crate::{
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-        WebSocketField, WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
+        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
+        WebSocketRefusedStreamRetry, WebSocketSettings,
     },
 };
 
@@ -668,6 +669,16 @@ pub fn v154_http2() -> Http2Settings {
 /// (`net/websockets/websocket_stream.cc` lines 60-64, 248-262, and 338-340
 /// at tag `154.0.8037.58`). The source comment sets it equal to the TCP
 /// connect timeout so that a page cannot tell which step timed out.
+///
+/// [`WebSocketProxiedSession::Reuse`] is also source, not a capture: no
+/// retained capture opens a `wss://` WebSocket through a proxy. At tag
+/// `154.0.8037.58`, `HttpStreamFactory::Job` lets a `wss://` WebSocket try
+/// HTTP/2 whatever the proxy (`net/http/http_stream_factory_job.cc` lines
+/// 136-137), keys the session it looks for by the request's proxy chain
+/// (lines 154-157), and asks the session pool for one whenever a WebSocket
+/// may try HTTP/2 (lines 426-427, 749, and 764-767). The pool returns a
+/// session only when its key, proxy chain included, matches and its peer
+/// allows WebSockets (`net/spdy/spdy_session_pool.cc` lines 211-215).
 #[must_use]
 pub fn v154_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -676,6 +687,7 @@ pub fn v154_websocket() -> WebSocketSettings {
             with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
             http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
             refused_stream_retry: WebSocketRefusedStreamRetry::SameSessionOnce,
+            proxied_http2_session: WebSocketProxiedSession::Reuse,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),

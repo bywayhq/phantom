@@ -252,7 +252,8 @@ pub mod profile {
         TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
         TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
         TrustAnchorIds, UdpSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-        WebSocketField, WebSocketNewConnection, WebSocketSettings,
+        WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+        WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
     /// Chromium-family recipes implemented by the public facade.

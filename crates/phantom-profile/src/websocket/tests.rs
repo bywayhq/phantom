@@ -2,7 +2,8 @@ use std::{collections::BTreeMap, time::Duration};
 
 use super::{
     WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-    WebSocketField, WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
+    WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+    WebSocketSettings,
 };
 use crate::{
     AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, chromium, firefox,
@@ -894,6 +895,19 @@ fn policy_type_is_plain_profile_data() {
         with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
         http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
         refused_stream_retry: WebSocketRefusedStreamRetry::None,
+        proxied_http2_session: WebSocketProxiedSession::Reuse,
     };
     assert_eq!(policy, firefox::v157_websocket().connection);
+}
+
+#[test]
+fn both_recipes_reuse_a_proxied_http2_session() {
+    // Chromium and Firefox source both key the session by proxy and let a
+    // WebSocket reuse it. See the recipe docs.
+    for settings in [chromium::v154_websocket(), firefox::v157_websocket()] {
+        assert_eq!(
+            settings.connection.proxied_http2_session,
+            WebSocketProxiedSession::Reuse
+        );
+    }
 }

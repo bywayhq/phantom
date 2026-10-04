@@ -179,6 +179,12 @@ Counts in the later phases come from a read-only review of `main` at
 - WebSocket over HTTP/1.1 on direct, HTTP proxy, and SOCKS5 routes, and over
   HTTP/2 extended CONNECT with named Chrome, Edge, and Firefox recipes
   ([WebSocket](guides/websocket.md)).
+- WebSocket reuse of a pooled HTTP/2 session on HTTP proxy and SOCKS5
+  routes, chosen by `WebSocketProxiedSession`: `chromium::v154_websocket`
+  and `firefox::v157_websocket` reuse the session, as Chromium 154 and
+  Firefox 157 source do, and send no proxy CONNECT for it
+  ([Profile connection policy](reference/websocket.md#profile-connection-policy),
+  [WebSocket browser evidence](explanation/validation.md#websocket-browser-evidence)).
 - A WebSocket handshake timeout, which the Chromium and Firefox recipes set
   to their browsers' 240-second and 20-second timers, and an opt-in retry of
   an opening whose connection setup failed
@@ -361,7 +367,6 @@ anything does.
 Each of these needs no capture, because no named recipe may reach it
 ([standing rules](#standing-rules)).
 
-- WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - A client certificate chosen per origin.
 
 ### Proposed after Phase 1

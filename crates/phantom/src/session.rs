@@ -454,13 +454,14 @@ impl ClientOptions {
 impl Client {
     /// Admits one stream on a pooled, reusable HTTP/2 session to the origin.
     ///
-    /// Both pools are keyed by origin and route. The negotiated pool is
-    /// consulted for the direct route only: a WebSocket reusing a negotiated
-    /// session is browser behavior captured for direct connections, and no
-    /// capture covers reusing a proxied negotiated session, so the exact
-    /// HTTP/2 pool answers for every proxy route. Nothing is opened. The
-    /// returned permit is that pool's per-origin HTTP/2 admission; holding it
-    /// counts the stream against the origin's active bound until dropped.
+    /// Both pools are keyed by origin and route, proxy credentials included,
+    /// and the negotiated pool is checked before the exact HTTP/2 pool. On a
+    /// proxy route neither is checked unless `reuse_proxied` is set, as the
+    /// profile's `WebSocketProxiedSession` decides: a reused session already
+    /// carries its tunnel, so the stream sends no proxy CONNECT. Nothing is
+    /// opened. The returned permit is that pool's per-origin HTTP/2
+    /// admission; holding it counts the stream against the origin's active
+    /// bound until dropped.
     ///
     /// # Errors
     ///
@@ -470,15 +471,16 @@ impl Client {
         &self,
         endpoint: &crate::authority::Endpoint,
         route: &crate::Route,
+        reuse_proxied: bool,
     ) -> Result<Option<PooledHttp2Session>, crate::RequestError> {
-        // See the note above: deliberately the direct route only, even though
-        // the negotiated pool can now hold proxied sessions.
-        if matches!(route, crate::Route::Direct)
-            && let Some(session) = self
-                .state
-                .http1_or_2
-                .admit_current_http2_connection(endpoint, route)
-                .await?
+        if !reuse_proxied && !matches!(route, crate::Route::Direct) {
+            return Ok(None);
+        }
+        if let Some(session) = self
+            .state
+            .http1_or_2
+            .admit_current_http2_connection(endpoint, route)
+            .await?
         {
             return Ok(Some(session));
         }

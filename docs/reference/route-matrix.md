@@ -66,8 +66,11 @@ Notes:
 - The `wss://` H2 row describes `websocket_with_protocol`. With
   `websocket_with_profile_policy`, the profile's connection policy may instead
   place the WebSocket on a pooled H2 session or open an HTTP/1.1 Upgrade
-  connection. See
-  [Profile connection policy](websocket.md#profile-connection-policy).
+  connection. On an HTTP proxy or SOCKS5 route it joins a pooled session
+  only under `WebSocketProxiedSession::Reuse`, as in
+  `chromium::v154_websocket` and `firefox::v157_websocket`, and then sends
+  no proxy CONNECT of its own.
+  See [Profile connection policy](websocket.md#profile-connection-policy).
 
 ## HTTP proxy rules
 

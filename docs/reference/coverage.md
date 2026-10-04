@@ -808,7 +808,9 @@ Supported WebSocket (`websocket` feature):
   It uses the captured CONNECT pseudo-header order, priority, field templates,
   and deflate offers. A recipe also carries what its client does when the peer
   refuses the CONNECT stream: Chrome 154 and Edge 154 reopen once on the same
-  session, Firefox 157 reopens nothing. See
+  session, Firefox 157 reopens nothing. On a proxy route both recipes reuse
+  a pooled session through the same tunnel, as Chromium 154 and Firefox 157
+  source do. See
   [Profile connection policy](websocket.md#profile-connection-policy).
 
 Planned or not captured:

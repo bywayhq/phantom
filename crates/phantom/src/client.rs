@@ -492,7 +492,9 @@ impl Client {
     ///
     /// `ws://` uses an HTTP/1.1 Upgrade. For `wss://`, a pooled HTTP/2
     /// session to the same origin and route whose peer enabled extended
-    /// CONNECT carries the WebSocket as a new stream. Without such a session,
+    /// CONNECT carries the WebSocket as a new stream; on an HTTP proxy or
+    /// SOCKS5 route, only when the profile's [`WebSocketProxiedSession`] is
+    /// `Reuse`. Without such a session,
     /// the profile's [`WebSocketConnectionPolicy`] decides between a new
     /// HTTP/1.1 Upgrade connection with its own ALPN offer and a new HTTP/2
     /// connection. The choice is made once, before any WebSocket bytes are
@@ -501,6 +503,7 @@ impl Client {
     /// not apply.
     ///
     /// [`WebSocketConnectionPolicy`]: crate::profile::WebSocketConnectionPolicy
+    /// [`WebSocketProxiedSession`]: crate::profile::WebSocketProxiedSession
     ///
     /// # Errors
     ///

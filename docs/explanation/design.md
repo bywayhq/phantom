@@ -630,8 +630,9 @@ hiding their distinct lifecycles.
 An exact-protocol H2 WebSocket uses a dedicated extended-CONNECT connection. A
 profile `WebSocketConnectionPolicy` instead places the WebSocket on a pooled
 H2 session to the same origin and route when that session's peer enabled
-extended CONNECT. Otherwise it opens the connection the profile names: either
-an HTTP/1.1 Upgrade over TLS with the policy's own ALPN offer, or a new H2
+extended CONNECT, and on a proxy route only when its `proxied_http2_session`
+allows it. Otherwise it opens the connection the profile names: either an
+HTTP/1.1 Upgrade over TLS with the policy's own ALPN offer, or a new H2
 connection. The facade reads that choice from profile data and never branches
 on client family.
 

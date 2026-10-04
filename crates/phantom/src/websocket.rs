@@ -41,7 +41,9 @@ use handshake::{
     default_extended_connect_headers, default_headers, fill_or_append, profile_headers,
 };
 use phantom_net::http2::Http2Connection;
-use phantom_profile::{WebSocketNewConnection, WebSocketRefusedStreamRetry};
+use phantom_profile::{
+    WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+};
 use trace::OperationOutcome;
 
 /// Builder for one ordered WebSocket opening handshake.
@@ -537,6 +539,17 @@ impl WebSocketRequestBuilder {
         let without_session = policy.without_http2_session;
         let with_incapable_session = policy.with_incapable_http2_session;
         let refused_stream_retry = policy.refused_stream_retry;
+        let reuse_proxied = match policy.proxied_http2_session {
+            WebSocketProxiedSession::Reuse => true,
+            WebSocketProxiedSession::Ignore => false,
+            // The enum is `non_exhaustive`, so an unknown variant is a
+            // profile this build cannot honour, not a silent choice.
+            _ => {
+                return Err(WebSocketError::invalid_request(
+                    "profile names an unsupported proxied HTTP/2 session rule",
+                ));
+            }
+        };
         self.validate_policy_templates()?;
 
         let choice = if self.request.transport == WebSocketTransport::Plaintext {
@@ -547,7 +560,7 @@ impl WebSocketRequestBuilder {
             // request, waiting or failing with a typed capacity error.
             match self
                 .client
-                .admit_http2_session(&self.request.endpoint, route)
+                .admit_http2_session(&self.request.endpoint, route, reuse_proxied)
                 .await
                 .map_err(WebSocketError::request)?
             {

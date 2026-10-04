@@ -88,8 +88,8 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
 
 - `ws://` always uses an H1 Upgrade. For `wss://`, a pooled H2 session to
   the same origin and route whose peer enabled extended CONNECT carries the
-  WebSocket as a new stream; otherwise the recipe picks the connection
-  ([browser recipes](../reference/websocket.md#browser-recipes)).
+  WebSocket, on a proxy route only if the recipe allows; otherwise the recipe
+  picks the connection ([recipes](../reference/websocket.md#browser-recipes)).
 - The choice is made once; a failure is never retried on another connection
   or protocol.
 - `headers` fails under this builder. Fill the recipe's caller slots, such as

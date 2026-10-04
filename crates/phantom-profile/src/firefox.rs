@@ -40,7 +40,8 @@ use crate::{
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
-        WebSocketNewConnection, WebSocketRefusedStreamRetry, WebSocketSettings,
+        WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+        WebSocketSettings,
     },
 };
 
@@ -573,6 +574,16 @@ pub fn v157_http2() -> Http2Settings {
 /// (`modules/libpref/init/all.js` line 1317). Firefox resolves the host for
 /// its per-host admission queue before that timer starts; Phantom's deadline
 /// includes that lookup.
+///
+/// [`WebSocketProxiedSession::Reuse`] is source, not a capture: no retained
+/// capture opens a `wss://` WebSocket through a proxy. At tag
+/// `FIREFOX_157_0_RELEASE`, a WebSocket upgrade stays eligible for HTTP/2
+/// whatever the proxy (`netwerk/protocol/http/nsHttpChannel.cpp` lines
+/// 1192-1207), the connection entry's hash key holds the proxy
+/// (`nsHttpConnectionInfo.cpp` lines 211-231), and a WebSocket finding an
+/// active HTTP/2 connection in its entry opens an extended CONNECT stream on
+/// it when the peer allows one (`nsHttpConnectionMgr.cpp` lines 1619-1630
+/// and 1811-1875).
 #[must_use]
 pub fn v157_websocket() -> WebSocketSettings {
     WebSocketSettings {
@@ -581,6 +592,7 @@ pub fn v157_websocket() -> WebSocketSettings {
             with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
             http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
             refused_stream_retry: WebSocketRefusedStreamRetry::None,
+            proxied_http2_session: WebSocketProxiedSession::Reuse,
         },
         http1_fields: vec![
             WebSocketField::authority("Host"),

@@ -226,12 +226,37 @@ pub enum WebSocketRefusedStreamRetry {
     SameSessionOnce,
 }
 
+/// Whether a `wss://` WebSocket on a proxy route may open on a pooled HTTP/2
+/// session.
+///
+/// It applies to HTTP proxy and SOCKS5 routes alike. On the direct route a
+/// capable pooled session always carries the WebSocket.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum WebSocketProxiedSession {
+    /// A capable pooled HTTP/2 session to the same origin through the same
+    /// route carries the WebSocket as an extended CONNECT stream, as on the
+    /// direct route.
+    ///
+    /// The stream opens inside the session's existing tunnel, so no proxy
+    /// CONNECT or `Proxy-Authorization` is sent for it. Proxy credentials are
+    /// part of the route, so a session tunnelled with other credentials is
+    /// never used.
+    Reuse,
+    /// No pooled session is used on a proxy route; the WebSocket opens the
+    /// connection that
+    /// [`WebSocketConnectionPolicy::without_http2_session`] names, through a
+    /// tunnel of its own.
+    Ignore,
+}
+
 /// How a client chooses the connection for a `wss://` WebSocket.
 ///
 /// A pooled HTTP/2 session to the same origin and route whose peer enabled
-/// `SETTINGS_ENABLE_CONNECT_PROTOCOL` always carries the WebSocket as an
-/// extended CONNECT stream. The two remaining cases are profile data. A
-/// plaintext `ws://` WebSocket always uses an HTTP/1.1 Upgrade.
+/// `SETTINGS_ENABLE_CONNECT_PROTOCOL` carries the WebSocket as an extended
+/// CONNECT stream, on a proxy route only when `proxied_http2_session` allows
+/// it. The remaining cases are profile data. A plaintext `ws://` WebSocket
+/// always uses an HTTP/1.1 Upgrade.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WebSocketConnectionPolicy {
     /// The connection opened when no pooled HTTP/2 session exists.
@@ -250,6 +275,8 @@ pub struct WebSocketConnectionPolicy {
     /// It applies only to an extended CONNECT on a pooled HTTP/2 session,
     /// which is the only case the captures cover.
     pub refused_stream_retry: WebSocketRefusedStreamRetry,
+    /// Whether a pooled HTTP/2 session carries the WebSocket on a proxy route.
+    pub proxied_http2_session: WebSocketProxiedSession,
 }
 
 impl WebSocketConnectionPolicy {
