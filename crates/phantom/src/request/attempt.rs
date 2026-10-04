@@ -162,7 +162,10 @@ async fn send_once_exact(
         let prepared_headers =
             route_attempt_headers(client, request, protocol, &request_headers, forwarding);
         // Checked before the attempt takes a one-shot body.
+        // A pinned alternative is the caller's choice of where QUIC goes, so
+        // its failure never moves the request to the origin over HTTP/2.
         let may_fall_back = protocol == HttpProtocol::Http3
+            && request.alternative.is_none()
             && retries.falls_back_to_http2()
             && body.can_replay()
             && !replays.performed(ReplayClass::Http2Fallback);
@@ -240,6 +243,7 @@ async fn send_once_exact(
                     continue;
                 }
                 if protocol == HttpProtocol::Http3
+                    && request.alternative.is_none()
                     && begin_http2_fallback(&error, &method, body, retries, replays)
                 {
                     protocol = HttpProtocol::Http2;
@@ -1028,7 +1032,19 @@ async fn dispatch_attempt(
                 .http3
                 .as_ref()
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-            let transport = Http3TransportTarget::for_origin(endpoint);
+            let mut request_headers = request_headers;
+            // A pinned alternative is reached as a learned one is, with its
+            // `Alt-Used` field after every other field.
+            let transport = match &request.alternative {
+                Some(alternative) => {
+                    request_headers.push(RequestHeader::new(
+                        "alt-used",
+                        alternative.alt_used().as_bytes(),
+                    ));
+                    Http3TransportTarget::new(alternative.host(), alternative.port())
+                }
+                None => Http3TransportTarget::for_origin(endpoint),
+            };
             let fields = http3_pool::validate_request(
                 connector,
                 client.inner.connect_udp_proxy.as_deref(),

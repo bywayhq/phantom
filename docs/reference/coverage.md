@@ -112,7 +112,7 @@ connection is not enough.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5 | Multiple-alternative racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
 
@@ -539,6 +539,11 @@ Supported lifecycle:
     raced, as in Chromium 154, from up to eight kept per origin.
 
   See [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).
+- An exact H3 request to a caller-pinned alternative
+  (`RequestBuilder::alt_svc_alternative`), directly or through the HTTP/3 leg
+  of a CONNECT-UDP proxy, with the origin's authority and TLS name and an
+  `Alt-Used` field
+  ([evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)).
 
 Supported in `phantom-net` only (`phantom-http` does not expose it):
 

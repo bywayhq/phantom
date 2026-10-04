@@ -10,6 +10,7 @@ mod support;
 
 mod alt_svc_frames;
 mod alt_svc_persistence;
+mod alt_svc_pinned;
 mod alt_svc_race;
 mod connect_udp;
 mod http2_fallback;

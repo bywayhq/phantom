@@ -253,9 +253,11 @@ impl RetryPolicy {
     /// responsive handshake run longer, so a slow one falls back here and
     /// not in Chromium. A name-resolution failure, a SOCKS5 proxy failure, a
     /// rejected Encrypted Client Hello, a full pool, and any failure after
-    /// the request was written return the HTTP/3 error. So does a
-    /// replay-safe request sent as early data on a resumed connection, which
-    /// leaves before its handshake completes; turn early data off with
+    /// the request was written return the HTTP/3 error. So does a request to
+    /// an alternative pinned with
+    /// [`RequestBuilder::alt_svc_alternative`](crate::RequestBuilder::alt_svc_alternative),
+    /// and a replay-safe request sent as early data on a resumed connection,
+    /// which leaves before its handshake completes; turn early data off with
     /// [`ClientBuilder::http3_early_data`](crate::ClientBuilder::http3_early_data)
     /// for such a request to fall back too.
     ///

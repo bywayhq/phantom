@@ -2,7 +2,7 @@ use std::{num::NonZeroUsize, time::Duration};
 
 use super::{
     AltSvcBrokenBackoff, AltSvcLocation, AltSvcStore, AlternativeTarget,
-    MAX_ALTERNATIVES_PER_ORIGIN, StoreKey, invalidates_alternative,
+    MAX_ALTERNATIVES_PER_ORIGIN, PinnedAlternative, StoreKey, invalidates_alternative,
 };
 use crate::{HttpProtocol, RequestError, Route, TimeoutPhase, authority::Endpoint};
 
@@ -961,4 +961,32 @@ fn the_race_that_follows_a_failed_early_handshake_offers_no_early_data() -> Test
     assert!(!retry.allows_early_data());
     assert!(!retry.is_broken());
     Ok(())
+}
+
+#[test]
+fn a_pinned_alternative_needs_a_canonical_host_and_a_nonzero_port() {
+    let name = PinnedAlternative::parse("alt.example", 443);
+    assert_eq!(
+        name.as_ref().map(PinnedAlternative::alt_used),
+        Some("alt.example:443")
+    );
+    let ipv6 = PinnedAlternative::parse("::1", 8443);
+    assert_eq!(
+        ipv6.as_ref().map(PinnedAlternative::alt_used),
+        Some("[::1]:8443")
+    );
+    assert_eq!(ipv6.as_ref().map(PinnedAlternative::host), Some("::1"));
+    for (host, port) in [
+        ("alt.example", 0),
+        ("", 443),
+        ("Alt.Example", 443),
+        ("[::1]", 443),
+        ("0:0:0:0:0:0:0:1", 443),
+        ("alt.example:443", 443),
+    ] {
+        assert!(
+            PinnedAlternative::parse(host, port).is_none(),
+            "{host}:{port}"
+        );
+    }
 }

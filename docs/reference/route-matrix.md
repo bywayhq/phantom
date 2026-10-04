@@ -132,7 +132,8 @@ Notes:
   fails before I/O. Only simple (`{var}`) and form-style query (`{?var}`,
   `{&var}`) expressions are accepted.
 - The target is always sent as percent-encoded text; Phantom performs no
-  local lookup of it.
+  local lookup of it. It is the origin, or the alternative a request pins
+  with `RequestBuilder::alt_svc_alternative`.
 - Disabled proxy certificate verification fails for this route on every leg,
   including a route set per request.
 - A proxy that does not enable extended CONNECT or HTTP Datagrams fails with

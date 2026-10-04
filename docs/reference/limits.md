@@ -17,6 +17,7 @@ policies that stay off until you enable them.
 | HTTP/2 fallback of an exact HTTP/3 request | None | `RetryPolicy::with_http2_fallback` |
 | Sending a streaming request body again | Never | `RequestBuilder::buffered_streaming_body`, which keeps up to the bytes you set until `send` returns |
 | Waiting for `100 Continue` before a request body | No `Expect` field; the body follows the head | `RequestBuilder::expect_continue(wait)` |
+| Exact HTTP/3 to a known alternative service | The origin's own location | `RequestBuilder::alt_svc_alternative` |
 | WebSocket connection-setup retries | None | `WebSocketRequestBuilder::retry_policy` |
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |

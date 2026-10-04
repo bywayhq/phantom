@@ -54,6 +54,9 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
   request whose early handshake fails is raced once more without early data
   when its body is absent, owned, or buffered within its limit.
 - Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
+- To send an exact H3 request to an alternative you already know, without
+  the store, see
+  [Reach a known alternative service](socks-and-connect-udp.md#reach-a-known-alternative-service).
 
 ## Find HTTP/3 through HTTPS DNS records
 

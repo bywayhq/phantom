@@ -3,7 +3,6 @@
 use std::{
     collections::HashMap,
     fmt,
-    net::Ipv6Addr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -253,7 +252,7 @@ impl AltSvcStore {
                 index,
             ))?;
             let location =
-                parse_alternative(&entry.alternative_host, entry.alternative_port).ok_or(
+                AltSvcLocation::parse(&entry.alternative_host, entry.alternative_port).ok_or(
                     AltSvcSnapshotError::entry(AltSvcSnapshotErrorKind::InvalidAlternative, index),
                 )?;
             validated.push((origin, location, entry.expires_at));
@@ -318,21 +317,6 @@ fn parse_origin(value: &str) -> Option<OriginKey> {
     let authority = format!("{}:{}", url.host_str()?, url.port_or_known_default()?);
     let endpoint = Endpoint::new(authority.parse().ok()?, 443).ok()?;
     (canonical_origin(&endpoint) == value).then(|| OriginKey::new(&endpoint))
-}
-
-fn parse_alternative(host: &str, port: u16) -> Option<AltSvcLocation> {
-    if port == 0 || host.is_empty() {
-        return None;
-    }
-    let canonical = if host.contains(':') {
-        host.parse::<Ipv6Addr>().ok()?.to_string()
-    } else {
-        url::Host::parse(host).ok()?.to_string()
-    };
-    (canonical == host).then(|| AltSvcLocation {
-        host: host.into(),
-        port,
-    })
 }
 
 fn floor_to_second(time: SystemTime) -> SystemTime {

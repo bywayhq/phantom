@@ -175,6 +175,24 @@ impl AltSvcLocation {
         }
     }
 
+    /// Parses a host and port given in their canonical form: a lowercase
+    /// name, a dotted IPv4 address, or an IPv6 address without brackets in
+    /// its shortest form, and a nonzero port.
+    pub(super) fn parse(host: &str, port: u16) -> Option<Self> {
+        if port == 0 || host.is_empty() {
+            return None;
+        }
+        let canonical = if host.contains(':') {
+            host.parse::<Ipv6Addr>().ok()?.to_string()
+        } else {
+            url::Host::parse(host).ok()?.to_string()
+        };
+        (canonical == host).then(|| Self {
+            host: host.into(),
+            port,
+        })
+    }
+
     pub(super) fn host(&self) -> &str {
         &self.host
     }
@@ -189,6 +207,40 @@ impl AltSvcLocation {
         } else {
             format!("{}:{}", self.host, self.port).into()
         }
+    }
+}
+
+/// An alternative the caller chose for one exact HTTP/3 request, reached as
+/// a learned alternative is: QUIC goes to its location, the request keeps
+/// the origin's authority and TLS name, and `Alt-Used` names it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PinnedAlternative {
+    location: AltSvcLocation,
+    alt_used: Box<str>,
+}
+
+impl PinnedAlternative {
+    /// Returns the alternative at `host` and `port`, or `None` when either is
+    /// not in canonical form or the port is zero.
+    pub(crate) fn parse(host: &str, port: u16) -> Option<Self> {
+        let location = AltSvcLocation::parse(host, port)?;
+        Some(Self {
+            alt_used: location.authority(),
+            location,
+        })
+    }
+
+    pub(crate) fn host(&self) -> &str {
+        self.location.host()
+    }
+
+    pub(crate) const fn port(&self) -> u16 {
+        self.location.port()
+    }
+
+    /// Returns the `Alt-Used` authority, with an explicit port.
+    pub(crate) fn alt_used(&self) -> &str {
+        &self.alt_used
     }
 }
 

@@ -28,6 +28,7 @@ pub(crate) mod template;
 
 pub use template::PreparedRequestTemplate;
 
+use crate::session::alt_svc::PinnedAlternative;
 use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
 use replay_buffer::{NoReplay, ReplayBuffer};
@@ -74,6 +75,8 @@ pub struct RequestBuilder {
     content_decoding: ContentDecoding,
     response_body_timeouts: bool,
     body_declares_alt_used_trailer: bool,
+    /// The host and port of a caller-pinned alternative, checked by `send`.
+    alternative: Option<(Box<str>, u16)>,
 }
 
 impl fmt::Debug for RequestBuilder {
@@ -91,6 +94,7 @@ impl fmt::Debug for RequestBuilder {
             .field("timeout_override", &self.timeouts.is_some())
             .field("retry_policy_override", &self.retry_policy.is_some())
             .field("content_decoding", &self.content_decoding)
+            .field("pinned_alternative", &self.alternative.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -152,6 +156,7 @@ impl RequestBuilder {
             content_decoding: ContentDecoding::none(),
             response_body_timeouts: true,
             body_declares_alt_used_trailer: false,
+            alternative: None,
         })
     }
 
@@ -384,6 +389,37 @@ impl RequestBuilder {
         self
     }
 
+    /// Sends this exact HTTP/3 request to the alternative service at `host`
+    /// and `port`, as a request to an alternative learned from `Alt-Svc`
+    /// goes (RFC 7838): QUIC connects to that location over the request's
+    /// route, the request keeps the origin's authority, TLS server name, and
+    /// certificate check, and an `Alt-Used` field naming the alternative
+    /// follows its template, caller, and cookie fields.
+    ///
+    /// This needs no Alt-Svc store and no TLS connection to learn from, so it
+    /// also reaches an alternative through a CONNECT-UDP proxy. Setup retries
+    /// follow the request's [`RetryPolicy`], where a learned alternative has
+    /// none. A failure
+    /// returns the HTTP/3 error: nothing falls back to the origin, not even
+    /// under [`RetryPolicy::with_http2_fallback`], and no Alt-Svc state
+    /// changes. A redirect to the same origin keeps the
+    /// alternative; a redirect to another origin goes to that origin's own
+    /// location.
+    ///
+    /// `host` is a lowercase name, a dotted IPv4 address, or an IPv6 address
+    /// without brackets, each in canonical form. [`send`](Self::send) fails
+    /// before any I/O with
+    /// [`RequestErrorKind::InvalidAuthority`](crate::RequestErrorKind::InvalidAuthority)
+    /// for another form or a zero port, with
+    /// [`ProtocolUnavailable`](crate::RequestErrorKind::ProtocolUnavailable)
+    /// when the request is not exact HTTP/3, and with
+    /// [`InvalidHeader`](crate::RequestErrorKind::InvalidHeader) for a caller
+    /// `Alt-Used` field or trailer.
+    pub fn alt_svc_alternative(mut self, host: &str, port: u16) -> Self {
+        self.alternative = Some((host.into(), port));
+        self
+    }
+
     /// Replaces the client's timeout policy for this operation.
     ///
     /// Without this call the request uses the policy set by
@@ -600,7 +636,22 @@ impl RequestBuilder {
                 return Err(RequestError::expectation_header());
             }
         }
-        if self.client.alt_svc_enabled()
+        let alternative = match &self.alternative {
+            Some(_)
+                if !matches!(
+                    self.selection,
+                    ProtocolSelection::Exact(HttpProtocol::Http3)
+                ) =>
+            {
+                return Err(RequestError::alternative_needs_http3());
+            }
+            Some((host, port)) => Some(
+                PinnedAlternative::parse(host, *port)
+                    .ok_or_else(RequestError::invalid_alternative)?,
+            ),
+            None => None,
+        };
+        if (self.client.alt_svc_enabled() || alternative.is_some())
             && contains_caller_alt_used(
                 &self.headers,
                 &self.trailers,
@@ -664,13 +715,18 @@ impl RequestBuilder {
             content_decoding: _,
             response_body_timeouts,
             body_declares_alt_used_trailer: _,
+            alternative: _,
         } = self;
+        let mut request = request;
+        request.alternative = alternative;
         let body = body.with_continue_wait(request.expect_continue);
         let route = route.as_ref().unwrap_or(&client.inner.route);
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
         ensure_request_supported(selection, route, &request)?;
-        ensure_http2_fallback_supported(&client, selection, route, retry_policy)?;
+        if request.alternative.is_none() {
+            ensure_http2_fallback_supported(&client, selection, route, retry_policy)?;
+        }
         // A caller's preemptive field goes to the forward proxy, as it does on
         // CONNECT. On any other route it would reach the origin, and with
         // configured credentials it would conflict with the generated field.
@@ -797,9 +853,11 @@ impl RequestBuilder {
                         template = template.map(|template| template.without_credentials());
                     }
                     let expect_continue = resolved.expect_continue;
+                    let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
+                    resolved.alternative = alternative;
                 }
             }
         }
@@ -1167,6 +1225,8 @@ struct ResolvedRequest {
     /// How long each attempt waits for `100 Continue` before it sends a
     /// body, when it sends `Expect: 100-continue`.
     expect_continue: Option<std::time::Duration>,
+    /// The caller-pinned alternative of an exact HTTP/3 request.
+    pub(super) alternative: Option<PinnedAlternative>,
 }
 
 impl ResolvedRequest {
@@ -1195,6 +1255,7 @@ impl ResolvedRequest {
             absolute_target,
             template: None,
             expect_continue: None,
+            alternative: None,
         })
     }
 
@@ -1236,6 +1297,7 @@ impl ResolvedRequest {
             absolute_target,
             template: None,
             expect_continue: None,
+            alternative: None,
         })
     }
 }

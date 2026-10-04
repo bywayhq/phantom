@@ -600,8 +600,24 @@ impl RequestError {
     pub(crate) fn alt_used_header() -> Self {
         Self::without_source(
             RequestErrorKind::InvalidHeader,
-            "Alt-Used is managed by the negotiated Alt-Svc client and must not be supplied",
+            "Alt-Used is managed by the client for Alt-Svc alternatives and must not be supplied",
         )
+    }
+
+    pub(crate) fn invalid_alternative() -> Self {
+        Self::without_source(
+            RequestErrorKind::InvalidAuthority,
+            "a pinned alternative needs a canonical host and a nonzero port",
+        )
+    }
+
+    pub(crate) fn alternative_needs_http3() -> Self {
+        let mut error = Self::without_source(
+            RequestErrorKind::ProtocolUnavailable,
+            "a pinned alternative needs an exact HTTP/3 request",
+        );
+        error.protocol = Some(HttpProtocol::Http3);
+        error
     }
 
     pub(crate) fn forward_proxy_authorization_header() -> Self {

@@ -1,7 +1,7 @@
 # SOCKS5 and CONNECT-UDP proxies
 
-Send requests through a SOCKS5 proxy, and relay HTTP/3 (H3) through a
-CONNECT-UDP proxy.
+Send requests through a SOCKS5 proxy, relay HTTP/3 (H3) through a
+CONNECT-UDP proxy, and reach an origin's known alternative service.
 
 > For builders who have read [Routes and proxies](routes-and-proxies.md).
 
@@ -70,12 +70,50 @@ fn masque_route() -> Result<Route, Box<dyn std::error::Error>> {
 - [CONNECT-UDP rules](../reference/route-matrix.md#connect-udp-rules) lists
   every check and failure.
 
+## Reach a known alternative service
+
+Send an [exact H3](../reference/glossary.md#exact-protocol) request to an
+[alternative service](../reference/glossary.md#alt-svc) you already know,
+such as one the origin's `Alt-Svc` named earlier. A CONNECT-UDP route has no
+TCP connection to learn one from.
+
+```rust
+use phantom::{Client, HttpProtocol};
+
+async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client
+        .get(HttpProtocol::Http3, "https://example.com/")?
+        .alt_svc_alternative("alt.example.net", 8443)
+        .send()
+        .await?;
+    drop(response);
+    Ok(())
+}
+```
+
+- QUIC goes to the alternative over the request's route, direct or through
+  a CONNECT-UDP proxy, which is asked for the alternative, not the origin.
+  The request keeps the origin's authority, TLS server name, and
+  certificate check, and carries an [`Alt-Used`](../reference/glossary.md#alt-used)
+  field after its template, caller, and cookie fields, as a learned
+  alternative does.
+- It needs no Alt-Svc store. Setup retries follow the request's
+  `RetryPolicy`; a failure returns the H3 error, and nothing falls back to
+  the origin, even under the HTTP/2 fallback, or is stored.
+- A same-origin redirect keeps the alternative; a redirect to another
+  origin goes to that origin's own location.
+- The host is a lowercase name, a dotted IPv4 address, or an IPv6 address
+  without brackets in its shortest form, and the port is nonzero. Another
+  form, a request that is not exact H3, or a caller `Alt-Used` fails before
+  any I/O.
+
 ## Limits
 
 - A SOCKS5 failure never tries another address
   ([SOCKS5 rules](../reference/route-matrix.md#socks5-rules)).
 - H1, H2, negotiated requests, and WebSocket fail before I/O on a
-  CONNECT-UDP route, so that route never uses Alt-Svc.
+  CONNECT-UDP route, so that route never learns Alt-Svc; name a known
+  alternative instead.
 - A CONNECT-UDP proxy rejection fails with `RequestErrorKind::Proxy`; only
   failures to resolve or connect to the proxy are retried.
 - Configuration errors have stable kinds (`Socks5ProxyConfigErrorKind`,

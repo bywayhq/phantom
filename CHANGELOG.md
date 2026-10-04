@@ -827,6 +827,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `RequestBuilder::alt_svc_alternative(host, port)` sends an exact HTTP/3
+  request to an alternative service the caller names, as a request to a
+  learned Alt-Svc alternative goes: QUIC connects to that location over
+  the request's route, a CONNECT-UDP proxy is asked for the alternative,
+  and the request keeps the origin's authority, TLS name, and certificate
+  check, with `Alt-Used` after its template, caller, and cookie fields.
+  It needs no Alt-Svc store, setup retries follow the request's
+  `RetryPolicy`, a failure returns the HTTP/3 error without the HTTP/2
+  fallback, and a same-origin redirect keeps the alternative. A non-canonical host, a zero port, a request that is not
+  exact HTTP/3, or a caller `Alt-Used` fails before any I/O
+  ([guide](docs/guides/socks-and-connect-udp.md#reach-a-known-alternative-service)).
 - `RequestBuilder::expect_continue(wait)` sends `Expect: 100-continue` and
   holds a nonempty body until the server answers `100 Continue` or `wait`
   ends, on H1, H2, H3, and negotiated requests and on every attempt. A

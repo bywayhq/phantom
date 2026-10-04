@@ -4263,12 +4263,22 @@ selected-protocol metadata.
 
 The managed H3 attempt carries one automatically generated `Alt-Used` value
 with the canonical alternative host and explicit port. Regressions prove that
-exact H3 requests and the tested negotiated H2 origin request do not receive
-the field. A request-field regression proves that a caller-supplied
+exact H3 requests to the origin and the tested negotiated H2 origin request
+do not receive the field. A request-field regression proves that a caller-supplied
 `Alt-Used` is rejected before any network I/O. `Alt-Used` is also reserved in
 trailers, as part of the pre-I/O validation contract rather than as protocol
 coverage claimed here. This evidence verifies the field's value and scope, not
 a browser-specific position among ordinary request fields.
+
+`tests/http3/alt_svc_pinned.rs` covers an exact H3 request to an
+alternative the caller pins, directly and through the HTTP/3 leg of a
+CONNECT-UDP proxy, with a certificate only for an origin name that is never
+resolved: the alternative receives the origin's authority and an `Alt-Used`
+naming it, and the proxy is asked for the alternative. A same-origin
+redirect stays on the alternative, a redirect to another origin leaves it, a
+refused alternative returns the H3 error without the HTTP/2 fallback, a
+pinned response's `Alt-Svc` leaves the store empty, and invalid input fails
+before the proxy sees a connection.
 
 Parser regressions cover ordered duplicate fields, canonical host forms,
 default and explicit `ma`, `Age` subtraction and expiry, replacement, `clear`,

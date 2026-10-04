@@ -139,6 +139,9 @@ Counts in the later phases come from a read-only review of `main` at
 - An opt-in fallback of an exact HTTP/3 request to the profile's HTTP/2
   recipe when no QUIC connection can be set up
   ([Fall back to HTTP/2 when QUIC fails](guides/http3.md#fall-back-to-http2-when-quic-fails)).
+- A caller-pinned Alt-Svc alternative for an exact HTTP/3 request, which
+  also reaches an alternative through a CONNECT-UDP proxy
+  ([Reach a known alternative service](guides/socks-and-connect-udp.md#reach-a-known-alternative-service)).
 - Field lists built once: a negotiated request builds and checks its
   HTTP/1.1 and HTTP/2 lists, and a raced request its HTTP/3 list as well,
   once per redirect hop before any I/O. The race's winner and every replay
@@ -352,8 +355,6 @@ Each of these needs no capture, because no named recipe may reach it
 - WebSocket over HTTP/3 (RFC 9220) for custom profiles. The `phantom-net`
   extended CONNECT foundation exists; no shipping browser opens one, so no
   recipe will.
-- A caller-pinned Alt-Svc alternative, which needs no TLS stream to learn
-  from and so could work on CONNECT-UDP.
 - Racing more than one alternative, bounded and chosen by the caller.
 - WebSocket reuse of a pooled HTTP/2 session on a proxy route.
 - Interface binding by name on macOS and Windows (`IP_BOUND_IF`,
