@@ -47,9 +47,8 @@ Exceptions to that list:
   Android only a TLS recipe.
 - Only the desktop browsers have TCP socket options: Chrome and Brave from
   browser source, Edge, Opera, and Firefox from hook logs of their own
-  socket calls. Firefox's recipe leaves out its IPv4 backup connection, the
-  slower connection it keeps, and the address family it remembers per
-  origin.
+  socket calls. Firefox's recipe, IPv4 backup connection included, has
+  [known differences](docs/explanation/validation.md#firefox-socket-hook-evidence).
 
 Most recipes come from captures on Windows 11 for the desktop builds, with
 some client-hint and request-template recipes also from macOS, and on Android
@@ -68,8 +67,8 @@ Beyond the browser layers, the client supports:
   owned by one client and bounded in size;
 - server-sent events and WebSocket.
 
-Not yet available: racing more than one Alt-Svc alternative, and WebSocket
-over HTTP/3.
+WebSocket over HTTP/3 has no browser recipe, so it is for servers you
+control.
 
 ## Quick look
 
@@ -121,7 +120,7 @@ No Cargo feature is enabled by default:
 | `cookies` | A cookie jar owned by the client, with size limits |
 | `https-records` | HTTP/3 discovery from HTTPS DNS records, and, with the desktop Chrome, Edge, Brave, and Opera recipes, Encrypted Client Hello from them with a TLS handshake wait of at most 50 ms; address lookups with Phantom's own DNS queries through `AddressResolver::system_nameservers`; adds the `hickory-resolver` dependency |
 | `sse` | Server-sent events, with a limited number of reconnects |
-| `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
+| `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
 | `websocket-deflate` | Opt-in `permessage-deflate` compression; turns on `websocket` |
 | `serde` | Serialization of saved cookie-jar snapshots, with `cookies` |
 | `full` | All of the above |

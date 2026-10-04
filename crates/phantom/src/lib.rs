@@ -43,7 +43,7 @@
 //! | `cookies` | `CookieJar` and client-owned cookie handling |
 //! | `https-records` | The `dns` module, HTTP/3 discovery from HTTPS DNS records, and Encrypted Client Hello from them for profiles that set `ech_from_https_records`, whose direct handshakes wait up to 50 ms for the lookup; and `AddressResolver::system_nameservers`, address lookups with Phantom's own DNS queries that report record TTLs |
 //! | `sse` | Server-sent event decoding and bounded reconnects |
-//! | `websocket` | WebSocket over HTTP/1.1 Upgrade or HTTP/2 extended CONNECT |
+//! | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
 //! | `full` | All of the above |
