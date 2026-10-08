@@ -4,7 +4,7 @@
 //! bytes, and it echoes each question so resolvers accept the response.
 
 use std::{
-    io,
+    fmt, io,
     net::{Ipv4Addr, SocketAddr},
     sync::{Arc, Mutex, PoisonError},
     time::Duration,
@@ -193,6 +193,16 @@ impl DnsServer {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
+    }
+}
+
+impl fmt::Debug for DnsServer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DnsServer")
+            .field("address", &self.address)
+            .field("task_finished", &self.task.is_finished())
+            .finish_non_exhaustive()
     }
 }
 
