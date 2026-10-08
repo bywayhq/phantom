@@ -1,7 +1,10 @@
 use std::{net::SocketAddr, pin::Pin};
 
 use btls::ssl::{ScopedSslSession, Ssl, SslAcceptor, SslVersion};
-use phantom_profile::{TlsSettings, TlsVersion, chromium::v154_tls, firefox::v157_tls};
+use phantom_profile::{
+    TlsSettings, TlsVersion, chromium::v154_tls, firefox::v157_tls,
+    firefox_android::v156_tls as v156_android_tls,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -218,6 +221,95 @@ async fn a_full_origin_evicts_the_ticket_the_firefox_order_takes_next() -> TestR
     for (index, (_, server)) in servers.into_iter().enumerate() {
         let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
         let expected: &[bool] = if index == 1 { &[false] } else { &[false, true] };
+        assert_eq!(resumed, expected);
+    }
+    Ok(())
+}
+
+/// The Firefox for Android order takes tickets in the order they were
+/// stored, whichever connection stored them: X stores A's ticket, Y stores
+/// C's, then X stores B's, and the takes return A, C, B, where the desktop
+/// Firefox order returns B, A, C.
+#[tokio::test]
+async fn the_android_firefox_order_takes_tickets_in_the_order_they_were_stored() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (connector, cache) = isolated_connector(&identity, &v156_android_tls())?;
+    let mut servers = Vec::new();
+    let mut tickets = Vec::new();
+    for _ in 0..3 {
+        let (address, server) = ticket_server(&identity, 2).await?;
+        tickets.push(one_ticket(&connector, &cache, address).await?);
+        servers.push((address, server));
+    }
+    let [ticket_a, ticket_b, ticket_c] =
+        <[ScopedSslSession; 3]>::try_from(tickets).map_err(|_| "expected three tickets")?;
+
+    let x = cache.begin_handshake(TEST_SERVER_NAME);
+    let y = cache.begin_handshake(TEST_SERVER_NAME);
+    assert_eq!(x.commit_authenticated(), 0);
+    assert_eq!(y.commit_authenticated(), 0);
+    x.capture(Ok(ticket_a));
+    y.capture(Ok(ticket_c));
+    x.capture(Ok(ticket_b));
+    assert_eq!(cache.len(), 3);
+
+    let mut taken = Vec::new();
+    while let Some(ticket) = cache.take(TEST_SERVER_NAME) {
+        taken.push(ticket);
+    }
+    assert_eq!(taken.len(), 3);
+    for (ticket, index) in taken.into_iter().zip([0, 2, 1]) {
+        resume_alone(&connector, &cache, ticket, servers[index].0).await?;
+    }
+    for (_, server) in servers {
+        let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        assert_eq!(resumed, [false, true]);
+    }
+    Ok(())
+}
+
+/// Under the Firefox for Android order, a full origin evicts the ticket
+/// stored first, which is also the ticket it would take next. Under a bound
+/// of three, X stores A's and then B's ticket around Y's C; storing D's
+/// ticket evicts A's. C, B, and D remain, in that order.
+#[tokio::test]
+async fn a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let mut settings = v156_android_tls();
+    settings.session_tickets_per_origin = 3;
+    let (connector, cache) = isolated_connector(&identity, &settings)?;
+    let mut servers = Vec::new();
+    let mut tickets = Vec::new();
+    // A's server never sees its ticket again.
+    for connections in [1, 2, 2, 2] {
+        let (address, server) = ticket_server(&identity, connections).await?;
+        tickets.push(one_ticket(&connector, &cache, address).await?);
+        servers.push((address, server));
+    }
+    let [ticket_a, ticket_b, ticket_c, ticket_d] =
+        <[ScopedSslSession; 4]>::try_from(tickets).map_err(|_| "expected four tickets")?;
+
+    let x = cache.begin_handshake(TEST_SERVER_NAME);
+    let y = cache.begin_handshake(TEST_SERVER_NAME);
+    assert_eq!(x.commit_authenticated(), 0);
+    assert_eq!(y.commit_authenticated(), 0);
+    x.capture(Ok(ticket_a));
+    y.capture(Ok(ticket_c));
+    x.capture(Ok(ticket_b));
+    cache.restore(TEST_SERVER_NAME, ticket_d);
+    assert_eq!(cache.len(), 3);
+
+    let mut taken = Vec::new();
+    while let Some(ticket) = cache.take(TEST_SERVER_NAME) {
+        taken.push(ticket);
+    }
+    assert_eq!(taken.len(), 3);
+    for (ticket, index) in taken.into_iter().zip([2, 1, 3]) {
+        resume_alone(&connector, &cache, ticket, servers[index].0).await?;
+    }
+    for (index, (_, server)) in servers.into_iter().enumerate() {
+        let resumed = tokio::time::timeout(TEST_TIMEOUT, server).await???;
+        let expected: &[bool] = if index == 0 { &[false] } else { &[false, true] };
         assert_eq!(resumed, expected);
     }
     Ok(())

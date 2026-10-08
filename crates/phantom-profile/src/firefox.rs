@@ -102,20 +102,14 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// captures. A resumed ClientHello omits the empty `session_ticket`
 /// extension and adds `pre_shared_key` last. Firefox used each of the eight
 /// tickets one connection issued, once, so the recipe keeps up to eight per
-/// origin, the TCP cache's bound. It presents them
-/// [`SessionTicketOrder::OldestConnectionFirst`], from source: Firefox keeps
-/// each peer's tickets sorted by expiry, which NSS sets to the time it
-/// processed the ticket plus two days, and offers the first
-/// (`TokenCacheEntry::AddRecord` and `Get`,
-/// `netwerk/base/SSLTokensCache.cpp:333-367`, and
-/// `security/nss/lib/ssl/ssl3con.c:12774-12775`). In every
-/// `resumption-websocket-http1` run, the request after the WebSocket resumed
-/// a ticket of the page's connection, not of the WebSocket's. When a ticket
-/// permits early data, a direct
-/// connection also offers `early_data`, between `key_share` and
-/// `supported_versions`, and sends replay-safe requests in it
-/// ([`TlsSettings::tcp_early_data`]), as Firefox does on every such
-/// resumption in those captures. Firefox disables early data on proxy
+/// origin, the TCP cache's bound. It offers them
+/// [`SessionTicketOrder::OldestConnectionFirst`], as Firefox on Windows
+/// does: in every `resumption-websocket-http1` run, the request after the
+/// WebSocket resumed a ticket of the page's connection. When a ticket
+/// permits early data, a direct connection also offers `early_data`,
+/// between `key_share` and `supported_versions`, and sends replay-safe
+/// requests in it ([`TlsSettings::tcp_early_data`]), as Firefox does on
+/// every such resumption in those captures. Firefox disables early data on proxy
 /// connections (`TlsHandshaker::InitSSLParams`,
 /// `netwerk/protocol/http/TlsHandshaker.cpp:134-137` at tag
 /// `FIREFOX_157_0_RELEASE`), and so does this recipe.

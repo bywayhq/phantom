@@ -204,9 +204,9 @@ Supported:
 - Bounded, client-owned TLS ticket caches for H1 and H2, partitioned by exact
   [origin](glossary.md#origin) and route. Each keeps the recipe's
   `session_tickets_per_origin` (2 for the Chromium family, 8 for Firefox),
-  presents them in the recipe's `session_ticket_order` (the newest first for
-  the Chromium family; for Firefox, the earliest connection's first, the
-  last one stored first), and uses each TLS 1.3 ticket once. A resumed
+  offers them in the recipe's
+  [ticket order](profiles.md#tls-session-ticket-order), and uses each TLS
+  1.3 ticket once. A resumed
   Firefox-profile ClientHello omits `session_ticket`, as Firefox 157 does
   ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Early data over TCP with the Firefox recipe (`TlsSettings::tcp_early_data`).
@@ -1109,7 +1109,7 @@ How the recipes differ:
   `v136_windows_client_hints`, `v136_macos_client_hints`, and its request
   templates, which equal the Chromium templates apart from `User-Agent`.
 - `firefox_android::v156_tls` returns `firefox::v157_tls`, which the Android
-  ClientHellos equal. No other Firefox for Android layer is captured,
+  ClientHellos equal, with the `OldestFirst` ticket order. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.
 - `opera_android::v102_*` carries only `v102_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, `v102_android_client_hints()` with the captured

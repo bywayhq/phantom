@@ -68,6 +68,7 @@ struct CachedSession {
 pub(super) enum TicketOrder {
     NewestFirst,
     OldestConnectionFirst,
+    OldestFirst,
 }
 
 impl TicketOrder {
@@ -76,6 +77,7 @@ impl TicketOrder {
         match order {
             SessionTicketOrder::NewestFirst => Some(Self::NewestFirst),
             SessionTicketOrder::OldestConnectionFirst => Some(Self::OldestConnectionFirst),
+            SessionTicketOrder::OldestFirst => Some(Self::OldestFirst),
             _ => None,
         }
     }
@@ -253,30 +255,35 @@ fn arrivals_for<'a>(
 }
 
 /// Returns the position of the session `order` presents next, from one
-/// hostname's sessions in the order they were stored.
+/// hostname's sessions in the order they were stored. `OldestFirst` takes
+/// the first stored, as Firefox does when no two tickets share a clock
+/// value.
 fn next_position(
     order: TicketOrder,
-    arrivals: impl Iterator<Item = (usize, Arrival)>,
+    mut arrivals: impl Iterator<Item = (usize, Arrival)>,
 ) -> Option<usize> {
     match order {
         TicketOrder::NewestFirst => arrivals.last().map(|(position, _)| position),
         TicketOrder::OldestConnectionFirst => arrivals
             .min_by_key(|(_, arrival)| (arrival.batch, Reverse(arrival.sequence)))
             .map(|(position, _)| position),
+        TicketOrder::OldestFirst => arrivals.next().map(|(position, _)| position),
     }
 }
 
 /// Returns the position of the session that storing one more evicts from a
-/// full hostname: the oldest for `NewestFirst`, and for
-/// `OldestConnectionFirst` the one `next_position` presents, as Firefox
-/// evicts the record it would offer.
+/// full hostname: the oldest for `NewestFirst`, and for the Firefox orders
+/// the one `next_position` presents, as Firefox evicts the record it would
+/// offer.
 fn eviction_position(
     order: TicketOrder,
     mut arrivals: impl Iterator<Item = (usize, Arrival)>,
 ) -> Option<usize> {
     match order {
         TicketOrder::NewestFirst => arrivals.next().map(|(position, _)| position),
-        TicketOrder::OldestConnectionFirst => next_position(order, arrivals),
+        TicketOrder::OldestConnectionFirst | TicketOrder::OldestFirst => {
+            next_position(order, arrivals)
+        }
     }
 }
 

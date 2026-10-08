@@ -12,7 +12,10 @@
 //! HTTP/1.1 connection, address-cache, proxy CONNECT, or cookie-placement
 //! recipe: none of those layers was captured on Android.
 
-use crate::{firefox, tls::TlsSettings};
+use crate::{
+    firefox,
+    tls::{SessionTicketOrder, TlsSettings},
+};
 
 /// Returns TLS settings captured from Firefox 156.0.1 for Android.
 ///
@@ -38,7 +41,18 @@ use crate::{firefox, tls::TlsSettings};
 /// true on every platform (`modules/libpref/init/StaticPrefList.yaml:19097-19100`
 /// and `:17033-17037`), and GeckoView's Android preferences
 /// (`mobile/android/app/geckoview-prefs.js`) override neither.
+///
+/// It offers saved tickets [`SessionTicketOrder::OldestFirst`], where the
+/// desktop recipe offers them
+/// [`SessionTicketOrder::OldestConnectionFirst`]. Firefox offers the ticket
+/// whose expiry, the time it received the ticket plus two days, is earliest.
+/// Android's clock counts microseconds, as macOS's does, so tickets almost
+/// never tie and the earliest goes first, as in the macOS capture. No
+/// Android capture shows the order.
 #[must_use]
 pub fn v156_tls() -> TlsSettings {
-    firefox::v157_tls()
+    TlsSettings {
+        session_ticket_order: SessionTicketOrder::OldestFirst,
+        ..firefox::v157_tls()
+    }
 }

@@ -185,15 +185,18 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
         );
         assert!(settings.session_ticket_extension_when_resuming);
     }
-    for firefox in [
-        crate::firefox::v157_tls(),
-        crate::firefox_android::v156_tls(),
+    for (firefox, order) in [
+        (
+            crate::firefox::v157_tls(),
+            SessionTicketOrder::OldestConnectionFirst,
+        ),
+        (
+            crate::firefox_android::v156_tls(),
+            SessionTicketOrder::OldestFirst,
+        ),
     ] {
         assert_eq!(firefox.session_tickets_per_origin, 8);
-        assert_eq!(
-            firefox.session_ticket_order,
-            SessionTicketOrder::OldestConnectionFirst
-        );
+        assert_eq!(firefox.session_ticket_order, order);
         assert!(!firefox.session_ticket_extension_when_resuming);
     }
 }

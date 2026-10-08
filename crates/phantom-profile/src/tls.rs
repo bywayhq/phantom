@@ -429,30 +429,20 @@ impl TrustAnchorIds {
     }
 }
 
-/// Which stored TLS session ticket for an origin a new TCP connection
-/// presents, and which one storing a ticket evicts from a full origin.
-///
-/// Tickets are ordered by when Phantom stored them, once the handshake that
-/// delivered them has authenticated the server. A TLS 1.2 session that a
-/// connection resumed without receiving a new ticket is stored again, as
-/// the only ticket of that connection.
+/// Which saved ticket a new TCP connection to an origin offers, and which
+/// one is dropped when the origin is full.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum SessionTicketOrder {
-    /// Presents the ticket stored last, and evicts the origin's ticket
-    /// stored first, as Chrome 154 does.
+    /// Offers the newest ticket and drops the oldest, as Chrome 154 does.
     NewestFirst,
-    /// Presents a ticket of the connection whose first ticket was stored
-    /// earliest and, among that connection's tickets, the one stored last.
-    /// Storing a ticket in a full origin evicts the ticket it would present
-    /// next.
-    ///
-    /// This follows Firefox 157, which keeps an origin's tickets sorted by
-    /// the time it processed each one, presents the earliest, and evicts the
-    /// earliest when the origin is full. Tickets processed in the same clock
-    /// tick tie, and a tie puts the one processed later first, so the
-    /// tickets one connection receives together go last-received first.
+    /// Offers the oldest connection's tickets first, newest of them first,
+    /// and drops the ticket it would offer next, as Firefox 157 on Windows
+    /// does.
     OldestConnectionFirst,
+    /// Offers the oldest ticket and drops it first when full, as Firefox
+    /// does where its clock counts microseconds (macOS, Linux, Android).
+    OldestFirst,
 }
 
 /// Ordered TLS settings independent of the concrete TLS backend.
@@ -506,8 +496,9 @@ pub struct TlsSettings {
     /// Which of an origin's TLS session tickets a new connection over TCP
     /// presents, and which one a full origin evicts.
     ///
-    /// The Chromium-family recipes set [`SessionTicketOrder::NewestFirst`]
-    /// and the Firefox recipes [`SessionTicketOrder::OldestConnectionFirst`].
+    /// The Chromium-family recipes set [`SessionTicketOrder::NewestFirst`],
+    /// `firefox::v157_tls` [`SessionTicketOrder::OldestConnectionFirst`], and
+    /// `firefox_android::v156_tls` [`SessionTicketOrder::OldestFirst`].
     /// QUIC connections ignore it.
     pub session_ticket_order: SessionTicketOrder,
     /// Whether a ClientHello that offers a TLS 1.3 ticket over TCP keeps the

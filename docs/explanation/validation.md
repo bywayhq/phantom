@@ -1667,8 +1667,10 @@ Twelve fresh-profile processes, each opened by intent at
 desktop Firefox 156 ClientHello: the same fixed extension order and every
 compared field, and a 240-byte ECH GREASE payload. The ECH GREASE AEAD
 varied per connection, as on Windows: 5 AES-128-GCM and 7
-ChaCha20-Poly1305. `firefox_android::v156_tls` returns `firefox::v157_tls`,
-and `firefox_android_156_tls_recipe_matches_android_captures` replays one
+ChaCha20-Poly1305. `firefox_android::v156_tls` returns `firefox::v157_tls`
+with another ticket order ([TLS resumption over
+TCP](#tls-resumption-over-tcp-evidence)), and
+`firefox_android_156_tls_recipe_matches_android_captures` replays one
 retained sample of each AEAD through the TLS connector.
 
 Retained fixtures, under
@@ -5437,9 +5439,11 @@ offers `early_data` where Firefox does and sends replay-safe requests as early
 data, including a WebSocket opening's HTTP/1.1 Upgrade GET; the
 Chromium-family recipes never offer it. Phantom keeps as many tickets per
 origin as the browser did and uses each once. The Chromium-family recipes
-present the newest ticket first. The Firefox recipe presents the tickets of
-the connection that stored its tickets earliest, the last one stored first,
-as Firefox's source orders them. A `Client` WebSocket opening shares the
+offer the newest ticket first. The Firefox recipe offers the oldest
+connection's tickets first, the last one it received first, as Firefox on
+Windows does; the Firefox for Android recipe offers the oldest ticket first,
+as Firefox's source does where its clock counts microseconds. A `Client`
+WebSocket opening shares the
 tickets of its origin's request pool, so it resumes a ticket an earlier
 request was issued, as Firefox's WebSocket connections did. A later
 Firefox-profile request resumes another ticket of that earlier connection,
@@ -5473,7 +5477,8 @@ Observed:
 | Tickets used of eight issued by one connection (`issue-once`) | 2 of 8 in every run: the newest, then the one before it | 8 of 8 in every run, each once; newest first in 2 of 3 runs |
 | Ticket presented twice | Never | Never |
 | Ticket the request after the WebSocket offered (`websocket-http1`) | Not captured | One the page's connection was issued, in 3 of 3 runs, although the WebSocket's connection had been issued two since |
-| First ticket offered of those one connection was issued, across the Windows and macOS Firefox captures | Not compared | The last one issued, for 58 of the 69 connections whose tickets a later connection offered |
+| First ticket offered of those one connection was issued, on Windows | Not compared | Of the 66 connections whose tickets a later connection offered: the last one issued for 58, the first for 7, a middle one for 1 |
+| The same on macOS 15.5 (`fixtures/tls/firefox/157.0/macos-15.5-arm64/resumption-sequential.txt`, one `sequential` run) | Not compared | The first one issued, for 3 of 3 connections |
 | Six connections opened at once for slow requests (`parallel`) | Two or three resumed, each with its own ticket | Two resumed in every run, each with its own ticket |
 | First connection to the same host on another port (`origins`) | No ticket offered, in every run | No ticket offered, in every run |
 | A `top.partition.test` page fetching the origin (`partition`) | No ticket offered; back on the origin's own page, a ticket learned before the switch | The same |
@@ -5545,6 +5550,11 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   full origin evicting that last ticket, where
   `a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first`
   shows the Chromium order.
+  `the_android_firefox_order_takes_tickets_in_the_order_they_were_stored`
+  stores the same interleaved tickets with `firefox_android::v156_tls` and
+  takes them in the order they were stored, and
+  `a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next`
+  shows a full origin evicting the first ticket stored.
 
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
 (2 for the Chromium family, 8 for Firefox), the order as
@@ -5568,6 +5578,10 @@ The Firefox order follows Firefox 157's source at tag
   connection's tickets join the page's.
 - Each token expires two days after NSS processed its ticket, whatever
   lifetime the server gave (`security/nss/lib/ssl/ssl3con.c:12774-12775`).
+  NSS reads the time with `ssl_Time`, which returns NSPR's `PR_Now` when the
+  socket has no time function of its own
+  (`security/nss/lib/ssl/sslsock.c:4258-4264`); Firefox's
+  `nsNSSIOLayer.cpp` sets none.
 - `TokenCacheEntry::AddRecord` keeps a peer's records sorted by expiry,
   inserting a record after the last one that expires strictly earlier, so
   a record that ties goes before the records it ties with. A peer holds at
@@ -5577,11 +5591,28 @@ The Firefox order follows Firefox 157's source at tag
   returns the first record, and taking it removes it
   (`netwerk/base/SSLTokensCache.cpp:333-350`, `364-367`, and `992-1047`).
 
-So Firefox offers the ticket it processed earliest. Tickets processed in
-the same clock tick tie, and the one processed later goes first, which is
-why the last ticket a connection was issued usually went first. One
-`issue-once` run offered tickets 4, 3, 2, 1, 0, 7, 6, 5: the order this
-rule gives when tickets 0 to 4 and 5 to 7 were processed in two ticks.
+So Firefox offers the ticket it processed earliest. Tickets processed at
+the same `PR_Now` value tie, and the one processed later goes first. How
+often they tie depends on the platform's `PR_Now`:
+
+- On Windows, `PR_Now` converts `GetSystemTime`'s `SYSTEMTIME`, which
+  counts whole milliseconds (`nsprpub/pr/src/md/windows/ntmisc.c:315-330`).
+  The tickets one connection receives together usually tie, so the last
+  one goes first: 58 of the 66 Windows connections above. One `issue-once`
+  run offered tickets 4, 3, 2, 1, 0, 7, 6, 5: the order this rule gives
+  when tickets 0 to 4 and 5 to 7 were processed in two milliseconds.
+  `firefox::v157_tls` follows this build with `OldestConnectionFirst`.
+- On Unix, which covers macOS, Linux, and Android, `PR_Now` reads
+  `gettimeofday`, which counts microseconds
+  (`nsprpub/pr/src/md/unix/unix.c:2917-2930`, and the `GETTIMEOFDAY` macro,
+  `nsprpub/pr/include/md/_unixos.h:494-496`). Ties almost never happen, so
+  the earliest ticket goes first: 3 of the 3 macOS connections above.
+  `firefox_android::v156_tls` uses `OldestFirst` for this rule, and a macOS
+  Firefox profile would use it too. No Android capture resumed a session,
+  so the Android order rests on this source reading alone.
+
+`SSLTokensCache.cpp` is the same file at tag `FIREFOX_156_0_RELEASE`, the
+Android recipe's version, as is NSPR's Unix `PR_Now`.
 
 Early data follows Firefox 157's source at tag `FIREFOX_157_0_RELEASE` where
 no capture shows the behavior, since every capture server accepted early
@@ -5761,14 +5792,18 @@ Limits:
 - The early data's record boundaries are BoringSSL's, not NSS's.
 - A Phantom client has no network partitions. Its requests behave like one
   browser page's top-level site: each origin and route has one ticket cache.
-- Firefox orders its tickets by the millisecond it processed each one;
-  Phantom orders the Firefox recipe's tickets by connection and, within a
+- Firefox on Windows orders its tickets by the millisecond it processed
+  each one; `OldestConnectionFirst` orders them by connection and, within a
   connection, last stored first. The orders differ when one connection's
-  tickets were processed in different ticks, as in one `issue-once` run, and
-  when the tickets of connections open at once interleave in time: Phantom
-  keeps each connection's tickets together, ordered by when its first
-  ticket was stored. Firefox held all eight tickets it was given, so its
-  true limit may be higher than the recipe's eight.
+  tickets were processed in different milliseconds, as in one `issue-once`
+  run, and when the tickets of connections open at once interleave in
+  time: Phantom keeps each connection's tickets together, ordered by when
+  its first ticket was stored. Firefox held all eight tickets it was given,
+  so its true limit may be higher than the recipe's eight.
+- Firefox drops a TLS 1.2 session it resumed without a new ticket; Phantom
+  keeps it and offers it last. NSS caches only a session that was never
+  cached (`security/nss/lib/ssl/ssl3con.c:12812-12816`), and taking a token
+  removes it (`netwerk/base/SSLTokensCache.cpp:1013-1018`).
 - Loopback, headless, and HTTP/1.1 or HTTP/2 only. The captures cannot show
   how long a browser keeps a ticket; every ticket was valid for one day.
 

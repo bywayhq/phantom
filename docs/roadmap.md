@@ -76,7 +76,8 @@ Counts in the later phases come from a read-only review of `main` at
 - Ticket resumption on `Client` WebSocket openings: a `wss://` opening
   shares the TLS session tickets of its origin's request pool, as the
   Firefox 157 `websocket` and `websocket-http1` runs resumed the page's
-  ticket, so a Firefox-profile opening sends early data as they did
+  ticket, so a Firefox-profile opening sends early data as they did, and the
+  Firefox recipes offer saved tickets in Firefox's order
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the
@@ -353,15 +354,6 @@ anything does.
   boundary of its own ([Design](explanation/design.md#unsafe-code)).
   Phantom's own queries would not stand in for it: they leave from its
   process, not the operating system's resolver as Firefox's do.
-- Firefox's choice of ticket for a request after a WebSocket. Evidence: in
-  every Firefox 157 `websocket-http1` run, the `/done` request after the
-  WebSocket resumed a ticket the page's connection was issued, not one the
-  WebSocket's connection was issued
-  ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence));
-  Phantom presents the newest ticket of the request pool key, which the
-  WebSocket's connection was issued. Blocker: none recorded; the work
-  starts with a read, at `FIREFOX_157_0_RELEASE`, of NSS's token cache order
-  for a peer and of whether Firefox stores a WebSocket connection's tickets.
 - Early data on connections that offer ECH from HTTPS records. Evidence:
   NSS offers `early_data` in both ClientHellos of a resumed ECH connection,
   and Firefox 157 disables TCP early data only on proxy connections and
