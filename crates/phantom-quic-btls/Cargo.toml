@@ -1,6 +1,6 @@
 [package]
 name = "phantom-quic-btls"
-description = "Private BoringSSL cryptography primitives for Phantom QUIC"
+description = "BoringSSL crypto provider for Phantom QUIC"
 readme = "README.md"
 keywords = ["quic", "tls", "boringssl", "cryptography"]
 categories = ["cryptography", "network-programming"]

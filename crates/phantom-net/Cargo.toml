@@ -1,6 +1,6 @@
 [package]
 name = "phantom-net"
-description = "Protocol transports for Phantom"
+description = "HTTP/1.1, HTTP/2, and HTTP/3 connections for Phantom"
 readme = "README.md"
 keywords = ["http", "tls", "quic", "proxy"]
 categories = ["network-programming"]

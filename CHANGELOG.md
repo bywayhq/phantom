@@ -1656,9 +1656,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
-- Add README, keyword, and category metadata to the four publishable
-  crates, and enable Cargo lints. Keep five documented exceptions for
-  incompatible transitive dependency versions.
+- Add crate READMEs, keywords, categories, and plain package descriptions
+  for the four publishable crates. Enable Cargo lints, with five documented
+  exceptions for incompatible transitive dependency versions.
 - Enable `must_use_candidate` and `cast_lossless` workspace warnings.
   Mark address, error kind, future size, and application state storage
   results as `must_use`.

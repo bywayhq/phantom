@@ -1,6 +1,6 @@
 [package]
 name = "phantom-http"
-description = "A wire-evidenced browser-compatible HTTP client"
+description = "HTTP client with browser TLS and HTTP profiles"
 readme = "../../README.md"
 keywords = ["http", "browser", "tls", "http2", "http3"]
 categories = ["web-programming::http-client", "network-programming"]
