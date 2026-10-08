@@ -143,6 +143,7 @@ impl ApplicationState {
     /// Only the first call has an effect. State longer than 1024 bytes is
     /// not kept, and neither is any ticket from this connection. Returns
     /// whether the state was recorded.
+    #[must_use = "check whether the application state was recorded"]
     pub fn store(&self, state: &[u8]) -> bool {
         let mut inner = self.lock();
         if inner.stored.is_some() || inner.refused {

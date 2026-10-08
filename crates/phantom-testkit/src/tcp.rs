@@ -65,6 +65,7 @@ impl ReservedPort {
     }
 
     /// Returns the reserved address.
+    #[must_use]
     pub fn address(&self) -> SocketAddr {
         self.address
     }

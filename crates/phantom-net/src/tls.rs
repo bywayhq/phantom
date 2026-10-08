@@ -1177,6 +1177,7 @@ impl TlsError {
     }
 
     /// Returns the broad failure category without exposing backend types.
+    #[must_use]
     pub fn kind(&self) -> TlsErrorKind {
         self.kind
     }

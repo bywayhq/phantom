@@ -39,6 +39,7 @@ pub const SETUP_FUTURE_BUDGET: usize = 12 * 1024;
 pub trait ReturnSize<Arguments> {
     /// Returns the size of the function's return value, such as an async
     /// function's future.
+    #[must_use]
     fn return_size(&self) -> usize;
 }
 
@@ -91,6 +92,7 @@ return_size!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
 ///
 /// assert!(future_size(&holds_a_buffer) >= 1024);
 /// ```
+#[must_use]
 pub fn future_size<Arguments>(function: &impl ReturnSize<Arguments>) -> usize {
     function.return_size()
 }
