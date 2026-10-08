@@ -26,9 +26,8 @@ recipe matches the browser's:
 - WebSocket handshake.
 
 There are also Android recipes for Chrome, Edge, Brave, Opera and Firefox,
-which cover less. Each recipe is recorded from the real browser and tested
-against that recording. [Coverage](docs/reference/coverage.md#at-a-glance)
-lists what each one matches and its known gaps.
+which cover fewer layers. [Coverage](docs/reference/coverage.md#at-a-glance)
+lists the supported versions, layers, and known gaps.
 
 ## Example
 
@@ -71,8 +70,7 @@ results.
 - HTTP/1.1, HTTP/2 and HTTP/3.
 - Proxies: HTTP, SOCKS5, and CONNECT-UDP for HTTP/3.
 - Connection pooling and TLS session reuse.
-- Redirects, retries, timeouts, cookies and decompression, each off until
-  you turn it on.
+- Optional redirects, timeouts, cookies, decompression, and extra retries.
 - Server-sent events and WebSocket.
 
 ## Install
@@ -103,8 +101,7 @@ cases where another tool fits better.
 
 ## Where to go next
 
-- Learn more: [Why Phantom](docs/why-phantom.md) and
-  [Coverage](docs/reference/coverage.md).
+- Learn more: [Why Phantom](docs/why-phantom.md).
 - Start building: [Getting started](docs/getting-started.md), then the
   [documentation index](docs/README.md).
 - Contribute: [CONTRIBUTING.md](CONTRIBUTING.md) and the

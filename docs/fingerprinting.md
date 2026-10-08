@@ -10,7 +10,7 @@ Every HTTP client makes many small choices before it sends a request: which
 encryption methods to offer and in what order, how much data to let the
 server send before waiting, and what order to write its headers in. Each
 browser makes these choices in its own code, and a given browser version
-makes them the same way every time. A server that records them gets a
+makes them the same way, apart from values it randomizes. A server that records them gets a
 **fingerprint**: a description of the program that doesn't depend on what
 the program says about itself.
 
