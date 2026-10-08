@@ -68,18 +68,18 @@ struct CachedSession {
 /// The connector's `TlsSettings::session_ticket_order`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum TicketOrder {
-    NewestFirst,
-    OldestConnectionFirst,
-    OldestFirst,
+    Newest,
+    OldestConnection,
+    Oldest,
 }
 
 impl TicketOrder {
     /// Returns `None` for an order this cache does not implement.
     pub(super) const fn from_profile(order: SessionTicketOrder) -> Option<Self> {
         match order {
-            SessionTicketOrder::NewestFirst => Some(Self::NewestFirst),
-            SessionTicketOrder::OldestConnectionFirst => Some(Self::OldestConnectionFirst),
-            SessionTicketOrder::OldestFirst => Some(Self::OldestFirst),
+            SessionTicketOrder::NewestFirst => Some(Self::Newest),
+            SessionTicketOrder::OldestConnectionFirst => Some(Self::OldestConnection),
+            SessionTicketOrder::OldestFirst => Some(Self::Oldest),
             _ => None,
         }
     }
@@ -265,11 +265,11 @@ fn next_position(
     mut arrivals: impl Iterator<Item = (usize, Arrival)>,
 ) -> Option<usize> {
     match order {
-        TicketOrder::NewestFirst => arrivals.last().map(|(position, _)| position),
-        TicketOrder::OldestConnectionFirst => arrivals
+        TicketOrder::Newest => arrivals.last().map(|(position, _)| position),
+        TicketOrder::OldestConnection => arrivals
             .min_by_key(|(_, arrival)| (arrival.batch, Reverse(arrival.sequence)))
             .map(|(position, _)| position),
-        TicketOrder::OldestFirst => arrivals.next().map(|(position, _)| position),
+        TicketOrder::Oldest => arrivals.next().map(|(position, _)| position),
     }
 }
 
@@ -282,10 +282,8 @@ fn eviction_position(
     mut arrivals: impl Iterator<Item = (usize, Arrival)>,
 ) -> Option<usize> {
     match order {
-        TicketOrder::NewestFirst => arrivals.next().map(|(position, _)| position),
-        TicketOrder::OldestConnectionFirst | TicketOrder::OldestFirst => {
-            next_position(order, arrivals)
-        }
+        TicketOrder::Newest => arrivals.next().map(|(position, _)| position),
+        TicketOrder::OldestConnection | TicketOrder::Oldest => next_position(order, arrivals),
     }
 }
 
