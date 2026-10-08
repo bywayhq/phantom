@@ -53,7 +53,8 @@ to the emulator by the Play Store, which can trail stable.
   recipe the TLS column names.
 - "Chromium" means the recipe function returns the desktop Chromium recipe,
   which the browser's own captures equal on every compared field.
-  Exact builds and comparison details are listed in Validation.
+  [Validation](../explanation/validation.md#browser-recipes) lists the exact
+  builds and comparison details.
 - [TCP socket options](#tcp-socket-options): `chromium::v154_tcp` for
   Chromium and Brave; `firefox::v157_tcp` for Firefox.
 - [HTTP/1.1 connections](#http11-connections): `chromium::v154_http1` and
@@ -792,4 +793,4 @@ built.
 
 - [Browser profiles](../guides/profiles.md): build a profile.
 - [Request templates](../guides/request-templates.md): apply headers to a request.
-- [Validation](../explanation/validation.md#browser-recipes): recipe builds and evidence.
+- [Defaults and limits](limits.md): bounds on connections and saved state.

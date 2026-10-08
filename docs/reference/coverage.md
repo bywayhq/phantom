@@ -65,7 +65,8 @@ Read the matrix with these conditions:
 - Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
   157 over plaintext H1 only.
 
-Validation gives the recording and source details for the matrix.
+[Validation](../explanation/validation.md) gives the recording and source
+details for the matrix.
 
 ## What "supported" means
 
@@ -964,8 +965,8 @@ Not supported:
 
 ## Validation
 
-The test suite includes the following checks. Recording and comparison
-details are in Validation.
+The test suite includes the following checks. The Validation page linked
+above gives the recording and comparison details.
 
 Supported:
 
@@ -1005,10 +1006,12 @@ Recipe evidence is specific to these builds and platforms:
   come from Windows 11 captures. The `macos` client-hint and template recipes
   of Chrome, Edge, Opera, and Firefox come from macOS 15.5 captures on Apple
   silicon of Chrome 154.0.8037.95, Edge 154.0.4258.48, Opera 136.0.6008.52,
-  and Firefox 157.0. Single retained macOS runs of the TCP ClientHello and
-  resumption and of the H2 session for all four, and of the QUIC transport
+  and Firefox 157.0. Single retained macOS runs of the fresh and resumed TCP
+  ClientHello shapes and of the H2 session for all four, and of the QUIC transport
   parameters and H3 startup for Chrome, Edge, and Opera, match the Windows
-  recipes in the replay tests. No Linux
+  recipes in the replay tests. This does not cover Firefox ticket selection:
+  macOS offered the first received ticket in 3/3 connections; Windows offered
+  the last in 58/66. No Linux
   capture exists, and no other layer is claimed to be platform
   independent. The retired Chrome 152 and Firefox 154 captures, which did
   compare two platforms, are no longer in the tree.
@@ -1140,7 +1143,7 @@ Browser identity comes from profile settings. Socket operations, trust
 stores, native builds, and profiling adapt to the host OS.
 
 Replacing a browser version also retires its recipes and recordings.
-Validation lists the retired checks.
+The Validation page linked above lists the retired checks.
 
 ## Claim boundary
 
@@ -1151,8 +1154,6 @@ does not establish how a remote service will classify your requests.
 
 ## Next
 
-- [Validation](../explanation/validation.md): the evidence behind each
-  "Captured" cell above.
 - [Route matrix](route-matrix.md): every scheme, protocol, and route
   combination.
 - [Glossary](glossary.md): definitions of the terms used here.
