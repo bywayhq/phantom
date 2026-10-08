@@ -1,6 +1,9 @@
 [package]
 name = "phantom-quic-btls"
 description = "Private BoringSSL cryptography primitives for Phantom QUIC"
+readme = "README.md"
+keywords = ["quic", "tls", "boringssl", "cryptography"]
+categories = ["cryptography", "network-programming"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

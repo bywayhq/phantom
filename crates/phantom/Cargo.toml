@@ -1,6 +1,9 @@
 [package]
 name = "phantom-http"
 description = "A wire-evidenced browser-compatible HTTP client"
+readme = "../../README.md"
+keywords = ["http", "browser", "tls", "http2", "http3"]
+categories = ["web-programming::http-client", "network-programming"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

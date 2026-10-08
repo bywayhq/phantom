@@ -1,6 +1,9 @@
 [package]
 name = "phantom-profile"
 description = "Browser-neutral wire profile types for Phantom"
+readme = "README.md"
+keywords = ["browser", "profiles", "tls", "http2", "quic"]
+categories = ["network-programming"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
