@@ -60,8 +60,10 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 cargo = { level = "warn", priority = -1 }
+cast_lossless = "warn"
 dbg_macro = "deny"
 expect_used = "warn"
+must_use_candidate = "warn"
 todo = "deny"
 unimplemented = "deny"
 unwrap_used = "warn"

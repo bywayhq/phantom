@@ -102,8 +102,10 @@ unsafe_op_in_unsafe_fn = "deny"
 
 [lints.clippy]
 cargo = { level = "warn", priority = -1 }
+cast_lossless = "warn"
 dbg_macro = "deny"
 expect_used = "warn"
+must_use_candidate = "warn"
 todo = "deny"
 undocumented_unsafe_blocks = "deny"
 unimplemented = "deny"
