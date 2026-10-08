@@ -1,9 +1,7 @@
 # Writing the documentation
 
-Edit Phantom's documentation, as a human or an agent: who each page is for,
-where content belongs, and how the prose reads.
-
-> For contributors who edit the documentation.
+Use these rules to write and review Phantom's documentation. Choose the
+reader, keep each page focused, and explain what the reader can do.
 
 ## Readers
 
