@@ -35,7 +35,8 @@ explains how Phantom limits the state a client keeps.
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
 Some requests are sent again by default.
-[Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is always
+[Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2
+GET refused by `GOAWAY(NO_ERROR)` is always
 sent once more. With a Chromium-family HTTP/2 recipe, a request whose
 connection closed on an unanswered PING is sent again, any method, up to
 twice per redirect hop, unless its body cannot be sent again; set

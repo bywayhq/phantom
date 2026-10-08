@@ -1092,8 +1092,8 @@ Request templates:
   an untrustworthy URL, and `Accept-Encoding: gzip, deflate` there.
 - Requested navigation-hint placement recorded on H1 and inferred for H2/H3.
   Fetch templates reject requested hints because their placement is unknown.
-- `CookiePlacement` for cookie position. Validator placement and `Cookie`
-  before validators are source-defined for H1/H3; those cookie/validator
+- `CookiePlacement` for cookie position. H1/H3 validator placement and
+  `Cookie` before validators are source-defined. Cookie/validator
   combinations remain uncaptured. H2 revalidation header order is recorded.
 - H2 cookie splitting in Chromium and Firefox, with one Firefox dynamic
   name-index difference. H3 splitting in Chromium; whole cookies in Firefox.

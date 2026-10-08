@@ -1,7 +1,8 @@
 # Cookie jar rules
 
 Look up how the optional jar stores, sends, and removes cookies.
-To enable it, see [Keep cookies between requests](../guides/cookies.md#keep-cookies-between-requests).
+To enable it, see
+[Keep cookies between requests](../guides/cookies.md#keep-cookies-between-requests).
 
 The count and size limits are in
 [Defaults and limits](limits.md#cookies). Chromium behavior the jar does not

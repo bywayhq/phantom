@@ -71,11 +71,11 @@ to the emulator by the Play Store, which can trail stable.
 ## Recipe names and platforms
 
 The transport uses profile settings rather than the browser name.
-Socket operations adapt to the host OS; browser identity stays in the profile.
+Socket operations adapt to the host OS. Browser identity stays in the profile.
 
 | Name form | Example | Means |
 | --- | --- | --- |
-| No platform | `chromium::v154_tls`, `firefox::v157_http2` | The recipe carries no platform-specific data. It does not mean more than one platform was captured. |
+| No platform | `chromium::v154_tls`, `firefox::v157_http2` | No platform in the name. Check rustdoc for platform-specific policies and recorded platforms. |
 | `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v154_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
 The recorded protocol and header settings use Windows 11 for the
