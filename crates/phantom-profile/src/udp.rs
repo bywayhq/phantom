@@ -5,7 +5,7 @@
 /// A value applies to the socket of every QUIC connection, to an origin or
 /// to a CONNECT-UDP proxy, and to the UDP socket of a SOCKS5 UDP
 /// association. The client also applies it to address and HTTPS-record
-/// query sockets that Phantom opens. DNS sockets opened by the operating
+/// UDP query sockets that Phantom opens. DNS sockets opened by the operating
 /// system are unaffected. A field that asks for nothing leaves the socket
 /// at its operating-system default. [`Self::default`] asks for nothing.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

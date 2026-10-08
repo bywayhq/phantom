@@ -103,7 +103,7 @@ impl ClientProfile {
 
     /// Adds socket options for QUIC and Phantom's own DNS queries.
     ///
-    /// These apply to address and HTTPS-record query sockets that Phantom
+    /// These apply to address and HTTPS-record UDP query sockets that Phantom
     /// opens, alongside QUIC sockets. DNS sockets opened by the operating
     /// system are unaffected. Without settings, Phantom does not set
     /// these options.
