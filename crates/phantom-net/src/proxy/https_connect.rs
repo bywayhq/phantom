@@ -381,6 +381,28 @@ impl HttpsProxyConnector {
         authority: &str,
         headers: &[HttpConnectHeader],
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        // End the nested proxy setup's Send proof here, as on the Basic path.
+        // It otherwise exceeds the pinned nightly's depth on Windows callers.
+        let exchange: Pin<
+            Box<dyn Future<Output = Result<HttpsProxyTunnel, HttpConnectError>> + Send + '_>,
+        > = Box::pin(self.unauthenticated_tunnel(
+            proxy_host,
+            proxy_port,
+            proxy_server_name,
+            authority,
+            headers,
+        ));
+        exchange.await
+    }
+
+    async fn unauthenticated_tunnel(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+    ) -> Result<HttpsProxyTunnel, HttpConnectError> {
         match self.protocol {
             HttpsProxyProtocol::Http1 => trace_connect(
                 "https",
@@ -429,7 +451,7 @@ impl HttpsProxyConnector {
         headers: &[HttpConnectHeader],
         credentials: &HttpBasicCredentials,
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
-        // Boxed as a `Send` trait object, on the authenticated path only.
+        // Boxed as a `Send` trait object, as on the unauthenticated path.
         // The challenge and replay state machines nest deep enough that a
         // connector future holding them inline needed a recursion limit of
         // 121 for the compiler to prove it `Send`, against a default of 128

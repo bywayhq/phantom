@@ -2173,6 +2173,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- HTTP/1.1 setup through an HTTPS proxy no longer exceeds the pinned
+  nightly compiler's `Send` proof depth on Windows.
 - An HTTP/3 request cancelled while its HEADERS frame waited for flow
   control, for example by a response-head timeout or a dropped future, is
   reset with `H3_REQUEST_CANCELLED`. Before, Quinn ended the stream after a

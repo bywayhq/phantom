@@ -16,7 +16,7 @@ use std::{
 use btls::ssl::{Ssl, SslAcceptor};
 use http::{Response, StatusCode};
 use tokio::{
-    io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     time::timeout,
 };
@@ -127,7 +127,15 @@ pub(super) async fn serve_http1(mut stream: Server) -> TestResult<()> {
         .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         .await?;
     stream.shutdown().await?;
-    Ok(())
+    // Keep the socket open while the peer finishes TLS and closes its side.
+    // Dropping it with unread handshake bytes can reset the response on Windows.
+    let mut remaining = [0_u8; 1];
+    match stream.read(&mut remaining).await {
+        Ok(0) => Ok(()),
+        Ok(_) => Err("unexpected bytes after the HTTP/1 request".into()),
+        Err(error) if tls_support::is_peer_gone(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
 }
 
 /// Returns the type of every frame after the client preface.
