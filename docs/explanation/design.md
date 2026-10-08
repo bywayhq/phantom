@@ -659,10 +659,10 @@ An HTTP/1.1 CONNECT or forwarding replay reuses the challenged connection when
 the response leaves it open. Otherwise, it opens a new proxy connection. These
 choices follow Chromium and Firefox.
 
-An HTTP/1.1 `407` leaves the connection open under three conditions. It has no
-`close` token in `Connection` or `Proxy-Connection`. An HTTP/1.0
-response also needs `keep-alive`. The response states its body length through
-`Content-Length` or chunked coding. Its body ends within
+Reusing a connection after `407` requires no `close` token in `Connection`
+or `Proxy-Connection`. A forwarded response must use HTTP/1.1. A CONNECT
+response can use HTTP/1.0 if it also has `keep-alive`. The response states
+its body length through `Content-Length` or chunked coding. Its body ends within
 [`MAX_CHALLENGE_BODY_BYTES`](../reference/limits.md#protocol-state), 64 KiB,
 with no bytes after it.
 
