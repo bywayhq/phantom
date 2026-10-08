@@ -101,6 +101,7 @@ unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 
 [lints.clippy]
+cargo = { level = "warn", priority = -1 }
 dbg_macro = "deny"
 expect_used = "warn"
 todo = "deny"

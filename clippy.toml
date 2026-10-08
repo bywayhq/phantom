@@ -1,0 +1,15 @@
+# Cargo.lock retains these incompatible upstream requirements. Keep the
+# exception list by package name so new duplicate dependencies still warn.
+# Remove an entry when its dependency paths use one version.
+allowed-duplicate-crates = [
+    # ring 0.17 -> getrandom 0.2; phantom-quinn-proto -> getrandom 0.4.
+    "getrandom",
+    # tracing-attributes -> syn 2; tokio-macros -> syn 3.
+    "syn",
+    # tokio-socks 0.5 -> thiserror 1; phantom-quinn -> thiserror 2.
+    "thiserror",
+    # Each thiserror major requires its matching thiserror-impl major.
+    "thiserror-impl",
+    # ring 0.17 -> windows-sys 0.52; socket2/Tokio -> windows-sys 0.61.
+    "windows-sys",
+]
