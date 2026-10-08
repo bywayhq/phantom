@@ -1662,6 +1662,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Shorten Design and HTTP/3 internals, and simplify Validation's evidence
   descriptions. Correct ticket-policy, platform, connection-state, and
   retry descriptions while preserving the recordings and source references.
+- Enable workspace warnings for public types without `Debug` and Rust
+  2018 idioms. Add a non-blocking `Debug` implementation for the testkit's
+  DNS server that omits recorded queries.
 - Rewrote the README, start pages, and guides in plain language, with
   shorter explanations and the existing examples. Corrected descriptions
   of HTTP/3 discovery and fallback, retries, cookies, and response metadata.
