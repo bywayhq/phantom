@@ -1656,6 +1656,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Clarify public API docs and the browser-recipe and vendoring guides.
+  Correct the protocol-selection, proxy-forwarding, and buffered-body
+  replay descriptions while keeping the examples unchanged.
 - Rewrote the README, start pages, and guides in plain language, with
   shorter explanations and the existing examples. Corrected descriptions
   of HTTP/3 discovery and fallback, retries, cookies, and response metadata.
