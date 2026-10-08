@@ -6,7 +6,7 @@ own.
 > Read [Using the client](client.md) first.
 
 A [profile](../reference/glossary.md#profile) is everything about your
-connections that a server can see apart from the headers: the TLS
+connections that a server can see: the TLS
 handshake, the HTTP/2 and HTTP/3 settings, TCP options and
 [client hints](../fingerprinting.md#client-hints). You build it from
 [recipes](../reference/glossary.md#recipe), which are one browser's

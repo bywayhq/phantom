@@ -108,7 +108,7 @@ unless you allow more than one connection per server.
 ## Reach HTTP/3 sooner
 
 Race HTTP/3 against HTTP/2, and give up on a QUIC attempt sooner than
-Chrome's 4 seconds.
+Phantom's default of 4 seconds.
 
 ```rust
 use std::num::NonZeroUsize;

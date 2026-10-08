@@ -47,9 +47,9 @@ Each redirect changes the request like this:
   `Proxy-Authorization`, for that hop and every later one. Moving from
   `http://` to `https://` on the same host counts as another origin.
 
-Every redirect uses the request's protocol and route. An exact HTTP/2
-request redirected to an `http://` URL fails, because Phantom sends HTTP/2
-only over TLS. Phantom doesn't switch protocols to follow it.
+Every redirect uses the request's protocol and route. On a direct route,
+an exact HTTP/2 request redirected to an `http://` URL fails. Phantom
+doesn't switch protocols to follow it.
 
 ## Send a streaming body again
 

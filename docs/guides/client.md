@@ -45,9 +45,9 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 Timeouts, redirects and most retries are off by default.
 [Retries and replays](retries.md) lists the few repeats that are on.
 
-Each timeout restarts on a redirect or retry. `total` covers the whole
-request, body included. [Defaults and limits](../reference/limits.md#timeouts)
-describes each timeout.
+Phase timeouts restart on a redirect or retry. `total` covers every
+attempt and the response body.
+[Defaults and limits](../reference/limits.md#timeouts) describes each timeout.
 
 The client's settings are fixed once `build` returns. A single request can
 still change its route, timeouts, retry policy and content decoding.

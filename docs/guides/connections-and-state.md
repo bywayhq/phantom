@@ -138,7 +138,8 @@ watch the network, so call `clear_dns_cache` after a change.
 ## Limits
 
 - Browsers keep separate TLS session tickets for each site a page runs
-  under. A Phantom client shares one set across all its requests.
+  under. For each server and route, a Phantom client shares tickets across
+  its requests.
 - On Linux kernels before 5.7, `interface` needs `CAP_NET_RAW`.
 - Phantom doesn't check that a `local_address` belongs to the `interface`
   you also set.

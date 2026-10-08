@@ -26,7 +26,7 @@ fingerprint:
 | --- | --- | --- |
 | [TLS](#tls) | First message on every HTTPS connection | Versions, cipher suites, extensions, ALPN |
 | [HTTP/2](#http2) | Right after TLS | Settings and their order, window size, priority |
-| [HTTP/3](#http3) | Instead of TCP, TLS and HTTP/2 | QUIC transport parameters, HTTP/3 settings |
+| [HTTP/3](#http3) | Instead of TCP and HTTP/2 | QUIC transport parameters, HTTP/3 settings |
 | [Headers](#header-order) | With each request | Header names, spelling, and order |
 | [Client hints](#client-hints) | With each request | Browser brand lists, and which hints appear when |
 
