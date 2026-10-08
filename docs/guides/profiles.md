@@ -1,17 +1,16 @@
 # Browser profiles
 
-Choose a built-in browser profile, or change one to build your own.
+Pick the browser your client copies, or change a built-in one to make your
+own.
 
-> For builders who have read [Using the client](client.md).
+> Read [Using the client](client.md) first.
 
-A [profile](../reference/glossary.md#profile) decides what a server can
-observe about your client's connections: the TLS ClientHello, HTTP/2 SETTINGS
-and pseudo-header order, QUIC transport parameters, HTTP/3 settings, TCP
-and UDP socket options, HTTP/1.1 connection counts, and
-[client hints](../fingerprinting.md#client-hints). You build one from
-[recipes](../reference/glossary.md#recipe), most of them taken from browser
-[captures](../reference/glossary.md#capture). The fields of each
-request, such as `User-Agent`, come from a
+A [profile](../reference/glossary.md#profile) is everything about your
+connections that a server can see apart from the headers: the TLS
+handshake, the HTTP/2 and HTTP/3 settings, TCP options and
+[client hints](../fingerprinting.md#client-hints). You build it from
+[recipes](../reference/glossary.md#recipe), which are one browser's
+settings for one layer. Headers such as `User-Agent` come from a
 [request template](request-templates.md) instead.
 
 ## Choose a built-in profile
@@ -24,17 +23,16 @@ use phantom::profile::{
 };
 
 fn profiles() -> [ClientProfile; 5] {
-    // Firefox 157: TLS, HTTP/2, and cookie-field recipes, its hooked TCP
-    // options and keepalive, and its source-derived HTTP/1.1 connection
-    // count.
+    // Firefox 157: its TLS, TCP, HTTP/1.1 and HTTP/2 settings, and where
+    // it puts the cookie header.
     let firefox = ClientProfile::new(firefox::v157_tls())
         .with_tcp(firefox::v157_tcp())
         .with_http1(firefox::v157_http1())
         .with_http2(firefox::v157_http2())
         .with_cookie_placement(firefox::v157_cookie_placement());
 
-    // Edge 154: its own TLS and client hints; Chromium TCP, UDP, HTTP/1.1,
-    // address cache, H2, QUIC, and H3 recipes.
+    // Edge 154: its own TLS and client hints, plus Chromium's other
+    // settings.
     let edge = ClientProfile::new(edge::v154_tls())
         .with_tcp(chromium::v154_tcp())
         .with_udp(chromium::v154_udp())
@@ -49,8 +47,8 @@ fn profiles() -> [ClientProfile; 5] {
         ))
         .with_client_hints(edge::v154_windows_client_hints());
 
-    // Brave 154 and Opera 136 follow the same pattern with their own TLS,
-    // H3 TLS, and client hints, and both place cookies as Chromium does.
+    // Brave 154 and Opera 136 follow the same pattern, with their own TLS
+    // and client hints.
     let brave = ClientProfile::new(brave::v154_tls())
         .with_tcp(chromium::v154_tcp())
         .with_udp(chromium::v154_udp())
@@ -80,8 +78,7 @@ fn profiles() -> [ClientProfile; 5] {
         .with_client_hints(opera::v136_windows_client_hints())
         .with_cookie_placement(chromium::v154_cookie_placement());
 
-    // Chrome 154 for Android: the Chromium TLS recipes without ECH from
-    // HTTPS records, Android client hints, and the Chromium H2, QUIC, and H3.
+    // Chrome 154 for Android, with Android client hints.
     let android = ClientProfile::new(chrome_android::v154_tls())
         .with_http2(chrome_android::v154_http2())
         .with_http3(Http3ClientSettings::new(
@@ -90,28 +87,28 @@ fn profiles() -> [ClientProfile; 5] {
             chrome_android::v154_http3(),
             chrome_android::v154_http3_request(),
         ))
-        // The captured Pixel 7; `v154_android_client_hints_for_model` sends another model.
+        // A Pixel 7. `v154_android_client_hints_for_model` sends another model.
         .with_client_hints(chrome_android::v154_android_client_hints());
 
     [firefox, edge, brave, opera, android]
 }
 ```
 
-- Phantom carries one version per browser, in a desktop module such as
-  `chromium` and an Android module such as `chrome_android`. The
-  [recipe table](../reference/profiles.md#built-in-recipes) names each
-  module's browser version and lists which components it has; not every
-  module has every component.
-- A request fails before any network I/O if the profile lacks a component it
-  needs, such as HTTP/3 settings for an H3 request.
-- `with_http1` sets how many H1 connections the client keeps to each origin
-  and route. `chromium::v154_http1` and `firefox::v157_http1` allow 6, from
-  browser source, and the Chromium one also serves Brave; without
-  `with_http1` the client keeps one
-  ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
-- A `windows` or `android` in a recipe name records where it was captured. The runtime
-  never branches on the host OS or the browser name
-  ([Recipe names and platforms](../reference/profiles.md#recipe-names-and-platforms)).
+Each browser has one version, in a desktop module such as `chromium` and an
+Android module such as `chrome_android`. Not every module has every recipe.
+The [recipe table](../reference/profiles.md#built-in-recipes) lists them.
+
+A request fails if the profile lacks a part it needs. An HTTP/3 request,
+for example, needs `with_http3`.
+
+`with_http1` sets how many HTTP/1.1 connections the client opens to one
+server at once. The Chromium and Firefox recipes allow 6. Without
+`with_http1`, the client opens one
+([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
+
+`windows` or `android` in a recipe name says which platform the recipe
+copies. Phantom sends it the same way on any host
+([Recipe names and platforms](../reference/profiles.md#recipe-names-and-platforms)).
 
 ## Build a custom profile
 
@@ -135,44 +132,25 @@ fn chrome_on_macos() -> ClientProfile {
 }
 ```
 
-- Built-in and custom profiles use the same types. Phantom validates each
-  setting, and a conflict fails before any I/O instead of being ignored.
-- Settings the host cannot apply fail `ClientBuilder::build` with
-  `BuildErrorKind::InvalidProfile`. Windows, for example, requires a
-  keepalive interval, so the profile above fails to build there.
-- A custom profile is not evidence of browser behavior. Only retained
-  captures back a named recipe.
+Built-in and custom profiles use the same types. A setting that conflicts
+with another fails instead of being ignored.
+
+A setting the host can't apply makes `ClientBuilder::build` fail. Windows,
+for example, needs a keepalive interval, so the profile above fails to
+build there.
 
 ## Limits
 
-- A profile shapes network behavior only
-  ([Coverage](../reference/coverage.md#at-a-glance)).
-- The TCP SYN (window, MSS, options, TTL) comes from the host OS. Run on the
-  platform the profile presents if that layer matters.
-- `firefox::v157_tcp` starts an IPv4 backup attempt 250 ms after a slow
-  first one and, on direct HTTP/1.1 and negotiated requests, keeps the
-  slower connection idle, as Firefox does; through a proxy, for a
-  WebSocket, on exact HTTP/2, or with ECH from HTTPS records it closes that
-  connection instead. On direct HTTP/1.1 and negotiated requests a client
-  remembers each origin's address family until the idle timer finds no
-  connection to it left
-  ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-- `chromium::v154_tcp`, which Brave, Edge, and Opera also use, asks Windows
-  for a random local port only from Windows 11 22H2 (build 22621), as
-  Chromium does; on older Windows and on other operating systems the port is
-  the host's choice. If Windows rejects the option, the connection fails
-  rather than proceeding from a sequential port
-  ([TCP socket options](../reference/profiles.md#tcp-socket-options)).
-- `chromium::v154_udp` asks Windows for a random local port for each QUIC
-  socket on every Windows, as Chromium does; a Firefox profile takes no
-  `with_udp`, so its QUIC sockets keep the host's sequential ports
-  ([UDP socket options](../reference/profiles.md#udp-socket-options)).
+- The first TCP packet (window size, TTL and similar) comes from the host
+  OS. Run on the platform the profile copies if that matters to you.
+- Some TCP and UDP behavior differs by OS version, such as random local
+  ports on Windows. [TCP socket options](../reference/profiles.md#tcp-socket-options)
+  has the details.
 
 ## Next
 
 - [Request templates and client hints](request-templates.md): send a
-  browser's request fields in its order.
-- [Profile reference](../reference/profiles.md): recipe, template, and
-  client-hint tables.
-- [Coverage](../reference/coverage.md#browser-profiles): the exact builds
+  browser's headers in its order.
+- [Profile reference](../reference/profiles.md): every recipe and setting.
+- [Coverage](../reference/coverage.md#browser-profiles): the browser builds
   behind each recipe.

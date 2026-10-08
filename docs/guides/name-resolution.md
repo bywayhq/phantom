@@ -1,22 +1,20 @@
 # Resolve host names
 
-Choose how a client turns host names into addresses: cache the answers,
-send a name to addresses you pick, resolve names with your own resolver, or
-send DNS queries from the client as Chromium does.
+Choose how a client looks up the addresses of the servers it connects to.
+You can cache lookups, point a name at addresses you pick, plug in your own
+resolver, or have Phantom send DNS queries itself, as Chrome does.
 
-> For builders who have read [Connections and client state](connections-and-state.md).
+> Read [Connections and client state](connections-and-state.md) first.
 
-A client resolves a name itself only when it opens the connection to that
-name: the origin host on a direct route, every proxy host, and the target of
-a `socks5://` route. A `socks5h://` proxy, an HTTP proxy, or a CONNECT-UDP
-proxy receives the target by name and resolves it, so nothing on this page
-applies to that target
+Phantom looks up a name only when it connects to that name itself. Through a
+`socks5h://`, HTTP or CONNECT-UDP proxy, the proxy looks up the server's
+name, so this page applies only to the proxy's own name
 ([SOCKS5 and CONNECT-UDP proxies](socks-and-connect-udp.md)).
 
 ## Resolve each host once
 
-Reuse the addresses a host resolved to for later connections, as a browser
-does, instead of resolving it for every new connection.
+Reuse a host's addresses for later connections, as a browser does, instead
+of looking the host up for every new connection.
 
 ```rust
 use std::time::Duration;
@@ -37,19 +35,14 @@ fn build() -> Result<Client, BuildError> {
 }
 ```
 
-- Without `with_dns_cache` or `ClientBuilder::dns_cache`, every new
-  connection resolves its host. `ClientBuilder::no_dns_cache` turns off the
-  profile's cache.
-- Concurrent connections to one host share one lookup, and the resolver's
-  address order is kept. Bounds and recipe values are in
-  [Address cache](../reference/profiles.md#address-cache).
-- Clones share the cache; a separately built client has its own.
-  `Client::clear_dns_cache` forgets every answer.
+Without a cache, every new connection looks up its host. Clones of a client
+share the cache, and `Client::clear_dns_cache` empties it. The recipe values
+are in [Address cache](../reference/profiles.md#address-cache).
 
 ## Send a host name to addresses you choose
 
 Connect to fixed addresses for one name, such as a staging server or one
-edge of a CDN, while TLS and HTTP still carry the name.
+CDN edge. TLS and HTTP still use the name.
 
 ```rust
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -72,22 +65,14 @@ fn pinned() -> Result<Client, BuildError> {
 }
 ```
 
-- The TLS server name, the certificate check, `Host` or `:authority`,
-  cookies, and pool keys all use `example.com`. Only the TCP or QUIC
-  connection goes to the addresses.
-- An override skips the address resolver and the address cache. The name
-  is normalized as a URL host is: ASCII case folds, and a Unicode name
-  matches its `xn--` form. `example.com.` with a trailing dot is a
-  different name.
-- An empty list makes the name fail to resolve. Calling `resolve` again for
-  a name replaces its addresses. An IP address in any form, such as `127.1`
-  or `[::1]`, cannot be overridden: `build` fails with
-  `BuildErrorKind::InvalidPolicy`.
+The certificate check, the `Host` header and cookies all use
+`example.com`. Only the connection goes to the addresses. `example.com.`, with a
+trailing dot, counts as a different name.
 
 ## Resolve names with your own resolver
 
-Answer every name the client resolves itself with an async function, such
-as a DNS library pointed at nameservers you choose.
+Answer every lookup with an async function, such as a DNS library pointed
+at servers you choose.
 
 ```rust
 use std::io;
@@ -111,24 +96,14 @@ fn with_resolver() -> Result<Client, BuildError> {
 }
 ```
 
-- The function receives the name as a URL host, in ASCII lowercase with
-  `xn--` labels, never an IP literal or a name with an override. Return
-  addresses in the order to try them; the port comes from the URL.
-- With an address cache, as here, the function runs once per name per cache
-  lifetime, as a task on the Tokio runtime of the request that asked first;
-  requests on another runtime start their own lookup rather than wait on
-  it. Without a cache, it runs inside every new connection attempt.
-- A returned error fails the request with the kind a failed system lookup
-  gets on that path: `Resolve` for an HTTP/3 origin, a `socks5://` target,
-  or a CONNECT-UDP proxy host; `Proxy` for another proxy host; `Connect` for
-  a TCP origin. Without a cache, your `io::Error` is in the error's source
-  chain; with one, a copy with the same kind and message is, because one
-  stored failure can answer several requests.
+The function gets the host name in lowercase ASCII. Return addresses in the
+order to try them. With an address cache, as here, the function runs once
+per name until the answer expires.
 
 ## Resolve names with Phantom's own DNS queries
 
-Send A and AAAA queries from the client, as Chromium's built-in DNS client
-does, so the address cache keeps each answer for its record TTL.
+Have Phantom send DNS queries itself, as Chrome's built-in DNS client does,
+and cache each answer for as long as the DNS record allows.
 
 ```rust
 use std::error::Error;
@@ -146,48 +121,27 @@ fn own_queries() -> Result<Client, Box<dyn Error>> {
 }
 ```
 
-- It needs the `https-records` feature. It reads the host's nameservers
-  and hosts file once, when you call `system_nameservers`;
-  `AddressResolver::with_nameservers` takes nameservers you choose.
-- `localhost` and names in the hosts file are answered without a query.
-  Names without a dot or under `local` go to the operating system. AAAA is
-  sent only when the host has a global IPv6 route, before A. A failed or
-  empty lookup falls back to the operating system, and after it has
-  answered 16 such lookups in a row every name goes there.
-- With `chromium::v154_dns_cache`, an answer is kept for its record TTL, at
-  least 60 s. With the profile's `chromium::v154_udp`, each query socket
-  asks Windows for a random port with `SO_RANDOMIZE_PORT`.
+- This needs the `https-records` feature.
+- `system_nameservers` reads the host's DNS servers and hosts file once,
+  when you call it. `AddressResolver::with_nameservers` takes servers you
+  choose.
+- Phantom answers `localhost` and names in the hosts file without a
+  query. Names without a dot go to the operating system, as do lookups
+  that fail.
 
 ## Limits
 
-- Overrides and the resolver cover address lookups only. The HTTPS DNS
-  record lookup of the `https-records` feature still queries the record for
-  the original name through its own `HttpsRecordResolver`
-  ([HTTP/3 discovery](http3-discovery.md)).
-- Addresses are `IpAddr` values, so an IPv6 link-local address cannot carry
-  a scope ID. Leave such a name to the operating system resolver.
-- A lookup that never answers holds each request that waits for it until
-  its connect timeout, if you set one
-  ([Timeouts](../reference/limits.md#timeouts)). With a cache, later
-  requests for the name on the same runtime join that lookup, and at most
-  `DnsCacheSettings::max_entries` shared lookups run at once; past that, each
-  request runs its own lookup and drops it when it ends.
-- With the `https-records` feature and a profile that uses ECH from HTTPS
-  records, an overridden name counts as resolved at once, so the TLS
-  handshake waits only the 5 ms minimum for the record.
-- A resolver that sends its own DNS queries changes the client's DNS
-  traffic, which no longer comes from the operating system's resolver as
-  Firefox's does. Chromium's built-in DNS client sends its own queries, but
-  `system_nameservers` does not choose nameservers as Chromium does: on
-  Windows it asks the servers of every adapter that is up, where Chromium
-  asks the first adapter's and leaves a host with a VPN adapter or a name
-  resolution policy to the operating system
-  ([Chromium's built-in DNS client](../explanation/validation.md#chromiums-built-in-dns-client)).
-  The connections keep the profile's fingerprint.
+- Overrides and custom resolvers cover address lookups only. HTTPS DNS
+  record lookups ([HTTP/3 discovery](http3-discovery.md)) still use their
+  own resolver.
+- An IPv6 link-local address can't carry a scope ID. Leave such names to
+  the operating system.
+- On Windows, `system_nameservers` asks the DNS servers of every active
+  network adapter. Chrome asks only the first one's.
 
 ## Next
 
 - [Connections and client state](connections-and-state.md): the other
   state a client keeps.
-- [Defaults and limits](../reference/limits.md): address cache bounds and
+- [Defaults and limits](../reference/limits.md): address cache sizes and
   lifetimes.

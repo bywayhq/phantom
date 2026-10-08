@@ -1,35 +1,36 @@
 # Retries and replays
 
-Choose when Phantom may send a request again: after a failed connection, a
-closed or refusing connection, or a retryable status.
+Decide when Phantom sends a request again: after a connection fails to open,
+after a connection closes under it, or after a status such as 503.
 
-> For builders who have read [Using the client](client.md).
+> Read [Using the client](client.md) first.
 
-A retry can change what a server sees, so each class has its own bound, and
-every retry but the HTTP/2 fallback keeps the route, the
-[exact protocol](../reference/glossary.md#exact-protocol) or negotiated
-selection rule, and any Alt-Svc alternative
-([Design](../explanation/design.md#retries-and-replays)). Retries are your
-policy, so no browser recipe includes them apart from the PING resend below.
+Each kind of retry has its own setting and its own limit. Apart from the
+HTTP/2 fallback, a retry keeps the request's protocol and route
+([Design](../explanation/design.md#retries-and-replays)). Most kinds are off
+until you turn them on.
 
-| Class | Default | Configure with | Applies when |
+| Retry | Repeats after | Default | Setting |
 | --- | --- | --- | --- |
-| Connection-setup retry | Off | `RetryPolicy::connection_failures` | Setup failed before any request byte was sent |
-| Graceful `GOAWAY` replay | Always on | Not configurable | A bodyless H2 GET refused by `GOAWAY(NO_ERROR)` |
-| PING-failure resend | 2 per hop in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` | An H2 connection closed itself on an unanswered PING before the response head; any method, no one-shot body |
-| Reused-connection replay | Off | `with_reused_connection_replay` | An H1 keep-alive connection closed before any response byte |
-| Unprocessed-request replay | Off | `with_unprocessed_replay` | The H2 or H3 peer reported it did not process the request |
-| Status retry | Off | `with_status_retry` | The status is 408, 425, 429, 500, 502, 503, or 504 |
-| HTTP/2 fallback | Off | `with_http2_fallback` ([HTTP/3](http3.md#fall-back-to-http2-when-quic-fails)) | No QUIC connection could be set up for an exact H3 request; sent once over H2 |
-| WebSocket setup retry | Off | `WebSocketRetryPolicy` ([WebSocket](websocket.md#retry-a-connect-that-fails-to-open)) | A WebSocket connect failed before any byte reached the server |
+| Connection setup | A connection that failed to open | Off | `RetryPolicy::connection_failures` |
+| `GOAWAY` replay | An HTTP/2 server shutting down | On, once | None |
+| PING resend | An HTTP/2 connection lost to an unanswered PING | 2 in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` |
+| Reused connection | An idle HTTP/1.1 connection that closed | Off | `with_reused_connection_replay` |
+| Unprocessed request | A request the server didn't process | Off | `with_unprocessed_replay` |
+| Status | 408, 425, 429, 500, 502, 503 or 504 | Off | `with_status_retry` |
+| HTTP/2 fallback | A failed HTTP/3 connection | Off | `with_http2_fallback` ([HTTP/3](http3.md#fall-back-to-http2-when-quic-fails)) |
+| WebSocket setup | A WebSocket connect that failed to open | Off | `WebSocketRetryPolicy` ([WebSocket](websocket.md#retry-a-connect-that-fails-to-open)) |
 
-Two more replays sit outside `RetryPolicy`: one after a proxy's Basic `407` challenge ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy))
-and one `Critical-CH` retry when the profile has client hints ([Send client hints](request-templates.md#send-client-hints)).
-A streaming body is sent again only when [buffered](redirects.md#send-a-streaming-body-again).
+Phantom also repeats a request once after a proxy asks for credentials
+([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy)),
+and once when a server asks for client hints it didn't get
+([Send client hints](request-templates.md#send-client-hints)). A streaming
+body can only be sent again if you
+[buffer it](redirects.md#send-a-streaming-body-again).
 
 ## Retry when a connection fails to open
 
-Retry DNS, TCP, and QUIC setup failures that happen before anything is sent.
+Retry DNS, TCP and QUIC failures that happen before anything is sent.
 
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
@@ -47,27 +48,17 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
 }
 ```
 
-- It retries up to `maximum` times, waiting `delay` before each attempt, for
-  exact H1, H2, and H3 and for negotiated requests. No request bytes are
-  replayed, so it is safe for every method and for streaming bodies.
-- A failure qualifies only when its typed error proves nothing was sent: DNS
-  resolution; a direct, forward-proxy, or SOCKS TCP connection; SOCKS local
-  resolution; direct or SOCKS5-carried QUIC setup; or resolving or connecting
-  to a CONNECT-UDP proxy. A negotiated request retries only a failed direct,
-  HTTP proxy, or SOCKS5 connect, before origin TLS and ALPN.
-- One budget covers redirects, H2 replacement connections, and the
-  connections opened for proxy-authentication and client-hint replays. Each
-  attempt gets a fresh connect timeout; the total timeout stays absolute.
-- `ResponseInfo::retries_performed` counts these retries, summed across
-  redirect hops and counted when each starts. It counts no other class.
+Phantom tries up to `maximum` more times and waits `delay` before each try.
+Nothing from the request has been sent yet, so this is safe for every
+method and body. A TLS error, or a proxy that refuses the request, isn't
+retried.
 
-`RequestBuilder::retry_policy` replaces the client's whole policy for one
-request; it does not add to it.
+`ResponseInfo::retries_performed` tells you how many of these retries ran.
 
 ## Replay a request after a reused connection closes
 
-Send an idempotent request once more when an idle HTTP/1.1 keep-alive
-connection closes as the request is sent on it.
+Send a request once more when an idle HTTP/1.1 connection closes as the
+request goes out on it.
 
 ```rust
 use phantom::RetryPolicy;
@@ -77,24 +68,17 @@ fn policy() -> RetryPolicy {
 }
 ```
 
-The request, exact or negotiated, is sent once more on a fresh connection
-over the same route when all of these hold:
+Phantom sends the request again on a new connection when the old one closed
+before any of the response arrived. It does this once, for GET, HEAD,
+OPTIONS, TRACE, PUT and DELETE.
 
-- it went to a keep-alive connection that had already delivered a response;
-- that connection closed or was reset before any byte of the new response;
-- the method is idempotent (RFC 9110, section 9.2.2: GET, HEAD, OPTIONS,
-  TRACE, PUT, or DELETE); and
-- the body is absent, owned bytes, or a buffered stream within its limit.
-
-Chrome 154 restarts such a request once on a new connection
-([evidence](../explanation/validation.md#sse-browser-reconnect-evidence)); it
-may already have reached the origin, so this replay is opt-in. A [proxy auth
-replay](../explanation/design.md#proxy-authentication) keeps the method rule.
+The first request may already have reached the server, which is why this is
+off by default. Chrome retries in the same way.
 
 ## Replay a request the server did not process
 
-Replay an H2 or H3 request, with any method, when the server reports that it
-did not process it.
+Send an HTTP/2 or HTTP/3 request again when the server says it didn't
+process it.
 
 ```rust
 use std::num::NonZeroUsize;
@@ -106,26 +90,14 @@ fn policy() -> RetryPolicy {
 }
 ```
 
-Only these signals, received before any response head, qualify:
-
-- H2 `RST_STREAM(REFUSED_STREAM)` on the request stream (RFC 9113, section
-  8.7);
-- an H2 `GOAWAY` with any error code whose last-stream-id is below the
-  request's stream, or that arrived before the stream opened (RFC 9113,
-  sections 6.8 and 8.7);
-- an H3 request stream reset or stopped with `H3_REQUEST_REJECTED` (RFC 9114,
-  section 4.1.1);
-- an H3 `GOAWAY` received before the request opened its stream (RFC 9114,
-  section 5.2).
-
-The replay is sent at once on a fresh or different connection; while the
-policy is on, the pool stops reusing a connection that refused a stream. One
-budget covers every redirect hop and is not shared with any other class.
+The server says so by refusing the stream or by sending `GOAWAY` before it
+handled the request. Since the server did nothing with it, Phantom replays
+any method, on another connection and without delay.
 
 ## Retry when the server returns a retryable status
 
-Repeat an idempotent request after a status such as 503 or 429, optionally
-waiting as long as `Retry-After` asks.
+Repeat a request after a status such as 503 or 429, and wait as long as
+`Retry-After` asks.
 
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
@@ -144,56 +116,29 @@ fn policy() -> Result<RetryPolicy, phantom::StatusRetryError> {
 }
 ```
 
-- `StatusRetry::new` takes the statuses, a request-wide maximum, and a
-  constant delay. It accepts only 408, 425, 429, 500, 502, 503, and 504; any
-  other status, including 421, or an empty list returns `StatusRetryError`.
-- A response is retried only when its status is listed, the method is
-  idempotent, and the body is absent, owned, or buffered within its limit.
-  Otherwise it is returned unchanged. When the budget runs out, Phantom returns the last response.
-- `honor_retry_after(maximum)` uses a valid `Retry-After` (delta-seconds or
-  an IMF-fixdate read against the system clock, RFC 9110 section 10.2.3)
-  instead of the constant delay. A requested delay above `maximum` returns
-  the response at once.
-- If a delay cannot finish before the total timeout, Phantom returns the
-  response at once and sends nothing more.
+`StatusRetry::new` takes the statuses, the number of retries and a fixed
+delay. It accepts only 408, 425, 429, 500, 502, 503 and 504.
+
+Only GET, HEAD, OPTIONS, TRACE, PUT and DELETE are retried. When the
+retries run out, Phantom returns the last response.
+
+`honor_retry_after(maximum)` waits as long as the server's `Retry-After`
+asks, up to `maximum`. If the server asks for longer, Phantom returns the
+response at once.
 
 ## Limits
 
-- Setup retries never cover TLS, certificate, ALPN, proxy negotiation,
-  proxy authentication or rejection, timeouts, HTTP responses, and protocol
-  or post-dispatch failures. When they run out, the last error is returned.
-- A negotiated request holds a bounded per-origin admission slot across the
-  retry delay; a request past that bound fails with
-  `RequestErrorKind::Capacity` and no protocol
-  ([Design](../explanation/design.md#connection-setup-retries)).
-- The graceful `GOAWAY` replay covers exact H2 and negotiated requests that
-  selected H2, once, outside every budget. Any other method, a body,
-  trailers, or a second `GOAWAY` returns the typed H2 error. It runs first
-  and does not use the unprocessed-replay budget.
-- Reused-connection replay returns the original typed H1 error for a fresh
-  connection, a failure after any response byte, a one-shot body, POST or
-  PATCH, and a second close. It runs at most once per hop, with no delay and
-  outside the setup-retry budget; a negotiated replay goes through admission
-  and ALPN again.
-- Unprocessed-request replay does not cover an H2 stream at or below a
-  `GOAWAY` last-stream-id, which fails with a transport error when the
-  connection closes, or an H3 stream already open when `GOAWAY` arrived: the
-  H3 backend does not expose the identifier needed to prove it unprocessed. A
-  one-shot body returns the original error without another connection.
-- Status retry runs after proxy `407` and `Critical-CH` handling. The
-  intermediate response updates cookies, client hints, and Alt-Svc, then its
-  body is dropped unread, which retires an incomplete H1 connection or
-  cancels an H2 or H3 stream. A missing, repeated, malformed, RFC 850, or
-  asctime `Retry-After` falls back to the constant delay.
-- The `client.request` tracing span records `reused_connection_replays`,
-  `unprocessed_replays`, `status_retries`, and `http2_fallbacks`; each status
-  retry also emits a debug event with its status and delay.
+- `RequestBuilder::retry_policy` replaces the client's whole policy for one
+  request. It doesn't add to it.
+- The `total` timeout covers every retry and delay.
+- The PING resend in the Chromium recipes repeats any method, so a server
+  can receive a buffered `POST` twice.
 
 ## Next
 
-- [Connection-retry evidence](../explanation/validation.md#connection-retry-evidence):
-  the tests behind these rules and the paths they do not exercise, such as H2
-  and H3 status retry.
-- [Design](../explanation/design.md#retries-and-replays): the boundary each
-  class keeps.
-- [Routes and proxies](routes-and-proxies.md): what a retry keeps fixed.
+- [Design](../explanation/design.md#retries-and-replays): what each kind of
+  retry keeps fixed, and why.
+- [Routes and proxies](routes-and-proxies.md): choose the route every
+  attempt uses.
+- [Validation](../explanation/validation.md#connection-retry-evidence): the
+  tests behind these rules.

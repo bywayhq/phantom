@@ -1,14 +1,15 @@
 # Responses and errors
 
-Read a response's fields in wire order, find out what happened on the wire,
-collect a bounded body, sort failures by kind, and let a server answer
-before a body is sent.
+Read a response's headers and body, find out what happened on the way, and
+handle errors. You can also let a server turn down a large upload before
+you send it.
 
-> For builders who have read [Using the client](client.md).
+> Read [Using the client](client.md) first.
 
 ## Read the response
 
-Read the fields in wire order, what happened on the wire, and a bounded body.
+Read the headers in the order the server sent them, see which URL answered,
+and read the body with a size limit.
 
 ```rust
 use phantom::{Client, HttpProtocol, OrderedResponseHeaders, ResponseInfo};
@@ -29,19 +30,16 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `OrderedResponseHeaders` keeps wire order and interleaved duplicates on
-  every protocol, and name spelling on H1.
-- `ResponseInfo` also reports `protocol`, `decoded_content_codings`, and
-  `retries_performed`, which counts connection-setup retries only
-  ([Retry when a connection fails to open](retries.md#retry-when-a-connection-fails-to-open)).
-- `ResponseBody` is an `http_body::Body<Data = Bytes>` with backpressure,
-  undecoded unless you opt in ([Content decoding](content-decoding.md)).
-  `collect_with_limit` fails with `RequestErrorKind::ResponseBodyLimit` before
-  keeping a chunk past the inclusive limit, and discards trailers.
+`OrderedResponseHeaders` keeps the server's order and any duplicates.
+`ResponseInfo` also reports the protocol used and the number of retries.
+
+The body arrives as the server sent it, compressed or not
+([Content decoding](content-decoding.md)). `collect_with_limit` fails once
+the body passes the limit, and drops any trailers.
 
 ## Handle errors
 
-Sort failures into stable categories.
+Sort failures into categories you can act on.
 
 ```rust
 use phantom::{RequestError, RequestErrorKind};
@@ -57,11 +55,8 @@ fn classify(error: &RequestError) -> &'static str {
 }
 ```
 
-- `BuildError::kind` and `RequestError::kind` return non-exhaustive enums;
-  keep a fallback arm. Body errors use `RequestError` too, and
-  `RequestError::protocol` and `timeout_phase` report what is known.
-- Messages and debug output leave out credentials, cookies, payloads, and
-  endpoints. To investigate further, use bounded tracing or diagnostics.
+`RequestErrorKind` may gain variants, so keep a fallback arm. Error messages
+leave out credentials, cookies and request bodies.
 
 ## Let the server answer before the body
 
@@ -81,31 +76,22 @@ async fn upload(client: &Client, file: Vec<u8>) -> Result<(), Box<dyn std::error
         .send()
         .await?;
     if response.status().as_u16() == 417 {
-        // Unless the wait had ended, the body was not sent; send the request
-        // again without the expectation.
+        // The server refused the expectation. Send the request again
+        // without it.
     }
     Ok(())
 }
 ```
 
-- The body waits until the server answers `100 Continue` or the wait ends,
-  on every protocol and on every attempt, including a redirect that keeps
-  the body. The wait counts toward the response head and total timeouts.
-- Phantom appends `Expect: 100-continue` after every other field. A field
-  of yours named `Expect` keeps its position and must be `100-continue`;
-  another value fails before I/O with `RequestErrorKind::InvalidHeader`.
-- A request without a body, or with a body of known length zero, sends no
-  expectation. No recipe sends one
-  ([evidence](../explanation/validation.md#revalidation-and-upload-evidence)).
+The body waits until the server answers `100 Continue` or the wait ends.
+The wait counts toward the `response_head` and `total` timeouts. If the
+server answers with a final status first, such as `401` or `417`, Phantom
+returns it and never sends the body.
 
 ## Limits
 
-- Dropping an unfinished H1 body can close its connection; dropping an H2 or
-  H3 body cancels its stream.
-- A final response that arrives while the body still waits, such as `401`
-  or `417`, is returned and the body is never sent; Phantom does not repeat
-  the request. An H1 connection then closes, and an H2 or H3 stream is
-  cancelled.
+- Dropping a body before you finish reading it can close an HTTP/1.1
+  connection. On HTTP/2 and HTTP/3 it cancels only that request.
 
 ## Next
 

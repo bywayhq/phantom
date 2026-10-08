@@ -1,18 +1,15 @@
 # Connections and client state
 
-Share one client's connections and state between tasks, keep separate
-sessions apart, choose where connections leave from, and clear what a
-client has learned.
+Share one client between tasks, keep separate sessions apart, choose where
+connections leave from, and clear what a client has learned.
 
-> For builders who have read [Using the client](client.md).
+> Read [Using the client](client.md) first.
 
-A `Client` owns every piece of state that outlives one request: connection
-pools, redirect policy, cookies, learned client hints, Alt-Svc
-advertisements, TLS session tickets, and resolved host addresses
-([Resolve host names](name-resolution.md)). This page calls that state the
-client's session. None of it is global to the process,
-and every store has a size limit
-([Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)).
+A `Client` keeps everything that outlasts one request: open connections,
+cookies, TLS session tickets, cached addresses, and what servers told it
+through headers such as `Accept-CH` and `Alt-Svc`. This page calls that
+state the client's session. Each store has a size limit, and nothing is
+shared across the process.
 
 ## Share a client between tasks
 
@@ -32,23 +29,17 @@ async fn in_background(client: &Client) -> Result<(), Box<dyn std::error::Error>
 }
 ```
 
-- Clones share one session: pools, cookies, and all learned state.
-  Separately built clients share nothing
-  ([Keep sessions apart](#keep-sessions-apart)).
-- H1 connections carry one request at a time, without pipelining; the
-  profile decides how many run in parallel
-  ([next task](#send-http11-requests-to-one-origin-in-parallel)). H2 and H3
-  multiplex requests within the peer's limits and the client's own, on one
-  connection per pool key unless you
-  [allow more H2 connections](performance.md#open-more-than-one-connection-per-origin).
-- A pool key is the origin plus the complete route. Admission and retained
-  connections are bounded per key
-  ([Defaults and limits](../reference/limits.md#connection-pools)).
-- Dropping one H2 or H3 request cancels its stream, not unrelated work.
+- Clones share one session. Clients you build separately share nothing.
+- HTTP/1.1 connections carry one request at a time
+  ([send several in parallel](#send-http11-requests-to-one-origin-in-parallel)).
+- HTTP/2 and HTTP/3 send many requests over one connection per server.
+  [Open more](performance.md#open-more-than-one-connection-per-origin)
+  when you need them.
+- Dropping a request cancels that request only.
 
 ## Send HTTP/1.1 requests to one origin in parallel
 
-Open several H1 connections to one origin, up to a browser's per-host limit,
+Open several HTTP/1.1 connections to one server, up to a browser's limit,
 with the profile's `Http1Settings`.
 
 ```rust
@@ -70,24 +61,14 @@ async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- Idle connections count toward the
-  [connection bound](../reference/glossary.md#connection-bound), and a
-  request waits once the bound is reached. Without `with_http1` the bound
-  is 1; `ClientBuilder::max_concurrent_http1_requests_per_origin` replaces
-  it.
-- With `chromium::v154_http1`, a connection idle 300 s or more is closed
-  when the next request comes, and that request opens another, as Chrome
-  does. `firefox::v157_http1` reuses an idle connection until the server
-  closes it.
-- `get_negotiated` requests use the same bound when ALPN selects HTTP/1.1.
-  When it selects HTTP/2, they share one connection. Handshake order and
-  other rules:
-  [HTTP/1.1 connections](../reference/profiles.md#http11-connections).
+Idle connections count toward the limit, and a request waits once it's
+reached. Without `with_http1`, the limit is one connection.
+`ClientBuilder::max_concurrent_http1_requests_per_origin` sets your own.
 
 ## Keep sessions apart
 
-Give each identity its own session, the state one client and its clones
-share, by building a separate client for it.
+Build a separate client for each identity, so cookies and connections from
+one never reach the other.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -102,19 +83,13 @@ fn two_sessions() -> Result<(Client, Client), BuildError> {
 }
 ```
 
-- A session holds the connection pools, the cookie jar, learned client
-  hints, Alt-Svc advertisements and cached HTTPS records, TLS and QUIC
-  session tickets, the proxy credentials a proxy has accepted, and the
-  address cache. Nothing in it reaches another session.
-- Clones of a client are one session. Use a clone to share state between
-  tasks, and a new client to keep it apart.
-- A session does not change the profile: two sessions built from one profile
-  send the same fingerprint.
+Separate sessions still send the same fingerprint when they're built from
+the same profile.
 
 ## Send connections from a chosen local address
 
-Bind every socket the client opens to a local address of each family, or to
-a network interface.
+Make every connection leave from a local address you choose, or from a
+network interface.
 
 ```rust
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -131,27 +106,18 @@ fn bound_client() -> Result<Client, BuildError> {
 }
 ```
 
-- `local_address` keeps one address per family; call it once for each.
-  With an address for one family only, the client connects only to
-  resolved addresses of that family, as curl does with `--interface` and an
-  address. A host without such an address fails with
-  `RequestErrorKind::Connect`, or `Proxy` for a proxy host, and nothing
-  leaves from an unbound socket.
-- The binding covers TCP to origins and proxies (HTTP, HTTPS, SOCKS5, and
-  the TCP legs of CONNECT-UDP), the UDP socket of a QUIC connection to an
-  origin or a CONNECT-UDP proxy, and the UDP socket of a SOCKS5
-  association. Name resolution is not bound.
-- `interface("eth0")` binds each socket to that interface on Linux,
-  Android, macOS, and Windows (an alias such as `Ethernet` or an NDIS name
-  such as `ethernet_32768`). An unknown name fails each connection with
-  `RequestErrorKind::Connect`; other platforms fail `build` with
-  `BuildErrorKind::InvalidPolicy` ([Limits](#limits)).
-- No field of the ClientHello or the HTTP/2 and HTTP/3 fingerprints changes.
+- Call `local_address` once for IPv4 and once for IPv6. With only one, the
+  client connects to addresses of that family only, like curl's
+  `--interface`.
+- `interface("eth0")` binds to a named interface on Linux, Android, macOS
+  and Windows.
+- The binding covers TCP and UDP connections to servers and proxies. DNS
+  lookups aren't bound.
 
 ## Clear what a client has learned
 
-Discard learned client hints, Alt-Svc advertisements, cached addresses, and
-cookies without building a new client.
+Forget learned client hints, Alt-Svc entries, cached addresses and cookies
+without building a new client.
 
 ```rust
 use phantom::Client;
@@ -166,35 +132,20 @@ fn forget(client: &Client) {
 }
 ```
 
-- Learned `Accept-CH` state is bounded and scoped to the exact secure origin
-  ([Send client hints](request-templates.md#send-client-hints)).
-- Alt-Svc is off by default. `ClientBuilder::alt_svc` enables a bounded store
-  keyed by exact origin for negotiated HTTPS requests; `export_alt_svc` and
-  `import_alt_svc` move it through storage you own, and `alt_svc_policy`
-  opts into racing ([HTTP/3 and Alt-Svc](http3.md#upgrade-to-http3-when-the-server-advertises-it)).
-- Browsers forget cached addresses when the network changes. Phantom does
-  not watch the network, so call `clear_dns_cache` after such a change.
-- TLS session tickets for H1/H2, and QUIC session tickets for H3, are
-  bounded ([Defaults and limits](../reference/limits.md#protocol-state)) and
-  keyed by exact origin and route. A ticket carries early data when the
-  profile sets QUIC `early_data` or, over TCP, `TlsSettings::tcp_early_data`
-  ([HTTP/3 and Alt-Svc](http3.md#turn-off-early-data-on-resumed-connections)).
-- Browsers also keep separate tickets for each top-level site a page runs
-  under. A client has no such partitions: all its requests share one ticket
-  cache per origin and route.
+Browsers forget cached addresses when the network changes. Phantom doesn't
+watch the network, so call `clear_dns_cache` after a change.
 
 ## Limits
 
-- Binding uses `SO_BINDTODEVICE` on Linux and Android, `IP_BOUND_IF` on
-  macOS, and `IP_UNICAST_IF` on Windows, which steers outgoing packets
-  only. Linux kernels before 5.7 allow it only with `CAP_NET_RAW`.
-- macOS and Windows look the interface up by name for each socket, a
-  blocking OS call on the connect path.
-- A `local_address` used with `interface` must belong to that interface;
-  Phantom does not check that the two agree.
+- Browsers keep separate TLS session tickets for each site a page runs
+  under. A Phantom client shares one set across all its requests.
+- On Linux kernels before 5.7, `interface` needs `CAP_NET_RAW`.
+- Phantom doesn't check that a `local_address` belongs to the `interface`
+  you also set.
 
 ## Next
 
 - [Cookies](cookies.md): keep, save, and place cookies.
-- [Redirects](redirects.md): follow redirects within the route and protocol.
-- [Defaults and limits](../reference/limits.md): pool and store bounds.
+- [Redirects](redirects.md): follow redirects.
+- [Defaults and limits](../reference/limits.md#connection-pools): pool and
+  store sizes.

@@ -1,16 +1,17 @@
 # HTTP/3 discovery
 
-Race a learned HTTP/3 (H3) alternative against the origin, find H3 through
-an HTTPS DNS record before any [Alt-Svc](../reference/glossary.md#alt-svc)
-response, and keep Alt-Svc state across restarts.
+Try HTTP/3 and HTTP/2 at the same time, find a server's HTTP/3 support
+through DNS before the first request, and keep what Phantom learned across
+restarts.
 
-> For builders who have read [HTTP/3 and Alt-Svc](http3.md).
+> Read [HTTP/3 and Alt-Svc](http3.md) first.
 
 ## Race the alternative against the origin
 
-To avoid failing when the alternative is unreachable, race it against the
-origin, as Chrome does. The request goes to whichever connection is ready
-first:
+When a server advertises HTTP/3 in `Alt-Svc`, the HTTP/3 address is called
+the alternative, and the server's usual address is the origin. Race the two,
+as Chrome does, so an unreachable alternative doesn't fail your request.
+The request goes over whichever connection is ready first:
 
 ```rust
 use std::num::NonZeroUsize;
@@ -30,52 +31,23 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 }
 ```
 
-- QUIC setup to the alternative starts first. Origin setup starts after the
-  delay you pass, or at once if every raced alternative fails first or a
-  reusable HTTP/2 connection to the origin is pooled. There is no preset
-  delay; zero starts both together.
-- Chrome races only the first alternative that is not broken, and so does
-  the default. `AltSvcRace::with_max_alternatives` races up to three at
-  once, in field order and skipping broken ones; the request goes to the
-  first to connect, named in [`Alt-Used`](../reference/glossary.md#alt-used)
-  if the profile sends it. Each setup needs its own H3 admission, so with
-  `max_concurrent_http3_requests_per_origin` at 1 the later ones wait and
-  are cancelled when another candidate wins.
-- The request is sent once, on the winner, and `ResponseInfo` reports the
-  winner's protocol. Later retries and replays stay on that protocol.
-- The fields for every candidate are built and checked before any setup
-  starts, and the winner sends them as built, so a cookie stored during the
-  race reaches the next request
-  ([fields of a repeated attempt](../explanation/design.md#fields-of-a-repeated-attempt)).
-- An alternative that fails while the origin wins is marked broken and not
-  raced until the backoff ends. `CHROMIUM_153` is 300 seconds, doubling per
-  failure, capped at two days; a successful alternative connection resets
-  it. Meanwhile the next alternative the field listed is raced, as Chrome
-  does; with every one broken, the origin is used alone, without the
-  HTTPS-record lookup Chrome would still race. When every candidate fails,
-  Phantom returns the origin's error.
-- With several raced, one that fails while another alternative wins is
-  also marked broken once the winner's handshake completes; one still
-  connecting then is marked if it fails later.
-- A raced alternative offers early data when the client does, as Chrome's
-  does, so a resumed alternative can win at once and send a replay-safe
-  request as early data. It does not after QUIC to the origin's own host and
-  port failed a race or a handshake, until that location connects again. A
-  request whose early handshake fails is raced once more without early data
-  when its body is absent, owned, or buffered within its limit.
-- Racing needs `ClientBuilder::alt_svc` and never applies to a proxy route.
-- To send an exact H3 request to an alternative you already know, without
-  the store, see
-  [Reach a known alternative service](socks-and-connect-udp.md#reach-a-known-alternative-service).
+- The QUIC connection starts first. The connection to the origin starts
+  after the delay you pass, here 300 ms. A zero delay starts both together.
+- When the alternative fails, Phantom marks it broken and stops racing it
+  for a while. With `CHROMIUM_153` that's 300 seconds, doubling after each
+  failure, up to two days.
+- When both fail, you get the origin's error.
+- Racing doesn't apply through a proxy.
+
+To send an HTTP/3 request to an alternative you already know, see
+[Reach a known alternative service](socks-and-connect-udp.md#reach-a-known-alternative-service).
 
 ## Find HTTP/3 through HTTPS DNS records
 
-An origin can advertise H3 in an [HTTPS DNS record](../reference/glossary.md#https-record),
-so the first request to it can use H3 without an earlier Alt-Svc response.
-Enable discovery with `ClientBuilder::https_record_discovery`, which needs
-`ClientBuilder::alt_svc`. The method and the `phantom::dns` module exist only
-with the `https-records` feature, which adds the `hickory-resolver`
-dependency:
+A server can also announce HTTP/3 in an HTTPS DNS record. With discovery
+on, the first request to that server can already use HTTP/3. Turn on the
+`https-records` feature, then call `ClientBuilder::https_record_discovery`
+together with `ClientBuilder::alt_svc`:
 
 ```rust
 use std::num::NonZeroUsize;
@@ -92,30 +64,18 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
 }
 ```
 
-- The lookup does not hold back the request: the first negotiated request
-  to an origin starts it, a sequential client sends that request to the
-  origin, and a racing client starts origin setup at once and H3 setup only
-  if the records list `h3`. Later requests use the cached result. With the
-  Chrome 154, Edge 154, Brave 154, or Opera 136 recipe, whose
-  `ech_from_https_records` is set, a direct TLS handshake to the origin
-  waits up to 50 ms after address resolution for the lookup and encrypts
-  its ClientHello with the record's `ech`, as those browsers do.
-- Only negotiated requests on the direct route with no stored Alt-Svc
-  alternative look up records for H3. With those recipes, every direct TLS
-  connection over TCP also looks them up for its `ech`,
-  including those of exact-protocol requests and `wss://` openings, and so
-  does a QUIC connection to the origin's own host and port. Proxy
-  routes and IP-literal origins send no query.
-- The H3 endpoint is the origin's own host and port, so the request carries
-  no `Alt-Used` field. If H3 setup fails, the location is marked broken and
-  later requests go to the origin until the backoff ends.
-- `HttpsRecordResolver::system` queries the nameservers configured on the
-  host; `HttpsRecordResolver::with_nameservers` takes explicit ones.
+- The DNS lookup doesn't delay the first request. Later requests use the
+  result.
+- With a Chromium-family recipe, a direct connection waits up to 50 ms for
+  the record. If the record holds an Encrypted Client Hello key, the
+  handshake uses it, as those browsers do.
+- `HttpsRecordResolver::system` asks the host's configured DNS servers.
+  `HttpsRecordResolver::with_nameservers` takes servers you choose.
 
 ## Keep Alt-Svc state across restarts
 
-Alt-Svc state lives in memory. Export it, store the entries in any format,
-and import them into the next client:
+Phantom keeps the servers it learned in memory. Export them, store them in
+any format, and import them into the next client:
 
 ```rust
 use std::time::SystemTime;
@@ -141,59 +101,28 @@ fn restore(client: &Client, saved: Saved) -> Result<(), AltSvcSnapshotError> {
 }
 ```
 
-- `export_alt_svc` returns `None` when Alt-Svc is disabled. Entries are least
-  recently used first; expiry is rounded down to a whole second. An origin
-  with several alternatives has one entry for each, consecutive and in field
-  order, and import rebuilds the list from them.
-- A snapshot holds direct-route entries only. It never contains brokenness,
-  TLS tickets, connections, cookies, or credentials, and its `Debug` output
-  omits hosts.
-- Import revalidates every entry and rejects the whole snapshot if one is not
-  canonical. It drops expired entries, never extends a lifetime, and keeps
-  alternatives the client already holds.
-
+A snapshot holds server addresses and expiry times for direct connections.
+It doesn't hold TLS tickets, cookies or the list of broken servers.
+`import_alt_svc` rejects the whole snapshot if one entry is invalid, and
+drops expired entries.
 
 ## Limits
 
-- A raced alternative setup, including name resolution, may run for at most
-  4 seconds, less than Chrome allows
-  ([racing evidence](../explanation/validation.md#alt-svc-racing-evidence)).
-- HTTPS records advertise H3 only through a ServiceMode record that lists
-  `h3` for the origin's own host and port. As in Chrome 154.0.8037.58, a
-  record is ignored when it names another target or port or lists a
-  mandatory key Phantom does not support, and all records are ignored when
-  any is in AliasMode or every one sets `no-default-alpn`. A timeout,
-  `SERVFAIL`, or malformed record counts as no advertisement. Cache bounds
-  are in [Defaults and limits](../reference/limits.md#protocol-state).
-- Phantom sends HTTPS queries from its own DNS client while the operating
-  system resolves addresses, so an observer sees DNS traffic from two
-  sources where Chrome shows one
-  ([HTTPS record evidence](../explanation/validation.md#https-dns-record-evidence)).
-- Encrypted Client Hello from a record's `ech` value covers direct
-  HTTP/1.1 and HTTP/2 connections, negotiated or exact, `wss://` openings,
-  and H3 connections to the origin's own host and port, but not an Alt-Svc
-  alternative elsewhere. A rejected H3 connection fails and is not repeated
-  over QUIC, as in Chrome
-  ([Real ECH over QUIC evidence](../explanation/validation.md#real-ech-over-quic-evidence)).
-  When the origin rejects the record's configuration, a sequential client's
-  negotiated request fails with `RequestErrorKind::Tls`, since an
-  alternative's setup failure ends the request; later requests use TCP
-  while the alternative is broken, and the first request after each broken
-  period fails again. An exact H3 request fails on every attempt. Both last
-  until the cached record expires. A racing client
-  (`AltSvcPolicy::race`) sends the request over TCP instead, as Chrome
-  does, and `ech_from_https_records = false` on the profile's H3 TLS
-  settings sends GREASE.
-- Not implemented: racing an HTTPS-record location beside stored Alt-Svc
-  alternatives (they are used instead of it), persisting
-  brokenness or clearing it on a network change, an RTT-derived racing
-  delay, and proxy-route snapshots.
+- A raced QUIC connection gets at most 4 seconds, less than Chrome allows.
+- Phantom sends HTTPS record queries from its own DNS client, while the
+  operating system looks up addresses. An observer sees DNS traffic from
+  two sources where Chrome shows one.
+- If the server rejects the Encrypted Client Hello key from DNS on an
+  HTTP/3 connection, the request fails. A racing client sends it over TCP
+  instead, as Chrome does.
+- Phantom doesn't save the list of broken servers, or clear it when the
+  network changes.
 
 ## Next
 
 - [Tune throughput and latency](performance.md): what racing and discovery
-  let a server observe.
-- [Alt-Svc evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)
-  and [racing evidence](../explanation/validation.md#alt-svc-racing-evidence):
-  the tests and captures behind this page.
-- [HTTP/3 internals](../internals/http3.md): pooling and the QUIC stack.
+  let a server see.
+- [Validation](../explanation/validation.md#alt-svc-racing-evidence): how
+  racing was compared with Chrome.
+- [Defaults and limits](../reference/limits.md#protocol-state): cache sizes
+  and lifetimes.

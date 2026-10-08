@@ -1,13 +1,13 @@
 # Redirects
 
-Follow redirects without leaving the request's route or protocol, and see
-how each hop changes the method, the body, and the fields.
+Have Phantom follow redirects for you, and see how each redirect changes the
+method, the body and the headers.
 
-> For builders who have read [Using the client](client.md).
+> Read [Using the client](client.md) first.
 
 ## Follow redirects
 
-Follow a bounded number of redirects and see where the response came from.
+Follow up to five redirects and see which URL gave the final response.
 
 ```rust
 use std::num::NonZeroUsize;
@@ -32,60 +32,50 @@ async fn follow() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `RedirectPolicy::none()`, the default, returns redirect responses to you.
-- Only 301, 302, 303, 307, and 308 with a `Location` are followed, between
-  `http://` and `https://` URLs in either direction. A redirect without
-  `Location` is returned unchanged.
-- 301 and 302 rewrite POST to GET, and 303 rewrites every method except GET
-  and HEAD, dropping the body, static trailers, and body-describing fields.
-  307 and 308 keep the method and resend an owned body.
-- A cross-origin hop removes `Authorization`, `Cookie`, `Cookie2`, and
-  `Proxy-Authorization` fields and trailers, yours and the request
-  template's own, for that hop and every later one, and rebuilds client
-  hints. A change between `http://` and `https://` on the same host is
-  cross-origin.
-  Every hop keeps the route and protocol rule, one total timeout, and one
-  retry budget.
+Without a redirect policy, Phantom returns redirect responses to you.
+
+With one, it follows 301, 302, 303, 307 and 308 responses that have a
+`Location` header. It moves between `http://` and `https://` in either
+direction.
+
+Each redirect changes the request like this:
+
+- 301 and 302 turn a POST into a GET and drop the body.
+- 303 turns every method except GET and HEAD into a GET and drops the body.
+- 307 and 308 keep the method and send the body again.
+- A redirect to another origin drops `Authorization`, `Cookie` and
+  `Proxy-Authorization`, for that hop and every later one. Moving from
+  `http://` to `https://` on the same host counts as another origin.
+
+Every redirect uses the request's protocol and route. An exact HTTP/2
+request redirected to an `http://` URL fails, because Phantom sends HTTP/2
+only over TLS. Phantom doesn't switch protocols to follow it.
 
 ## Send a streaming body again
 
-Keep a streaming body as it is sent, so a 307 or 308 redirect or a replay can
-send it again.
+Keep a copy of a streaming body as it goes out, so a 307 or 308 redirect or
+a retry can send it again.
 
-- `RequestBuilder::buffered_streaming_body(body, maximum_bytes)` streams the
-  body as `streaming_body` does and keeps up to `maximum_bytes` of its data as
-  it goes, so the first attempt is not delayed;
-  `buffered_streaming_body_with_trailers` keeps the trailer frame too.
-- A redirect that keeps the method, the proxy-authentication and `Critical-CH`
-  replays, and the reused-connection, unprocessed-request, PING-failure, and
-  status replays in [Retries and replays](retries.md) send the kept frames
-  with the same boundaries and then read on from the body.
-- Each class keeps its own method rule, so the PING-failure resend of the
-  Chromium recipes can send a buffered `POST` twice.
-- Past the limit the kept frames are freed and the body is one-shot: the
-  attempt in progress still sends all of it, and a later attempt fails with
-  `RequestErrorKind::RequestBody` or returns the earlier failure. The limit
-  counts data bytes; a kept frame holds the buffer its bytes come from.
-- Once `send` returns, the kept frames are freed, at once or, while an
-  attempt is still uploading, as it sends them.
+Use `RequestBuilder::buffered_streaming_body(body, maximum_bytes)` in place
+of `streaming_body`. The body streams as before, so the first attempt isn't
+delayed. Phantom keeps up to `maximum_bytes` of it and frees the copy once
+`send` returns. `buffered_streaming_body_with_trailers` keeps the trailers
+too.
+
+If the body grows past `maximum_bytes`, Phantom drops the copy. The current
+attempt still sends the whole body, but a redirect or retry after it fails.
 
 ## Limits
 
-- Each hop is checked against the request's protocol and route before it is
-  sent. A hop they cannot carry fails with that combination's error, for
-  example `RequestErrorKind::UnsupportedScheme` for an exact H2 request
-  redirected to `http://`. Phantom does not switch protocol or route to
-  follow it.
-- A redirect target that is not `http://` or `https://`, more than one
-  `Location`, an invalid location, or running out of redirects fails with
-  `RequestErrorKind::Redirect`; the redirect response is not returned. A 307
-  or 308 with a one-shot streaming body, or a buffered one past its limit,
-  fails with `RequestErrorKind::RequestBody`; a buffered one within its limit
-  is sent again ([above](#send-a-streaming-body-again)).
+- Running out of redirects is an error. Phantom doesn't return the last
+  redirect response.
+- A `Location` that isn't `http://` or `https://` is an error too.
+- A redirect policy applies to the whole client. A single request can't
+  change it.
 
 ## Next
 
-- [Cookies](cookies.md): what the cookie jar sends on each hop.
+- [Cookies](cookies.md): what the cookie jar sends on each redirect.
 - [Retries and replays](retries.md): the retry budget redirects share.
 - [Troubleshooting](troubleshooting.md#a-request-or-redirect-is-rejected):
   redirect errors and their fixes.
