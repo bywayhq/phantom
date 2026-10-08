@@ -1,12 +1,7 @@
 # Glossary
 
-Each term the documentation uses has one definition here, with a link to the
-page that covers it.
-
-> For anyone who meets an unfamiliar term on another page.
-
-Terms are in alphabetical order. Phantom's documentation says "field" for a
-header or trailer line, as RFC 9110 does.
+Look up an unfamiliar term and follow its link for details.
+Terms are in alphabetical order. "Field" means a header or trailer line.
 
 ## Accept-CH
 
@@ -51,15 +46,13 @@ caller-supplied `Alt-Used` before any I/O.
 ## Browser source
 
 A browser's source code at a release tag, used as evidence where a
-[capture](#capture) cannot see a behavior, such as TCP socket options. See
-[TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+[capture](#capture) cannot see a behavior, such as TCP socket options.
 
 ## Capture
 
 A recording of a named browser build's traffic against a loopback listener.
 Captures are retained under `fixtures/` as [fixtures](#fixture), and tests
-compare [recipes](#recipe) with them. See
-[Validation](../explanation/validation.md).
+compare [recipes](#recipe) with them.
 
 ## Client hints
 
@@ -157,8 +150,7 @@ Connecting to IPv6 and IPv4 addresses in a staggered race. Phantom's
 `TcpAddressRacing` reproduces Chromium's Happy Eyeballs v2.
 `TcpBackupConnection` opens the IPv4 backup attempt of Firefox's release
 builds and, on direct HTTP/1.1 and negotiated requests, keeps the slower
-attempt's connection, as Firefox does; elsewhere it closes it.
-See [TCP](coverage.md#tcp).
+attempt's connection, as Firefox does. Elsewhere it closes it.
 
 ## Headless
 
@@ -172,8 +164,7 @@ system's socket and resolver interfaces, taken with Frida from inside the
 process that opens its connections: a Chromium browser's network service,
 or Firefox's parent process. It shows socket options, failed connection
 attempts, and lookups answered from a cache, which a
-[capture](#capture) cannot. See
-[Socket hook evidence](../explanation/validation.md#socket-hook-evidence).
+[capture](#capture) cannot.
 
 ## HPACK
 
@@ -183,11 +174,12 @@ states those choices in `Http2Settings::hpack`.
 
 ## HTTPS record
 
-A DNS resource record (RFC 9460, type 65) through which an origin
-advertises how to connect to it, such as the ALPN protocols it supports,
-before the client has contacted it. With the `https-records` feature, an
-HTTPS record that lists `h3` lets a negotiated request use H3. See
-[Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
+A DNS resource record (RFC 9460, type 65) through which an origin advertises
+how to connect to it, such as the ALPN protocols it supports, before the
+client has contacted it. With the `https-records` feature, an HTTPS record
+that lists `h3` lets a negotiated request use H3. See [Find HTTP/3 through
+HTTPS DNS
+records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
 
 ## JA3, JA4
 
@@ -196,28 +188,28 @@ Hash summaries of a TLS ClientHello used to label clients. See
 
 ## Negotiated protocol
 
-A request mode with one TLS handshake in which the server picks H1 or H2
-through [ALPN](#alpn). An `http://` request has no TLS handshake, so it uses
-H1. With the Alt-Svc store enabled, a later negotiated HTTPS request can use a
-learned H3 alternative. Compare
+A request mode that lets the server pick H1 or H2 through [ALPN](#alpn).
+A direct `http://` request uses H1. Through an HTTPS H2 proxy, it uses H2
+forwarding instead. With discovery enabled, a later HTTPS request can use
+H3 through Alt-Svc or an HTTPS DNS record. Compare
 [exact protocol](#exact-protocol).
 
 ## Normalization
 
 Removing from a comparison only the values that must vary per connection,
-such as random bytes, key material, connection IDs, and GREASE values. See
-[Fixtures and normalization](../explanation/validation.md#fixtures-and-normalization).
+such as random bytes, key material, connection IDs, and GREASE values.
 
 ## Origin
 
-The scheme, host, and port of a URL. Phantom keys cookies, client hints,
-Alt-Svc, and pools by exact origin, with the host in its canonical Unicode
-form.
+The scheme, canonical host, and effective port of a URL. Phantom uses
+ASCII host names when it serializes an origin. Client hints are keyed by
+origin. Alt-Svc and connection pools also include the route. Cookies use
+name, domain, and path, with separate host-only and partitioned stores.
 
 ## Pool key
 
-The [origin](#origin) plus the complete [route](#route). Connections,
-admission, and learned state are never shared across pool keys. See
+The [origin](#origin) plus the complete [route](#route). Connections and
+request slots are kept separately for each pool key. See
 [Defaults and limits](limits.md#connection-pools).
 
 ## Potentially trustworthy
@@ -245,20 +237,19 @@ Their order differs between browsers.
 
 ## QPACK
 
-The H3 field compression (RFC 9204). Chrome advertises a nonzero inbound
-dynamic table, and Phantom's QPACK stream bytes match its captures.
+The H3 header compression format (RFC 9204). It replaces repeated names
+and values with references to a table shared by the connection.
 
 ## QUIC
 
 The UDP transport under H3 (RFC 9000), with TLS 1.3 inside. Phantom's QUIC is
-Quinn with a BoringSSL TLS backend. See [QUIC](coverage.md#quic).
+Quinn with a BoringSSL TLS backend.
 
 ## Recipe
 
-A built-in profile component, such as `chromium::v154_tls()`. Most come from
-browser [captures](#capture); TCP recipes come from
-[browser source](#browser-source). A recipe's name records the browser, build,
-and layer. See [Browser profiles](coverage.md#browser-profiles).
+A built-in profile component, such as `chromium::v154_tls()`. Its name
+records the browser, build, and layer. Some settings describe recorded
+traffic; others define policies such as socket options and connection limits.
 
 ## Replay
 
@@ -270,9 +261,9 @@ did not process. See
 
 ## Request template
 
-A `RequestTemplate`: for one kind of browser request, the captured field
-order and values for each protocol, slots for caller fields and client hints,
-and the captured H2 priority. `PreparedRequestTemplate::new` validates one
+A `RequestTemplate`: header order and values for one kind of browser
+request, with slots for your headers and client hints. It also sets the
+H2 request priority. `PreparedRequestTemplate::new` validates one
 for use with `RequestBuilder::template`. See
 [Request templates](../guides/request-templates.md#apply-a-captured-request-template).
 
@@ -291,9 +282,9 @@ browsers. See [HTTP/2](../fingerprinting.md#http2).
 ## Snapshot
 
 A value holding a client's cookies (`CookieSnapshot`) or learned Alt-Svc
-alternatives (`AltSvcSnapshot`), for storage you own. Import revalidates
-every entry. See [Snapshots](cookies.md#snapshots) and
-[Keep Alt-Svc state across restarts](../guides/http3-discovery.md#keep-alt-svc-state-across-restarts).
+alternatives (`AltSvcSnapshot`), for storage you own. Import revalidates every
+entry. See [Snapshots](cookies.md#snapshots) and [Keep Alt-Svc state across
+restarts](../guides/http3-discovery.md#keep-alt-svc-state-across-restarts).
 
 ## SNI
 
@@ -326,6 +317,5 @@ extension.
 
 ## Next
 
-- [Coverage](coverage.md): what Phantom supports, layer by layer.
-- [How servers recognize a client](../fingerprinting.md): the terms in
-  context.
+- [Validation](../explanation/validation.md): recordings and source references.
+- [How servers recognize a client](../fingerprinting.md): the terms in context.

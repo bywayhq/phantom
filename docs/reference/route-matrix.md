@@ -1,14 +1,12 @@
 # Route matrix
 
-Find what Phantom does for each combination of request scheme, protocol, and
-[route](glossary.md#route). "Rejected" means a typed error
-before any proxy or origin I/O. No cell falls back to another row or column,
-except that an exact H3 request under `RetryPolicy::with_http2_fallback` is
-sent once on the exact H2 row of the same column when no QUIC connection can
-be set up; with CONNECT-UDP that policy is rejected before any I/O.
+Look up the protocol and proxy combinations you can use.
+Configure them with [Routes and proxies](../guides/routes-and-proxies.md).
 
-> For builders choosing a route. Configuration is in
-> [Routes and proxies](../guides/routes-and-proxies.md).
+"Rejected" means an error before any proxy or origin network I/O. A request
+keeps its chosen route. An exact H3 request can try exact H2 once if you
+enable `RetryPolicy::with_http2_fallback` and QUIC setup fails. CONNECT-UDP
+rejects that policy before network I/O.
 
 Columns:
 
@@ -31,7 +29,7 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 | `http://`, exact H2 | Rejected | Rejected | H2 forwarding | Rejected | Rejected |
 | `http://`, exact H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
 | `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream on a shared proxy connection | TCP tunnel | Rejected |
-| `https://`, negotiated | One TLS handshake, then H1 or H2; optional Alt-Svc H3 | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
+| `https://`, negotiated | TLS, then H1 or H2; optional H3 through Alt-Svc or HTTPS DNS records | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
 | `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 | `ws://`, H1 | Plaintext Upgrade | Plaintext Upgrade in a CONNECT tunnel | Plaintext Upgrade in a CONNECT stream | Plaintext Upgrade in a TCP tunnel | Rejected |
 | `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
@@ -42,7 +40,6 @@ HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 
 Notes:
 
-- Every supported cell has a public loopback regression test.
 - Negotiation needs a TLS stream to the origin for ALPN. An HTTP proxy
   carries it in one CONNECT tunnel per connection, over either proxy
   transport. CONNECT-UDP carries only QUIC, so it rejects negotiated requests
@@ -53,8 +50,8 @@ Notes:
   H1 or H2. See
   [Routes that carry the upgrade](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 - A negotiated `http://` request has no TLS stream for ALPN, so it is sent as
-  H1, as a browser sends it, and follows the exact H1 row. Through an H2
-  proxy it follows the exact H2 row instead, as browsers forward it over H2.
+  H1, and follows the exact H1 row. Through an H2
+  proxy it follows the exact H2 row instead.
   It reports the protocol it used and learns no Alt-Svc alternative.
 - H2 forwarding sends the request to the proxy with `:scheme` `http` and the
   origin in `:authority`, in the profile's pseudo-header order. The response

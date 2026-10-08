@@ -1,11 +1,7 @@
 # Profile reference
 
-Lookup tables for profile components, built-in recipes, TLS ticket order,
-TCP and UDP socket options, HTTP/1.1 connections, idle HTTP/2 connections,
-request templates, required caller fields, and client hints. For how to use
-them, see [Browser profiles](../guides/profiles.md).
-
-> For builders and specialists looking up a recipe or template detail.
+Look up profile settings, browser recipes, and request templates.
+For a working example, see [Browser profiles](../guides/profiles.md).
 
 ## Profile components
 
@@ -13,7 +9,7 @@ them, see [Browser profiles](../guides/profiles.md).
 | --- | --- |
 | `ClientProfile::new(tls)` | TLS ClientHello for H1 and H2 |
 | `with_tcp(settings)` | TCP socket options for every TCP connection |
-| `with_udp(settings)` | UDP socket options for every UDP socket that carries QUIC ([details](#udp-socket-options)) |
+| `with_udp(settings)` | UDP socket options for QUIC and Phantom-owned DNS query sockets ([details](#udp-socket-options)) |
 | `with_http1(settings)` | How many HTTP/1.1 connections to keep per origin and route |
 | `with_dns_cache(settings)` | How long the client reuses the addresses it resolves ([details](#address-cache)) |
 | `with_http2(settings)` | HTTP/2 SETTINGS, window update, priority, pseudo-header order, HPACK encoder choices, stream numbering, the stream limit assumed before the peer's SETTINGS, PINGs, and when an idle connection closes ([details](#idle-http2-connections)) |
@@ -28,11 +24,9 @@ needs.
 
 ## Built-in recipes
 
-Phantom carries one version per browser: the current stable build on the
-capture host for a desktop browser, and for an Android browser the build the
-Play Store served to the capture emulator, which can trail stable. Older
-versions are retired, so a recipe name always points at a build that can be
-recaptured and reverified.
+Phantom carries one version per browser. Desktop recipes use the stable
+build recorded on the capture host. Android recipes use the build served
+to the emulator by the Play Store, which can trail stable.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -59,19 +53,13 @@ recaptured and reverified.
   recipe the TLS column names.
 - "Chromium" means the recipe function returns the desktop Chromium recipe,
   which the browser's own captures equal on every compared field.
-  [Coverage](coverage.md#browser-profiles) gives the exact builds and how the
-  recipes differ.
-- TCP recipes are not in the table, because socket options do not appear in
-  a capture. `chromium::v154_tcp` comes from Chromium source and
-  `firefox::v157_tcp` from Firefox 157 socket hook logs and source; the
-  Chromium one also serves Brave ([TCP socket options](#tcp-socket-options)).
-- HTTP/1.1 connection recipes are not in the table either, for the same
-  reason. `chromium::v154_http1` and `firefox::v157_http1` come from browser
-  source ([HTTP/1.1 connections](#http11-connections)).
-- Address cache recipes are not in the table either: a cache is not visible
-  on the wire, only the queries it saves. `chromium::v154_dns_cache` and
-  `firefox::v157_dns_cache` come from browser source
-  ([Address cache](#address-cache)).
+  Exact builds and comparison details are listed in Validation.
+- [TCP socket options](#tcp-socket-options): `chromium::v154_tcp` for
+  Chromium and Brave; `firefox::v157_tcp` for Firefox.
+- [HTTP/1.1 connections](#http11-connections): `chromium::v154_http1` and
+  `firefox::v157_http1`.
+- [Address cache](#address-cache): `chromium::v154_dns_cache` and
+  `firefox::v157_dns_cache`.
 - Proxy CONNECT recipes are not in the table: `chromium::v154_proxy_connect`
   serves Chrome, Edge, Brave, and Opera, and `firefox::v157_proxy_connect`
   serves Firefox
@@ -82,28 +70,27 @@ recaptured and reverified.
 
 ## Recipe names and platforms
 
-The runtime uses the validated settings it receives and never branches on
-the host operating system or the browser name.
+The transport uses profile settings rather than the browser name.
+Socket operations adapt to the host OS; browser identity stays in the profile.
 
 | Name form | Example | Means |
 | --- | --- | --- |
 | No platform | `chromium::v154_tls`, `firefox::v157_http2` | The recipe carries no platform-specific data. It does not mean more than one platform was captured. |
 | `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v154_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
 
-Every recipe comes from captures on one platform: Windows 11 for the
+The recorded protocol and header settings use Windows 11 for the
 `chromium`, `edge`, `brave`, `opera`, and `firefox` recipes without `macos`
 in the name, macOS 15.5 on Apple silicon for those with it, and Android
 emulators for `chrome_android`, `edge_android`, `brave_android`,
-`opera_android`, and `firefox_android`. Each recipe's rustdoc names its capture build and
-platform.
+`opera_android`, and `firefox_android`. TCP, connection-limit, and address-cache
+policies also use source-defined settings. Rustdoc names the build and platform.
 
 On macOS, Opera sends the fields of its `windows` request templates, and
 Edge does too with its language list set to `en-US`. Edge otherwise takes
 `Accept-Language` from the system's language list, so for another locale
 override that field. Both therefore have `macos` client hints but no `macos`
 templates. Their other layers are the recipes without a platform in the
-name, which retained single macOS runs match
-([Validation](../explanation/validation.md#macos-recipes)).
+name, which retained single macOS runs match.
 
 ## TLS ClientHello shape
 
@@ -123,8 +110,7 @@ values: `extension_order`, `ech_grease_payload_length`, and
   does, from the ClientHello that carries it, so the length depends on the
   connection: 240 bytes on a fresh Firefox-profile ClientHello to a host
   name, more with a session ticket (368 with the capture servers' tickets),
-  and padded by the address text for an IP literal
-  ([Validation](../explanation/validation.md#firefox-ech-grease-payload-evidence)).
+  and padded by the address text for an IP literal.
   `Exact(n)` sends `n` bytes on every connection.
 - `tls12_extensions_in_tls13_client_hello` adds an empty
   `extended_master_secret` and a one-byte `renegotiation_info` to a
@@ -158,8 +144,7 @@ order is chosen. Every variant sends the same IDs; only the order changes.
   `ProtocolConfiguration` when the random number generator fails.
 - The draws use BoringSSL's random number generator. Opera derives each
   order from a Chromium 152 hash-table seed; the recipes send only the
-  orders the captures hold
-  ([Validation](../explanation/validation.md#opera-136-trust-anchor-id-order)).
+  orders the captures hold.
 
 ## TLS session ticket order
 
@@ -176,8 +161,8 @@ use it.
 
 Firefox's order depends on how finely its clock counts: `firefox::v157_tls`
 follows Firefox on Windows, a macOS Firefox profile would use `OldestFirst`,
-and the Android order comes from source, not from a capture
-([Validation](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
+and Android uses the source-defined `OldestFirst`. Android ticket order
+remains uncaptured.
 
 ## TCP socket options
 
@@ -239,14 +224,6 @@ resolved addresses.
   counts of macOS and Linux.
 - Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
-- Edge's and Opera's network source is not public. Frida hook logs of Edge
-  154.0.4258.48 and Opera 136.0.6008.52 on Windows 11 show the options and
-  the 300 ms fallback of `chromium::v154_tcp`, as Chrome 154's do
-  ([Validation](../explanation/validation.md#socket-hook-evidence)).
-- Frida hook logs of Firefox 157.0 on Windows 11 show the options and the
-  keepalive changes of `firefox::v157_tcp`, and the backup connection it
-  leaves out
-  ([Validation](../explanation/validation.md#firefox-socket-hook-evidence)).
 - `TcpPortRandomization` sets `SO_RANDOMIZE_PORT` from a minimum Windows
   build, after the other options and before a source binding binds the
   socket; Windows rejects the option on a bound socket, and a rejection
@@ -273,15 +250,13 @@ resolved addresses.
 | OS rejects an option at connect | That connection attempt fails |
 | TCP SYN (window, MSS, options, TTL) | Comes from the host OS, not the profile |
 
-Phantom applies these settings exactly or fails; it never connects with
-options the profile did not ask for. Evidence:
-[TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence).
+If the host cannot apply a setting, the connection attempt fails.
 
 ## UDP socket options
 
-`UdpSettings` applies to every UDP socket that carries QUIC: the socket of a
-direct HTTP/3 connection, of the connection to a CONNECT-UDP proxy, and of a
-SOCKS5 UDP association. It sets its options before the socket binds.
+`UdpSettings` sets options before a UDP socket binds. It applies to
+direct QUIC, the connection to a CONNECT-UDP proxy, SOCKS5 UDP associations,
+and Phantom's own DNS query sockets.
 
 | Recipe | Local port on Windows |
 | --- | --- |
@@ -296,13 +271,9 @@ SOCKS5 UDP association. It sets its options before the socket binds.
   failure. Phantom binds its QUIC sockets instead of connecting them, sets
   the option before the bind, and fails the connection attempt if Windows
   rejects it. Off Windows the setting changes nothing.
-- Chrome 154, Edge 154, and Opera 136 set the option on every UDP socket
-  their network code opens in the Windows 11 hook logs; Firefox 157's
-  source sets it nowhere
-  ([Validation](../explanation/validation.md#udp-socket-option-evidence)).
-- `UdpSettings` does not reach DNS sockets: the operating system's, which
-  answer address lookups, or hickory's, which answer HTTPS record lookups
-  with the `https-records` feature.
+- Phantom's own address and HTTPS-record query sockets also use the
+  profile's `UdpSettings` with the `https-records` feature. Operating-system
+  address lookups use the OS resolver's own sockets.
 
 ## HTTP/1.1 connections
 
@@ -366,9 +337,6 @@ for each origin and route.
   under two sites can have 6 connections for each. A Phantom client has no
   top-level site and keeps one bound per origin and route.
 
-Each recipe's rustdoc cites the source lines. Evidence:
-[HTTP/1.1 connection bound evidence](../explanation/validation.md#http11-connection-bound-evidence).
-
 ## Idle HTTP/2 connections
 
 `Http2Settings::idle_timeout` sets how long an HTTP/2 connection may go
@@ -396,9 +364,6 @@ without response data before it stops taking new requests and closes.
   origin with no connections, as Firefox's prune does.
 - `Http2Settings::validate` accepts 1 to 65,535 seconds, the range Firefox
   allows.
-
-Evidence:
-[HTTP/2 idle close evidence](../explanation/validation.md#http2-idle-close-evidence).
 
 ## Address cache
 
@@ -445,9 +410,6 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
   `ClientBuilder::no_dns_cache` turns the cache off. Browsers flush the cache
   when the network changes; Phantom does not watch the network, so call
   `Client::clear_dns_cache` after such a change.
-
-Each recipe's rustdoc cites the source lines. Evidence:
-[Address cache evidence](../explanation/validation.md#address-cache-evidence).
 
 ## Request templates
 
@@ -536,10 +498,8 @@ template and caller fields, not client hints, which are added afterward.
 | `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last, or before your `If-None-Match` and `If-Modified-Since` |
 | `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before your validators and the final `priority` |
 
-The cookie captures of all four Chromium-family browsers show both
-positions ([Cookie crumb evidence](../explanation/validation.md#cookie-crumb-evidence)).
-Both placements put `Cookie` before the validators of a revalidation, as the
-browsers' source does; no capture holds a cookie and a validator together.
+Both placements put `Cookie` before revalidation headers. That ordering
+is source-defined; a cookie and validator together remain uncaptured.
 
 ### Cookie crumbs
 
@@ -591,10 +551,10 @@ alternative service, one learned from `Alt-Svc` or pinned with
 [`Alt-Used`](glossary.md#alt-used) field with the alternative's host and
 explicit port.
 
-| Recipe | `alt_used` | Evidence |
-| --- | --- | --- |
-| `chromium::v154_http3_request`, used by every Chromium-family recipe | `Omit` | Chrome 154 snapshots over H3 to a learned alternative, and Chromium 154 source |
-| `firefox::v157_http3_request` | `Append`: one field after every other field | Firefox 157 snapshots and cookie captures, and Firefox source |
+| Recipe | `alt_used` |
+| --- | --- |
+| `chromium::v154_http3_request`, used by every Chromium-family recipe | `Omit` |
+| `firefox::v157_http3_request` | `Append`: one header after all others |
 
 - An exact H3 request to the origin, and one that an HTTPS record sends over
   H3 to the origin's own host and port, never carry the field.
@@ -602,13 +562,12 @@ explicit port.
   either setting.
 - Firefox places the field elsewhere in the list; see
   [Template limits](#template-limits).
-- See [Alt-Svc upgrade evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence).
 
 ### Client hints in templates
 
 A template sends only the hints the profile would send anyway: the default
 hints, and hints the origin requested through `Accept-CH` or ALPS
-`ACCEPT_CH`. Placement, as captured from Chromium:
+`ACCEPT_CH`. Placement:
 
 | Request | Hint placement |
 | --- | --- |
@@ -632,17 +591,18 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 
 ### Template limits
 
-- Only address-bar navigations and same-origin no-store `fetch` GETs are
-  captured. There are no templates for link or script navigations,
+- Templates cover address-bar page loads and same-origin no-store `fetch`
+  GETs. Chrome and Firefox also have default-mode `fetch` templates. There
+  are no templates for link or script navigations,
   subresources such as images, scripts, and stylesheets, `XMLHttpRequest`,
   cross-origin `fetch`, or requests with a body.
 - The template captures used plaintext loopback origins, which browsers
   treat as potentially trustworthy. The fields for a named plaintext origin
   come from the proxy route captures of a page load, a default-mode
   `fetch()`, and a no-store `fetch()`.
-- Firefox 157 source adds `dcb` and `dcz` to `Accept-Encoding` on a secure
-  request when it holds a compression dictionary for the URL. No capture
-  shows it, and the templates never send them.
+- Compression dictionaries are not modeled. Templates omit the `dcb`
+  and `dcz` codings Firefox can send with a stored dictionary; that browser
+  behavior remains uncaptured.
 - The templates always depend on stream 0, as every capture did. Chrome can
   depend on another open stream of equal or higher priority; Phantom does not
   reproduce that.
@@ -711,8 +671,6 @@ replace it.
   tunnels on one connection; `Http2ProxyConnections::ByPurpose` in the
   Firefox recipe gives each of the three its own connection.
 
-Evidence: [Proxy route browser evidence](../explanation/validation.md#proxy-route-browser-evidence).
-
 ## Required caller fields
 
 The Edge, Brave, and Opera templates mark `User-Agent` as a required caller
@@ -735,9 +693,8 @@ and version together.
 ## Client hints
 
 `ClientHintSettings` is fixed profile data: hint names in order, values, and
-whether each is sent by default or only on request. Each built-in client-hint
-recipe comes from a navigation capture of its browser. Phantom never adds
-Chromium client hints to a Firefox profile based on the browser name.
+whether each is sent by default or only on request. A profile sends only the
+hints you configure. Firefox recipes have none.
 
 ### Learning from `Accept-CH`
 
@@ -774,14 +731,12 @@ again with the hint, on the same connection when it is still pooled, as
 Chromium 154 restarts a navigation. Every hint the navigation lacked goes
 after `Accept` and before `Sec-Fetch-Site`, where Chromium's header merge
 appends it to the navigation's own fields before the network stack adds the
-`Sec-Fetch-*`, `Accept-Encoding`, and `Accept-Language` fields
-([evidence](../explanation/validation.md#alps-accept_ch-restart-evidence)).
+`Sec-Fetch-*`, `Accept-Encoding`, and `Accept-Language` fields.
 The Chromium navigation templates mark that place with
 `RequestField::RestartClientHints`; without a template the hints follow
 every other field. Brave sets `Sec-GPC` after the browser's fields, restart
 hints included, so a restarted Brave navigation sends
-`accept, <hints>, sec-gpc, sec-fetch-site`
-([evidence](../explanation/validation.md#alps-accept_ch-restart-evidence)).
+`accept, <hints>, sec-gpc, sec-fetch-site`.
 
 - `RequestTemplate::restarts_for_connection_accept_ch` decides which
   requests restart. The Chromium-family navigation templates set it; the
@@ -804,8 +759,6 @@ hints included, so a restarted Brave navigation sends
 - If an origin appears more than once, the first valid entry wins.
   Non-canonical origins are ignored. At most 1,024 distinct origins are kept
   per connection.
-- Live BoringSSL integration tests cover the restart on H2 and H3
-  ([Coverage](coverage.md#http3)).
 - A request sent as HTTP/3 early data goes out before the connection knows
   its entry, so neither it nor its resend after a rejection restarts.
 
@@ -832,18 +785,11 @@ support:
 - restarting a full navigation across a redirect chain already followed;
 - `ACCEPT_CH` frames sent after the handshake.
 
-Each of these needs request context or browser-engine evidence that a browser
-name cannot provide. Client-hint tests send sequences of requests on one
-client, so they check the step from an `Accept-CH` response to the next
-request and the boundary between origins, not a single fingerprint.
-
 There is no process-wide hint cache, and a profile never changes after it is
 built.
 
 ## Next
 
-- [Browser profiles](../guides/profiles.md): build a profile, then
-  [apply a template](../guides/request-templates.md) to a request.
-- [Coverage](coverage.md#browser-profiles): exact builds behind each recipe.
-- [Validation](../explanation/validation.md#browser-recipes): the captures
-  behind each recipe.
+- [Browser profiles](../guides/profiles.md): build a profile.
+- [Request templates](../guides/request-templates.md): apply headers to a request.
+- [Validation](../explanation/validation.md#browser-recipes): recipe builds and evidence.

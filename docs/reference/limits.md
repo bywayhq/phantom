@@ -1,10 +1,8 @@
 # Defaults and limits
 
-Look up every bound on the state Phantom keeps, with its default, and the
-policies that stay off until you enable them.
-
-> For builders looking up a default. [Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)
-> explains why every piece of state has a bound.
+Look up defaults, size limits, and policies you must enable.
+[Design](../explanation/design.md#state-belongs-to-one-client-and-has-a-bound)
+explains how Phantom limits the state a client keeps.
 
 ## Off by default
 
@@ -36,8 +34,8 @@ policies that stay off until you enable them.
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
-Some repeats are on by default; [Retries and replays](../guides/retries.md)
-lists each. A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is always
+Some requests are sent again by default.
+[Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is always
 sent once more. With a Chromium-family HTTP/2 recipe, a request whose
 connection closed on an unanswered PING is sent again, any method, up to
 twice per redirect hop, unless its body cannot be sent again; set
@@ -143,9 +141,8 @@ error names `TimeoutPhase::WebSocketHandshake`
 
 ## Delays and timers
 
-Every timer Phantom runs, with its default and where it comes from. A server
-can observe a change to any timer that decides when a connection opens,
-closes, or sends; the last column says which.
+These timers affect when connections open, close, or send data.
+The last column shows which changes a server can observe.
 
 | Delay | Default | Source | Set with | A server sees a change |
 | --- | --- | --- | --- | --- |
@@ -189,10 +186,9 @@ The optional cookie jar (`CookieLimits`) defaults to:
 - 180 cookies per registrable domain; and
 - 3,300 cookies in total.
 
-The two count limits are Chromium's `kDomainMaxCookies` and `kMaxCookies`
-(`net/cookies/cookie_monster.cc`). Exceeding a count limit evicts cookies
-instead of rejecting the new one; [Eviction](cookies.md#eviction) gives the
-order and the differences from Chromium.
+Exceeding a count limit removes older cookies instead of rejecting the
+new one. [Eviction](cookies.md#eviction) gives the order and the differences
+from Chromium.
 
 ## Protocol state
 
@@ -240,8 +236,7 @@ is the default of Firefox's `network.http.max_response_header_size`. Firefox
 applies it to encoded header-block bytes and to its own decoded
 serialization, so the two ceilings match only approximately.
 
-The cap of 8 informational responses is Phantom's own bound, not a browser
-value, and applies to every profile.
+The cap of 8 informational responses is Phantom's bound for every profile.
 
 ## Server-sent events
 

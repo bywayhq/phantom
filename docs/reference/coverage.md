@@ -1,18 +1,14 @@
 # Coverage
 
-Phantom's support contract lists what works today and what is planned, layer
-by layer. Anything it does not list as supported is unsupported.
-
-> For evaluators deciding whether Phantom fits, and specialists checking a
-> claim. Read [How servers recognize a client](../fingerprinting.md) first if
-> fingerprinting is new to you.
+Check which protocols, browser recipes, and client features you can use.
+This page lists supported behavior and the gaps that affect it. Items not
+listed as supported are unsupported.
 
 ## At a glance
 
-Phantom reproduces what an HTTP client sends on the network. It does not
-provide a DOM, JavaScript, rendering, canvas, fonts, WebRTC, or device
-fingerprinting. Each layer is listed separately, so a TLS match is never
-presented as a complete client match.
+Phantom reproduces HTTP-client traffic. It has no browser engine: no DOM,
+JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprinting.
+Coverage is listed separately for each network layer.
 
 | Browser | TCP | TLS | H1 | H2 | QUIC | H3 | Client hints | Request templates | WebSocket opening |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -27,20 +23,11 @@ presented as a complete client match.
 | Chrome 154 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Edge 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Not covered |
 
-- **Captured**: a [recipe](glossary.md#recipe) or
-  [request template](glossary.md#request-template) is compared in tests with
-  retained [captures](glossary.md#capture) of that browser build.
-- **Browser source**: taken from the browser's source code at the release tag,
-  because a capture cannot show it.
-- **Hook logs**: the browser's own Winsock and resolver calls, recorded as a
-  [hook log](glossary.md#hook-log) inside the process that opens its
-  connections, match the recipe: `chromium::v154_tcp` and
-  `chromium::v154_udp` for Edge and Opera
-  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)),
-  `firefox::v157_tcp` for Firefox
-  ([Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
-  "Partial" means the logs show behavior the recipe leaves out.
-- **Not covered**: no recipe exists, and none is claimed.
+- **Captured**: retained traffic for the named build.
+- **Browser source**: settings defined by source at the release tag.
+- **Hook logs**: recorded socket and resolver calls. "Partial" marks behavior
+  the recipe leaves out.
+- **Not covered**: no supported recipe.
 
 Read the matrix with these conditions:
 
@@ -78,15 +65,13 @@ Read the matrix with these conditions:
 - Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
   157 over plaintext H1 only.
 
-[Validation](../explanation/validation.md) holds the evidence for every
-"Captured" and "Browser source" cell.
+Validation gives the recording and source details for the matrix.
 
 ## What "supported" means
 
-A feature is supported only when its whole lifecycle works: configuration,
-validation, what Phantom sends, response handling, cancellation, errors,
-observability, and deterministic tests. Parsing an option or completing a
-connection is not enough.
+Supported features handle setup, requests, responses, cancellation, and
+errors. Their configuration and behavior have tests. Support applies to the
+combinations and limits listed here.
 
 ## Contents
 
@@ -116,7 +101,7 @@ connection is not enough.
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; opt-in H2 fallback for exact H3 | RTT-derived racing delay |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
-| SSE and WebSocket | Feature-gated, bounded, with browser comparisons and Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, proxy WebSocket captures |
+| SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, tunnelled `wss://` opening captures |
 
 The [route matrix](route-matrix.md) lists every combination of scheme,
 protocol, and [route](glossary.md#route). H1, H2, and H3 mean HTTP/1.1,
@@ -143,8 +128,7 @@ Supported:
 - Windows port randomization (`TcpPortRandomization`): `SO_RANDOMIZE_PORT`
   before the socket is bound or connects, from a minimum Windows build.
   `chromium::v154_tcp` sets it from build 22621 (Windows 11 22H2), as Chrome
-  154, Edge 154, and Opera 136 do in the hook logs
-  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
+  154, Edge 154, and Opera 136 do in the hook logs.
   It has no effect off Windows.
 - Firefox's backup connection (`TcpBackupConnection`), which
   `firefox::v157_tcp` uses: an IPv4 attempt 250 ms after a first attempt in
@@ -157,14 +141,9 @@ Supported:
   the address family of its first connection, shared by every runtime's
   key; later connections try that family alone, falling back to the other
   when its addresses fail, until a prune of the client's idle timer finds
-  every key of the origin without a connection
-  ([evidence](../explanation/validation.md#firefox-socket-hook-evidence)).
-- The recipes `chromium::v154_tcp` (Windows and Linux), taken from browser
-  source, and `firefox::v157_tcp` (Windows), taken from hook logs and source.
-  See
-  [TCP socket option evidence](../explanation/validation.md#tcp-socket-option-evidence)
-  and
-  [Firefox socket hook evidence](../explanation/validation.md#firefox-socket-hook-evidence).
+  every key of the origin without a connection.
+- Named TCP policies: `chromium::v154_tcp` for Windows and Linux;
+  `firefox::v157_tcp` for Windows.
 
 Not modeled:
 
@@ -207,8 +186,7 @@ Supported:
   offers them in the recipe's
   [ticket order](profiles.md#tls-session-ticket-order), and uses each TLS
   1.3 ticket once. A resumed
-  Firefox-profile ClientHello omits `session_ticket`, as Firefox 157 does
-  ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  Firefox-profile ClientHello omits `session_ticket`, as Firefox 157 does.
 - Early data over TCP with the Firefox recipe (`TlsSettings::tcp_early_data`).
   A direct H1 or H2 connection that resumes a ticket permitting it offers
   `early_data` and sends a safe request without a body or trailers as early
@@ -223,13 +201,11 @@ Supported:
   resumes a ticket an earlier request was issued, and offers early data
   when its ALPN offer includes the ticket's protocol.
   Proxy routes and connections that offer ECH from an HTTPS record
-  never offer it, and the Chromium-family recipes never do
-  ([evidence](../explanation/validation.md#tls-resumption-over-tcp-evidence)).
+  never offer it, and the Chromium-family recipes never do.
 - A shutdown with or without a TLS `close_notify` alert before the TCP FIN
   (`TlsSettings::close_notify`): the Chromium-family recipes send only the
   FIN, as Chrome 154 does, and the Firefox recipes send the alert first, as
-  Firefox 157 does
-  ([evidence](../explanation/validation.md#tls-close-evidence)).
+  Firefox 157 does.
 
 Planned:
 
@@ -334,20 +310,14 @@ Supported:
   dynamic-table size update is sent. An HPACK encoder holds these for the
   life of a connection, so they apply to every field block it sends,
   ordinary requests included, and not only to extended CONNECT. A profile
-  that states none of them keeps the encoder's own behavior. Every HEADERS
-  block of the retained Chrome, Edge, Brave, Opera, and Firefox cookie and
-  WebSocket sessions equals the recipe's byte for byte, and every replayable
-  block of their HTTP/2 proxy sessions, `proxy-authorization` included, has
-  the recipe's representations, indexes, and length
-  ([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
+  that states none of them keeps the encoder's own behavior.
 - Profile stream numbering and an assumed stream limit: the first request of
   each connection takes the profile's first stream (1 for Chromium, 3 for
   Firefox), and until the peer states `SETTINGS_MAX_CONCURRENT_STREAMS` the
   connection opens at most the profile's assumed number of streams (100 in
   both recipes). A stated limit above the profile's cap is lowered to it (256
   for Chromium, no cap for Firefox). A profile that states none of these
-  starts at stream 1 with no limit before the peer's SETTINGS and no cap
-  ([HTTP/2 stream numbering evidence](../explanation/validation.md#http2-stream-numbering-evidence)).
+  starts at stream 1 with no limit before the peer's SETTINGS and no cap.
 - A preface PING on a read-idle connection: when the profile sets an idle
   time (10 seconds for Chromium, none for Firefox), a connection that has
   read nothing for longer sends a PING right after the next request HEADERS
@@ -357,23 +327,20 @@ Supported:
   `GOAWAY(PROTOCOL_ERROR)`. A request it failed before the response head is
   sent again on another connection, up to twice per redirect hop with the
   Chromium recipes and never with Firefox's
-  (`Http2Settings::ping_failure_retries`)
-  ([HTTP/2 preface PING evidence](../explanation/validation.md#http2-preface-ping-evidence)).
+  (`Http2Settings::ping_failure_retries`).
 - An idle PING: when the profile sets an idle time (58 seconds for Firefox,
   none for Chromium), a connection that has read nothing for that long sends
   a PING with a zero payload whether or not requests are open. When the
   profile also sets a timeout (8 seconds for Firefox), one left unanswered
   with nothing read for that long closes the connection with
   `GOAWAY(INTERNAL_ERROR)`. Its requests are sent again only as the
-  profile's `ping_failure_retries` allow, never with Firefox's
-  ([HTTP/2 idle PING evidence](../explanation/validation.md#http2-idle-ping-evidence)).
+  profile's `ping_failure_retries` allow, never with Firefox's.
 - An idle limit: when the profile sets one (170 seconds for Firefox, none
   for Chromium), a connection with no response data for that long takes no
   new stream and closes with `GOAWAY(NO_ERROR)` within about a second, or
   when its last stream ends. Idle PINGs do not delay it. A connection to an
-  HTTPS proxy closes only when the next tunnel replaces it. It rests on
-  Firefox source; no capture shows a close on the idle timer
-  ([HTTP/2 idle close evidence](../explanation/validation.md#http2-idle-close-evidence)).
+  HTTPS proxy closes only when the next tunnel replaces it. The timer
+  policy is source-defined; an idle close remains uncaptured.
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
 - Opt-in typed connection-setup retries before dispatch.
@@ -402,8 +369,7 @@ Supported:
   connection, a connection to a CONNECT-UDP proxy, and a SOCKS5 UDP
   association. `chromium::v154_udp` sets it on every Windows, as Chromium
   154 does on every UDP socket it connects, and as Chrome 154, Edge 154, and
-  Opera 136 do in the hook logs
-  ([Socket hook evidence](../explanation/validation.md#socket-hook-evidence)).
+  Opera 136 do in the hook logs.
   The client applies the same setting to the UDP socket of each DNS query
   Phantom sends itself, with the `https-records` feature, which then binds
   port 0, as Chromium's built-in DNS client gets its port.
@@ -443,12 +409,6 @@ Supported:
 - QUIC transport parameter `initial_rtt_us` (`0x3127`) on resumed
   connections, carrying the round-trip time last measured to the same server
   through the same pool entry, as a minimal-length varint.
-- Tests replay the retained resumed Chrome 154, Edge 154, Brave 154, and
-  Opera 136 connections against Phantom's resumed ClientHello and transport
-  parameters, and the Firefox 157 ones against its resumed ClientHello, and
-  check, with the Chromium recipes' dynamic QPACK policy, that a resumed
-  connection sends `GET` as early data and holds `POST`
-  ([QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)).
 - A bounded opt-in NSS key-log queue for TCP and QUIC TLS 1.3 handshakes,
   exposed as `ClientBuilder::key_log` behind the `diagnostics` feature.
 - A QUIC v1 packet analyzer that retains no payloads, and a comparator of
@@ -506,12 +466,10 @@ Supported requests and routes:
   address resolution for the lookup, not at all when the address comes from
   the client's address cache, and retrying once after a rejection whose
   server authenticates as the public name, as Chrome 154, Edge 153, Brave
-  154, and Opera 136 do
-  ([Real ECH evidence](../explanation/validation.md#real-ech-evidence)).
+  154, and Opera 136 do.
   Their HTTP/3 recipes do the same on a QUIC connection to the origin, an
   HTTPS-record alternative or an exact HTTP/3 request, except that a
-  rejected QUIC connection is not repeated
-  ([Real ECH over QUIC evidence](../explanation/validation.md#real-ech-over-quic-evidence)).
+  rejected QUIC connection is not repeated.
   Requires the `https-records` feature. See
   [Find HTTP/3 through HTTPS DNS records](../guides/http3-discovery.md#find-http3-through-https-dns-records).
 
@@ -529,7 +487,7 @@ Supported wire behavior:
   with its first instructions, ahead of the first request's HEADERS, so a
   connection that sends no request writes only its control stream.
 - Bounded dynamic decoding of responses and request encoding owned by the
-  connection. Live QPACK stream and HEADERS bytes match the captures.
+  connection.
 - A local 256 KiB ceiling on a decoded response field section, lower when the
   profile advertises less. It does not change the SETTINGS frame.
 
@@ -584,8 +542,7 @@ Supported lifecycle:
 - An exact H3 request to a caller-pinned alternative
   (`RequestBuilder::alt_svc_alternative`), directly or through the HTTP/3 leg
   of a CONNECT-UDP proxy, with the origin's authority and TLS name, and an
-  `Alt-Used` field under a profile that sends it
-  ([evidence](../explanation/validation.md#alt-svc-http3-upgrade-evidence)).
+  `Alt-Used` field under a profile that sends it.
 - RFC 9220 extended CONNECT for the WebSocket protocol, which
   `phantom-http` opens for an exact H3 WebSocket. It is gated on peer
   SETTINGS from ALPS or the control stream and emits no local setting. It
@@ -713,17 +670,16 @@ Supported:
   for a fixed time, one with a record TTL for that TTL or a minimum, and
   failures optionally, shares one lookup between concurrent connections, and
   keeps the resolver's address order. The recipes `chromium::v154_dns_cache`
-  and `firefox::v157_dns_cache` come from browser source. Proxy-resolved
-  targets never reach it. See
-  [Address cache evidence](../explanation/validation.md#address-cache-evidence).
+  and `firefox::v157_dns_cache` set source-defined policies.
+  Proxy-resolved targets never reach it.
 - With the `https-records` feature, an opt-in address resolver,
   `AddressResolver::system_nameservers`, that sends Phantom's own A and AAAA
   queries to the host's nameservers as Chromium's built-in DNS client does:
   `localhost` and the hosts file answered locally, AAAA only with a global
   IPv6 route, AAAA before A, the operating system as fallback, and each
   answer's record TTL reported to the cache. Its query sockets take the
-  profile's `UdpSettings`. No recipe or default uses it. See
-  [Chromium's built-in DNS client](../explanation/validation.md#chromiums-built-in-dns-client).
+  profile's `UdpSettings`. Enable it explicitly; no recipe or default
+  selects it.
 - Caller host-to-address overrides and a caller-supplied async address
   resolver for the same names, off by default. An override skips the
   resolver and the cache; the resolver's answers go through the cache when
@@ -882,14 +838,9 @@ Not supported or not captured:
   [Design](../explanation/design.md#recorded-browser-behavior-is-the-specification)
   explains why no recipe will emit one until a browser does.
 
-The captures show that Chromium uses H2 WebSockets only on an existing session
-that advertises the setting, while Firefox also opens fresh H2 connections,
-and that pseudo-header order, priority, deflate offer, send policy, and HPACK
-encoder identity differ by family. `Http2Settings::hpack` states the
-encoder choices RFC 7541 leaves open, and with it every captured HEADERS
-block on these sessions, CONNECT included, equals the recipe's byte for byte
-([HPACK encoder evidence](../explanation/validation.md#hpack-encoder-evidence)).
-The WebSocket recipes still differ from those captures in two ways:
+The Chromium recipe uses H2 WebSockets on a capable existing session.
+Firefox can also open a fresh H2 connection. Their header order, priority,
+compression offers, and HPACK settings differ. The remaining gaps are:
 
 | Gap | Why | What would close it |
 | --- | --- | --- |
@@ -1013,8 +964,8 @@ Not supported:
 
 ## Validation
 
-[Validation](../explanation/validation.md) records how each claim on this page
-is proved.
+The test suite includes the following checks. Recording and comparison
+details are in Validation.
 
 Supported:
 
@@ -1023,14 +974,11 @@ Supported:
 - Deterministic authenticated QUIC packet analysis, two fresh-profile Chrome
   H3 ClientHellos, and controlled Chrome and Phantom packet evidence.
 - Parser fuzzing under AddressSanitizer: short runs on relevant changes and
-  longer weekly runs. The targets are listed under
-  [Fuzzing and sanitizers](../explanation/validation.md#fuzzing-and-sanitizers).
+  longer weekly runs.
 
 Not currently used:
 
-- Third-party observers. No third-party observation is retained today, and no
-  recipe rests on one. See
-  [Recorded coverage losses](../explanation/validation.md#recorded-coverage-losses).
+- Third-party observers: no retained observation for a current recipe.
 
 Planned:
 
@@ -1044,15 +992,12 @@ Not done:
 
 ## Browser profiles
 
-TLS, H2, and QUIC protocol settings are transport recipes. They do not select
-behavior by host OS. Capture provenance stays platform-specific, because
-browser builds, system integrations, launch conditions, and release channels
-can change the bytes a browser sends.
+TLS, H2, and QUIC settings come from the profile you choose. Builds,
+platforms, and launch conditions can affect browser traffic.
 [Profile reference](profiles.md#recipe-names-and-platforms) explains
 the naming rules.
 
-Each recipe records the platform its captures came from, and no recipe
-shares component data with a capture from another platform:
+Recipe evidence is specific to these builds and platforms:
 
 - Chrome 154 (154.0.8037.58, and 154.0.8037.97 for client hints), Edge 154
   (154.0.4258.37, and 154.0.4258.48 for client hints), Brave 154
@@ -1063,23 +1008,19 @@ shares component data with a capture from another platform:
   and Firefox 157.0. Single retained macOS runs of the TCP ClientHello and
   resumption and of the H2 session for all four, and of the QUIC transport
   parameters and H3 startup for Chrome, Edge, and Opera, match the Windows
-  recipes in the replay tests
-  ([Validation](../explanation/validation.md#macos-recipes)). No Linux
+  recipes in the replay tests. No Linux
   capture exists, and no other layer is claimed to be platform
   independent. The retired Chrome 152 and Firefox 154 captures, which did
   compare two platforms, are no longer in the tree.
-- Chrome 154 for Android (154.0.8037.57) recipes come from captures on the
-  Android 17 emulator described in
-  [Validation](../explanation/validation.md#chrome-for-android-154-recipes),
-  including QUIC resumption, WebSocket openings, and plaintext trust. Edge
+- Chrome 154 for Android (154.0.8037.57) uses the Android 17 emulator
+  described above, including QUIC resumption, WebSocket openings, and
+  plaintext trust. Edge
   153 for Android (153.0.4234.49) recipes come from an arm64 Android 17
-  emulator ([Validation](../explanation/validation.md#edge-for-android-153-recipes)).
+  emulator.
 - SSE browser captures are from Windows 11 (10.0.26200) only, and WebSocket
   browser captures from that host and the Android emulators. The macOS
   WebSocket captures back request fields only. Phantom does not assume macOS
   parity for SSE or WebSocket behavior.
-- [Capture normalization](../explanation/validation.md#capture-normalization)
-  records what a comparison normalizes.
 
 How the recipes differ:
 
@@ -1087,8 +1028,7 @@ How the recipes differ:
   cookie placement, client hints, the navigation and fetch templates, and the
   H3, H3 TLS, H3 request, and QUIC recipes. Its
   [trust-anchor](glossary.md#trust-anchor-ids) list holds 28 identifiers in
-  one ascending order, which every captured process emits; Chromium commit
-  `942bda4298c1` sorts the list before encoding it. The `sec-ch-ua` brand
+  one ascending order. The `sec-ch-ua` brand
   list is `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`.
 - Edge 154 matches the Chromium H2, QUIC, and H3 recipes and omits
   trust-anchor IDs. So `edge::` carries only `v154_tls`, `v154_http3_tls`,
@@ -1140,71 +1080,39 @@ How the recipes differ:
 
 Request templates:
 
-- The navigation templates match every retained page request:
-  - Chrome 154 over H1 (the SSE, WebSocket, and client-hint captures), H2 (the
-    WebSocket captures), and H3 (the H3 startup capture);
-  - Edge 154, Brave 154, Opera 136, and Brave 153 for Android over H1, H2,
-    and H3;
-  - Chrome 154 and Edge 153 for Android over H1 and H2 (the WebSocket
-    captures); and
-  - Firefox 157 over H1 and H2.
+- Address-bar page loads and same-origin no-store `fetch` GETs. Chrome and
+  Firefox also have default-mode `fetch` templates and revalidation slots.
+- H2 priorities: navigation weight 256 exclusive for Chromium and 42 for
+  Firefox; fetch weight 220 exclusive and 22 respectively. Dependency on
+  stream 0, with no Chromium dependency on another open stream.
+- Caller `User-Agent` slots for Edge, Brave, and Opera. Chrome's literal
+  value uses a headful recording; other retained desktop Chromium-family
+  recordings were headless.
+- Trust-dependent headers: no `Sec-Fetch-*` or automatic client hints for
+  an untrustworthy URL, and `Accept-Encoding: gzip, deflate` there.
+- Requested navigation-hint placement recorded on H1 and inferred for H2/H3.
+  Fetch templates reject requested hints because their placement is unknown.
+- `CookiePlacement` for cookie position. Validator placement and `Cookie`
+  before validators are source-defined for H1/H3; those cookie/validator
+  combinations remain uncaptured. H2 revalidation header order is recorded.
+- H2 cookie splitting in Chromium and Firefox, with one Firefox dynamic
+  name-index difference. H3 splitting in Chromium; whole cookies in Firefox.
 
-  The fetch templates match every retained no-store report `fetch` in the
-  WebSocket captures, over H1 and H2. The Chrome and Firefox default-mode
-  fetch templates, with a caller's `If-None-Match` and `If-Modified-Since`,
-  match every revalidating request of the retained revalidation captures
-  over H2; the H1 and H3 positions of the validators, and `Cookie` before
-  them, follow browser source
-  ([Revalidation evidence](../explanation/validation.md#revalidation-and-upload-evidence)).
-- Each template carries the captured H2 HEADERS priority for its request kind,
-  sent on that stream only. Navigations use weight 256 exclusive (Chrome,
-  Edge, Brave, Opera) and 42 (Firefox), which equal the H2 recipes' connection priority.
-  Fetches use weight 220 exclusive and 22. The dependency is always stream 0,
-  as in every capture. Chrome's dependency on another open stream of equal or
-  higher priority is not reproduced.
-- The Chrome `User-Agent` value comes from the SSE capture, which ran in
-  headful launch mode. The other Chrome captures and every retained Edge,
-  Brave, and Opera capture ran headless, so the Edge, Brave, and Opera
-  templates leave `User-Agent` to the caller.
-- The H1 template captures used plaintext loopback origins. The proxy route
-  captures show what the browsers send to a named plaintext origin instead:
-  no `Sec-Fetch-*` fields, no client hints, and `Accept-Encoding: gzip,
-  deflate`. The templates follow them for any URL that is not
-  [potentially trustworthy](glossary.md#potentially-trustworthy). No capture
-  shows where a `fetch` places hints requested through `Accept-CH`, so the
-  fetch templates refuse to send them. Where navigation templates place requested hints is
-  captured on H1 only and inferred for H2 and H3.
-- The profile's `CookiePlacement` decides where the jar's `Cookie` field goes
-  in the expanded template. With the Chrome 154 and Firefox 157 presets, the
-  H1 fields on each side of it agree with the `set-cookie-then-close`
-  EventSource reconnect captures: last for the Chrome templates, and after
-  `Referer` and before `Sec-Fetch-Dest` for the Firefox `fetch` template.
-  The [cookie crumb captures](../explanation/validation.md#cookie-crumb-evidence)
-  show the same neighbors on a navigation and a `fetch()` over H1, H2, and
-  H3: last or before `priority` for Chrome, Edge, Brave, and Opera, which
-  all use `chromium::v154_cookie_placement`, and after `Referer` for
-  Firefox, before `Upgrade-Insecure-Requests` on a navigation and
-  `Sec-Fetch-Dest` on a `fetch()`.
-- On H2, the Chromium and Firefox recipes split the `cookie` field into one
-  field per cookie and encode each crumb as the captured browser does, apart
-  from Firefox's choice of name index once a crumb is in the dynamic table.
-  On H3, the Chromium recipe splits it and its QPACK bytes equal Chrome's and
-  Edge's ([Cookie crumbs](profiles.md#cookie-crumbs)).
+See [Profile reference](profiles.md#request-templates) for recipe names,
+header order, and cookie compression rules.
 
 Randomized fields:
 
 - Chrome 154's trust-anchor ID order is one ascending order on every
   connection. Up to Chrome 153 the order was fixed within a browser process
   and differed between processes, a hash-iteration order rather than a
-  per-connection permutation; see
-  [Chrome 154 trust-anchor ID order](../explanation/validation.md#chrome-154-trust-anchor-id-order).
+  per-connection permutation.
 - Opera 136, built on Chromium 152, keeps that per-process order for its
   32 trust-anchor IDs over TCP, and draws a new order for each QUIC
   connection. `opera::v136_tls` draws one of 29 processes' TCP orders for
   each client and keeps it on all of the client's connections, and
   `opera::v136_http3_tls` draws one of 20 QUIC ClientHellos' orders for
-  each connection. Both draw only orders a capture holds
-  ([Opera 136 trust-anchor ID order](../explanation/validation.md#opera-136-trust-anchor-id-order)).
+  each connection. Both draw only orders a capture holds.
 - The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those
@@ -1220,33 +1128,26 @@ Randomized fields:
   it, over TCP and QUIC. `firefox::v157_tls` and `v157_http3_tls` do the
   same, so a fresh ClientHello to a host name carries 240 bytes, one resumed
   with the capture servers' tickets 368, and one to `127.0.0.1` or `::1`
-  the length Firefox pads it to
-  ([evidence](../explanation/validation.md#firefox-ech-grease-payload-evidence)).
+  the length Firefox pads it to.
 - Firefox 157's QUIC ClientHello shuffles its extensions per connection but
   keeps `quic_transport_parameters` and then `encrypted_client_hello` last,
   and sends `record_size_limit` 16385, `extended_master_secret`, and
   `renegotiation_info`. `firefox::v157_http3_tls` does all of this; only the
   shuffled order, drawn per connection, differs between any two
-  ClientHellos
-  ([evidence](../explanation/validation.md#firefox-157-http3-recipe)).
+  ClientHellos.
 
-The runtime uses the validated settings it receives. It does not branch on the
-host OS or the client-family name. OS-specific code exists only for real
-differences in sockets, trust stores, native builds, or profiling.
+Browser identity comes from profile settings. Socket operations, trust
+stores, native builds, and profiling adapt to the host OS.
 
-Carrying one version per browser retires evidence along with the recipes it
-described. [Recorded coverage losses](../explanation/validation.md#recorded-coverage-losses)
-lists the checks Phantom no longer runs.
+Replacing a browser version also retires its recipes and recordings.
+Validation lists the retired checks.
 
 ## Claim boundary
 
-Local raw captures and packet and frame differentials are the only evidence
-behind the current recipes. Independent observers such as Pingly, Peet, and
-Prism can reveal missing signals that a local capture and a local comparator
-would both miss, and none of them alone would decide pass or fail; no
-observation from one is retained today, so nothing here rests on that second
-opinion. Phantom reports the concrete fields and behaviors a test covers. It
-does not label a whole profile "verified".
+Recipe comparisons cover the recorded builds, platforms, and settings
+listed here. Socket and cache policies also use tagged browser source.
+No retained third-party observation backs the current recipes. A local match
+does not establish how a remote service will classify your requests.
 
 ## Next
 

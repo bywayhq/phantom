@@ -1,10 +1,7 @@
 # Cookie jar rules
 
-The rules the optional cookie jar applies when it stores and sends cookies:
-request context, trustworthy origins, rejections, eviction, and snapshots.
-
-> For builders looking up a cookie rule. Setup is in
-> [Keep cookies between requests](../guides/cookies.md#keep-cookies-between-requests).
+Look up how the optional jar stores, sends, and removes cookies.
+To enable it, see [Keep cookies between requests](../guides/cookies.md#keep-cookies-between-requests).
 
 The count and size limits are in
 [Defaults and limits](limits.md#cookies). Chromium behavior the jar does not
@@ -13,12 +10,13 @@ model is listed in [Coverage](coverage.md#cross-request-state).
 ## Request context
 
 The jar treats every request and redirect hop as a user-initiated top-level
-navigation. It does not read `Sec-Fetch-Site`, `Referer`, or any other field
-you send. To emulate a cross-site request, supply your own `Cookie` field.
+page load. Headers such as `Sec-Fetch-Site` and `Referer` do not change
+that context. To send cookies for a cross-site request, supply your own
+`Cookie` header.
 
 | Attribute | Rule |
 | --- | --- |
-| `SameSite` | A navigation without an initiator is same-site. Chromium's `ComputeSameSiteContext` gives it `SAME_SITE_STRICT` on every hop, because `kCookieSameSiteConsidersRedirectChain` is disabled by default. The jar stores and sends matching `Strict`, `Lax`, `None`, and unmarked cookies on every request, whatever the method. |
+| `SameSite` | Matching `Strict`, `Lax`, `None`, and unmarked cookies on every request and redirect hop, for any method |
 | `Partitioned` (CHIPS) | A `Partitioned` cookie is keyed to the schemeful site (scheme and registrable domain) of the URL that set it, and sent only to URLs with that site. A partitioned and an unpartitioned cookie with the same name, domain, and path are two cookies, as in Chromium. The jar never sends a partition other than the request's own site. |
 
 ## Trustworthy origins
@@ -33,10 +31,8 @@ URL whose host is a loopback IP literal (`127.0.0.0/8` or exactly `::1`),
 | `http://127.0.0.1:8080`, `http://app.localhost` | Yes |
 | `http://[::ffff:127.0.0.1]`, `http://localhost.test`, `http://example.test` | No |
 
-This is Chromium's `cookie_util::ProvisionalAccessScheme` over
-`net::IsLocalhost`, applied to setting, sending, and overwriting a `Secure`
-cookie. A trustworthy origin does not let a `SameSite=None` or `Partitioned`
-cookie omit `Secure`.
+These rules apply when setting, sending, and overwriting a `Secure` cookie.
+`SameSite=None` and `Partitioned` still require `Secure`.
 
 ## Cookies the jar rejects
 
@@ -63,12 +59,11 @@ Count limits evict rather than reject. After a cookie is stored:
 Storing or sending a cookie counts as a use; `CookieJar::request_value` does
 not.
 
-This follows Chromium's `CookieMonster::GarbageCollect`, which purges to the
-same 150 and 3,000, with three differences:
+Compared with Chromium, the jar has three differences:
 
-- the `Priority` attribute is ignored;
-- the total purge does not spare cookies used in the last 30 days; and
-- partitioned cookies share the ordinary limits instead of per-partition ones.
+- No preference for the `Priority` attribute.
+- No protection for cookies used within the last 30 days during total eviction.
+- Shared limits for partitioned and unpartitioned cookies.
 
 ## Snapshots
 
@@ -96,10 +91,9 @@ flag, path, `Secure`, `HttpOnly`, `SameSite`, partition key (such as
 
 ### Import checks
 
-Import rebuilds each entry as the `Set-Cookie` field a response from its
-scheme and domain would send, and applies the jar's storage rules and byte
-limit to it, as listed in [Cookies the jar rejects](#cookies-the-jar-rejects).
-An import can therefore store only a cookie a response could have stored.
+Import rebuilds each entry as a `Set-Cookie` header for its scheme and
+domain. It then applies the [storage rules](#cookies-the-jar-rejects) and
+byte limit. A snapshot cannot bypass the checks used for response cookies.
 
 | Entry | `CookieSnapshotErrorKind` |
 | --- | --- |
@@ -134,4 +128,4 @@ A valid snapshot merges without removing held cookies.
 - [Cookies](../guides/cookies.md):
   enable the jar and place its field.
 - [Defaults and limits](limits.md#cookies): the jar's size and count limits.
-- [Coverage](coverage.md#cross-request-state): cookie behavior not modeled.
+- [Request templates](profiles.md#cookie-placement-in-templates): cookie header position.

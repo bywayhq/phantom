@@ -1,11 +1,7 @@
 # WebSocket reference
 
-The rules behind a WebSocket connect: routes, opening templates, response
-checks, the profile connection policy, the browser recipes and where they
-differ from the captures, and compression.
-
-> For builders looking up a WebSocket rule. Usage is in the
-> [WebSocket guide](../guides/websocket.md).
+Look up WebSocket routes, opening headers, response checks, and compression.
+For a working example, see the [WebSocket guide](../guides/websocket.md).
 
 Frame, message, and write-buffer limits are in
 [Defaults and limits](limits.md#websocket). Why the connection and retry
@@ -26,7 +22,7 @@ the [route matrix](route-matrix.md) covers every scheme, protocol, and route.
 
 | Route | Rule |
 | --- | --- |
-| `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. This is what Chrome 154, Edge 154, and Firefox 157 send ([proxy route evidence](../explanation/validation.md#proxy-route-browser-evidence)). The CONNECT carries the route's CONNECT fields, or the profile's [proxy CONNECT fields](profiles.md#proxy-connect-fields) with the opening's `User-Agent`, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
+| `ws://` through an HTTP proxy | Phantom sends CONNECT for the origin's host and port, then the same origin-form Upgrade as a direct connection inside the tunnel, with no TLS to the origin. The CONNECT carries the route's CONNECT fields, or the profile's [proxy CONNECT fields](profiles.md#proxy-connect-fields) with the opening's `User-Agent`, as for `wss://`. A refused CONNECT is a `WebSocketErrorKind::Proxy` error with no handshake response; an origin that refuses the Upgrade inside the tunnel is `HandshakeRejected`. |
 | SOCKS5 | After the tunnel is up, `ws://` sends the same origin-form Upgrade as a direct connection. `socks5://` resolves the origin locally; `socks5h://` sends the canonical DNS name to the proxy. Username and password authentication applies only to SOCKS negotiation. |
 | H2 through a proxy | Phantom opens a dedicated tunnel, then runs origin TLS, the HTTP/2 preface, and extended CONNECT inside it, as on a direct route. The origin must still enable extended CONNECT. Under [profile policy](#profile-connection-policy), a pooled H2 session on the same route may carry the WebSocket instead, inside its existing tunnel. |
 | H3 | `websocket_with_protocol(HttpProtocol::Http3, ..)` sends RFC 9220 extended CONNECT as a new stream on the QUIC connection the client's HTTP/3 pool keeps for the origin and route, opening one when it has none with room. The stream holds one per-origin admission until the WebSocket is dropped or ends, so a request beyond `max_concurrent_http3_requests_per_origin` waits, and one beyond `max_pending_http3_requests_per_origin` fails with `WebSocketErrorKind::Capacity`. The profile needs `Http3RequestSettings::extended_connect_pseudo_header_order`, which no named recipe sets, or `connect` fails with `ProtocolUnavailable` before I/O. A peer whose SETTINGS do not enable extended CONNECT fails with `WebSocketErrorKind::Http3` before any stream opens. |
@@ -129,30 +125,29 @@ to join.
 | `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set | 240 seconds |
 | `firefox::v157_websocket` | Reported to the caller | Uncompressed, RSV1 clear | 20 seconds |
 
-Both recipes' `Reuse` rests on browser source, not a capture
-([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence)).
+Both recipes reuse capable H2 sessions on proxy routes. This policy and
+the handshake timers are source-defined; tunnelled `wss://` openings remain
+uncaptured.
 
-The handshake timeout is `WebSocketSettings::handshake_timeout`, the
-browser's own timer, read from its source rather than a capture
-([WebSocket handshake timer evidence](../explanation/validation.md#websocket-handshake-timer-evidence)).
-It bounds the whole opening, and a caller replaces it for one connect with
-`WebSocketRequestBuilder::handshake_timeout`. Neither browser retries a
-failed opening, so no recipe sets a `WebSocketRetryPolicy`.
+`WebSocketSettings::handshake_timeout` limits the whole opening. You can
+replace it for one connection with
+`WebSocketRequestBuilder::handshake_timeout`. Neither recipe sets a
+`WebSocketRetryPolicy`.
 
-The paired H2 recipes carry the captured extended-CONNECT pseudo-header order
-and a separate `extended_connect_priority`:
+The paired H2 recipes set the extended-CONNECT pseudo-header order and a
+separate `extended_connect_priority`:
 
 | H2 recipe | CONNECT priority | Ordinary request priority |
 | --- | --- | --- |
 | `chromium::v154_http2` | Exclusive on stream 0, weight 147 | Weight 256 |
 | `firefox::v157_http2` | Non-exclusive on stream 0, weight 22 | Weight 42 |
 
-The recipes' H1 and H2 templates reproduce the captured field order,
-spelling, and fixed values. `User-Agent`, `Origin`, `Accept-Language`, and,
-for Firefox on H2, `sec-fetch-storage-access` are caller slots. Some fields
-depend on whether the WebSocket URL is
-[potentially trustworthy](glossary.md#potentially-trustworthy): `wss://`, or
-`ws://` to a loopback address, `localhost`, or a `.localhost` name.
+The H1 and H2 templates set header order, spelling, and fixed values.
+`User-Agent`, `Origin`, `Accept-Language`, and, for Firefox on H2,
+`sec-fetch-storage-access` are caller slots. Some fields depend on whether the
+WebSocket URL is [potentially
+trustworthy](glossary.md#potentially-trustworthy): `wss://`, or `ws://` to a
+loopback address, `localhost`, or a `.localhost` name.
 
 | Field | Recipe | Trustworthy URL | Other `ws://` URL |
 | --- | --- | --- | --- |
@@ -167,15 +162,8 @@ replaces the recipe's value in its position, for either kind of URL. Set
 A WebSocket follows no redirect, so the opening URL alone decides. The
 other fields keep their order for both kinds of URL.
 
-Fixture tests replay every retained capture against the recipes, and
-loopback tests compare Phantom's CONNECT HEADERS and H1 openings with the
-captures
-([WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence),
-[Plaintext origin trust evidence](../explanation/validation.md#plaintext-origin-trust-evidence)).
-
-Each paired H2 recipe also states its HPACK encoder choices in
-`Http2Settings::hpack`, so the emitted CONNECT block matches the capture's
-representation, static name index, and Huffman flags for every pseudo-field:
+Each paired H2 recipe sets its HPACK header compression choices in
+`Http2Settings::hpack`:
 
 | H2 recipe | Kept out of the dynamic table | Repeated static name | Huffman-codes a literal |
 | --- | --- | --- | --- |
@@ -187,7 +175,7 @@ to ordinary requests on it too.
 
 ### Differences from the captures
 
-The recipes do not reproduce:
+The recipes differ in these ways:
 
 - Firefox's stream `WINDOW_UPDATE` after CONNECT HEADERS, and the second H2
   connection it opens and closes when reusing a session, which on a proxy
@@ -199,8 +187,8 @@ The recipes do not reproduce:
 
 ## Compression
 
-The `websocket-deflate` feature compiles RFC 7692 `permessage-deflate`
-support; each connection opts in with
+The `websocket-deflate` feature enables RFC 7692 `permessage-deflate`.
+Opt in for each connection with
 `WebSocketRequestBuilder::permessage_deflate`.
 
 | Setting | Default | Method |
