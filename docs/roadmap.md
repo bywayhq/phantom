@@ -77,7 +77,9 @@ Counts in the later phases come from a read-only review of `main` at
   shares the TLS session tickets of its origin's request pool, as the
   Firefox 157 `websocket` and `websocket-http1` runs resumed the page's
   ticket, so a Firefox-profile opening sends early data as they did, and the
-  Firefox recipes offer saved tickets in Firefox's order
+  next Windows Firefox-profile request uses another ticket of the page's
+  connection. The desktop recipe follows the usual Windows order; the Android
+  recipe's oldest-ticket order comes from source, with resumption uncaptured
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
 - Encrypted Client Hello from an HTTPS record on direct TCP connections,
   negotiated or exact, on `wss://` openings, and on QUIC connections to the

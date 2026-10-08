@@ -436,12 +436,15 @@ impl TrustAnchorIds {
 pub enum SessionTicketOrder {
     /// Offers the newest ticket and drops the oldest, as Chrome 154 does.
     NewestFirst,
-    /// Offers the oldest connection's tickets first, newest of them first,
-    /// and drops the ticket it would offer next, as Firefox 157 on Windows
-    /// does.
+    /// Offers the tickets of the connection that stored its first ticket
+    /// earliest, newest of them first, and drops the ticket it would offer
+    /// next. This follows the usual Firefox 157 Windows capture order;
+    /// tickets from different clock ticks or interleaved connections can
+    /// differ.
     OldestConnectionFirst,
-    /// Offers the oldest ticket and drops it first when full, as Firefox
-    /// does where its clock counts microseconds (macOS, Linux, Android).
+    /// Offers the ticket stored first and drops it first when full. This
+    /// follows the macOS Firefox capture order and Firefox's Unix source
+    /// when no tickets share a clock value. Android resumption is uncaptured.
     OldestFirst,
 }
 

@@ -1,9 +1,9 @@
 # Profile reference
 
 Lookup tables for profile components, built-in recipes, TLS ticket order,
-Lookup tables for profile components, built-in recipes, TLS ticket order,
 TCP and UDP socket options, HTTP/1.1 connections, idle HTTP/2 connections,
-request templates, required caller fields, and client hints. For how to
+request templates, required caller fields, and client hints. For how to use
+them, see [Browser profiles](../guides/profiles.md).
 
 > For builders and specialists looking up a recipe or template detail.
 
@@ -171,7 +171,7 @@ use it.
 | Variant | Offers first | Drops when full | Recipes |
 | --- | --- | --- | --- |
 | `NewestFirst` | The newest ticket | The oldest ticket | Chromium-family `*_tls`, which keep 2 tickets |
-| `OldestConnectionFirst` | The oldest connection's tickets, newest of them first | The ticket it would offer next | `firefox::v157_tls`, which keeps 10 |
+| `OldestConnectionFirst` | The first connection to store a ticket, newest of its tickets first | The ticket it would offer next | `firefox::v157_tls`, which keeps 10 |
 | `OldestFirst` | The oldest ticket | The oldest ticket | `firefox_android::v156_tls`, which keeps 10 |
 
 Firefox's order depends on how finely its clock counts: `firefox::v157_tls`
