@@ -1,8 +1,7 @@
 # HTTP/3 discovery
 
-Try HTTP/3 and HTTP/2 at the same time, find a server's HTTP/3 support
-through DNS before the first request, and keep what Phantom learned across
-restarts.
+Try HTTP/3 and HTTP/2 at the same time, discover HTTP/3 through DNS, and
+keep learned server addresses across restarts.
 
 > Read [HTTP/3 and Alt-Svc](http3.md) first.
 
@@ -33,9 +32,9 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 
 - The QUIC connection starts first. The connection to the origin starts
   after the delay you pass, here 300 ms. A zero delay starts both together.
-- When the alternative fails, Phantom marks it broken and stops racing it
-  for a while. With `CHROMIUM_153` that's 300 seconds, doubling after each
-  failure, up to two days.
+- If the alternative fails but another connection succeeds, Phantom stops
+  racing the failed address for a while. With `CHROMIUM_153` that's 300
+  seconds, doubling after each failure, up to two days.
 - When both fail, you get the origin's error.
 - Racing doesn't apply through a proxy.
 
@@ -44,8 +43,8 @@ To send an HTTP/3 request to an alternative you already know, see
 
 ## Find HTTP/3 through HTTPS DNS records
 
-A server can also announce HTTP/3 in an HTTPS DNS record. With discovery
-on, the first request to that server can already use HTTP/3. Turn on the
+A server can announce HTTP/3 in an HTTPS DNS record. Phantom looks up the
+record in the background and uses it on later requests. Turn on the
 `https-records` feature, then call `ClientBuilder::https_record_discovery`
 together with `ClientBuilder::alt_svc`:
 

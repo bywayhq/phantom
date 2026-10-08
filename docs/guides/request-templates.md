@@ -94,8 +94,8 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 `ClientHintSettings` holds the hint names, their order and values, and
 which ones go out by default. When a site asks for more hints with
 `Accept-CH`, Phantom sends them on later requests to that site. When a
-`Critical-CH` response asks for a missing hint, Phantom retries the request
-once with it. Clones of a client share what sites asked for. The
+`Critical-CH` response asks for a missing hint, Phantom retries safe
+methods such as GET once with it. Clones of a client share what sites asked for. The
 [client-hint reference](../reference/profiles.md#client-hints) has the full
 rules.
 

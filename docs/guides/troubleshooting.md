@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Find what you see, its likely cause, and the fix. Read
+Find the symptom below and try the suggested fix. Read
 [Using the client](client.md) first if you haven't built a client yet.
 
 | You see | Go to |
@@ -23,30 +23,25 @@ Find what you see, its likely cause, and the fix. Read
 
 ## A site blocks the request even with a Chrome profile
 
-The request probably doesn't look like Chrome in every part. A profile sets
-how the connection looks. The headers come from elsewhere. Check these:
+A Chrome profile doesn't guarantee that a site will accept your request.
+Check these parts of the request:
 
-- No request template. Without one, Phantom sends only the headers you add,
-  plus client hints, and no `User-Agent`. Add the browser's page-load
+- No request template. A profile doesn't supply a `User-Agent`. Add a page-load
   template ([Request templates](request-templates.md#apply-a-captured-request-template)).
-- Parts from different browsers or versions, such as a Chrome 154 profile
-  with a Chrome 153 `User-Agent`. Take the profile, template, client hints
+- Parts from different versions. Take the profile, template, client hints
   and `User-Agent` from one browser version.
-- A protocol the browser wouldn't use, such as HTTP/1.1 to a site Chrome
-  reaches over HTTP/2. Use `get_negotiated`, or the protocol the browser
-  uses.
-- Signals Phantom doesn't control. Phantom doesn't run JavaScript, so it
-  can't pass a JavaScript challenge. Your IP address also counts.
+- A different protocol. Use `get_negotiated`, or the protocol your browser
+  uses for the site.
+- Other signals. Phantom doesn't run JavaScript. A site can also use your
+  IP address, cookies or account history when deciding to block a request.
 
-To see the difference, request the same test page from your browser and
-from Phantom, and compare
+Compare your browser and Phantom on the same test page
 ([See your own fingerprint](../fingerprinting.md#see-your-own-fingerprint)).
 
 ## The build fails compiling BoringSSL
 
-The first build compiles BoringSSL, which needs CMake, Clang and a C++
-compiler, plus NASM on Windows. Install the
-[prerequisites](../getting-started.md#prerequisites).
+The first build compiles BoringSSL. Install the
+[build prerequisites](../getting-started.md#prerequisites).
 
 If Cargo reports two packages that link `boringssl`, another dependency,
 such as `boring-sys`, builds it too. Only one can be in your build
@@ -81,30 +76,27 @@ fn describe(error: &RequestError) -> String {
 
 ## Building the client fails
 
-`ClientBuilder::build` checks the profile and settings. The source error
-names the value at fault.
+`ClientBuilder::build` checks your settings. Read the error for the cause.
 
 | Kind | Likely cause | Fix |
 | --- | --- | --- |
 | `InvalidProfile` | A recipe value is invalid or unsupported on this OS | Fix the value ([Build a custom profile](profiles.md#build-a-custom-profile)) |
 | `InvalidPolicy` | Settings that conflict, or a delay too long for the runtime clock | Fix the setting the error names |
-| `TrustStore` | A root certificate in PEM text | Pass DER bytes |
+| `TrustStore` | A root certificate couldn't be loaded | Check the certificate and pass DER bytes |
 | `ProtocolConfiguration`, `NoSupportedProtocol` | A profile Phantom can't use | Start from a [built-in profile](profiles.md#choose-a-built-in-profile) |
 
 ## A request fails with a `Timeout` error
 
-A step of the request took longer than its limit.
-`RequestError::timeout_phase` tells you which one. Raise that limit, or the
-total ([Configure the client](client.md#configure-the-client)).
+`RequestError::timeout_phase` tells you which limit expired. Raise that limit
+([Configure the client](client.md#configure-the-client)).
 
-A request that never ends has no timeout, because timeouts are off by
-default. Set one.
+Timeouts are off by default. If a request never ends, check whether you set
+a timeout for the step that's waiting.
 
 ## An HTTP/3 request fails where a browser would fall back
 
-UDP is probably blocked. A browser then switches to TCP, but Phantom stays on
-the protocol you asked for. It fails, usually with `Connect`, `Http3` or a
-`Timeout`.
+Blocked UDP can prevent an HTTP/3 connection. Exact HTTP/3 requests stay on
+that protocol unless you enable HTTP/2 fallback.
 
 For an HTTP/3 request, set `RetryPolicy::with_http2_fallback`
 ([Fall back to HTTP/2 when QUIC fails](http3.md#fall-back-to-http2-when-quic-fails)).
@@ -118,32 +110,31 @@ proxy carries only HTTP/3. An HTTP proxy carries only HTTP/1.1 and HTTP/2.
 Pick a route that carries what you need, such as SOCKS5 for HTTP/3
 ([route matrix](../reference/route-matrix.md)).
 
-`ProtocolUnavailable` means the profile lacks a recipe the request needs.
-HTTP/3 needs HTTP/3 settings. A negotiated request needs both HTTP/1.1 and
-HTTP/2. Add the missing recipe to the profile.
+`ProtocolUnavailable` can mean missing protocol settings. Negotiated requests
+need HTTP/2 settings and `http/1.1` in the TLS protocol list (`ALPN`).
 
 ## A request or redirect is rejected
 
-`UnsupportedScheme` means the URL isn't `http` or `https`, or it's an
+`UnsupportedScheme` can mean the URL isn't `http` or `https`, or it's an
 `http://` URL sent as exact HTTP/2 or HTTP/3. Send `http://` URLs with
 `HttpProtocol::Http1` or `get_negotiated`. An HTTP/2 proxy route works
 differently ([route matrix](../reference/route-matrix.md)).
 
-`Redirect` means a redirect went to a scheme other than `http` or `https`,
-had more than one `Location`, or passed the redirect limit. Raise the limit,
-or turn off redirects with `RedirectPolicy::none()` and follow them yourself
+`Redirect` can mean an invalid target, multiple `Location` headers or too
+many redirects. Read the error's message for the cause. To follow redirects
+yourself, use `RedirectPolicy::none()`
 ([Follow redirects](redirects.md#follow-redirects)).
 
 ## A streaming body cannot be sent again
 
 A body from `streaming_body` can be sent only once. A 307 or 308 redirect,
-or a client-hint retry, would need it again. Use `body` with owned bytes
-when the request might be resent.
+or a client-hint retry, may need it again. Use `body` with owned bytes, or
+`buffered_streaming_body` to keep the stream for another attempt
+([Send a streaming body again](redirects.md#send-a-streaming-body-again)).
 
 ## A request template rejects the request
 
-The template has no place for a header the request would send. Common
-causes:
+Check for missing headers or template slots:
 
 - A required slot is empty, such as `User-Agent` for the Edge, Brave and
   Opera templates. Add the header
@@ -155,14 +146,13 @@ causes:
 
 ## A request header or URI is rejected
 
-`InvalidHeader` most often means you set `Host`. Phantom sets it from the
-URL, so remove yours. Phantom also rejects `Alt-Used`. On `http://`
-requests it rejects `Proxy-Authorization` too, unless the route is an HTTP
-proxy with no credentials of its own.
+If you set `Host`, remove it. Phantom sets it from the URL. It also reserves
+`Alt-Used` when Alt-Svc is enabled or you select an HTTP/3 alternative.
+For proxy credentials, use the route's authentication settings
+([HTTP proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy)).
 
-`InvalidTarget` means the URL has a `#fragment` or an invalid path or
-query. `InvalidUri` and `InvalidAuthority` mean the URL, host or port
-doesn't parse.
+`InvalidTarget` means the URL has a fragment or an invalid path or query.
+`InvalidUri` and `InvalidAuthority` mean the URL, host or port doesn't parse.
 
 ## The connection cannot be opened
 
@@ -177,23 +167,23 @@ doesn't parse.
 To retry failed connects on the same route, use
 `RetryPolicy::connection_failures`
 ([Retries and replays](retries.md#retry-when-a-connection-fails-to-open)).
-For a server with a private CA,
-[add its root](routes-and-proxies.md#trust-a-private-root-or-a-proxys-root).
+[Add the server's root](routes-and-proxies.md#trust-a-private-root-or-a-proxys-root)
+if it uses a private certificate authority.
 
 ## Reading the body fails
 
-`ResponseBodyLimit` means the body was larger than the limit you gave
-`collect_with_limit`. Raise the limit, or read the body frame by frame.
+`ResponseBodyLimit` means a collection or decoded-body limit was exceeded.
+Raise the relevant limit. For collection limits, you can read the body frame
+by frame instead.
 
-`ContentDecoding` means decoding is on and the response used a compression
-you didn't list in `Accept-Encoding`, an unknown one, or corrupt data
+`ContentDecoding` can mean unsupported compression, a coding missing from
+your `Accept-Encoding`, or corrupt data. Check the error's message
 ([Content decoding](content-decoding.md#limits)).
 
 ## The connection is not reused
 
-A body you drop before the end can close an HTTP/1.1 connection, so read
-bodies to the end. Each client has its own pool, so clone one client
-instead of building new ones
+Read bodies to the end to keep HTTP/1.1 connections open. Clone a client
+instead of building new ones to share its connection pool
 ([Share a client between tasks](connections-and-state.md#share-a-client-between-tasks)).
 
 ## A WebSocket connect ignores the client's timeout

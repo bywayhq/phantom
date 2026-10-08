@@ -154,13 +154,13 @@ async fn open_with_retry(client: &Client) -> Result<(), Box<dyn std::error::Erro
 }
 ```
 
-- Phantom retries a failed name lookup, a failed TCP connect to the server
-  or proxy, and a SOCKS5 proxy that couldn't reach the server.
+- This policy retries failed name lookups, TCP connects to the server or
+  proxy, and SOCKS5 failures to reach the server.
 - Each attempt sends a new `Sec-WebSocket-Key` and gets its own timeout.
-- TLS failures, proxy rejections, timeouts, and any answer from the server
-  are not retried.
-- Browsers don't retry an opening, so the policy is off by default and no
-  recipe turns it on.
+- It doesn't retry TLS failures, proxy rejections, timeouts, or server
+  answers. The Chromium recipe separately reopens a refused HTTP/2 CONNECT
+  once on the same connection.
+- The policy is off by default. No browser recipe turns it on.
 
 ## Limits
 

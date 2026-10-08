@@ -14,16 +14,12 @@ TLS handshake.
   settings, client hints, header order, and WebSocket handshake.
   [Consistency](fingerprinting.md#consistency) explains why all of these
   should name the same browser.
-- Each browser recipe is recorded from the real browser and tested against
-  that recording. [Validation](explanation/validation.md) describes how.
 - Phantom uses the protocol and proxy you choose. If it can't, it returns an
   error instead of quietly switching to something else. Falling back from
   HTTP/3 to HTTP/2 is an option you turn on.
 - Headers go out in the order you add them.
 - Each `Client` keeps its own connections, cookies, and TLS sessions, each
   with a size limit. Nothing is shared across the process.
-- `unsafe` code is confined to two small private modules: one calls
-  BoringSSL's QUIC API, and one sets a Windows socket option.
 
 ## When not to use Phantom
 
@@ -33,14 +29,12 @@ You probably want something else if one of these applies:
   automation tool such as Playwright.
 - You need a browser Phantom doesn't have. Phantom has one desktop and one
   Android version each of Chrome, Edge, Brave, Opera, and Firefox. It has no
-  Safari, no iOS, and nothing recorded on Linux.
-  [Coverage](reference/coverage.md#at-a-glance) lists each version and what
-  it covers.
+  Safari, no iOS, and no Linux captures.
 - You need many browser versions at once. Phantom drops a browser version
   when it adds the next one. The tools in the
   [comparison below](#compared-with-other-clients) carry more.
-- You need a stable API from crates.io. Phantom is pre-1.0, isn't on
-  crates.io, and its API changes between commits.
+- You need a crates.io dependency. Phantom uses a Git or path dependency
+  today.
 - You can't build C and C++ code. Phantom builds BoringSSL from source, which
   needs CMake, Clang, and a C++ compiler
   ([Prerequisites](getting-started.md#prerequisites)).
@@ -69,4 +63,4 @@ it isn't on crates.io.
 ## Next
 
 - [Getting started](getting-started.md): build Phantom and send a request.
-- [Coverage](reference/coverage.md): what each browser recipe covers.
+- [Coverage](reference/coverage.md): browser versions and supported layers.

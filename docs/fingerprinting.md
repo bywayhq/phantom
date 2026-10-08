@@ -103,7 +103,8 @@ Accept-Language
 HTTP/2 and HTTP/3 put pseudo-headers (`:method`, `:authority`, `:scheme`,
 `:path`) before the others, and browsers order those differently too. Chrome
 sends `:method`, `:authority`, `:scheme`, `:path`. Firefox 157 sends
-`:method`, `:path`, `:authority`, `:scheme`.
+`:method`, `:path`, `:authority`, `:scheme` on HTTP/2 and
+`:method`, `:scheme`, `:authority`, `:path` on HTTP/3.
 
 This is why copying a browser's headers into another client isn't enough.
 The names and values can match while the header order, the pseudo-header

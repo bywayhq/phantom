@@ -82,10 +82,10 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Phantom falls back when the QUIC connection is refused, fails, or takes
-more than 4 seconds. That one request goes over HTTP/2 with the profile's
-HTTP/2 settings, so the profile needs them. The next request tries QUIC
-again.
+Phantom falls back when QUIC setup fails or times out. Each QUIC attempt
+has a four-second limit; your connect timeout can stop setup sooner.
+Connection retries can add time before the fallback. That request then
+uses the profile's HTTP/2 settings. The next request tries QUIC again.
 
 A request that fails after it was sent doesn't fall back. Neither does a
 request sent as early data, so build the client with

@@ -25,8 +25,8 @@ choices, so Phantom asks you to make them
 - You give the client a [profile](../reference/glossary.md#profile): the
   browser it copies on the wire.
 - You pick the protocol for each request.
-- Redirects, timeouts, retries, cookies and decompression are off until you
-  turn them on ([Off by default](../reference/limits.md#off-by-default)).
+- Redirects, timeouts, cookies, decompression and most retries are off until
+  you turn them on ([Off by default](../reference/limits.md#off-by-default)).
 - Phantom adds no headers such as `User-Agent`, and sends yours in the
   order you add them.
 - There are no `json`, `form` or `query` helpers.

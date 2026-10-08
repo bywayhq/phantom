@@ -142,8 +142,8 @@ detail.
 
 ## Skip work and bound waits
 
-Redirects, cookies, decompression, retries and timeouts are off by default,
-so a client that turns none of them on does none of that work. Set
+Redirects, cookies, decompression and timeouts are off by default. Most
+retries are too; the [retry guide](retries.md) lists the exceptions. Set
 `RequestTimeouts` to stop waiting on a slow server
 ([Using the client](client.md#configure-the-client)). Use
 `RetryPolicy::connection_failures` to retry a failed connection

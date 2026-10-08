@@ -102,7 +102,7 @@ per name until the answer expires.
 
 ## Resolve names with Phantom's own DNS queries
 
-Have Phantom send DNS queries itself, as Chrome's built-in DNS client does,
+Have Phantom send DNS queries itself, as Chromium's built-in DNS client does,
 and cache each answer for as long as the DNS record allows.
 
 ```rust

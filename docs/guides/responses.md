@@ -31,7 +31,7 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `OrderedResponseHeaders` keeps the server's order and any duplicates.
-`ResponseInfo` also reports the protocol used and the number of retries.
+`ResponseInfo` also reports the protocol and connection-setup retry count.
 
 The body arrives as the server sent it, compressed or not
 ([Content decoding](content-decoding.md)). `collect_with_limit` fails once
@@ -76,8 +76,8 @@ async fn upload(client: &Client, file: Vec<u8>) -> Result<(), Box<dyn std::error
         .send()
         .await?;
     if response.status().as_u16() == 417 {
-        // The server refused the expectation. Send the request again
-        // without it.
+        // The server refused the expectation. If the body was still
+        // waiting, it wasn't sent. Decide whether to try without Expect.
     }
     Ok(())
 }
@@ -85,8 +85,8 @@ async fn upload(client: &Client, file: Vec<u8>) -> Result<(), Box<dyn std::error
 
 The body waits until the server answers `100 Continue` or the wait ends.
 The wait counts toward the `response_head` and `total` timeouts. If the
-server answers with a final status first, such as `401` or `417`, Phantom
-returns it and never sends the body.
+server sends a final status while the body still waits, such as `401` or
+`417`, Phantom returns it without sending the body.
 
 ## Limits
 

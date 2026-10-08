@@ -93,8 +93,8 @@ request has:
 
 The placement works with your own headers and with a
 [request template's](request-templates.md#apply-a-captured-request-template)
-headers. On HTTP/2 and HTTP/3, the recipes also split the header into one
-`cookie` header per cookie, as the browsers do
+headers. Chromium recipes split cookies into separate headers on HTTP/2
+and HTTP/3. Firefox splits them on HTTP/2 and keeps them together on HTTP/3
 ([Cookie crumbs](../reference/profiles.md#cookie-crumbs)).
 
 A WebSocket handshake ignores the placement. It puts the jar's cookies at
@@ -105,9 +105,9 @@ the `client_cookies` slot of its own template.
 - The jar treats every request as a page the user opened from the address
   bar. To send what a cross-site request would, set your own `Cookie`
   header.
-- On HTTP/2 and HTTP/3, the split cookie headers go into the compression
-  table, as in the browsers. Someone who can add headers to your requests
-  and watch their size could use this to guess a cookie value.
+- Recipes that index cookie headers put them in the compression table.
+  Someone who can add request headers and watch their size could guess a
+  cookie value.
   `RequestHeader::sensitive` doesn't change it. Set `cookie_crumbs` to
   `Whole` in the profile to avoid it, at the cost of looking less like the
   browser ([why](../explanation/design.md#cookie-crumbs-and-compression)).

@@ -1656,6 +1656,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Rewrote the README, start pages, and guides in plain language, with
+  shorter explanations and the existing examples. Corrected descriptions
+  of HTTP/3 discovery and fallback, retries, cookies, and response metadata.
 - Wire change for the Firefox HTTP/2 recipe: `firefox::v157_http2` stops
   reusing a connection with no response data for 170 seconds and closes it
   with `GOAWAY(NO_ERROR)` about a second later, or when its last stream

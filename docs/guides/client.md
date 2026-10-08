@@ -76,8 +76,9 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
 `get` and `request` use the protocol you pass. If the server or proxy can't
 carry it, the request fails. `get_negotiated` and `request_negotiated` let
-the server pick HTTP/1.1 or HTTP/2 during the handshake. A plain `http://`
-URL has no handshake, so it always gets HTTP/1.1.
+the server pick HTTP/1.1 or HTTP/2 during the handshake. Direct `http://`
+requests use HTTP/1.1. An [HTTP/2 proxy](routes-and-proxies.md#speak-http2-to-the-proxy)
+can forward them over HTTP/2.
 
 Not every protocol works through every proxy. The
 [route matrix](../reference/route-matrix.md) lists the combinations.

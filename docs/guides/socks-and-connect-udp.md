@@ -68,7 +68,7 @@ proxy itself, the proxy leg, uses HTTP/3 by default:
 - The proxy's certificate is checked against the proxy roots. The server's
   certificate is checked against the server roots.
 - `with_basic_auth` sends credentials only after the proxy answers `407`.
-  Every tunnel starts without them, as in Chrome and Firefox.
+  Every tunnel starts without them.
 
 This route carries only HTTP/3 requests that use `HttpProtocol::Http3`.
 HTTP/1.1, HTTP/2, and requests that let the server pick fail on it.
