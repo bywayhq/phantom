@@ -15,12 +15,12 @@ use http::HeaderMap;
 use http_body::{Body, Frame, SizeHint};
 use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
 
-/// Streaming response body returned by the public client.
+/// Read a response body frame by frame or collect it with a byte limit.
 ///
 /// `ResponseBody` implements [`http_body::Body`] with [`RequestError`] as its
-/// error. Read it frame by frame, or use [`Self::collect_with_limit`] for a
-/// bounded buffer. Dropping an incomplete body preserves the selected
-/// protocol's cancellation behavior and bounded driver teardown.
+/// error. Use [`Self::collect_with_limit`] to collect the data into a buffer.
+/// Dropping an incomplete body follows the protocol's cancellation rules
+/// and the connection driver's cleanup limits.
 ///
 /// # Frame errors
 ///
@@ -82,7 +82,7 @@ enum ResponseBodyInner {
 }
 
 impl ResponseBody {
-    /// Collects this response body while enforcing an inclusive byte limit.
+    /// Collects the body, accepting up to `maximum_bytes` of data.
     ///
     /// Trailers are consumed and discarded. If the data exceeds
     /// `maximum_bytes`, the body is dropped immediately so the selected

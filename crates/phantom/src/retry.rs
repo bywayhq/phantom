@@ -10,21 +10,20 @@ use crate::{
 
 mod retry_after;
 
-/// Policy for retrying requests after connection failures or, when opted in,
-/// retryable response statuses.
+/// Choose which connection failures and response statuses to retry.
 ///
-/// The default, equal to [`RetryPolicy::none`], retries nothing. Set it for a
-/// client with [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy);
+/// The default is [`RetryPolicy::none`]. Set a policy for a
+/// client with [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
 /// [`RequestBuilder::retry_policy`](crate::RequestBuilder::retry_policy)
-/// replaces the whole policy for one request. Every retry and replay keeps the
-/// request's route and its exact protocol or negotiated selection rule, except
-/// the opt-in [`with_http2_fallback`](Self::with_http2_fallback), which moves
-/// an exact HTTP/3 request whose connection could not be set up to HTTP/2.
+/// replaces the whole policy for one request. Retries and replays keep the
+/// route and protocol selection rule. With
+/// [`with_http2_fallback`](Self::with_http2_fallback), an exact HTTP/3 request
+/// can try HTTP/2 after its connection setup fails.
 ///
 /// An eligible connection-setup retry occurs inside the selected H1, H2, or H3
-/// pool, or before ALPN selection in the negotiated H1/H2 pool, before the
-/// origin request or body is dispatched, so methods and one-shot streaming
-/// bodies are not replayed. Connection-setup retries never cover TLS, ALPN,
+/// pool. In the negotiated H1/H2 pool, it occurs before ALPN selection.
+/// The origin request and body have not been sent, so no method or body
+/// needs replaying. Connection-setup retries do not cover TLS, ALPN,
 /// proxy negotiation, timeouts, HTTP responses, or protocol failures.
 ///
 /// [`with_reused_connection_replay`](Self::with_reused_connection_replay)
@@ -37,32 +36,30 @@ mod retry_after;
 /// processed. [`with_status_retry`](Self::with_status_retry) separately opts
 /// into repeating idempotent requests that received a caller-listed status.
 /// The replay and status-retry classes never resend a one-shot streaming
-/// body; such a request returns the original error or response.
+/// body. Such a request returns the original error or response.
 ///
-/// A few replays are browser behavior rather than caller policy, so they run
-/// whatever the policy is and no policy budget counts them. All but the last
-/// repeat a request the server did not process:
+/// Some replays run independently of this policy and do not consume its
+/// budgets. All but the last repeat a request the server did not process:
 ///
-/// - The negotiated and exact HTTP/2 pools send a bodyless GET refused by
-///   `GOAWAY(NO_ERROR)` once more on a replacement connection, once per
-///   dispatch to the pool.
+/// - The negotiated and exact HTTP/2 pools send a bodyless GET without
+///   trailers once more if refused by `GOAWAY(NO_ERROR)`. It uses a replacement
+///   connection, once per dispatch to the pool.
 /// - When an HTTP/2 or HTTP/3 connection's ALPS `ACCEPT_CH` names a client
-///   hint that a navigation, or a request without a template, lacks, the pool
-///   writes nothing of the request, and its attempt builds it again with the
-///   hint and sends it, as Chromium restarts a navigation. Any method and
-///   body may restart, since nothing was sent. Each restart adds at least one
+///   hint that a page load, or a request without a template, lacks, the pool
+///   sends nothing of the request. The attempt builds it again with the hint
+///   and sends it. Any method and body may restart because nothing was sent.
+///   Each restart adds at least one
 ///   hint, so an attempt restarts at most once per hint the profile sends on
-///   request; the origin attempt of an Alt-Svc race starts with none.
+///   request. The origin attempt of an Alt-Svc race starts with none.
 /// - When a server rejects TLS early data, the connection that sent it sends
-///   the same bytes again once its handshake completes, as Chrome does over
-///   HTTP/3 and Firefox over TCP. The TCP stream or the HTTP/3 pool owns the
-///   resend; a handshake answers early data once, so it happens at most once
-///   per connection.
+///   the same bytes again once its handshake completes. The TCP stream or the
+///   HTTP/3 pool owns the resend. The handshake answers early data once, so
+///   the resend happens at most once per connection.
 /// - When a server rejects a negotiated request's early data over TCP and
 ///   then selects another ALPN protocol, the connection fails before the
 ///   server processes anything. The negotiated pool removes the origin's TLS
 ///   tickets and sends the request once on a new connection that offers no
-///   early data, as Firefox restarts it. A request that is not replay safe
+///   early data. A request that is not replay safe
 ///   waits for the server's answer before its body is used, so its body is
 ///   sent only on that new connection.
 /// - When an HTTP/2 connection closes itself over an unanswered PING before
@@ -75,8 +72,8 @@ mod retry_after;
 /// A delay or `Retry-After` limit must be small enough to add to the runtime
 /// clock. A client policy that exceeds it makes
 /// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
-/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy); a
-/// per-request policy that exceeds it makes
+/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+/// A per-request policy that exceeds it makes
 /// [`RequestBuilder::send`](crate::RequestBuilder::send) fail with
 /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
 ///
@@ -123,7 +120,7 @@ impl RetryPolicy {
     /// Each retry waits for `delay` before starting another connection attempt.
     /// The complete request's total timeout continues through this delay. One
     /// budget of `maximum` covers every redirect hop of a request. The other
-    /// retry classes start disabled; chain their methods to enable them.
+    /// retry classes start disabled. Chain their methods to enable them.
     #[must_use]
     pub const fn connection_failures(maximum: NonZeroUsize, delay: Duration) -> Self {
         Self {
@@ -139,15 +136,18 @@ impl RetryPolicy {
     /// Sets whether a request is replayed after its reused HTTP/1.1
     /// connection closes before any response byte.
     ///
-    /// When enabled, an exact or negotiated HTTP/1.1 request is sent once
-    /// more on a fresh connection over the same route when all of these hold:
-    /// it was written to a keep-alive connection that had already delivered a
-    /// response, that connection closed or was reset before any byte of the
-    /// new response arrived, the method is idempotent (RFC 9110, section
-    /// 9.2.2), and the body is absent or owned bytes. A one-shot streaming
-    /// body, a fresh connection, or a failure after any response byte returns
-    /// the original error. At most one replay occurs per redirect hop, without
-    /// a delay, and it does not consume the connection-setup retry budget.
+    /// When enabled, exact and negotiated HTTP/1.1 requests can be sent again
+    /// on a fresh connection over the same route. All these conditions apply:
+    ///
+    /// - The request was written to a connection that had delivered a response.
+    /// - It closed or reset before any byte of the new response arrived.
+    /// - The method is idempotent (RFC 9110, section 9.2.2).
+    /// - The body can be replayed: absent, owned bytes, or buffered within
+    ///   its limit with no source failure.
+    ///
+    /// A one-shot body, fresh connection or failure after any response byte
+    /// returns the original error. At most one replay occurs per redirect
+    /// hop. It has no delay and does not consume the connection-setup budget.
     ///
     /// The same replay covers an HTTP/2 request that reached a pooled
     /// connection after the connection closed itself over an unanswered PING
@@ -164,7 +164,7 @@ impl RetryPolicy {
     }
 
     /// Replays, at most `maximum` times per request, an HTTP/2 or HTTP/3
-    /// request that the peer reported as not processed; `None` disables it.
+    /// request that the peer reported as not processed. `None` disables it.
     ///
     /// This is caller policy, never browser or profile behavior. A replay
     /// starts only after one of these peer signals, observed before any
@@ -181,11 +181,12 @@ impl RetryPolicy {
     ///   so the request was never sent (RFC 9114, section 5.2).
     ///
     /// Because the server did not act on the request, any method may be
-    /// replayed. The body must be absent or owned bytes; a one-shot streaming
-    /// body returns the original error without opening another connection.
+    /// replayed. The body must be absent, owned bytes or buffered within its
+    /// limit with no source failure. A one-shot streaming body returns the
+    /// original error without opening another connection.
     /// A replay is sent at once, without a delay, on a fresh or different
     /// connection with the same route and protocol, or the same negotiated
-    /// selection rule; on an Alt-Svc alternative it stays on that
+    /// selection rule. On an Alt-Svc alternative it stays on that
     /// alternative. The budget is shared by every redirect hop and consumes
     /// no other retry budget. HTTP/2 streams at or below a `GOAWAY`
     /// last-stream-id, HTTP/3 streams already open when a `GOAWAY` arrives,
@@ -237,27 +238,25 @@ impl RetryPolicy {
         }
     }
 
-    /// Sets whether an exact HTTP/3 request whose connection could not be set
-    /// up is sent once more over the profile's HTTP/2 recipe, as a browser
-    /// sends a request over TCP once its QUIC alternative fails.
+    /// Sets whether failed exact HTTP/3 setup falls back to HTTP/2.
     ///
-    /// This is caller policy, never browser or profile behavior, and it is
-    /// the one retry that changes protocol. It starts after any
+    /// This is the only retry policy that changes protocol. You enable it
+    /// separately from browser settings. It starts after any
     /// connection-setup retries, only when no QUIC connection could carry the
     /// request: the connection attempt failed or was refused, the QUIC or TLS
     /// handshake failed, the attempt did not finish within the connect
     /// timeout, or a handshake that sent early data failed before the request
     /// was written. A request that could fall back limits each QUIC attempt
-    /// to 4 seconds, the limit of a raced Alt-Svc alternative, which comes
-    /// from Chromium's QUIC idle timeout before a handshake; Chromium lets a
-    /// responsive handshake run longer, so a slow one falls back here and
-    /// not in Chromium. A name-resolution failure, a SOCKS5 proxy failure, a
-    /// rejected Encrypted Client Hello, a full pool, and any failure after
-    /// the request was written return the HTTP/3 error. So does a request to
-    /// an alternative pinned with
+    /// to 4 seconds, the same limit as a raced Alt-Svc alternative. Chromium
+    /// limits handshake inactivity instead and lets a responsive handshake
+    /// run longer. A slow responsive handshake can therefore fall back here
+    /// while Chromium keeps waiting. A name-resolution failure, a SOCKS5
+    /// proxy failure, rejected Encrypted Client Hello, a full pool, or a
+    /// failure after writing the request returns the HTTP/3 error.
+    /// So does a request to an alternative pinned with
     /// [`RequestBuilder::alt_svc_alternative`](crate::RequestBuilder::alt_svc_alternative),
     /// and a replay-safe request sent as early data on a resumed connection,
-    /// which leaves before its handshake completes; turn early data off with
+    /// which leaves before its handshake completes. Turn early data off with
     /// [`ClientBuilder::http3_early_data`](crate::ClientBuilder::http3_early_data)
     /// for such a request to fall back too.
     ///
@@ -265,9 +264,9 @@ impl RetryPolicy {
     /// same route: the profile's TLS ClientHello over TCP, its
     /// [`Http2Settings`](crate::profile::Http2Settings), and a template's
     /// HTTP/2 field list. The rest of the redirect hop stays on HTTP/2, and
-    /// the next hop tries HTTP/3 again; nothing is remembered between
-    /// requests, so each one tries QUIC first. Any method may fall back,
-    /// since the server processed none of the request; the body must be
+    /// the next hop tries HTTP/3 again. Nothing is remembered between
+    /// requests, so each one tries QUIC first. Any method may fall back
+    /// because the server processed none of the request. The body must be
     /// absent, owned, or buffered within its limit, and a one-shot streaming
     /// body returns the HTTP/3 error. If the HTTP/2 attempt fails too, its
     /// error is returned.
@@ -437,9 +436,9 @@ impl StatusRetry {
     /// Uses a valid `Retry-After` field (RFC 9110, section 10.2.3) instead of
     /// the constant delay, up to `maximum_delay`.
     ///
-    /// Both `delta-seconds` and the IMF-fixdate `HTTP-date` form are accepted;
-    /// a date becomes a delay against the system clock. A requested delay
-    /// above `maximum_delay` returns the response without waiting or
+    /// Accepts seconds (`delta-seconds`) or a date in IMF-fixdate `HTTP-date`
+    /// format. A date becomes a delay against the system clock. A requested
+    /// delay above `maximum_delay` returns the response without waiting or
     /// retrying. A missing, repeated, obsolete-format, or malformed field
     /// falls back to the constant delay.
     #[must_use]

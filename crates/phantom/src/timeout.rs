@@ -10,20 +10,20 @@ use tokio::time::{Instant, Sleep};
 
 use crate::{HttpProtocol, RequestError};
 
-/// Time limits for one ordinary HTTP request operation.
+/// Set time limits for one HTTP request.
 ///
-/// Every limit is disabled by default. Phase limits restart for each redirect,
-/// connection retry, or bounded internal replay. The total limit is one
-/// absolute deadline shared by every attempt, retry delay, and the final
-/// response body. An elapsed limit fails with
+/// Every limit is disabled by default. Each phase limit restarts for a
+/// redirect, connection retry or internal replay. The total deadline covers
+/// all attempts, retry delays and the final response body. An expired limit
+/// returns
 /// [`RequestErrorKind::Timeout`](crate::RequestErrorKind::Timeout) and names
-/// its [`TimeoutPhase`]. A duration the runtime clock cannot represent fails
-/// [`ClientBuilder::build`](crate::ClientBuilder::build) with
-/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy), or
-/// a request with
+/// its [`TimeoutPhase`]. A duration outside the runtime clock's range makes
+/// [`ClientBuilder::build`](crate::ClientBuilder::build) return
+/// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+/// A per-request limit outside that range returns
 /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
-/// A set limit needs a Tokio runtime with time enabled; without one the
-/// request fails with
+/// Enable the Tokio runtime's timers when you set a limit. Without them,
+/// the request returns
 /// [`RequestErrorKind::RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable).
 ///
 /// # Examples
@@ -63,7 +63,7 @@ impl RequestTimeouts {
         }
     }
 
-    /// Limits how long a request may wait for local pool admission.
+    /// Limits how long a request waits for space in a connection or stream pool.
     ///
     /// Default: no limit.
     #[must_use]
@@ -72,21 +72,22 @@ impl RequestTimeouts {
         self
     }
 
-    /// Limits connection establishment, including DNS, proxy, TLS, and protocol setup.
+    /// Limits connection setup, including DNS, proxy negotiation and TLS.
+    /// Protocol setup counts toward the same limit.
     ///
     /// A TCP connection that offers TLS early data
     /// ([`TlsSettings::tcp_early_data`](crate::profile::TlsSettings::tcp_early_data))
-    /// is ready once its ClientHello is sent, and the server's answer
-    /// completes the handshake later. A request sent as early data waits for
-    /// that answer within its [`response_head`](Self::response_head) limit. A
-    /// negotiated request that is not replay safe waits for it within the
-    /// connect limit of the attempt that opened its connection, or that
-    /// waited for another request's setup of it, so opening the connection
-    /// and finishing its handshake share that one limit; pool admission and
-    /// earlier attempts do not count against it. On a connection it reused or
-    /// was handed by an Alt-Svc race, the wait starts a connect limit of its
-    /// own. An exact HTTP/1.1 or HTTP/2 request waits within its
-    /// response-head limit.
+    /// is ready after sending its ClientHello. The server's answer completes
+    /// the handshake later. A request sent as early data waits for that
+    /// answer within its [`response_head`](Self::response_head) limit.
+    ///
+    /// A negotiated request that cannot safely be replayed waits for the
+    /// answer before sending. That wait shares the connect limit of the
+    /// attempt that opened the connection or waited for another request to
+    /// open it. Pool admission and earlier attempts do not use that limit.
+    /// A reused connection starts a new connect limit for the wait.
+    /// A connection received from an Alt-Svc race does the same.
+    /// Exact HTTP/1.1 and HTTP/2 requests wait within their response-head limit.
     ///
     /// Default: no limit.
     #[must_use]
@@ -95,7 +96,7 @@ impl RequestTimeouts {
         self
     }
 
-    /// Limits dispatch through receipt of the final response head.
+    /// Limits sending the request and waiting for the final response headers.
     ///
     /// This phase includes sending the request body, whether owned or
     /// streamed, as well as waiting for response headers. Default: no limit.
@@ -169,15 +170,15 @@ impl RequestTimeouts {
     }
 }
 
-/// Named request phase that exhausted its configured time budget.
+/// The request phase that reached its time limit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum TimeoutPhase {
-    /// Waiting for local connection or stream admission.
+    /// Waiting for space in a connection or stream pool.
     PoolAdmission,
     /// DNS, proxy, transport, TLS, or protocol connection setup.
     Connect,
-    /// Request dispatch through the final response head.
+    /// Sending the request and waiting for the final response headers.
     ResponseHead,
     /// Waiting for the next response-body frame after read inactivity.
     ReadIdle,
@@ -186,9 +187,9 @@ pub enum TimeoutPhase {
     /// A WebSocket opening handshake, from the start of the connect until
     /// the accepting response is validated.
     ///
-    /// This one deadline covers name resolution, proxy setup, TLS, the
-    /// opening request, and its response, as Chromium's handshake timer
-    /// does; Firefox starts its timer after it resolves the host.
+    /// This deadline covers name resolution, proxy setup, TLS, the opening
+    /// request and its response. Chromium's handshake timer covers the same
+    /// steps. Firefox starts its timer after resolving the host.
     /// `WebSocketRequestBuilder::handshake_timeout` sets it, with the
     /// `websocket` feature.
     WebSocketHandshake,

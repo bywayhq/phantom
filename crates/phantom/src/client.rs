@@ -52,25 +52,24 @@ impl HttpProtocol {
     }
 }
 
-/// Cloneable owner of transport configuration and bounded cross-request state.
+/// Send requests and share connections by cloning this client.
 ///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
 /// sessions, negotiated client-hint state, optional Alt-Svc state, and the
 /// address cache. Host overrides and the address resolver are settings.
-/// Independently built clients share none of that mutable state. Settings
-/// are fixed when [`ClientBuilder::build`] returns; a request can override
-/// only its route, timeouts, and retry policy, and can opt into content
-/// decoding.
+/// Clients you build separately keep their own mutable state. Settings are
+/// fixed when [`ClientBuilder::build`] returns. For each request, you can
+/// override the route, timeouts and retry policy, or enable content decoding.
 ///
-/// A connection belongs to the Tokio runtime that opened it, because its
-/// driver runs there. A request on another runtime opens a connection of its
-/// own, so a client may outlive a runtime or serve several. The per-origin
-/// request limits span runtimes, and connections opened on a runtime that was
-/// dropped stay pooled until the pool evicts them. A request left pending on
-/// a runtime that is alive but no longer driven holds its per-origin slot
-/// until it is dropped, and
+/// A connection belongs to the Tokio runtime that opened it. Its driver runs
+/// there. A request on another runtime opens its own connection. You can use
+/// one client across several runtimes, or keep it after a runtime ends.
+/// Per-origin request limits apply across all runtimes. Connections from a
+/// dropped runtime stay pooled until eviction. A pending request on a runtime
+/// you stopped driving holds its origin's slot until you drop it.
+/// Use
 /// [`RequestTimeouts::pool_admission`](crate::RequestTimeouts::pool_admission)
-/// bounds how long other requests wait for one.
+/// to limit how long other requests wait for a slot.
 ///
 /// # Examples
 ///
@@ -421,8 +420,9 @@ impl Client {
     ///   has a fragment or its path and query are not a valid request target.
     ///
     /// [`RequestBuilder::send`] checks the scheme against the protocol and
-    /// route, also before I/O: `http://` works only with
-    /// [`HttpProtocol::Http1`] on a direct, HTTP proxy, or SOCKS5 route.
+    /// route, also before I/O. Direct, SOCKS5 and HTTP/1 proxy routes send
+    /// `http://` requests with [`HttpProtocol::Http1`]. An HTTP/2 proxy can
+    /// forward them with [`HttpProtocol::Http2`].
     pub fn get(
         &self,
         protocol: HttpProtocol,
@@ -453,8 +453,9 @@ impl Client {
     ///   has a fragment or its path and query are not a valid request target.
     ///
     /// [`RequestBuilder::send`] checks the scheme against the protocol and
-    /// route, also before I/O: `http://` works only with
-    /// [`HttpProtocol::Http1`] on a direct, HTTP proxy, or SOCKS5 route.
+    /// route, also before I/O. Direct, SOCKS5 and HTTP/1 proxy routes send
+    /// `http://` requests with [`HttpProtocol::Http1`]. An HTTP/2 proxy can
+    /// forward them with [`HttpProtocol::Http2`].
     pub fn request(
         &self,
         protocol: HttpProtocol,
@@ -464,31 +465,34 @@ impl Client {
         RequestBuilder::new_client(self.clone(), protocol, method, uri)
     }
 
-    /// Starts one GET that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
+    /// Starts a GET that selects HTTP/2, HTTP/1.1 or a learned HTTP/3 alternative.
     ///
-    /// Negotiated requests run on direct, SOCKS5, and HTTP proxy routes; an
-    /// HTTP proxy carries each connection in one CONNECT tunnel. The client
-    /// opens at most one current TCP/TLS generation per origin and route, and
-    /// reuses the ALPN-selected protocol while that generation is eligible.
-    /// Exact `h2` selects HTTP/2; exact `http/1.1` or absent ALPN selects
-    /// HTTP/1.1. It does not race. An opt-in
-    /// [`RetryPolicy`](crate::RetryPolicy) may retry a TCP or proxy connect
-    /// failure before TLS starts; TLS and ALPN failures are terminal.
-    /// When bounded Alt-Svc learning is enabled, a fresh `h3` advertisement
-    /// from an earlier negotiated response selects HTTP/3 without changing the
-    /// origin identity or the route. Alternatives are learned only on direct
-    /// and SOCKS5 routes, because a CONNECT tunnel cannot carry QUIC; over an
-    /// HTTP proxy, negotiated requests stay on HTTP/2 or HTTP/1.1. A
+    /// You can use direct, SOCKS5 and HTTP proxy routes. For HTTPS origins,
+    /// an HTTP proxy carries the connection through a CONNECT tunnel.
+    /// The client opens at most one current TCP/TLS connection group per
+    /// origin and route. It reuses the protocol selected by the handshake
+    /// while that group can accept requests. The handshake's protocol list
+    /// (`ALPN`) selects HTTP/2 for `h2`. It selects HTTP/1.1 for `http/1.1`
+    /// or absent ALPN. Negotiation alone does not race connections.
+    ///
+    /// An enabled [`RetryPolicy`](crate::RetryPolicy) can retry TCP or proxy
+    /// connection failures before TLS starts. TLS and ALPN failures end the
+    /// request. With Alt-Svc learning enabled, an unexpired `h3` advertisement
+    /// from an earlier negotiated response can select HTTP/3. The origin
+    /// identity and route stay the same. Direct and SOCKS5 routes learn
+    /// alternatives. HTTP proxy routes stay on HTTP/2 or HTTP/1.1 because
+    /// their CONNECT tunnels cannot carry QUIC. A
     /// CONNECT-UDP route, configured or per request, fails
     /// [`RequestBuilder::send`] with
     /// [`RequestErrorKind::UnsupportedRoute`](crate::RequestErrorKind::UnsupportedRoute)
     /// before I/O. [`crate::ResponseInfo::protocol`] reports the selected
     /// protocol. Client cookies and learned client hints apply. Negotiated
-    /// generations are isolated from the exact-protocol pools.
+    /// connections use separate pools from exact-protocol connections.
     ///
-    /// An `http://` origin has no TLS stream for ALPN, so the request is sent
-    /// as exact HTTP/1.1 over the route, as a browser sends it, reports
-    /// [`HttpProtocol::Http1`], and learns no Alt-Svc alternative.
+    /// An `http://` origin has no TLS handshake. Its requests use HTTP/1.1,
+    /// except through a proxy configured to forward them over HTTP/2.
+    /// [`crate::ResponseInfo::protocol`] reports the protocol used. Plaintext
+    /// requests learn no Alt-Svc alternative.
     ///
     /// # Errors
     ///
@@ -513,9 +517,9 @@ impl Client {
 
     /// Starts one request that selects HTTP/2, HTTP/1.1, or a learned H3 alternative.
     ///
-    /// This has the same route and pooled-generation selection contract as
-    /// [`Self::get_negotiated`]. The request must be representable by both
-    /// HTTP versions so validation can finish before network I/O.
+    /// Routes and connection reuse follow [`Self::get_negotiated`]. The
+    /// request must be valid for both HTTP versions so validation can finish
+    /// before network I/O.
     ///
     /// # Errors
     ///
@@ -744,7 +748,7 @@ impl ClientBuilder {
     ///
     /// By default only the bundled public roots are trusted. Certificate and
     /// hostname verification remain enabled. The added roots apply to origin
-    /// TLS on HTTP/1.1, HTTP/2, and HTTP/3; proxies use
+    /// TLS on HTTP/1.1, HTTP/2 and HTTP/3. For proxies, use
     /// [`Self::add_proxy_root_certificate_der`]. A certificate that cannot be
     /// loaded fails [`Self::build`] with
     /// [`BuildErrorKind::TrustStore`](crate::BuildErrorKind::TrustStore).

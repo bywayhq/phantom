@@ -4,9 +4,10 @@ use http::Uri;
 
 use crate::{ContentCoding, HttpProtocol};
 
-/// Facade metadata attached to every successful ordinary response.
+/// The final URL, protocol and retry counts for an HTTP response.
 ///
-/// Retrieve this value through [`http::Response::extensions`].
+/// You can retrieve it through [`http::Response::extensions`] on each
+/// successful HTTP response.
 #[derive(Clone, Eq, PartialEq)]
 pub struct ResponseInfo {
     effective_uri: Uri,
@@ -59,9 +60,9 @@ impl ResponseInfo {
 
     /// Returns the number of connection-setup retries performed before this response.
     ///
-    /// Each count is one repeated setup attempt under
-    /// [`RetryPolicy::connection_failures`](crate::RetryPolicy::connection_failures),
-    /// summed across every redirect hop and counted when the attempt starts.
+    /// Counts retries under
+    /// [`RetryPolicy::connection_failures`](crate::RetryPolicy::connection_failures)
+    /// across all redirect hops. A retry counts when its setup attempt starts.
     /// Redirects, status retries, reused-connection and `GOAWAY` replays,
     /// proxy-authentication replays, `Critical-CH` retries, and the HTTP/2
     /// fallback are not counted.

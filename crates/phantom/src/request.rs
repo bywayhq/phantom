@@ -33,12 +33,12 @@ use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
 use replay_buffer::{NoReplay, ReplayBuffer};
 
-/// Builder for one request with an owned, streaming, or absent body.
+/// Set a request's headers, body and options before you send it.
 ///
 /// [`Client::get`] and [`Client::request`] build exact-protocol requests;
 /// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
 /// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are
-/// validated when [`Self::send`] runs, before any I/O.
+/// checked when [`Self::send`] runs, before any I/O.
 ///
 /// # Examples
 ///
@@ -160,17 +160,17 @@ impl RequestBuilder {
         })
     }
 
-    /// Appends one ordered request field.
+    /// Appends a request header, keeping its spelling and position.
     ///
-    /// A new builder has no caller fields. The URI supplies the authority, so
-    /// a `Host` field fails [`Self::send`] with
+    /// A new builder has no caller headers. The URI supplies `Host`.
+    /// If you add a `Host` header, [`Self::send`] returns
     /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader).
     pub fn header(mut self, header: RequestHeader) -> Self {
         self.headers.push(header);
         self
     }
 
-    /// Replaces the complete ordered request-field list.
+    /// Replaces the ordered list of caller request headers.
     ///
     /// The same rules apply as for [`Self::header`].
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
@@ -178,16 +178,16 @@ impl RequestBuilder {
         self
     }
 
-    /// Sends the request with a browser request template's fields and order.
+    /// Sends the request with a browser template's headers and order.
     ///
     /// By default no template is used. Each attempt emits the template's list
     /// for the protocol it uses, after `Host` on HTTP/1.1 or the pseudo-header
-    /// fields on HTTP/2 and HTTP/3. A caller field whose name matches a
-    /// template entry takes that entry's position and spelling and keeps its
-    /// value; a literal entry without one
-    /// emits its captured value. Other caller fields follow the template.
+    /// fields on HTTP/2 and HTTP/3. A matching caller header takes the
+    /// template entry's position and spelling. It keeps your value. A literal
+    /// entry without a matching caller header sends the template's value.
+    /// Other caller headers follow the template.
     /// Templates carry no `Cookie` entry: the cookie jar's field is then
-    /// inserted among those fields by the profile's
+    /// inserted among the headers by the profile's
     /// [`CookiePlacement`](crate::profile::CookiePlacement), last by default,
     /// unless the caller supplies a `Cookie` field. Profile client hints then
     /// fill the template's client-hint slots. On HTTP/2, the template's
@@ -199,22 +199,24 @@ impl RequestBuilder {
     /// `https`, or `http` to a loopback address, `localhost`, or a
     /// `.localhost` name. Automatic client hints go only to such URLs.
     ///
-    /// The template was validated when it was prepared. Sending fails before
-    /// I/O with
+    /// The template is checked when you prepare it. Sending returns
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// when the template lacks an HTTP/3 list for a request that may use
-    /// HTTP/3 (an exact HTTP/3 request, or a negotiated one on a client with
-    /// Alt-Svc enabled and a direct or SOCKS5 route), when content decoding
-    /// is enabled and the protocol lists carry
-    /// different `Accept-Encoding` values, when the caller leaves a required
-    /// caller slot empty,
-    /// when the template has no client-hint slot and the profile sends client
-    /// hints by default, or when the caller supplies a client hint the profile
-    /// sends only on request, with a template whose
-    /// [`requested_client_hint_placement`](crate::profile::RequestTemplate::requested_client_hint_placement)
-    /// is `false`. With such a template it fails before the request is sent
-    /// on a connection when a hint requested through `Accept-CH` or ALPS
-    /// `ACCEPT_CH` would be sent. Phantom does not compare `User-Agent` or
+    /// before I/O for any of these cases:
+    ///
+    /// - The template lacks an HTTP/3 list for an exact HTTP/3 request.
+    /// - It lacks that list for a negotiated request with Alt-Svc enabled on
+    ///   a direct or SOCKS5 route.
+    /// - Content decoding is enabled and the protocol lists have different
+    ///   `Accept-Encoding` values.
+    /// - You leave a required caller slot empty.
+    /// - The profile sends default client hints and the template has no slots.
+    /// - You supply a hint the profile sends only on request, and the template's
+    ///   [`requested_client_hint_placement`](crate::profile::RequestTemplate::requested_client_hint_placement)
+    ///   is `false`.
+    ///
+    /// With placement disabled, a hint requested through `Accept-CH` or ALPS
+    /// `ACCEPT_CH` also fails before sending the request on its connection.
+    /// Phantom does not compare `User-Agent` or
     /// `sec-ch-ua` values with the template.
     pub fn template(mut self, template: &PreparedRequestTemplate) -> Self {
         self.request.template = Some(template.clone());
@@ -225,10 +227,10 @@ impl RequestBuilder {
     ///
     /// A new builder has no static trailers. Static trailers are emitted only
     /// after the request body completes successfully. HTTP/1.1 preserves
-    /// field-name spelling; HTTP/2 and HTTP/3 require lowercase names. Every
+    /// header-name spelling. HTTP/2 and HTTP/3 require lowercase names. Every
     /// protocol preserves field order, duplicate positions, values, and
     /// sensitivity. A nonempty static list cannot be combined with
-    /// body-produced trailers; [`Self::send`] fails with
+    /// body-produced trailers. [`Self::send`] returns
     /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
     pub fn trailers(mut self, trailers: Vec<RequestHeader>) -> Self {
         self.trailers = trailers;
@@ -487,28 +489,31 @@ impl RequestBuilder {
         self
     }
 
-    /// Sends the request using the selected route and owner.
+    /// Sends the request through its client and selected route.
     ///
     /// The client may reuse compatible HTTP/1.1, HTTP/2, and HTTP/3
-    /// connections on the same origin and route. A bodyless HTTP/2 GET without trailers rejected by
-    /// `GOAWAY(NO_ERROR)`, whether exact or negotiated, is retried once on the
-    /// client's replacement connection; a negotiated replacement repeats ALPN
-    /// selection under the same negotiated rule. Dropping this
-    /// future cancels the in-flight operation; returned bodies retain protocol
-    /// cancellation. An opt-in [`RetryPolicy`] can retry eligible exact-protocol
-    /// or pre-ALPN negotiated connection setup without replaying request bytes
-    /// or body frames, and can separately opt into reused-connection replay
-    /// and status retries for idempotent requests, replay requests that
-    /// the H2 or H3 peer reported as not processed, and send an exact H3
-    /// request over H2 when no QUIC connection could be set up for it
-    /// ([`RetryPolicy::with_http2_fallback`]). When the client has a
-    /// [`RedirectPolicy`](crate::RedirectPolicy), each `http://` or `https://`
+    /// connections on the same origin and route. A bodyless HTTP/2 GET without
+    /// trailers is retried once if rejected by `GOAWAY(NO_ERROR)`. This applies
+    /// to exact and negotiated requests. The retry uses a replacement
+    /// connection. A negotiated replacement repeats ALPN selection.
+    ///
+    /// Dropping this future cancels the request. Returned bodies keep their
+    /// protocol's cancellation rules. Enable [`RetryPolicy`] to retry eligible
+    /// connection setup without sending request bytes or body frames again.
+    /// For negotiated requests, those retries happen before ALPN selection.
+    /// The policy can also replay idempotent requests after a reused connection
+    /// closes, or retry selected statuses for idempotent methods. It can replay
+    /// requests the peer did not process.
+    /// [`RetryPolicy::with_http2_fallback`] enables HTTP/2 fallback
+    /// when an exact HTTP/3 request cannot open a QUIC connection.
+    ///
+    /// With a [`RedirectPolicy`](crate::RedirectPolicy), each `http://` or `https://`
     /// redirect target is checked against the request's protocol selection
     /// and route before it is sent, as the first request is.
     ///
     /// # Errors
     ///
-    /// Returns a [`RequestError`]; [`RequestError::kind`] gives the category.
+    /// Returns a [`RequestError`]. [`RequestError::kind`] gives the category.
     /// These kinds are returned before any I/O:
     ///
     /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a

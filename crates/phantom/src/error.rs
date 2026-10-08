@@ -21,19 +21,19 @@ use crate::{HttpProtocol, TimeoutPhase};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
-/// Stable category of client-construction failure.
+/// The kind of failure that prevented you from building a client.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum BuildErrorKind {
-    /// The supplied wire profile is internally inconsistent.
+    /// The profile contains invalid or inconsistent settings.
     InvalidProfile,
-    /// Connection policies are contradictory or unsupported together.
+    /// The connection policies conflict or cannot be used together.
     InvalidPolicy,
     /// A configured trust root could not be loaded.
     TrustStore,
     /// A protocol connector cannot represent the supplied profile.
     ProtocolConfiguration,
-    /// The profile enables no protocol implemented by the facade.
+    /// The profile enables no HTTP protocol Phantom supports.
     NoSupportedProtocol,
 }
 
@@ -296,24 +296,24 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
     }
 }
 
-/// Stable category of request or response-body failure.
+/// The kind of failure while sending a request or reading its response.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestErrorKind {
-    /// The request URI is syntactically invalid.
+    /// The request URI cannot be parsed.
     InvalidUri,
     /// The URI scheme is neither `http` nor `https`, or is `http` for a
     /// request that plaintext HTTP cannot carry.
     UnsupportedScheme,
     /// The URI authority is missing or invalid.
     InvalidAuthority,
-    /// A request field is not valid for the selected operation, such as a
+    /// A request header is not valid for the selected operation, such as a
     /// caller `Host`, which the client derives from the URI.
     InvalidHeader,
-    /// The request template has no field order for a protocol the request
-    /// may use, has differing `Accept-Encoding` values for a decoded
-    /// response, has a required caller slot the request leaves empty, or has
-    /// no captured position for a client hint the request would send.
+    /// The request template cannot describe this request. It may lack a
+    /// protocol's header list, a required caller header, or a client-hint
+    /// position. Its `Accept-Encoding` values may differ between protocol
+    /// lists when content decoding is enabled.
     RequestTemplate,
     /// The selected protocol is absent from the client profile, or a
     /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN.
@@ -331,13 +331,13 @@ pub enum RequestErrorKind {
     Connect,
     /// Connecting to or negotiating with the configured proxy failed.
     Proxy,
-    /// The request lacks a current Tokio runtime with network I/O enabled.
+    /// The runtime cannot supply the network I/O or timers the request needs.
     RuntimeUnavailable,
-    /// Local bounded admission capacity is exhausted.
+    /// The connection or stream pool has no space for another waiting request.
     Capacity,
     /// A configured timeout cannot be represented by the runtime clock.
     InvalidTimeout,
-    /// A named request phase exhausted its configured time budget.
+    /// A request phase or the whole request reached its time limit.
     Timeout,
     /// A caller-provided body failed or could not be replayed safely.
     RequestBody,
