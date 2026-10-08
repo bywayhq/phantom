@@ -1139,9 +1139,12 @@ Limits:
 send on macOS 15.5 on Apple silicon. On macOS, Opera 136 sends the fields of
 its Windows request templates with the macOS client hints, and Edge 154 does
 too with its language list set to `en-US`. For another locale, override
-`Accept-Language`. So neither has a separate macOS template. Every other layer
-of Chrome, Edge, Opera, and Firefox is the Windows recipe, and the replay
-tests compare it with the single macOS runs listed below.
+`Accept-Language`. So neither has a separate macOS template. The replay tests
+compare the Windows recipes' fresh and resumed ClientHello shapes and H2
+sessions with the single macOS runs listed below. Chrome, Edge, and Opera also
+have QUIC/H3 comparisons. This does not establish Firefox ticket-selection
+parity: macOS offered the first received ticket in 3/3 connections; Windows
+offered the last in 58/66.
 
 The capture host is a MacBook Air (M4) on macOS 15.5 (24F74). On 2026-10-02 it
 ran Chrome 154.0.8037.95 as Google's updater left it, Edge 154.0.4258.48 as

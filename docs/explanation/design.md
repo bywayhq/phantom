@@ -190,8 +190,9 @@ that closed or reset before any response byte as its own typed error. A fresh
 connection, or a failure after part of a response, keeps the ordinary protocol
 error.
 
-The facade replays only an idempotent method whose body is absent or owned
-bytes. It replays once per hop, on a fresh connection with the same route,
+The client replays only an idempotent method with an absent, owned, or
+buffered body. A buffered body must stay within its retention limit and have
+no source failure. It replays once per hop, on a fresh connection with the same route,
 outside the setup-retry budget. This follows Chrome's single restart after
 `ERR_CONNECTION_CLOSED` on a reused socket. Firefox's restarts on fresh
 connections are not modeled.
@@ -659,7 +660,7 @@ the response leaves it open. Otherwise, it opens a new proxy connection. These
 choices follow Chromium and Firefox.
 
 An HTTP/1.1 `407` leaves the connection open under three conditions. It has no
-`close` token in `Connection` or `Proxy-Connection`. An HTTP/1.0 CONNECT
+`close` token in `Connection` or `Proxy-Connection`. An HTTP/1.0
 response also needs `keep-alive`. The response states its body length through
 `Content-Length` or chunked coding. Its body ends within
 [`MAX_CHALLENGE_BODY_BYTES`](../reference/limits.md#protocol-state), 64 KiB,
