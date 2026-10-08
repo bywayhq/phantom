@@ -1,30 +1,28 @@
 # Getting started
 
-In this tutorial you create a Rust project, send one HTTP/2 request with
-Chrome 154's TLS handshake, HTTP/2 settings, and client hints, and then extend
-it to read the body and send Chrome's own request fields.
+In this tutorial you create a Rust project and send a request that looks like
+it came from Chrome 154. Then you read the response body and send the headers
+Chrome sends when it loads a page.
 
-> For builders new to Phantom. [How servers recognize a client](fingerprinting.md)
-> explains what the profile below imitates.
+> If fingerprinting is new to you,
+> [How servers recognize a client](fingerprinting.md) explains what Phantom
+> copies from the browser.
 
-Plan on about fifteen minutes. Most of that is the first build of BoringSSL.
+Plan on about fifteen minutes. Most of that is the first build.
 
 ## Distribution status
 
-Phantom is pre-1.0 and not on crates.io, and its API can change between
-commits. You depend on it through an exact git revision, with one dependency
-line and no `[patch]` table; [Adding Phantom to a project](guides/downstream.md)
-explains why. The package is named `phantom-http` and the library crate is
-`phantom`.
+Phantom is pre-1.0 and not on crates.io, so you depend on an exact git
+revision. The package is named `phantom-http` and the library crate is
+`phantom`. [Adding Phantom to a project](guides/downstream.md) explains why
+one dependency line is enough.
 
 ## Prerequisites
 
-- Rust 1.88 or newer. The repository pins its development toolchain in
-  `rust-toolchain.toml`.
-- Git, CMake, Clang, and a C++ toolchain for the BoringSSL build. Windows also
-  needs NASM and the Visual C++ build tools; see
-  [CONTRIBUTING.md](../CONTRIBUTING.md#windows). The platform jobs in
-  [CI](../.github/workflows/ci.yml) are the source of truth.
+- Rust 1.88 or newer.
+- Git, CMake, Clang, and a C++ compiler. Phantom builds BoringSSL, Google's
+  TLS library, from source. On Windows you also need NASM and the Visual C++
+  build tools ([CONTRIBUTING.md](../CONTRIBUTING.md#windows) has the steps).
 - Tokio 1.x.
 
 ## 1. Create a project
@@ -35,8 +33,8 @@ cd phantom-hello
 ```
 
 Add Phantom and Tokio to `Cargo.toml`. Replace `<commit>` with a commit hash
-from the repository, `be02e93` or later; earlier commits lack the Chrome 154
-recipes this tutorial uses:
+from the repository, `be02e93` or later. Earlier commits don't have the
+Chrome 154 recipes this tutorial uses.
 
 ```toml
 [dependencies]
@@ -45,7 +43,7 @@ tokio = { version = "1", features = ["macros", "rt"] }
 ```
 
 Run `cargo build` once now. The first build compiles BoringSSL and takes a
-few minutes; later builds reuse it.
+few minutes. Later builds reuse it.
 
 ## 2. Send a request
 
@@ -73,31 +71,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Run it with `cargo run`. It prints the status line, such as `200 OK`.
+Run it:
 
-What each part does:
+```console
+$ cargo run
+200 OK
+```
 
-1. A [profile](reference/glossary.md#profile) describes everything a server
-   can observe about how the client connects. `ClientProfile::new` starts
-   from Chrome 154's TLS ClientHello; `with_http2` and `with_client_hints`
-   add Chrome 154's HTTP/2 settings and client-hint fields.
-2. `Client::builder(profile).build()` creates a client. The client owns its
-   connections and any state kept between requests. Build it once and clone
-   it; clones share pools and state.
-3. `get(HttpProtocol::Http2, ...)` asks for exactly HTTP/2. If the server
-   cannot speak HTTP/2, the request fails; it never falls back to another
-   protocol, because that would change the fingerprint.
-4. `header` adds one request field. Fields go out in the order you add them.
+How it works:
 
-`#[tokio::main]` builds a runtime with I/O and timers enabled. If you build a
-runtime yourself, enable both, or requests fail with
-`RequestErrorKind::RuntimeUnavailable`.
+1. You built a [profile](reference/glossary.md#profile): the description of
+   how a client connects. `ClientProfile::new` starts from Chrome 154's TLS
+   handshake. `with_http2` and `with_client_hints` add Chrome 154's HTTP/2
+   settings and client hints. Each of these pieces is called a *recipe*.
+2. `Client::builder(profile).build()` created a client. The client holds the
+   connections and anything it remembers between requests. Build it once and
+   clone it. Clones share the same connections.
+3. `get(HttpProtocol::Http2, ...)` asked for HTTP/2. If the server can't
+   speak HTTP/2, the request fails instead of switching to another protocol.
+4. `header` added one request header. Headers go out in the order you add
+   them.
+
+If you build a Tokio runtime yourself, turn on I/O and timers.
+`#[tokio::main]` does this for you.
 
 ## 3. Read the body and check the protocol
 
-A response body is a stream. `collect_with_limit` reads it into memory and
-fails if it is longer than the limit you give. Each response also carries a
-`ResponseInfo` with the protocol that produced it:
+Next, read the response body and see which protocol answered. Add this
+function to your program and call it from `main` with the client from step 2:
 
 ```rust
 use phantom::{Client, HttpProtocol, ResponseInfo};
@@ -118,14 +119,17 @@ async fn fetch(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This prints `Http2 from https://example.com/` and the body length. Pass the
-`client` from step 2 to `fetch`.
+It prints `Http2 from https://example.com/`, then the body length.
 
-## 4. Send Chrome's request fields
+The body arrives as a stream. `collect_with_limit` reads it into memory and
+returns an error if it's longer than the limit, here 1 MiB. `ResponseInfo`
+tells you which protocol and URL produced the response.
 
-The request in step 2 has Chrome's handshake but only the one field you
-added. A browser navigation sends about a dozen fields in a fixed order. A
-request template supplies them, as recorded from Chrome 154:
+## 4. Send Chrome's request headers
+
+The request in step 2 has Chrome's handshake but only the one header you
+added. When Chrome loads a page, it sends about a dozen headers in a fixed
+order. A request template adds them for you:
 
 ```rust
 use phantom::profile::chromium;
@@ -145,38 +149,33 @@ async fn navigate(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-The template fills in `user-agent`, `accept`, the `sec-fetch-*` fields, and
-the rest in Chrome's order, and places the profile's client hints in their
-slots. Use a template, client hints, and `User-Agent` of one browser and
-version: Phantom does not compare them.
-[Request templates and client hints](guides/request-templates.md) covers
-every template.
+The template sends `user-agent`, `accept`, the `sec-fetch-*` headers and the
+rest in Chrome's order, with the profile's client hints in their places. Keep
+the template, client hints, and `User-Agent` from the same browser and
+version. Phantom doesn't check that they match.
+[Request templates and client hints](guides/request-templates.md) lists every
+template.
 
 ## Optional features
 
-No feature is enabled by default. Add them to the `phantom` line in
+No feature is on by default. Add the ones you need to the `phantom` line in
 `Cargo.toml`, for example `features = ["cookies"]`.
 
 | Feature | Adds |
 | --- | --- |
-| `cookies` | A cookie jar owned by the client, with size limits |
-| `https-records` | HTTP/3 discovery from HTTPS DNS records, the `phantom::dns` lookup types, and `AddressResolver::system_nameservers` |
-| `sse` | Server-sent events, with a limited number of reconnects |
-| `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT with a profile that sets its pseudo-header order |
-| `websocket-deflate` | Opt-in `permessage-deflate`; turns on `websocket` |
-| `serde` | `Serialize` and `Deserialize` for cookie-jar snapshots, with `cookies` |
+| `cookies` | A cookie jar |
+| `https-records` | Finding HTTP/3 servers through DNS, and `phantom::dns` |
+| `sse` | Server-sent events |
+| `websocket` | WebSocket |
+| `websocket-deflate` | WebSocket compression |
+| `serde` | Saving and loading cookie jars |
 | `full` | All of the above |
-| `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir`; not part of `full` |
-| `danger-disable-verification` | `ServerAuthentication::DangerDisabled`; not part of `full` |
+| `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir` |
+| `danger-disable-verification` | `ServerAuthentication::DangerDisabled` |
 
-`diagnostics` writes a TLS key log, so you can decrypt a capture of your own
-connections in Wireshark, and a qlog file for each QUIC connection. A key log
-holds secrets that decrypt the client's traffic, so `full` leaves the feature
-out.
-
-`danger-disable-verification` adds a server-authentication policy that
-accepts any certificate, for TLS conformance testing. Anyone on the path can
-then read and change the connection, so `full` leaves it out too.
+`full` leaves out the last two. `diagnostics` writes TLS keys that decrypt
+your traffic, and `danger-disable-verification` accepts any server
+certificate. Use them for debugging and testing only.
 
 To read the API reference offline, run
 `cargo doc -p phantom-http --all-features --no-deps --open` in a checkout of
@@ -184,8 +183,8 @@ the repository.
 
 ## Next
 
-- [Using the client](guides/client.md): timeouts, bodies, and
-  `get_negotiated`, which lets the server choose HTTP/1.1 or HTTP/2.
-- [HTTP/3 and Alt-Svc](guides/http3.md): send the same request over QUIC.
-- [Browser profiles](guides/profiles.md): Edge, Brave, Opera, and Firefox,
-  and custom profiles.
+- [Using the client](guides/client.md): timeouts, bodies, and letting the
+  server pick the protocol.
+- [HTTP/3 and Alt-Svc](guides/http3.md): send the same request over HTTP/3.
+- [Browser profiles](guides/profiles.md): Edge, Brave, Opera, Firefox, and
+  custom profiles.

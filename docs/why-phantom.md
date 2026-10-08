@@ -1,92 +1,72 @@
 # Why Phantom
 
-Decide whether Phantom fits your project, and see which tools fit better when
-it does not.
-
-> For evaluators who have read [How servers recognize a client](fingerprinting.md).
+Decide whether Phantom fits your project, and which tool to use if it
+doesn't.
 
 ## When to use Phantom
 
-Phantom fits when you need a Rust HTTP client whose traffic matches a named
-browser build at more than one layer, and you want to know what each claim
-rests on.
+Use Phantom when you need a Rust HTTP client whose traffic looks like a
+specific browser version to the server, at every layer and not only in the
+TLS handshake.
 
-- A [profile](reference/glossary.md#profile) can carry the TCP socket
-  options, TLS ClientHello, HTTP/2 SETTINGS and priority, QUIC transport
-  parameters, HTTP/3 SETTINGS, client hints, request field order, and
-  WebSocket opening of one browser build.
-  [Consistency](fingerprinting.md#consistency) explains why all layers should
-  name the same browser.
-- Most browser recipes come from traffic recorded from a real browser and
-  retained under `fixtures/`, and tests compare Phantom's output with those
-  recordings. Where a recording cannot show a detail, such as TCP socket
-  options, the recipe comes from browser source and
-  [Validation](explanation/validation.md) says so.
-- Phantom never falls back to another protocol or route on its own. A
-  request for HTTP/3 retries over HTTP/2 only when you opt in, and a failed
-  proxy never gives way to a direct connection: Phantom uses the protocol
-  and [route](reference/glossary.md#route) you chose or returns a typed
-  error.
-- Header fields, duplicates, and trailers go out in the order you add them,
-  and SETTINGS and pseudo-header fields in the order the profile lists them.
-- Connection pools, cookies, Alt-Svc entries, and TLS session caches belong
-  to one `Client`, each with a size limit. Nothing is global to the process.
-- The workspace forbids `unsafe` code, except in two private, documented
-  modules: one calls BoringSSL's QUIC API, and one sets a Windows socket
-  option that no safe API reaches.
+- One [profile](reference/glossary.md#profile), Phantom's description of a
+  browser, sets the TCP socket options, TLS handshake, HTTP/2 and HTTP/3
+  settings, client hints, header order, and WebSocket handshake.
+  [Consistency](fingerprinting.md#consistency) explains why all of these
+  should name the same browser.
+- Each browser recipe is recorded from the real browser and tested against
+  that recording. [Validation](explanation/validation.md) describes how.
+- Phantom uses the protocol and proxy you choose. If it can't, it returns an
+  error instead of quietly switching to something else. Falling back from
+  HTTP/3 to HTTP/2 is an option you turn on.
+- Headers go out in the order you add them.
+- Each `Client` keeps its own connections, cookies, and TLS sessions, each
+  with a size limit. Nothing is shared across the process.
+- `unsafe` code is confined to two small private modules: one calls
+  BoringSSL's QUIC API, and one sets a Windows socket option.
 
 ## When not to use Phantom
 
-Phantom is a network client, and it covers few browser builds. Another tool
-is a better choice in these cases:
+You probably want something else if one of these applies:
 
-- You need JavaScript to run. Phantom is not a browser (see
-  [Coverage](reference/coverage.md#at-a-glance)); use a browser automation
-  tool such as Playwright.
-- You need a browser Phantom has no recipe for. Phantom ships one desktop
-  build and one Android build each of Chrome, Edge, Brave, Opera, and
-  Firefox, captured on Windows 11, Android emulators, and, for some layers,
-  macOS. It has no Safari, iOS, or Linux captures and none from a physical
-  phone. [Coverage](reference/coverage.md#at-a-glance) lists each build and
-  the layers it covers.
-- You need many browser versions or operating systems. Phantom retires a
-  browser version when it adds the next one. Tools that ship more targets
-  are listed [below](#compared-with-other-clients).
-- You need a stable API from crates.io today. Phantom is pre-1.0, is not
-  published on crates.io, and its API can change between commits. You pin a
-  git revision; see [Adding Phantom to a project](guides/downstream.md).
-- You cannot build C and C++ code. Phantom builds BoringSSL from source,
-  which needs CMake, Clang, and a C++ toolchain; see
-  [Prerequisites](getting-started.md#prerequisites).
-- You need a general-purpose HTTP client. If no server you talk to
-  checks fingerprints, a general-purpose client such as reqwest fits better.
+- You need JavaScript to run. Phantom isn't a browser. Use a browser
+  automation tool such as Playwright.
+- You need a browser Phantom doesn't have. Phantom has one desktop and one
+  Android version each of Chrome, Edge, Brave, Opera, and Firefox. It has no
+  Safari, no iOS, and nothing recorded on Linux.
+  [Coverage](reference/coverage.md#at-a-glance) lists each version and what
+  it covers.
+- You need many browser versions at once. Phantom drops a browser version
+  when it adds the next one. The tools in the
+  [comparison below](#compared-with-other-clients) carry more.
+- You need a stable API from crates.io. Phantom is pre-1.0, isn't on
+  crates.io, and its API changes between commits.
+- You can't build C and C++ code. Phantom builds BoringSSL from source, which
+  needs CMake, Clang, and a C++ compiler
+  ([Prerequisites](getting-started.md#prerequisites)).
+- No server you talk to checks fingerprints. A general-purpose client such
+  as reqwest is simpler.
 
 ## Compared with other clients
 
-The table records what each project's own documentation states, as of
-2026-09-24. It does not rank the projects or measure their output.
+This table summarizes what each project's own documentation says, as of
+2026-09-24. It doesn't rank the projects or test their output.
 
-| Project | Language | Layers its documentation names | Browser targets its documentation lists |
+| Project | Language | Layers it names | Browsers |
 | --- | --- | --- | --- |
-| Phantom | Rust | TCP socket options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, request templates, WebSocket openings | Chrome, Edge, Brave, Opera, and Firefox, one desktop and one Android build each |
-| [curl-impersonate](https://github.com/lexiforest/curl-impersonate) | C (a curl fork) | TLS, HTTP/2, HTTP/3 | Chrome, Edge, Safari, Firefox, and Tor targets |
-| [curl_cffi](https://github.com/lexiforest/curl_cffi) | Python (bindings to curl-impersonate) | TLS, HTTP/2, HTTP/3 | Preset fingerprints in the open-source release |
-| [wreq](https://github.com/0x676e67/wreq) | Rust | TLS, HTTP/2 | Emulation profiles, kept in the separate `wreq-util` crate |
-| [tls-client](https://github.com/bogdanfinn/tls-client) | Go, with Node.js, Python, and C# bindings | TLS, HTTP/2, HTTP/3 and QUIC, custom header order | A `profiles` package covering Chrome, Firefox, Safari, and others |
-| [uTLS](https://github.com/refraction-networking/utls) | Go | TLS ClientHello only; its README states there is "no parroting beyond ClientHello" | Built-in ClientHello specifications |
-| [reqwest](https://docs.rs/reqwest) | Rust | General-purpose HTTP client; its documentation does not aim to match a browser | None |
+| Phantom | Rust | TCP options, TLS, HTTP/1.1, HTTP/2, QUIC, HTTP/3, client hints, header order, WebSocket | Chrome, Edge, Brave, Opera, Firefox: one desktop and one Android version each |
+| [curl-impersonate](https://github.com/lexiforest/curl-impersonate) | C (a curl fork) | TLS, HTTP/2, HTTP/3 | Chrome, Edge, Safari, Firefox, Tor |
+| [curl_cffi](https://github.com/lexiforest/curl_cffi) | Python (bindings to curl-impersonate) | TLS, HTTP/2, HTTP/3 | Preset fingerprints |
+| [wreq](https://github.com/0x676e67/wreq) | Rust | TLS, HTTP/2 | Profiles in the separate `wreq-util` crate |
+| [tls-client](https://github.com/bogdanfinn/tls-client) | Go, with Node.js, Python, and C# bindings | TLS, HTTP/2, HTTP/3, QUIC, header order | Chrome, Firefox, Safari, and others |
+| [uTLS](https://github.com/refraction-networking/utls) | Go | TLS handshake only ("no parroting beyond ClientHello") | Built-in handshake specs |
+| [reqwest](https://docs.rs/reqwest) | Rust | General-purpose client | None |
 
-### Where Phantom differs
-
-- Its documentation ties each layer's claim to a retained capture and the
-  test that replays it, in [Validation](explanation/validation.md).
-- It never falls back to another route, and changes protocol only when you
-  opt in.
-- It ships fewer browser builds than curl-impersonate, curl_cffi, or wreq,
-  and it is not on crates.io, while wreq is.
+Phantom names more layers per browser than the others here. It carries fewer
+browser versions than curl-impersonate, curl_cffi, or wreq, and unlike wreq
+it isn't on crates.io.
 
 ## Next
 
 - [Getting started](getting-started.md): build Phantom and send a request.
-- [Coverage](reference/coverage.md): the support contract, layer by layer.
-- [Validation](explanation/validation.md): the evidence behind each claim.
+- [Coverage](reference/coverage.md): what each browser recipe covers.
