@@ -13,7 +13,7 @@ until you turn them on.
 | Retry | Repeats after | Default | Setting |
 | --- | --- | --- | --- |
 | Connection setup | A connection that failed to open | Off | `RetryPolicy::connection_failures` |
-| `GOAWAY` replay | An HTTP/2 server shutting down | On, once | None |
+| `GOAWAY` replay | A bodyless GET without trailers refused by `GOAWAY(NO_ERROR)` | On, once | None |
 | PING resend | An HTTP/2 connection lost to an unanswered PING | 2 in Chromium recipes, 0 in Firefox | `Http2Settings::ping_failure_retries` |
 | Reused connection | An idle HTTP/1.1 connection that closed | Off | `with_reused_connection_replay` |
 | Unprocessed request | A request the server didn't process | Off | `with_unprocessed_replay` |
@@ -23,7 +23,7 @@ until you turn them on.
 
 Phantom also repeats a request once after a proxy asks for credentials
 ([Routes and proxies](routes-and-proxies.md#send-a-request-through-an-http-proxy)),
-and once when a server asks for client hints it didn't get
+and repeats safe methods once when a server asks for missing client hints
 ([Send client hints](request-templates.md#send-client-hints)). A streaming
 body can only be sent again if you
 [buffer it](redirects.md#send-a-streaming-body-again).
