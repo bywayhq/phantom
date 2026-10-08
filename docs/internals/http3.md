@@ -1,11 +1,9 @@
 # HTTP/3 internals
 
-Change one layer of Phantom's HTTP/3 path and keep the contracts of the
-others. Each section says how its layer is built, bounded, and proven.
+Use this page to change Phantom's HTTP/3 connections, request streams, and
+proxy tunnels. It describes who owns each part and how they work together.
 
-> For contributors working on QUIC, HTTP/3, QPACK, CONNECT-UDP, or the H3
-> capture fixtures. To use HTTP/3 from an application, read
-> [HTTP/3 and Alt-Svc](../guides/http3.md) instead.
+For application code, start with [HTTP/3 and Alt-Svc](../guides/http3.md).
 
 Contents:
 
@@ -15,19 +13,19 @@ Contents:
 - Routes: [SOCKS5](#socks5-routes) and [CONNECT-UDP](#connect-udp-masque)
 - Across connections: [pooling and Alt-Svc](#pooling-and-alt-svc),
   [setup retries](#setup-retries)
-- Proof and tooling: [diagnostics](#diagnostics),
+- Diagnostics and tooling: [diagnostics](#diagnostics),
   [capture workflow](#capture-workflow), [vendored seams](#vendored-seams),
   [current limits](#current-limits)
 
 Terms: H3, H2, and H1 are HTTP/3, HTTP/2, and HTTP/1.1. QUIC (RFC 9000) is the
-UDP transport under HTTP/3. QPACK (RFC 9204) is HTTP/3 field compression; its
-dynamic table is state that encoder and decoder keep in sync over two
+UDP transport under HTTP/3. QPACK (RFC 9204) is HTTP/3 field compression. Its
+dynamic table holds entries that encoder and decoder keep in sync over two
 dedicated streams. An [exact](../reference/glossary.md#exact-protocol) H3
 request uses HTTP/3, or HTTP/2 only under the opt-in
 `RetryPolicy::with_http2_fallback` when no QUIC connection can be set up. A
 [negotiated](../reference/glossary.md#negotiated-protocol) request starts over
-TCP and lets ALPN pick H1 or H2; later requests to the origin can use H3
-through [Alt-Svc](../reference/glossary.md#alt-svc).
+TCP and lets ALPN pick H1 or H2. It can also use H3 through
+[Alt-Svc](../reference/glossary.md#alt-svc) or HTTPS-record discovery.
 
 ## Stack boundary
 
@@ -35,9 +33,9 @@ Phantom's H3 path is a dedicated TLS 1.3 profile, Quinn for QUIC transport,
 the private `phantom-quic-btls` crypto provider, and Hyperium's `h3` engine,
 under Phantom-owned policy for connections, requests, QPACK, cancellation, and
 diagnostics. The public API exposes Phantom types, never Quinn, BoringSSL, or
-`h3` types. H3 does not go through a generic TCP transport abstraction, and it
-never falls back to H2 or H1. Each route supplies its own UDP transport, and
-every transport below Quinn is Phantom-owned except the direct socket.
+`h3` types. The H3 transport keeps its protocol. The facade handles the opt-in
+HTTP/2 fallback described above. Each route supplies its own UDP transport,
+and every transport below Quinn is Phantom-owned except the direct socket.
 
 ```text
  phantom-http facade: Client, Route, H3 pool, Alt-Svc store, retries
@@ -69,9 +67,8 @@ The Chrome H3 recipe keeps four concerns separate:
 3. local HTTP/3 SETTINGS and their order;
 4. request pseudo-header order and QPACK policy.
 
-Profiles apply captured values to live transport state. A value or
-combination that Phantom cannot apply fails validation; it is never accepted
-and ignored.
+Profiles apply their settings to live transport state. A value or combination
+that Phantom cannot apply fails validation.
 
 ## QPACK ownership
 
@@ -92,9 +89,8 @@ bounded admission. It sends encoder instructions before the HEADERS frame that
 depends on them. Request trailers, static or produced by a declared streaming
 body, use the same ordered, connection-owned QPACK path as request headers.
 
-The built-in Chrome profile reproduces the retained encoder and HEADERS bytes
-of Chrome's first request. A profile that does not opt into dynamic encoding
-stays stateless.
+The Chrome profile uses dynamic QPACK for its first request. A profile that
+leaves dynamic encoding off stays stateless.
 
 `Http3Settings::qpack_stream_order` and `qpack_encoder_stream` decide which
 client stream each QPACK stream gets and when the encoder stream appears on
@@ -147,7 +143,7 @@ Request:
   `Http3RequestSettings::extended_connect_pseudo_header_order`. One order
   applies to every extended protocol.
 - A profile without that order fails with a configuration error before I/O.
-  Named browser recipes leave it unset until a capture backs it.
+  Named browser recipes leave it unset.
 - Ordered fields follow the ordinary HTTP/3 request rules. `content-length` is
   rejected, because the tunnel has no request content.
 
@@ -240,7 +236,7 @@ No leg ever falls back to another leg, route, or protocol.
 - The target is always sent as text. Phantom performs no local lookup of the
   target.
 
-The template scheme must be `https` on every leg; `http://` fails with
+The template scheme must be `https` on every leg. `http://` fails with
 `ConnectUdpProxyConfigErrorKind::UnsupportedScheme`. RFC 9298 is looser:
 section 2 requires only a non-empty scheme, and section 3.2 would permit
 HTTP/1.1 over cleartext. Phantom requires `https` because:
@@ -307,9 +303,9 @@ UDP payloads travel with Context ID 0 in QUIC DATAGRAM frames.
 ### HTTP/2 and HTTP/1.1 legs
 
 Each inner connection opens one dedicated TCP and TLS connection to the proxy
-with the client profile's TLS offer, which must include `http/1.1`. The
-HTTP/2 leg requires the proxy to select `h2`; the HTTP/1.1 leg requires
-`http/1.1` or no ALPN. Any other selection fails with
+with the client profile's TLS offer, which must include `http/1.1`. The HTTP/2
+leg requires the proxy to select `h2`. The HTTP/1.1 leg requires `http/1.1` or
+no ALPN. Any other selection fails with
 `ConnectUdpErrorKind::UnsupportedProtocol`.
 
 The HTTP/2 leg sends RFC 9298 section 3.4 extended CONNECT:
@@ -401,7 +397,7 @@ Otherwise the request fails with `ConnectUdpErrorKind::Configuration`. After a
 2xx response, if the proxy's datagram limit cannot carry 1202 bytes on the
 tunnel's stream, the tunnel closes with
 `ConnectUdpErrorKind::DatagramCapacity`. Paths that cannot carry 1252-byte UDP
-payloads, including IPv6 minimum-MTU links, lose full-size inner packets; the
+payloads, including IPv6 minimum-MTU links, lose full-size inner packets. The
 HTTP/3 leg never switches to DATAGRAM capsules.
 
 The HTTP/2 and HTTP/1.1 legs have no outer datagram limit. A capsule carries
@@ -426,7 +422,7 @@ The `proxy.connect_udp` span records:
 Paths, field values, credentials, and payloads are not recorded.
 
 Quinn sees one fixed logical peer, `192.0.2.1:443`. As with `quinn-udp`, the
-only send error that can reach Quinn is `WouldBlock`; oversized or
+only send error that can reach Quinn is `WouldBlock`. Oversized or
 undeliverable datagrams are dropped and counted. The socket holds the outer
 connection or proxy stream. When that ends, the socket reports a receive
 error, the inner endpoint stops, and the pool opens a fresh outer connection
@@ -458,15 +454,14 @@ fingerprint.
 Negotiated direct HTTPS requests can opt into a bounded Alt-Svc store. The
 store learns from response fields and exact-origin H2 ALTSVC frames. A later
 request can then use the first of up to eight `h3` alternatives the field
-listed that is not broken. Callers may export
-and re-import that direct-route state; Phantom never persists it, or QUIC
-tickets, itself.
+listed that is not broken. Callers may export and re-import that direct-route
+state. Phantom never persists it, or QUIC tickets, itself.
 
 An alternative changes where QUIC dials. The origin authority and certificate
 identity stay the same. By default, a failed alternative setup is terminal and
-removes that alternative from the advertisement, with no H1 or H2 fallback. An opt-in racing policy
-instead races the alternative's setup against a delayed origin setup, and
-marks a failed alternative broken; see
+removes that alternative from the advertisement, with no H1 or H2 fallback. An
+opt-in racing policy instead races the alternative's setup against a delayed
+origin setup, and marks a failed alternative broken. See
 [Racing](../guides/http3-discovery.md#race-the-alternative-against-the-origin).
 
 One pool entry per origin and route keeps connections for up to four
@@ -478,7 +473,7 @@ across an await, so a slow setup to one location does not delay another.
 Each location keeps one connection unless
 `ClientBuilder::max_http3_connections_per_origin` allows more
 (`session/http3_connections.rs`). With one, a request uses the location's
-reusable connection or takes the connect turn; the pool computes no stream
+reusable connection or takes the connect turn. The pool computes no stream
 room and wakes no waiter when a stream ends.
 
 With more, the pool counts each request's stream from its lease until the
@@ -493,8 +488,8 @@ take the location's connect turn. It chooses again once it holds the turn,
 so requests queued behind a setup share the new connection.
 
 While a request waits for the turn, a stream that ends on any of the entry's
-connections wakes it to choose again. One `Notify` serves the whole entry,
-so every waiter of every location wakes and rechecks under the slot lock; a
+connections wakes it to choose again. One `Notify` serves the whole entry, so
+every waiter of every location wakes and rechecks under the slot lock. A
 waiter keeps its pending turn, and so its place in the turn's first-in,
 first-out queue, across those wakeups. A connection that is no longer
 reusable, such as one draining after GOAWAY, leaves the slot table and stops
@@ -579,10 +574,8 @@ their own. Every request on such a connection follows one rule
 
 #### Remembered SETTINGS
 
-A connection that offers early data starts from the server SETTINGS
-remembered with its ticket, as RFC 9114 section 7.2.4.2 allows and Chromium
-does; [QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence)
-cites the Chromium source.
+A connection that offers early data starts from the server SETTINGS remembered
+with its ticket, as RFC 9114 section 7.2.4.2 allows and Chromium does.
 
 - `phantom-quic-btls` stores opaque application state with each ticket
   through a per-connection `ApplicationState`, which
@@ -628,11 +621,9 @@ cites the Chromium source.
 
 #### Rejected early data
 
-Chromium resends on the connection whose early data was rejected, and the
-captures show the same stream numbers again in 1-RTT packets; see
-[QUIC resumption evidence](../explanation/validation.md#quic-resumption-and-0-rtt-evidence).
-Quinn cannot resend discarded streams, so Phantom starts a second HTTP/3
-session on the connection instead.
+Chromium resends on the connection whose early data was rejected, using the
+same stream numbers in 1-RTT packets. Quinn cannot resend discarded streams.
+Phantom starts a second HTTP/3 session on the connection instead.
 
 - The connection driver checks the server's answer before each poll of
   HTTP/3. Quinn settles the answer and discards the streams in one step
@@ -726,13 +717,13 @@ A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as
 `chromium::v154_quic` does. The ticket cache keeps the round-trip time last
 measured to each server name, at most four names. `phantom-net` records
-Quinn's smoothed RTT through `QuicClientConfig::record_round_trip_time` when
-a connection's handshake completes and again when its driver ends, but never
-for a connection whose handshake did not complete. `start_session` takes the
-ticket first, and passes the recorded value to the transport-parameter
-encoder only when it presents one. The encoder writes a minimal-length
-varint and permutes the parameter with the others; without a value it omits
-the parameter, and the other parameters are ordered as on a fresh connection.
+Quinn's smoothed RTT through `QuicClientConfig::record_round_trip_time` when a
+connection's handshake completes and again when its driver ends, but never for
+a connection whose handshake did not complete. `start_session` takes the
+ticket first, and passes the recorded value to the transport-parameter encoder
+only when it presents one. The encoder writes a minimal-length varint and
+permutes the parameter with the others. Without a value it omits the
+parameter, and the other parameters are ordered as on a fresh connection.
 
 A connection that sends early data is built before its handshake delivers the
 server's TLS metadata. When the handshake completes with the early data
@@ -745,15 +736,14 @@ control-stream SETTINGS that arrived first. Only then does the connection
 report its early data as accepted. If the metadata is invalid, the connection
 is closed, and the requests on it fail with the same `Http3Error` a full
 handshake reports. A request sent as early data went out before any ALPS was
-known, so ALPS `ACCEPT_CH` never restarts it or its resend after a
-rejection; a request dispatched after the handshake restarts when the entry
-names a hint its fields lack.
+known, so ALPS `ACCEPT_CH` never restarts it or its resend after a rejection.
+A request dispatched after the handshake restarts when the entry names a hint
+its fields lack.
 
-Because the connection is pooled before its early data is answered, `n`
-concurrent requests to one resumed location share one connection, as the
-resumed Chrome 154 connection in the retained captures carried six
-concurrent fetches. They wait for the location's connect turn only while the
-connection is being opened, not while its handshake runs.
+The connection enters the pool before its early data is answered, so `n`
+concurrent requests to one resumed location share it. They wait for the
+location's connect turn only while the connection is being opened, not while
+its handshake runs.
 
 ### Racing
 
@@ -769,27 +759,26 @@ Under `AltSvcPolicy::race`, one request runs two candidates:
   total deadlines bound each setup and the whole race.
 - When the alternative wins, a still-connecting origin setup is cancelled.
 
-A raced setup offers early data when the client does, as Chromium's QUIC
-job does, unless QUIC to the origin's own host and port failed a race and has
-not connected since. A setup that resumes with early data returns its
-connection before the handshake completes, as any early-data connection does
-(see [Session tickets](#session-tickets)), so it can win at once, and a
-replay-safe request on it goes out as early data. The alternative is
-confirmed once the early-data answer shows a completed handshake: at once for
-a response, which arrives only after the answer is settled, and after a
-failed request within the request's connect and total deadlines. A failed
-handshake follows
+A raced setup offers early data when the client does, as Chromium's QUIC job
+does, unless QUIC to the origin's own host and port failed a race and has not
+connected since. A setup that resumes with early data returns its connection
+before the handshake completes, as any early-data connection does (see
+[Session tickets](#session-tickets)), so it can win at once, and a replay-safe
+request on it goes out as early data. The alternative is confirmed once the
+early-data answer shows a completed handshake: at once for a response, which
+arrives only after the answer is settled, and after a failed request within
+the request's connect and total deadlines. A failed handshake follows
 Chromium: QUIC to the origin is marked recently broken, and a request with no
-body or an owned body is raced again once, without early data; a failed
+body or an owned body is raced again once, without early data. A failed
 alternative then loses to the origin and is marked broken as in any race. The
-retry allows no early data, so it is never raced again, even when it wins on
-a pooled connection whose own early data is unanswered.
+retry allows no early data, so it is never raced again, even when it wins on a
+pooled connection whose own early data is unanswered.
 
 When the origin wins, an alternative setup that has begun connecting keeps
 running in the background, like Chromium's orphaned alternative job. If it
 connects, the connection is pooled for later requests. If it fails, including
 at the 4-second limit, the alternative is marked broken. A background setup
-that resumed with early data connects before its handshake completes; it
+that resumed with early data connects before its handshake completes. It
 confirms the alternative once that handshake completes, and marks nothing if
 the handshake fails, as Chromium marks nothing for a session that carried no
 request. Until it finishes, it keeps its H3 admission permit for the origin
@@ -810,19 +799,16 @@ location does not wait for a background alternative setup.
 
 Caller-configured exact-H3 retries can repeat typed DNS, endpoint, or QUIC
 connection setup before the request is dispatched. Every retry keeps the same
-route and one total deadline. Loopback tests cover recovery for direct and
-local-DNS SOCKS5 routes; see
-[connection-retry evidence](../explanation/validation.md#connection-retry-evidence).
+route and one total deadline.
 
-Opt-in status retry does not depend on the protocol and applies to exact H3,
-but its loopback tests use H1 only. Protocol, post-dispatch, and negotiated
-upgrade retry policies are not supported.
+Opt-in status retry also applies to exact H3. The facade handles configured
+replays after dispatch. The setup policy cannot restart a negotiated upgrade.
 
 ## Diagnostics
 
-Qlog and NSS key logging are off by default. They are the `qlog` and
-`keylog` features of `phantom-net`; the facade's `diagnostics` feature turns
-on both and exposes `ClientBuilder::qlog_dir` and `ClientBuilder::key_log`.
+Qlog and NSS key logging are off by default. They are the `qlog` and `keylog`
+features of `phantom-net`. The facade's `diagnostics` feature turns on both
+and exposes `ClientBuilder::qlog_dir` and `ClientBuilder::key_log`.
 
 - `qlog_dir` gives each new QUIC connection its own file, written by Quinn as
   events happen. The in-memory `QlogCapture` used by tests is single-use and
@@ -837,9 +823,8 @@ IDs, packet numbers, or secrets.
 
 ## Capture workflow
 
-The controlled Chrome workflow records one loopback H3 connection through the
-first request. Its reference is authenticated packet contents, not a score
-from a public fingerprinting service. It retains:
+Use the Chrome capture workflow to record one loopback H3 connection through
+the first request. The tools authenticate packet contents and retain:
 
 - the ordered QUIC transport-parameter extension;
 - the reassembled ClientHello;
@@ -863,8 +848,7 @@ boundaries, and request markers may not be discarded to obtain a match.
 
 ## Vendored seams
 
-Phantom patches its vendored `h3` and Quinn forks only where the upstream API
-cannot express a measured or safety-critical behavior:
+The `h3` and Quinn patch series add controls the upstream APIs do not expose:
 
 - ordered H3 SETTINGS and bounded dynamic QPACK integration;
 - starting an early-data connection from remembered peer SETTINGS, and
@@ -876,7 +860,7 @@ cannot express a measured or safety-critical behavior:
   derivation fails.
 
 Each patch is recorded in its fork's patch series and checked by
-`scripts/ci/check-vendor.sh`; see [Vendored forks](vendoring.md). The QUIC
+`scripts/ci/check-vendor.sh`. See [Vendored forks](vendoring.md). The QUIC
 key-schedule test vectors are reproduced and asserted in
 `crates/phantom-quic-btls/src/key_schedule/tests.rs`.
 
@@ -888,12 +872,10 @@ key-schedule test vectors are reproduced and asserted in
 - The CONNECT-UDP limits are listed under
   [Failures and retries](#failures-and-retries).
 
-[Coverage](../reference/coverage.md) has the current contract, and
-[Validation](../explanation/validation.md) has the evidence requirements.
-
 ## Next
 
 - [Vendored forks](vendoring.md): how to change the `h3` and Quinn patches.
 - [Capture tools](../../scripts/capture/README.md): run `chrome_http3.py` and
   the QUIC comparison tools.
-- [Coverage](../reference/coverage.md#http3): the HTTP/3 support contract.
+- [Validation](../explanation/validation.md): browser comparisons and test
+  coverage.

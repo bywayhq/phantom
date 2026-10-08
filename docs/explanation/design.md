@@ -1,13 +1,8 @@
 # Design
 
-Phantom aims to send what a recorded browser sends and to fail visibly when it
-cannot. Read why each rule below follows from that aim, and what it costs you
-when you build on Phantom.
-
-> For specialists and curious builders who have used
-> [the client](../guides/client.md).
-
-For the evidence behind each claim, see [Validation](validation.md).
+Read why Phantom keeps browser settings, connection state, and request policy
+separate. These choices determine what you can change and how failures reach
+your code.
 
 ## Principles
 
@@ -25,44 +20,29 @@ protocol boundaries that carry these rules.
 
 ## Recorded browser behavior is the specification
 
-The target is what a real browser sends, as captured on the wire, and not
-everything a standard permits. When a capture cannot show a behavior, such as
-a TCP socket option, the browser's source code at the profiled release is the
-evidence.
+Recipes describe the traffic a browser sends, including choices the standards
+leave open. For example, a connection to an HTTPS proxy keeps the profile's
+ALPN list, the protocols it offers during TLS. Changing that list would change
+the handshake the proxy sees.
 
-A server compares a client with the browsers it claims to be, so a choice the
-standard allows but no browser makes is itself a signal. The TLS ClientHello
-to an HTTPS proxy therefore offers the profile's ALPN list unchanged: a
-browser offers the same list to a proxy, and a rewritten list would produce a
-ClientHello that no measured browser sends.
+Named recipes leave WebSocket over HTTP/3 off because browsers do not open it
+by default. You can use `Client::websocket_with_protocol` with
+`HttpProtocol::Http3` for a server that supports RFC 9220. Your profile must
+set an extended CONNECT pseudo-header order. No named recipe sets one, and
+profile policy never chooses HTTP/3. The opening uses Phantom's default
+headers.
 
-The same reasoning keeps WebSocket over HTTP/3 out of every named recipe. No
-shipping browser opens one by default. Chromium has the implementation but
-keeps `kEnableWebsocketsOverHttp3` disabled by default, with no
-`chrome://flags` entry and no field trial; even with the flag set, it only
-reuses an HTTP/3 session that already advertised extended CONNECT and never
-dials one. Firefox has no implementation and its tracking bug is unassigned;
-WebKit has none. Common servers do not accept one either. A named recipe would
-emit a handshake no browser emits, so none will until a browser ships it on by
-default. `Client::websocket_with_protocol` with `HttpProtocol::Http3` opens
-an RFC 9220 WebSocket for a caller who points it at their own server: it
-needs a profile that sets an extended CONNECT pseudo-header order, which no
-named recipe does, and it starts from Phantom's default fields. Profile
-policy never chooses it.
-
-Phantom therefore covers only what has been captured or read. It carries one
-version per browser, from Windows 11 captures, and a new browser release needs
-new captures before its recipes exist. Behavior no capture or public source
-shows, such as Edge's TCP options, has no recipe at all.
+Phantom carries one version per browser. Desktop recipes include Windows and
+macOS settings, and separate recipes cover Android. Edge uses the Chromium TCP
+settings. A new browser version needs its own validation before it gets a
+recipe.
 
 ## No silent fallback
 
-An exact H3 request fails when UDP is blocked. That is deliberate: Phantom
-never silently changes protocol, route, or fingerprint to complete a request.
-The one protocol change, `RetryPolicy::with_http2_fallback`, is a caller's
-choice, and the response reports the protocol that answered.
-When it cannot do what the caller chose, it returns a typed error, and
-conflicts between a profile and connection policy fail before any I/O.
+An exact H3 request fails when UDP is blocked. You can opt into
+`RetryPolicy::with_http2_fallback`, and the response reports the protocol that
+answered. Otherwise, the request keeps its protocol and route. A conflict
+between your profile and connection policy fails before network I/O.
 
 A silent change sends traffic the caller did not choose. An HTTP/3 request
 that quietly retries over HTTP/2 presents a different fingerprint, and a
@@ -77,13 +57,11 @@ catch the error and send a new request that names it.
 
 ## Order is part of the fingerprint
 
-When a peer can see the order of fields, settings, or extensions, no layer
-sorts, hashes, or regroups them. Request fields go out in the order the caller
-or the [request template](../reference/glossary.md#request-template) gives,
-and every transport returns the response fields in wire order alongside the
-standard `http::Response` view. Browsers differ in the order of their TLS
-extensions, H2 SETTINGS, and request fields, and servers read that order (see
-[Header order](../fingerprinting.md#header-order)).
+Request headers keep the order you supply, or the order of your [request
+template](../reference/glossary.md#request-template). Every transport also
+returns response headers in wire order alongside the standard `http::Response`
+view. Settings and extensions keep the profile's order rules. See [Header
+order](../fingerprinting.md#header-order) for why those rules matter.
 
 You choose the field order, either directly or through a template. Phantom
 builds on BoringSSL (through `btls`), the `http2` fork of h2, Quinn, `h3`, and
@@ -96,33 +74,26 @@ leaves open, which upstream h2 decides itself.
 
 ## Profiles hold identity; transports apply settings
 
-There is no single switch that means "be Chrome". You build a `ClientProfile`
-from recipes, layer by layer, because browser identity lives only in profile
-data. Transport code applies whatever settings a profile holds and never
-branches on a browser family or on the host operating system, so a new
-browser needs a new profile and no new transport code. OS-specific code
-exists only for real differences in sockets, trust stores, native builds, or
-profiling.
+You build a `ClientProfile` from recipes, one layer at a time. The profile
+holds browser identity. Transport code applies those settings without
+branching on the browser name. Host-specific code handles sockets, trust
+stores, native builds, and profiling.
 
-With one code path per protocol, every profile runs the same tested
-lifecycle. A branch on the browser name would create combinations that only
-one profile exercises, and would hide part of the identity in code where no
-capture comparison reaches it.
+Each protocol keeps one connection lifecycle for all profiles. This keeps
+browser settings visible in profile data rather than hidden in transport
+branches.
 
-Nothing stops you from combining a Chrome TLS recipe with a Firefox H2 recipe,
-and the result matches no browser. A request template does not compare your
-`User-Agent` or `sec-ch-ua` with its browser either. An earlier check matched
-the `User-Agent` against a hand-kept list of product tokens and let through
-Chromium forks that were not on the list, such as Opera and Vivaldi. The one
-case it caught that data alone cannot prevent, an Edge template sent with no
-`User-Agent`, is now a required caller slot.
+You can combine a Chrome TLS recipe with a Firefox H2 recipe, but that
+combination matches no browser. A template does not compare your `User-Agent`
+or `sec-ch-ua` with its browser. It checks required caller slots instead, so
+an Edge template without `User-Agent` fails.
 
 ## A setting is public only when it is applied and tested
 
-Every public option changes what Phantom does, and a test observes the
-change. An option that parses but has no effect tells the caller something
-false about the traffic. Some controls you might expect are therefore absent
-until they are complete: there is no public TLS ticket policy yet.
+Every public option must change what Phantom does, with a test that observes
+the change. For example, `TlsSettings::session_ticket_order` chooses which
+saved TCP ticket a connection offers. `session_tickets_per_origin` bounds how
+many it keeps. An option that only parses would misdescribe your traffic.
 
 ## State belongs to one client and has a bound
 
@@ -132,12 +103,11 @@ results belong to one client, never to the process. Shared process state would l
 what one client learned change what another sends, such as a session ticket
 resumed under a different profile.
 
-Caches, pools, and queues each have a limit, because unbounded state lets a
-peer grow memory without limit. When a limit is reached, the least recently
-used entry is evicted; the defaults are in
-[Defaults and limits](../reference/limits.md). Clones of a client share its
-state, but separately built clients share nothing, so each new client makes
-new handshakes and relearns hints and alternatives.
+Caches, pools, and queues each have a limit. Full stores evict entries under
+their own rules, while full queues reject new waiters. The defaults are in
+[Defaults and limits](../reference/limits.md). Clones share client state.
+Separately built clients make their own handshakes and relearn hints and
+alternatives.
 
 Pool keys include origin, route, protocol, and wire-profile identity, so a
 connection is never reused across a security or fingerprint boundary.
@@ -147,32 +117,32 @@ pipelines. HTTP/2 (H2) and HTTP/3 (H3) run concurrent streams within local and
 peer limits. Waiters are bounded, cancellation is scoped to a stream where
 possible, and a draining connection accepts no new work.
 
-A pool key's H1 bound counts connections, idle ones and those in setup
-included, and admission lets no more requests through than the bound, so a
-request that finds no idle connection always has room to open one. Each
-runtime has its own pool key and bound, so a client used from several
-runtimes can exceed Firefox's per-origin connection count. The one
-exception is the slower attempt of a `TcpBackupConnection`, which carried no
-request: the key counts it once it connects, as Firefox counts its
-connections, but keeps it whatever the count, as Firefox does, so each
-backup connection whose slower attempt is in flight can add one connection,
-up to the bound again, until the extra connections are used or expire idle.
-A request that finds no idle connection claims one instead of opening
-another. The same client keeps one timer that closes expired idle H1
-connections in both H1 pools and ends what each pool remembers of an origin
-with no connection, as Firefox's connection manager prunes on one timer.
+The H1 bound counts idle connections and connections still in setup. Admission
+uses the same bound, so a request without an idle connection has room to open
+one. Each runtime has its own pool and bound. Using one client across several
+runtimes can therefore exceed Firefox's per-origin count.
+
+`TcpBackupConnection` makes one exception for the slower attempt, which has
+carried no request. Once it connects, it counts toward the key's bound but is
+kept even when the bound is full. Each slower attempt still in flight can add
+one extra connection, up to the bound again. Those extra connections stay
+until used or expired. A request takes an idle connection instead of opening
+another.
+
+One client timer closes expired idle H1 connections in both H1 pools. It also
+clears each pool's remembered state for an origin with no connection.
+Firefox's connection manager uses one pruning timer too.
 
 ## Retries and replays
 
-A browser's recovery is part of its behavior, and a request sent twice can
-have effects twice. Every retry class is therefore bounded, and none changes
-the route, the negotiated selection rule, or the Alt-Svc alternative in use.
-Only the opt-in HTTP/2 fallback changes an exact protocol, and only for an
-HTTP/3 request that no QUIC connection carried, so the server processed
-none of it. Apart from one H2 `GOAWAY` replay and the Chromium
-recipes' resend after a failed H2 PING, Phantom retries nothing unless you
-configure it, so a transient failure reaches your code as an error.
-Firefox's transaction restarts on fresh connections are not reproduced.
+Sending a request twice can cause its effects twice. Each retry class
+therefore has a bound. Retries keep the route, negotiated protocol rule, and
+Alt-Svc alternative.
+
+The opt-in HTTP/2 fallback applies only before a QUIC connection has carried
+the HTTP/3 request. Most retries need your configuration. Built-in exceptions
+include one H2 `GOAWAY` replay and Chromium's resend after a failed H2 PING.
+Firefox's restarts on fresh connections are not modeled.
 
 The [retries guide](../guides/retries.md) covers configuration. The sections
 below record the boundaries each class keeps.
@@ -193,34 +163,38 @@ Setup retries therefore stay inside exact-protocol pools and the negotiated
 pool's pre-TLS connect step. They cannot absorb TLS, ALPN, proxy negotiation,
 response, or post-dispatch failures.
 
-A negotiated request first takes a bounded pre-selection admission, sized by
-the larger of the H1 and H2 active and waiting limits. To open a connection
-or use an idle H1 one, it also takes one of the pool key's H1 connection
-slots. While no connection to the key has selected H1, a request that
-finds every slot in a handshake waits for one to finish rather than queue
-for a slot, since an H2 result serves it without one. After ALPN, the
-pre-selection admission converts to the selected protocol's admission. The request holds its pre-selection permit across the
-retry delay, but gives back its connection slot and holds no lock. Bounds
-and queue order therefore stay stable, and another request can open a
-connection, or install an H2 connection, in the meantime.
+A negotiated request takes admission before the server selects H1 or H2. The
+limit is the larger of the protocols' active and waiting limits. Opening a
+connection or using an idle H1 connection also takes an H1 connection slot.
 
-H2 has one built-in graceful-`GOAWAY` replay for a bodyless GET, and it keeps
-the same boundary. An exact H2 request keeps its admission for the
-replacement connection. A negotiated request releases its H2 admission and
-goes through pre-selection admission and ALPN again.
+Before any connection has selected H1, all slots may be in handshakes. A
+request then waits for a handshake rather than queues for a slot. An H2 result
+can serve it without an H1 slot. After ALPN, admission transfers to the
+selected protocol.
+
+The request keeps its pre-selection permit across a retry delay. It returns
+the connection slot and holds no lock. Other requests can open a connection or
+install an H2 connection during that delay. Admission limits and queue order
+stay the same.
+
+H2 has one built-in replay for a bodyless GET without trailers after a
+`GOAWAY(NO_ERROR)`. It keeps the same boundary. An exact H2 request keeps its
+admission for the replacement connection. A negotiated request releases its H2
+admission and goes through pre-selection admission and ALPN again.
 
 ### Reused-connection replay
 
-Replaying bytes that may have reached the origin is a separate class, and it
-is opt-in, apart from the PING-failure resend below. The H1 transport reports a reused keep-alive connection that closed
-or reset before any response byte as its own typed error. A fresh connection,
-or a failure after part of a response, keeps the ordinary protocol error.
+Replaying bytes that may have reached the origin is a separate class. You opt
+in, apart from the PING-failure resend below. H1 reports a reused connection
+that closed or reset before any response byte as its own typed error. A fresh
+connection, or a failure after part of a response, keeps the ordinary protocol
+error.
 
 The facade replays only an idempotent method whose body is absent or owned
 bytes. It replays once per hop, on a fresh connection with the same route,
-outside the setup-retry budget. The evidence is Chrome's single restart after
-`ERR_CONNECTION_CLOSED` on a reused socket. Firefox also restarts requests on
-fresh connections; Phantom does not.
+outside the setup-retry budget. This follows Chrome's single restart after
+`ERR_CONNECTION_CLOSED` on a reused socket. Firefox's restarts on fresh
+connections are not modeled.
 
 ### Unprocessed-request replay
 
@@ -234,7 +208,7 @@ default. It trusts only peer signals that a request was not processed:
 
 The H2 transport reports whether a reset or `GOAWAY` came from the peer. The
 vendored H2 engine fails a request with a remote `GOAWAY` only for streams
-above the last-stream-id or refused before opening; a processed stream ends
+above the last-stream-id or refused before opening. A processed stream ends
 with a transport error when the connection closes. The H3 transport tags only
 failures seen before a response head.
 
@@ -285,22 +259,12 @@ known at that moment: the profile's defaults and those the origin requested
 through `Accept-CH`. A hint that another response teaches later reaches the
 next request, not this one.
 
-The race's winner sends its lists as they were built. So does every attempt
-of the request that repeats one no response answered: a graceful `GOAWAY`
-retry, a restart after rejected early data, a reused-connection replay, an
+The race's winner sends its lists as they were built. So does every attempt of
+the request that repeats one no response answered: a graceful `GOAWAY` retry,
+a restart after rejected early data, a reused-connection replay, an
 unprocessed-request replay, a PING-failure resend, and a race started again
-after an early-data handshake failed. A cookie that another request stores in the meantime is
-sent from the next request on. Browsers behave the same way: Chromium sets a
-request's `Cookie` once, before it asks for a connection, in
-`URLRequestHttpJob::SetCookieHeaderAndStart`
-(`net/url_request/url_request_http_job.cc` lines 835-979 at 154.0.8037.58),
-and `HttpNetworkTransaction::ResetConnectionAndRequestForResend` rebuilds the
-resent headers from those same extra headers
-(`net/http/http_network_transaction.cc` lines 1429 and 2338-2361).
-Firefox's `nsHttpTransaction::Restart` keeps the request head it was given,
-removing only a sticky `Proxy-Authorization` and `Alt-Used`, and rewinds the
-request stream it already wrote (`netwerk/protocol/http/nsHttpTransaction.cpp`
-lines 1963-2036 at `FIREFOX_156_0_RELEASE`).
+after an early-data handshake failed. A cookie that another request stores in
+the meantime is sent from the next request on.
 
 A `Critical-CH` retry and a status retry follow a response, which may have
 stored cookies or requested client hints, so they build and check the lists
@@ -308,53 +272,28 @@ again. Each redirect hop builds its own for its URL, method, body, and
 fields. An exact request builds its one list again for a reused-connection
 replay, an unprocessed-request replay, and a PING-failure resend as well.
 
-A connection's ALPS `ACCEPT_CH` never adds a field to a list already built.
-For a navigation, or a request without a template, an entry for the origin
-that names a hint the list lacks stops the request before any of it is
-written. The connection stays pooled, and the request starts again with that
-hint: it builds and checks its lists anew, reading the cookie jar and the
-stored hints again, and takes a connection from the pool again, usually the
-same one. The entry teaches the origin nothing. A request whose template does
-not restart, such as a `fetch`, goes out as built.
+ALPS `ACCEPT_CH` cannot edit headers already built. For a page load, or a
+request without a template, it can stop the request before any bytes are
+written. This happens when the entry names a hint the request lacks.
 
-Chromium behaves the same way. `AcceptCHFrameInterceptor::OnConnected` runs
-once the request has a stream and before the request is written
-(`services/network/accept_ch_frame_interceptor.cc` lines 90-146, called from
-`URLLoader::ProcessAcceptCHFrameOnConnected`,
-`services/network/url_loader.cc` lines 920-942 at 154.0.8037.58). Only a
-navigation has the observer that restarts
-(`services/network/url_loader_factory.cc` lines 341-371,
-`content/browser/loader/navigation_url_loader_impl.cc` lines 256-277 and
-2160-2181); without it the loader sends the request as built
-(`url_loader.cc` lines 933-937). When the entry names a hint the request
-lacks and the origin has not enabled, `NavigationURLLoaderImpl::OnAcceptCHFrameReceived`
-aborts the loader, merges the hints into the request's fields, and starts
-the navigation again (`navigation_url_loader_impl.cc` lines 1757-1923),
-computing them with the entry's hints added only for that call (lines
-1838-1846). The merge appends each name the navigation's own fields lack
-after them (line 1904; `net/http/http_request_headers.cc` lines 191-195 and
-303-310). Those fields run through `Accept`: the network service copies them
-first (`services/network/url_loader_util.cc` lines 550-555), then adds the
-`Sec-Fetch-*` fields (lines 579-583, `services/network/sec_header_helpers.cc`
-lines 163-192), and the request job adds `Accept-Encoding` and
-`Accept-Language` (`net/url_request/url_request_http_job.cc` lines 781-794).
-Every protocol keeps that order (`net/http/http_network_transaction.cc` lines
-1381-1429). A restarted Chrome navigation therefore sends
-`… user-agent, accept, <the hints it lacked>, sec-fetch-site …`. The
-Chromium navigation templates mark that place with a restart client-hints
-slot, after `Accept`; every hint the request lacked at a restart goes there,
-even one the origin has stored since, while a hint stored before the build
-keeps the template's client-hint block. A request without a template puts
-them after every other field.
+The connection stays pooled. The request rebuilds its headers with the hint,
+reading cookies and stored hints again. It then takes a connection, usually
+the same one. The entry does not update the origin's stored hint set.
+Templates that disable this restart, such as `fetch` templates, send the
+headers already built.
 
-A restart writes nothing, so any method and any body may restart, a
-streaming body included. The hints a request restarted for stay for the rest
-of its hop, so it restarts at most once per hint the profile sends on
-request; Chromium's own bound, 20 restarts per navigation
-(`accept_ch_restart_limit_ = kMaxRedirects`, line 1873), is out of reach of
-every named recipe. A request sent as HTTP/3 early data is never checked,
-because ALPS arrives with the handshake, and neither is its resend after a
-rejection, which Chromium's QUIC session retransmits as it was sent.
+The Chromium navigation templates put restart hints after `Accept`. Hints
+added by a restart use that slot for the rest of the hop. Hints learned before
+the request was built keep the template's ordinary hint block. A request
+without a template puts restart hints after every other header.
+
+A restart writes nothing, so any method and any body may restart, a streaming
+body included. The hints a request restarted for stay for the rest of its hop,
+so it restarts at most once per hint the profile sends on request. Chromium's
+own bound of 20 restarts per navigation is out of reach of every named recipe.
+A request sent as HTTP/3 early data is never checked, because ALPS arrives
+with the handshake, and neither is its resend after a rejection, which
+Chromium's QUIC session retransmits as it was sent.
 
 ## Safety boundary
 
@@ -366,7 +305,7 @@ through a recorded patch series.
 
 In practice, verification can be disabled only for H1 and H2 conformance
 testing, and your build cannot swap Phantom's patched dependencies for stock
-ones. Recoverable input and network failures return typed errors; runtime
+ones. Recoverable input and network failures return typed errors. Runtime
 library code must not panic.
 
 ### TLS boundary
@@ -387,10 +326,10 @@ not change the profile's ClientHello.
 
 ### Dependency policy
 
-A change to a vendored dependency must name its upstream revision, explain
-the missing seam, carry a reproducible patch, preserve stock defaults, and
-include focused tests. `scripts/ci/check-vendor.sh` verifies each patched
-package; [Vendoring](../internals/vendoring.md) describes the workflow.
+A change to a vendored dependency must name its upstream revision, explain the
+missing seam, carry a reproducible patch, preserve stock defaults, and include
+focused tests. `scripts/ci/check-vendor.sh` verifies each patched package.
+[Vendoring](../internals/vendoring.md) describes the workflow.
 
 Backend types stay private, and runtime crates never depend on the testkit.
 See [HTTP/3 internals](../internals/http3.md) for the boundaries specific to
@@ -428,26 +367,23 @@ Safe code in either crate cannot add unsafe operations without moving them
 into that module, where review concentrates. A change to it needs the same
 scrutiny as a vendored patch: a stated invariant for every unsafe block, and
 tests that exercise the failure paths. The macOS and Windows CI jobs also run
-`phantom-quic-btls`'s unit tests in release mode to check the native link.
-[Fuzzing and sanitizers](validation.md#fuzzing-and-sanitizers) records which
-of its failure paths have tests.
+`phantom-quic-btls`'s unit tests in release mode to check the native link. The
+failure-path tests are listed in Validation.
 
 #### Windows port randomization audit
 
 Chromium asks Windows for a random local port with `SO_RANDOMIZE_PORT` on
-every TCP socket from Windows 11 22H2, and on every UDP socket it connects
-([Socket hook evidence](validation.md#socket-hook-evidence), [UDP socket
-option evidence](validation.md#udp-socket-option-evidence)).
+every TCP socket from Windows 11 22H2, and on every UDP socket it connects.
 `TcpPortRandomization` and `UdpSettings::port_randomization` reproduce it.
-`tcp.rs` and `udp.rs` each call `socket_ffi::port_randomization`, compiled
-on Windows only, before their socket binds or connects; the parent
-`socket_ffi` sits at the crate root, not under either transport, because
-it serves both. No safe Rust API sets the option: `socket2` 0.6.5 has no
-method for it, and its general `setsockopt` is private. The
-declarations come from `windows-sys` 0.61.2, which `socket2` and Tokio
-already build on Windows, so the boundary added no crate to the build.
-Winsock errors are read with `io::Error::last_os_error`, as `socket2` reads
-them, so that read needs no unsafe call.
+`tcp.rs` and `udp.rs` each call `socket_ffi::port_randomization`, compiled on
+Windows only, before their socket binds or connects. The parent `socket_ffi`
+sits at the crate root, not under either transport, because it serves both. No
+safe Rust API sets the option: `socket2` 0.6.5 has no method for it, and its
+general `setsockopt` is private. The declarations come from `windows-sys`
+0.61.2, which `socket2` and Tokio already build on Windows, so the boundary
+added no crate to the build. Winsock errors are read with
+`io::Error::last_os_error`, as `socket2` reads them, so that read needs no
+unsafe call.
 
 The submodule has three unsafe blocks, one foreign call each:
 
@@ -472,24 +408,24 @@ builds on 1.88 had its last release, 0.1.7, on 2025-10-06. The call stays
 here, where its invariant is audited with the others.
 
 Tests in `crates/phantom-net/src/tcp/tests/port_randomization.rs` and
-`crates/phantom-net/src/udp/tests/port_randomization.rs` run on Windows.
-They read the option back with `getsockopt`: after a loopback connect with
-the Chromium TCP recipe (set) and the Firefox one (not set), and on a UDP
-socket bound with `chromium::v154_udp` (set) and without UDP settings (not
-set). They check that a minimum build past the host leaves the TCP option
-off, that a bound TCP or UDP socket rejects it with `WSAEINVAL` (the failure
-path), and that eight successive sockets of each transport, with and without
-a source binding, each have the option set and do not all take ports close
-together, and that UDP sockets without the option take ports in sequence.
+`crates/phantom-net/src/udp/tests/port_randomization.rs` run on Windows. They
+read the option back with `getsockopt`: after a loopback connect with the
+Chromium TCP recipe (set) and the Firefox one (not set), and on a UDP socket
+bound with `chromium::v154_udp` (set) and without UDP settings (not set). They
+check that a minimum build past the host leaves the TCP option off, that a
+bound TCP or UDP socket rejects it with `WSAEINVAL` (the failure path), and
+that eight successive sockets of each transport, with and without a source
+binding, each have the option set and do not all take ports close together,
+and that UDP sockets without the option take ports in sequence.
 `tcp/tests/paths.rs` reads it back on every TCP connect path, and
-`udp/tests/paths.rs` on the UDP socket of a direct HTTP/3 connection and of
-a SOCKS5 UDP association. On a Windows build below 22621 the TCP
-scattered-port tests print a line naming the host's build and return early,
-because the Chromium TCP recipe does not set the option there; the UDP
-recipe has no minimum build. On a Windows without the option, which fails
-with `WSAENOPROTOOPT`, the four direct `setsockopt` tests do the same. No
-test host has reached `WSAENOPROTOOPT`, and the Windows SDK declares the
-option for every Windows from Vista on.
+`udp/tests/paths.rs` on the UDP socket of a direct HTTP/3 connection and of a
+SOCKS5 UDP association. On a Windows build below 22621 the TCP scattered-port
+tests print a line naming the host's build and return early, because the
+Chromium TCP recipe does not set the option there. The UDP recipe has no
+minimum build. On a Windows without the option, which fails with
+`WSAENOPROTOOPT`, the four direct `setsockopt` tests do the same. No test host
+has reached `WSAENOPROTOOPT`, and the Windows SDK declares the option for
+every Windows from Vista on.
 
 Miri does not apply: it cannot execute calls into `ws2_32.dll` or
 `ntdll.dll`, and the submodule has no unsafe code apart from those calls.
@@ -499,22 +435,22 @@ The sanitizer jobs build on Linux, where the submodule does not compile.
 
 `SourceBinding` binds a socket to a network interface by name. Linux and
 Android take the name in `SO_BINDTODEVICE`, which socket2 sets safely, so
-their production builds compile no `socket_ffi` code. macOS takes an
-interface index in `IP_BOUND_IF` and `IPV6_BOUND_IF`, which socket2 0.6.5
-also sets safely with `bind_device_by_index_v4` and
-`bind_device_by_index_v6`. Windows takes an index in `IP_UNICAST_IF`, in
-network byte order, and `IPV6_UNICAST_IF`, in host byte order, which no
-safe API sets. No safe API turns a name into an index on either platform,
-so `socket_ffi::interface` makes those calls. Each socket looks the name up
-as it binds, as Linux resolves `SO_BINDTODEVICE`'s name; `build` does not,
-so an interface that appears after `build` serves later connections.
+their production builds compile no `socket_ffi` code. macOS takes an interface
+index in `IP_BOUND_IF` and `IPV6_BOUND_IF`, which socket2 0.6.5 also sets
+safely with `bind_device_by_index_v4` and `bind_device_by_index_v6`. Windows
+takes an index in `IP_UNICAST_IF`, in network byte order, and
+`IPV6_UNICAST_IF`, in host byte order, which no safe API sets. No safe API
+turns a name into an index on either platform, so `socket_ffi::interface`
+makes those calls. Each socket looks the name up as it binds, as Linux
+resolves `SO_BINDTODEVICE`'s name. `build` does not, so an interface that
+appears after `build` serves later connections.
 
-`libc` 0.2.189 and `windows-sys` 0.61.2 supply the declarations; socket2
-and Tokio already build both, so the boundary adds no crate to the build.
-`libc` is a normal dependency on Apple platforms and a dev-dependency on
-Linux and Android. A safe function outside the module,
-`unicast_interface_value`, encodes the option value, and a unit test
-checks its byte order on every platform.
+`libc` 0.2.189 and `windows-sys` 0.61.2 supply the declarations. Socket2 and
+Tokio already build both, so the boundary adds no crate to the build. `libc`
+is a normal dependency on Apple platforms and a dev-dependency on Linux and
+Android. A safe function outside the module, `unicast_interface_value`,
+encodes the option value, and a unit test checks its byte order on every
+platform.
 
 The submodule has six unsafe blocks, one foreign call each. Each row names
 the builds that compile the block:
@@ -528,26 +464,26 @@ the builds that compile the block:
 | `setsockopt(IPPROTO_IP, IP_UNICAST_IF)` or `setsockopt(IPPROTO_IPV6, IPV6_UNICAST_IF)` | Windows | An open socket handle, and `optlen` readable bytes at `optval` | The handle comes from a `BorrowedSocket`. `optval` points to a local `[u8; 4]` and `optlen` is 4. |
 | `getsockopt` of the same option | Windows tests | An open socket handle, `*optlen` writable bytes at `optval`, and a writable `optlen` | The same handle. `optval` points to a zeroed local `[u8; 4]` and `optlen` to a local 4; a returned length other than 4 is an error. |
 
-As in port randomization, every pointer is an exclusive borrow of a local
-that outlives the call, none of the calls keeps a pointer after it returns,
-and the module exports no `unsafe fn`. `if_nametoindex` reports a missing
-interface through `errno`, which the code reads with
-`io::Error::last_os_error` straight after the call. A missing interface
-(`ENODEV` or `ENXIO`, or an IP Helper "not found", "invalid name", or
-"invalid parameter") fails with `io::ErrorKind::NotFound`; any other
-failure keeps its OS error. Windows returns `IP_UNICAST_IF` from
-`getsockopt` in host byte order, although `setsockopt` takes it in network
-byte order, so the read-back test expects host order for both options.
+As in port randomization, every pointer is an exclusive borrow of a local that
+outlives the call, none of the calls keeps a pointer after it returns, and the
+module exports no `unsafe fn`. `if_nametoindex` reports a missing interface
+through `errno`, which the code reads with `io::Error::last_os_error` straight
+after the call. A missing interface (`ENODEV` or `ENXIO`, or an IP Helper "not
+found", "invalid name", or "invalid parameter") fails with
+`io::ErrorKind::NotFound`. Any other failure keeps its OS error. Windows
+returns `IP_UNICAST_IF` from `getsockopt` in host byte order, although
+`setsockopt` takes it in network byte order, so the read-back test expects
+host order for both options.
 
-Tests in `crates/phantom-net/src/source_binding/tests.rs` look up the
-loopback interface (`lo`, `lo0`, or the NDIS name `loopback_0`) and a name
-no host has, bind a TCP and a UDP socket to the loopback interface, and read
-the binding back: the device name on Linux, the index with
-`device_index_v4` and `device_index_v6` on macOS, and the option value with
-`getsockopt` on Windows. Binding by index, the Apple path, also runs in
-Linux test builds, where socket2 sets `SO_BINDTOIFINDEX`. The macOS and
-Windows CI jobs are the only builds of those two platforms' paths; no job
-builds iOS or the other Apple platforms.
+Tests in `crates/phantom-net/src/source_binding/tests.rs` look up the loopback
+interface (`lo`, `lo0`, or the NDIS name `loopback_0`) and a name no host has,
+bind a TCP and a UDP socket to the loopback interface, and read the binding
+back: the device name on Linux, the index with `device_index_v4` and
+`device_index_v6` on macOS, and the option value with `getsockopt` on Windows.
+Binding by index, the Apple path, also runs in Linux test builds, where
+socket2 sets `SO_BINDTOIFINDEX`. The macOS and Windows CI jobs are the only
+builds of those two platforms' paths. No job builds iOS or the other Apple
+platforms.
 
 Neither Miri nor the sanitizers cover `socket_ffi::interface`: Miri cannot
 execute `if_nametoindex` or the IP Helper calls, and the ASan job, which
@@ -597,8 +533,8 @@ not backend toggles.
   serialization.
 - H3 has a separate QUIC path, because its transport, diagnostics, and
   fingerprint controls differ materially.
-- The H3 QUIC socket is either direct UDP or Phantom's SOCKS5 UDP ASSOCIATE
-  adapter, with local or remote DNS. The remote-DNS adapter keeps the wire
+- H3 carries QUIC over direct UDP, a SOCKS5 UDP ASSOCIATE adapter, or a
+  CONNECT-UDP tunnel. SOCKS5 supports local or remote DNS. The remote-DNS adapter keeps the wire
   target as a domain name while presenting one stable logical peer to Quinn.
   Every path keeps the route selected before setup; a proxy or QUIC failure
   cannot select a different route or protocol.
@@ -610,9 +546,9 @@ not backend toggles.
 - Alt-Svc use is sequential by default. Opt-in racing chooses between exactly
   two pre-declared candidates on the same route, the alternative QUIC
   connection and then, after a delay, the origin H1/H2 connection, and sends
-  the request once, on the winner. A losing alternative that fails is marked
-  broken with a bounded doubling backoff instead of being evicted, as
-  Chromium does.
+  the request once, on the winner. If the origin connects and the alternative
+  fails, the alternative is marked broken with a bounded doubling backoff.
+  Both candidates failing leaves that state unchanged.
 - Response content decoding is an opt-in facade body stage above every
   transport. It is gated by the caller's own `Accept-Encoding`, never edits
   request fields, and keeps the response fields as the wire view.
@@ -648,42 +584,39 @@ driver.
 
 An exact-protocol H3 WebSocket, in contrast, is a stream on the client's
 pooled H3 connection to the origin and route. Every exact H3 request already
-shares that connection, so the WebSocket follows it rather than opening a
-QUIC connection that no ordinary request would open. A connection the
-WebSocket opens is set up as an ordinary request's would be, offering early
-data when the client does, so its handshake does not show which caller
-opened it; the CONNECT, which is not replay-safe, waits for the handshake.
+shares that connection, so the WebSocket follows it rather than opening a QUIC
+connection that no ordinary request would open. A connection the WebSocket
+opens is set up as an ordinary request's would be, offering early data when
+the client does, so its handshake does not show which caller opened it. The
+CONNECT, which is not replay-safe, waits for the handshake.
 
-WebSocket connections never enter the client's ordinary HTTP pool, except as
-one stream on a pooled H2 session under a profile policy or on a pooled H3
-connection. That stream takes the same per-origin slot an ordinary request
-takes, and holds the slot and a lease on the connection for its whole life,
-like a response body. Both are released when the WebSocket is dropped or
-reaches a terminal state, such as a completed close handshake. On any H2
-WebSocket, receive-window capacity is returned as the caller consumes bytes,
-a graceful shutdown sends `END_STREAM`, and dropping early resets only the
-CONNECT stream. On an H3 WebSocket a graceful shutdown sends FIN, and
-dropping early resets only its stream with `H3_REQUEST_CANCELLED`.
+A WebSocket uses its own connection unless it joins a pooled H2 session under
+profile policy or a pooled H3 connection. A pooled stream holds the same
+admission slot and connection lease as an ordinary request. It releases both
+when dropped or when it ends, including after a completed close handshake.
 
-A profile may reopen a refused WebSocket once. When a recipe sets
-`refused_stream_retry` to `SameSessionOnce` and the peer answers the extended
-CONNECT with `RST_STREAM(REFUSED_STREAM)`, Phantom sends the same opening
-fields once more on the same session, on the next stream. RFC 9113, Section
-8.7 makes the refusal proof that the peer processed nothing, and the opening
-fields are the only bytes written to the stream, so nothing the peer saw is
-replayed. The rule applies only on a pooled H2 session, the only case the
-captures cover. A refusal on a connection opened for the WebSocket, a second
-refusal, a `GOAWAY`, a local reset, and every other stream failure are
-returned unchanged, and no other connection, route, or protocol is tried.
+On H2, consuming bytes returns receive-window capacity. A graceful shutdown
+sends `END_STREAM`, and dropping early resets only the CONNECT stream. On H3,
+a graceful shutdown sends FIN. Dropping early resets only that stream with
+`H3_REQUEST_CANCELLED`.
 
-Phantom owns the opening handshake and the response checks. After a
-validated handshake it hands the stream to the vendored `tokio-tungstenite`,
-which serves only as the RFC 6455 frame and message engine; its client
-handshake, TLS connectors, and public types are not exposed. Secure
-connections use Phantom's BoringSSL TLS profile, H1 openings go through the
-client's ordered HTTP/1 serializer, and WebSocket shares the client's ordered
-response metadata, cookies, runtime errors, and tracing. The engine's patch
-series:
+A profile can reopen a refused WebSocket once on a pooled H2 session. With
+`refused_stream_retry` set to `SameSessionOnce`, a peer's
+`RST_STREAM(REFUSED_STREAM)` sends the same opening headers on the next
+stream. RFC 9113 section 8.7 identifies this as a request the peer did not
+process. Only the opening headers have been written.
+
+This retry does not apply to a connection opened for the WebSocket. A second
+refusal, `GOAWAY`, local reset, or other stream failure reaches your code
+unchanged. The opening keeps its connection, route, and protocol.
+
+Phantom owns the opening handshake and the response checks. After a validated
+handshake it hands the stream to the vendored `tokio-tungstenite`, which
+serves only as the RFC 6455 frame and message engine. Its client handshake,
+TLS connectors, and public types are not exposed. Secure connections use
+Phantom's BoringSSL TLS profile, H1 openings go through the client's ordered
+HTTP/1 serializer, and WebSocket shares the client's ordered response
+metadata, cookies, runtime errors, and tracing. The engine's patch series:
 
 - keeps frames and messages out of dependency logs;
 - returns a failure to get mask entropy as a typed error instead of
@@ -692,9 +625,6 @@ series:
   frames, context takeover, UTF-8 validation, and the decompressed size limit
   share one state; and
 - adds the fragment-count limit, without changing default behavior.
-
-The public client is tested against a pinned Autobahn fuzzing server
-([External suites](validation.md#external-suites)).
 
 `SseEventSource` keeps its state across a cancelled `next_event`: a scheduled
 reconnect deadline, including an active idle deadline, and an in-flight
@@ -708,86 +638,84 @@ reconnect budget, because the same request would fail the same way.
 
 ### Proxy authentication
 
-HTTP proxy Basic authentication starts from a challenge and is then
-remembered, as Chrome, Edge, and Firefox remember it
-([evidence](validation.md#proxy-authentication-evidence)). The first CONNECT
-or forwarded request to a proxy carries no credentials. A strict, valid Basic
-`407` challenge permits one replay with the route's credentials. An H2
-forwarding replay uses a new stream on the same pooled proxy connection. An
-H2 CONNECT replay uses a new stream on the HTTP/2 connection that carried the
-`407`, as Chromium and Firefox do. Before it, the profile's CONNECT recipe
-decides what the challenged stream gets: the Chromium recipe ends it with an
-empty END_STREAM DATA frame, as Chromium does, and the Firefox recipe sends
-nothing, as Firefox does. Phantom waits until the driver has written that
-frame before it opens the replay, so the order holds on any runtime; the wait
-ends after about 50 ms if the proxy stops reading, and the replay's HEADERS
-can then come first. The connection then carries the tunnel along with any
-other tunnels on it
-([Shared HTTP/2 proxy connections](#shared-http2-proxy-connections)). An
-HTTP/1.1 CONNECT replay and an H1 forwarding replay use the HTTP/1.1
-connection that carried the `407` when the response leaves it open, as
-Chromium and Firefox do, and open a new proxy connection otherwise.
-A second `407`, or a challenge Phantom cannot use, is a typed proxy failure.
+HTTP proxy Basic authentication starts with a challenge. The first CONNECT or
+forwarded request sends no credentials. A valid Basic `407` challenge permits
+one replay with the route's credentials. A second `407`, or an unusable
+challenge, fails with a typed proxy error.
 
-The `407` leaves the connection open when it names no `close` token in
-`Connection` or `Proxy-Connection` (an HTTP/1.0 response needs
-`keep-alive`), states its body length with `Content-Length` or chunked
-coding, and its body ends within
-[`MAX_CHALLENGE_BODY_BYTES`](../reference/limits.md#protocol-state),
-64 KiB, with no bytes after it. Phantom reads that body and discards it.
-Browsers read a `407` body of any length; the bound keeps a proxy from
-holding the replay on an endless body, and a longer body costs only the new
-connection. On a forwarded request the read counts toward the response-head
-timeout and each body frame toward the read-idle timeout, and an expired
-timeout, the total deadline included, fails the request. A CONNECT counts
-it toward the connect timeout. Without configured timeouts, only the size
-bound limits it, so a proxy that sends part of a `407` body and stalls
-holds the request until the caller's own deadline.
+An H2 forwarding replay opens a new stream on the same pooled connection. An
+H2 CONNECT replay uses the connection that carried the `407`. The CONNECT
+recipe decides how to end the challenged stream. Chromium sends an empty
+END_STREAM DATA frame. Firefox sends nothing.
+
+Phantom waits for the driver to write that frame before opening the replay. If
+the proxy stops reading, the wait ends after about 50 ms. The replay's HEADERS
+can then come first. The connection carries the new tunnel alongside its other
+tunnels (see [Shared HTTP/2 proxy
+connections](#shared-http2-proxy-connections)).
+
+An HTTP/1.1 CONNECT or forwarding replay reuses the challenged connection when
+the response leaves it open. Otherwise, it opens a new proxy connection. These
+choices follow Chromium and Firefox.
+
+An HTTP/1.1 `407` leaves the connection open under three conditions. It has no
+`close` token in `Connection` or `Proxy-Connection`. An HTTP/1.0 CONNECT
+response also needs `keep-alive`. The response states its body length through
+`Content-Length` or chunked coding. Its body ends within
+[`MAX_CHALLENGE_BODY_BYTES`](../reference/limits.md#protocol-state), 64 KiB,
+with no bytes after it.
+
+Phantom reads and discards that body. Browsers read a `407` body of any
+length. A longer body makes Phantom open a new connection for the replay. The
+size bound prevents an endless body from keeping that connection open.
+
+For forwarded requests, this read uses the response-head timeout and each
+frame uses the read-idle timeout. Any expired timeout, including the total
+deadline, fails the request. A CONNECT uses the connect timeout instead.
+Without timeouts, a proxy can send part of the body and stall until your own
+deadline.
 
 On an HTTP/2 CONNECT these rules do not apply, because a `407` ends only its
-stream. Phantom does not read the body of such a `407`: a body still
-arriving is reset with `CANCEL`, with no END_STREAM before it, its data
-returns to the connection window, and the replay goes on the same
-connection. No capture has a body-bearing `407` on HTTP/2.
+stream. Phantom does not read the body of such a `407`: a body still arriving
+is reset with `CANCEL`, with no END_STREAM before it, its data returns to the
+connection window, and the replay goes on the same connection.
 
-A forwarded replay holds the connection and its pool slot until it is
-sent, so no other request takes the connection first. Before the replay,
-Phantom checks that the proxy has not closed the connection since the
-`407`. When the proxy closes the kept connection before it answers the
-replay, a CONNECT, or a forwarded request with an idempotent method and a
-replayable body, is sent once more on a new connection. On HTTP/2, a
-`GOAWAY` or a `REFUSED_STREAM` reset that shows the proxy did not process the
-CONNECT replay counts as a close. This is part of the authentication replay
-and needs no
-[retry policy](../guides/retries.md#replay-a-request-after-a-reused-connection-closes).
+A forwarded replay holds the connection and its pool slot until it is sent, so
+no other request takes the connection first. Before the replay, Phantom checks
+that the proxy has not closed the connection since the `407`. When the proxy
+closes the kept connection before it answers the replay, a CONNECT, or a
+forwarded request with an idempotent method and a replayable body, is sent
+once more on a new connection. On HTTP/2, a `GOAWAY` or a `REFUSED_STREAM`
+reset that shows the proxy did not process the CONNECT replay counts as a
+close. This is part of the authentication replay and needs no [retry
+policy](../guides/retries.md#replay-a-request-after-a-reused-connection-closes).
 Any other forwarded request fails with the reused-connection error, because
-the proxy may already have forwarded it; Chromium resends it.
+the proxy may already have forwarded it. Chromium resends it.
 
-When the replay succeeds, the client records the proxy's scheme, host, and
-port together with those credentials. Later tunnels, WebSocket tunnels, and
-forwarded requests through the same proxy with the same credentials send
-`Proxy-Authorization` on the first attempt and skip the `407` round trip,
-and the new proxy connection that a closing `407` needs. A forwarded request
-that sends remembered credentials uses a pooled proxy connection like any
-other request. A `407` to such a request forgets the pair and permits the
-same single replay, so a proxy that stops accepting the credentials costs
-one failed request at most, never a loop.
+A successful replay records the proxy's scheme, host, port, and credentials.
+Later tunnels, WebSocket tunnels, and forwarded requests with that pair send
+`Proxy-Authorization` on the first attempt. They skip both the `407` round
+trip and any replacement connection a closing challenge would require.
 
-The record stores only which configured credentials a proxy accepted; it
-never supplies credentials to a route. A route sends its own credentials, and
-only to its own proxy, so a proxy never receives another route's credentials,
-and Phantom never sends a proxy's credentials to an origin. The record
-belongs to one client, holds at most 128 pairs, and forgets the least
-recently used pair first. Clones of a client share it; a separately built
-client has its own, as it has its own cookies, Alt-Svc state, and pools.
-Browsers add an entry when credentials are supplied, before the proxy has
-accepted them; Phantom adds one only after the proxy accepts, so a rejected
-credential is never sent first. Browsers key their entries by realm as well;
-Phantom keys them by credentials instead, because the realm is unknown before
-the first request and the configured credentials do not depend on it.
+A forwarded request with remembered credentials uses a pooled connection. A
+`407` forgets the pair and permits the same single replay. Further refusal
+fails the request rather than starting a loop.
+
+The record stores only which configured credentials a proxy accepted. It never
+supplies credentials to a route. A route sends its own credentials, and only
+to its own proxy, so a proxy never receives another route's credentials, and
+Phantom never sends a proxy's credentials to an origin. The record belongs to
+one client, holds at most 128 pairs, and forgets the least recently used pair
+first. Clones of a client share it. A separately built client has its own, as
+it has its own cookies, Alt-Svc state, and pools. Browsers add an entry when
+credentials are supplied, before the proxy has accepted them. Phantom adds one
+only after the proxy accepts, so a rejected credential is never sent first.
+Browsers key their entries by realm as well. Phantom keys them by credentials
+instead, because the realm is unknown before the first request and the
+configured credentials do not depend on it.
 `ClientBuilder::preemptive_proxy_authentication(false)` turns the record off.
-CONNECT-UDP tunnels always start without credentials, because neither
-Chromium nor Firefox sends `Proxy-Authorization` on a CONNECT-UDP request.
+CONNECT-UDP tunnels always start without credentials, because neither Chromium
+nor Firefox sends `Proxy-Authorization` on a CONNECT-UDP request.
 
 A proxy without configured credentials forwards a caller's own
 `Proxy-Authorization` field unchanged, so a caller can authenticate the first
@@ -796,44 +724,44 @@ credentials, and without a template it keeps the caller's order. With
 configured credentials that field is refused before I/O, because it would
 conflict with the generated one.
 
-The generated `Proxy-Authorization` field is marked sensitive, which keeps
-its value out of `Debug` output. Over HTTP/2 the browser recipes still index
-it, as the browsers do; see
-[Cookie crumbs and compression](#cookie-crumbs-and-compression). On a CONNECT
-request it takes the position of the route's authorization placeholder, last
-by default. On a forwarded request it takes the request template's slot for
-that attempt, which can differ between the replay after a `407` and a first
-attempt with remembered credentials, as it does in Firefox; without such a
-slot it follows the caller's fields and precedes generated framing. Owned
-bodies, buffered streaming bodies within their limit, and static trailers
-can be replayed; a one-shot streaming body fails before Phantom opens a retry
-connection. This lifecycle never changes the
-selected protocol or route, and never falls back to a direct connection.
+The generated `Proxy-Authorization` field is marked sensitive, which keeps its
+value out of `Debug` output. Over HTTP/2 the browser recipes still index it,
+as the browsers do. See [Cookie crumbs and
+compression](#cookie-crumbs-and-compression). On a CONNECT request it takes
+the position of the route's authorization placeholder, last by default. On a
+forwarded request it takes the request template's slot for that attempt, which
+can differ between the replay after a `407` and a first attempt with
+remembered credentials, as it does in Firefox. Without such a slot it follows
+the caller's fields and precedes generated framing. Owned bodies, buffered
+streaming bodies within their limit, and static trailers can be replayed. A
+one-shot streaming body fails before Phantom opens a retry connection. This
+lifecycle never changes the selected protocol or route, and never falls back
+to a direct connection.
 
 ### Shared HTTP/2 proxy connections
 
-Chrome 154, Edge 154, and Firefox 157 open several CONNECT tunnels as
-streams of one HTTP/2 connection to a proxy
-([evidence](validation.md#proxy-route-browser-evidence)), so Phantom does
-too. Each client keeps its own `Http2ProxyPool`, and each HTTPS proxy
-connector the client builds shares it. A pool is keyed by the proxy host,
-port, and TLS server name, the route's Basic credentials, and the identity of
-the connector settings that shape the connection (TLS, TCP, HTTP/2, and name
-resolution). Routes with other credentials never share a connection, because
-a proxy may treat a connection as authenticated once one request on it was.
+Chrome 154, Edge 154, and Firefox 157 open several CONNECT tunnels as streams
+of one HTTP/2 connection to a proxy, so Phantom does too. Each client keeps
+its own `Http2ProxyPool`, and each HTTPS proxy connector the client builds
+shares it. A pool is keyed by the proxy host, port, and TLS server name, the
+route's Basic credentials, and the identity of the connector settings that
+shape the connection (TLS, TCP, HTTP/2, and name resolution). Routes with
+other credentials never share a connection, because a proxy may treat a
+connection as authenticated once one request on it was.
 
-A route keeps one connection, as browsers keep one proxy session, and every
-new tunnel goes on it. Past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`,
-the HTTP/2 layer holds the CONNECT until another stream on the connection
-ends, as the browsers queue a stream on their session. A tunnel is
-long-lived, so a queued CONNECT can wait for as long as another tunnel stays
-open. `ClientBuilder::max_http2_proxy_connections_per_route` trades that
-wait for extra connections: a route then opens another connection once each
-one carries 100 tunnels (Phantom's choice) or the proxy's stream limit, up to
-the caller's maximum and at most 8, and takes the least loaded connection
-beyond that. Forwarded requests on a shared connection are not counted,
-because they end quickly. A proxy sees more connections than a browser opens
-with this option, so it is off by default.
+By default, each route keeps one proxy connection and opens each tunnel on a
+stream. At `SETTINGS_MAX_CONCURRENT_STREAMS`, CONNECT waits for another stream
+to end. A long-lived tunnel can therefore keep a CONNECT waiting.
+
+You can allow extra connections with
+`ClientBuilder::max_http2_proxy_connections_per_route`. The route opens
+another once every connection carries 100 tunnels or reaches the peer's lower
+stream limit. It stops at your maximum, capped at 8. Beyond that, it chooses
+the least loaded connection. Forwarded requests are not counted because they
+end quickly.
+
+Extra connections differ from the browser's one-session behavior, so this
+option is off by default.
 
 Only one setup runs per route at a time, and other tunnels wait for it
 rather than race it, as a browser waits for its proxy session. When the
@@ -862,26 +790,23 @@ connection, as Chromium sends a page's requests on its proxy session. With
 Firefox opens three connections for one page. Forwarded requests to
 different origins share their connection in both.
 
-Tunnels on one connection share its flow-control windows, and the vendored
-`http2` crate divides them. On the send side, each tunnel write reserves at
-most 16 KiB of stream capacity, and the crate assigns connection capacity to
-waiting streams in the order they asked for it, then sends one DATA frame
-per stream in turn, so a busy tunnel cannot hold the connection window for
-more than one reservation ahead of the others. On the receive side, a
-tunnel returns window only as its reader consumes the bytes, and the crate
-sends a connection `WINDOW_UPDATE` once half the window has been consumed.
-A tunnel whose reader stops therefore holds up to the stream window the
-profile announces (6 MiB in the Chromium recipe) out of the connection
-window (15 MiB), as it would in a browser with the same SETTINGS.
+Tunnels on one connection share flow-control windows. Each write reserves at
+most 16 KiB of stream capacity. The vendored `http2` crate assigns connection
+capacity in request order, then sends one DATA frame per stream in turn. A
+busy tunnel can hold only one reservation ahead of the others.
+
+On receive, a tunnel returns window capacity as its reader consumes bytes. The
+crate sends a connection `WINDOW_UPDATE` after half the window is consumed. A
+stopped reader holds up to its stream window out of the connection window. The
+Chromium recipe uses 6 MiB and 15 MiB respectively, as the browser does.
 
 ### Cookie crumbs and compression
 
 On HTTP/2 and HTTP/3 the Chromium recipes insert every cookie crumb into the
 HPACK or QPACK dynamic table, and the Firefox HTTP/2 recipe inserts every
-crumb of 20 bytes or more, because the browsers do
-([evidence](validation.md#cookie-crumb-evidence)). A crumb sent as a
-never-indexed literal would mark the client as not being that browser on
-every request that carries cookies.
+crumb of 20 bytes or more, because the browsers do. A crumb sent as a
+never-indexed literal would mark the client as not being that browser on every
+request that carries cookies.
 
 Indexing has a cost that RFC 7541 section 7.1.3 describes. A party that can
 add chosen fields to requests on the same connection and observe the size of
@@ -891,19 +816,18 @@ why the RFC recommends never indexing them. Phantom takes the browsers' side
 of the trade: the browsers accept this exposure, and a client that differs
 from them is recognizable.
 
-The same holds for `proxy-authorization` on an HTTP/2 proxy connection.
-Chrome, Edge, Brave, Opera, and Firefox insert it into the proxy
-connection's table and send it as an index afterwards
-([proxy authentication evidence](validation.md#proxy-authentication-evidence)),
-and so do the recipes. Here the exposure is narrower than for cookies: the
-block goes only to the proxy, which holds the credential already, so a
-guess needs a party that both adds fields to requests on that proxy
-connection and sees the size of its encrypted frames. The rule applies only
-to connections to a proxy: a sensitive `proxy-authorization` that a caller
-sends to an origin stays never-indexed, since no capture shows a browser
-sending one there. Set `sensitive_proxy_authorization` to `NeverIndexed` in
-`Http2HpackSettings` to keep the credential out of the table on proxy
-connections too; the proxy can then tell the client from the browsers.
+The recipes also index `proxy-authorization` on HTTP/2 proxy connections.
+Chrome, Edge, Brave, Opera, and Firefox insert it into the dynamic table and
+reference that entry afterwards.
+
+The headers go only to the proxy, which already knows the credentials.
+Guessing an indexed value requires someone who can add headers on that
+connection and observe encrypted frame sizes. A sensitive
+`proxy-authorization` sent to an origin stays never-indexed.
+
+Set `sensitive_proxy_authorization` to `NeverIndexed` in `Http2HpackSettings`
+to keep proxy credentials out of the table too. The resulting encoding differs
+from the browsers.
 
 To remove the exposure, set `cookie_crumbs` to `Whole` in
 `Http2HpackSettings` and `Http3RequestSettings`. Each `cookie` field is then
@@ -914,5 +838,4 @@ HPACK can then tell the client from Chrome, Edge, or Firefox.
 ## Next
 
 - [Validation](validation.md): the evidence behind each claim.
-- [Coverage](../reference/coverage.md): what these rules support today.
 - [Retries and replays](../guides/retries.md): configuring the retry classes.
