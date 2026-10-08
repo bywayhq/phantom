@@ -90,7 +90,9 @@ required-features = ["danger-disable-verification"]
 # The workspace lints, except that unsafe code is denied rather than forbidden
 # so the private `socket_ffi` FFI module can allow it.
 [lints.rust]
+missing_debug_implementations = "warn"
 missing_docs = "warn"
+rust_2018_idioms = "warn"
 unreachable_pub = "warn"
 unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"

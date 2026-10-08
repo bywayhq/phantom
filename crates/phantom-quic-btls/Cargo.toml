@@ -35,7 +35,9 @@ btls-sys = { workspace = true, features = ["prefix-symbols"] }
 phantom-testkit = { path = "../phantom-testkit" }
 
 [lints.rust]
+missing_debug_implementations = "warn"
 missing_docs = "warn"
+rust_2018_idioms = "warn"
 unreachable_pub = "warn"
 unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"

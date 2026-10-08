@@ -52,7 +52,9 @@ zeroize = "=1.9.0"
 zstd = "0.14.0"
 
 [workspace.lints.rust]
+missing_debug_implementations = "warn"
 missing_docs = "warn"
+rust_2018_idioms = "warn"
 unreachable_pub = "warn"
 unsafe_code = "forbid"
 
