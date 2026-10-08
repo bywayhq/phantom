@@ -1659,6 +1659,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Add README, keyword, and category metadata to the four publishable
   crates, and enable Cargo lints. Keep five documented exceptions for
   incompatible transitive dependency versions.
+- Enable `must_use_candidate` and `cast_lossless` workspace warnings.
+  Mark address, error kind, future size, and application state storage
+  results as `must_use`.
 - Clarify public API docs and the browser-recipe and vendoring guides.
   Correct the protocol-selection, proxy-forwarding, and buffered-body
   replay descriptions while keeping the examples unchanged.
