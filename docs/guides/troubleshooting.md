@@ -1,36 +1,55 @@
 # Troubleshooting
 
-Find the error or behavior you see, why Phantom produces it, and the fix.
+Find what you see, its likely cause, and the fix. Read
+[Using the client](client.md) first if you haven't built a client yet.
 
-> For builders and coding agents who have read [Using the client](client.md).
-
-| You see | Section |
+| You see | Go to |
 | --- | --- |
-| A build script or link error from `btls-sys` | [The build fails compiling BoringSSL](#the-build-fails-compiling-boringssl) |
-| `E0599`, `E0432`, or `E0004` from rustc | [Phantom code does not compile](#phantom-code-does-not-compile) |
+| A site blocks or challenges the request | [A site blocks the request even with a Chrome profile](#a-site-blocks-the-request-even-with-a-chrome-profile) |
+| A build error from `btls-sys` | [The build fails compiling BoringSSL](#the-build-fails-compiling-boringssl) |
+| `E0599`, `E0432` or `E0004` from rustc | [Phantom code does not compile](#phantom-code-does-not-compile) |
 | `BuildErrorKind::*` | [Building the client fails](#building-the-client-fails) |
-| `Timeout`, `InvalidTimeout`, `RuntimeUnavailable`, or a request that never ends | [A request fails with a `Timeout` error](#a-request-fails-with-a-timeout-error) |
-| `Connect`, `Http3`, or `Timeout` on an H3 request | [An HTTP/3 request fails where a browser would fall back](#an-http3-request-fails-where-a-browser-would-fall-back) |
+| `Timeout`, or a request that never ends | [A request fails with a `Timeout` error](#a-request-fails-with-a-timeout-error) |
+| `Connect` or `Http3` on HTTP/3 | [An HTTP/3 request fails where a browser would fall back](#an-http3-request-fails-where-a-browser-would-fall-back) |
 | `UnsupportedRoute`, `ProtocolUnavailable` | [A negotiated request is rejected on a proxy route](#a-negotiated-request-is-rejected-on-a-proxy-route) |
 | `UnsupportedScheme`, `Redirect` | [A request or redirect is rejected](#a-request-or-redirect-is-rejected) |
 | `RequestBody` | [A streaming body cannot be sent again](#a-streaming-body-cannot-be-sent-again) |
 | `RequestTemplate` | [A request template rejects the request](#a-request-template-rejects-the-request) |
-| `InvalidUri`, `InvalidAuthority`, `InvalidTarget`, `InvalidHeader` | [A request field or URI is rejected](#a-request-field-or-uri-is-rejected) |
+| `InvalidHeader`, `InvalidUri`, `InvalidTarget` | [A request header or URI is rejected](#a-request-header-or-uri-is-rejected) |
 | `Resolve`, `Connect`, `Proxy`, `Tls`, `Capacity` | [The connection cannot be opened](#the-connection-cannot-be-opened) |
 | `ResponseBodyLimit`, `ContentDecoding` | [Reading the body fails](#reading-the-body-fails) |
 | A new connection for every request | [The connection is not reused](#the-connection-is-not-reused) |
 | A WebSocket connect that never ends | [A WebSocket connect ignores the client's timeout](#a-websocket-connect-ignores-the-clients-timeout) |
 
+## A site blocks the request even with a Chrome profile
+
+The request probably doesn't look like Chrome in every part. A profile sets
+how the connection looks. The headers come from elsewhere. Check these:
+
+- No request template. Without one, Phantom sends only the headers you add,
+  plus client hints, and no `User-Agent`. Add the browser's page-load
+  template ([Request templates](request-templates.md#apply-a-captured-request-template)).
+- Parts from different browsers or versions, such as a Chrome 154 profile
+  with a Chrome 153 `User-Agent`. Take the profile, template, client hints
+  and `User-Agent` from one browser version.
+- A protocol the browser wouldn't use, such as HTTP/1.1 to a site Chrome
+  reaches over HTTP/2. Use `get_negotiated`, or the protocol the browser
+  uses.
+- Signals Phantom doesn't control. Phantom doesn't run JavaScript, so it
+  can't pass a JavaScript challenge. Your IP address also counts.
+
+To see the difference, request the same test page from your browser and
+from Phantom, and compare
+([See your own fingerprint](../fingerprinting.md#see-your-own-fingerprint)).
+
 ## The build fails compiling BoringSSL
 
-The first `cargo build` compiles BoringSSL in the `btls-sys` build script. It
-fails when CMake, Clang, or a C++ toolchain is missing, and on Windows also
-NASM or the Visual C++ build tools. Install the
-[prerequisites](../getting-started.md#prerequisites);
-[CONTRIBUTING.md](../../CONTRIBUTING.md#windows) lists the Windows `PATH`
-entries for NASM and LLVM and when to set `LIBCLANG_PATH`. If Cargo reports
-two packages that link `boringssl`, another dependency such as `boring-sys`
-also builds it, and only one can be in the graph
+The first build compiles BoringSSL, which needs CMake, Clang and a C++
+compiler, plus NASM on Windows. Install the
+[prerequisites](../getting-started.md#prerequisites).
+
+If Cargo reports two packages that link `boringssl`, another dependency,
+such as `boring-sys`, builds it too. Only one can be in your build
 ([Adding Phantom to a project](downstream.md#limits)).
 
 ## Phantom code does not compile
@@ -41,12 +60,12 @@ error[E0432]: unresolved import `phantom::CookieJar`
 error[E0004]: non-exhaustive patterns: `_` not covered
 ```
 
-The cookie, SSE, and WebSocket APIs exist only with their Cargo features, and
-none is on by default. Add `cookies`, `sse`, `websocket`, or `full` to the
-`phantom` dependency ([Optional features](../getting-started.md#optional-features)).
+The cookie, SSE and WebSocket APIs need their Cargo features, and none is
+on by default. Add `cookies`, `sse`, `websocket` or `full` to the `phantom`
+dependency ([Optional features](../getting-started.md#optional-features)).
 
-Every error-kind enum and `TimeoutPhase` is non-exhaustive, so a `match`
-needs a fallback arm:
+New error kinds can appear in later versions, so a `match` on an error kind
+or `TimeoutPhase` needs a fallback arm:
 
 ```rust
 use phantom::{RequestError, RequestErrorKind, TimeoutPhase};
@@ -62,139 +81,130 @@ fn describe(error: &RequestError) -> String {
 
 ## Building the client fails
 
-`ClientBuilder::build` checks the profile and policies before any I/O.
+`ClientBuilder::build` checks the profile and settings. The source error
+names the value at fault.
 
-| Kind | Cause and fix |
-| --- | --- |
-| `InvalidProfile` | A recipe value is invalid, or the host cannot apply it; Windows requires a TCP keepalive interval, for example. Fix the field the source error names ([Build a custom profile](profiles.md#build-a-custom-profile)). |
-| `InvalidPolicy` | A timeout or retry delay exceeds the runtime clock, disabled server authentication meets added roots or HTTP/3, Alt-Svc racing lacks `alt_svc`, or Alt-Svc lacks negotiation or HTTP/3 settings. |
-| `TrustStore` | A root passed to `add_root_certificate_der` or `add_proxy_root_certificate_der` could not be loaded. Pass DER bytes, not PEM text. |
-| `ProtocolConfiguration`, `NoSupportedProtocol` | A protocol connector cannot represent the profile, or the profile enables no protocol the client implements. Start from a [built-in profile](profiles.md#choose-a-built-in-profile). |
+| Kind | Likely cause | Fix |
+| --- | --- | --- |
+| `InvalidProfile` | A recipe value is invalid or unsupported on this OS | Fix the value ([Build a custom profile](profiles.md#build-a-custom-profile)) |
+| `InvalidPolicy` | Settings that conflict, or a delay too long for the runtime clock | Fix the setting the error names |
+| `TrustStore` | A root certificate in PEM text | Pass DER bytes |
+| `ProtocolConfiguration`, `NoSupportedProtocol` | A profile Phantom can't use | Start from a [built-in profile](profiles.md#choose-a-built-in-profile) |
 
 ## A request fails with a `Timeout` error
 
-A phase ran past its `RequestTimeouts` limit, for example
-`request connection setup timed out`. `RequestError::timeout_phase` names the
-phase: `PoolAdmission`, `Connect`, `ResponseHead`, `ReadIdle`, or `Total`.
-Timeouts are never retried. Raise that phase's limit, or `Total`
-([Configure the client](client.md#configure-the-client)).
+A step of the request took longer than its limit.
+`RequestError::timeout_phase` tells you which one. Raise that limit, or the
+total ([Configure the client](client.md#configure-the-client)).
 
-- A request that never ends has no timeout: timeouts are off by default.
-- `InvalidTimeout`: a timeout or retry delay exceeds the runtime clock.
-- `RuntimeUnavailable`: no Tokio runtime with I/O and time enabled. Run under
-  `#[tokio::main]` or a runtime built with `enable_all()`.
+A request that never ends has no timeout, because timeouts are off by
+default. Set one.
 
 ## An HTTP/3 request fails where a browser would fall back
 
-A browser that cannot reach a server over QUIC uses TCP. When UDP is
-blocked, an exact H3 request in Phantom fails, usually with `Connect`,
-`Http3`, or a `Connect`-phase `Timeout`. A negotiated request whose learned
-H3 alternative fails returns an H3 error, and Phantom drops that alternative;
-it is not resent over HTTP/1.1 or HTTP/2.
+UDP is probably blocked. A browser then switches to TCP, but Phantom stays on
+the protocol you asked for. It fails, usually with `Connect`, `Http3` or a
+`Timeout`.
 
-To behave like Chrome, send negotiated requests with Alt-Svc racing, so the
-origin connection wins when QUIC fails
-([Race the alternative against the origin](http3-discovery.md#race-the-alternative-against-the-origin)).
-For an exact H3 request, set `RetryPolicy::with_http2_fallback`
+For an HTTP/3 request, set `RetryPolicy::with_http2_fallback`
 ([Fall back to HTTP/2 when QUIC fails](http3.md#fall-back-to-http2-when-quic-fails)).
+For a negotiated request, turn on Alt-Svc racing, as Chrome does
+([Race the alternative against the origin](http3-discovery.md#race-the-alternative-against-the-origin)).
 
 ## A negotiated request is rejected on a proxy route
 
-`get_negotiated` and `request_negotiated` fail with `UnsupportedRoute` on a
-CONNECT-UDP route, which carries only QUIC, and exact H3 fails the same way
-on an HTTP proxy, whose tunnel carries only TCP. Use a route that carries the
-protocol ([route matrix](../reference/route-matrix.md)). Negotiated requests
-through an HTTP proxy stay on H1 or H2 and learn no Alt-Svc alternative; for
-the H3 upgrade through a proxy, use SOCKS5.
+`UnsupportedRoute` means the route can't carry the protocol. A CONNECT-UDP
+proxy carries only HTTP/3. An HTTP proxy carries only HTTP/1.1 and HTTP/2.
+Pick a route that carries what you need, such as SOCKS5 for HTTP/3
+([route matrix](../reference/route-matrix.md)).
 
-`ProtocolUnavailable` means the profile lacks a component the request needs:
-HTTP/3 settings for H3, or both HTTP/1.1 and HTTP/2 for a negotiated request.
-Add the recipe to the profile.
+`ProtocolUnavailable` means the profile lacks a recipe the request needs.
+HTTP/3 needs HTTP/3 settings. A negotiated request needs both HTTP/1.1 and
+HTTP/2. Add the missing recipe to the profile.
 
 ## A request or redirect is rejected
 
-`UnsupportedScheme` means a scheme other than `http` or `https`, or an
-`http://` URI with exact H2 or H3. Send plaintext with `HttpProtocol::Http1`
-or `get_negotiated`, except through an HTTP proxy with
-`with_http2_transport`, which needs `HttpProtocol::Http2` or
-`get_negotiated`. CONNECT-UDP carries no plaintext (`UnsupportedRoute`).
+`UnsupportedScheme` means the URL isn't `http` or `https`, or it's an
+`http://` URL sent as exact HTTP/2 or HTTP/3. Send `http://` URLs with
+`HttpProtocol::Http1` or `get_negotiated`. An HTTP/2 proxy route works
+differently ([route matrix](../reference/route-matrix.md)).
 
-`Redirect` means a target that is not `http://` or `https://`, more than one
-`Location`, or an exhausted limit; the redirect response is not returned.
-Raise the limit, or use `RedirectPolicy::none()` and follow the hop yourself
+`Redirect` means a redirect went to a scheme other than `http` or `https`,
+had more than one `Location`, or passed the redirect limit. Raise the limit,
+or turn off redirects with `RedirectPolicy::none()` and follow them yourself
 ([Follow redirects](redirects.md#follow-redirects)).
 
 ## A streaming body cannot be sent again
 
-A body from `streaming_body` is sent at most once. A 307 or 308 redirect or
-a `Critical-CH` retry that needs it again fails with `RequestBody` before the
-second attempt starts. Send an owned body with `body` when the request may be
-resent. `RequestBody` also reports an error from your own body stream.
+A body from `streaming_body` can be sent only once. A 307 or 308 redirect,
+or a client-hint retry, would need it again. Use `body` with owned bytes
+when the request might be resent.
 
 ## A request template rejects the request
 
-`RequestTemplate` means the template cannot place a field the request would
-send: no HTTP/3 list for a request that may use H3, no slot for the profile's
-client hints, or conflicting `Accept-Encoding` values with decoding on.
-Firefox templates have no hint slots
-([Template limits](../reference/profiles.md#template-limits)). It also means
-a required caller slot is empty, such as `User-Agent` in the Edge, Brave,
-and Opera templates ([Required caller fields](../reference/profiles.md#required-caller-fields)).
+The template has no place for a header the request would send. Common
+causes:
 
-Invalid template data fails earlier, at `PreparedRequestTemplate::new`, with
-`InvalidRequestTemplate`.
+- A required slot is empty, such as `User-Agent` for the Edge, Brave and
+  Opera templates. Add the header
+  ([Required caller fields](../reference/profiles.md#required-caller-fields)).
+- The profile sends client hints and the template has no slots for them, as
+  with a Chrome profile and a Firefox template. Take both from one browser
+  ([Template limits](../reference/profiles.md#template-limits)).
+- The request may use HTTP/3, and the template has no HTTP/3 list.
 
-## A request field or URI is rejected
+## A request header or URI is rejected
 
-Each fails before any I/O. `InvalidHeader`: you supplied `Host`, which
-Phantom derives from the URI; a malformed `Accept-Encoding` with decoding on;
-an `Alt-Used` field; or `Proxy-Authorization` on an `http://` request unless
-the route is an HTTP proxy without configured credentials. `InvalidTarget`:
-the URI has a fragment, or its path or query is not a valid request target.
-`InvalidUri`, `InvalidAuthority`: the URI, host, or port does not parse.
+`InvalidHeader` most often means you set `Host`. Phantom sets it from the
+URL, so remove yours. Phantom also rejects `Alt-Used`. On `http://`
+requests it rejects `Proxy-Authorization` too, unless the route is an HTTP
+proxy with no credentials of its own.
+
+`InvalidTarget` means the URL has a `#fragment` or an invalid path or
+query. `InvalidUri` and `InvalidAuthority` mean the URL, host or port
+doesn't parse.
 
 ## The connection cannot be opened
 
-| Kind | Cause |
+| Kind | Likely cause |
 | --- | --- |
-| `Resolve` | DNS returned no address, locally or through a `socks5h://` proxy |
-| `Connect` | The TCP connect or QUIC setup to the origin failed |
-| `Proxy` | The proxy refused the connection, rejected credentials, or failed negotiation |
-| `Tls` | The handshake failed, the certificate is not trusted, or ALPN chose an unsupported protocol |
-| `Capacity` | More requests wait for one origin than its `max_pending_*_requests_per_origin` bound allows (100 per protocol by default); limit concurrency or raise the [bound](../reference/limits.md#connection-pools) |
+| `Resolve` | No DNS address for the host |
+| `Connect` | TCP or QUIC connect to the server failed |
+| `Proxy` | Proxy refused, rejected credentials or failed |
+| `Tls` | Failed handshake or untrusted certificate |
+| `Capacity` | Too many requests waiting for one origin ([pool limits](../reference/limits.md#connection-pools)) |
 
-Phantom never tries another proxy, route, or protocol after these.
-`RetryPolicy::connection_failures` retries failed connects and resolution on
-the same route; TLS, proxy authentication, and proxy rejection are never
-retried ([Retries and replays](retries.md#retry-when-a-connection-fails-to-open)).
-For a private CA, [add its root](routes-and-proxies.md#trust-a-private-root-or-a-proxys-root).
+To retry failed connects on the same route, use
+`RetryPolicy::connection_failures`
+([Retries and replays](retries.md#retry-when-a-connection-fails-to-open)).
+For a server with a private CA,
+[add its root](routes-and-proxies.md#trust-a-private-root-or-a-proxys-root).
 
 ## Reading the body fails
 
-`ResponseBodyLimit` means the body passed the limit given to
-`collect_with_limit`, which then drops the body. Raise the limit or read
-frame by frame. `ContentDecoding` appears on the first body read, with
-decoding on, for a coding the request did not advertise, an unknown coding,
-or corrupt data. Browsers pass unknown codings through; Phantom does not
+`ResponseBodyLimit` means the body was larger than the limit you gave
+`collect_with_limit`. Raise the limit, or read the body frame by frame.
+
+`ContentDecoding` means decoding is on and the response used a compression
+you didn't list in `Accept-Encoding`, an unknown one, or corrupt data
 ([Content decoding](content-decoding.md#limits)).
 
 ## The connection is not reused
 
-A body dropped before its end can close an H1 connection, so read bodies to
-the end. Pools are keyed by origin and complete route, retain 32 entries by
-default, and belong to one client: clone it instead of building another
+A body you drop before the end can close an HTTP/1.1 connection, so read
+bodies to the end. Each client has its own pool, so clone one client
+instead of building new ones
 ([Share a client between tasks](connections-and-state.md#share-a-client-between-tasks)).
 
 ## A WebSocket connect ignores the client's timeout
 
-WebSocket connects apply none of the client's timeouts, retries, or
-redirects; set `WebSocketRequestBuilder::handshake_timeout` instead
+WebSocket connects don't use the client's timeouts, retries or redirects.
+Set `WebSocketRequestBuilder::handshake_timeout` instead
 ([Bound a connect with a timeout](websocket.md#bound-a-connect-with-a-timeout)).
-WebSocket, SSE, cookie, and proxy errors have their own kinds.
 
 ## Next
 
-- [Responses and errors](responses.md#handle-errors): sort errors by kind in
-  code.
-- [Defaults and limits](../reference/limits.md): every bound and default.
+- [Responses and errors](responses.md#handle-errors): handle errors by kind
+  in code.
+- [Defaults and limits](../reference/limits.md): every limit and default.
 - [Route matrix](../reference/route-matrix.md): what each route carries.

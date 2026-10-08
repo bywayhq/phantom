@@ -1,16 +1,14 @@
 # WebSocket fields and compression
 
 Write your own ordered opening request for a WebSocket, open one over
-HTTP/3 to a server you run, and compress its messages with
-permessage-deflate. You need the optional `websocket` feature; compression
-also needs `websocket-deflate`.
+HTTP/3 to a server you run, and compress its messages. Turn on the
+`websocket` Cargo feature. Compression also needs `websocket-deflate`.
 
-> For builders who have read [WebSocket](websocket.md).
+## Order the opening request headers
 
-## Order the opening request fields
-
-`headers` replaces the opening request with your own ordered template of
-literal fields and placeholders for values Phantom manages:
+`headers` replaces the opening request with your own list, in order. The
+list mixes literal headers with placeholders for values Phantom fills in,
+such as the host, the random key, and cookies:
 
 ```rust
 use phantom::{Client, RequestHeader, WebSocketHeader};
@@ -36,21 +34,23 @@ async fn open_ordered(client: &Client) -> Result<(), Box<dyn std::error::Error>>
 }
 ```
 
-- Without `headers`, Phantom uses the profile's `WebSocketSettings`
-  templates, or built-in ones.
-- `header` fills the first `caller_field` slot of the same name (compared
-  case-insensitively) in the slot's spelling, or appends. Unfilled slots emit
-  nothing.
-- A template that breaks the
-  [opening template rules](../reference/websocket.md#opening-templates) fails
-  before I/O. An H1 template needs the authority and key placeholders; an H2
-  template rejects them.
+- Without `headers`, Phantom uses the profile's templates, or built-in ones.
+- `header` fills the first `caller_field` slot with the same name, ignoring
+  case. With no matching slot, it adds the header at the end.
+- A slot you don't fill sends nothing.
+
+An HTTP/1.1 list needs the host and key placeholders, and an HTTP/2 list
+must leave them out. The
+[opening template rules](../reference/websocket.md#opening-templates) list
+the rest.
 
 ## Open a WebSocket over HTTP/3 to your own server
 
-`Client::websocket_with_protocol` with `HttpProtocol::Http3` sends an RFC
-9220 extended CONNECT to a server you control. The profile's HTTP/3 request
-settings need an extended CONNECT pseudo-header order:
+`Client::websocket_with_protocol` with `HttpProtocol::Http3` opens a
+WebSocket over HTTP/3. It uses extended CONNECT (RFC 9220), a CONNECT
+request that names the WebSocket protocol. Browsers don't open WebSockets
+this way, so no recipe sets it up. Set the pseudo-header order in the
+profile's HTTP/3 request settings yourself:
 
 ```rust
 use phantom::profile::{chromium, ClientProfile, Http3ClientSettings, Http3PseudoHeader};
@@ -84,29 +84,19 @@ async fn open_h3() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- No browser opens a WebSocket over HTTP/3, so no
-  [recipe](../reference/glossary.md#recipe) sets this order or has HTTP/3
-  opening fields
-  ([why](../explanation/design.md#recorded-browser-behavior-is-the-specification)).
-  No capture backs the order above; use the one your server expects.
-  Without an order, `connect` fails with `ProtocolUnavailable` before I/O.
-- The opening starts from the built-in H2 template, `sec-websocket-version:
-  13` plus the cookie and compression placeholders. `header` appends a
-  field whose name must be lowercase; an uppercase name fails before I/O.
-  `headers` replaces the template under the H2 rules.
-- The WebSocket is a stream on the client's pooled H3 connection to the
-  origin and [route](../reference/glossary.md#route), shared with
-  [exact](../reference/glossary.md#exact-protocol) H3 requests, and holds
-  one of the origin's pool slots until it is dropped. It runs direct, over SOCKS5, or through
-  CONNECT-UDP; `ws://` and HTTP proxies fail before I/O.
-- A server that does not enable extended CONNECT fails the connect with
-  `WebSocketErrorKind::Http3` before a stream is sent. Nothing falls back to
-  H2 or H1.
+- The order above is an example. Use the one your server expects.
+- The WebSocket is a stream on the client's HTTP/3 connection to the
+  server, shared with your other HTTP/3 requests.
+- It works directly, through SOCKS5, or through CONNECT-UDP, for `wss://`
+  URLs.
+- The server must enable extended CONNECT.
+
+`header` adds a header at the end, and its name must be lowercase.
 
 ## Compress WebSocket messages
 
-With the `websocket-deflate` feature, `permessage_deflate` offers RFC 7692
-compression on one connection:
+With the `websocket-deflate` feature, `permessage_deflate` offers
+permessage-deflate compression (RFC 7692) on one connection:
 
 ```rust
 use phantom::{Client, PerMessageDeflate};
@@ -123,20 +113,20 @@ async fn open_compressed(client: &Client) -> Result<(), Box<dyn std::error::Erro
 ```
 
 - `new()` offers `permessage-deflate; client_max_window_bits`.
-  `offer_parameters` sets any RFC-valid ordered offer.
-- After negotiation every text and binary message is compressed; control
-  frames never are.
-- Empty messages are compressed with RSV1 set by default, as Chrome 154 and
-  Edge 154 do. `compress_empty_messages(false)` sends them uncompressed, as
-  Firefox 157 does. `PerMessageDeflate::from_profile` takes the offer and
-  this rule from a recipe.
+  `offer_parameters` sets another offer.
+- Once the server accepts, every text and binary message is compressed.
+- Empty messages are compressed by default, as in Chrome 154 and Edge 154.
+  `compress_empty_messages(false)` sends them uncompressed, as in Firefox
+  157.
+- `PerMessageDeflate::from_profile` copies the offer and the empty-message
+  rule from a recipe.
 
 ## Limits
 
-- A response with a wrong accept value, an unoffered extension, or an
-  unoffered subprotocol fails the connect
+- A response with a wrong accept value, or with an extension or
+  subprotocol you didn't offer, fails the connect
   ([response checks](../reference/websocket.md#response-checks)).
-- Phantom offers no WebSocket extension other than permessage-deflate.
+- permessage-deflate is the only extension Phantom offers.
 
 ## Next
 

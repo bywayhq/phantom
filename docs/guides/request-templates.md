@@ -1,17 +1,18 @@
 # Request templates and client hints
 
-Send the fields a browser sends for a request, in its order, and the client
-hints it sends by default or on a server's request.
+Send each request with the headers a browser would send, in the browser's
+order, including its client hints.
 
-> For builders who have read [Browser profiles](profiles.md).
-
-A profile shapes connections; the fields of each request, such as
-`User-Agent`, come from a request template.
+A browser sends one list of headers when it loads a page and a different
+list when a script calls `fetch`. A request template is one of those lists,
+in the browser's order. Phantom ships templates for each browser, and you
+pick one for each request. The profile sets how connections look. The
+template sets the headers of each request, such as `User-Agent` and
+`Accept`.
 
 ## Apply a captured request template
 
-Send the fields a browser sends for one kind of request, in its order.
-`PreparedRequestTemplate::new` validates a template once; pass the result to
+Prepare a template once with `PreparedRequestTemplate::new`, then pass it to
 `RequestBuilder::template` on each request.
 
 ```rust
@@ -46,33 +47,28 @@ async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- Each browser has an address-bar navigation template and a same-origin
-  `fetch(url, {cache: "no-store"})` GET template
-  ([template table](../reference/profiles.md#request-templates)). Chrome
-  and Firefox also have a default-mode `fetch(url)` template with optional
-  `If-None-Match` and `If-Modified-Since` slots where each browser sends
-  them: Phantom has no HTTP cache, so you revalidate your own cached
-  response by adding those fields.
-- A field you add whose name matches a template entry takes that entry's
-  position and keeps your value. Other fields follow the template's last
-  field. A caller slot, such as `Referer` or Edge's `User-Agent`, sends
-  nothing until you fill it
-  ([assembly rules](../reference/profiles.md#template-assembly)).
-- The Edge, Brave, and Opera templates require your `User-Agent`, and
-  Brave's also require your `Accept-Language`; a request without one fails
-  with `RequestErrorKind::RequestTemplate` before any I/O. Phantom does not
-  compare your `User-Agent` or `sec-ch-ua` with the template, so use the
-  template, client hints, and `User-Agent` of one browser and version
-  ([required caller fields](../reference/profiles.md#required-caller-fields)).
-- To a named `http://` origin, such as `http://example.com/`, the templates
-  leave out the `Sec-Fetch-*` fields and send `Accept-Encoding: gzip,
-  deflate`, as the browsers do. HTTPS, loopback, and `localhost` URLs get the
-  full captured list ([origin trust](../reference/profiles.md#template-assembly)).
+Each browser has a template for a page load and one for
+`fetch(url, {cache: "no-store"})`. Chrome and Firefox also have one for a
+plain `fetch(url)`. The [template table](../reference/profiles.md#request-templates)
+lists them all.
+
+If you add a header that the template also has, yours takes the template's
+place. Other headers you add go after the template's headers. Some template
+entries, such as `Referer`, are empty slots. They send nothing until you
+fill them, as the example does
+([assembly rules](../reference/profiles.md#template-assembly)).
+
+The Edge, Brave and Opera templates need your `User-Agent`, and Brave's
+also need your `Accept-Language`. Phantom doesn't check that these match the
+template, so take the template, client hints and `User-Agent` from the same
+browser and version
+([required caller fields](../reference/profiles.md#required-caller-fields)).
 
 ## Send client hints
 
-Send the client hints a browser sends by default, and the ones a server asks
-for.
+Client hints are headers such as `sec-ch-ua` that tell a server about the
+browser and the device. Send the hints a browser sends by default, and the
+ones a server asks for.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -95,40 +91,32 @@ async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `ClientHintSettings` fixes the hint names, their order, their values, and
-  whether each is sent by default or only on request.
-- Hints go only to a
-  [potentially trustworthy](../reference/glossary.md#potentially-trustworthy)
-  origin: HTTPS, or `http://` to a loopback address or `localhost`. A named
-  `http://` origin gets none, as in Chrome.
-- Such an origin's `Accept-CH` response sets the hints requested for its
-  exact origin. On H2 and H3, a server can also request hints during the TLS
-  handshake with ALPS `ACCEPT_CH`: a navigation, or a request without a
-  template, that lacks one restarts with it before anything is sent, and the
-  origin's learned hints do not change. A `fetch` goes out as built.
-- If a `Critical-CH` response names a missing supported hint and the method
-  is safe, Phantom retries once, on the same protocol and route. A streaming
-  body cannot be retried and fails with `RequestErrorKind::RequestBody`.
-- Clones of a client share learned hints; separately built clients do not.
-  Rules for each case are in the
-  [client-hint reference](../reference/profiles.md#client-hints).
+`ClientHintSettings` holds the hint names, their order and values, and
+which ones go out by default. When a site asks for more hints with
+`Accept-CH`, Phantom sends them on later requests to that site. When a
+`Critical-CH` response asks for a missing hint, Phantom retries the request
+once with it. Clones of a client share what sites asked for. The
+[client-hint reference](../reference/profiles.md#client-hints) has the full
+rules.
+
+Hints go only to HTTPS sites and to `localhost` and loopback addresses. An
+`http://` host name gets none, as in Chrome.
 
 ## Limits
 
-- Templates cover only address-bar navigations and same-origin no-store
-  `fetch` GETs. Firefox templates have no hint slots
+- Templates cover page loads and same-origin `fetch` GETs, nothing else
   ([template limits](../reference/profiles.md#template-limits)).
-- A `fetch` or Firefox template refuses to send hints an origin requested,
-  because no capture shows where they go
+- Firefox and `fetch` templates have no place for hints a site asked for,
+  so such a request fails
   ([Client hints in templates](../reference/profiles.md#client-hints-in-templates)).
-- The client-hint model covers top-level requests from a standalone client
-  ([model limits](../reference/profiles.md#client-hint-model-limits)).
+- Client hints follow the rules for top-level requests from one standalone
+  client ([model limits](../reference/profiles.md#client-hint-model-limits)).
 
 ## Next
 
 - [Profile reference](../reference/profiles.md#request-templates): template
   and client-hint tables.
 - [Cookies](cookies.md#place-the-cookie-field-where-a-browser-does): where
-  the cookie field goes among the template's fields.
+  the cookie header goes among the template's headers.
 - [Troubleshooting](troubleshooting.md#a-request-template-rejects-the-request):
   template errors and their fixes.

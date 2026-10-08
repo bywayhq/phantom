@@ -1,39 +1,33 @@
 # Adding Phantom to a project
 
-Add Phantom to your Cargo project from a pinned git revision or a pinned path
-checkout, and check that your build keeps Phantom's patched dependencies.
+Add Phantom to your `Cargo.toml`. Phantom isn't on crates.io yet, so you
+depend on an exact git commit or on a copy inside your repository. Either
+way it's one dependency line.
 
-> For builders who have read [Getting started](../getting-started.md).
-
-Phantom is not on crates.io yet. Either way of depending on it is one
-dependency line, with no `[patch]` table.
-
-The package is named `phantom-http`, because `phantom` is taken on crates.io.
-The library crate is still `phantom`, and the dependency key below keeps
+The package is named `phantom-http`, because `phantom` was taken on
+crates.io. The dependency key `phantom` in the examples below keeps
 `use phantom::...` working.
 
 ## Depend on a pinned git revision
 
-Pin an exact commit, `be02e93` or later. Commits before `a84e73c` predate the
-MIT OR Apache-2.0 license files and carry no license grant, and commits before
-`be02e93` lack the Chrome 154 recipes these guides use. The documentation
-describes the commit it ships with, so read it at the commit you pin.
+Pin an exact commit, `be02e93` or later. Older commits lack the Chrome 154
+recipes these guides use, and commits before `a84e73c` have no license.
+The documentation describes the commit it ships with, so read it at the
+commit you pin.
 
 ```toml
 [dependencies]
 phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>", features = ["full"] }
 ```
 
-Cargo resolves every Phantom fork from that same commit, because Phantom's
-manifests refer to them by path inside the repository. To upgrade, read
-[CHANGELOG.md](../../CHANGELOG.md) for the breaking changes and their
-migration notes, move `rev`, and commit it together with the resulting
-`Cargo.lock` change.
+To upgrade, read [CHANGELOG.md](../../CHANGELOG.md) for breaking changes
+and how to migrate. Then change `rev`, and commit the new `Cargo.lock` with
+it.
 
 ## Depend on a pinned path checkout
 
-A submodule pinned to one commit, or any other checkout of an exact commit,
-works the same way:
+You can also keep a copy of Phantom in your repository, such as a git
+submodule pinned to one commit.
 
 ```console
 git submodule add https://github.com/bywayhq/phantom.git vendor/phantom
@@ -46,52 +40,38 @@ git add .gitmodules vendor/phantom
 phantom = { package = "phantom-http", path = "vendor/phantom/crates/phantom", features = ["full"] }
 ```
 
-If you are upgrading from an older Phantom revision that required a root
-`[patch]` table, remove that table. It patches packages that no longer appear
-in the dependency graph.
+If your project has a `[patch]` table from an older Phantom, remove it.
+Phantom no longer needs one.
 
 ## Keep Phantom's patched dependencies
 
-Phantom patches several dependencies, such as its TLS, HTTP/2, QUIC, and
-HTTP/3 libraries, to control what they send. Those patched copies live in this
-repository under `vendor/` as renamed packages: `phantom-btls`, `phantom-h3`,
-`phantom-http2`, `phantom-quinn-proto`, and the others listed in
-[Vendored forks](../internals/vendoring.md#vendored-forks). Phantom's
-manifests depend on them by exact version and path. As a result, no other
-crate in your build can replace them with the unpatched versions and change
-Phantom's fingerprint.
+You don't need to do anything for this. Phantom ships its own changed
+copies of its TLS, HTTP/2, QUIC, HTTP/3 and WebSocket libraries, so it
+controls exactly what they send. They're renamed packages, such as
+`phantom-btls` and `phantom-http2`, so no other crate in your build can
+swap them for the stock versions.
 
-The stock packages (`btls`, `tokio-btls`, `h3`, `h3-datagram`, `h3-quinn`,
-`http2`, `quinn`, `quinn-proto`, `tungstenite`, `tokio-tungstenite`, and
-`wreq-proto`) never appear in Phantom's part of the graph. If another of your
-dependencies uses one of them, it compiles as a separate crate. Its types do
-not mix with Phantom's, and Phantom's behavior does not change.
+If another dependency uses a stock package such as `quinn` or
+`tungstenite`, it builds as a separate crate. Its types don't mix with
+Phantom's, and Phantom's behavior doesn't change.
+[Vendored forks](../internals/vendoring.md#vendored-forks) lists every
+patched package.
 
 ## Check your project from its root
 
-After you resolve and commit your `Cargo.lock`, check your project from its
-repository root:
+After you commit `Cargo.lock`, run these from your repository root:
 
 ```console
 cargo metadata --all-features --locked --format-version 1 > /dev/null
 cargo check --all-features --locked
 ```
 
-Phantom's own CI checks path and git consumers the same way; see
-[Downstream CI](../internals/vendoring.md#downstream-ci). That does not replace
-your own checks: run the commands above, and your own build and tests, against
-your committed lockfile and toolchain.
-
 ## Limits
 
-- `btls-sys` still comes from the reviewed fork
-  `https://github.com/bywayhq/btls` at a pinned revision, and declares
-  `links = "boringssl"`. Cargo rejects a graph that also contains another
-  package with that `links` key, such as `boring-sys`.
-- Publishing `btls-sys` under a Phantom name with its own `links` key is a
-  planned release step. Even then, BoringSSL symbol prefixing is disabled on
-  Apple and Windows targets, so two copies of BoringSSL would still fail to
-  link there.
+- Phantom builds BoringSSL through `btls-sys`, from the fork
+  `https://github.com/bywayhq/btls` at a pinned revision.
+- `btls-sys` declares `links = "boringssl"`. Cargo refuses a build that has
+  another crate with that key, such as `boring-sys`.
 
 ## Next
 

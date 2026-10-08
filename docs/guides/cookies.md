@@ -1,15 +1,13 @@
 # Cookies
 
-Keep cookies between requests, move them through storage you own, and place
-the cookie field where a browser does. You need the optional `cookies`
-feature.
-
-> For builders who have read [Connections and client state](connections-and-state.md).
+Keep cookies between requests, save them to your own storage, and send them
+where a browser puts them among the headers. Cookies need the `cookies`
+Cargo feature.
 
 ## Keep cookies between requests
 
-Store `Set-Cookie` responses and send matching cookies on later requests,
-with the `cookies` Cargo feature.
+Turn on the cookie jar. Phantom then stores the cookies that responses set
+and sends them back on later requests.
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -31,23 +29,23 @@ async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `ClientBuilder::cookies` enables a bounded in-memory jar;
-  `ClientBuilder::cookie_jar` installs one you built, for example with
-  `CookieJar::with_limits`. `Client::cookie_jar` returns the active jar, and
-  its `set_cookie`, `request_value`, `clear`, and `len` act on the state
-  requests use.
-- The jar applies domain, path, expiry, `Secure`, `HttpOnly`, public-suffix,
-  `__Secure-` and `__Host-` prefix, `SameSite`, and `Partitioned` rules, with
-  deterministic ordering ([rules](../reference/cookies.md)).
-- A `Cookie` field you supply keeps its own position and suppresses the
-  jar's field; the response still updates the jar.
-- `Client::export_cookies` and `Client::import_cookies` move the jar through
-  storage you own ([next task](#save-and-restore-cookies)).
+`ClientBuilder::cookies` turns on an in-memory jar with default size limits.
+For other limits, build one with `CookieJar::with_limits` and pass it to
+`ClientBuilder::cookie_jar`. `Client::cookie_jar` gives you the jar, so you
+can add, read and clear cookies yourself.
+
+The jar follows the browser rules for domain, path, expiry, `Secure`,
+`SameSite` and cookie prefixes. [Cookie jar rules](../reference/cookies.md)
+has the details.
+
+If you set your own `Cookie` header, Phantom sends yours instead of the
+jar's. Cookies from the response still go into the jar.
 
 ## Save and restore cookies
 
-Copy a client's cookies into another client, or rebuild them from your own
-storage, with a [snapshot](../reference/glossary.md#snapshot) (`CookieSnapshot`).
+Export a client's cookies to copy them into another client or to save them,
+and import them later. An export is a `CookieSnapshot`: a list of cookies
+with their values and attributes.
 
 ```rust
 use phantom::{Client, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError, CookieSourceScheme};
@@ -70,69 +68,54 @@ fn restore_session(client: &Client, value: &str) -> Result<(), CookieSnapshotErr
 }
 ```
 
-- An export holds the jar's unexpired cookies in creation order, session
-  cookies included. Phantom picks no file format: persist each
-  `CookieSnapshotEntry`'s accessor values, or enable the `serde` Cargo
-  feature to serialize the snapshot.
-- A snapshot holds cookie values, which are often session credentials. Store
-  it as you would a password.
-- Import checks each entry as the `Set-Cookie` field a response from its
-  scheme and domain would send. One refused entry rejects the whole snapshot
-  and leaves the jar unchanged; `CookieSnapshotError::entry_index` names it.
-- Import merges with what the jar holds
-  ([merge rules](../reference/cookies.md#merge-rules)).
+Phantom doesn't pick a file format. Save each `CookieSnapshotEntry`'s values
+yourself, or turn on the `serde` feature and serialize the whole snapshot.
+Importing adds to what the jar already holds
+([merge rules](../reference/cookies.md#merge-rules)).
+
+A snapshot holds cookie values, and these are often login sessions. Store it
+as you would a password.
 
 ## Place the cookie field where a browser does
 
-Put the jar's cookie field at the position a browser uses, with the profile's
-`CookiePlacement`.
+Browsers put the `Cookie` header at a fixed spot among the other headers.
+The profile's `CookiePlacement` puts the jar's cookies at that same spot.
+The first example on this page sets it with `with_cookie_placement`.
 
-The field is named `Cookie` on HTTP/1.1 and `cookie` on H2 and H3. By default
-it goes last. `CookiePlacement::before_fields` names the fields it precedes:
-it goes before the first of them present, or last if none is. It positions
-the field among your fields or a
-[request template's](request-templates.md#apply-a-captured-request-template) fields.
+By default the header goes last. The browser recipes (the settings Phantom
+ships for each browser) put it before the first of these headers that the
+request has:
 
 | Recipe | Goes before |
 | --- | --- |
 | `chromium::v154_cookie_placement` | `priority` |
 | `firefox::v157_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` |
 
-- These positions match Chrome 154, Edge 153, and Firefox 157 captures of a
-  navigation and a `fetch()` with cookies over H1, H2, and H3
-  ([Coverage](../reference/coverage.md#browser-profiles)).
-- On H2 and H3 the recipes split the field into one field per cookie at that
-  position, as the browsers do, and encode each crumb as the browser does
-  ([Cookie crumbs](../reference/profiles.md#cookie-crumbs)). A `Cookie` field
-  you supply is split too.
-- WebSocket openings ignore the placement. They put the jar's value at the
-  template's `client_cookies` placeholder (`WebSocketField::client_cookies`
-  in a profile, `WebSocketHeader::client_cookies` in a caller template), and
-  send no jar cookie without one.
+The placement works with your own headers and with a
+[request template's](request-templates.md#apply-a-captured-request-template)
+headers. On HTTP/2 and HTTP/3, the recipes also split the header into one
+`cookie` header per cookie, as the browsers do
+([Cookie crumbs](../reference/profiles.md#cookie-crumbs)).
 
+A WebSocket handshake ignores the placement. It puts the jar's cookies at
+the `client_cookies` slot of its own template.
 
 ## Limits
 
-- The jar treats every request and redirect hop as a user-initiated
-  top-level navigation and ignores the fields you send. To emulate a
-  cross-site request, supply your own `Cookie` field.
-- The jar rejects insecure `SameSite=None` and `Partitioned` cookies, and
-  `Secure` or prefixed cookies from an origin that is not potentially
-  trustworthy. Over its count limits it evicts the least recently used
-  cookies. The full rules are in [Cookie jar rules](../reference/cookies.md).
-- On H2 and H3 with a recipe that splits `cookie`, marking your `Cookie`
-  field with `RequestHeader::sensitive` does not make its crumbs
-  never-indexed; the recipe chooses.
-- Indexed crumbs match the browsers but let a party that can add fields to
-  your requests and watch their size test guesses at a cookie value (RFC
-  7541 section 7.1.3). Set the profile's `cookie_crumbs` to `Whole` to send
-  one field that never enters the table, at the cost of browser parity
-  ([why](../explanation/design.md#cookie-crumbs-and-compression)).
+- The jar treats every request as a page the user opened from the address
+  bar. To send what a cross-site request would, set your own `Cookie`
+  header.
+- On HTTP/2 and HTTP/3, the split cookie headers go into the compression
+  table, as in the browsers. Someone who can add headers to your requests
+  and watch their size could use this to guess a cookie value.
+  `RequestHeader::sensitive` doesn't change it. Set `cookie_crumbs` to
+  `Whole` in the profile to avoid it, at the cost of looking less like the
+  browser ([why](../explanation/design.md#cookie-crumbs-and-compression)).
+- When the jar is full, it drops the least recently used cookies.
 
 ## Next
 
-- [Cookie jar rules](../reference/cookies.md): what the jar stores, sends,
-  rejects, and evicts.
-- [Profile reference](../reference/profiles.md#cookie-crumbs): how each
-  recipe splits and encodes the cookie field.
-- [Defaults and limits](../reference/limits.md): cookie bounds.
+- [Cookie jar rules](../reference/cookies.md): what the jar stores, sends
+  and refuses.
+- [Defaults and limits](../reference/limits.md#cookies): the jar's size
+  limits.

@@ -1,15 +1,13 @@
 # Content decoding
 
-Phantom returns each response body as the server sent it, still compressed if
-the server compressed it. Turn on decoding for a request when you want its
-body decompressed.
-
-> For builders who have read [Getting started](../getting-started.md).
+Phantom gives you each response body as the server sent it. If the server
+compressed the body, it stays compressed. Turn on decoding for a request to
+get its body decompressed.
 
 ## Decompress a response body
 
-Advertise the codings you accept in `Accept-Encoding`, then turn on decoding
-for the request:
+List the compressions you accept in an `Accept-Encoding` header, then turn
+on decoding for the request.
 
 ```rust
 use phantom::{Client, ContentDecoding, HttpProtocol, RequestError, RequestHeader};
@@ -25,24 +23,19 @@ async fn fetch(client: &Client) -> Result<bytes::Bytes, RequestError> {
 }
 ```
 
-- Phantom never adds, removes, or moves `Accept-Encoding`. Its presence and
-  position are part of the [header order](../fingerprinting.md#header-order),
-  so you set it, directly or through a
-  [request template](request-templates.md#apply-a-captured-request-template). The request bytes are
-  the same with and without decoding.
-- Decoding supports `gzip` (and its alias `x-gzip`), `deflate`, `br`, and
-  `zstd`, and accepts only codings the request advertised: by name with a
-  nonzero weight, or through `*` with a nonzero weight. `q=0` withdraws a
-  coding. With a template and no `Accept-Encoding` of your own, the template's
-  value for the final URL counts: after a redirect to a named `http://`
-  origin that is `gzip, deflate`, so a `br` or `zstd` response fails there.
-- `max` is an inclusive limit on decoded bytes. Going over it fails the body
-  with `RequestErrorKind::ResponseBodyLimit`.
+Phantom decodes `gzip`, `deflate`, `br` and `zstd`, but only the ones your
+`Accept-Encoding` lists. `ContentDecoding::advertised` takes the most
+decoded bytes you'll accept, here 8 MiB. A larger body fails with
+`ResponseBodyLimit`.
+
+Phantom doesn't add `Accept-Encoding` for you. Where it sits among the
+headers is part of what servers check, so you set it yourself or through a
+[request template](request-templates.md#apply-a-captured-request-template).
 
 ## Check which codings were decoded
 
-`ResponseInfo::decoded_content_codings` lists the codings Phantom removed, in
-`Content-Encoding` order:
+`ResponseInfo::decoded_content_codings` lists the codings Phantom removed,
+in `Content-Encoding` order.
 
 ```rust
 use phantom::{
@@ -63,46 +56,23 @@ async fn codings(client: &Client) -> Result<(), RequestError> {
 }
 ```
 
-The response fields still show what was on the wire: `Content-Encoding` is
-unchanged, and `Content-Length` counts encoded bytes. The body's size hint
-becomes unknown.
+The response headers still show what the server sent. `Content-Encoding` is
+unchanged, and `Content-Length` counts the compressed bytes.
 
 ## Limits
 
-- Decoding is strict. The first body read fails with
-  `RequestErrorKind::ContentDecoding`, after the status and fields are already
-  available, for an unknown coding (including `compress`, `dcb`, and `dcz`), a
-  coding the request did not advertise, `identity` combined with another
-  coding, more than three stacked codings, malformed or truncated data, a
-  checksum mismatch, extra bytes after a complete gzip member, zlib or raw
-  DEFLATE stream, or Brotli stream, or zstd data that is not RFC 8878 frames
-  or needs a window over 8 MiB. Browsers pass unknown chains
-  through and discard trailing bytes.
-- With decoding on, a malformed `Accept-Encoding` fails with
-  `RequestErrorKind::InvalidHeader`, and a template whose per-protocol field
-  lists disagree on `Accept-Encoding` fails with
-  `RequestErrorKind::RequestTemplate`. Both fail before network I/O.
-- Stacked codings are decoded in reverse order of application. For `deflate`,
-  Phantom decodes zlib when the first two bytes form a valid zlib header, and
-  raw DEFLATE otherwise.
-- Decoded data arrives in frames of at most 16 KiB. Phantom reads from the
-  network only after you consume what it has buffered. Decoded frames count
-  as body activity for the read-idle timeout and are checked against the total
-  deadline.
-- `collect_with_limit` applies its own limit to the decoded bytes.
-- Trailers arrive after all decoded data.
-- Only the response that `send` returns is decoded. Bodies of intermediate
-  redirect responses are dropped without decoding.
-- HEAD responses, 204 and 304 responses, and empty bodies are never checked or
-  decoded.
-- SSE responses must not be content-encoded, even with decoding on; see
-  [Server-sent events](sse.md#read-an-event-stream).
+- Decoding is strict. An unknown coding, one you didn't list, or corrupt
+  data fails the first body read with `ContentDecoding`. Browsers pass
+  unknown codings through.
+- Only the final response is decoded. Phantom drops the bodies of redirect
+  responses along the way.
+- A request template sends `Accept-Encoding: gzip, deflate` to an
+  `http://` host name such as `http://example.com/`. After a redirect to
+  one, a `br` or `zstd` response fails.
+- Server-sent event streams must not be compressed, even with decoding on.
 
 ## Next
 
-- [Defaults and limits](../reference/limits.md): every default, including
-  decoding's off state.
-- [Content-decoding evidence](../explanation/validation.md#content-decoding-evidence):
-  the tests behind this behavior.
-- [Browser profiles](request-templates.md#apply-a-captured-request-template): templates that set
-  `Accept-Encoding` for you.
+- [Request templates](request-templates.md#apply-a-captured-request-template):
+  templates that set `Accept-Encoding` for you.
+- [Defaults and limits](../reference/limits.md): every default.

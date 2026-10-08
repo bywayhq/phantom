@@ -1,14 +1,12 @@
 # WebSocket
 
-Open a WebSocket over HTTP/1.1 (H1) or HTTP/2 (H2), send its opening request
-the way a browser does, bound the connect with a timeout, and retry a connect
-that fails to open. You need the optional `websocket` feature.
-
-> For builders who have read [Getting started](../getting-started.md).
+Open a WebSocket, send and receive messages, and open it the way Chrome or
+Firefox does. Turn on the `websocket` Cargo feature first.
 
 ## Open a WebSocket over HTTP/1.1
 
-`Client::websocket` sends an H1 Upgrade for `ws://` and `wss://` URLs:
+`Client::websocket` opens a WebSocket for a `ws://` or `wss://` URL with an
+HTTP/1.1 Upgrade request:
 
 ```rust
 use phantom::{Client, WebSocketMessage};
@@ -23,21 +21,22 @@ async fn echo(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `WebSocket` also implements `Stream` and `Sink`; `StreamExt::split` from
-  `futures-util` gives sender and receiver halves.
-- `receive` is cancellation-safe. A cancelled `send` may have reached the
-  wire, so do not retry it blindly.
+- `WebSocket` also implements `Stream` and `Sink`. `StreamExt::split` from
+  `futures-util` gives you sender and receiver halves.
 - Phantom answers Ping and Close frames for you. After `close`, keep calling
-  `receive` for the peer's reply.
-- A redirect or other non-`101` response is returned through
-  `WebSocketError::response`. Phantom never follows redirects, reconnects a
-  closed WebSocket, or sends heartbeats.
+  `receive` to read the server's reply.
+- A redirect, or any response other than `101`, comes back in
+  `WebSocketError::response`. Phantom doesn't follow redirects or reconnect.
+- `receive` is cancellation-safe. A cancelled `send` may already have
+  reached the server, so don't resend it blindly.
 
 ## Open a WebSocket over HTTP/2
 
-`Client::websocket_with_protocol` with `HttpProtocol::Http2` sends an RFC 8441
-extended CONNECT on a new H2 connection. The client's profile needs an HTTP/2
-recipe, such as `chromium::v154_http2`:
+`Client::websocket_with_protocol` with `HttpProtocol::Http2` opens the
+WebSocket as a stream on a new HTTP/2 connection. It uses extended CONNECT
+(RFC 8441), a CONNECT request that names the WebSocket protocol. The
+profile's HTTP/2 settings must set `extended_connect_pseudo_header_order`,
+as `chromium::v154_http2` and `firefox::v157_http2` do:
 
 ```rust
 use phantom::{Client, HttpProtocol};
@@ -52,17 +51,16 @@ async fn open_h2(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- H2 accepts `wss://` only.
-- The HTTP/2 settings must set `extended_connect_pseudo_header_order`, as
-  `chromium::v154_http2` and `firefox::v157_http2` do.
-- If the server does not enable `SETTINGS_ENABLE_CONNECT_PROTOCOL`, `connect`
-  fails with a typed H2 error before sending CONNECT. There is no H1 retry.
+HTTP/2 works with `wss://` URLs only. The server must enable extended
+CONNECT in its HTTP/2 settings. If it doesn't, `connect` fails without
+trying HTTP/1.1.
 
 ## Open a WebSocket the way the browser does
 
-With a WebSocket [recipe](../reference/glossary.md#recipe) on the profile,
-`Client::websocket_with_profile_policy` sends the opening the way the captured
-browser did, on a pooled H2 session or a new connection:
+A recipe is Phantom's copy of one browser's network settings. With a
+WebSocket recipe on the profile, `Client::websocket_with_profile_policy`
+opens the WebSocket as that browser would. It sends the browser's headers in
+the browser's order, and picks the connection the browser would use:
 
 ```rust
 use phantom::profile::{chromium, ClientProfile};
@@ -74,7 +72,7 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
         .with_websocket(chromium::v154_websocket());
     let client = Client::builder(profile).build()?;
 
-    // Fills the recipe's caller slots at their captured positions.
+    // Fills the recipe's slots for these headers, in the browser's order.
     let socket = client
         .websocket_with_profile_policy("wss://example.com/events")?
         .header(RequestHeader::new("User-Agent", "ExampleAgent/1.0"))
@@ -86,22 +84,20 @@ async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `ws://` always uses an H1 Upgrade. For `wss://`, a pooled H2 session to
-  the same origin and route whose peer enabled extended CONNECT carries the
-  WebSocket, on a proxy route only if the recipe allows; otherwise the recipe
-  picks the connection ([recipes](../reference/websocket.md#browser-recipes)).
-- The choice is made once; a failure is never retried on another connection
-  or protocol.
-- `headers` fails under this builder. Fill the recipe's caller slots, such as
-  `User-Agent` and `Origin`, with `header`.
-- The recipe sets `Accept-Encoding` and Firefox's `Sec-Fetch-*` by
-  [origin trust](../reference/websocket.md#browser-recipes); a `header` with
-  the same name replaces the value.
+- `ws://` always uses HTTP/1.1.
+- For `wss://`, an HTTP/2 connection the client already has open to the
+  server carries the WebSocket, if the server allows it. Otherwise the
+  recipe picks a new connection
+  ([recipes](../reference/websocket.md#browser-recipes)).
+- Phantom picks the connection once and doesn't retry on another.
+
+Set headers such as `User-Agent` and `Origin` with `header`. Calling
+`headers` on this builder fails.
 
 ## Bound a connect with a timeout
 
-Limit how long one opening may take, from the first name lookup to the
-server's accepting response:
+Limit how long opening a WebSocket may take, from the first name lookup to
+the server's reply:
 
 ```rust
 use std::time::Duration;
@@ -125,20 +121,17 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
 }
 ```
 
-- A WebSocket recipe carries its browser's own timer: 240 seconds in
-  `chromium::v154_websocket` and 20 seconds in `firefox::v157_websocket`
-  ([evidence](../explanation/validation.md#websocket-handshake-timer-evidence)).
-  It applies to every connect unless you set another value;
-  `handshake_timeout(None)` removes it. Without a recipe there is no limit.
-- One deadline covers name resolution, proxy setup, TLS, pooled-session
-  admission, and the opening exchange, as Chromium's timer does; Firefox's
-  starts after it resolves the host. `RequestTimeouts` do not apply.
-- A connect uses the client's profile, route, trust roots, and cookie jar,
-  but not its `RetryPolicy`, `RedirectPolicy`, client hints, or Alt-Svc.
+- A WebSocket recipe sets its browser's limit: 240 seconds in
+  `chromium::v154_websocket` and 20 seconds in `firefox::v157_websocket`.
+- Without a recipe there is no limit. `handshake_timeout(None)` removes a
+  recipe's limit.
+
+The client's `RequestTimeouts`, `RetryPolicy`, and `RedirectPolicy` don't
+apply to a WebSocket.
 
 ## Retry a connect that fails to open
 
-Open the WebSocket again when its connection failed before anything reached
+Open the WebSocket again when the connection failed before anything reached
 the server:
 
 ```rust
@@ -161,40 +154,28 @@ async fn open_with_retry(client: &Client) -> Result<(), Box<dyn std::error::Erro
 }
 ```
 
-- Retried: a failed name lookup, a failed TCP connect to the origin or
-  proxy, and a SOCKS5 proxy that could not connect or resolve. Each attempt
-  sends a fresh `Sec-WebSocket-Key` on the same route and exact protocol or
-  profile policy, and gets its own handshake timeout.
-- Never retried: TLS failures, proxy authentication or rejection, handshake
-  timeouts, and any answer from the server, a `101` or `2xx` that fails the
-  handshake checks included. Browsers do not retry an opening, so the
-  policy is off by default and no recipe sets it.
-- Phantom also resends an opening after a `407` Basic proxy challenge, and,
-  under a recipe with `refused_stream_retry` set to `SameSessionOnce` (as in
-  `chromium::v154_websocket`), once after a `REFUSED_STREAM` reset on a
-  pooled H2 session. Neither uses the retry policy.
+- Phantom retries a failed name lookup, a failed TCP connect to the server
+  or proxy, and a SOCKS5 proxy that couldn't reach the server.
+- Each attempt sends a new `Sec-WebSocket-Key` and gets its own timeout.
+- TLS failures, proxy rejections, timeouts, and any answer from the server
+  are not retried.
+- Browsers don't retry an opening, so the policy is off by default and no
+  recipe turns it on.
 
 ## Limits
 
-- A message over the frame, message, or frame-count limit fails with
-  `WebSocketErrorKind::Capacity`; set the limits with `WebSocketLimits`
+- A message over the size limits fails. Set them with `WebSocketLimits`
   ([defaults](../reference/limits.md#websocket)).
-- Other unsupported route combinations fail before any I/O
-  ([route matrix](../reference/route-matrix.md)). No failure falls back to a
-  direct connection or to H1.
-- A WebSocket on a pooled H2 session holds one of the origin's
-  `max_concurrent_http2_requests_per_origin` slots for its life, and fails
-  with `WebSocketErrorKind::Capacity` when the wait queue is full.
-- The recipes do not reproduce some stream and reset behavior, or Chrome's
-  message fragmentation
+- A WebSocket on a shared HTTP/2 connection holds one of the server's
+  request slots while it's open.
+- The recipes don't reproduce some of the browsers' stream and reset
+  behavior, or Chrome's message fragmentation
   ([differences](../reference/websocket.md#differences-from-the-captures)).
-- No browser capture covers a `wss://` WebSocket through a proxy.
-- [WebSocket over HTTP/3 to your own server](websocket-fields.md#open-a-websocket-over-http3-to-your-own-server).
 
 ## Next
 
-- [WebSocket fields and compression](websocket-fields.md): order the opening
-  request yourself and compress messages.
+- [WebSocket fields and compression](websocket-fields.md): order the
+  opening headers yourself, use HTTP/3, and compress messages.
 - [Browser profiles](profiles.md): add a WebSocket recipe to a profile.
-- [WebSocket browser evidence](../explanation/validation.md#websocket-browser-evidence):
-  the captures behind the recipes.
+- [WebSocket reference](../reference/websocket.md): routes, templates, and
+  recipes.
