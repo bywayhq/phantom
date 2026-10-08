@@ -1,31 +1,28 @@
 # Add a browser recipe
 
-Add a browser build to Phantom's profile matrix: capture it, retain the
-fixtures, write the recipe functions, replay the captures in tests, and update
-the documentation that makes claims about it.
+Add a browser build to Phantom's supported profiles. Record its network
+behavior, write the settings, and test them against the recordings.
 
-> For contributors who have read
-> [Evidence rules](../explanation/validation.md#evidence-rules).
+Before capturing, read the
+[evidence rules](../explanation/validation.md#evidence-rules).
 
 A [recipe](../reference/glossary.md#recipe) is the wire data for one browser
 build at one protocol layer, returned by a function such as
 `chromium::v154_tls`. The browser's layers together make its row in the
-[profile reference](../reference/profiles.md). The matrix is meant to grow;
-the [roadmap](../roadmap.md) queues the browsers still missing.
+[profile reference](../reference/profiles.md). The [roadmap](../roadmap.md)
+lists planned browsers.
 
 ## Rules that shape every step
 
 - Capture, record the capture in Validation, and only then write or change
   the recipe.
-- The runtime never branches on the browser name or the host OS, so a new
-  browser adds data in `phantom-profile` and no transport conditionals in
-  `phantom-net`.
+- Keep browser identity in `phantom-profile`. Add settings for a new browser
+  there, without browser-specific branches in `phantom-net`.
 - Keep extension, SETTINGS, pseudo-header, and field order exactly as
-  captured; normalize only the per-connection randomness listed in
-  [Capture normalization](../explanation/validation.md#capture-normalization).
-- Edge 153 showed that a Chromium fork can change the ClientHello, so each
-  fork needs its own captures in every area. A layer it shares with Chrome is
-  shared only after a test shows the capture equals the Chromium recipe.
+  captured. Normalize only the per-connection randomness listed in
+  Validation's "Capture normalization" section.
+- Record each Chromium fork in every area. Share a Chrome recipe only after
+  a test confirms that the fork sends the same data.
 - Phantom carries one version per browser: the current stable build on the
   capture host, or for an Android browser the build Play serves to the
   capture emulator. A new version replaces the old one. A macOS capture uses
@@ -50,8 +47,7 @@ the [roadmap](../roadmap.md) queues the browsers still missing.
 
 ## Worked example: Chrome 154
 
-Chrome 154.0.8037.58 entered the tree in six commits, each small enough to
-review alone:
+You can use these six Chrome 154.0.8037.58 commits as a model:
 
 | Commit | Step |
 | --- | --- |
@@ -65,9 +61,9 @@ review alone:
 Read `be02e93` with `git show` before you start. Its message records what
 changed from the previous build and why each difference is in the recipe.
 
-For a Chromium fork, the closer model is Edge 153: `eb883a2` retained its
-captures, and `4a01b7f` added `crates/phantom-profile/src/edge.rs`, which
-reuses the Chromium recipes and changes only what the captures show differs.
+For a Chromium fork, use Edge 153 as the model. `eb883a2` added its fixtures.
+`4a01b7f` added `crates/phantom-profile/src/edge.rs`, which reuses the
+Chromium recipes and changes the settings that differ.
 `brave.rs` and `opera.rs` follow the same pattern. Brave's request templates
 are the Chromium templates with its field changes applied, and Opera, built
 on Chromium 152, is compared with the Chrome 154 recipes because Phantom
@@ -77,13 +73,12 @@ carries one Chromium version.
 
 Start with a [quick fingerprint snapshot](../../scripts/capture/README.md#quick-fingerprint-snapshot)
 of a desktop browser. `snapshot_compare.py` compares its ClientHellos, HTTP/2
-startup frames and first navigation, HTTP/3 SETTINGS, and client hints with
+startup frames and first page load, HTTP/3 SETTINGS, and client hints with
 the retained fixtures of the previous build, and lists what changed. It does
 not compare HTTP/3 request fields or HTTP/1.1. Then capture the build in all
-seven areas. [Capture tools](../../scripts/capture/README.md)
-has the options and scenarios for each tool, and
-[Capture commands and launches](../explanation/validation.md#capture-commands-and-launches)
-has the exact Chrome 154 commands and launch arguments to repeat.
+seven areas. [Capture tools](../../scripts/capture/README.md) lists each
+tool's options and scenarios. Validation's "Capture commands and launches"
+section lists the Chrome 154 commands and launch arguments.
 
 | Area | Tool | Retained files |
 | --- | --- | --- |
@@ -200,20 +195,20 @@ the recipe through the same public path users take. Name tests
 
 ## Step 5: update the documentation
 
-- [Validation](../explanation/validation.md#browser-recipes): add a section
+- Validation: add a section
   for the build with the sample counts, the result against the previous
   build, the capture commands, the retained fixtures, and its limits. Add or
-  update its row in [Trust at a glance](../explanation/validation.md#trust-at-a-glance).
-- [Coverage](../reference/coverage.md#browser-profiles): the builds, how the
+  update its "Trust at a glance" row.
+- Coverage: the builds, how the
   recipes differ, and any recorded coverage loss.
 - [Profile reference](../reference/profiles.md): the browser's row and its
   recipe names.
 - `README.md` names the browsers in its feature table, and the
   [roadmap](../roadmap.md) queues planned browsers. Update both.
 
-A retirement is a breaking change to public API. Use a `!` subject and a
-`BREAKING CHANGE:` footer that lists the removed functions and their
-replacements, as `f129363` does.
+A retirement is a breaking API change. Use a `!` subject and a
+`BREAKING CHANGE:` footer naming the removed functions and replacements.
+Add an Unreleased changelog entry with a "Migrate:" note.
 
 ## Step 6: run the checks
 
@@ -234,7 +229,6 @@ replacements, as `f129363` does.
 
 - [Capture tools](../../scripts/capture/README.md): options, scenarios, and
   retained fields for each capture tool.
-- [Validation](../explanation/validation.md#chrome-154-recipes): the Chrome
-  154 section to model a new section on.
+- [Profile reference](../reference/profiles.md): the row for your new build.
 - [CONTRIBUTING.md](../../CONTRIBUTING.md#commits-and-pull-requests): commit
   and pull request rules.
