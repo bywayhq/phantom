@@ -101,9 +101,12 @@ impl ClientProfile {
         self
     }
 
-    /// Adds UDP socket options applied to every UDP socket that carries QUIC.
+    /// Adds socket options for QUIC and Phantom's own DNS queries.
     ///
-    /// Without them, UDP sockets keep their operating-system defaults.
+    /// These apply to address and HTTPS-record query sockets that Phantom
+    /// opens, alongside QUIC sockets. DNS sockets opened by the operating
+    /// system are unaffected. Without settings, Phantom does not set
+    /// these options.
     #[must_use]
     pub fn with_udp(mut self, udp: UdpSettings) -> Self {
         self.udp = Some(udp);

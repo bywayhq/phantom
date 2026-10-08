@@ -1,4 +1,4 @@
-//! Client-neutral profile wire settings.
+//! Browser recipes and typed settings for Phantom connections.
 
 pub mod brave;
 pub mod brave_android;

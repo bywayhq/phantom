@@ -100,9 +100,9 @@ impl Route {
 
     /// Returns a CONNECT-UDP route for exact HTTP/3 requests.
     ///
-    /// The proxy leg may be HTTP/3, HTTP/2, or HTTP/1.1; see
-    /// [`ConnectUdpProxy`]. Every other request protocol, negotiated
-    /// requests, and WebSocket reject this route before I/O.
+    /// The proxy leg may be HTTP/3, HTTP/2, or HTTP/1.1. See
+    /// [`ConnectUdpProxy`]. Exact HTTP/3 WebSockets also use this route.
+    /// Other protocols and negotiated requests reject it before I/O.
     #[must_use]
     pub fn connect_udp(proxy: ConnectUdpProxy) -> Self {
         Self::ConnectUdp(proxy)

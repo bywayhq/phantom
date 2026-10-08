@@ -10,11 +10,11 @@ use crate::RequestError;
 
 /// Policy for opening a WebSocket again after its connection setup failed.
 ///
-/// The default, equal to [`WebSocketRetryPolicy::none`], opens once. That is
-/// what a browser does: a page's `WebSocket` that fails to connect reports the
-/// failure, and only the page can construct another. A retry is caller
-/// policy, never browser or profile behavior. Set it for one connect with
+/// The default, [`WebSocketRetryPolicy::none`], does not retry connection
+/// setup. These retries are caller policy. Set it for one connect with
 /// [`WebSocketRequestBuilder::retry_policy`](super::WebSocketRequestBuilder::retry_policy).
+/// Separately, the Chromium profile can retry a refused HTTP/2 CONNECT
+/// stream once on the same session. That retry does not use this policy.
 ///
 /// Only a failure that happened before any byte of the opening reached the
 /// origin is retried: a failed name lookup, a refused or failed TCP connect
@@ -28,9 +28,9 @@ use crate::RequestError;
 /// [`HandshakeRejected`](super::WebSocketErrorKind::HandshakeRejected) or
 /// [`InvalidHandshake`](super::WebSocketErrorKind::InvalidHandshake) answer,
 /// and a handshake [`Timeout`](super::WebSocketErrorKind::Timeout) return the
-/// error at once, so no retry follows a response from the server. A stream
-/// on a pooled HTTP/2 session or HTTP/3 connection is not retried either,
-/// and no retry changes the protocol.
+/// error at once, so this policy never retries after a server response.
+/// It does not retry streams on pooled HTTP/2 sessions or HTTP/3
+/// connections. No retry changes the protocol.
 ///
 /// A retry is a new opening: it resolves, connects, and sends the opening
 /// with a fresh `Sec-WebSocket-Key` on the same route, with the same exact
@@ -59,7 +59,7 @@ pub struct WebSocketRetryPolicy {
 }
 
 impl WebSocketRetryPolicy {
-    /// Opens once and returns every failure.
+    /// Disables retries after connection setup fails.
     #[must_use]
     pub const fn none() -> Self {
         Self {

@@ -4,8 +4,9 @@
 //! facade: TLS connectors built from typed profiles, ordered HTTP/1.1 and
 //! HTTP/2 connections, one-handshake HTTP/1.1-or-HTTP/2 selection, HTTP/3
 //! over direct QUIC, SOCKS5 UDP ASSOCIATE, or CONNECT-UDP, and HTTP CONNECT,
-//! forward-proxy, and SOCKS5 routing. It owns no pools, redirects, cookies, or
-//! retry policy; the facade supplies those.
+//! forward-proxy, and SOCKS5 routing. It provides [`proxy::Http2ProxyPool`]
+//! for connections to HTTP/2 proxies. The facade owns origin connection
+//! pools, redirects, cookies, and retry policy.
 //!
 //! It is an internal crate with no stability guarantee. Applications should
 //! depend on `phantom-http`. The optional `qlog` feature enables HTTP/3 qlog

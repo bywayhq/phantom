@@ -343,7 +343,8 @@ impl WebSocketRequestBuilder {
     /// failures. Dropping this future cancels the in-flight operation. There
     /// are no implicit redirects, reconnects, or protocol fallbacks.
     /// Configured Basic proxy authentication permits one challenge-driven
-    /// retry on a fresh connection.
+    /// retry. It reuses the challenged connection when possible, otherwise
+    /// it opens a new one.
     ///
     /// # Errors
     ///

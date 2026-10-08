@@ -1,11 +1,13 @@
-//! UDP socket options a client applies to the sockets that carry QUIC.
+//! Socket options for QUIC and Phantom's own DNS queries.
 
-/// UDP socket options applied to each UDP socket that carries QUIC.
+/// Socket options for QUIC and Phantom's own DNS queries.
 ///
 /// A value applies to the socket of every QUIC connection, to an origin or
 /// to a CONNECT-UDP proxy, and to the UDP socket of a SOCKS5 UDP
-/// association. A field that asks for nothing leaves the socket at its
-/// operating-system default. [`Self::default`] asks for nothing.
+/// association. The client also applies it to address and HTTPS-record
+/// query sockets that Phantom opens. DNS sockets opened by the operating
+/// system are unaffected. A field that asks for nothing leaves the socket
+/// at its operating-system default. [`Self::default`] asks for nothing.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UdpSettings {
     /// Whether to ask Windows for a random local port with
