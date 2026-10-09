@@ -134,6 +134,92 @@ fn split_cookie_accepts_100_crumbs() -> TestResult<()> {
 }
 
 #[test]
+fn extended_connect_splits_more_than_100_cookie_pairs() -> TestResult<()> {
+    let pairs = cookie_pairs(MAX_REQUEST_HEADERS + 1);
+    let settings = extended_cookie_settings();
+    for protocol in [h3::ext::Protocol::WEBSOCKET, h3::ext::Protocol::CONNECT_UDP] {
+        let fields = vec![RequestHeader::new("cookie", pairs.join("; "))];
+        let request = if protocol == h3::ext::Protocol::CONNECT_UDP {
+            crate::http3::request::prepare_connect_udp(
+                &settings,
+                "example.test",
+                OriginForm::parse("/")?,
+                fields,
+            )?
+        } else {
+            crate::http3::request::prepare_extended_connect(
+                &settings,
+                protocol,
+                "example.test",
+                OriginForm::parse("/")?,
+                fields,
+            )?
+        };
+        assert_eq!(request.method(), http::Method::CONNECT);
+        assert_eq!(
+            request.extensions().get::<h3::ext::Protocol>(),
+            Some(&protocol)
+        );
+        let observed = request
+            .headers()
+            .get_all("cookie")
+            .iter()
+            .map(|value| value.as_bytes())
+            .collect::<Vec<_>>();
+        assert_eq!(observed.len(), pairs.len());
+        for (observed, expected) in observed.iter().zip(&pairs) {
+            assert_eq!(*observed, expected.as_bytes());
+        }
+        if protocol == h3::ext::Protocol::CONNECT_UDP {
+            assert_eq!(request.headers()["capsule-protocol"], "?1");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn generated_capsule_field_counts_toward_the_request_limit() -> TestResult<()> {
+    let settings = extended_cookie_settings();
+    let fields = (0..MAX_REQUEST_HEADERS - 1)
+        .map(|_| RequestHeader::new("x-field", "v"))
+        .collect::<Vec<_>>();
+    let request = crate::http3::request::prepare_connect_udp(
+        &settings,
+        "example.test",
+        OriginForm::parse("/")?,
+        fields.clone(),
+    )?;
+    assert_eq!(request.headers().len(), MAX_REQUEST_HEADERS);
+    assert_eq!(request.headers()["capsule-protocol"], "?1");
+    let mut excessive = fields;
+    excessive.push(RequestHeader::new("x-field", "v"));
+    assert_request_limit(
+        crate::http3::request::prepare_connect_udp(
+            &settings,
+            "example.test",
+            OriginForm::parse("/")?,
+            excessive,
+        )
+        .map_err(Into::into),
+        "HTTP/3 request has too many headers",
+    );
+    Ok(())
+}
+
+fn extended_cookie_settings() -> Http3RequestSettings {
+    use phantom_profile::Http3PseudoHeader;
+    let mut settings = chrome::v154_http3_request();
+    settings.extended_connect_pseudo_header_order = Some(vec![
+        Http3PseudoHeader::Method,
+        Http3PseudoHeader::Scheme,
+        Http3PseudoHeader::Authority,
+        Http3PseudoHeader::Path,
+        Http3PseudoHeader::Protocol,
+    ]);
+    settings
+}
+
+#[test]
 fn split_cookie_applies_the_byte_limit_before_repeating_its_name() -> TestResult<()> {
     let mut pairs = cookie_pairs(MAX_REQUEST_HEADERS);
     let padding = MAX_REQUEST_HEADER_BYTES - "cookie".len() - pairs.join("; ").len();
