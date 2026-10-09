@@ -442,11 +442,11 @@ the wire, capture evidence.
 
 ## Phase 2: Ergonomics
 
-Phase 2 settles the public API before the first release. Its required API
-changes are implemented in PRs 184, 185, 186, and 187. The final batch in
-PR 187 awaits merge and CI proof. Use the
-[Phase 2 checklist](internals/phase2.md) to track that proof and the
-acceptance criteria.
+Phase 2 is complete. Its required API changes shipped in PRs 184, 185,
+186, and 187. The final batch passed the full integration gate, all PR
+checks, and all ten triggered workflows on `main`. The
+[Phase 2 checklist](internals/phase2.md) records the acceptance criteria
+and verification results.
 
 - Workspace lints: `missing_debug_implementations`, `rust_2018_idioms`,
   `clippy::must_use_candidate`, `clippy::cast_lossless`, and `clippy::cargo`.

@@ -1,8 +1,8 @@
 # Phase 2 implementation checklist
 
 Use this checklist to review the API work before Phantom's first release.
-All required changes are implemented. The final merge and CI proof remain
-pending.
+All required changes are implemented, reviewed, merged, and verified on
+green `main`.
 
 ## Starting point
 
@@ -18,11 +18,10 @@ contract in [Coverage](../reference/coverage.md).
 
 ## Milestones
 
-Checked items record implemented and reviewed changes, including the
-candidate in [PR 187](https://github.com/bywayhq/phantom/pull/187) at
-`b2cf66d0`. They do not yet establish completion on merged `main`.
+Checked items record completed changes, including the final batch in
+[PR 187](https://github.com/bywayhq/phantom/pull/187) at `b2cf66d0`.
 See [Integration and completion](#integration-and-completion) for the
-final proof.
+merged commit and verification results.
 
 ### 1. Routes
 
@@ -58,8 +57,8 @@ HTTP/1.1 backend errors now have an opaque payload; HTTP/3 backend conversion
 is private. Source chains and replay observations remain available.
 PR 187 finishes export cleanup, enum evolution, typed error categories,
 conversions, common traits, and public examples. The public API inventories
-and default/all-feature path and git consumers have been checked. Its final
-gate passed. PR checks, merge, and push CI remain pending.
+and default/all-feature path and git consumers passed. Its full gate,
+all 43 PR checks, and all ten triggered workflows on `main` passed.
 
 - [x] Unused internal exports become private. A public API inventory
   records the intended exports of each library crate.
@@ -214,20 +213,20 @@ reproduced defect, and a closed issue does not establish its current status.
 
 ## Integration and completion
 
-The workspace lint baseline, route consolidation, and first API batch are
-merged in PRs 184, 185, and 186. PR 187 contains the remaining implemented
-items at candidate `b2cf66d0`. Its full Windows/Linux integration gate
-passed all 24 steps and 3,085 tests, with no skipped tests, in 137 seconds.
-Required PR checks, merge, and push CI remain pending.
+The workspace lint baseline, route consolidation, and first API batch
+merged in PRs 184, 185, and 186. The final batch merged at `b2cf66d0` in
+[PR 187](https://github.com/bywayhq/phantom/pull/187) on 2026-10-09. Its
+full Windows/Linux integration gate passed all 24 steps and 3,085 tests,
+with no skipped tests, in 137 seconds. All 43 PR checks passed, including
+Windows, macOS, native TLS, conformance, and security scanning.
 
-Completion proof pending: replace this paragraph after PR 187 merges.
-Record the exact merged commit, its full gate result, all required PR
-checks, and push CI on `main`. Until that proof is recorded, Phase 2 remains
-awaiting final verification.
+All ten triggered workflows on `main` passed: CI, Parser fuzzing, QUIC
+interoperability, Autobahn, WPT, TLS-Anvil, Sanitizers, BoringSSL native,
+Scorecard, and CodeQL. Phase 2 is complete.
 
-Every breaking API change has a migration note. Completion requires every
-item above to be implemented, documented, reviewed, merged, and verified
-on green `main`. A failing workflow on `main` blocks the next merge.
+Every breaking API change has a migration note in
+[Changelog](../../CHANGELOG.md#breaking). A failing workflow on `main`
+blocks the next merge.
 
 New browser coverage, backend changes, broader hardening, optimization,
 and architecture audits are outside Phase 2. Publication and Phase 3 start

@@ -1,8 +1,9 @@
 # Public API inventory
 
 Review the library exports in these generated files. They record the
-Phase 2 API checkpoint `44ffae95`. Integration gates and CI still need to
-pass before this batch ships.
+Phase 2 API checkpoint `44ffae95`, shipped in
+[PR 187](https://github.com/bywayhq/phantom/pull/187) at `b2cf66d0`.
+Its full gate, PR checks, and all ten workflows on `main` passed.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -50,5 +51,5 @@ BoringSSL linking restriction.
 
 ## Next
 
-- [Phase 2 checklist](../../docs/internals/phase2.md): outstanding API work.
+- [Phase 2 checklist](../../docs/internals/phase2.md): completed API work.
 - [Provider API](../../crates/phantom-quic-btls/README.md#api-boundary): QUIC types.
