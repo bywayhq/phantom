@@ -10,6 +10,34 @@ pick one for each request. The profile sets how connections look. The
 template sets the headers of each request, such as `User-Agent` and
 `Accept`.
 
+## Set a default template
+
+Attach a template to your profile to use it for ordinary HTTP requests.
+The client prepares it once when you build it.
+
+```rust,no_run
+use phantom::{Client, HttpProtocol};
+use phantom::profile::browser::chrome;
+
+# async fn example() -> Result<(), Box<dyn std::error::Error>> {
+let profile = chrome::v154_windows()
+    .with_request_template(chrome::v154_windows_navigation_template());
+let client = Client::builder(profile).build()?;
+let response = client.get(HttpProtocol::Http2, "https://example.com/")?
+    .send().await?;
+let response_without_template = client
+    .get(HttpProtocol::Http2, "https://example.com/")?
+    .without_template()
+    .send().await?;
+# Ok(())
+# }
+```
+
+`RequestBuilder::template` replaces the default for that request.
+`without_template` disables it. Redirects keep the selected template and
+still remove credentials when crossing origins. WebSocket openings use their
+own profile settings.
+
 ## Apply a captured request template
 
 Prepare a template once with `PreparedRequestTemplate::new`, then pass it to

@@ -18,9 +18,35 @@ For a working example, see [Browser profiles](../guides/profiles.md).
 | `with_websocket(settings)` | WebSocket opening templates, compression offer, and connection policy |
 | `with_proxy_connect(template)` | Fields of the CONNECT request that opens an HTTP proxy tunnel ([details](#proxy-connect-fields)) |
 | `with_cookie_placement(placement)` | Where the cookie jar's `Cookie` field goes; last by default ([details](../guides/cookies.md#place-the-cookie-field-where-a-browser-does)) |
+| `with_request_template(template)` | Default template for HTTP requests |
+| `without_request_template()` | Clear the profile's default template |
 
 A request fails before any network I/O if the profile lacks a component it
 needs.
+
+## Composed profiles
+
+Use the constructors under `phantom::profile::browser` to combine one
+browser's available layers. Individual recipes remain available for custom
+profiles.
+
+| Browser | Windows | Android |
+| --- | --- | --- |
+| Chrome | `chrome::v154_windows()` | `chrome::v154_android()` |
+| Edge | `edge::v154_windows()` | `edge::v153_android()` |
+| Brave | `brave::v154_windows()` | `brave::v153_android()` |
+| Opera | `opera::v136_windows()` | `opera::v102_android()` |
+| Firefox | `firefox::v157_windows()` | `firefox::v156_android()` |
+
+Brave's version prefix names its Chromium version: desktop Brave 1.96.59
+uses 154, and Android Brave 1.95.104 uses 153. No composed macOS profile is
+provided. macOS client-hint and request-template recipes remain available.
+
+Windows constructors include the corresponding TCP and QUIC TLS recipes.
+Android constructors include only the layers listed below. A missing
+HTTP/1.1 connection policy uses the client's generic HTTP/1.1 defaults; it
+does not disable HTTP/1.1. Missing HTTP/2 or HTTP/3 recipes disable those
+protocols. Constructors leave the default request template unset.
 
 ## Built-in recipes
 

@@ -10,14 +10,12 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use phantom::profile::{chromium, ClientProfile};
+//! use phantom::profile::browser::chrome;
 //! use phantom::{Client, HttpProtocol, RequestHeader};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let profile = ClientProfile::new(chromium::v154_tls())
-//!     .with_http2(chromium::v154_http2())
-//!     .with_client_hints(chromium::v154_windows_client_hints());
+//! let profile = chrome::v154_windows();
 //! let client = Client::builder(profile).build()?;
 //!
 //! let response = client
@@ -35,7 +33,8 @@
 //! Run requests in a Tokio runtime with I/O enabled. Enable timers for
 //! timeouts and operations that wait on timers, such as HTTP/3 setup.
 //! [`Client::get_negotiated`] lets a TLS handshake choose HTTP/1.1 or HTTP/2.
-//! To use HTTP/3, add [`profile::Http3ClientSettings`] to the profile.
+//! Composed browser profiles include HTTP/3 when their recipes support it.
+//! Custom profiles add it through [`profile::Http3ClientSettings`].
 //!
 //! # Cargo features
 //!
@@ -266,138 +265,8 @@ pub mod profile {
         WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
-    /// Chromium-family connection settings and request templates.
-    pub mod chromium {
-        pub use phantom_profile::chromium::{
-            v154_cookie_placement, v154_dns_cache, v154_http1, v154_http2, v154_http3,
-            v154_http3_request, v154_http3_tls, v154_macos_client_hints,
-            v154_macos_fetch_no_store_template, v154_macos_fetch_template,
-            v154_macos_navigation_template, v154_proxy_connect, v154_quic, v154_tcp, v154_tls,
-            v154_udp, v154_websocket, v154_windows_client_hints,
-            v154_windows_fetch_no_store_template, v154_windows_fetch_template,
-            v154_windows_navigation_template,
-        };
-    }
-
-    /// Firefox connection settings and request templates.
-    ///
-    /// The HTTP/3 recipes build a Firefox 157 profile that can use HTTP/3:
-    ///
-    /// ```
-    /// use phantom::profile::{ClientProfile, Http3ClientSettings, firefox};
-    ///
-    /// let profile = ClientProfile::new(firefox::v157_tls())
-    ///     .with_http2(firefox::v157_http2())
-    ///     .with_http3(Http3ClientSettings::new(
-    ///         firefox::v157_http3_tls(),
-    ///         firefox::v157_quic(),
-    ///         firefox::v157_http3(),
-    ///         firefox::v157_http3_request(),
-    ///     ));
-    /// assert!(profile.http3().is_some());
-    /// ```
-    pub mod firefox {
-        pub use phantom_profile::firefox::{
-            v157_cookie_placement, v157_dns_cache, v157_http1, v157_http2, v157_http3,
-            v157_http3_request, v157_http3_tls, v157_macos_fetch_no_store_template,
-            v157_macos_fetch_template, v157_macos_navigation_template, v157_proxy_connect,
-            v157_quic, v157_tcp, v157_tls, v157_websocket, v157_windows_fetch_no_store_template,
-            v157_windows_fetch_template, v157_windows_navigation_template,
-        };
-    }
-
-    /// Brave connection settings and request templates.
-    ///
-    /// Brave 154 shares the Chromium H2, QUIC, H3, WebSocket, and proxy
-    /// CONNECT recipes. Its TLS ClientHellos, client hints, and request
-    /// headers differ.
-    pub mod brave {
-        pub use phantom_profile::brave::{
-            v154_http3_tls, v154_tls, v154_windows_client_hints,
-            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
-        };
-    }
-
-    /// Opera connection settings and request templates.
-    ///
-    /// Opera 136 shares the Chromium TCP, UDP, HTTP/1.1 connection, address cache,
-    /// H2, QUIC, H3, WebSocket, and proxy CONNECT recipes. Its TLS
-    /// ClientHellos, client hints, and request identity differ.
-    pub mod opera {
-        pub use phantom_profile::opera::{
-            v136_http3_tls, v136_macos_client_hints, v136_tls, v136_windows_client_hints,
-            v136_windows_fetch_no_store_template, v136_windows_navigation_template,
-        };
-    }
-
-    /// Microsoft Edge connection settings and request templates.
-    ///
-    /// Edge 154 shares the Chromium TCP, UDP, HTTP/1.1 connection, address cache,
-    /// H2, QUIC, H3, WebSocket, and proxy CONNECT recipes. Its TLS
-    /// ClientHellos, client hints, and request identity differ.
-    pub mod edge {
-        pub use phantom_profile::edge::{
-            v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints,
-            v154_windows_fetch_no_store_template, v154_windows_navigation_template,
-        };
-    }
-
-    /// Brave for Android connection settings and request templates.
-    ///
-    /// For Brave 1.95.104 (Chromium 153) on Android 15 and 17 emulators.
-    /// The TLS recipes and request-header differences equal desktop Brave's.
-    /// The H2, QUIC, H3, and WebSocket recipes return the Chromium data.
-    pub mod brave_android {
-        pub use phantom_profile::brave_android::{
-            v153_android_client_hints, v153_android_fetch_no_store_template,
-            v153_android_navigation_template, v153_http2, v153_http3, v153_http3_request,
-            v153_http3_tls, v153_quic, v153_tls, v153_websocket,
-        };
-    }
-
-    /// Opera for Android TLS settings and client hints.
-    ///
-    /// For Opera 102 (Chromium 152) on an Android 17 emulator.
-    pub mod opera_android {
-        pub use phantom_profile::opera_android::{
-            v102_android_client_hints, v102_android_client_hints_for_model, v102_tls,
-        };
-    }
-
-    /// Firefox for Android TLS settings.
-    ///
-    /// For Firefox 156.0.1 on an Android 15 emulator. Its TLS ClientHello
-    /// equals the desktop ClientHello that Firefox 156.0.1 and 157.0 send.
-    pub mod firefox_android {
-        pub use phantom_profile::firefox_android::v156_tls;
-    }
-
-    /// Chrome for Android connection settings and request templates.
-    ///
-    /// For Chrome 154 on an Android 17 emulator that reports a
-    /// Pixel 7. The TLS, H2, QUIC, H3, and WebSocket recipes return the
-    /// desktop Chromium data. The client hints and request identity differ.
-    pub mod chrome_android {
-        pub use phantom_profile::chrome_android::{
-            v154_android_client_hints, v154_android_client_hints_for_model,
-            v154_android_fetch_no_store_template, v154_android_navigation_template, v154_http2,
-            v154_http3, v154_http3_request, v154_http3_tls, v154_quic, v154_tls, v154_websocket,
-        };
-    }
-
-    /// Microsoft Edge for Android connection settings and request templates.
-    ///
-    /// For Edge 153 on an arm64 Android 17 emulator that reports a Pixel 7.
-    /// The TLS recipes are desktop Edge's, which Edge 153 and 154 send alike.
-    /// The H2, QUIC, and H3 recipes return the Chromium data. The client hints
-    /// and request identity differ.
-    pub mod edge_android {
-        pub use phantom_profile::edge_android::{
-            v153_android_client_hints, v153_android_client_hints_for_model,
-            v153_android_fetch_no_store_template, v153_android_navigation_template, v153_http2,
-            v153_http3, v153_http3_request, v153_http3_tls, v153_quic, v153_tls,
-        };
-    }
+    /// Browser recipes and composed profiles grouped by brand and platform.
+    pub use phantom_profile::browser;
 }
 
 /// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.

@@ -14,6 +14,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Group browser recipes under `profile::browser::{chrome, edge, brave,
+  opera, firefox}` in the facade and `phantom_profile::browser` in the
+  profile crate. Migrate: replace the old root browser modules with these
+  modules. Replace `chromium` with `browser::chrome`. Android recipes now
+  share their brand's module and include `_android_` after the version.
+  Rename `*_tls` to `*_tcp_tls` and `*_http3_tls` to `*_quic_tls`.
+
+
 - Keep QUIC packet cryptography private. Migrate: replace direct use of
   `HeaderProtectionKey`, `PacketProtectionKey`, `InitialKeys`,
   `derive_initial_keys`, `DirectionKeys`, `EndpointSide`,
@@ -935,6 +943,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
 ### Added
+
+- Composed Windows and Android profile constructors combine each browser's
+  available layers. Version and platform are explicit. They leave request
+  templates unset, and preserve individual recipes for custom composition.
+- `ClientProfile::with_request_template` supplies a default HTTP request
+  template, prepared once during client construction. A request's
+  `template` replaces it; `without_template` disables it. Redirects keep
+  this selection and remove cross-origin credentials as before.
+
 
 - `phantom` re-exports `Bytes`, `Response`, `StatusCode`, and `Uri` for
   request and response APIs. `phantom::profile` also exports

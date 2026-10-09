@@ -15,85 +15,32 @@ settings for one layer. Headers such as `User-Agent` come from a
 
 ## Choose a built-in profile
 
-Combine one browser's recipes into a profile.
+Choose a version and platform. Its constructor combines the available
+connection recipes.
 
 ```rust
 use phantom::profile::{
-    ClientProfile, Http3ClientSettings,
+    ClientProfile,
     browser::{brave, chrome, edge, firefox, opera},
 };
 
 fn profiles() -> [ClientProfile; 5] {
-    // Firefox 157: its TLS, TCP, HTTP/1.1 and HTTP/2 settings, and where
-    // it puts the cookie header.
-    let firefox = ClientProfile::new(firefox::v157_tcp_tls())
-        .with_tcp(firefox::v157_tcp())
-        .with_http1(firefox::v157_http1())
-        .with_http2(firefox::v157_http2())
-        .with_cookie_placement(firefox::v157_cookie_placement());
-
-    // Edge 154: its own TLS and client hints, plus Chromium's other
-    // settings.
-    let edge = ClientProfile::new(edge::v154_tcp_tls())
-        .with_tcp(chrome::v154_tcp())
-        .with_udp(chrome::v154_udp())
-        .with_http1(chrome::v154_http1())
-        .with_dns_cache(chrome::v154_dns_cache())
-        .with_http2(chrome::v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            edge::v154_quic_tls(),
-            chrome::v154_quic(),
-            chrome::v154_http3(),
-            chrome::v154_http3_request(),
-        ))
-        .with_client_hints(edge::v154_windows_client_hints());
-
-    // Brave 154 and Opera 136 follow the same pattern, with their own TLS
-    // and client hints.
-    let brave = ClientProfile::new(brave::v154_tcp_tls())
-        .with_tcp(chrome::v154_tcp())
-        .with_udp(chrome::v154_udp())
-        .with_http1(chrome::v154_http1())
-        .with_dns_cache(chrome::v154_dns_cache())
-        .with_http2(chrome::v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            brave::v154_quic_tls(),
-            chrome::v154_quic(),
-            chrome::v154_http3(),
-            chrome::v154_http3_request(),
-        ))
-        .with_client_hints(brave::v154_windows_client_hints())
-        .with_cookie_placement(chrome::v154_cookie_placement());
-    let opera = ClientProfile::new(opera::v136_tcp_tls())
-        .with_tcp(chrome::v154_tcp())
-        .with_udp(chrome::v154_udp())
-        .with_http1(chrome::v154_http1())
-        .with_dns_cache(chrome::v154_dns_cache())
-        .with_http2(chrome::v154_http2())
-        .with_http3(Http3ClientSettings::new(
-            opera::v136_quic_tls(),
-            chrome::v154_quic(),
-            chrome::v154_http3(),
-            chrome::v154_http3_request(),
-        ))
-        .with_client_hints(opera::v136_windows_client_hints())
-        .with_cookie_placement(chrome::v154_cookie_placement());
-
-    // Chrome 154 for Android, with Android client hints.
-    let android = ClientProfile::new(chrome::v154_android_tcp_tls())
-        .with_http2(chrome::v154_android_http2())
-        .with_http3(Http3ClientSettings::new(
-            chrome::v154_android_quic_tls(),
-            chrome::v154_android_quic(),
-            chrome::v154_android_http3(),
-            chrome::v154_android_http3_request(),
-        ))
-        // A Pixel 7. `v154_android_client_hints_for_model` sends another model.
-        .with_client_hints(chrome::v154_android_client_hints());
-
-    [firefox, edge, brave, opera, android]
+    [
+        chrome::v154_windows(),
+        edge::v154_windows(),
+        brave::v154_windows(),
+        opera::v136_windows(),
+        firefox::v157_windows(),
+    ]
 }
 ```
+
+Android constructors use names such as `chrome::v154_android()` and
+`firefox::v156_android()`. They include only the available Android layers.
+No constructor fills a missing Android layer with desktop socket settings.
+
+These constructors leave request headers to you. Add a default
+[request template](request-templates.md), or choose one for each request.
 
 Each brand has one module under `phantom::profile::browser`, such as
 `chrome`. Android recipe names include `_android_`. Not every version has

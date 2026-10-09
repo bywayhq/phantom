@@ -66,6 +66,15 @@ The final full gate, path/git downstream checks, and CI remain required.
 
 ### 3. Profiles and settings
 
+The unmerged profile lane groups recipes under five browser modules and
+adds explicit Windows and Android constructors. Individual recipes remain
+available for custom composition. Factories leave the default request
+template unset. You can configure one on the profile, replace it on a
+request, or opt out for that request. Independent source reviews approved
+these changes and their credential-safe redirect behavior. Combined
+compilation, gate checks, and CI remain required.
+
+
 - [ ] Settings constructors and their evolution policy are settled.
   Invalid combinations are prevented by types where practical; remaining
   invalid or unsupported values produce recoverable errors.

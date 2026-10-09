@@ -520,7 +520,8 @@ baseline comes first, so the lints guide the refactor rather than follow it.
 - Named types in place of bare primitives and nested collections in public
   settings where the meaning is not obvious, such as the
   `Vec<Vec<Box<[u8]>>>` of trust-anchor orders.
-- Composed per-browser profile constructors, such as `chromium::v154()`, so
+- Composed per-browser profile constructors, such as
+  `browser::chrome::v154_windows()`, so
   a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
 - Error triage over `kind()`, a public replay-safety accessor, the
   response carried on errors that have one, and the origin (scheme, host,
