@@ -544,12 +544,12 @@ not backend toggles.
   hints, and request policy stay attached to the original HTTPS origin. A
   different transport location cannot reuse the previous H3 connection
   generation.
-- Alt-Svc use is sequential by default. Opt-in racing chooses between exactly
-  two pre-declared candidates on the same route, the alternative QUIC
-  connection and then, after a delay, the origin H1/H2 connection, and sends
-  the request once, on the winner. If the origin connects and the alternative
-  fails, the alternative is marked broken with a bounded doubling backoff.
-  Both candidates failing leaves that state unchanged.
+- Alt-Svc use is sequential by default. Opt-in racing starts one alternative
+  QUIC connection and, after a delay, the origin H1/H2 connection, on the same
+  route. `AltSvcRace::with_max_alternatives` allows up to three alternatives
+  alongside the origin. The request is sent once, on the winner. Failed
+  alternatives back off when another candidate succeeds. Every candidate
+  failing leaves that state unchanged.
 - Response content decoding is an opt-in facade body stage above every
   transport. It is gated by the caller's own `Accept-Encoding`, never edits
   request fields, and keeps the response fields as the wire view.

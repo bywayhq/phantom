@@ -31,7 +31,8 @@ choices, so Phantom asks you to make them
   order you add them.
 - `PreparedRequestBody` encodes bounded form, JSON and multipart bodies.
   JSON needs the `json` feature. Build URL query strings yourself.
-- Phantom reads no proxy settings from the environment.
+- [Environment proxies](routes-and-proxies.md#read-proxy-settings-from-the-environment)
+  require an explicit snapshot.
 
 | reqwest | Phantom |
 | --- | --- |
@@ -190,8 +191,6 @@ async fn text(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
     Ok(String::from_utf8(body.to_vec())?)
 }
 ```
-
-You can also pass the collected bytes to your own deserializer.
 
 ## Next
 
