@@ -103,6 +103,7 @@ pub fn check_record(record: &HttpsRecord) {
     match record {
         HttpsRecord::Alias(_) => assert_eq!(record.priority(), 0),
         HttpsRecord::Service(service) => check_service(service),
+        _ => {}
     }
 }
 

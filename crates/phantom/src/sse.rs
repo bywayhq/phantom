@@ -485,20 +485,20 @@ impl Stream for SseStream {
             .span
             .clone();
         let result = span.in_scope(|| stream.poll_event(context));
-        if let Poll::Ready(item) = &result {
-            if let Some(outcome) = stream.read_outcome.take() {
-                outcome.finish(match item {
-                    Some(Ok(_)) => "event",
-                    None => "eof",
-                    Some(Err(error)) => match error.kind() {
-                        SseErrorKind::LineTooLong => "line_limit",
-                        SseErrorKind::EventTooLarge => "event_limit",
-                        SseErrorKind::Body => "body_error",
-                        SseErrorKind::IdleTimeout => "idle_timeout",
-                        _ => "error",
-                    },
-                });
-            }
+        if let Poll::Ready(item) = &result
+            && let Some(outcome) = stream.read_outcome.take()
+        {
+            outcome.finish(match item {
+                Some(Ok(_)) => "event",
+                None => "eof",
+                Some(Err(error)) => match error.kind() {
+                    SseErrorKind::LineTooLong => "line_limit",
+                    SseErrorKind::EventTooLarge => "event_limit",
+                    SseErrorKind::Body => "body_error",
+                    SseErrorKind::IdleTimeout => "idle_timeout",
+                    _ => "error",
+                },
+            });
         }
         result
     }
