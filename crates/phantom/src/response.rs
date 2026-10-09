@@ -80,7 +80,7 @@ impl fmt::Debug for StatusError {
 
 impl fmt::Display for StatusError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "HTTP error status {}", self.status())
+        write!(formatter, "response has error status {}", self.status())
     }
 }
 
