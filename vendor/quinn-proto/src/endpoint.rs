@@ -366,9 +366,16 @@ impl Endpoint {
             &mut self.rng,
         );
         params.version_information = VersionInformation::local(config.version, &self.config);
-        let tls = config
+        let tls = match config
             .crypto
-            .start_session(config.version, server_name, &params)?;
+            .start_session(config.version, server_name, &params)
+        {
+            Ok(session) => session,
+            Err(error) => {
+                self.index.retire(loc_cid);
+                return Err(error);
+            }
+        };
         let initial_crypto = match tls.initial_keys(&remote_id, Side::Client) {
             Ok(keys) => keys,
             Err(_) => {

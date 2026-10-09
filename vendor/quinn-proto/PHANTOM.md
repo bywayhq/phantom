@@ -46,6 +46,10 @@ stacks, credentials, ECH configuration bytes, or key material. Invalid server
 names and unsupported versions keep their existing categories. Initial packet
 key derivation still uses `InitialCrypto`.
 
+A failed provider startup retires its allocated local connection ID before
+returning the error. Repeated failures leave existing connections and their
+IDs intact, and do not exhaust the endpoint's connection-ID space.
+
 ## Why these patches exist
 
 Two Quinn session key boundaries could not represent every provider failure.
