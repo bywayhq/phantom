@@ -15,7 +15,8 @@ use crate::RequestHeader;
 /// when sending begins, after prepared-body headers and before network I/O.
 /// Retries reuse the result. Hooks do not rerun on redirects. Cross-origin
 /// redirects remove `Authorization`, `Cookie`, `Cookie2`, and
-/// `Proxy-Authorization`. Custom credential fields remain, even when sensitive.
+/// `Proxy-Authorization`. This rule does not protect custom credential fields,
+/// even when marked sensitive.
 /// Check [`Self::uri`] before adding credentials. For custom credentials, disable
 /// automatic redirects and check each new request's origin yourself.
 /// Generated headers, cookies, hints, and template literals are added afterward.

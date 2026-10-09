@@ -76,9 +76,9 @@ URLs can override the base. Retries reuse the hook's result.
 
 Hooks do not rerun on redirects. Cross-origin redirects remove
 `Authorization`, `Cookie`, `Cookie2`, and `Proxy-Authorization`. Custom
-credential fields, such as `x-api-key`, remain even when marked sensitive.
-For those fields, use `RedirectPolicy::none()` and check each new request's
-origin yourself ([Follow redirects](redirects.md#follow-redirects)). A
+credential fields, such as `x-api-key`, are not protected by this rule,
+even when marked sensitive. Use `RedirectPolicy::none()` and check each
+new request's origin yourself ([Follow redirects](redirects.md#follow-redirects)). A
 signature for the initial URL is not regenerated for redirect URLs.
 
 ## Limits
