@@ -1,6 +1,6 @@
 //! Expansion and checks for browser request templates.
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
@@ -17,10 +17,10 @@ use crate::{HttpProtocol, RequestError};
 /// result to [`RequestBuilder::template`](crate::RequestBuilder::template)
 /// for each request; cloning it copies a reference count, not the fields.
 /// A profile's default template is prepared once while building the client.
-#[derive(Clone, Debug)]
+/// Debug output shows structural counts and omits header names and values.
+#[derive(Clone)]
 pub struct PreparedRequestTemplate(Arc<Prepared>);
 
-#[derive(Debug)]
 struct Prepared {
     template: RequestTemplate,
     /// Client-hint placement, the same on every protocol list.
@@ -33,6 +33,30 @@ struct Prepared {
     /// Whether every protocol list sends the same `Accept-Encoding` value to
     /// both kinds of URL, separately for each forwarding state.
     accept_encoding_agrees: [bool; 2],
+}
+
+impl fmt::Debug for PreparedRequestTemplate {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let template = &self.0.template;
+        formatter
+            .debug_struct("PreparedRequestTemplate")
+            .field("http1_field_count", &template.http1_fields.len())
+            .field("http2_field_count", &template.http2_fields.len())
+            .field(
+                "http3_field_count",
+                &template.http3_fields.as_ref().map(Vec::len),
+            )
+            .field("client_hint_slot_count", &self.0.client_hint_slots.len())
+            .field(
+                "restart_client_hint_slot",
+                &self.0.restart_client_hint_slot.is_some(),
+            )
+            .field(
+                "requested_client_hint_placement",
+                &template.requested_client_hint_placement,
+            )
+            .finish_non_exhaustive()
+    }
 }
 
 impl PreparedRequestTemplate {

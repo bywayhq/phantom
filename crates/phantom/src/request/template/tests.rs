@@ -7,6 +7,68 @@ use phantom_profile::{
 use super::{PreparedRequestTemplate, ProtocolScope, check, expand};
 use crate::{HttpProtocol, RequestErrorKind};
 
+fn debug_canary_template() -> Result<(RequestTemplate, String), Box<dyn std::error::Error>> {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_nanos();
+    let canary = format!("header-canary-{}-{nonce}", std::process::id());
+    let mut template = firefox::v157_windows_navigation_template();
+    let fields = vec![
+        RequestField::literal("accept-encoding", canary.clone()),
+        RequestField::literal("x-private", canary.clone()),
+    ];
+    template.http1_fields = fields.clone();
+    template.http2_fields = fields;
+    template.http3_fields = None;
+    Ok((template, canary))
+}
+
+#[test]
+fn prepared_template_debug_redacts_values_and_keeps_structure()
+-> Result<(), Box<dyn std::error::Error>> {
+    let (template, canary) = debug_canary_template()?;
+    let prepared = PreparedRequestTemplate::new(template)?;
+    for debug in [format!("{prepared:?}"), format!("{prepared:#?}")] {
+        assert!(
+            !debug.contains(&canary),
+            "prepared template leaked a header value"
+        );
+        assert!(debug.contains("PreparedRequestTemplate"));
+        assert!(debug.contains("http1_field_count: 2"));
+        assert!(debug.contains("http2_field_count: 2"));
+        assert!(debug.contains("http3_field_count: None"));
+        assert!(debug.contains("client_hint_slot_count: 0"));
+    }
+    Ok(())
+}
+
+#[test]
+fn request_builder_debug_hides_nested_prepared_template_values()
+-> Result<(), Box<dyn std::error::Error>> {
+    let (template, canary) = debug_canary_template()?;
+    let prepared = PreparedRequestTemplate::new(template.clone())?;
+    let profile =
+        phantom_profile::ClientProfile::new(chrome::v154_tcp_tls()).with_request_template(template);
+    let builder = crate::Client::builder(profile);
+    let debug = format!("{builder:?}");
+    assert!(debug.contains("ClientBuilder"));
+    assert!(!debug.contains(&canary));
+    let client = builder.build()?;
+    for request in [
+        client.get(HttpProtocol::Http1, "https://example.test/")?,
+        client
+            .get(HttpProtocol::Http1, "https://example.test/")?
+            .template(&prepared),
+    ] {
+        let debug = format!("{request:?}");
+        assert!(!debug.contains(&canary));
+        assert!(debug.contains("RequestBuilder"));
+        assert!(debug.contains("template: true"));
+        assert!(debug.contains("content_decoding: ContentDecoding"));
+    }
+    Ok(())
+}
+
 const CHROME_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 const EDGE_154: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
